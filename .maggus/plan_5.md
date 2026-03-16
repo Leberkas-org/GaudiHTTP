@@ -83,11 +83,11 @@ What is unclear right now:
 **Description:** As a developer, I want to know whether `TurboHttpClient.SendAsync()` works end-to-end, and if so, which features (Cookies, Cache, Retry, Redirect) actually flow through the pipeline.
 
 **Acceptance Criteria:**
-- [ ] `TurboHttpClient.cs` and `TurboClientStreamManager.cs` fully read
-- [ ] Clear answer: is `SendAsync()` fully wired? Are there still commented-out sections?
-- [ ] Clear answer: which `TurboClientOptions` features are covered by integration tests?
-- [ ] Clear answer: which features exist as a Stage but have no integration test?
-- [ ] Result documented in `.maggus/PROGRESS_7.md`
+- [x] `TurboHttpClient.cs` and `TurboClientStreamManager.cs` fully read
+- [x] Clear answer: is `SendAsync()` fully wired? Are there still commented-out sections?
+- [x] Clear answer: which `TurboClientOptions` features are covered by integration tests?
+- [x] Clear answer: which features exist as a Stage but have no integration test?
+- [x] Result documented in `.maggus/PROGRESS_7.md`
 
 ---
 

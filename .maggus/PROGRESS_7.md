@@ -413,3 +413,169 @@ This means: if the TCP target is repeatedly unavailable (server down), `Connecti
 3. **In-flight request loss** — No retry or re-queuing of requests that were in the per-connection queue when the connection dropped.
 4. **Stale queue entry** — During the reconnect window, the stale `_connectionQueues[conn.Actor]` entry can receive new requests that will fail.
 5. **`MaxReconnectAttempts` unused** — The circuit breaker behavior intended by this config field is not implemented.
+
+---
+
+## TASK-AUD-005 — TurboHttpClient.SendAsync: End-to-End Status
+
+**Date:** 2026-03-16
+
+### Summary
+
+| Question | Answer |
+|----------|--------|
+| Is `SendAsync()` fully wired? | ✅ YES — fully implemented, graph materialized |
+| Are there commented-out sections? | ✅ NO — zero TODO/FIXME/commented code |
+| Which `TurboClientOptions` features are covered by integration tests? | ❌ NONE — no integration test classes exist |
+| Which features exist as a Stage but have no integration test? | ALL business logic stages (see table below) |
+
+---
+
+### Q1: Is `SendAsync()` Fully Wired?
+
+**YES — `TurboHttpClient.SendAsync()` is fully implemented and the graph is materialized.**
+
+The CLAUDE.md statements about "client graph not materialized" and "TurboClientStreamManager has graph construction commented out" are **outdated**. The current codebase has a complete, active pipeline.
+
+#### TurboHttpClient.cs (`src/TurboHttp/Client/TurboHttpClient.cs`)
+
+- `SendAsync()` (lines 74-82): Creates `TaskCompletionSource`, assigns a `Guid` request ID via `HttpRequestOptionsKey`, writes to channel, awaits response with timeout + cancellation.
+- `DrainResponsesAsync()` (lines 59-72): Background task that reads from `ChannelReader<HttpResponseMessage>`, matches responses to pending requests by request ID, resolves the `TaskCompletionSource`.
+- `CancelPendingRequests()` (lines 84-92): Cancels all pending TCS entries.
+- **Zero TODOs, FIXMEs, or commented-out code.**
+
+#### TurboClientStreamManager.cs (`src/TurboHttp/Client/TurboClientStreamManager.cs`)
+
+- Constructor (lines 22-78): Creates `PoolRouterActor`, builds `Engine.CreateFlow(poolRouter, clientOptions, requestOptionsFactory)`, materializes graph via `Source.Queue → engineFlow → Sink.ForEachAsync`.
+- **Graph materialization is ACTIVE** (lines 59-62) — NOT commented out.
+- `PumpRequestsAsync()` (lines 80-95): Bridges `ChannelReader` to Akka `ISourceQueueWithComplete`.
+- **Zero TODOs, FIXMEs, or commented-out code.**
+
+#### Full SendAsync Call Chain
+
+```
+TurboHttpClient.SendAsync(request)
+  → Guid requestId assigned to request.Options
+  → _manager.Requests.WriteAsync(request)
+    → TurboClientStreamManager.PumpRequestsAsync
+      → queue.OfferAsync(request)
+        → Source.Queue → Engine.CreateFlow(poolRouter, options) → Sink.ForEachAsync
+          → Engine.BuildExtendedPipeline:
+              RequestEnricherStage
+              → RedirectMerge
+              → CookieInjectionStage
+              → RetryMerge
+              → CacheLookupStage
+              → Engine Core (Partition → Http10/11/20/30Engine → Merge)
+                → GroupBy(HostKey) → ConnectionStage(PoolRouterActor) → TCP
+              → DecompressionStage
+              → CookieStorageStage
+              → CacheStorageStage
+              → RetryStage → (feedback to RetryMerge)
+              → CacheMerge
+              → RedirectStage → (feedback to RedirectMerge)
+          → Sink writes to responsesChannel
+    → TurboHttpClient.DrainResponsesAsync matches by requestId
+      → TaskCompletionSource.TrySetResult(response)
+  → return await tcs.Task.WaitAsync(Timeout, cancellationToken)
+```
+
+---
+
+### Q2: Which `TurboClientOptions` Features Flow Through the Pipeline?
+
+All features configured via `TurboClientOptions` are wired into the Engine pipeline:
+
+| Feature | Option | Stage(s) in Engine | Wired? |
+|---------|--------|--------------------|--------|
+| Redirects | `RedirectPolicy` | `RedirectStage` + `RedirectHandler` | ✅ YES |
+| Retries | `RetryPolicy` | `RetryStage` + `RetryEvaluator` | ✅ YES |
+| Caching | `CachePolicy` | `CacheLookupStage` + `CacheStorageStage` + `HttpCacheStore` | ✅ YES |
+| Cookies | (always on) | `CookieInjectionStage` + `CookieStorageStage` + `CookieJar` | ✅ YES |
+| Decompression | (always on) | `DecompressionStage` + `ContentEncodingDecoder` | ✅ YES |
+| Connection Pooling | `PoolConfig` | `PoolRouterActor` → `HostPoolActor` → `ConnectionActor` | ✅ YES |
+| Connection Reuse | `ConnectionPolicy` | `ConnectionReuseStage` | ❌ NOT WIRED (dead code) |
+| Per-Host Limits | (part of `PoolConfig`) | `PerHostConnectionLimiter` | ❌ NOT WIRED (unit-tested only) |
+
+---
+
+### Q3: Which Features Are Covered by Integration Tests?
+
+**NONE.** The `src/TurboHttp.IntegrationTests/` directory contains only infrastructure:
+
+| File | Purpose |
+|------|---------|
+| `Shared/KestrelFixture.cs` | HTTP/1.0 & 1.1 server with 60+ routes |
+| `Shared/KestrelH2Fixture.cs` | HTTP/2 server |
+| `Shared/KestrelTlsFixture.cs` | TLS server |
+| `Shared/Routes.cs` | Route handlers for all fixtures |
+
+**Zero test classes** consume these fixtures. There are no end-to-end tests that:
+- Call `TurboHttpClient.SendAsync()` against a real server
+- Exercise redirect chains through Kestrel
+- Exercise cookie round-trips through Kestrel
+- Exercise cache behavior with real HTTP responses
+- Exercise retry behavior with real server errors
+
+---
+
+### Q4: Which Features Exist as a Stage But Have No Integration Test?
+
+**All business logic stages** have stream-level tests (Akka TestKit with fake TCP) but zero integration tests against a real server:
+
+| Stage | Stream Test File | Integration Test |
+|-------|-----------------|-----------------|
+| `RequestEnricherStage` | `RequestEnricherStageTests.cs` | ❌ None |
+| `CookieInjectionStage` | `CookieInjectionStageTests.cs` (6 tests) | ❌ None |
+| `CookieStorageStage` | `CookieStorageStageTests.cs` (6 tests) | ❌ None |
+| `CacheLookupStage` | `CacheLookupStageTests.cs` (12 tests) | ❌ None |
+| `CacheStorageStage` | `CacheStorageStageTests.cs` (12 tests) | ❌ None |
+| `DecompressionStage` | `DecompressionStageTests.cs` (10 tests) | ❌ None |
+| `RetryStage` | `RetryStageTests.cs` (13 tests) | ❌ None |
+| `RedirectStage` | `RedirectStageTests.cs` (15 tests) | ❌ None |
+| `ConnectionReuseStage` | `ConnectionReuseStageTests.cs` (10 tests) | ❌ None |
+| `ConnectionStage` | `ConnectionStageTests.cs` | ❌ None |
+| `ExtractOptionsStage` | `ExtractOptionsStageTests.cs` | ❌ None |
+
+Additionally, the **full pipeline wiring** is tested:
+- `EnginePipelineWiringTests.cs` — verifies all feature flags work together (8 tests, fake TCP)
+- `EngineVersionRoutingTests.cs` — verifies HTTP version routing (fake TCP)
+
+But neither of these use a real TCP connection or a real HTTP server.
+
+---
+
+### Q5: Stages That Exist But Are NOT Wired in Engine.cs
+
+| Stage | Status | Notes |
+|-------|--------|-------|
+| `ConnectionReuseStage` | ❌ Dead code | Exists, tested, but never wired into Engine.cs |
+| `ExtractOptionsStage` | ❌ Dead code | Role superseded by `RequestEnricherStage` + `requestOptionsFactory` |
+| `GroupByHostKeyStage` | ❌ Dead code | Engine uses built-in `.GroupBy()` DSL instead |
+| `MergeSubstreamsStage` | ❌ Dead code | Engine uses built-in `.MergeSubstreams()` DSL instead |
+
+---
+
+### CLAUDE.md Accuracy Check
+
+The following CLAUDE.md statements are **outdated** and should be updated:
+
+| CLAUDE.md Statement | Current Reality |
+|---------------------|----------------|
+| "Pipeline not fully wired: Protocol handlers...are NOT integrated into the Akka.Streams Engine pipeline" | ❌ **Outdated** — All handlers (RedirectHandler, CookieJar, RetryEvaluator, CacheFreshnessEvaluator, HttpCacheStore) ARE wired via their respective Stages in `BuildExtendedPipeline` |
+| "Client graph not materialized: TurboClientStreamManager has graph construction commented out" | ❌ **Outdated** — Graph is fully materialized (lines 59-62 of TurboClientStreamManager.cs) |
+| "TurboHttpClient.SendAsync does not work end-to-end yet" | ❌ **Outdated** — SendAsync is fully implemented with request ID correlation |
+| "No business logic stages" | ❌ **Outdated** — 9 business logic stages exist and are wired |
+| "No end-to-end integration tests" | ✅ **Still accurate** — Kestrel fixtures exist but no test classes consume them |
+
+---
+
+### Conclusion
+
+**`TurboHttpClient.SendAsync()` is fully wired end-to-end.** The complete pipeline — from request enrichment through cookie injection, cache lookup, protocol encoding, TCP transport (via PoolRouterActor), decoding, decompression, cookie storage, cache storage, retry, and redirect handling — is implemented and materialized.
+
+**What IS missing:**
+1. **Integration tests** — No test class exercises `SendAsync()` against a real HTTP server (Kestrel fixtures are ready but unused)
+2. **Connection reuse** — `ConnectionReuseStage` is dead code, not wired into Engine.cs
+3. **Per-host connection limits** — `PerHostConnectionLimiter` is unit-tested but not integrated
+4. **CLAUDE.md is outdated** — Several "Current Limitations" statements no longer reflect reality
