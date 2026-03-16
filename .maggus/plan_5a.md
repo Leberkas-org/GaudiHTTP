@@ -129,15 +129,15 @@ TASK-5A-013 (Update CLAUDE.md)
 - Keep `PumpInbound()` removal for TASK-5A-007 — for now, both paths coexist
 
 **Acceptance Criteria:**
-- [ ] New message `ConnectionReady(ConnectionHandle)` defined
-- [ ] `ConnectionActor.HandleConnected()` sends `ConnectionReady(handle)` to parent after receiving `ClientConnected`
-- [ ] `ConnectionHandle` contains the actual `ClientState` channel reader/writer (not copies)
-- [ ] Existing `RegisterConnectionRefs` message still sent (dual-path coexistence)
-- [ ] Existing `ConnectionActor` tests remain green
-- [ ] New unit test: verify `ConnectionReady` message is sent to parent on connect
-- [ ] New unit test: verify `ConnectionHandle` channels are functional (write → read roundtrip)
-- [ ] `dotnet build ./src/TurboHttp.sln` — 0 errors
-- [ ] `dotnet test ./src/TurboHttp.sln` — all tests pass
+- [x] New message `ConnectionReady(ConnectionHandle)` defined
+- [x] `ConnectionActor.HandleConnected()` sends `ConnectionReady(handle)` to parent after receiving `ClientConnected`
+- [x] `ConnectionHandle` contains the actual `ClientState` channel reader/writer (not copies)
+- [x] Existing `RegisterConnectionRefs` message still sent (dual-path coexistence)
+- [x] Existing `ConnectionActor` tests remain green
+- [x] New unit test: verify `ConnectionReady` message is sent to parent on connect
+- [x] New unit test: verify `ConnectionHandle` channels are functional (write → read roundtrip)
+- [x] `dotnet build ./src/TurboHttp.sln` — 0 errors
+- [x] `dotnet test ./src/TurboHttp.sln` — all tests pass
 
 **Key Files:**
 - `src/TurboHttp/IO/ConnectionActor.cs` — `HandleConnected()`

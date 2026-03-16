@@ -12,6 +12,13 @@ namespace TurboHttp.IO;
 
 public sealed class ConnectionActor : ReceiveActor
 {
+    /// <summary>
+    /// Sent to the parent actor when a TCP connection is established,
+    /// providing direct Channel-based I/O access via <see cref="ConnectionHandle"/>.
+    /// Coexists with <see cref="HostPoolActor.RegisterConnectionRefs"/> (dual-path).
+    /// </summary>
+    public sealed record ConnectionReady(ConnectionHandle Handle);
+
     private readonly TcpOptions _options;
     private readonly IActorRef _clientManager;
     private readonly HostKey _hostKey;
@@ -70,6 +77,10 @@ public sealed class ConnectionActor : ReceiveActor
 
         // Register with parent — passes response source; HostPoolActor wires the request side
         Context.Parent.Tell(new HostPoolActor.RegisterConnectionRefs(Self, responseSource));
+
+        // Dual-path: also send ConnectionReady with direct channel handles
+        var handle = new ConnectionHandle(msg.OutboundWriter, msg.InboundReader, _hostKey, Self);
+        Context.Parent.Tell(new ConnectionReady(handle));
 
         _ = PumpInbound(_cts.Token);
     }

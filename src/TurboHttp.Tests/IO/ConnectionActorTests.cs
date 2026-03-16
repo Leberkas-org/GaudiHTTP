@@ -151,6 +151,7 @@ public sealed class ConnectionActorTests : TestKit
         var (_, _, connMsg1) = MakeConnectedMessage();
         connectionActor.Tell(connMsg1, cmProbe.Ref);
         var refs1 = await ExpectMsgAsync<HostPoolActor.RegisterConnectionRefs>(TimeSpan.FromSeconds(10));
+        await ExpectMsgAsync<ConnectionActor.ConnectionReady>(TimeSpan.FromSeconds(3));
 
         // Disconnect
         var endpoint = new IPEndPoint(IPAddress.Loopback, 8080);
@@ -163,6 +164,7 @@ public sealed class ConnectionActorTests : TestKit
         var (_, _, connMsg2) = MakeConnectedMessage();
         connectionActor.Tell(connMsg2, cmProbe.Ref);
         var refs2 = await ExpectMsgAsync<HostPoolActor.RegisterConnectionRefs>(TimeSpan.FromSeconds(10));
+        await ExpectMsgAsync<ConnectionActor.ConnectionReady>(TimeSpan.FromSeconds(3));
 
         // New refs should be different objects
         Assert.NotSame(refs1.ResponseSource, refs2.ResponseSource);
@@ -329,6 +331,62 @@ public sealed class ConnectionActorTests : TestKit
         Assert.Equal(0xDE, mem.Memory.Span[0]);
 
         mem.Dispose();
+    }
+
+    // ── TASK-5A-002: ConnectionReady with ConnectionHandle ──────────
+
+    [Fact(DisplayName = "CA-019: ClientConnected tells parent ConnectionReady with valid ConnectionHandle")]
+    public async Task CA_019_ClientConnected_TellsParentConnectionReady()
+    {
+        var (connectionActor, cmProbe) = await CreateConnectionActorWithParent();
+
+        var (_, _, connMsg) = MakeConnectedMessage();
+        connectionActor.Tell(connMsg, cmProbe.Ref);
+
+        // Expect both messages from parent forwarder
+        await ExpectMsgAsync<HostPoolActor.RegisterConnectionRefs>(TimeSpan.FromSeconds(10));
+        var ready = await ExpectMsgAsync<ConnectionActor.ConnectionReady>(TimeSpan.FromSeconds(3));
+
+        Assert.NotNull(ready.Handle);
+        Assert.NotNull(ready.Handle.OutboundWriter);
+        Assert.NotNull(ready.Handle.InboundReader);
+        Assert.Equal(connectionActor, ready.Handle.ConnectionActor);
+    }
+
+    [Fact(DisplayName = "CA-020: ConnectionHandle channels are functional (write → read roundtrip)")]
+    public async Task CA_020_ConnectionHandle_ChannelsAreFunction()
+    {
+        var (connectionActor, cmProbe) = await CreateConnectionActorWithParent();
+
+        var (inbound, outbound, connMsg) = MakeConnectedMessage();
+        connectionActor.Tell(connMsg, cmProbe.Ref);
+
+        await ExpectMsgAsync<HostPoolActor.RegisterConnectionRefs>(TimeSpan.FromSeconds(10));
+        var ready = await ExpectMsgAsync<ConnectionActor.ConnectionReady>(TimeSpan.FromSeconds(3));
+
+        var handle = ready.Handle;
+
+        // Verify outbound: write via handle → read from outbound channel
+        var outMem = MemoryPool<byte>.Shared.Rent(4);
+        outMem.Memory.Span[0] = 0xAB;
+        await handle.OutboundWriter.WriteAsync((outMem, 4));
+
+        using var cts1 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var (readMem, readLen) = await outbound.Reader.ReadAsync(cts1.Token);
+        Assert.Equal(4, readLen);
+        Assert.Equal(0xAB, readMem.Memory.Span[0]);
+        readMem.Dispose();
+
+        // Verify inbound: write to inbound channel → read via handle
+        var inMem = MemoryPool<byte>.Shared.Rent(4);
+        inMem.Memory.Span[0] = 0xCD;
+        await inbound.Writer.WriteAsync((inMem, 4));
+
+        using var cts2 = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(3));
+        var (handleMem, handleLen) = await handle.InboundReader.ReadAsync(cts2.Token);
+        Assert.Equal(4, handleLen);
+        Assert.Equal(0xCD, handleMem.Memory.Span[0]);
+        handleMem.Dispose();
     }
 
     // ── Helpers ──────────────────────────────────────────────────────
