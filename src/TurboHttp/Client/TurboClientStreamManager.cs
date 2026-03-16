@@ -40,7 +40,7 @@ internal sealed class TurboClientStreamManager
         // Create PoolRouterActor — supervises the actor-based connection pool hierarchy.
         // PoolRouterActor → HostPoolActor → ConnectionActor → TCP
         var poolRouter = system.ActorOf(
-            Props.Create(() => new PoolRouterActor(clientOptions.PoolConfig)),
+            Props.Create(() => new PoolRouterActor(clientOptions)),
             $"pool-router-{streamManagerId}");
 
         // Build the full pipeline flow from Engine.

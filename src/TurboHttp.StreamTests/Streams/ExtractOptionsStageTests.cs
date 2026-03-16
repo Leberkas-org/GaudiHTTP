@@ -22,12 +22,12 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
     ///   2. Request N from Out1 → _pending != null → stage pushes req[0] first,
     ///      then pulls In for each subsequent element.
     /// </summary>
-    private async Task<(IReadOnlyList<IControlItem> signals, IReadOnlyList<HttpRequestMessage> messages)>
+    private async Task<(IReadOnlyList<IOutputItem> signals, IReadOnlyList<HttpRequestMessage> messages)>
         RunStageAsync(IEnumerable<HttpRequestMessage> requests)
     {
         var requestList = requests.ToList();
 
-        var probe0 = this.CreateManualSubscriberProbe<IControlItem>();
+        var probe0 = this.CreateManualSubscriberProbe<IOutputItem>();
         var probe1 = this.CreateManualSubscriberProbe<HttpRequestMessage>();
 
         RunnableGraph.FromGraph(GraphDsl.Create(b =>
@@ -39,8 +39,8 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
             var src = b.Add(Source.From(requestList).Concat(Source.Never<HttpRequestMessage>()));
 
             b.From(src).To(stage.In);
-            b.From(stage.Out0).To(Sink.FromSubscriber(probe0));
-            b.From(stage.Out1).To(Sink.FromSubscriber(probe1));
+            b.From(stage.Out1).To(Sink.FromSubscriber(probe0));
+            b.From(stage.Out0).To(Sink.FromSubscriber(probe1));
 
             return ClosedShape.Instance;
         })).Run(Materializer);
@@ -48,7 +48,7 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
         var sub0 = await probe0.ExpectSubscriptionAsync(CancellationToken.None);
         var sub1 = await probe1.ExpectSubscriptionAsync(CancellationToken.None);
 
-        var signals = new List<IControlItem>();
+        var signals = new List<IOutputItem>();
         var messages = new List<HttpRequestMessage>();
 
         if (requestList.Count > 0)
@@ -133,7 +133,7 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
             .Select(i => MakeRequest($"http://example.com/{i}"))
             .ToArray();
 
-        var probe0 = this.CreateManualSubscriberProbe<IControlItem>();
+        var probe0 = this.CreateManualSubscriberProbe<IOutputItem>();
         var probe1 = this.CreateManualSubscriberProbe<HttpRequestMessage>();
 
         RunnableGraph.FromGraph(GraphDsl.Create(b =>
@@ -142,8 +142,8 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
             var src = b.Add(Source.From(requests)); // completing source — intentional
 
             b.From(src).To(stage.In);
-            b.From(stage.Out0).To(Sink.FromSubscriber(probe0));
-            b.From(stage.Out1).To(Sink.FromSubscriber(probe1));
+            b.From(stage.Out1).To(Sink.FromSubscriber(probe0));
+            b.From(stage.Out0).To(Sink.FromSubscriber(probe1));
 
             return ClosedShape.Instance;
         })).Run(Materializer);

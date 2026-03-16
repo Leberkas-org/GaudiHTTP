@@ -139,6 +139,31 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
         {
             var item = Grab(_stage._inlet);
 
+            if (item is ConnectionReuseItem { Decision.CanReuse: false } && _handle is not null)
+            {
+                // Signal the HostPoolActor (via ConnectionActor → parent forwarding)
+                // that this connection should not be reused.
+                _handle.ConnectionActor.Tell(new HostPoolActor.MarkConnectionNoReuse(_handle.ConnectionActor));
+
+                if (!IsClosed(_stage._inlet) && !HasBeenPulled(_stage._inlet))
+                {
+                    Pull(_stage._inlet);
+                }
+
+                return;
+            }
+
+            if (item is ConnectionReuseItem)
+            {
+                // CanReuse = true — no action needed, just pull next.
+                if (!IsClosed(_stage._inlet) && !HasBeenPulled(_stage._inlet))
+                {
+                    Pull(_stage._inlet);
+                }
+
+                return;
+            }
+
             if (item is ConnectItem connect)
             {
                 // Send EnsureHost — HostPoolActor will reply with ConnectionHandle to our StageActor.
@@ -154,7 +179,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
             {
                 // Write directly to the connection's outbound channel.
                 _ = _handle.OutboundWriter
-                    .WriteAsync(new(dataItem.Memory, dataItem.Length))
+                    .WriteAsync(new ValueTuple<IMemoryOwner<byte>, int>(dataItem.Memory, dataItem.Length))
                     .AsTask()
                     .ContinueWith(_ => _onOutboundWriteDone!(), TaskContinuationOptions.ExecuteSynchronously);
             }
@@ -205,12 +230,10 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
 
         private void StopInboundPump()
         {
-            if (_pumpCts is not null)
-            {
-                _pumpCts.Cancel();
-                _pumpCts.Dispose();
-                _pumpCts = null;
-            }
+            if (_pumpCts is null) return;
+            _pumpCts.Cancel();
+            _pumpCts.Dispose();
+            _pumpCts = null;
         }
 
         public override void PostStop()

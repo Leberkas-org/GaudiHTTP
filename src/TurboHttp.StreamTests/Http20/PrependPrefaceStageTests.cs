@@ -1,6 +1,5 @@
 using System.Buffers;
 using Akka.Streams.Dsl;
-using Microsoft.Extensions.Hosting;
 using TurboHttp.IO;
 using TurboHttp.IO.Stages;
 using TurboHttp.Streams.Stages;

@@ -248,20 +248,30 @@ public class Engine
 
             // ConnectionReuseStage: evaluates keep-alive/close after each response
             var connReuse = b.Add(new ConnectionReuseStage());
-            var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
+
+            // MergePreferred: signal feedback (preferred) + normal data (in0) → transport
+            // Same cycle-breaking pattern used by retry/redirect stages in BuildExtendedPipeline.
+            var transportMerge = b.Add(new MergePreferred<IOutputItem>(1));
 
             // Request path: extract splits first request into ConnectItem + request stream
-            b.From(extract.Out0).Via(Flow.Create<IControlItem>().Select(IOutputItem (x) => x)).To(concat.In(0));
-            b.From(extract.Out1).To(bidi.Inlet1);
+            b.From(extract.Out0).To(bidi.Inlet1);
+            b.From(extract.Out1).To(concat.In(0));
 
-            // Transport path: BidiFlow encoded output + ConnectItem → transport → BidiFlow decode
+            // Transport path: BidiFlow encoded output + ConnectItem → merge → transport → BidiFlow decode
             b.From(bidi.Outlet1).To(concat.In(1));
-            b.From(concat.Out).To(transportFlow.Inlet);
+            b.From(concat.Out).To(transportMerge.In(0));
+            b.From(transportMerge.Out).To(transportFlow.Inlet);
             b.From(transportFlow.Outlet).To(bidi.Inlet2);
 
-            // Response path: decoded response → ConnectionReuseStage → response output + signal sink
+            // Response path: decoded response → ConnectionReuseStage → response output
             b.From(bidi.Outlet2).To(connReuse.In);
-            b.From(connReuse.Out1).To(signalSink);
+
+            // Signal feedback: ConnectionReuseItem → buffer → merge preferred → ConnectionStage
+            // ConnectionStage handles CanReuse=false by telling HostPoolActor via ConnectionActor.
+            b.From(connReuse.Out1)
+                .Via(Flow.Create<IControlItem>().Select(IOutputItem (x) => x)
+                    .Buffer(1, OverflowStrategy.Backpressure))
+                .To(transportMerge.Preferred);
 
             return new FlowShape<HttpRequestMessage, HttpResponseMessage>(
                 extract.In, connReuse.Out0);

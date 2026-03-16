@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Akka.Actor;
+using TurboHttp.Client;
 using TurboHttp.IO.Stages;
 
 namespace TurboHttp.IO;
@@ -17,14 +18,14 @@ public sealed class PoolRouterActor : ReceiveActor
 
     // ── Fields ────────────────────────────────────────────────────────
 
-    private readonly PoolConfig _config;
-    private readonly Func<TcpOptions, PoolConfig, HostKey, IActorRef> _hostFactory;
+    private readonly TurboClientOptions _config;
+    private readonly Func<TcpOptions, TurboClientOptions, HostKey, IActorRef> _hostFactory;
     private readonly Dictionary<HostKey, IActorRef> _hosts = new();
 
-    public PoolRouterActor(PoolConfig? config = null,
-        Func<TcpOptions, PoolConfig, HostKey, IActorRef>? hostFactory = null)
+    public PoolRouterActor(TurboClientOptions config,
+        Func<TcpOptions, TurboClientOptions, HostKey, IActorRef>? hostFactory = null)
     {
-        _config = config ?? new PoolConfig();
+        _config = config;
         _hostFactory = hostFactory ?? CreateHostPoolActor;
 
         Receive<EnsureHost>(HandleEnsureHost);
@@ -51,7 +52,7 @@ public sealed class PoolRouterActor : ReceiveActor
         return hostActor;
     }
 
-    private IActorRef CreateHostPoolActor(TcpOptions options, PoolConfig config, HostKey key)
+    private IActorRef CreateHostPoolActor(TcpOptions options, TurboClientOptions config, HostKey key)
     {
         var hostConfig = new HostPoolActor.HostPoolConfig(options, config, key);
         return Context.ActorOf(Props.Create(() => new HostPoolActor(hostConfig)), Guid.NewGuid().ToString());

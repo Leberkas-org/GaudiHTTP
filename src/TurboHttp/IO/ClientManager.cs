@@ -1,4 +1,6 @@
 using System;
+using System.Buffers;
+using System.Threading.Channels;
 using Akka.Actor;
 using Akka.Event;
 using Servus.Akka;
@@ -7,15 +9,23 @@ namespace TurboHttp.IO;
 
 public sealed class ClientManager : ReceiveActor
 {
-    public sealed record CreateTcpRunner(TcpOptions Options, IActorRef Handler, IClientProvider? StreamProvider = null);
+    public record CreateRunner(TcpOptions Options, IActorRef Handler, IClientProvider? StreamProvider = null);
+
+    public record CreateRunnerWithChannels(
+        TcpOptions Options,
+        IActorRef Handler,
+        Channel<(IMemoryOwner<byte> buffer, int readableBytes)> InboundChannel,
+        Channel<(IMemoryOwner<byte> buffer, int readableBytes)> OutboundChannel,
+        IClientProvider? StreamProvider = null)
+        : CreateRunner(Options, Handler, StreamProvider);
 
     public ClientManager()
     {
-        Receive<CreateTcpRunner>(Handle);
+        Receive<CreateRunner>(Handle);
         Receive<Terminated>(Handle);
     }
 
-    private void Handle(CreateTcpRunner msg)
+    private void Handle(CreateRunner msg)
     {
         var provider = msg.StreamProvider ?? msg.Options switch
         {
@@ -26,9 +36,23 @@ public sealed class ClientManager : ReceiveActor
         var host = msg.Options.Host;
         var port = msg.Options.Port;
         var name = $"tcp-runner-{prefix}-{host.Replace(".", "-")}-{port}-{Guid.NewGuid()}";
-        var runner = Context.ResolveChildActor<ClientRunner>(name, provider, msg.Handler, msg.Options.MaxFrameSize);
+        IActorRef runner;
+        if (msg is CreateRunnerWithChannels msgWithChannels)
+        {
+            runner = Context
+                .ResolveChildActor<ClientRunner>(name, provider, msg.Handler,
+                    msg.Options.MaxFrameSize,
+                    msgWithChannels.InboundChannel,
+                    msgWithChannels.OutboundChannel);
+        }
+        else
+        {
+            runner = Context
+                .ResolveChildActor<ClientRunner>(name, provider, msg.Handler,
+                    msg.Options.MaxFrameSize);
+        }
+
         Context.Watch(runner);
-        Sender.Tell(runner);
     }
 
     private static void Handle(Terminated msg)

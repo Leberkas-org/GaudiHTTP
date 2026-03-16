@@ -1,7 +1,9 @@
 using System;
 using System.Buffers;
+using System.Threading.Channels;
 using Akka.Actor;
 using Akka.Event;
+using TurboHttp.Client;
 using TurboHttp.IO.Stages;
 
 namespace TurboHttp.IO;
@@ -14,26 +16,37 @@ public sealed class ConnectionActor : ReceiveActor
     /// </summary>
     public sealed record ConnectionReady(ConnectionHandle Handle);
 
+    /// <summary>
+    /// Internal message used to trigger a scheduled reconnect attempt.
+    /// </summary>
+    private sealed record DoReconnect;
+
     private readonly TcpOptions _options;
     private readonly IActorRef _clientManager;
     private readonly HostKey _hostKey;
+    private readonly TurboClientOptions _config;
 
-    private System.Threading.Channels.ChannelWriter<(IMemoryOwner<byte>, int)>? _outbound;
-    private System.Threading.Channels.ChannelReader<(IMemoryOwner<byte>, int)>? _inbound;
+    private readonly Channel<(IMemoryOwner<byte>, int)> _out = Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
+    private readonly Channel<(IMemoryOwner<byte>, int)> _in = Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
 
     private readonly ILoggingAdapter _log = Context.GetLogger();
 
     private IActorRef? _runner;
+    private int _reconnectAttempt;
 
-    public ConnectionActor(TcpOptions options, IActorRef clientManager, HostKey hostKey = default)
+    public ConnectionActor(TcpOptions options, IActorRef clientManager, HostKey hostKey, TurboClientOptions config)
     {
         _options = options;
         _clientManager = clientManager;
         _hostKey = hostKey;
+        _config = config;
+
 
         Receive<ClientRunner.ClientConnected>(HandleConnected);
         Receive<ClientRunner.ClientDisconnected>(HandleDisconnected);
         Receive<Terminated>(HandleTerminated);
+        Receive<DoReconnect>(_ => AttemptReconnect());
+        Receive<HostPoolActor.MarkConnectionNoReuse>(msg => Context.Parent.Tell(msg));
     }
 
     protected override void PreStart()
@@ -43,16 +56,15 @@ public sealed class ConnectionActor : ReceiveActor
 
     private void Connect()
     {
-        _clientManager.Tell(new ClientManager.CreateTcpRunner(_options, Self));
+        _clientManager.Tell(new ClientManager.CreateRunnerWithChannels(_options, Self, _out, _in));
     }
 
     private void HandleConnected(ClientRunner.ClientConnected msg)
     {
         _log.Debug("Connected {0}", msg.RemoteEndPoint);
 
-        _inbound = msg.InboundReader;
-        _outbound = msg.OutboundWriter;
         _runner = Sender;
+        _reconnectAttempt = 0;
 
         Context.Watch(_runner);
 
@@ -77,9 +89,33 @@ public sealed class ConnectionActor : ReceiveActor
     private void Reconnect()
     {
         _runner = null;
-        _outbound = null;
-        _inbound = null;
 
+        // Notify parent of connection failure
+        Context.Parent.Tell(new HostPoolActor.ConnectionFailed(Self));
+
+        if (_reconnectAttempt >= _config.MaxReconnectAttempts)
+        {
+            _log.Warning("Max reconnect attempts ({0}) reached for {1}:{2} — giving up",
+                _config.MaxReconnectAttempts, _options.Host, _options.Port);
+            return;
+        }
+
+        // Exponential backoff: base * 2^attempt (capped at 60s)
+        var delay = TimeSpan.FromTicks(
+            Math.Min(
+                _config.ReconnectInterval.Ticks * (1L << _reconnectAttempt),
+                TimeSpan.FromSeconds(60).Ticks));
+
+        _reconnectAttempt++;
+
+        _log.Debug("Scheduling reconnect attempt {0}/{1} in {2}",
+            _reconnectAttempt, _config.MaxReconnectAttempts, delay);
+
+        Context.System.Scheduler.ScheduleTellOnceCancelable(delay, Self, new DoReconnect(), Self);
+    }
+
+    private void AttemptReconnect()
+    {
         Connect();
     }
 

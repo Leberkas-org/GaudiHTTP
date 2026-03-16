@@ -290,13 +290,13 @@ TASK-5A-013 (Update CLAUDE.md)
 - Replace `Sink.Ignore` with `ConnectionStage` can subscribe to the signal outlet and send the message directly
 
 **Acceptance Criteria:**
-- [ ] `ConnectionReuseItem` with `CanReuse = false` triggers `MarkConnectionNoReuse` message to `HostPoolActor`
-- [ ] `HostPoolActor.HandleMarkNoReuse()` sets `ConnectionState.Reusable = false`
-- [ ] Next idle eviction cycle closes non-reusable connections
-- [ ] New unit test: verify `MarkConnectionNoReuse` message reaches `HostPoolActor`
-- [ ] New stream test: verify "Connection: close" response → connection marked non-reusable
-- [ ] `dotnet build ./src/TurboHttp.sln` — 0 errors
-- [ ] `dotnet test ./src/TurboHttp.sln` — all tests pass
+- [x] `ConnectionReuseItem` with `CanReuse = false` triggers `MarkConnectionNoReuse` message to `HostPoolActor`
+- [x] `HostPoolActor.HandleMarkNoReuse()` sets `ConnectionState.Reusable = false`
+- [x] Next idle eviction cycle closes non-reusable connections
+- [x] New unit test: verify `MarkConnectionNoReuse` message reaches `HostPoolActor`
+- [x] New stream test: verify "Connection: close" response → connection marked non-reusable
+- [x] `dotnet build ./src/TurboHttp.sln` — 0 errors
+- [x] `dotnet test ./src/TurboHttp.sln` — all tests pass
 
 **Key Files:**
 - `src/TurboHttp/Streams/Engine.cs` — `BuildConnectionFlowPublic` signal sink wiring
@@ -312,13 +312,13 @@ TASK-5A-013 (Update CLAUDE.md)
 **Size:** S
 
 **Acceptance Criteria:**
-- [ ] `PerHostConnectionLimiter` instantiated in `HostPoolActor` using `PoolConfig.MaxConnectionsPerHost`
-- [ ] `SpawnConnection()` checks `TryAcquire()` before creating `ConnectionActor`
-- [ ] When limit reached, connection request is queued (served when a slot frees)
-- [ ] New unit test: verify spawn blocked at limit
-- [ ] New unit test: verify queued request served when slot frees
-- [ ] `dotnet build ./src/TurboHttp.sln` — 0 errors
-- [ ] `dotnet test ./src/TurboHttp.sln` — all tests pass
+- [x] `PerHostConnectionLimiter` instantiated in `HostPoolActor` using `PoolConfig.MaxConnectionsPerHost`
+- [x] `SpawnConnection()` checks `TryAcquire()` before creating `ConnectionActor`
+- [x] When limit reached, connection request is queued (served when a slot frees)
+- [x] New unit test: verify spawn blocked at limit
+- [x] New unit test: verify queued request served when slot frees
+- [x] `dotnet build ./src/TurboHttp.sln` — 0 errors
+- [x] `dotnet test ./src/TurboHttp.sln` — all tests pass
 
 **Key Files:**
 - `src/TurboHttp/IO/HostPoolActor.cs` — `SpawnConnection()`

@@ -1,7 +1,6 @@
 using System;
 using System.Net.Sockets;
 using TurboHttp.Client;
-using TurboHttp.IO.Stages;
 
 namespace TurboHttp.IO;
 

@@ -21,7 +21,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         }
 
         var probe0 = this.CreateManualSubscriberProbe<HttpResponseMessage>();
-        var probe1 = this.CreateManualSubscriberProbe<IControlItem>();
+        var probe1 = this.CreateManualSubscriberProbe<IOutputItem>();
 
         RunnableGraph.FromGraph(GraphDsl.Create(b =>
         {

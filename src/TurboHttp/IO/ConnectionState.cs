@@ -29,12 +29,6 @@ internal sealed class ConnectionState
     /// </summary>
     public int MaxConcurrentStreams { get; set; } = 100;
 
-    /// <summary>
-    /// Next stream ID to allocate for client-initiated streams (HTTP/2 only).
-    /// Client stream IDs are odd and increment by 2 per RFC 9113 §5.1.1.
-    /// </summary>
-    public int NextStreamId { get; private set; } = 1;
-
     public ConnectionState(IActorRef actor)
     {
         Actor = actor;

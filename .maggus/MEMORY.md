@@ -255,3 +255,98 @@
 Production mode: `GroupBy(HostKey.FromRequest, maxSubstreams)` → per-host substream → `BuildConnectionFlowPublic` (Broadcast+ConnectItem+Concat+Buffer+BidiFlow+ConnectionStage). Test mode: factory replaces ConnectionStage.
 
 ### Full audit documented in `.maggus/PROGRESS_7.md`
+
+## TurboHttpClient.SendAsync End-to-End Status (TASK-AUD-005, 2026-03-16)
+
+### Key Findings
+- **`SendAsync()` IS fully wired** — graph materialization in `TurboClientStreamManager` is ACTIVE (lines 59-62), NOT commented out
+- **CLAUDE.md "Current Limitations" section is OUTDATED** — the following claims are no longer true:
+  - "Pipeline not fully wired" → ALL handlers ARE wired via stages in `BuildExtendedPipeline`
+  - "Client graph not materialized" → Graph IS materialized
+  - "TurboHttpClient.SendAsync does not work end-to-end yet" → SendAsync IS implemented with request ID correlation
+  - "No business logic stages" → 9 business logic stages exist and are wired
+- **"No end-to-end integration tests"** — this claim IS still accurate
+- **All `TurboClientOptions` features flow through the pipeline**: RedirectPolicy, RetryPolicy, CachePolicy (via stages), CookieJar (always on), Decompression (always on), PoolConfig (via PoolRouterActor)
+- **NOT wired**: `ConnectionReuseStage` (dead code), `PerHostConnectionLimiter` (unit-tested only), `ExtractOptionsStage` (superseded)
+- **Zero integration test classes exist** in `src/TurboHttp.IntegrationTests/` (only KestrelFixture infrastructure)
+- **All 11 stream-tested stages have NO integration tests** against real HTTP servers
+- Full findings in `.maggus/PROGRESS_7.md`
+
+## Plan 5a — Hybrid Migration (TASK-5A-003, 2026-03-16)
+
+### ConnectionReady Message Pattern
+- `ConnectionActor.ConnectionReady(ConnectionHandle)` — nested sealed record, sent to parent alongside existing `RegisterConnectionRefs`
+- Dual-path coexistence: both old (RegisterConnectionRefs + PumpInbound) and new (ConnectionReady + direct channels) active simultaneously
+- `ConnectionHandle` wraps the same `OutboundWriter`/`InboundReader` from `ClientRunner.ClientConnected` — no copies
+- Tests CA-019 (message sent) and CA-020 (channel roundtrip) verify the new path
+- CA-006 updated to consume `ConnectionReady` messages (prevents queue pollution between reconnect cycles)
+
+### HostPoolActor ConnectionHandle Forwarding (TASK-5A-003)
+- `PoolRouterActor.HandleEnsureHost` now `Forward`s `EnsureHost` to `HostPoolActor` (preserves original Sender)
+- `HostPoolActor` handles `EnsureHost`: replies with `_activeHandle` immediately if available, else queues `Sender` in `_pendingHandleRequesters`
+- `HostPoolActor` handles `ConnectionActor.ConnectionReady`: stores `_activeHandle`, flushes all pending requesters
+- Backward compat: fire-and-forget callers ignore the reply
+- Tests: HA-003 (handle after connect), HA-004 (immediate reply), HA-005 (multiple requesters)
+- PoolRouterActor tests (PR-001/002/003) updated to consume forwarded `EnsureHost` before expecting `DataItem`
+
+### ConnectionStage Direct Channel I/O (TASK-5A-004)
+- `ConnectionStage` no longer uses `GlobalRefs` / `_globalRequestQueue` / MergeHub response subscription
+- On `ConnectItem`: sends `EnsureHost` to `PoolRouter` with `_stageActor.Ref`, awaits `ConnectionHandle` reply via `GetAsyncCallback<ConnectionHandle>`
+- On `DataItem`: writes `(Memory, Length)` directly to `ConnectionHandle.OutboundWriter` (System.Threading.Channels)
+- Inbound: async pump task reads from `ConnectionHandle.InboundReader`, invokes `_onInboundData` callback into stage event loop
+- `_onInboundComplete` handles channel completion (connection dropped) — clears handle so next ConnectItem re-acquires
+- `CancellationTokenSource` manages pump lifecycle; `StopInboundPump()` on upstream finish / downstream finish / PostStop
+- Tests: CS-001 (EnsureHost), CS-002 (inbound), CS-003 (outbound), CS-004 (full round-trip) — all use stubbed `Channel<(IMemoryOwner<byte>, int)>` pairs
+- **6 pre-existing failures in ExtractOptionsStageTests** (Cannot push port twice) — unrelated to this task
+
+### PoolRouterActor Data-Routing Removal (TASK-5A-005)
+- Removed: `_globalRequestQueue` (Source.Queue), `_globalMergeHubSink`/`_globalResponseSource` (MergeHub), `_mat`, `PreStart()`, `GetGlobalRefs`/`GlobalRefs` messages, `HandleGetGlobalRefs()`, `HandleRegisterHostResponseSource()`, `HandleDataItem()`, `Receive<DataItem>`
+- Kept: `EnsureHost` message + handler, `RegisterHostResponseSource` record type (HostPoolActor still sends it — will be removed in TASK-5A-006)
+- `PoolRouterActor` reduced from 127 → 67 lines; only handles `EnsureHost` lifecycle forwarding
+- PoolRouterActorTests: removed DataItem routing + GlobalRefs tests (PR-001/002/003 simplified, PR-004 deleted)
+- ActorHierarchyStreamRefTests: removed `GetGlobalRefs` init check (no longer needed)
+- `RegisterHostResponseSource` from HostPoolActor becomes unhandled/dead letter — acceptable during migration
+
+### HostPoolActor Data-Routing Removal (TASK-5A-006)
+- Removed: `_connectionQueues`, `_pending`, `_mat`, `_mergeHubSink`, `_responseSource`, `HandleDataItem()`, `HandleRegisterConnectionRefs()`, `DrainPending()`, `SelectConnectionWithQueue()`, MergeHub in PreStart, `RegisterHostResponseSource` tell, `StreamComplete` message, `Receive<RegisterConnectionRefs>`, `Receive<DataItem>`
+- `RegisterHostResponseSource` removed from PoolRouterActor (no longer sent)
+- HostPoolActorTests: HA-001 (MergeHub) and HA-002 (DataItem routing) removed; HA-003/004/005 updated
+- `HostPoolActor` now ~100 lines; handles only: ConnectionIdle, ConnectionFailed, IdleCheck, Reconnect, MarkConnectionNoReuse, ConnectionReady, EnsureHost
+
+### ConnectionActor Legacy Path Removal (TASK-5A-007)
+- Removed: `PumpInbound()` async task, `_responseQueue` (ISourceQueueWithComplete<DataItem>), `_cts` (CancellationTokenSource), `HandleOutboundDataItem`/`Receive<DataItem>`, `RegisterConnectionRefs` send, Source.Queue materialization, `using Akka.Streams`/`using Akka.Streams.Dsl`
+- Removed from HostPoolActor: `RegisterConnectionRefs` message type (sealed record)
+- `ConnectionActor` now ~95 lines; handles only: ClientConnected, ClientDisconnected, Terminated
+- On connect: sends `ConnectionReady(ConnectionHandle)` to parent (the ONLY message to parent)
+- On reconnect: nulls `_runner`/`_outbound`/`_inbound`, calls `Connect()` — old channel handles become stale (ClientRunner completes channels on TCP drop)
+- Tests: removed CA-003/011/013/016/017/018; updated CA-006; added CA-021 (DataItem not handled)
+- **Dual-path coexistence is FULLY removed** — only the direct-channel path remains
+
+### ConnectionReuseStage Feedback Wiring (TASK-5A-008)
+- `Engine.BuildConnectionFlowPublic`: replaced `Sink.Ignore<IControlItem>()` with `MergePreferred<IOutputItem>` feedback loop — signal from `ConnectionReuseStage.Out1` routes back through transport via buffer (same cycle-breaking pattern as retry/redirect)
+- `ConnectionStage.HandlePush()`: handles `ConnectionReuseItem` — sends `MarkConnectionNoReuse(connectionActor)` to ConnectionActor when `CanReuse=false`; no-op for `CanReuse=true`
+- `ConnectionActor`: added `Receive<HostPoolActor.MarkConnectionNoReuse>` that forwards to `Context.Parent` (HostPoolActor)
+- `HostPoolActor.EvictIdleConnections`: now also closes non-reusable idle connections; invalidates `_activeHandle` when evicted connection was active
+- Signal path: ConnectionReuseStage → Buffer(1) → MergePreferred → ConnectionStage → ConnectionActor → HostPoolActor
+- Tests: HA-006 (eviction), HA-007 (forwarding), CS-005 (CanReuse=false), CS-006 (CanReuse=true)
+
+## Architecture Decision (TASK-DEC-001, 2026-03-16)
+
+### Decision: Option A — Evolve Current Actor Pool (RECOMMENDED, awaiting user confirmation)
+
+### Key Architecture Facts
+- **Actor Pool IS the status quo** — PoolRouterActor → HostPoolActor → ConnectionActor is fully integrated via ConnectionStage
+- **ConnectionStage protocol**: `GetGlobalRefs` → receives `GlobalRefs(RequestQueue, ResponseSource)`. ConnectItems go via `EnsureHost`. DataItems go via `OfferAsync` to global queue.
+- **PoolRouterActor is single-threaded** — all DataItems from all hosts pass through one actor mailbox for key→host routing. Theoretical bottleneck, no benchmark evidence.
+- **MergeHub at two levels** — PoolRouterActor (global response aggregation) and HostPoolActor (per-host response aggregation). Provides failure isolation.
+- **3 actor hops per request** in hot path: ConnectionStage → PoolRouterActor → HostPoolActor → ConnectionActor
+
+### Recommended Next Steps (6 tasks, ~2-3 days)
+1. Wire ConnectionReuseStage into BuildConnectionFlowPublic (S)
+2. Fix ConnectionActor.Reconnect() — send ConnectionFailed, add backoff (M)
+3. Fix stale queue cleanup in HostPoolActor on ConnectionFailed (S)
+4. Wire PerHostConnectionLimiter in HostPoolActor.SpawnConnection() (S)
+5. Write integration tests against Kestrel fixtures (M)
+6. Update CLAUDE.md "Current Limitations" section (S)
+
+### Full analysis in `.maggus/ARCHITECTURE_DECISION.md`

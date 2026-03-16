@@ -8,6 +8,7 @@ using Akka.Streams.Dsl;
 using Akka.TestKit;
 using TurboHttp.IO;
 using TurboHttp.IO.Stages;
+using TurboHttp.Protocol.RFC9112;
 
 namespace TurboHttp.StreamTests.Streams;
 
@@ -59,7 +60,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         ChannelReader<(IMemoryOwner<byte> Buffer, int ReadableBytes)> outboundReader,
         ChannelWriter<(IMemoryOwner<byte> Buffer, int ReadableBytes)> inboundWriter,
         TestProbe routerProbe)
-        Build()
+        Build(IActorRef? connectionActor = null)
     {
         // Outbound channel: stage writes here, test reads to verify
         var outbound = Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
@@ -71,7 +72,7 @@ public sealed class ConnectionStageTests : StreamTestBase
             outbound.Writer,
             inbound.Reader,
             TestKey,
-            ActorRefs.Nobody);
+            connectionActor ?? ActorRefs.Nobody);
 
         var routerProbe = CreateTestProbe();
         var stubRouter = Sys.ActorOf(Props.Create(() =>
@@ -218,5 +219,68 @@ public sealed class ConnectionStageTests : StreamTestBase
         var inbound = (DataItem)results[0];
         Assert.Equal(12, inbound.Length);
         Assert.Equal(0x02, inbound.Memory.Memory.Span[0]);
+    }
+
+    // ── CS-005: ConnectionReuseItem CanReuse=false sends MarkConnectionNoReuse ─
+
+    [Fact(Timeout = 15_000,
+        DisplayName = "CS-005: ConnectionReuseItem with CanReuse=false sends MarkConnectionNoReuse to ConnectionActor")]
+    public async Task CS_005_ConnectionReuseItem_NoReuse_SendsMarkConnectionNoReuse()
+    {
+        var connectionActorProbe = CreateTestProbe();
+        var (stageFlow, _, inboundWriter, _) = Build(connectionActorProbe.Ref);
+        var options = new TcpOptions { Host = "localhost", Port = 8080 };
+        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+
+        var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
+            .Via(stageFlow)
+            .ToMaterialized(Sink.Ignore<IInputItem>(), Keep.Both)
+            .Run(Materializer);
+
+        // Connect first — stage needs a handle
+        await inputQueue.OfferAsync(connectItem);
+        await Task.Delay(300);
+
+        // Push a ConnectionReuseItem with CanReuse = false
+        var decision = ConnectionReuseDecision.Close("Connection: close");
+        var reuseItem = new ConnectionReuseItem(TestKey, decision);
+        await inputQueue.OfferAsync(reuseItem);
+
+        // Verify that MarkConnectionNoReuse is sent to the connection actor
+        var markMsg = connectionActorProbe.ExpectMsg<HostPoolActor.MarkConnectionNoReuse>(TimeSpan.FromSeconds(5));
+        Assert.Equal(connectionActorProbe.Ref, markMsg.Connection);
+
+        inboundWriter.Complete();
+    }
+
+    // ── CS-006: ConnectionReuseItem CanReuse=true does NOT send MarkConnectionNoReuse ─
+
+    [Fact(Timeout = 15_000,
+        DisplayName = "CS-006: ConnectionReuseItem with CanReuse=true does not send MarkConnectionNoReuse")]
+    public async Task CS_006_ConnectionReuseItem_Reuse_NoMessage()
+    {
+        var connectionActorProbe = CreateTestProbe();
+        var (stageFlow, _, inboundWriter, _) = Build(connectionActorProbe.Ref);
+        var options = new TcpOptions { Host = "localhost", Port = 8080 };
+        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+
+        var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
+            .Via(stageFlow)
+            .ToMaterialized(Sink.Ignore<IInputItem>(), Keep.Both)
+            .Run(Materializer);
+
+        // Connect first
+        await inputQueue.OfferAsync(connectItem);
+        await Task.Delay(300);
+
+        // Push a ConnectionReuseItem with CanReuse = true
+        var decision = ConnectionReuseDecision.KeepAlive("HTTP/1.1 persistent");
+        var reuseItem = new ConnectionReuseItem(TestKey, decision);
+        await inputQueue.OfferAsync(reuseItem);
+
+        // Verify that NO MarkConnectionNoReuse is sent
+        connectionActorProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(500));
+
+        inboundWriter.Complete();
     }
 }

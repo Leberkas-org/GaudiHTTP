@@ -4,13 +4,15 @@ using System.Linq;
 using Akka.Actor;
 using Akka.Event;
 using Servus.Akka;
+using TurboHttp.Client;
 using TurboHttp.IO.Stages;
+using TurboHttp.Protocol.RFC9112;
 
 namespace TurboHttp.IO;
 
 public sealed class HostPoolActor : ReceiveActor
 {
-    public record HostPoolConfig(TcpOptions Options, PoolConfig Config, HostKey Key);
+    public record HostPoolConfig(TcpOptions Options, TurboClientOptions Config, HostKey Key);
 
     // ── Public message protocol ───────────────────────────────────────
 
@@ -28,7 +30,8 @@ public sealed class HostPoolActor : ReceiveActor
 
     private readonly HostKey _key;
     private readonly TcpOptions _options;
-    private readonly PoolConfig _config;
+    private readonly TurboClientOptions _config;
+    private readonly PerHostConnectionLimiter _limiter;
     private ICancelable? _scheduler;
 
     private readonly ILoggingAdapter _log = Context.GetLogger();
@@ -41,11 +44,15 @@ public sealed class HostPoolActor : ReceiveActor
     /// <summary>Requesters waiting for a ConnectionHandle (queued when no active handle exists).</summary>
     private readonly List<IActorRef> _pendingHandleRequesters = [];
 
+    /// <summary>Host identifier used for the per-host connection limiter.</summary>
+    private string HostIdentifier => string.IsNullOrEmpty(_key.Host) ? "default" : $"{_key.Host}:{_key.Port}";
+
     public HostPoolActor(HostPoolConfig config)
     {
         _options = config.Options;
         _config = config.Config;
         _key = config.Key;
+        _limiter = new PerHostConnectionLimiter();
 
         Receive<ConnectionIdle>(HandleIdle);
         Receive<ConnectionFailed>(HandleFailure);
@@ -59,8 +66,8 @@ public sealed class HostPoolActor : ReceiveActor
     protected override void PreStart()
     {
         _scheduler = Context.System.Scheduler.ScheduleTellRepeatedlyCancelable(
-            _config.IdleCheckInterval,
-            _config.IdleCheckInterval,
+            _config.IdleTimeout,
+            _config.IdleTimeout,
             Self,
             new IdleCheck(),
             Self);
@@ -98,16 +105,28 @@ public sealed class HostPoolActor : ReceiveActor
             return;
         }
 
-        // Otherwise queue the requester — they'll be served when ConnectionReady arrives
+        // Queue the requester — they'll be served when ConnectionReady arrives
         _pendingHandleRequesters.Add(Sender);
+
+        // If there are no active connections, try to spawn one
+        if (_connections.All(c => !c.Active))
+        {
+            SpawnConnection();
+        }
     }
 
     // ── Connection lifecycle ──────────────────────────────────────────
 
-    private ConnectionState SpawnConnection()
+    private ConnectionState? SpawnConnection()
     {
+        if (!_limiter.TryAcquire(HostIdentifier))
+        {
+            _log.Debug("Per-host connection limit ({0}) reached for {1}, request queued", 6, HostIdentifier);
+            return null;
+        }
+
         var clientManager = Context.GetActor<ClientManager>();
-        var actor = Context.ActorOf(Props.Create(() => new ConnectionActor(_options, clientManager, _key)));
+        var actor = Context.ActorOf(Props.Create(() => new ConnectionActor(_options, clientManager, _key, _config)));
 
         Context.Watch(actor);
 
@@ -133,6 +152,7 @@ public sealed class HostPoolActor : ReceiveActor
         }
 
         conn.MarkDead();
+        _limiter.Release(HostIdentifier);
 
         Context.System.Scheduler.ScheduleTellOnceCancelable(
             _config.ReconnectInterval,
@@ -154,7 +174,11 @@ public sealed class HostPoolActor : ReceiveActor
         _connections.Remove(conn);
 
         var newConn = SpawnConnection();
-        newConn.HttpVersion = previousVersion;
+
+        if (newConn is not null)
+        {
+            newConn.HttpVersion = previousVersion;
+        }
     }
 
     private void EvictIdleConnections()
@@ -168,12 +192,27 @@ public sealed class HostPoolActor : ReceiveActor
                 continue;
             }
 
-            if (now - conn.LastActivity > _config.IdleTimeout && _connections.Count > 1)
+            var expiredIdle = now - conn.LastActivity > _config.IdleTimeout && _connections.Count > 1;
+            var nonReusable = !conn.Reusable;
+
+            if (!expiredIdle && !nonReusable) continue;
+
+            Context.Unwatch(conn.Actor);
+            conn.Actor.Tell(PoisonPill.Instance);
+            _connections.Remove(conn);
+            _limiter.Release(HostIdentifier);
+
+            // Invalidate active handle if this was the active connection
+            if (_activeHandle?.ConnectionActor.Equals(conn.Actor) == true)
             {
-                Context.Unwatch(conn.Actor);
-                conn.Actor.Tell(PoisonPill.Instance);
-                _connections.Remove(conn);
+                _activeHandle = null;
             }
+        }
+
+        // Try to serve pending requesters by spawning new connections if slots freed
+        if (_activeHandle is null && _pendingHandleRequesters.Count > 0)
+        {
+            SpawnConnection();
         }
     }
 

@@ -153,7 +153,5 @@ internal static class ClientByteMover
                 return;
             }
         }
-
-        state.OutboundWriter.TryComplete(); // can't write anymore either
     }
 }

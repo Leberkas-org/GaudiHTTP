@@ -7,20 +7,20 @@ using TurboHttp.Protocol.RFC9112;
 namespace TurboHttp.Streams.Stages;
 
 internal sealed class
-    ConnectionReuseStage : GraphStage<FanOutShape<HttpResponseMessage, HttpResponseMessage, IControlItem>>
+    ConnectionReuseStage : GraphStage<FanOutShape<HttpResponseMessage, HttpResponseMessage, IOutputItem>>
 {
     private readonly bool _bodyFullyConsumed;
 
     private readonly Inlet<HttpResponseMessage> _inletResponse = new("connection.reuse.in.response");
     private readonly Outlet<HttpResponseMessage> _outletResponse = new("connection.reuse.out.response");
-    private readonly Outlet<IControlItem> _outletSignalItem = new("connection.reuse.out.signal");
+    private readonly Outlet<IOutputItem> _outletSignalItem = new("connection.reuse.out.signal");
 
-    public override FanOutShape<HttpResponseMessage, HttpResponseMessage, IControlItem> Shape { get; }
+    public override FanOutShape<HttpResponseMessage, HttpResponseMessage, IOutputItem> Shape { get; }
 
     public ConnectionReuseStage(bool bodyFullyConsumed = true)
     {
         _bodyFullyConsumed = bodyFullyConsumed;
-        Shape = new FanOutShape<HttpResponseMessage, HttpResponseMessage, IControlItem>(
+        Shape = new FanOutShape<HttpResponseMessage, HttpResponseMessage, IOutputItem>(
             _inletResponse, _outletResponse, _outletSignalItem);
     }
 
