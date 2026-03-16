@@ -1,11 +1,7 @@
 using System;
 using System.Buffers;
-using System.Threading;
-using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Event;
-using Akka.Streams;
-using Akka.Streams.Dsl;
 using TurboHttp.IO.Stages;
 
 namespace TurboHttp.IO;
@@ -15,7 +11,6 @@ public sealed class ConnectionActor : ReceiveActor
     /// <summary>
     /// Sent to the parent actor when a TCP connection is established,
     /// providing direct Channel-based I/O access via <see cref="ConnectionHandle"/>.
-    /// Coexists with <see cref="HostPoolActor.RegisterConnectionRefs"/> (dual-path).
     /// </summary>
     public sealed record ConnectionReady(ConnectionHandle Handle);
 
@@ -26,13 +21,9 @@ public sealed class ConnectionActor : ReceiveActor
     private System.Threading.Channels.ChannelWriter<(IMemoryOwner<byte>, int)>? _outbound;
     private System.Threading.Channels.ChannelReader<(IMemoryOwner<byte>, int)>? _inbound;
 
-    private readonly CancellationTokenSource _cts = new();
-
     private readonly ILoggingAdapter _log = Context.GetLogger();
 
     private IActorRef? _runner;
-
-    private ISourceQueueWithComplete<DataItem>? _responseQueue;
 
     public ConnectionActor(TcpOptions options, IActorRef clientManager, HostKey hostKey = default)
     {
@@ -43,7 +34,6 @@ public sealed class ConnectionActor : ReceiveActor
         Receive<ClientRunner.ClientConnected>(HandleConnected);
         Receive<ClientRunner.ClientDisconnected>(HandleDisconnected);
         Receive<Terminated>(HandleTerminated);
-        Receive<DataItem>(HandleOutboundDataItem);
     }
 
     protected override void PreStart()
@@ -66,55 +56,9 @@ public sealed class ConnectionActor : ReceiveActor
 
         Context.Watch(_runner);
 
-        var mat = Context.System.Materializer();
-
-        // ---------- RESPONSE STREAM (TCP inbound → pre-materialized Source) ----------
-        var (responseQueue, responseSource) =
-            Source.Queue<DataItem>(1024, OverflowStrategy.Backpressure)
-                .PreMaterialize(mat);
-
-        _responseQueue = responseQueue;
-
-        // Register with parent — passes response source; HostPoolActor wires the request side
-        Context.Parent.Tell(new HostPoolActor.RegisterConnectionRefs(Self, responseSource));
-
-        // Dual-path: also send ConnectionReady with direct channel handles
+        // Send ConnectionReady with direct channel handles to parent
         var handle = new ConnectionHandle(msg.OutboundWriter, msg.InboundReader, _hostKey, Self);
         Context.Parent.Tell(new ConnectionReady(handle));
-
-        _ = PumpInbound(_cts.Token);
-    }
-
-    private void HandleOutboundDataItem(DataItem item)
-    {
-        if (_outbound == null)
-        {
-            return;
-        }
-
-        _ = _outbound.WriteAsync((item.Memory, item.Length));
-    }
-
-    private async Task PumpInbound(CancellationToken token)
-    {
-        try
-        {
-            await foreach (var item in _inbound!.ReadAllAsync(token))
-            {
-                if (_responseQueue is not null)
-                {
-                    await _responseQueue.OfferAsync(new DataItem(_hostKey, item.Item1, item.Item2));
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // noop
-        }
-        catch (Exception ex)
-        {
-            _log.Warning(ex, "Inbound pump failed");
-        }
     }
 
     private void HandleDisconnected(ClientRunner.ClientDisconnected msg)
@@ -132,8 +76,6 @@ public sealed class ConnectionActor : ReceiveActor
 
     private void Reconnect()
     {
-        _responseQueue?.Complete();
-        _responseQueue = null;
         _runner = null;
         _outbound = null;
         _inbound = null;
@@ -143,8 +85,6 @@ public sealed class ConnectionActor : ReceiveActor
 
     protected override void PostStop()
     {
-        _cts.Cancel();
-
         try
         {
             _runner?.Tell(new DoClose());
@@ -153,7 +93,5 @@ public sealed class ConnectionActor : ReceiveActor
         {
             // noop
         }
-
-        _responseQueue?.Complete();
     }
 }

@@ -262,15 +262,15 @@ TASK-5A-013 (Update CLAUDE.md)
 **Size:** S
 
 **Acceptance Criteria:**
-- [ ] `PumpInbound()` async task removed
-- [ ] `_responseQueue` (`ISourceQueueWithComplete<DataItem>`) removed
-- [ ] `RegisterConnectionRefs` message removed (replaced by `ConnectionReady`)
-- [ ] `ConnectionActor` only handles: TCP lifecycle (`ClientConnected`, `ClientDisconnected`, `Terminated`), `DoClose`
-- [ ] `ConnectionActor` still sends `ConnectionReady(ConnectionHandle)` to parent on connect
-- [ ] On reconnect, old `ConnectionHandle` channels are completed/disposed, new handle sent
-- [ ] Existing lifecycle tests remain green
-- [ ] `dotnet build ./src/TurboHttp.sln` — 0 errors
-- [ ] `dotnet test ./src/TurboHttp.sln` — all tests pass
+- [x] `PumpInbound()` async task removed
+- [x] `_responseQueue` (`ISourceQueueWithComplete<DataItem>`) removed
+- [x] `RegisterConnectionRefs` message removed (replaced by `ConnectionReady`)
+- [x] `ConnectionActor` only handles: TCP lifecycle (`ClientConnected`, `ClientDisconnected`, `Terminated`), `DoClose`
+- [x] `ConnectionActor` still sends `ConnectionReady(ConnectionHandle)` to parent on connect
+- [x] On reconnect, old `ConnectionHandle` channels are completed/disposed, new handle sent
+- [x] Existing lifecycle tests remain green
+- [x] `dotnet build ./src/TurboHttp.sln` — 0 errors
+- [x] `dotnet test ./src/TurboHttp.sln` — all tests pass
 
 **Key Files:**
 - `src/TurboHttp/IO/ConnectionActor.cs`
@@ -287,8 +287,7 @@ TASK-5A-013 (Update CLAUDE.md)
 **Design:**
 - `ConnectionReuseStage.Out1` emits `IControlItem` (specifically `ConnectionReuseItem`)
 - Currently wired to `Sink.Ignore` in `Engine.BuildConnectionFlowPublic`
-- Replace `Sink.Ignore` with a `Sink.ForEach` that sends `MarkConnectionNoReuse` to the `ConnectionHandle.ConnectionActor` ref (which forwards to `HostPoolActor`)
-- Or: `ConnectionStage` can subscribe to the signal outlet and send the message directly
+- Replace `Sink.Ignore` with `ConnectionStage` can subscribe to the signal outlet and send the message directly
 
 **Acceptance Criteria:**
 - [ ] `ConnectionReuseItem` with `CanReuse = false` triggers `MarkConnectionNoReuse` message to `HostPoolActor`

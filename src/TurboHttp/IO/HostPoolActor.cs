@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Akka;
 using Akka.Actor;
 using Akka.Event;
-using Akka.Streams.Dsl;
 using Servus.Akka;
 using TurboHttp.IO.Stages;
 
@@ -25,14 +23,6 @@ public sealed class HostPoolActor : ReceiveActor
     public sealed record Reconnect(IActorRef Connection);
 
     public sealed record MarkConnectionNoReuse(IActorRef Connection);
-
-    /// <summary>
-    /// Retained for backward compatibility — ConnectionActor still sends this message.
-    /// The handler is a no-op; will be fully removed in TASK-5A-007.
-    /// </summary>
-    public sealed record RegisterConnectionRefs(
-        IActorRef Connection,
-        Source<DataItem, NotUsed> ResponseSource);
 
     // ── Fields ────────────────────────────────────────────────────────
 
