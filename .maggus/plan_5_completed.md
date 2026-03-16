@@ -132,11 +132,11 @@ What is unclear right now:
 **Description:** As a developer, I want a clear next plan (`plan_8.md`) with concrete, atomic tasks based on the gap list and the architecture decision.
 
 **Acceptance Criteria:**
-- [ ] `plan_8.md` created with tasks from the Critical and High gaps
-- [ ] Tasks are atomic (independently mergeable, independently testable)
-- [ ] Task order respects dependencies
-- [ ] Each task has acceptance criteria including `dotnet build` + `dotnet test` verification
-- [ ] `.maggus/PROGRESS_7.md` final summary written
+- [x] `plan_8.md` created with tasks from the Critical and High gaps
+- [x] Tasks are atomic (independently mergeable, independently testable)
+- [x] Task order respects dependencies
+- [x] Each task has acceptance criteria including `dotnet build` + `dotnet test` verification
+- [x] `.maggus/PROGRESS_7.md` final summary written
 
 ---
 

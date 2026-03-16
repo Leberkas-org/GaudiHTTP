@@ -623,3 +623,61 @@ This reframed the decision from "should we adopt the actor pool?" to "should we 
 ### Decision Status
 
 **⏳ AWAITING USER INPUT** — Full analysis in `.maggus/ARCHITECTURE_DECISION.md`
+
+---
+
+## TASK-ROAD-001 — Roadmap: Ordered Implementation Tasks
+
+**Date:** 2026-03-16
+
+### Summary
+
+`plan_8.md` created with **8 atomic tasks** derived from Critical (GAP-001, GAP-002, GAP-003) and High (GAP-004, GAP-005, GAP-006, GAP-007, GAP-008) priority gaps.
+
+### Tasks Created
+
+| Task | Gap | Priority | Size | Description |
+|------|-----|----------|------|-------------|
+| TASK-P8-001 | GAP-001 | Critical | S | Wire `ConnectionReuseStage` into Engine pipeline |
+| TASK-P8-002 | GAP-002 | Critical | M | Fix `ConnectionActor.Reconnect()` — failure notification + backoff |
+| TASK-P8-003 | GAP-003 | Critical | S | Stale queue cleanup in `HostPoolActor` on `ConnectionFailed` |
+| TASK-P8-004 | GAP-006 | High | S | Wire `PerHostConnectionLimiter` into `HostPoolActor` |
+| TASK-P8-005 | GAP-005 | High | M | Graceful shutdown — `IAsyncDisposable` for client |
+| TASK-P8-006 | GAP-004 | High | M | Integration tests — E2E `SendAsync()` against Kestrel |
+| TASK-P8-007 | GAP-007 | High | S-M | TLS end-to-end verification |
+| TASK-P8-008 | GAP-008 | High | S | Update CLAUDE.md "Current Limitations" |
+
+### Implementation Phases
+
+- **Phase 1** (parallel): P8-001, P8-002, P8-004, P8-005 — 4 independent fixes
+- **Phase 2**: P8-003 — depends on P8-002 (`ConnectionFailed` must be sent first)
+- **Phase 3**: P8-006 — integration tests (depends on Phase 1+2 core fixes)
+- **Phase 4**: P8-007 — TLS tests (depends on P8-006)
+- **Phase 5**: P8-008 — documentation update (depends on all)
+
+### Deferred Gaps (7 Medium/Low → future plan)
+
+GAP-009 (H2 real TCP test), GAP-010 (observability), GAP-011 (dead code cleanup), GAP-012 (HTTP/3 stub), GAP-013 (IHttpClientFactory), GAP-014 (config validation), GAP-015 (dead config).
+
+---
+
+## Plan 5 Final Summary
+
+**Date:** 2026-03-16
+
+### Phase Completion
+
+| Phase | Status |
+|-------|--------|
+| **Audit** (TASK-AUD-001..005) | ✅ Complete — all 5 tasks documented |
+| **Decision** (TASK-DEC-001) | ✅ Complete — Option A recommended, awaiting user confirmation |
+| **Gap List** (TASK-GAP-001) | ✅ Complete — 15 gaps identified and prioritised |
+| **Roadmap** (TASK-ROAD-001) | ✅ Complete — `plan_8.md` created with 8 atomic tasks |
+
+### Key Outcomes
+
+1. **Architecture is healthier than expected** — The actor pool (PoolRouterActor → HostPoolActor → ConnectionActor) is fully integrated. `SendAsync()` works end-to-end. 9 business logic stages are wired.
+2. **CLAUDE.md "Current Limitations" is outdated** — 4 of 5 statements no longer true.
+3. **Critical gaps are well-scoped** — Connection reuse, error tolerance, stale queue cleanup. All S-M complexity.
+4. **Integration test infrastructure exists but is unused** — Kestrel fixtures with 60+ routes, zero test classes.
+5. **`plan_8.md` provides a clear path** — 8 tasks in 5 phases, dependency-ordered, each independently mergeable and testable.
