@@ -238,16 +238,16 @@ TASK-5A-013 (Update CLAUDE.md)
 **Size:** M
 
 **Acceptance Criteria:**
-- [ ] `_connectionQueues` dictionary removed
-- [ ] `HandleDataItem()` method removed (no more DataItem routing)
-- [ ] `_pending` queue removed (ConnectionStage handles backpressure via channels now)
-- [ ] `SelectConnectionWithQueue()` removed
-- [ ] `RegisterConnectionRefs` handler simplified — no longer creates per-connection queues or MergeHub wiring
-- [ ] Per-host `MergeHub` for response aggregation removed
-- [ ] `HostPoolActor` only handles: `SpawnConnection`, `ConnectionReady`, `ConnectionFailed`, `IdleCheck`, `Reconnect`, `MarkConnectionNoReuse`
-- [ ] Existing lifecycle tests (spawn, watch, reconnect, idle eviction) remain green
-- [ ] `dotnet build ./src/TurboHttp.sln` — 0 errors
-- [ ] `dotnet test ./src/TurboHttp.sln` — all tests pass
+- [x] `_connectionQueues` dictionary removed
+- [x] `HandleDataItem()` method removed (no more DataItem routing)
+- [x] `_pending` queue removed (ConnectionStage handles backpressure via channels now)
+- [x] `SelectConnectionWithQueue()` removed
+- [x] `RegisterConnectionRefs` handler simplified — no longer creates per-connection queues or MergeHub wiring
+- [x] Per-host `MergeHub` for response aggregation removed
+- [x] `HostPoolActor` only handles: `SpawnConnection`, `ConnectionReady`, `ConnectionFailed`, `IdleCheck`, `Reconnect`, `MarkConnectionNoReuse`
+- [x] Existing lifecycle tests (spawn, watch, reconnect, idle eviction) remain green
+- [x] `dotnet build ./src/TurboHttp.sln` — 0 errors
+- [x] `dotnet test ./src/TurboHttp.sln` — all tests pass
 
 **Key Files:**
 - `src/TurboHttp/IO/HostPoolActor.cs`

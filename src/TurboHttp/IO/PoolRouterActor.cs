@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Akka;
 using Akka.Actor;
-using Akka.Streams.Dsl;
 using TurboHttp.IO.Stages;
 
 namespace TurboHttp.IO;
@@ -16,12 +14,6 @@ public sealed class PoolRouterActor : ReceiveActor
     /// The message is forwarded to the HostPoolActor so it can reply with a ConnectionHandle.
     /// </summary>
     public sealed record EnsureHost(HostKey Key, TcpOptions Options);
-
-    /// <summary>
-    /// Sent by HostPoolActor in PreStart to wire its aggregated response source into the global MergeHub.
-    /// Retained for backward compatibility during migration — will be removed in TASK-5A-006.
-    /// </summary>
-    public sealed record RegisterHostResponseSource(Source<DataItem, NotUsed> ResponseSource);
 
     // ── Fields ────────────────────────────────────────────────────────
 
