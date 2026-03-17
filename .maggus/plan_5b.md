@@ -478,15 +478,15 @@ backpressure decisions (TASK-9-007).
 `StreamAcquireItem` on `OutletSignal` and increment the active stream count.
 
 **Acceptance Criteria:**
-- [ ] In `_inletRequest` handler, before pushing to `_outletRaw`:
+- [x] In `_inletRequest` handler, before pushing to `_outletRaw`:
   ```
   if (frame is HeadersFrame):
       _activeStreams++
       Emit(OutletSignal, new StreamAcquireItem())
   ```
-- [ ] Non-`HeadersFrame` types are unaffected
-- [ ] Unit test: `HeadersFrame` on `InletRequest` → `OutletSignal` emits `StreamAcquireItem`
-- [ ] Unit test: `DataFrame` on `InletRequest` → no emission on `OutletSignal`
+- [x] Non-`HeadersFrame` types are unaffected
+- [x] Unit test: `HeadersFrame` on `InletRequest` → `OutletSignal` emits `StreamAcquireItem`
+- [x] Unit test: `DataFrame` on `InletRequest` → no emission on `OutletSignal`
 
 ---
 

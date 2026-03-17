@@ -139,6 +139,10 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
 
                 switch (frame)
                 {
+                    case HeadersFrame:
+                        Emit(stage._outletSignal, new StreamAcquireItem());
+                        break;
+
                     case DataFrame data:
                         HandleOutboundData(data);
                         break;
