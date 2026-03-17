@@ -498,18 +498,18 @@ of active streams reaches `_maxConcurrentStreams`, so that backpressure propagat
 without any protocol knowledge in `ConnectionStage`.
 
 **Acceptance Criteria:**
-- [ ] Add field `private int _activeStreams = 0` to Logic
-- [ ] Add field `private int _maxConcurrentStreams = 100` to Logic (or reuse from TASK-9-005)
-- [ ] Increment `_activeStreams` on outbound `HeadersFrame` (already done in TASK-9-006)
-- [ ] Decrement `_activeStreams` on inbound frame with `END_STREAM` flag:
+- [x] Add field `private int _activeStreams = 0` to Logic
+- [x] Add field `private int _maxConcurrentStreams = 100` to Logic (or reuse from TASK-9-005)
+- [x] Increment `_activeStreams` on outbound `HeadersFrame` (already done in TASK-9-006)
+- [x] Decrement `_activeStreams` on inbound frame with `END_STREAM` flag:
   ```
   if (frame is DataFrame { EndStream: true } or HeadersFrame { EndStream: true }):
       _activeStreams = Math.Max(0, _activeStreams - 1)
   if (frame is RstStreamFrame):
       _activeStreams = Math.Max(0, _activeStreams - 1)
   ```
-- [ ] Remove stream from `_streamWindows` dictionary on END_STREAM/RST_STREAM (cleanup)
-- [ ] **Pull gating** — change `_outletRaw` handler:
+- [x] Remove stream from `_streamWindows` dictionary on END_STREAM/RST_STREAM (cleanup)
+- [x] **Pull gating** — change `_outletRaw` handler:
   ```
   SetHandler(_outletRaw, onPull: () =>
   {
@@ -518,13 +518,13 @@ without any protocol knowledge in `ConnectionStage`.
       // else: backpressure — don't pull until a stream closes
   });
   ```
-- [ ] On stream close (decrement): if `_activeStreams < _maxConcurrentStreams` and
+- [x] On stream close (decrement): if `_activeStreams < _maxConcurrentStreams` and
   `_outletRaw` has demand and `_inletRequest` not pulled → `Pull(_inletRequest)`
-- [ ] On `MaxConcurrentStreamsItem` update (TASK-9-005): re-evaluate pull in same manner
-- [ ] Unit test (limit = 3): 3 `HeadersFrame`s → no pull after 3rd
-- [ ] Unit test (limit = 3): 3 `HeadersFrame`s + 1 `END_STREAM` → pull resumes
-- [ ] Unit test: `RstStreamFrame` → `_activeStreams` decrements, pull resumes
-- [ ] Unit test: SETTINGS `MAX_CONCURRENT_STREAMS = 2` mid-session → new limit enforced immediately
+- [x] On `MaxConcurrentStreamsItem` update (TASK-9-005): re-evaluate pull in same manner
+- [x] Unit test (limit = 3): 3 `HeadersFrame`s → no pull after 3rd
+- [x] Unit test (limit = 3): 3 `HeadersFrame`s + 1 `END_STREAM` → pull resumes
+- [x] Unit test: `RstStreamFrame` → `_activeStreams` decrements, pull resumes
+- [x] Unit test: SETTINGS `MAX_CONCURRENT_STREAMS = 2` mid-session → new limit enforced immediately
 
 ---
 
@@ -537,13 +537,13 @@ without any protocol knowledge in `ConnectionStage`.
 track pending counts and serve queued requesters.
 
 **Acceptance Criteria:**
-- [ ] Add `public sealed record StreamCompleted(IActorRef Connection)`
-- [ ] Add `public sealed record StreamAcquired(IActorRef Connection)`
-- [ ] Add `public sealed record UpdateMaxConcurrentStreams(IActorRef Connection, int MaxStreams)`
-- [ ] `Receive<StreamCompleted>(HandleStreamCompleted)` registered in constructor
-- [ ] `Receive<StreamAcquired>(HandleStreamAcquired)` registered in constructor
-- [ ] `Receive<UpdateMaxConcurrentStreams>(HandleUpdateMaxConcurrentStreams)` registered in constructor
-- [ ] Build succeeds
+- [x] Add `public sealed record StreamCompleted(IActorRef Connection)`
+- [x] Add `public sealed record StreamAcquired(IActorRef Connection)`
+- [x] Add `public sealed record UpdateMaxConcurrentStreams(IActorRef Connection, int MaxStreams)`
+- [x] `Receive<StreamCompleted>(HandleStreamCompleted)` registered in constructor
+- [x] `Receive<StreamAcquired>(HandleStreamAcquired)` registered in constructor
+- [x] `Receive<UpdateMaxConcurrentStreams>(HandleUpdateMaxConcurrentStreams)` registered in constructor
+- [x] Build succeeds
 
 ---
 

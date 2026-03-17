@@ -27,6 +27,12 @@ public sealed class HostPoolActor : ReceiveActor
 
     public sealed record MarkConnectionNoReuse(IActorRef Connection);
 
+    public sealed record StreamCompleted(IActorRef Connection);
+
+    public sealed record StreamAcquired(IActorRef Connection);
+
+    public sealed record UpdateMaxConcurrentStreams(IActorRef Connection, int MaxStreams);
+
     // ── Fields ────────────────────────────────────────────────────────
 
     private readonly HostKey _key;
@@ -62,6 +68,9 @@ public sealed class HostPoolActor : ReceiveActor
         Receive<IdleCheck>(_ => EvictIdleConnections());
         Receive<Reconnect>(HandleReconnect);
         Receive<MarkConnectionNoReuse>(HandleMarkNoReuse);
+        Receive<StreamCompleted>(HandleStreamCompleted);
+        Receive<StreamAcquired>(HandleStreamAcquired);
+        Receive<UpdateMaxConcurrentStreams>(HandleUpdateMaxConcurrentStreams);
         Receive<ConnectionActor.ConnectionReady>(HandleConnectionReady);
         Receive<PoolRouterActor.EnsureHost>(HandleEnsureHost);
     }
@@ -231,6 +240,39 @@ public sealed class HostPoolActor : ReceiveActor
     {
         var conn = Find(msg.Connection);
         conn?.MarkNoReuse();
+    }
+
+    private void HandleStreamCompleted(StreamCompleted msg)
+    {
+        var conn = Find(msg.Connection);
+        conn?.MarkIdle();
+
+        // A stream freed up — try to serve queued requesters
+        if (_activeHandle is not null && _pendingHandleRequesters.Count > 0)
+        {
+            foreach (var requester in _pendingHandleRequesters)
+            {
+                requester.Tell(_activeHandle);
+            }
+
+            _pendingHandleRequesters.Clear();
+        }
+    }
+
+    private void HandleStreamAcquired(StreamAcquired msg)
+    {
+        var conn = Find(msg.Connection);
+        conn?.MarkBusy();
+    }
+
+    private void HandleUpdateMaxConcurrentStreams(UpdateMaxConcurrentStreams msg)
+    {
+        var conn = Find(msg.Connection);
+
+        if (conn?.Handle is not null)
+        {
+            conn.Handle.UpdateMaxConcurrentStreams(msg.MaxStreams);
+        }
     }
 
     private ConnectionState? Find(IActorRef actor)

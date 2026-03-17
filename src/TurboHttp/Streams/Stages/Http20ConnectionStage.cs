@@ -66,10 +66,12 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
     private readonly Outlet<IControlItem> _outletSignal = new("h2.signal.out");
 
     private readonly int _initialRecvWindowSize;
+    private readonly int _maxConcurrentStreams;
 
-    public Http20ConnectionStage(int initialRecvWindowSize = 65535)
+    public Http20ConnectionStage(int initialRecvWindowSize = 65535, int maxConcurrentStreams = 100)
     {
         _initialRecvWindowSize = initialRecvWindowSize;
+        _maxConcurrentStreams = maxConcurrentStreams;
     }
 
     public override Http20ConnectionShape Shape =>
@@ -84,16 +86,19 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
         private int _connectionWindow;
         private int _initialRecvStreamWindow;
         private int _initialSendStreamWindow = 65535;
-        private int _maxConcurrentStreams = 100;
+        private int _maxConcurrentStreams;
+        private int _activeStreams;
         private bool _goAwayReceived;
 
         private readonly Dictionary<int, int> _streamWindows = new();
+        private readonly HashSet<int> _activeStreamIds = new();
 
         public Logic(Http20ConnectionStage stage) : base(stage.Shape)
         {
             _stage = stage;
             _connectionWindow = stage._initialRecvWindowSize;
             _initialRecvStreamWindow = stage._initialRecvWindowSize;
+            _maxConcurrentStreams = stage._maxConcurrentStreams;
 
             SetHandler(stage._inletRaw, onPush: () =>
             {
@@ -107,6 +112,21 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
 
                     case DataFrame data:
                         HandleInboundData(data);
+                        if (data.EndStream)
+                        {
+                            CloseStream(data.StreamId);
+                        }
+                        break;
+
+                    case HeadersFrame headers:
+                        if (headers.EndStream)
+                        {
+                            CloseStream(headers.StreamId);
+                        }
+                        break;
+
+                    case RstStreamFrame rst:
+                        CloseStream(rst.StreamId);
                         break;
 
                     case WindowUpdateFrame win:
@@ -139,7 +159,9 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
 
                 switch (frame)
                 {
-                    case HeadersFrame:
+                    case HeadersFrame headers:
+                        _activeStreams++;
+                        _activeStreamIds.Add(headers.StreamId);
                         Emit(stage._outletSignal, new StreamAcquireItem());
                         break;
 
@@ -156,10 +178,7 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
 
             SetHandler(stage._outletRaw, onPull: () =>
             {
-                if (!HasBeenPulled(stage._inletRequest))
-                {
-                    Pull(stage._inletRequest);
-                }
+                TryPullRequest();
             });
 
             SetHandler(stage._outletSignal, onPull: () =>
@@ -187,6 +206,7 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
                 {
                     _maxConcurrentStreams = (int)value;
                     Emit(_stage._outletSignal, new MaxConcurrentStreamsItem(_maxConcurrentStreams));
+                    TryPullRequest();
                 }
             }
 
@@ -241,6 +261,28 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
                 _streamWindows.TryAdd(frame.StreamId, _initialRecvStreamWindow);
 
                 _streamWindows[frame.StreamId] += frame.Increment;
+            }
+        }
+
+        private void CloseStream(int streamId)
+        {
+            if (_activeStreamIds.Remove(streamId))
+            {
+                _activeStreams--;
+                TryPullRequest();
+            }
+
+            _streamWindows.Remove(streamId);
+        }
+
+        private void TryPullRequest()
+        {
+            if (_activeStreams < _maxConcurrentStreams
+                && !HasBeenPulled(_stage._inletRequest)
+                && !IsClosed(_stage._inletRequest)
+                && IsAvailable(_stage._outletRaw))
+            {
+                Pull(_stage._inletRequest);
             }
         }
 
