@@ -18,13 +18,17 @@ public class Http11Engine : IHttpProtocolEngine
             var correlation = b.Add(new Http1XCorrelationStage());
 
             var requestBCast = b.Add(new Broadcast<HttpRequestMessage>(2));
-            var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
+            var signalMerge = b.Add(new MergePreferred<IOutputItem>(1));
 
             b.From(requestBCast.Out(0)).To(encoder.Inlet);
             b.From(requestBCast.Out(1)).To(correlation.RequestIn);
 
             b.From(decoder.Outlet).To(correlation.ResponseIn);
-            b.From(correlation.OutletSignal).To(signalSink);
+
+            var signalCast = b.Add(Flow.Create<IControlItem>().Select(IOutputItem (x) => x));
+
+            b.From(encoder.Outlet).To(signalMerge.In(0));
+            b.From(correlation.OutletSignal).Via(signalCast).To(signalMerge.Preferred);
 
             return new BidiShape<
                 HttpRequestMessage,
@@ -32,7 +36,7 @@ public class Http11Engine : IHttpProtocolEngine
                 IInputItem,
                 HttpResponseMessage>(
                 requestBCast.In,
-                encoder.Outlet,
+                signalMerge.Out,
                 decoder.Inlet,
                 correlation.Out);
         }));

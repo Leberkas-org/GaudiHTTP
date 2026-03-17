@@ -311,17 +311,17 @@ increment its in-flight counter and enforce the pipeline-depth limit.
 as the signal source.
 
 **Acceptance Criteria:**
-- [ ] `flowOut` adapter lambda deleted; encoder wired directly to BidiFlow outlet
-- [ ] `flowIn` adapter lambda deleted; decoder wired directly from BidiFlow inlet
-- [ ] Add `var signalMerge = b.Add(new MergePreferred<IOutputItem>(1))`
-- [ ] Wire:
+- [x] `flowOut` adapter lambda deleted; encoder wired directly to BidiFlow outlet
+- [x] `flowIn` adapter lambda deleted; decoder wired directly from BidiFlow inlet
+- [x] Add `var signalMerge = b.Add(new MergePreferred<IOutputItem>(1))`
+- [x] Wire:
   ```
   encoder.Outlet     → signalMerge.In(0)          // DataItem
   correlation.OutletSignal → signalMerge.Preferred // StreamAcquireItem (higher priority)
   signalMerge.Out    → BidiFlow.Outlet1
   ```
-- [ ] No changes to `Engine.cs` or `IHttpProtocolEngine`
-- [ ] Build succeeds; existing Http11Engine round-trip tests pass
+- [x] No changes to `Engine.cs` or `IHttpProtocolEngine`
+- [x] Build succeeds; existing Http11Engine round-trip tests pass
 
 ---
 

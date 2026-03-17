@@ -45,25 +45,26 @@ public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem
                 onPush: () =>
                 {
                     var item = Grab(stage.In);
-                    if (item is not DataItem(_, var owner, var length)) return;
-
-                    var copy = new byte[length];
-                    owner.Memory.Span[..length].CopyTo(copy);
-                    stage.OutboundChannel.Writer.TryWrite(new DataItem(HostKey.Default, new SimpleMemoryOwner(copy),
-                        length));
-                    owner.Dispose();
-
-                    var responseBytes = _stage._responseFactory();
-                    IMemoryOwner<byte> responseOwner = new SimpleMemoryOwner(responseBytes);
-
-                    if (_downstreamWaiting)
+                    if (item is DataItem(_, var owner, var length))
                     {
-                        _downstreamWaiting = false;
-                        Push(stage.Out, new DataItem(HostKey.Default, responseOwner, responseBytes.Length));
-                    }
-                    else
-                    {
-                        _buffer.Enqueue((responseOwner, responseBytes.Length));
+                        var copy = new byte[length];
+                        owner.Memory.Span[..length].CopyTo(copy);
+                        stage.OutboundChannel.Writer.TryWrite(new DataItem(HostKey.Default, new SimpleMemoryOwner(copy),
+                            length));
+                        owner.Dispose();
+
+                        var responseBytes = _stage._responseFactory();
+                        IMemoryOwner<byte> responseOwner = new SimpleMemoryOwner(responseBytes);
+
+                        if (_downstreamWaiting)
+                        {
+                            _downstreamWaiting = false;
+                            Push(stage.Out, new DataItem(HostKey.Default, responseOwner, responseBytes.Length));
+                        }
+                        else
+                        {
+                            _buffer.Enqueue((responseOwner, responseBytes.Length));
+                        }
                     }
 
                     Pull(stage.In);
