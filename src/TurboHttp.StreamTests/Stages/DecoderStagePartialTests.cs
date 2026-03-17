@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
+using TurboHttp.IO.Stages;
 using TurboHttp.Protocol.RFC9113;
 using TurboHttp.Streams.Stages;
 
@@ -20,6 +21,9 @@ public sealed class DecoderStagePartialTests : StreamTestBase
     private static (IMemoryOwner<byte>, int) Chunk(byte[] data)
         => (new SimpleMemoryOwner(data), data.Length);
 
+    private static IInputItem H2Chunk(byte[] data)
+        => new DataItem(HostKey.Default, new SimpleMemoryOwner(data), data.Length);
+
     private static (IMemoryOwner<byte>, int) Chunk(string ascii)
     {
         var bytes = Encoding.Latin1.GetBytes(ascii);
@@ -35,7 +39,7 @@ public sealed class DecoderStagePartialTests : StreamTestBase
     }
 
     private async Task<IReadOnlyList<Http2Frame>> Decode20Async(
-        IEnumerable<(IMemoryOwner<byte>, int)> fragments)
+        IEnumerable<IInputItem> fragments)
     {
         return await Source.From(fragments)
             .Via(Flow.FromGraph(new Http20DecoderStage()))
@@ -167,10 +171,10 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         // Send the remaining header bytes + full payload in chunk 2
         var chunk2 = rawBytes[5..];
 
-        var fragments = new List<(IMemoryOwner<byte>, int)>
+        var fragments = new List<IInputItem>
         {
-            Chunk(chunk1),
-            Chunk(chunk2)
+            H2Chunk(chunk1),
+            H2Chunk(chunk2)
         };
 
         var frames = await Decode20Async(fragments);
@@ -193,10 +197,10 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         var chunk1 = rawBytes[..1];   // just 1 byte of 9-byte header
         var chunk2 = rawBytes[1..];   // the rest (8 header bytes + payload)
 
-        var fragments = new List<(IMemoryOwner<byte>, int)>
+        var fragments = new List<IInputItem>
         {
-            Chunk(chunk1),
-            Chunk(chunk2)
+            H2Chunk(chunk1),
+            H2Chunk(chunk2)
         };
 
         var frames = await Decode20Async(fragments);
@@ -230,11 +234,11 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         var chunk2 = rawBytes[9..13];       // first 4 bytes of payload
         var chunk3 = rawBytes[13..];        // remaining 8 bytes of payload
 
-        var fragments = new List<(IMemoryOwner<byte>, int)>
+        var fragments = new List<IInputItem>
         {
-            Chunk(chunk1),
-            Chunk(chunk2),
-            Chunk(chunk3)
+            H2Chunk(chunk1),
+            H2Chunk(chunk2),
+            H2Chunk(chunk3)
         };
 
         var frames = await Decode20Async(fragments);
@@ -261,12 +265,12 @@ public sealed class DecoderStagePartialTests : StreamTestBase
 
         Assert.Equal(9 + hpackBlock.Length, rawBytes.Length);
 
-        var fragments = new List<(IMemoryOwner<byte>, int)>
+        var fragments = new List<IInputItem>
         {
-            Chunk(rawBytes[..9]),           // 9-byte frame header
-            Chunk(rawBytes[9..10]),         // 1st payload byte
-            Chunk(rawBytes[10..11]),        // 2nd payload byte
-            Chunk(rawBytes[11..])           // 3rd payload byte
+            H2Chunk(rawBytes[..9]),           // 9-byte frame header
+            H2Chunk(rawBytes[9..10]),         // 1st payload byte
+            H2Chunk(rawBytes[10..11]),        // 2nd payload byte
+            H2Chunk(rawBytes[11..])           // 3rd payload byte
         };
 
         var frames = await Decode20Async(fragments);

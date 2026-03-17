@@ -35,17 +35,10 @@ public class Http20Engine : IHttpProtocolEngine
             var streamDecoder = b.Add(new Http20StreamStage());
             var connection = b.Add(new Http20ConnectionStage(windowSize));
 
-            var flowIn = b.Add(Flow.Create<IInputItem>().Where(x => x is DataItem).Select(x =>
-            {
-                var t = x as DataItem;
-
-                return (t.Memory, t.Length);
-            }));
-
             b.From(streamIdAllocator.Outlet).To(requestToFrame.Inlet);
             b.From(requestToFrame.Outlet).To(connection.Inlet2);
             b.From(connection.Outlet2).To(frameEncoder.Inlet);
-            b.From(flowIn.Outlet).Via(frameDecoder).To(connection.Inlet1);
+            b.From(frameDecoder.Outlet).To(connection.Inlet1);
             b.From(connection.Outlet1).To(streamDecoder.Inlet);
 
             return new BidiShape<
@@ -55,7 +48,7 @@ public class Http20Engine : IHttpProtocolEngine
                 HttpResponseMessage>(
                 streamIdAllocator.Inlet,
                 frameEncoder.Outlet,
-                flowIn.Inlet,
+                frameDecoder.Inlet,
                 streamDecoder.Outlet);
         }));
     }

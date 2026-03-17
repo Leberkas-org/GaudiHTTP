@@ -1,5 +1,5 @@
-using System.Buffers;
 using Akka.Streams.Dsl;
+using TurboHttp.IO.Stages;
 using TurboHttp.Protocol.RFC9113;
 using TurboHttp.Streams.Stages;
 
@@ -7,8 +7,8 @@ namespace TurboHttp.StreamTests.Http20;
 
 public sealed class Http20DecoderStageRfcTests : StreamTestBase
 {
-    private static (IMemoryOwner<byte>, int) Chunk(byte[] data)
-        => (new SimpleMemoryOwner(data), data.Length);
+    private static IInputItem Chunk(byte[] data)
+        => new DataItem(HostKey.Default, new SimpleMemoryOwner(data), data.Length);
 
     private async Task<IReadOnlyList<Http2Frame>> DecodeAsync(params byte[][] chunks)
     {

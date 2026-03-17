@@ -4,20 +4,21 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using Akka.Streams;
 using Akka.Streams.Stage;
+using TurboHttp.IO.Stages;
 using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Streams.Stages;
 
-public sealed class Http20DecoderStage : GraphStage<FlowShape<(IMemoryOwner<byte>, int), Http2Frame>>
+public sealed class Http20DecoderStage : GraphStage<FlowShape<IInputItem, Http2Frame>>
 {
-    private readonly Inlet<(IMemoryOwner<byte>, int)> _inlet = new("http20.tcp.in");
+    private readonly Inlet<IInputItem> _inlet = new("http20.tcp.in");
     private readonly Outlet<Http2Frame> _outlet = new("http20.frame.out");
 
-    public override FlowShape<(IMemoryOwner<byte>, int), Http2Frame> Shape { get; }
+    public override FlowShape<IInputItem, Http2Frame> Shape { get; }
 
     public Http20DecoderStage()
     {
-        Shape = new FlowShape<(IMemoryOwner<byte>, int), Http2Frame>(_inlet, _outlet);
+        Shape = new FlowShape<IInputItem, Http2Frame>(_inlet, _outlet);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -38,15 +39,21 @@ public sealed class Http20DecoderStage : GraphStage<FlowShape<(IMemoryOwner<byte
             SetHandler(stage._inlet,
                 onPush: () =>
                 {
-                    var (owner, length) = Grab(stage._inlet);
+                    var item = Grab(stage._inlet);
+
+                    if (item is not DataItem dataItem)
+                    {
+                        Pull(stage._inlet);
+                        return;
+                    }
 
                     try
                     {
-                        Append(owner.Memory.Span[..length]);
+                        Append(dataItem.Memory.Memory.Span[..dataItem.Length]);
                     }
                     finally
                     {
-                        owner.Dispose();
+                        dataItem.Memory.Dispose();
                     }
 
                     TryParse(stage);

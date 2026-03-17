@@ -224,12 +224,12 @@ so that `Http20Engine` can eliminate its `flowOut` adapter.
 so that `Http20Engine` can eliminate its `flowIn` adapter.
 
 **Acceptance Criteria:**
-- [ ] Stage changes from `FlowShape<(IMemoryOwner<byte>, int), Http2Frame>` to
+- [x] Stage changes from `FlowShape<(IMemoryOwner<byte>, int), Http2Frame>` to
       `FlowShape<IInputItem, Http2Frame>`
-- [ ] Internally casts to `DataItem` and extracts `(Memory, Length)` before feeding the existing parser
-- [ ] Non-`DataItem` items are silently dropped (same as the current `Where(x => x is DataItem)`)
-- [ ] Existing stream tests for `Http20DecoderStage` pass unchanged (input type updated in tests)
-- [ ] Build succeeds with zero errors
+- [x] Internally casts to `DataItem` and extracts `(Memory, Length)` before feeding the existing parser
+- [x] Non-`DataItem` items are silently dropped (same as the current `Where(x => x is DataItem)`)
+- [x] Existing stream tests for `Http20DecoderStage` pass unchanged (input type updated in tests)
+- [x] Build succeeds with zero errors
 
 ---
 
@@ -241,7 +241,7 @@ into the `IOutputItem` output stream using `MergePreferred<IOutputItem>`.
 
 **Acceptance Criteria:**
 - [ ] `flowOut` lambda deleted; encoder is wired directly to the BidiFlow's outlet
-- [ ] `flowIn` lambda deleted; decoder is wired directly from the BidiFlow's inlet
+- [x] `flowIn` lambda deleted; decoder is wired directly from the BidiFlow's inlet (done in TASK-9-E02)
 - [ ] Add `var signalMerge = b.Add(new MergePreferred<IOutputItem>(1))` (1 non-preferred + 1 preferred)
 - [ ] Wire:
   ```
