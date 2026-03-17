@@ -91,7 +91,10 @@ public sealed class ConnectionStageTests : StreamTestBase
     {
         var (stageFlow, _, inboundWriter, routerProbe) = Build();
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
-        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+        var connectItem = new ConnectItem(options)
+        {
+            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+        };
 
         var (queue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
             .Via(stageFlow)
@@ -100,7 +103,7 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         await queue.OfferAsync(connectItem);
 
-        var received = routerProbe.ExpectMsg<PoolRouterActor.EnsureHost>(TimeSpan.FromSeconds(10));
+        var received = await routerProbe.ExpectMsgAsync<PoolRouterActor.EnsureHost>(TimeSpan.FromSeconds(10));
         Assert.Equal("localhost", received.Options.Host);
 
         inboundWriter.Complete();
@@ -114,7 +117,10 @@ public sealed class ConnectionStageTests : StreamTestBase
     {
         var (stageFlow, _, inboundWriter, _) = Build();
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
-        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+        var connectItem = new ConnectItem(options)
+        {
+            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+        };
 
         var (inputQueue, resultTask) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
             .Via(stageFlow)
@@ -147,7 +153,10 @@ public sealed class ConnectionStageTests : StreamTestBase
     {
         var (stageFlow, outboundReader, inboundWriter, _) = Build();
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
-        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+        var connectItem = new ConnectItem(options)
+        {
+            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+        };
         var data = MakeData(0xCD, 8);
 
         var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
@@ -180,7 +189,10 @@ public sealed class ConnectionStageTests : StreamTestBase
     {
         var (stageFlow, outboundReader, inboundWriter, _) = Build();
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
-        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+        var connectItem = new ConnectItem(options)
+        {
+            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+        };
 
         // Materialize with a queue sink so we can pull multiple items
         var (inputQueue, resultTask) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
@@ -224,13 +236,17 @@ public sealed class ConnectionStageTests : StreamTestBase
     // ── CS-005: ConnectionReuseItem CanReuse=false sends MarkConnectionNoReuse + StreamCompleted ─
 
     [Fact(Timeout = 15_000,
-        DisplayName = "CS-005: ConnectionReuseItem with CanReuse=false sends MarkConnectionNoReuse and StreamCompleted")]
+        DisplayName =
+            "CS-005: ConnectionReuseItem with CanReuse=false sends MarkConnectionNoReuse and StreamCompleted")]
     public async Task CS_005_ConnectionReuseItem_NoReuse_SendsMarkAndStreamCompleted()
     {
         var connectionActorProbe = CreateTestProbe();
         var (stageFlow, _, inboundWriter, _) = Build(connectionActorProbe.Ref);
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
-        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+        var connectItem = new ConnectItem(options)
+        {
+            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+        };
 
         var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
             .Via(stageFlow)
@@ -247,11 +263,11 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(reuseItem);
 
         // Verify that MarkConnectionNoReuse is sent first
-        var markMsg = connectionActorProbe.ExpectMsg<HostPoolActor.MarkConnectionNoReuse>(TimeSpan.FromSeconds(5));
+        var markMsg = await connectionActorProbe.ExpectMsgAsync<HostPoolActor.MarkConnectionNoReuse>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActorProbe.Ref, markMsg.Connection);
 
         // Verify that StreamCompleted is sent second
-        var streamMsg = connectionActorProbe.ExpectMsg<HostPoolActor.StreamCompleted>(TimeSpan.FromSeconds(5));
+        var streamMsg = await connectionActorProbe.ExpectMsgAsync<HostPoolActor.StreamCompleted>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActorProbe.Ref, streamMsg.Connection);
 
         inboundWriter.Complete();
@@ -266,7 +282,10 @@ public sealed class ConnectionStageTests : StreamTestBase
         var connectionActorProbe = CreateTestProbe();
         var (stageFlow, _, inboundWriter, _) = Build(connectionActorProbe.Ref);
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
-        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+        var connectItem = new ConnectItem(options)
+        {
+            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+        };
 
         var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
             .Via(stageFlow)
@@ -283,11 +302,11 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(reuseItem);
 
         // Verify that only StreamCompleted is sent (no MarkConnectionNoReuse)
-        var streamMsg = connectionActorProbe.ExpectMsg<HostPoolActor.StreamCompleted>(TimeSpan.FromSeconds(5));
+        var streamMsg = await connectionActorProbe.ExpectMsgAsync<HostPoolActor.StreamCompleted>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActorProbe.Ref, streamMsg.Connection);
 
         // No further messages (specifically no MarkConnectionNoReuse)
-        connectionActorProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(500));
+        await connectionActorProbe.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(500));
 
         inboundWriter.Complete();
     }
@@ -295,13 +314,17 @@ public sealed class ConnectionStageTests : StreamTestBase
     // ── CS-007: MaxConcurrentStreamsItem forwarded to ConnectionActor ─
 
     [Fact(Timeout = 15_000,
-        DisplayName = "CS-007: MaxConcurrentStreamsItem(50) forwarded as UpdateMaxConcurrentStreams to ConnectionActor")]
+        DisplayName =
+            "CS-007: MaxConcurrentStreamsItem(50) forwarded as UpdateMaxConcurrentStreams to ConnectionActor")]
     public async Task CS_007_MaxConcurrentStreamsItem_ForwardedToActor()
     {
         var connectionActorProbe = CreateTestProbe();
         var (stageFlow, _, inboundWriter, _) = Build(connectionActorProbe.Ref);
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
-        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+        var connectItem = new ConnectItem(options)
+        {
+            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+        };
 
         var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
             .Via(stageFlow)
@@ -316,7 +339,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(new MaxConcurrentStreamsItem(50));
 
         // Verify UpdateMaxConcurrentStreams is sent to the connection actor
-        var msg = connectionActorProbe.ExpectMsg<HostPoolActor.UpdateMaxConcurrentStreams>(TimeSpan.FromSeconds(5));
+        var msg = await connectionActorProbe.ExpectMsgAsync<HostPoolActor.UpdateMaxConcurrentStreams>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActorProbe.Ref, msg.Connection);
         Assert.Equal(50, msg.MaxStreams);
 
@@ -332,7 +355,10 @@ public sealed class ConnectionStageTests : StreamTestBase
         var connectionActorProbe = CreateTestProbe();
         var (stageFlow, _, inboundWriter, _) = Build(connectionActorProbe.Ref);
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
-        var connectItem = new ConnectItem(options, HttpVersion.Version11);
+        var connectItem = new ConnectItem(options)
+        {
+            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+        };
 
         var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
             .Via(stageFlow)
@@ -347,7 +373,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(new StreamAcquireItem());
 
         // Verify StreamAcquired is sent to the connection actor
-        var msg = connectionActorProbe.ExpectMsg<HostPoolActor.StreamAcquired>(TimeSpan.FromSeconds(5));
+        var msg = await connectionActorProbe.ExpectMsgAsync<HostPoolActor.StreamAcquired>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActorProbe.Ref, msg.Connection);
 
         inboundWriter.Complete();

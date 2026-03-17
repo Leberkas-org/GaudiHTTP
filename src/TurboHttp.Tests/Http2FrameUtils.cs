@@ -1,7 +1,7 @@
-using System;
 using System.Buffers.Binary;
+using TurboHttp.Protocol.RFC9113;
 
-namespace TurboHttp.Protocol.RFC9113;
+namespace TurboHttp.Tests;
 
 /// <summary>
 /// Utility methods for encoding HTTP/2 frames to byte arrays.

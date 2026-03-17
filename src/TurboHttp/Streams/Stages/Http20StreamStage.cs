@@ -122,6 +122,7 @@ public sealed class Http20StreamStage : GraphStage<FlowShape<Http2Frame, HttpRes
         public Logic(Http20StreamStage stage) : base(stage.Shape)
         {
             _stage = stage;
+
             SetHandler(stage._inlet, () =>
             {
                 var frame = Grab(stage._inlet);

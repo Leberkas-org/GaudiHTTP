@@ -12,7 +12,16 @@ public sealed class Http20ConnectionPrefaceRfcTests : StreamTestBase
     private static readonly byte[] Http2Magic = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
 
     private static ConnectItem MakeConnect(string host = "example.com", int port = 80) =>
-        new(new TcpOptions { Host = host, Port = port }, System.Net.HttpVersion.Version20);
+        new(new TcpOptions { Host = host, Port = port })
+        {
+            Key = new HostKey
+            {
+                Host = host,
+                Port = (ushort)port,
+                Scheme = "http",
+                Version = new Version(0, 0)
+            }
+        };
 
     private static DataItem MakeData(byte[] data) =>
         new(HostKey.Default, new SimpleMemoryOwner(data), data.Length);

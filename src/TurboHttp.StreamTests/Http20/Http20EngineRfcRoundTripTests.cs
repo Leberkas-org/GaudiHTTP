@@ -1,9 +1,7 @@
-using System.Buffers;
 using System.IO.Compression;
 using System.Net;
 using System.Text;
 using Akka;
-using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.IO.Stages;
 using TurboHttp.Protocol.RFC7541;
@@ -98,7 +96,7 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
         byte[] compressedBody;
         using (var ms = new MemoryStream())
         {
-            using (var gzip = new GZipStream(ms, CompressionMode.Compress, leaveOpen: true))
+            await using (var gzip = new GZipStream(ms, CompressionMode.Compress, leaveOpen: true))
             {
                 gzip.Write(originalBody);
             }

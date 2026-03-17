@@ -92,6 +92,7 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
 
         private readonly Dictionary<int, int> _streamWindows = new();
         private readonly HashSet<int> _activeStreamIds = new();
+        private readonly Queue<Http2Frame> _outboundQueue = new();
 
         public Logic(Http20ConnectionStage stage) : base(stage.Shape)
         {
@@ -135,6 +136,9 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
 
                     case PingFrame ping:
                         HandlePing(ping);
+                        // PING is connection-level — not forwarded to app.
+                        // Re-pull inbound to get the next app-visible frame.
+                        Pull(stage._inletRaw);
                         return;
 
                     case GoAwayFrame:
@@ -170,7 +174,7 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
                         break;
                 }
 
-                Push(stage._outletRaw, frame);
+                EnqueueOutbound(frame);
             }, onUpstreamFinish: () =>
             {
                 // Request stream finished — keep stage alive to receive server responses.
@@ -178,13 +182,33 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
 
             SetHandler(stage._outletRaw, onPull: () =>
             {
-                TryPullRequest();
+                TryDrainOutbound();
             });
 
             SetHandler(stage._outletSignal, onPull: () =>
             {
                 // Demand-driven by downstream MergePreferred; no action needed.
             });
+        }
+
+        private void EnqueueOutbound(Http2Frame frame)
+        {
+            _outboundQueue.Enqueue(frame);
+            TryDrainOutbound();
+        }
+
+        private void TryDrainOutbound()
+        {
+            if (_outboundQueue.Count > 0 && IsAvailable(_stage._outletRaw))
+            {
+                Push(_stage._outletRaw, _outboundQueue.Dequeue());
+                return;
+            }
+
+            if (_outboundQueue.Count == 0)
+            {
+                TryPullRequest();
+            }
         }
 
         private void HandleSettings(SettingsFrame frame)
@@ -206,11 +230,10 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
                 {
                     _maxConcurrentStreams = (int)value;
                     Emit(_stage._outletSignal, new MaxConcurrentStreamsItem(_maxConcurrentStreams));
-                    TryPullRequest();
                 }
             }
 
-            Emit(_stage._outletRaw, new SettingsFrame([], isAck: true));
+            EnqueueOutbound(new SettingsFrame([], isAck: true));
         }
 
         private void HandleInboundData(DataFrame frame)
@@ -237,8 +260,8 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
             // Skip window updates for empty DATA frames (e.g. END_STREAM-only frames).
             if (dataLength > 0)
             {
-                Emit(_stage._outletRaw, new WindowUpdateFrame(0, dataLength));
-                Emit(_stage._outletRaw, new WindowUpdateFrame(frame.StreamId, dataLength));
+                EnqueueOutbound(new WindowUpdateFrame(0, dataLength));
+                EnqueueOutbound(new WindowUpdateFrame(frame.StreamId, dataLength));
             }
         }
 
@@ -246,7 +269,7 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
         {
             if (!ping.IsAck)
             {
-                Emit(_stage._outletRaw, new PingFrame(ping.Data, true));
+                EnqueueOutbound(new PingFrame(ping.Data, true));
             }
         }
 
@@ -269,7 +292,7 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
             if (_activeStreamIds.Remove(streamId))
             {
                 _activeStreams--;
-                TryPullRequest();
+                TryDrainOutbound();
             }
 
             _streamWindows.Remove(streamId);

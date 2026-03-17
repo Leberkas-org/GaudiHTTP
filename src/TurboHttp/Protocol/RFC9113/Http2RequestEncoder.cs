@@ -88,20 +88,6 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
     }
 
     /// <summary>
-    /// TEST ONLY: Encodes a request and returns serialized bytes with total size.
-    /// Used by integration tests that need to compare frame sizes for compression verification.
-    /// </summary>
-    internal (int StreamId, int BytesWritten) EncodeToBytes(HttpRequestMessage request)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-
-        var streamId = AllocateStreamId();
-        var (sid, frames) = Encode(request, streamId);
-        var totalSize = frames.Sum(f => f.SerializedSize);
-        return (sid, totalSize);
-    }
-
-    /// <summary>
     /// TEST ONLY: Encodes a request into a buffer and returns stream ID and bytes written.
     /// Span-based API for compatibility with test code that needs buffer control.
     /// </summary>
@@ -164,30 +150,6 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
             frames.Add(new ContinuationFrame(streamId, headerBlock.AsMemory()[pos..(pos + chunkSize)],
                 endHeaders: isLast));
             pos += chunkSize;
-        }
-    }
-
-    private static void AppendEndStream(List<Http2Frame> frames, int streamId)
-    {
-        // RFC 9113 §6.1 — zero-length DATA with END_STREAM is the correct approach
-        // when the last header frame is a CONTINUATION (which has no END_STREAM flag)
-        if (frames.Count == 0)
-        {
-            return;
-        }
-
-        if (frames[^1] is HeadersFrame hf)
-        {
-            frames[^1] = new HeadersFrame(
-                hf.StreamId,
-                hf.HeaderBlockFragment,
-                endStream: true,
-                endHeaders: hf.EndHeaders);
-        }
-        else
-        {
-            // Last frame is ContinuationFrame — append zero-length DATA with END_STREAM
-            frames.Add(new DataFrame(streamId, Array.Empty<byte>(), endStream: true));
         }
     }
 

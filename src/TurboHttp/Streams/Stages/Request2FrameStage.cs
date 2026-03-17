@@ -24,6 +24,7 @@ public sealed class Request2FrameStage : GraphStage<FlowShape<(HttpRequestMessag
     private sealed class Logic : GraphStageLogic
     {
         private readonly Queue<Http2Frame> _pending = new();
+        private bool _upstreamFinished;
 
         public Logic(Request2FrameStage stage) : base(stage.Shape)
         {
@@ -38,6 +39,15 @@ public sealed class Request2FrameStage : GraphStage<FlowShape<(HttpRequestMessag
                 }
 
                 Drain(stage);
+            }, onUpstreamFinish: () =>
+            {
+                _upstreamFinished = true;
+
+                // Don't complete yet — drain remaining frames first.
+                if (_pending.Count == 0)
+                {
+                    CompleteStage();
+                }
             });
 
             SetHandler(stage._outlet, onPull: () => Drain(stage));
@@ -50,9 +60,16 @@ public sealed class Request2FrameStage : GraphStage<FlowShape<(HttpRequestMessag
                 Push(stage._outlet, _pending.Dequeue());
             }
 
-            if (_pending.Count == 0 && !HasBeenPulled(stage._inlet))
+            if (_pending.Count == 0)
             {
-                Pull(stage._inlet);
+                if (_upstreamFinished)
+                {
+                    CompleteStage();
+                }
+                else if (!HasBeenPulled(stage._inlet))
+                {
+                    Pull(stage._inlet);
+                }
             }
         }
     }

@@ -6,7 +6,7 @@ namespace TurboHttp.IO;
 
 internal static class TcpOptionsFactory
 {
-    internal static bool IsTls(this Uri value)
+    private static bool IsTls(this Uri value)
     {
         return string.Equals(value.Scheme, "https", StringComparison.OrdinalIgnoreCase)
                || string.Equals(value.Scheme, "wss", StringComparison.OrdinalIgnoreCase);
