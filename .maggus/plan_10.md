@@ -66,12 +66,12 @@ Affected file: `04_SettingsTests.cs`
 **Background:** `Http2ProtocolSession.HandleSettings()` / `ApplySettingsParameters()` contains validation logic (MAX_FRAME_SIZE range, ENABLE_PUSH 0/1, INITIAL_WINDOW_SIZE ≤ 2^31-1). In production this validation belongs to `Http20ConnectionStage`. `Http2FrameDecoder` is the direct test candidate.
 
 **Acceptance Criteria:**
-- [ ] `04_SettingsTests.cs` only uses: `SettingsFrame`, `Http2FrameDecoder`, `SettingsParameter`
-- [ ] No import of `Http2ProtocolSession`
-- [ ] Every test DisplayName contains `RFC-9113-§6.5`
-- [ ] RFC scenarios covered: ACK flag, parameter parsing, MAX_FRAME_SIZE range, ENABLE_PUSH value, INITIAL_WINDOW_SIZE overflow
-- [ ] `dotnet test --filter FullyQualifiedName~SettingsTests` green
-- [ ] `.maggus/PROGRESS_3.md` updated
+- [x] `04_SettingsTests.cs` only uses: `SettingsFrame`, `Http2FrameDecoder`, `SettingsParameter`
+- [x] No import of `Http2ProtocolSession`
+- [x] Every test DisplayName contains `RFC-9113-§6.5`
+- [x] RFC scenarios covered: ACK flag, parameter parsing, MAX_FRAME_SIZE range, ENABLE_PUSH value, INITIAL_WINDOW_SIZE overflow
+- [x] `dotnet test --filter FullyQualifiedName~SettingsTests` green
+- [x] `.maggus/PROGRESS_3.md` updated
 
 ---
 

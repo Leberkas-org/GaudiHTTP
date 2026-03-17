@@ -32,12 +32,26 @@
 
 ---
 
+## TASK-PSS-002: Replace Http2ProtocolSession — Settings Tests (RFC9113 §6.5)
+**Status:** COMPLETE | **Date:** 2026-03-17
+
+**Changes:**
+- Rewrote `src/TurboHttp.Tests/RFC9113/04_SettingsTests.cs`
+- Removed all `Http2ProtocolSession` references; old class `Http2SettingsSynchronizationTests` replaced with `Http2SettingsTests`
+- Now uses only `SettingsFrame`, `Http2FrameDecoder`, `SettingsParameter`
+- 29 old tests → 20 new tests; all DisplayNames contain `RFC-9113-§6.5`
+- Scenarios covered: ACK flag (SS-001..002), stream-0 constraint (SS-003), FRAME_SIZE_ERROR (SS-004..005), MAX_FRAME_SIZE range (SS-006..009), ENABLE_PUSH validation (SS-010..013), INITIAL_WINDOW_SIZE overflow (SS-014..016), parameter parsing (SS-017..020)
+- Validation helpers for ENABLE_PUSH and INITIAL_WINDOW_SIZE follow the caller-responsibility pattern from `03_StreamStateMachineTests.cs`
+- All 35 tests matching `FullyQualifiedName~SettingsTests` pass
+
+---
+
 ## Remaining Tasks
 
 | Task | Status | Description |
 |------|--------|-------------|
 | TASK-PSS-001 | COMPLETE | Replace Http2ProtocolSession — Stream State Tests (§5.1) |
-| TASK-PSS-002 | PENDING | Replace Http2ProtocolSession — Settings Tests (§6.5) |
+| TASK-PSS-002 | COMPLETE | Replace Http2ProtocolSession — Settings Tests (§6.5) |
 | TASK-PSS-003 | PENDING | Replace Http2ProtocolSession — Flow Control Tests (§6.9) |
 | TASK-PSS-004 | PENDING | Replace Http2ProtocolSession — GoAway/Ping/RST (§6.4/§6.7/§6.8) |
 | TASK-PSS-005 | PENDING | Replace Http2ProtocolSession — Header/Pseudo-Header Tests (§8.2/§8.3) |
