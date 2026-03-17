@@ -15,12 +15,12 @@ namespace TurboHttp.StreamTests.Http11;
 public sealed class Http11StageFragmentationTests : StreamTestBase
 {
     private static IInputItem Chunk(byte[] data)
-        => new DataItem(HostKey.Default, new SimpleMemoryOwner(data), data.Length);
+        => new DataItem(new SimpleMemoryOwner(data), data.Length) { Key = RequestEndpoint.Default };
 
     private static IInputItem Chunk(string ascii)
     {
         var bytes = Encoding.Latin1.GetBytes(ascii);
-        return new DataItem(HostKey.Default, new SimpleMemoryOwner(bytes), bytes.Length);
+        return new DataItem(new SimpleMemoryOwner(bytes), bytes.Length) { Key = RequestEndpoint.Default };
     }
 
     private static List<IInputItem> SplitIntoChunks(byte[] data, int[] splitPoints)
@@ -83,7 +83,8 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     // ── 11F-001: Chunked response over 4 TCP segments → correctly reassembled ───
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-9112-§6-11F-001: Chunked response over 4 TCP segments → correctly reassembled")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC-9112-§6-11F-001: Chunked response over 4 TCP segments → correctly reassembled")]
     public async Task ST_11F_001_Chunked_Four_Segments_Reassembled()
     {
         const string fullResponse =
@@ -106,7 +107,8 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
         Assert.Equal("hello world", body);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-9112-§6-11F-001b: Chunked response — each chunk in separate TCP segment")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC-9112-§6-11F-001b: Chunked response — each chunk in separate TCP segment")]
     public async Task ST_11F_001b_Chunked_Each_Chunk_Separate_Segment()
     {
         // Headers in one segment, each chunk data in its own segment, terminator in last
@@ -127,7 +129,8 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     // ── 11F-002: Header/body boundary on TCP segment boundary → correctly separated ─
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-9112-§6-11F-002: Header/body boundary on TCP segment boundary → correctly separated")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC-9112-§6-11F-002: Header/body boundary on TCP segment boundary → correctly separated")]
     public async Task ST_11F_002_HeaderBody_Boundary_On_Segment_Boundary()
     {
         const string bodyText = "Response body content here";
@@ -146,7 +149,8 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
         Assert.Equal(bodyText, body);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-9112-§6-11F-002b: Split in middle of \\r\\n\\r\\n separator → header end detected")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC-9112-§6-11F-002b: Split in middle of \\r\\n\\r\\n separator → header end detected")]
     public async Task ST_11F_002b_Split_Inside_CrLfCrLf()
     {
         const string fullResponse = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nHello";
@@ -166,7 +170,8 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     // ── 11F-003: Chunk-size line split across 2 segments → correctly parsed ─────
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-9112-§6-11F-003: Chunk-size line split across 2 segments → correctly parsed")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC-9112-§6-11F-003: Chunk-size line split across 2 segments → correctly parsed")]
     public async Task ST_11F_003_ChunkSize_Split_Across_Two_Segments()
     {
         const string fullResponse =
@@ -231,7 +236,8 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
         Assert.Equal(bodyText, body);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-9112-§6-11F-004b: Large Content-Length body fragmented into many small pieces")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC-9112-§6-11F-004b: Large Content-Length body fragmented into many small pieces")]
     public async Task ST_11F_004b_LargeContentLength_ManyFragments()
     {
         var bodyText = new string('Z', 1024);
@@ -250,7 +256,8 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     // ── 11F-005: Very small fragments (1–2 bytes) → decoder handles gracefully ──
 
-    [Fact(Timeout = 30_000, DisplayName = "RFC-9112-§6-11F-005: 1-byte fragments with Content-Length body → decoder handles gracefully")]
+    [Fact(Timeout = 30_000,
+        DisplayName = "RFC-9112-§6-11F-005: 1-byte fragments with Content-Length body → decoder handles gracefully")]
     public async Task ST_11F_005_SingleByte_Fragments_ContentLength()
     {
         const string fullResponse = "HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nABC";
@@ -266,7 +273,8 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
         Assert.Equal("ABC", body);
     }
 
-    [Fact(Timeout = 30_000, DisplayName = "RFC-9112-§6-11F-005b: 1-byte fragments with chunked body → decoder handles gracefully")]
+    [Fact(Timeout = 30_000,
+        DisplayName = "RFC-9112-§6-11F-005b: 1-byte fragments with chunked body → decoder handles gracefully")]
     public async Task ST_11F_005b_SingleByte_Fragments_Chunked()
     {
         const string fullResponse =

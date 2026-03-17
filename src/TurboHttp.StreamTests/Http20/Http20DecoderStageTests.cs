@@ -8,7 +8,7 @@ namespace TurboHttp.StreamTests.Http20;
 public sealed class Http20DecoderStageTests : StreamTestBase
 {
     private static IInputItem Chunk(byte[] data)
-        => new DataItem(HostKey.Default, new SimpleMemoryOwner(data), data.Length);
+        => new DataItem(new SimpleMemoryOwner(data), data.Length) { Key = RequestEndpoint.Default };
 
     private async Task<IReadOnlyList<Http2Frame>> DecodeAsync(params byte[][] chunks)
     {

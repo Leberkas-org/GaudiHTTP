@@ -11,16 +11,14 @@ public sealed class Http20EncoderStage : GraphStage<FlowShape<Http2Frame, IOutpu
     private readonly Inlet<Http2Frame> _inlet = new("frameEncoder.in");
     private readonly Outlet<IOutputItem> _outlet = new("frameEncoder.out");
 
-    public override FlowShape<Http2Frame, IOutputItem> Shape =>
-        new(_inlet, _outlet);
+    public override FlowShape<Http2Frame, IOutputItem> Shape => new(_inlet, _outlet);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 
     private sealed class Logic : GraphStageLogic
     {
-        public Logic(Http20EncoderStage stage)
-            : base(stage.Shape)
+        public Logic(Http20EncoderStage stage) : base(stage.Shape)
         {
             SetHandler(stage._inlet, () =>
             {
@@ -31,7 +29,7 @@ public sealed class Http20EncoderStage : GraphStage<FlowShape<Http2Frame, IOutpu
 
                 frame.WriteTo(ref span);
 
-                Push(stage._outlet, new DataItem(HostKey.Default, owner, frame.SerializedSize));
+                Push(stage._outlet, new DataItem(owner, frame.SerializedSize));
             });
 
             SetHandler(stage._outlet, () => Pull(stage._inlet));

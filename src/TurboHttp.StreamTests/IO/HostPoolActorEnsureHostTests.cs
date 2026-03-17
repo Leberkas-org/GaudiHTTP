@@ -1,4 +1,3 @@
-using System;
 using System.Buffers;
 using System.Net;
 using System.Threading.Channels;
@@ -35,7 +34,7 @@ public sealed class HostPoolActorEnsureHostTests : TestKit
         }
     }
 
-    private IActorRef CreatePool(TestProbe controlProbe, HostKey key, TimeSpan? reconnectInterval = null)
+    private IActorRef CreatePool(TestProbe controlProbe, RequestEndpoint key, TimeSpan? reconnectInterval = null)
     {
         var config = new TurboClientOptions
         {
@@ -53,19 +52,19 @@ public sealed class HostPoolActorEnsureHostTests : TestKit
         return Sys.ActorOf(Props.Create(() => new HostPoolActor(hostConfig)));
     }
 
-    private static ConnectionHandle CreateHandle(IActorRef connectionActor, HostKey key)
+    private static ConnectionHandle CreateHandle(IActorRef connectionActor, RequestEndpoint key)
     {
         var outbound = Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
         var inbound = Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
         return new ConnectionHandle(outbound.Writer, inbound.Reader, key, connectionActor);
     }
 
-    private static readonly HostKey Key11 = new()
+    private static readonly RequestEndpoint Key11 = new()
     {
         Host = "localhost", Port = 8080, Scheme = "http", Version = HttpVersion.Version11
     };
 
-    private static readonly HostKey Key10 = new()
+    private static readonly RequestEndpoint Key10 = new()
     {
         Host = "localhost", Port = 8080, Scheme = "http", Version = HttpVersion.Version10
     };

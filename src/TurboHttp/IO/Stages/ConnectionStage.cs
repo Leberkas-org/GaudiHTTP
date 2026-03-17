@@ -51,7 +51,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
         private CancellationTokenSource? _pumpCts;
 
         /// <summary>The HostKey from the most recent ConnectItem — used to tag inbound DataItems.</summary>
-        private HostKey _currentKey;
+        private RequestEndpoint _currentKey;
 
         public Logic(ConnectionStage stage) : base(stage.Shape)
         {
@@ -235,7 +235,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
                     {
                         while (reader.TryRead(out var chunk))
                         {
-                            var dataItem = new DataItem(key, chunk.Buffer, chunk.ReadableBytes);
+                            var dataItem = new DataItem(chunk.Buffer, chunk.ReadableBytes) { Key = key };
                             onData(dataItem);
                         }
                     }

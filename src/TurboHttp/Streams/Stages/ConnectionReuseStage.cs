@@ -47,7 +47,7 @@ internal sealed class
                         response, response.Version, stage._bodyFullyConsumed);
 
                     _pendingResponse = response;
-                    _pendingSignal = new ConnectionReuseItem(HostKey.Default, decision);
+                    _pendingSignal = new ConnectionReuseItem(RequestEndpoint.Default, decision);
 
                     TryPushResponse();
                     TryPushSignal();

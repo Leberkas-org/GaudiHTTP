@@ -13,7 +13,7 @@ public sealed class PrependPrefaceStageTests : StreamTestBase
     private static readonly ConnectItem DefaultConnect =
         new(new TcpOptions { Host = "test.local", Port = 443 })
         {
-            Key = new HostKey
+            Key = new RequestEndpoint
             {
                 Host = "test.local",
                 Port = 443,
@@ -30,7 +30,7 @@ public sealed class PrependPrefaceStageTests : StreamTestBase
         items.AddRange(inputs.Select(IOutputItem (b) =>
         {
             IMemoryOwner<byte> owner = new SimpleMemoryOwner(b);
-            return new DataItem(HostKey.Default, owner, b.Length);
+            return new DataItem(owner, b.Length) { Key = RequestEndpoint.Default };
         }));
 
         var source = Source.From(items);

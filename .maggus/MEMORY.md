@@ -192,15 +192,24 @@
 - 02_FrameParsingTests.cs CS0219 warning fixed in TASK-048 (removed unused `newMax` variable)
 - Zero warnings as of TASK-048
 
-## Http2ProtocolSession Migration Pattern (TASK-PSS-001, TASK-PSS-002, TASK-PSS-003)
+## Http2ProtocolSession Migration Pattern (TASK-PSS-001..006)
 
-### Completed Migrations
+### Completed Migrations (ALL PSS-001..006 DONE)
 - `03_StreamStateMachineTests.cs` → uses `Http2FrameDecoder`, `Http2Frame` subclasses, `HpackDecoder` directly
 - `04_SettingsTests.cs` → uses `SettingsFrame`, `Http2FrameDecoder`, `SettingsParameter` directly
 - `05_FlowControlTests.cs` → uses `WindowUpdateFrame`, `DataFrame`, `Http2FrameDecoder` directly (26 tests, RFC-9113-§6.9)
 - `13_DecoderStreamFlowControlTests.cs` → uses `WindowUpdateFrame`, `DataFrame`, `Http2FrameDecoder` directly (6 tests, RFC-9113-§6.9)
 - `07_ErrorHandlingTests.cs` → uses `RstStreamFrame`, `PingFrame`, `Http2FrameDecoder` directly (14 tests, RFC-9113-§6.4/§6.7)
 - `08_GoAwayTests.cs` → uses `GoAwayFrame`, `Http2FrameDecoder` directly (17 tests, RFC-9113-§6.8)
+- `Http2SecurityTests.cs` → flood enforcement helpers + `Http2FrameDecoder` (6 tests)
+- `Http2FuzzHarnessTests.cs` → `AssertDecodeNeverCrashes()` wraps `Http2FrameDecoder.Decode()` (25 tests)
+- `Http2ResourceExhaustionTests.cs` → explicit flood counters + `Http2FrameDecoder` (18 tests, down from 38)
+- `Http2HighConcurrencyTests.cs` → independent decoder instances + explicit stream tracking (16 tests, down from 20)
+- `Http2MaxConcurrentStreamsTests.cs` → `ExtractMaxConcurrentStreams()` + `EnforceMaxConcurrentStreams()` + `TrackStreamState()` (38 tests, down from 50)
+- `Http2CrossComponentValidationTests.cs` → `DecodeHpackWithCompressionErrorWrapping()` + explicit enforcement (20 tests)
+
+### PSS-007 Now Unblocked
+- All 6 PSS files migrated → `Http2ProtocolSession.cs` and `Http2StreamLifecycleState.cs` can be deleted
 
 ### What Http2FrameDecoder validates directly (throw on parse):
 - SETTINGS on non-zero stream → `Http2Exception(ProtocolError)`

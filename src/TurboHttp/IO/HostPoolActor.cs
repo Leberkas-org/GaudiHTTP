@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Akka.Actor;
 using Akka.Event;
 using Servus.Akka;
@@ -12,7 +11,10 @@ namespace TurboHttp.IO;
 
 public sealed class HostPoolActor : ReceiveActor
 {
-    public record HostPoolConfig(TcpOptions Options, TurboClientOptions Config, HostKey Key,
+    public record HostPoolConfig(
+        TcpOptions Options,
+        TurboClientOptions Config,
+        RequestEndpoint Key,
         Func<Props>? ConnectionFactory = null);
 
     // ── Public message protocol ───────────────────────────────────────
@@ -35,7 +37,7 @@ public sealed class HostPoolActor : ReceiveActor
 
     // ── Fields ────────────────────────────────────────────────────────
 
-    private readonly HostKey _key;
+    private readonly RequestEndpoint _key;
     private readonly TcpOptions _options;
     private readonly TurboClientOptions _config;
     private readonly PerHostConnectionLimiter _limiter;
@@ -251,10 +253,7 @@ public sealed class HostPoolActor : ReceiveActor
     {
         var conn = Find(msg.Connection);
 
-        if (conn?.Handle is not null)
-        {
-            conn.Handle.UpdateMaxConcurrentStreams(msg.MaxStreams);
-        }
+        conn?.Handle?.UpdateMaxConcurrentStreams(msg.MaxStreams);
 
         // Limit may have increased — try to serve queued requesters
         ServeQueuedRequesters();

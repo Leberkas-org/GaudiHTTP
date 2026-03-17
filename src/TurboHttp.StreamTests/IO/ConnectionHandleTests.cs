@@ -5,7 +5,6 @@ using Akka.Actor;
 using Akka.TestKit.Xunit2;
 using TurboHttp.IO;
 using TurboHttp.IO.Stages;
-using Xunit;
 
 namespace TurboHttp.StreamTests.IO;
 
@@ -18,7 +17,7 @@ public sealed class ConnectionHandleTests : TestKit
     {
         var outbound = Channel.CreateUnbounded<(IMemoryOwner<byte> Buffer, int ReadableBytes)>();
         var inbound = Channel.CreateUnbounded<(IMemoryOwner<byte> Buffer, int ReadableBytes)>();
-        var key = new HostKey
+        var key = new RequestEndpoint
         {
             Host = "localhost",
             Port = 443,
@@ -52,7 +51,7 @@ public sealed class ConnectionHandleTests : TestKit
     {
         var outbound = Channel.CreateUnbounded<(IMemoryOwner<byte> Buffer, int ReadableBytes)>();
         var inbound = Channel.CreateUnbounded<(IMemoryOwner<byte> Buffer, int ReadableBytes)>();
-        var key = new HostKey
+        var key = new RequestEndpoint
         {
             Host = "localhost",
             Port = 443,

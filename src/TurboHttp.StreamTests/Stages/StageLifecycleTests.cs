@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.IO.Stages;
@@ -24,7 +23,7 @@ public sealed class StageLifecycleTests : StreamTestBase
     private static IInputItem Chunk(string ascii)
     {
         var bytes = Encoding.Latin1.GetBytes(ascii);
-        return new DataItem(HostKey.Default, new SimpleMemoryOwner(bytes), bytes.Length);
+        return new DataItem(new SimpleMemoryOwner(bytes), bytes.Length) { Key = RequestEndpoint.Default };
     }
 
     private static Exception Unwrap(Exception ex)
@@ -112,7 +111,7 @@ public sealed class StageLifecycleTests : StreamTestBase
         var badRequest = new HttpRequestMessage
         {
             Method = HttpMethod.Get,
-            RequestUri = null   // ← null URI triggers ArgumentNullException in the encoder
+            RequestUri = null // ← null URI triggers ArgumentNullException in the encoder
         };
 
         var ex = await Assert.ThrowsAnyAsync<Exception>(async () =>

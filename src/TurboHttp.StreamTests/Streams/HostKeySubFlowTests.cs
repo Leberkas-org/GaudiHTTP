@@ -29,7 +29,7 @@ public sealed class HostKeySubFlowTests : StreamTestBase
             SubFlow<TOut, NotUsed, Sink<HttpRequestMessage, NotUsed>>> configure)
     {
         var subflow = Flow.Create<HttpRequestMessage>()
-            .GroupByHostKey(HostKey.FromRequest, maxSubstreams: 16);
+            .GroupByHostKey(RequestEndpoint.FromRequest, maxSubstreams: 16);
 
         return (Flow<HttpRequestMessage, TOut, NotUsed>)
             configure(subflow).MergeSubstreams();
@@ -61,7 +61,7 @@ public sealed class HostKeySubFlowTests : StreamTestBase
 
         var flow = (Flow<HttpRequestMessage, HttpRequestMessage, NotUsed>)
             Flow.Create<HttpRequestMessage>()
-                .GroupByHostKey(HostKey.FromRequest, maxSubstreams: 16)
+                .GroupByHostKey(RequestEndpoint.FromRequest, maxSubstreams: 16)
                 .MergeSubstreams();
 
         var results = await RunAsync(flow, requests);

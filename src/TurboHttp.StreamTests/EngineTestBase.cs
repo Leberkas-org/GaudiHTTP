@@ -45,12 +45,12 @@ public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem
                 onPush: () =>
                 {
                     var item = Grab(stage.In);
-                    if (item is DataItem(_, var owner, var length))
+                    if (item is DataItem(var owner, var length))
                     {
                         var copy = new byte[length];
                         owner.Memory.Span[..length].CopyTo(copy);
-                        stage.OutboundChannel.Writer.TryWrite(new DataItem(HostKey.Default, new SimpleMemoryOwner(copy),
-                            length));
+                        stage.OutboundChannel.Writer.TryWrite(new DataItem(new SimpleMemoryOwner(copy), length)
+                            { Key = RequestEndpoint.Default });
                         owner.Dispose();
 
                         var responseBytes = _stage._responseFactory();
@@ -59,7 +59,8 @@ public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem
                         if (_downstreamWaiting)
                         {
                             _downstreamWaiting = false;
-                            Push(stage.Out, new DataItem(HostKey.Default, responseOwner, responseBytes.Length));
+                            Push(stage.Out,
+                                new DataItem(responseOwner, responseBytes.Length) { Key = RequestEndpoint.Default });
                         }
                         else
                         {
@@ -77,7 +78,7 @@ public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem
                 {
                     if (_buffer.TryDequeue(out var chunk))
                     {
-                        Push(stage.Out, new DataItem(HostKey.Default, chunk.Item1, chunk.Item2));
+                        Push(stage.Out, new DataItem(chunk.Item1, chunk.Item2) { Key = RequestEndpoint.Default });
                     }
                     else
                     {
@@ -197,7 +198,7 @@ public sealed class H2EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
                 onPush: () =>
                 {
                     var item = Grab(stage.In);
-                    if (item is DataItem(_, var owner, var length))
+                    if (item is DataItem(var owner, var length))
                     {
                         var copy = new byte[length];
                         owner.Memory.Span[..length].CopyTo(copy);
@@ -217,7 +218,7 @@ public sealed class H2EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
                     {
                         var frameBytes = _stage._serverFrames[_serverFrameIndex++];
                         IMemoryOwner<byte> frameOwner = new SimpleMemoryOwner(frameBytes);
-                        Push(stage.Out, new DataItem(HostKey.Default, frameOwner, frameBytes.Length));
+                        Push(stage.Out, new DataItem(frameOwner, frameBytes.Length) { Key = RequestEndpoint.Default });
                     }
                 },
                 onDownstreamFinish: _ => CompleteStage());

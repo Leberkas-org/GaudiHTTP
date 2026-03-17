@@ -16,10 +16,10 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
     private readonly Outlet<Source<T, NotUsed>> _outlet = new("groupby.hostkey.in");
     public override FlowShape<T, Source<T, NotUsed>> Shape { get; }
 
-    private readonly Func<T, HostKey> _keyFor;
+    private readonly Func<T, RequestEndpoint> _keyFor;
     private readonly int _maxSubstreams;
 
-    public GroupByHostKeyStage(Func<T, HostKey> keyFor, int maxSubstreams = -1)
+    public GroupByHostKeyStage(Func<T, RequestEndpoint> keyFor, int maxSubstreams = -1)
     {
         _keyFor = keyFor ?? throw new ArgumentNullException(nameof(keyFor));
         _maxSubstreams = maxSubstreams;
@@ -39,9 +39,9 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
     private sealed class Logic : GraphStageLogic
     {
         private readonly GroupByHostKeyStage<T> _stage;
-        private readonly Dictionary<HostKey, SubflowState> _subflows = new();
+        private readonly Dictionary<RequestEndpoint, SubflowState> _subflows = new();
         private readonly Queue<Source<T, NotUsed>> _pendingSources = new();
-        private Action<HostKey>? _onOfferComplete;
+        private Action<RequestEndpoint>? _onOfferComplete;
         private bool _upstreamFinished;
 
         public Logic(GroupByHostKeyStage<T> stage) : base(stage.Shape)
@@ -61,7 +61,7 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
 
         public override void PreStart()
         {
-            _onOfferComplete = GetAsyncCallback<HostKey>(key =>
+            _onOfferComplete = GetAsyncCallback<RequestEndpoint>(key =>
             {
                 if (!_subflows.TryGetValue(key, out var state))
                 {
@@ -157,7 +157,7 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
             }
         }
 
-        private void DrainPending(HostKey key, SubflowState state)
+        private void DrainPending(RequestEndpoint key, SubflowState state)
         {
             if (state.Offering || state.Pending.Count == 0)
             {

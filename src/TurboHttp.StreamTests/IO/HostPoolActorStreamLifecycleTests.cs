@@ -1,4 +1,3 @@
-using System;
 using System.Buffers;
 using System.Net;
 using System.Threading.Channels;
@@ -20,17 +19,17 @@ public sealed class HostPoolActorStreamLifecycleTests : TestKit
 {
     private static readonly TcpOptions TestOptions = new() { Host = "localhost", Port = 8080 };
 
-    private static readonly HostKey Key10 = new()
+    private static readonly RequestEndpoint Key10 = new()
     {
         Host = "localhost", Port = 8080, Scheme = "http", Version = HttpVersion.Version10
     };
 
-    private static readonly HostKey Key11 = new()
+    private static readonly RequestEndpoint Key11 = new()
     {
         Host = "localhost", Port = 8080, Scheme = "http", Version = HttpVersion.Version11
     };
 
-    private static readonly HostKey Key20 = new()
+    private static readonly RequestEndpoint Key20 = new()
     {
         Host = "localhost", Port = 8080, Scheme = "http", Version = HttpVersion.Version20
     };
@@ -52,7 +51,7 @@ public sealed class HostPoolActorStreamLifecycleTests : TestKit
         }
     }
 
-    private IActorRef CreatePool(TestProbe controlProbe, HostKey key)
+    private IActorRef CreatePool(TestProbe controlProbe, RequestEndpoint key)
     {
         var config = new TurboClientOptions
         {
@@ -70,7 +69,7 @@ public sealed class HostPoolActorStreamLifecycleTests : TestKit
         return Sys.ActorOf(Props.Create(() => new HostPoolActor(hostConfig)));
     }
 
-    private static ConnectionHandle CreateHandle(IActorRef connectionActor, HostKey key)
+    private static ConnectionHandle CreateHandle(IActorRef connectionActor, RequestEndpoint key)
     {
         var outbound = Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
         var inbound = Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
@@ -81,7 +80,7 @@ public sealed class HostPoolActorStreamLifecycleTests : TestKit
     /// Creates a pool, waits for the eagerly-spawned connection, makes it ready, and returns all pieces.
     /// </summary>
     private (IActorRef Pool, IActorRef FakeConn, ConnectionHandle Handle) SetupReadyPool(
-        TestProbe controlProbe, HostKey key)
+        TestProbe controlProbe, RequestEndpoint key)
     {
         var pool = CreatePool(controlProbe, key);
         var fakeConn = controlProbe.ExpectMsg<IActorRef>(TimeSpan.FromSeconds(5));

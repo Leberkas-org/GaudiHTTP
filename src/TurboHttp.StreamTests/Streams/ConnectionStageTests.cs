@@ -36,7 +36,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         }
     }
 
-    private static readonly HostKey TestKey = new()
+    private static readonly RequestEndpoint TestKey = new()
     {
         Host = "localhost",
         Port = 8080,
@@ -48,7 +48,7 @@ public sealed class ConnectionStageTests : StreamTestBase
     {
         var owner = MemoryPool<byte>.Shared.Rent(length);
         owner.Memory.Span[..length].Fill(value);
-        return new DataItem(TestKey, owner, length);
+        return new DataItem(owner, length) { Key = TestKey };
     }
 
     /// <summary>
@@ -93,7 +93,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
         var connectItem = new ConnectItem(options)
         {
-            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+            Key = new RequestEndpoint { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
         };
 
         var (queue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
@@ -119,7 +119,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
         var connectItem = new ConnectItem(options)
         {
-            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+            Key = new RequestEndpoint { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
         };
 
         var (inputQueue, resultTask) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
@@ -155,7 +155,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
         var connectItem = new ConnectItem(options)
         {
-            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+            Key = new RequestEndpoint { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
         };
         var data = MakeData(0xCD, 8);
 
@@ -191,7 +191,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
         var connectItem = new ConnectItem(options)
         {
-            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+            Key = new RequestEndpoint { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
         };
 
         // Materialize with a queue sink so we can pull multiple items
@@ -245,7 +245,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
         var connectItem = new ConnectItem(options)
         {
-            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+            Key = new RequestEndpoint { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
         };
 
         var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
@@ -263,11 +263,13 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(reuseItem);
 
         // Verify that MarkConnectionNoReuse is sent first
-        var markMsg = await connectionActorProbe.ExpectMsgAsync<HostPoolActor.MarkConnectionNoReuse>(TimeSpan.FromSeconds(5));
+        var markMsg =
+            await connectionActorProbe.ExpectMsgAsync<HostPoolActor.MarkConnectionNoReuse>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActorProbe.Ref, markMsg.Connection);
 
         // Verify that StreamCompleted is sent second
-        var streamMsg = await connectionActorProbe.ExpectMsgAsync<HostPoolActor.StreamCompleted>(TimeSpan.FromSeconds(5));
+        var streamMsg =
+            await connectionActorProbe.ExpectMsgAsync<HostPoolActor.StreamCompleted>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActorProbe.Ref, streamMsg.Connection);
 
         inboundWriter.Complete();
@@ -284,7 +286,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
         var connectItem = new ConnectItem(options)
         {
-            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+            Key = new RequestEndpoint { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
         };
 
         var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
@@ -302,7 +304,8 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(reuseItem);
 
         // Verify that only StreamCompleted is sent (no MarkConnectionNoReuse)
-        var streamMsg = await connectionActorProbe.ExpectMsgAsync<HostPoolActor.StreamCompleted>(TimeSpan.FromSeconds(5));
+        var streamMsg =
+            await connectionActorProbe.ExpectMsgAsync<HostPoolActor.StreamCompleted>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActorProbe.Ref, streamMsg.Connection);
 
         // No further messages (specifically no MarkConnectionNoReuse)
@@ -323,7 +326,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
         var connectItem = new ConnectItem(options)
         {
-            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+            Key = new RequestEndpoint { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
         };
 
         var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)
@@ -339,7 +342,9 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(new MaxConcurrentStreamsItem(50));
 
         // Verify UpdateMaxConcurrentStreams is sent to the connection actor
-        var msg = await connectionActorProbe.ExpectMsgAsync<HostPoolActor.UpdateMaxConcurrentStreams>(TimeSpan.FromSeconds(5));
+        var msg =
+            await connectionActorProbe
+                .ExpectMsgAsync<HostPoolActor.UpdateMaxConcurrentStreams>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActorProbe.Ref, msg.Connection);
         Assert.Equal(50, msg.MaxStreams);
 
@@ -357,7 +362,7 @@ public sealed class ConnectionStageTests : StreamTestBase
         var options = new TcpOptions { Host = "localhost", Port = 8080 };
         var connectItem = new ConnectItem(options)
         {
-            Key = new HostKey { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
+            Key = new RequestEndpoint { Host = "localhost", Port = 8080, Scheme = "Https", Version = HttpVersion.Unknown }
         };
 
         var (inputQueue, _) = Source.Queue<IOutputItem>(4, OverflowStrategy.Backpressure)

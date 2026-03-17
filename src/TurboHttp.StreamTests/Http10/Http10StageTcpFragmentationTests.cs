@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
@@ -14,14 +13,8 @@ namespace TurboHttp.StreamTests.Http10;
 /// </summary>
 public sealed class Http10StageTcpFragmentationTests : StreamTestBase
 {
-    private static IInputItem Chunk(byte[] data)
-        => new DataItem(HostKey.Default, new SimpleMemoryOwner(data), data.Length);
-
-    private static IInputItem Chunk(string ascii)
-    {
-        var bytes = Encoding.Latin1.GetBytes(ascii);
-        return new DataItem(HostKey.Default, new SimpleMemoryOwner(bytes), bytes.Length);
-    }
+    private static DataItem Chunk(byte[] data)
+        => new(new SimpleMemoryOwner(data), data.Length) { Key = RequestEndpoint.Default };
 
     private static List<IInputItem> SplitIntoChunks(byte[] data, int[] splitPoints)
     {
@@ -67,10 +60,12 @@ public sealed class Http10StageTcpFragmentationTests : StreamTestBase
             .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-1945-§8-10F-001: Response split into 3 TCP fragments → correctly reassembled")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC-1945-§8-10F-001: Response split into 3 TCP fragments → correctly reassembled")]
     public async Task ST_10F_001_Three_Fragments_Reassembled()
     {
-        const string fullResponse = "HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello, World!";
+        const string fullResponse =
+            "HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello, World!";
         var bytes = Encoding.Latin1.GetBytes(fullResponse);
 
         // Split into 3 roughly equal fragments
@@ -89,7 +84,8 @@ public sealed class Http10StageTcpFragmentationTests : StreamTestBase
     [Fact(Timeout = 10_000, DisplayName = "RFC-1945-§8-10F-002: Headers split across 2 fragments → correctly parsed")]
     public async Task ST_10F_002_Headers_Split_Across_Two_Fragments()
     {
-        const string fullResponse = "HTTP/1.0 200 OK\r\nServer: TurboHttp\r\nX-Custom: test-value\r\nContent-Length: 4\r\n\r\nData";
+        const string fullResponse =
+            "HTTP/1.0 200 OK\r\nServer: TurboHttp\r\nX-Custom: test-value\r\nContent-Length: 4\r\n\r\nData";
         var bytes = Encoding.Latin1.GetBytes(fullResponse);
 
         // Split in the middle of the headers (after "Server: TurboHttp\r\n")
@@ -106,7 +102,8 @@ public sealed class Http10StageTcpFragmentationTests : StreamTestBase
         Assert.Equal("Data", body);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-1945-§8-10F-003: Body fragment arrives in separate chunk → content complete")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC-1945-§8-10F-003: Body fragment arrives in separate chunk → content complete")]
     public async Task ST_10F_003_Body_In_Separate_Fragment()
     {
         const string bodyText = "This is the body content that arrives separately";
@@ -140,7 +137,9 @@ public sealed class Http10StageTcpFragmentationTests : StreamTestBase
         Assert.Equal("ABC", body);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-1945-§8-10F-005: Fragment boundary in middle of \\r\\n\\r\\n → header end correctly detected")]
+    [Fact(Timeout = 10_000,
+        DisplayName =
+            "RFC-1945-§8-10F-005: Fragment boundary in middle of \\r\\n\\r\\n → header end correctly detected")]
     public async Task ST_10F_005_Fragment_Boundary_Inside_CrLfCrLf()
     {
         const string fullResponse = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nHello";

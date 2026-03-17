@@ -13,7 +13,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     private static IInputItem Chunk(string ascii)
     {
         var bytes = Encoding.Latin1.GetBytes(ascii);
-        return new DataItem(HostKey.Default, new SimpleMemoryOwner(bytes), bytes.Length);
+        return new DataItem(new SimpleMemoryOwner(bytes), bytes.Length) { Key = RequestEndpoint.Default };
     }
 
     private async Task<HttpResponseMessage> DecodeAsync(params string[] chunks)

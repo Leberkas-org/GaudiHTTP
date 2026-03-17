@@ -2,4 +2,4 @@
 
 namespace TurboHttp.IO.Stages;
 
-public record ConnectionReuseItem(HostKey Key, ConnectionReuseDecision Decision) : IControlItem;
+public record ConnectionReuseItem(RequestEndpoint Key, ConnectionReuseDecision Decision) : IControlItem;

@@ -37,6 +37,7 @@ public sealed class Http10EncoderStage : GraphStage<FlowShape<HttpRequestMessage
 
                     try
                     {
+                        var key = RequestEndpoint.FromRequest(request);
                         var contentLength = Convert.ToInt32(request.Content?.Headers.ContentLength ?? 0);
                         var estimatedSize = MinBufferSize + contentLength;
                         var bufferSize = Math.Min(estimatedSize, MaxBufferSize);
@@ -45,7 +46,7 @@ public sealed class Http10EncoderStage : GraphStage<FlowShape<HttpRequestMessage
 
                         var written = Http10Encoder.Encode(request, ref buffer);
 
-                        Push(stage._outlet, new DataItem(HostKey.Default, owner, written));
+                        Push(stage._outlet, new DataItem(owner, written) { Key = key });
                     }
                     catch (Exception ex)
                     {

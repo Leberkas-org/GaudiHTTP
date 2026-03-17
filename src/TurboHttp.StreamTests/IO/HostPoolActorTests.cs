@@ -1,7 +1,5 @@
-using System;
 using System.Buffers;
 using System.Net;
-using System.Net.Http;
 using System.Threading.Channels;
 using Akka.Actor;
 using Akka.TestKit;
@@ -17,7 +15,7 @@ namespace TurboHttp.StreamTests.IO;
 /// </summary>
 public sealed class HostPoolActorTests : TestKit
 {
-    private static readonly HostKey TestKey = new()
+    private static readonly RequestEndpoint TestKey = new()
     {
         Host = "localhost",
         Port = 8080,

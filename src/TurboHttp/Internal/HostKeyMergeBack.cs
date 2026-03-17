@@ -14,10 +14,10 @@ namespace TurboHttp.Internal;
 internal sealed class HostKeyMergeBack<TIn, TMat> : IMergeBack<TIn, TMat>
 {
     private readonly IFlow<TIn, TMat> _baseFlow;
-    private readonly Func<TIn, HostKey> _keyFunction;
+    private readonly Func<TIn, RequestEndpoint> _keyFunction;
     private readonly int _maxSubstreams;
 
-    public HostKeyMergeBack(IFlow<TIn, TMat> baseFlow, Func<TIn, HostKey> keyFunction, int maxSubstreams)
+    public HostKeyMergeBack(IFlow<TIn, TMat> baseFlow, Func<TIn, RequestEndpoint> keyFunction, int maxSubstreams)
     {
         _baseFlow = baseFlow;
         _keyFunction = keyFunction;

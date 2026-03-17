@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using TurboHttp.Protocol.RFC7541;
 using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;

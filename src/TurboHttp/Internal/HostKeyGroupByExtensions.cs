@@ -10,7 +10,7 @@ namespace TurboHttp.Internal;
 internal static class FlowHostKeyGroupByExtensions
 {
     /// <summary>
-    /// Groups elements by <see cref="HostKey"/> and returns a real Akka
+    /// Groups elements by <see cref="RequestEndpoint"/> and returns a real Akka
     /// <see cref="SubFlow{TOut,TMat,TClosed}"/> so that all standard
     /// <c>SubFlowOperations</c> methods (Select, Where, Take, Via, …)
     /// apply directly without any custom wrapper type.
@@ -18,7 +18,7 @@ internal static class FlowHostKeyGroupByExtensions
     /// </summary>
     public static SubFlow<T, TMat, Sink<T, TMat>> GroupByHostKey<T, TMat>(
         this IFlow<T, TMat> flow,
-        Func<T, HostKey> keyFunction,
+        Func<T, RequestEndpoint> keyFunction,
         int maxSubstreams)
     {
         var mergeBack = new HostKeyMergeBack<T, TMat>(flow, keyFunction, maxSubstreams);

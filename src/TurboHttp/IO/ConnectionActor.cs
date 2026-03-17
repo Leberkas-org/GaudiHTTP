@@ -23,7 +23,7 @@ public sealed class ConnectionActor : ReceiveActor
 
     private readonly TcpOptions _options;
     private readonly IActorRef _clientManager;
-    private readonly HostKey _hostKey;
+    private readonly RequestEndpoint _requestEndpoint;
     private readonly TurboClientOptions _config;
 
     private Channel<(IMemoryOwner<byte>, int)> _out = Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
@@ -34,11 +34,11 @@ public sealed class ConnectionActor : ReceiveActor
     private IActorRef? _runner;
     private int _reconnectAttempt;
 
-    public ConnectionActor(TcpOptions options, IActorRef clientManager, HostKey hostKey, TurboClientOptions config)
+    public ConnectionActor(TcpOptions options, IActorRef clientManager, RequestEndpoint requestEndpoint, TurboClientOptions config)
     {
         _options = options;
         _clientManager = clientManager;
-        _hostKey = hostKey;
+        _requestEndpoint = requestEndpoint;
         _config = config;
 
 
@@ -72,7 +72,7 @@ public sealed class ConnectionActor : ReceiveActor
         Context.Watch(_runner);
 
         // Send ConnectionReady with direct channel handles to parent
-        var handle = new ConnectionHandle(msg.OutboundWriter, msg.InboundReader, _hostKey, Self);
+        var handle = new ConnectionHandle(msg.OutboundWriter, msg.InboundReader, _requestEndpoint, Self);
         Context.Parent.Tell(new ConnectionReady(handle));
     }
 

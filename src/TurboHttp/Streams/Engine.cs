@@ -221,7 +221,7 @@ public class Engine
 
         return (Flow<HttpRequestMessage, HttpResponseMessage, NotUsed>)
             Flow.Create<HttpRequestMessage>()
-                .GroupByHostKey(HostKey.FromRequest, maxSubstreams)
+                .GroupByHostKey(RequestEndpoint.FromRequest, maxSubstreams)
                 .ViaSubFlow(connectionFlow)
                 .MergeSubstreams();
     }

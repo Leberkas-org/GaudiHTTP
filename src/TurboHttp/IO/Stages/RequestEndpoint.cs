@@ -4,14 +4,14 @@ using System.Net.Http;
 
 namespace TurboHttp.IO.Stages;
 
-public readonly record struct HostKey
+public readonly record struct RequestEndpoint
 {
-    public static HostKey FromRequest(HttpRequestMessage request)
+    public static RequestEndpoint FromRequest(HttpRequestMessage request)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.Version);
         ArgumentNullException.ThrowIfNull(request.RequestUri);
-        return new HostKey
+        return new RequestEndpoint
         {
             Host = request.RequestUri.Host,
             Port = (ushort)request.RequestUri.Port,
@@ -20,7 +20,7 @@ public readonly record struct HostKey
         };
     }
 
-    public static HostKey Default => new()
+    public static RequestEndpoint Default => new()
     {
         Host = string.Empty,
         Port = ushort.MinValue,
@@ -33,7 +33,7 @@ public readonly record struct HostKey
     public required ushort Port { get; init; }
     public required Version Version { get; init; }
 
-    public bool Equals(HostKey other) =>
+    public bool Equals(RequestEndpoint other) =>
         string.Equals(Host, other.Host, StringComparison.OrdinalIgnoreCase) &&
         string.Equals(Scheme, other.Scheme, StringComparison.OrdinalIgnoreCase) &&
         Port == other.Port &&

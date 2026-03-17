@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.IO.Stages;
@@ -14,7 +13,7 @@ public sealed class Http10DecoderStageRfcTests : StreamTestBase
     private static IInputItem Chunk(string ascii)
     {
         var bytes = Encoding.Latin1.GetBytes(ascii);
-        return new DataItem(HostKey.Default, new SimpleMemoryOwner(bytes), bytes.Length);
+        return new DataItem(new SimpleMemoryOwner(bytes), bytes.Length) { Key = RequestEndpoint.Default };
     }
 
     private async Task<HttpResponseMessage> DecodeAsync(params string[] chunks)
@@ -50,7 +49,8 @@ public sealed class Http10DecoderStageRfcTests : StreamTestBase
         Assert.Equal(404, (int)response.StatusCode);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "10D-RFC-003: Response headers Content-Type and Content-Length correctly parsed")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "10D-RFC-003: Response headers Content-Type and Content-Length correctly parsed")]
     public async Task _10D_RFC_003_ResponseHeaders_Parsed()
     {
         const string raw =
@@ -82,7 +82,8 @@ public sealed class Http10DecoderStageRfcTests : StreamTestBase
         Assert.Equal("Hello, World!", body);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "10D-RFC-005: Connection-Close — stream ends after body, exactly 1 response emitted")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "10D-RFC-005: Connection-Close — stream ends after body, exactly 1 response emitted")]
     public async Task _10D_RFC_005_ConnectionClose_StreamEndsAfterBody()
     {
         // HTTP/1.0 has no persistent connections; after the body the connection closes.

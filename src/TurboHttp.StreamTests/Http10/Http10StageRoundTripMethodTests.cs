@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
@@ -34,7 +33,7 @@ public sealed class Http10StageRoundTripMethodTests : StreamTestBase
     private static IInputItem Chunk(string ascii)
     {
         var bytes = Encoding.Latin1.GetBytes(ascii);
-        return new DataItem(HostKey.Default, new SimpleMemoryOwner(bytes), bytes.Length);
+        return new DataItem(new SimpleMemoryOwner(bytes), bytes.Length) { Key = RequestEndpoint.Default };
     }
 
     private async Task<HttpResponseMessage> DecodeAsync(params string[] chunks)
@@ -95,7 +94,8 @@ public sealed class Http10StageRoundTripMethodTests : StreamTestBase
         Assert.Equal(responseBody, respBody);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC-1945-§8-RT-M-003: HEAD → response without body, but with Content-Length header")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC-1945-§8-RT-M-003: HEAD → response without body, but with Content-Length header")]
     public async Task ST_10RT_M_003_Head_No_Body_With_ContentLength()
     {
         // Encode

@@ -1,5 +1,6 @@
 using System;
 using Akka.Actor;
+using TurboHttp.IO.Stages;
 
 namespace TurboHttp.IO;
 
@@ -25,7 +26,7 @@ internal sealed class ConnectionState
 
     /// <summary>
     /// The HTTP version this connection is operating under.
-    /// Computed from the <see cref="Handle"/>'s <see cref="Stages.HostKey.Version"/>;
+    /// Computed from the <see cref="Handle"/>'s <see cref="RequestEndpoint.Version"/>;
     /// defaults to HTTP/1.1 when no handle is attached.
     /// </summary>
     public Version HttpVersion => Handle?.Key.Version ?? System.Net.HttpVersion.Version11;

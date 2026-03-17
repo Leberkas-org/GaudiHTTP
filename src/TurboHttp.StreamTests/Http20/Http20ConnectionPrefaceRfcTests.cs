@@ -14,7 +14,7 @@ public sealed class Http20ConnectionPrefaceRfcTests : StreamTestBase
     private static ConnectItem MakeConnect(string host = "example.com", int port = 80) =>
         new(new TcpOptions { Host = host, Port = port })
         {
-            Key = new HostKey
+            Key = new RequestEndpoint
             {
                 Host = host,
                 Port = (ushort)port,
@@ -24,7 +24,7 @@ public sealed class Http20ConnectionPrefaceRfcTests : StreamTestBase
         };
 
     private static DataItem MakeData(byte[] data) =>
-        new(HostKey.Default, new SimpleMemoryOwner(data), data.Length);
+        new(new SimpleMemoryOwner(data), data.Length) { Key = RequestEndpoint.Default };
 
     /// <summary>
     /// Runs the PrependPrefaceStage with the given transport items and collects all output.
@@ -45,7 +45,7 @@ public sealed class Http20ConnectionPrefaceRfcTests : StreamTestBase
         var bytes = new List<byte>();
         foreach (var item in items)
         {
-            if (item is DataItem(_, var owner, var length))
+            if (item is DataItem(var owner, var length))
             {
                 bytes.AddRange(owner.Memory.Span[..length].ToArray());
             }

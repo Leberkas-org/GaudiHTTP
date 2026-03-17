@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
@@ -17,17 +16,13 @@ namespace TurboHttp.StreamTests.Stages;
 public sealed class DecoderStagePartialTests : StreamTestBase
 {
     // ── Helpers ──────────────────────────────────────────────────────────────────
-
-    private static IInputItem Chunk(byte[] data)
-        => new DataItem(HostKey.Default, new SimpleMemoryOwner(data), data.Length);
-
     private static IInputItem H2Chunk(byte[] data)
-        => new DataItem(HostKey.Default, new SimpleMemoryOwner(data), data.Length);
+        => new DataItem(new SimpleMemoryOwner(data), data.Length) { Key = RequestEndpoint.Default };
 
     private static IInputItem Chunk(string ascii)
     {
         var bytes = Encoding.Latin1.GetBytes(ascii);
-        return new DataItem(HostKey.Default, new SimpleMemoryOwner(bytes), bytes.Length);
+        return new DataItem(new SimpleMemoryOwner(bytes), bytes.Length) { Key = RequestEndpoint.Default };
     }
 
     private async Task<HttpResponseMessage> Decode11Async(
@@ -49,7 +44,8 @@ public sealed class DecoderStagePartialTests : StreamTestBase
     // ── PART-001: HTTP/1.x — incomplete header → decoder waits for next chunk ──
 
     [Fact(Timeout = 10_000,
-        DisplayName = "RFC-9112-§6-PART-001: Incomplete HTTP/1.x header → decoder waits, emits only after full header arrives")]
+        DisplayName =
+            "RFC-9112-§6-PART-001: Incomplete HTTP/1.x header → decoder waits, emits only after full header arrives")]
     public async Task PART_001_Http1x_IncompleteHeader_WaitsForNextChunk()
     {
         // The response header is sent in two chunks:
@@ -77,7 +73,8 @@ public sealed class DecoderStagePartialTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "RFC-9112-§6-PART-001b: Header split mid-field → decoder accumulates and correctly parses full header")]
+        DisplayName =
+            "RFC-9112-§6-PART-001b: Header split mid-field → decoder accumulates and correctly parses full header")]
     public async Task PART_001b_Http1x_HeaderSplitMidField_DecodesCorrectly()
     {
         // Split inside the status line, before \r\n
@@ -110,9 +107,9 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         var fragments = new List<IInputItem>
         {
             Chunk($"HTTP/1.1 200 OK\r\nContent-Length: {bodyText.Length}\r\n\r\n"),
-            Chunk("AAAAA"),   // first 5 bytes — decoder must not emit yet
-            Chunk("BBBBB"),   // next 5 bytes — still incomplete
-            Chunk("CCCCC")    // final 5 bytes — now Content-Length satisfied → emit
+            Chunk("AAAAA"), // first 5 bytes — decoder must not emit yet
+            Chunk("BBBBB"), // next 5 bytes — still incomplete
+            Chunk("CCCCC") // final 5 bytes — now Content-Length satisfied → emit
         };
 
         var response = await Decode11Async(fragments);
@@ -152,7 +149,8 @@ public sealed class DecoderStagePartialTests : StreamTestBase
     // ── PART-003: HTTP/2 — 5 of 9 header bytes → frame waits for remainder ──────
 
     [Fact(Timeout = 10_000,
-        DisplayName = "RFC-9113-§4.1-PART-003: HTTP/2 frame header split at byte 5 → decoder waits for remaining 4 bytes")]
+        DisplayName =
+            "RFC-9113-§4.1-PART-003: HTTP/2 frame header split at byte 5 → decoder waits for remaining 4 bytes")]
     public async Task PART_003_Http2_FiveOfNineHeaderBytes_WaitsForRemainder()
     {
         // An HTTP/2 frame header is exactly 9 bytes.
@@ -187,15 +185,16 @@ public sealed class DecoderStagePartialTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "RFC-9113-§4.1-PART-003b: HTTP/2 DATA frame header split at byte 1 → decoder waits for 8 more header bytes")]
+        DisplayName =
+            "RFC-9113-§4.1-PART-003b: HTTP/2 DATA frame header split at byte 1 → decoder waits for 8 more header bytes")]
     public async Task PART_003b_Http2_OneByteOfHeader_WaitsForRemainder()
     {
         // Send only the very first byte of the 9-byte frame header, then the rest.
         var body = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
         var rawBytes = new DataFrame(streamId: 3, data: body, endStream: true).Serialize();
 
-        var chunk1 = rawBytes[..1];   // just 1 byte of 9-byte header
-        var chunk2 = rawBytes[1..];   // the rest (8 header bytes + payload)
+        var chunk1 = rawBytes[..1]; // just 1 byte of 9-byte header
+        var chunk2 = rawBytes[1..]; // the rest (8 header bytes + payload)
 
         var fragments = new List<IInputItem>
         {
@@ -230,9 +229,9 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         // rawBytes layout: [0..8] = 9-byte header, [9..] = payload
         Assert.Equal(9 + payload.Length, rawBytes.Length);
 
-        var chunk1 = rawBytes[..9];         // complete frame header
-        var chunk2 = rawBytes[9..13];       // first 4 bytes of payload
-        var chunk3 = rawBytes[13..];        // remaining 8 bytes of payload
+        var chunk1 = rawBytes[..9]; // complete frame header
+        var chunk2 = rawBytes[9..13]; // first 4 bytes of payload
+        var chunk3 = rawBytes[13..]; // remaining 8 bytes of payload
 
         var fragments = new List<IInputItem>
         {
@@ -251,7 +250,8 @@ public sealed class DecoderStagePartialTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "RFC-9113-§4.1-PART-004b: HTTP/2 HEADERS frame payload in 3 single-byte chunks + header → reassembled")]
+        DisplayName =
+            "RFC-9113-§4.1-PART-004b: HTTP/2 HEADERS frame payload in 3 single-byte chunks + header → reassembled")]
     public async Task PART_004b_Http2_HeadersPayloadBytewiseChunks_CorrectlyReassembled()
     {
         // HEADERS frame with 3-byte HPACK payload sent as:
@@ -267,10 +267,10 @@ public sealed class DecoderStagePartialTests : StreamTestBase
 
         var fragments = new List<IInputItem>
         {
-            H2Chunk(rawBytes[..9]),           // 9-byte frame header
-            H2Chunk(rawBytes[9..10]),         // 1st payload byte
-            H2Chunk(rawBytes[10..11]),        // 2nd payload byte
-            H2Chunk(rawBytes[11..])           // 3rd payload byte
+            H2Chunk(rawBytes[..9]), // 9-byte frame header
+            H2Chunk(rawBytes[9..10]), // 1st payload byte
+            H2Chunk(rawBytes[10..11]), // 2nd payload byte
+            H2Chunk(rawBytes[11..]) // 3rd payload byte
         };
 
         var frames = await Decode20Async(fragments);

@@ -14,16 +14,16 @@ public sealed class PoolRouterActor : ReceiveActor
     /// Sent by ConnectionStage on each ConnectItem to ensure a HostPoolActor exists.
     /// The message is forwarded to the HostPoolActor so it can reply with a ConnectionHandle.
     /// </summary>
-    public sealed record EnsureHost(HostKey Key, TcpOptions Options);
+    public sealed record EnsureHost(RequestEndpoint Key, TcpOptions Options);
 
     // ── Fields ────────────────────────────────────────────────────────
 
     private readonly TurboClientOptions _config;
-    private readonly Func<TcpOptions, TurboClientOptions, HostKey, IActorRef> _hostFactory;
-    private readonly Dictionary<HostKey, IActorRef> _hosts = new();
+    private readonly Func<TcpOptions, TurboClientOptions, RequestEndpoint, IActorRef> _hostFactory;
+    private readonly Dictionary<RequestEndpoint, IActorRef> _hosts = new();
 
     public PoolRouterActor(TurboClientOptions config,
-        Func<TcpOptions, TurboClientOptions, HostKey, IActorRef>? hostFactory = null)
+        Func<TcpOptions, TurboClientOptions, RequestEndpoint, IActorRef>? hostFactory = null)
     {
         _config = config;
         _hostFactory = hostFactory ?? CreateHostPoolActor;
@@ -41,7 +41,7 @@ public sealed class PoolRouterActor : ReceiveActor
         hostActor.Forward(msg);
     }
 
-    private IActorRef EnsureHostActor(HostKey key, TcpOptions options)
+    private IActorRef EnsureHostActor(RequestEndpoint key, TcpOptions options)
     {
         if (!_hosts.TryGetValue(key, out var hostActor))
         {
@@ -52,7 +52,7 @@ public sealed class PoolRouterActor : ReceiveActor
         return hostActor;
     }
 
-    private IActorRef CreateHostPoolActor(TcpOptions options, TurboClientOptions config, HostKey key)
+    private IActorRef CreateHostPoolActor(TcpOptions options, TurboClientOptions config, RequestEndpoint key)
     {
         var hostConfig = new HostPoolActor.HostPoolConfig(options, config, key);
         return Context.ActorOf(Props.Create(() => new HostPoolActor(hostConfig)), Guid.NewGuid().ToString());

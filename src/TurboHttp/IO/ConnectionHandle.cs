@@ -15,7 +15,7 @@ namespace TurboHttp.IO;
 public sealed record ConnectionHandle(
     ChannelWriter<(IMemoryOwner<byte> Buffer, int ReadableBytes)> OutboundWriter,
     ChannelReader<(IMemoryOwner<byte> Buffer, int ReadableBytes)> InboundReader,
-    HostKey Key,
+    RequestEndpoint Key,
     IActorRef ConnectionActor)
 {
     private volatile int _maxConcurrentStreams = 100;
