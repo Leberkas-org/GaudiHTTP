@@ -116,12 +116,12 @@ Affected files: `06_HeadersTests.cs`, `09_ContinuationFrameTests.cs`, `11_Decode
 **Background:** Header validation (uppercase errors, forbidden connection headers, duplicate :status) is production logic in `Http20StreamStage`. `HpackDecoder` itself has RFC-7541 compliance. Tests should: exercise HPACK decoding directly, verify `HeadersFrame` fields.
 
 **Acceptance Criteria:**
-- [ ] All three files only use: `HpackDecoder`, `HpackEncoder`, `HeadersFrame`, `ContinuationFrame`, `Http2FrameDecoder`
-- [ ] No import of `Http2ProtocolSession`
-- [ ] DisplayNames: `RFC-9113-§8.2` or `RFC-9113-§8.3`
-- [ ] Scenarios covered: END_HEADERS flag, CONTINUATION chain, header block decoding
-- [ ] Tests green
-- [ ] `.maggus/PROGRESS_3.md` updated
+- [x] All three files only use: `HpackDecoder`, `HpackEncoder`, `HeadersFrame`, `ContinuationFrame`, `Http2FrameDecoder`
+- [x] No import of `Http2ProtocolSession`
+- [x] DisplayNames: `RFC-9113-§8.2` or `RFC-9113-§8.3`
+- [x] Scenarios covered: END_HEADERS flag, CONTINUATION chain, header block decoding
+- [x] Tests green
+- [x] `.maggus/PROGRESS_3.md` updated
 
 ---
 
@@ -133,12 +133,12 @@ Affected files: `Http2SecurityTests.cs`, `Http2FuzzHarnessTests.cs`, `Http2Resou
 **Background:** These tests verify attack protection (CONTINUATION flood, RST Rapid Reset, PING flood, SETTINGS flood). In production this protection belongs to `Http20ConnectionStage`. Tests should use real stage tests (via `Http2StageTestHelper` or direct classes) or `Http2FrameDecoder` with explicit exception assertions.
 
 **Acceptance Criteria:**
-- [ ] All 6 files have no `Http2ProtocolSession` import
-- [ ] Security tests call `Http20ConnectionStage` or `Http2FrameDecoder` directly
-- [ ] DisplayNames contain RFC references (e.g. `RFC-9113-§6.5` for SETTINGS flood, `RFC-9113-§5.1` for RST Rapid Reset protection)
-- [ ] `SEC-h2-XXX` codes replaced or prefixed with RFC references
-- [ ] Tests green
-- [ ] `.maggus/PROGRESS_3.md` updated
+- [x] All 6 files have no `Http2ProtocolSession` import
+- [x] Security tests call `Http20ConnectionStage` or `Http2FrameDecoder` directly
+- [x] DisplayNames contain RFC references (e.g. `RFC-9113-§6.5` for SETTINGS flood, `RFC-9113-§5.1` for RST Rapid Reset protection)
+- [x] `SEC-h2-XXX` codes replaced or prefixed with RFC references
+- [x] Tests green
+- [x] `.maggus/PROGRESS_3.md` updated
 
 ---
 

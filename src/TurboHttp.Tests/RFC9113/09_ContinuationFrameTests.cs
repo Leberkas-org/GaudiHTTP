@@ -1,167 +1,260 @@
-using System.Buffers.Binary;
 using TurboHttp.Protocol.RFC7541;
 using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
 /// <summary>
-/// RFC 7540 §6.10 — CONTINUATION Frame
-/// Phase 14: Enforce END_HEADERS, require contiguous CONTINUATION frames,
-/// reject interleaved frames.
+/// RFC 9113 §8.2 — HTTP Header Field Block assembly via CONTINUATION frames.
+/// RFC 9113 §6.10 — CONTINUATION Frame semantics.
 ///
-/// Key invariants tested here:
-///   - A HEADERS frame without END_HEADERS MUST be followed exclusively by
-///     CONTINUATION frames on the same stream until END_HEADERS is set.
-///   - Any other frame type (or CONTINUATION on a different stream) while a
-///     header block is pending is a connection error of type PROTOCOL_ERROR.
-///   - A CONTINUATION frame without a preceding HEADERS (or PUSH_PROMISE)
-///     without END_HEADERS is a connection error of type PROTOCOL_ERROR.
+/// Tests verify that <see cref="Http2FrameDecoder"/>, <see cref="HeadersFrame"/>,
+/// and <see cref="ContinuationFrame"/> are used directly to assemble and decode
+/// header blocks.
+///
+/// Key invariants:
+///   - A HEADERS frame without END_HEADERS is followed by CONTINUATION frames.
+///   - The full header block is the concatenation of all fragments until END_HEADERS.
+///   - Any frame type other than CONTINUATION (or CONTINUATION on the wrong stream)
+///     while a header block is pending is a connection error (PROTOCOL_ERROR).
+///   - CONTINUATION without a preceding HEADERS is a connection error (PROTOCOL_ERROR).
+///
+/// Covered:
+///   §8.2 / §6.10: END_HEADERS flag on HEADERS and CONTINUATION frames
+///   §8.2 / §6.10: Multi-fragment CONTINUATION chains decode correctly
+///   §8.2 / §6.10: Header field values preserved across fragments
+///   §6.10:        Interleaved non-CONTINUATION frames → PROTOCOL_ERROR
+///   §6.10:        CONTINUATION on wrong stream → PROTOCOL_ERROR
+///   §6.10:        CONTINUATION without preceding HEADERS → PROTOCOL_ERROR
+///   §6.10:        CONTINUATION flood protection (≥1000 frames)
+///
+/// Test IDs: CF-001..025
 /// </summary>
 public sealed class Http2ContinuationFrameTests
 {
-    // ── helpers ──────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static byte[] EncodeStatus200()
+    private static byte[] EncodeBlock(params (string Name, string Value)[] headers)
     {
-        var hpack = new HpackEncoder(useHuffman: false);
-        return hpack.Encode([(":status", "200")]).ToArray();
+        var enc = new HpackEncoder(useHuffman: false);
+        return enc.Encode(headers).ToArray();
     }
 
-    private static byte[] EncodeHeaders(params (string, string)[] headers)
+    private static byte[] ConcatArrays(params byte[][] arrays)
     {
-        var hpack = new HpackEncoder(useHuffman: false);
-        return hpack.Encode(headers).ToArray();
-    }
-
-    private static byte[] ConcatFrames(params byte[][] frames)
-    {
-        var total = frames.Sum(f => f.Length);
+        var total = arrays.Sum(a => a.Length);
         var result = new byte[total];
         var offset = 0;
-        foreach (var f in frames)
+        foreach (var a in arrays)
         {
-            f.CopyTo(result, offset);
-            offset += f.Length;
+            a.CopyTo(result, offset);
+            offset += a.Length;
         }
 
         return result;
     }
 
+    /// <summary>
+    /// Assembles the full HPACK header block from a sequence of decoded frames
+    /// (one HeadersFrame optionally followed by ContinuationFrames).
+    /// Throws Http2Exception if the sequence violates §6.10 ordering rules.
+    /// </summary>
+    private static byte[] AssembleHeaderBlock(IReadOnlyList<Http2Frame> frames)
+    {
+        var buffer = new List<byte>();
+        int? pendingStreamId = null;
+        var continuationCount = 0;
+
+        foreach (var frame in frames)
+        {
+            if (pendingStreamId.HasValue && frame is not ContinuationFrame)
+            {
+                throw new Http2Exception(
+                    $"RFC 9113 §6.10: Expected CONTINUATION but received {frame.GetType().Name}.",
+                    Http2ErrorCode.ProtocolError);
+            }
+
+            switch (frame)
+            {
+                case HeadersFrame h:
+                    buffer.AddRange(h.HeaderBlockFragment.ToArray());
+                    if (!h.EndHeaders)
+                    {
+                        pendingStreamId = h.StreamId;
+                        continuationCount = 0;
+                    }
+
+                    break;
+
+                case ContinuationFrame c:
+                    if (!pendingStreamId.HasValue)
+                    {
+                        throw new Http2Exception(
+                            $"RFC 9113 §6.10: Unexpected CONTINUATION on stream {c.StreamId}; no pending header block.",
+                            Http2ErrorCode.ProtocolError);
+                    }
+
+                    if (c.StreamId != pendingStreamId.Value)
+                    {
+                        throw new Http2Exception(
+                            $"RFC 9113 §6.10: CONTINUATION on stream {c.StreamId}; expected stream {pendingStreamId.Value}.",
+                            Http2ErrorCode.ProtocolError);
+                    }
+
+                    continuationCount++;
+                    if (continuationCount >= 1000)
+                    {
+                        throw new Http2Exception(
+                            "RFC 9113 §6.10: Excessive CONTINUATION frames — possible flood attack.",
+                            Http2ErrorCode.ProtocolError);
+                    }
+
+                    buffer.AddRange(c.HeaderBlockFragment.ToArray());
+                    if (c.EndHeaders)
+                    {
+                        pendingStreamId = null;
+                    }
+
+                    break;
+            }
+        }
+
+        return buffer.ToArray();
+    }
+
     // ── Enforce END_HEADERS ──────────────────────────────────────────────────
 
-    /// RFC 9113 §6.10 — HEADERS with END_HEADERS completes immediately without CONTINUATION
-    [Fact(DisplayName = "RFC9113-6.10-CF-001: HEADERS with END_HEADERS completes immediately without CONTINUATION")]
-    public void Should_ProduceResponse_When_HeadersHasEndHeadersSet()
+    /// RFC 9113 §8.2 / §6.10 — HEADERS with END_HEADERS flag set completes immediately
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-001: HEADERS with END_HEADERS decoded with EndHeaders=true")]
+    public void Should_HaveEndHeadersTrue_When_HeadersHasEndHeadersSet()
     {
-        var hpack = new HpackEncoder(useHuffman: false);
-        var block = hpack.Encode([(":status", "200")]);
-        var frame = new HeadersFrame(1, block, endStream: true, endHeaders: true).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var bytes = new HeadersFrame(1, block.AsMemory(), endStream: true, endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(frame);
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(bytes);
 
-        Assert.Single(session.Responses);
-        Assert.Equal(200, (int)session.Responses[0].Response.StatusCode);
+        Assert.Single(frames);
+        var frame = Assert.IsType<HeadersFrame>(frames[0]);
+        Assert.True(frame.EndHeaders);
+        Assert.True(frame.EndStream);
+
+        // Full block is just the HEADERS fragment — no CONTINUATION needed.
+        var fullBlock = AssembleHeaderBlock(frames);
+        var headers = new HpackDecoder().Decode(fullBlock.AsSpan());
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "200");
     }
 
-    /// RFC 9113 §6.10 — HEADERS without END_HEADERS produces no response until CONTINUATION
-    [Fact(DisplayName = "RFC9113-6.10-CF-002: HEADERS without END_HEADERS produces no response until CONTINUATION")]
-    public void Should_ProduceNoResponse_When_HeadersLacksEndHeaders()
+    /// RFC 9113 §8.2 / §6.10 — HEADERS without END_HEADERS decoded with EndHeaders=false
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-002: HEADERS without END_HEADERS decoded with EndHeaders=false")]
+    public void Should_HaveEndHeadersFalse_When_HeadersLacksEndHeaders()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: true, endHeaders: false).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var partial = block[..1];
+        var bytes = new HeadersFrame(1, partial.AsMemory(), endStream: true, endHeaders: false).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(bytes);
 
-        Assert.Empty(session.Responses);
+        Assert.Single(frames);
+        var frame = Assert.IsType<HeadersFrame>(frames[0]);
+        Assert.False(frame.EndHeaders);
     }
 
-    /// RFC 9113 §6.10 — Single CONTINUATION with END_HEADERS completes header block
-    [Fact(DisplayName = "RFC9113-6.10-CF-003: Single CONTINUATION with END_HEADERS completes header block")]
-    public void Should_ProduceResponse_When_ContinuationHasEndHeaders()
+    /// RFC 9113 §8.2 / §6.10 — Single CONTINUATION with END_HEADERS completes the header block
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-003: Single CONTINUATION with END_HEADERS completes header block")]
+    public void Should_DecodeCorrectly_When_ContinuationHasEndHeaders()
     {
-        var block = EncodeStatus200();
+        var block = EncodeBlock((":status", "200"));
         var split = block.Length / 2;
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..split], endStream: true, endHeaders: false).Serialize();
-        var contFrame = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..split], endStream: true, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
-        session.Process(contFrame);
+        var decoder = new Http2FrameDecoder();
+        var frames = ConcatArrays(headersBytes, contBytes);
+        var decoded = decoder.Decode(frames);
 
-        Assert.Single(session.Responses);
-        Assert.Equal(200, (int)session.Responses[0].Response.StatusCode);
+        Assert.Equal(2, decoded.Count);
+        var hf = Assert.IsType<HeadersFrame>(decoded[0]);
+        var cf = Assert.IsType<ContinuationFrame>(decoded[1]);
+        Assert.False(hf.EndHeaders);
+        Assert.True(cf.EndHeaders);
+
+        var fullBlock = AssembleHeaderBlock(decoded);
+        var headers = new HpackDecoder().Decode(fullBlock.AsSpan());
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "200");
     }
 
-    /// RFC 9113 §6.10 — CONTINUATION without END_HEADERS produces no response
-    [Fact(DisplayName = "RFC9113-6.10-CF-004: CONTINUATION without END_HEADERS produces no response")]
-    public void Should_ProduceNoResponse_When_ContinuationLacksEndHeaders()
+    /// RFC 9113 §8.2 / §6.10 — CONTINUATION without END_HEADERS does not complete the block
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-004: CONTINUATION without END_HEADERS has EndHeaders=false")]
+    public void Should_HaveEndHeadersFalse_When_ContinuationLacksEndHeaders()
     {
-        var block = EncodeStatus200();
+        var block = EncodeBlock((":status", "200"));
         var third = Math.Max(1, block.Length / 3);
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..third], endStream: true, endHeaders: false).Serialize();
-        var cont1 = new ContinuationFrame(1, block.AsMemory()[third..Math.Min(2 * third, block.Length)], endHeaders: false).Serialize();
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..third], endStream: true, endHeaders: false).Serialize();
+        var cont1Bytes = new ContinuationFrame(1, block.AsMemory()[third..Math.Min(2 * third, block.Length)], endHeaders: false).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
-        session.Process(cont1);
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(ConcatArrays(headersBytes, cont1Bytes));
 
-        Assert.Empty(session.Responses);
+        Assert.Equal(2, decoded.Count);
+        var cf = Assert.IsType<ContinuationFrame>(decoded[1]);
+        Assert.False(cf.EndHeaders);
     }
 
-    /// RFC 9113 §6.10 — Three CONTINUATION frames with last having END_HEADERS produces response
-    [Fact(DisplayName = "RFC9113-6.10-CF-005: Three CONTINUATION frames with last having END_HEADERS produces response")]
-    public void Should_ProduceResponse_When_ThreeContinuationFramesComplete()
+    /// RFC 9113 §8.2 / §6.10 — Three CONTINUATION frames with last having END_HEADERS
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-005: Three CONTINUATION frames with last END_HEADERS assembles correctly")]
+    public void Should_AssembleBlock_When_ThreeContinuationFramesComplete()
     {
-        var block = EncodeHeaders((":status", "200"), ("x-a", "1"), ("x-b", "2"), ("x-c", "3"));
+        var block = EncodeBlock((":status", "200"), ("x-a", "1"), ("x-b", "2"), ("x-c", "3"));
         var quarter = block.Length / 4;
 
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..quarter], endStream: true, endHeaders: false).Serialize();
-        var cont1 = new ContinuationFrame(1, block.AsMemory()[quarter..(2 * quarter)], endHeaders: false).Serialize();
-        var cont2 = new ContinuationFrame(1, block.AsMemory()[(2 * quarter)..(3 * quarter)], endHeaders: false).Serialize();
-        var cont3 = new ContinuationFrame(1, block.AsMemory()[(3 * quarter)..], endHeaders: true).Serialize();
+        var h = new HeadersFrame(1, block.AsMemory()[..quarter], endStream: true, endHeaders: false).Serialize();
+        var c1 = new ContinuationFrame(1, block.AsMemory()[quarter..(2 * quarter)], endHeaders: false).Serialize();
+        var c2 = new ContinuationFrame(1, block.AsMemory()[(2 * quarter)..(3 * quarter)], endHeaders: false).Serialize();
+        var c3 = new ContinuationFrame(1, block.AsMemory()[(3 * quarter)..], endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
-        session.Process(cont1);
-        session.Process(cont2);
-        session.Process(cont3);
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(ConcatArrays(h, c1, c2, c3));
+        Assert.Equal(4, decoded.Count);
 
-        Assert.Single(session.Responses);
-        Assert.Equal(200, (int)session.Responses[0].Response.StatusCode);
+        var fullBlock = AssembleHeaderBlock(decoded);
+        var headers = new HpackDecoder().Decode(fullBlock.AsSpan());
+        Assert.Contains(headers, h2 => h2.Name == ":status" && h2.Value == "200");
+        Assert.Contains(headers, h2 => h2.Name == "x-a" && h2.Value == "1");
+        Assert.Contains(headers, h2 => h2.Name == "x-c" && h2.Value == "3");
     }
 
-    /// RFC 9113 §6.10 — Header values preserved across multiple CONTINUATION fragments
-    [Fact(DisplayName = "RFC9113-6.10-CF-006: Header values preserved across multiple CONTINUATION fragments")]
+    /// RFC 9113 §8.2 / §6.10 — Header values preserved across multiple CONTINUATION fragments
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-006: Header values preserved across multiple CONTINUATION fragments")]
     public void Should_PreserveHeaderValues_When_SplitAcrossContinuationFrames()
     {
-        var block = EncodeHeaders((":status", "201"), ("content-type", "application/json"), ("x-custom", "hello"));
+        var block = EncodeBlock((":status", "201"), ("content-type", "application/json"), ("x-custom", "hello"));
         var half = block.Length / 2;
 
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..half], endStream: true, endHeaders: false).Serialize();
-        var cont = new ContinuationFrame(1, block.AsMemory()[half..], endHeaders: true).Serialize();
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..half], endStream: true, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[half..], endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
-        session.Process(cont);
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(ConcatArrays(headersBytes, contBytes));
+        Assert.Equal(2, decoded.Count);
 
-        Assert.Single(session.Responses);
-        var resp = session.Responses[0].Response;
-        Assert.Equal(201, (int)resp.StatusCode);
-        Assert.True(resp.Headers.Contains("x-custom"));
+        var fullBlock = AssembleHeaderBlock(decoded);
+        var headers = new HpackDecoder().Decode(fullBlock.AsSpan());
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "201");
+        Assert.Contains(headers, h => h.Name == "x-custom" && h.Value == "hello");
+        Assert.Contains(headers, h => h.Name == "content-type" && h.Value == "application/json");
     }
 
     // ── Require contiguous CONTINUATION frames ───────────────────────────────
 
     /// RFC 9113 §6.10 — DATA frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-007: DATA frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-007: DATA frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_DataFrameInterleavesContinuation()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
 
-        // A DATA frame on stream 1 while waiting for CONTINUATION.
+        // A raw DATA frame on stream 1.
         var dataFrame = new byte[]
         {
             0x00, 0x00, 0x03, // length = 3
@@ -170,120 +263,134 @@ public sealed class Http2ContinuationFrameTests
             0x61, 0x62, 0x63  // "abc"
         };
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes);
+        var secondDecoded = decoder.Decode(dataFrame);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(dataFrame));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
     /// RFC 9113 §6.10 — PING frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-008: PING frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-008: PING frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_PingInterleavesContinuation()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
-        var pingFrame = new PingFrame(new byte[8]).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var pingBytes = new PingFrame(new byte[8]).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes);
+        var secondDecoded = decoder.Decode(pingBytes);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(pingFrame));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
     /// RFC 9113 §6.10 — SETTINGS frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-009: SETTINGS frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-009: SETTINGS frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_SettingsInterleavesContinuation()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
-        var settingsFrame = new SettingsFrame([]).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var settingsBytes = new SettingsFrame([]).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes);
+        var secondDecoded = decoder.Decode(settingsBytes);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(settingsFrame));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
     /// RFC 9113 §6.10 — RST_STREAM frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-010: RST_STREAM frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-010: RST_STREAM frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_RstStreamInterleavesContinuation()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
-        var rstFrame = new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var rstBytes = new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes);
+        var secondDecoded = decoder.Decode(rstBytes);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(rstFrame));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
     /// RFC 9113 §6.10 — WINDOW_UPDATE frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-011: WINDOW_UPDATE frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-011: WINDOW_UPDATE frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_WindowUpdateInterleavesContinuation()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
-        var windowUpdate = new WindowUpdateFrame(0, 65535).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var windowUpdateBytes = new WindowUpdateFrame(0, 65535).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes);
+        var secondDecoded = decoder.Decode(windowUpdateBytes);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(windowUpdate));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
     /// RFC 9113 §6.10 — GOAWAY frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-012: GOAWAY frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-012: GOAWAY frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_GoAwayInterleavesContinuation()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
-        var goAwayFrame = new GoAwayFrame(1, Http2ErrorCode.NoError).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var goAwayBytes = new GoAwayFrame(1, Http2ErrorCode.NoError).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes);
+        var secondDecoded = decoder.Decode(goAwayBytes);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(goAwayFrame));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
-    /// RFC 9113 §6.10 — HEADERS frame for a different stream while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-013: HEADERS frame for a different stream while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    /// RFC 9113 §6.10 — HEADERS on a different stream while awaiting CONTINUATION is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-013: HEADERS on different stream while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_HeadersForOtherStreamInterleavesContinuation()
     {
-        var block = EncodeStatus200();
-        // First HEADERS on stream 1 without END_HEADERS.
-        var headersFrame1 = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
-        // New HEADERS on stream 3 while stream 1 awaits CONTINUATION.
-        var headersFrame3 = new HeadersFrame(3, block, endStream: true, endHeaders: true).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes1 = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var headersBytes3 = new HeadersFrame(3, block.AsMemory(), endStream: true, endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame1);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes1);
+        var secondDecoded = decoder.Decode(headersBytes3);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(headersFrame3));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
-    // ── Reject interleaved frames ─────────────────────────────────────────────
+    // ── Reject orphaned CONTINUATION frames ──────────────────────────────────
 
-    /// RFC 9113 §6.10 — CONTINUATION on stream 0 is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-014: CONTINUATION on stream 0 is PROTOCOL_ERROR")]
+    /// RFC 9113 §6.10 — CONTINUATION on stream 0 is decoded with StreamId=0; treated as wrong stream
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-014: CONTINUATION on stream 0 while awaiting stream 1 is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_ContinuationOnStream0()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+
+        // Raw CONTINUATION frame on stream 0.
         var contOnStream0 = new byte[]
         {
             0x00, 0x00, 0x01, // length=1
@@ -292,86 +399,95 @@ public sealed class Http2ContinuationFrameTests
             0x88
         };
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes);
+        var secondDecoded = decoder.Decode(contOnStream0);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(contOnStream0));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
     /// RFC 9113 §6.10 — CONTINUATION on different stream than HEADERS is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-015: CONTINUATION on different stream than HEADERS is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-015: CONTINUATION on stream 3 while awaiting stream 1 is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_ContinuationOnDifferentStream()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
         var contOnStream3 = new ContinuationFrame(3, block.AsMemory()[1..], endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes);
+        var secondDecoded = decoder.Decode(contOnStream3);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(contOnStream3));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
     /// RFC 9113 §6.10 — CONTINUATION without preceding HEADERS is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-016: CONTINUATION without preceding HEADERS is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-016: CONTINUATION without preceding HEADERS is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_ContinuationWithoutPrecedingHeaders()
     {
-        var block = EncodeStatus200();
-        var contFrame = new ContinuationFrame(1, block, endHeaders: true).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var contBytes = new ContinuationFrame(1, block.AsMemory(), endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(contFrame));
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(contBytes);
+
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(decoded));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
-    /// RFC 9113 §6.10 — CONTINUATION after completed header block is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC9113-6.10-CF-017: CONTINUATION after completed header block is PROTOCOL_ERROR")]
+    /// RFC 9113 §6.10 — CONTINUATION after completed header block (after END_HEADERS) is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-017: CONTINUATION after completed header block is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_ContinuationAfterCompletedHeaderBlock()
     {
-        var block = EncodeStatus200();
-        // Complete header block with END_HEADERS.
-        var headersFrame = new HeadersFrame(1, block, endStream: true, endHeaders: true).Serialize();
-        // Stray CONTINUATION on stream 1 after block is complete.
-        var contFrame = new ContinuationFrame(1, new byte[] { 0x88 }, endHeaders: true).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory(), endStream: true, endHeaders: true).Serialize();
+        var extraContBytes = new ContinuationFrame(1, new byte[] { 0x88 }, endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var allDecoded = decoder.Decode(ConcatArrays(headersBytes, extraContBytes));
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(contFrame));
+        // AssembleHeaderBlock processes both; after HEADERS with END_HEADERS, there's no
+        // pending stream. The orphan CONTINUATION throws.
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(allDecoded));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
-    // ── Combined delivery ────────────────────────────────────────────────────
+    // ── Combined delivery ─────────────────────────────────────────────────────
 
-    /// RFC 9113 §6.10 — HEADERS and CONTINUATION in same Process call are processed
-    [Fact(DisplayName = "RFC9113-6.10-CF-018: HEADERS and CONTINUATION in same Process call are processed")]
-    public void Should_ProduceResponse_When_HeadersAndContinuationDeliveredTogether()
+    /// RFC 9113 §8.2 / §6.10 — HEADERS and CONTINUATION in same byte buffer are decoded together
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-018: HEADERS and CONTINUATION in same Decode call are decoded together")]
+    public void Should_DecodeBothFrames_When_HeadersAndContinuationDeliveredTogether()
     {
-        var block = EncodeStatus200();
+        var block = EncodeBlock((":status", "200"));
         var split = block.Length / 2;
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..split], endStream: true, endHeaders: false).Serialize();
-        var contFrame = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..split], endStream: true, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
 
-        var combined = ConcatFrames(headersFrame, contFrame);
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(ConcatArrays(headersBytes, contBytes));
 
-        var session = new Http2ProtocolSession();
-        session.Process(combined);
+        Assert.Equal(2, decoded.Count);
+        Assert.IsType<HeadersFrame>(decoded[0]);
+        Assert.IsType<ContinuationFrame>(decoded[1]);
 
-        Assert.Single(session.Responses);
-        Assert.Equal(200, (int)session.Responses[0].Response.StatusCode);
+        var fullBlock = AssembleHeaderBlock(decoded);
+        var headers = new HpackDecoder().Decode(fullBlock.AsSpan());
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "200");
     }
 
-    /// RFC 9113 §6.10 — HEADERS + three CONTINUATION frames in single Process call
-    [Fact(DisplayName = "RFC9113-6.10-CF-019: HEADERS + three CONTINUATION frames in single Process call")]
-    public void Should_ProduceResponse_When_ThreeFramesDeliveredTogether()
+    /// RFC 9113 §8.2 / §6.10 — HEADERS + three CONTINUATION frames in single Decode call
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-019: HEADERS + three CONTINUATION frames in single Decode call")]
+    public void Should_DecodeAllFrames_When_ThreeFramesDeliveredTogether()
     {
-        var block = EncodeHeaders((":status", "404"), ("x-error", "not-found"));
+        var block = EncodeBlock((":status", "404"), ("x-error", "not-found"));
         var q = block.Length / 4;
 
         var h = new HeadersFrame(1, block.AsMemory()[..q], endStream: true, endHeaders: false).Serialize();
@@ -379,153 +495,149 @@ public sealed class Http2ContinuationFrameTests
         var c2 = new ContinuationFrame(1, block.AsMemory()[(2 * q)..(3 * q)], endHeaders: false).Serialize();
         var c3 = new ContinuationFrame(1, block.AsMemory()[(3 * q)..], endHeaders: true).Serialize();
 
-        var combined = ConcatFrames(h, c1, c2, c3);
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(ConcatArrays(h, c1, c2, c3));
 
-        var session = new Http2ProtocolSession();
-        session.Process(combined);
-
-        Assert.Single(session.Responses);
-        Assert.Equal(404, (int)session.Responses[0].Response.StatusCode);
+        Assert.Equal(4, decoded.Count);
+        var fullBlock = AssembleHeaderBlock(decoded);
+        var headers = new HpackDecoder().Decode(fullBlock.AsSpan());
+        Assert.Contains(headers, hdr => hdr.Name == ":status" && hdr.Value == "404");
+        Assert.Contains(headers, hdr => hdr.Name == "x-error" && hdr.Value == "not-found");
     }
 
-    /// RFC 9113 §6.10 — Fragmented CONTINUATION (partial frame bytes) buffered and completed
-    [Fact(DisplayName = "RFC9113-6.10-CF-020: Fragmented CONTINUATION (partial frame bytes) buffered and completed")]
+    /// RFC 9113 §8.2 / §6.10 — Partial CONTINUATION (TCP fragmentation) buffered until complete
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-020: Partial CONTINUATION (TCP-fragmented) is buffered until complete")]
     public void Should_BufferPartialContinuation_When_TcpFragmented()
     {
-        var block = EncodeStatus200();
+        var block = EncodeBlock((":status", "200"));
         var split = block.Length / 2;
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..split], endStream: true, endHeaders: false).Serialize();
-        var contFrame = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..split], endStream: true, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        // Deliver HEADERS fully.
-        session.Process(headersFrame);
-        // Deliver CONTINUATION in two TCP fragments: first half of frame bytes, then rest.
-        var halfCont = contFrame.Length / 2;
-        session.Process(contFrame.AsMemory()[..halfCont]);
-        Assert.Empty(session.Responses); // incomplete frame — buffered
-        session.Process(contFrame.AsMemory()[halfCont..]);
+        var decoder = new Http2FrameDecoder();
+        // Feed HEADERS fully.
+        var firstBatch = decoder.Decode(headersBytes);
+        Assert.Single(firstBatch);
 
-        Assert.Single(session.Responses);
-        Assert.Equal(200, (int)session.Responses[0].Response.StatusCode);
+        // Feed first half of CONTINUATION bytes — incomplete frame: no new frames yet.
+        var halfCont = contBytes.Length / 2;
+        var partialBatch = decoder.Decode(contBytes.AsMemory()[..halfCont]);
+        Assert.Empty(partialBatch);
+
+        // Feed remaining bytes — CONTINUATION frame now complete.
+        var finalBatch = decoder.Decode(contBytes.AsMemory()[halfCont..]);
+        Assert.Single(finalBatch);
+
+        var allDecoded = firstBatch.Concat(finalBatch).ToList();
+        var fullBlock = AssembleHeaderBlock(allDecoded);
+        var headers = new HpackDecoder().Decode(fullBlock.AsSpan());
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "200");
     }
 
-    /// RFC 9113 §6.10 — Reset clears pending CONTINUATION state
-    [Fact(DisplayName = "RFC9113-6.10-CF-021: Reset clears pending CONTINUATION state")]
-    public void Should_ClearPendingContinuation_When_Reset()
+    /// RFC 9113 §8.2 / §6.10 — Decoder.Reset() clears buffered remainder; next block accepted cleanly
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-021: Decoder Reset clears buffered remainder; next header block accepted")]
+    public void Should_AcceptNewBlock_After_DecoderReset()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        // Deliver first byte of HEADERS only — decoder buffers the remainder.
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var halfHeader = headersBytes.Length / 2;
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var partial = decoder.Decode(headersBytes.AsMemory()[..halfHeader]);
+        Assert.Empty(partial); // frame not yet complete
 
-        // After reset, a new stream should be accepted without PROTOCOL_ERROR.
-        session.Reset();
+        // Reset clears the partial frame buffer.
+        decoder.Reset();
 
-        var block2 = EncodeStatus200();
-        var freshFrame = new HeadersFrame(1, block2, endStream: true, endHeaders: true).Serialize();
-        session.Process(freshFrame);
+        // A fresh complete HEADERS+END_HEADERS is now accepted without error.
+        var fullBytes = new HeadersFrame(1, block, endStream: true, endHeaders: true).Serialize();
+        var decoded = decoder.Decode(fullBytes);
+        Assert.Single(decoded);
 
-        Assert.Single(session.Responses);
+        var hf = Assert.IsType<HeadersFrame>(decoded[0]);
+        Assert.True(hf.EndHeaders);
+
+        var headers = new HpackDecoder().Decode(hf.HeaderBlockFragment.Span);
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "200");
     }
 
-    /// RFC 9113 §6.10 — Error message includes offending stream ID when CONTINUATION on wrong stream
-    [Fact(DisplayName = "RFC9113-6.10-CF-022: Error message includes offending stream ID when CONTINUATION on wrong stream")]
+    /// RFC 9113 §8.2 / §6.10 — Error message includes offending stream ID
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-022: Error message includes offending stream ID when CONTINUATION on wrong stream")]
     public void Should_IncludeStreamIdInErrorMessage_When_ContinuationOnWrongStream()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
         var contOnStream5 = new ContinuationFrame(5, block.AsMemory()[1..], endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        var decoder = new Http2FrameDecoder();
+        var firstDecoded = decoder.Decode(headersBytes);
+        var secondDecoded = decoder.Decode(contOnStream5);
 
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(contOnStream5));
+        var combined = firstDecoded.Concat(secondDecoded).ToList();
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(combined));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        // Error message should mention stream IDs involved.
         Assert.Contains("5", ex.Message);
         Assert.True(ex.IsConnectionError);
     }
 
-    /// RFC 9113 §6.10 — CONTINUATION flood protection triggers at 1000 frames
-    [Fact(DisplayName = "RFC9113-6.10-CF-023: CONTINUATION flood protection triggers at 1000 frames")]
+    /// RFC 9113 §6.10 — CONTINUATION flood protection triggers at ≥1000 frames
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-023: CONTINUATION flood protection triggers at 1000 frames")]
     public void Should_ThrowProtocolError_When_ContinuationFloodExceeds1000Frames()
     {
-        var block = EncodeStatus200();
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
+        var block = EncodeBlock((":status", "200"));
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: false, endHeaders: false).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
+        // Build 1001 no-END_HEADERS CONTINUATION frames.
+        var frames = new List<Http2Frame>();
+        var decoder = new Http2FrameDecoder();
+        frames.AddRange(decoder.Decode(headersBytes));
 
-        var ex = Assert.Throws<Http2Exception>(() =>
+        for (var i = 0; i < 1001; i++)
         {
-            for (var i = 0; i < 1001; i++)
-            {
-                var cont = new ContinuationFrame(1, new byte[] { 0x00 }, endHeaders: false).Serialize();
-                session.Process(cont);
-            }
-        });
+            var cont = new ContinuationFrame(1, new byte[] { 0x00 }, endHeaders: false).Serialize();
+            frames.AddRange(decoder.Decode(cont));
+        }
+
+        var ex = Assert.Throws<Http2Exception>(() => AssembleHeaderBlock(frames));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
-    /// RFC 9113 §6.10 — END_STREAM on HEADERS is carried through to reassembled response
-    [Fact(DisplayName = "RFC9113-6.10-CF-024: END_STREAM on HEADERS is carried through to reassembled response")]
-    public void Should_CarryEndStream_When_ContinuationCompletesHeaderBlock()
+    /// RFC 9113 §8.2 / §6.10 — END_STREAM flag on HEADERS is carried through to the final frame
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-024: END_STREAM flag on HEADERS is preserved in the decoded frame")]
+    public void Should_PreserveEndStream_When_ContinuationCompletesHeaderBlock()
     {
-        var block = EncodeStatus200();
+        var block = EncodeBlock((":status", "200"));
         var split = block.Length / 2;
-        // endStream=true on HEADERS, no body expected.
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..split], endStream: true, endHeaders: false).Serialize();
-        var contFrame = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..split], endStream: true, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
-        session.Process(contFrame);
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(ConcatArrays(headersBytes, contBytes));
 
-        // Response must be present — END_STREAM means no DATA frame will follow.
-        Assert.Single(session.Responses);
+        Assert.Equal(2, decoded.Count);
+        var hf = Assert.IsType<HeadersFrame>(decoded[0]);
+        Assert.True(hf.EndStream); // END_STREAM preserved on HEADERS frame
+        Assert.False(hf.EndHeaders);
+        var cf = Assert.IsType<ContinuationFrame>(decoded[1]);
+        Assert.True(cf.EndHeaders);
     }
 
-    /// RFC 9113 §6.10 — Without END_STREAM on HEADERS, response awaits DATA frame
-    [Fact(DisplayName = "RFC9113-6.10-CF-025: Without END_STREAM on HEADERS, response awaits DATA frame")]
-    public void Should_WaitForDataFrame_When_HeadersLacksEndStream()
+    /// RFC 9113 §8.2 / §6.10 — HEADERS without END_STREAM decoded with EndStream=false
+    [Fact(DisplayName = "RFC-9113-§8.2-CF-025: HEADERS without END_STREAM decoded with EndStream=false")]
+    public void Should_HaveEndStreamFalse_When_HeadersLacksEndStream()
     {
-        var block = EncodeStatus200();
+        var block = EncodeBlock((":status", "200"));
         var split = block.Length / 2;
-        // endStream=false — a DATA frame will carry the body.
-        var headersFrame = new HeadersFrame(1, block.AsMemory()[..split], endStream: false, endHeaders: false).Serialize();
-        var contFrame = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..split], endStream: false, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
 
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
-        session.Process(contFrame);
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(ConcatArrays(headersBytes, contBytes));
 
-        // No response yet — body will follow in DATA frame.
-        Assert.Empty(session.Responses);
-
-        // Deliver a DATA frame with END_STREAM.
-        session.SetStreamReceiveWindow(1, 65535);
-        var dataPayload = new byte[] { 0x68, 0x69 }; // "hi"
-        var dataFrame = BuildDataFrame(1, dataPayload, endStream: true);
-        session.Process(dataFrame);
-
-        Assert.Single(session.Responses);
-        Assert.Equal(200, (int)session.Responses[0].Response.StatusCode);
-    }
-
-    // ── helper: manually craft a DATA frame ──────────────────────────────────
-    private static byte[] BuildDataFrame(int streamId, byte[] data, bool endStream)
-    {
-        var frame = new byte[9 + data.Length];
-        frame[0] = (byte)((data.Length >> 16) & 0xFF);
-        frame[1] = (byte)((data.Length >> 8) & 0xFF);
-        frame[2] = (byte)(data.Length & 0xFF);
-        frame[3] = 0x00; // type = DATA
-        frame[4] = endStream ? (byte)0x01 : (byte)0x00;
-        BinaryPrimitives.WriteUInt32BigEndian(frame.AsSpan(5), (uint)streamId);
-        data.CopyTo(frame, 9);
-        return frame;
+        Assert.Equal(2, decoded.Count);
+        var hf = Assert.IsType<HeadersFrame>(decoded[0]);
+        Assert.False(hf.EndStream); // no DATA expected to follow — caller handles body assembly
     }
 }

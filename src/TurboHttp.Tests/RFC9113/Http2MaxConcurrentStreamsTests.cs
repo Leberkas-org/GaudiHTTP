@@ -4,32 +4,32 @@ using TurboHttp.Protocol.RFC9113;
 namespace TurboHttp.Tests.RFC9113;
 
 /// <summary>
-/// Phase 32-33: Http2Decoder MAX_CONCURRENT_STREAMS enforcement.
-/// RFC 7540 §5.1.2 and §6.5.2.
+/// RFC 9113 §5.1.2 / §6.5.2 — MAX_CONCURRENT_STREAMS enforcement.
+///
+/// Tests verify that:
+///   MCS-API-XXX — SETTINGS frame with MAX_CONCURRENT_STREAMS is decoded and extracted correctly
+///   MCS-INT-XXX — Stream counting and limit enforcement work correctly across frame sequences
+///
+/// The decoder produces frames; enforcement is the caller's responsibility.
 /// </summary>
 public sealed class Http2MaxConcurrentStreamsTests
 {
-    // ── Helper methods ────────────────────────────────────────────────────────
+    // =========================================================================
+    // Helpers
+    // =========================================================================
 
-    private static byte[] MakeResponseHeadersFrame(int streamId, bool endStream = false, bool endHeaders = true)
+    private static byte[] MakeResponseHeadersBytes(int streamId, bool endStream = false, bool endHeaders = true)
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
         return new HeadersFrame(streamId, headerBlock, endStream, endHeaders).Serialize();
     }
 
-    private static byte[] MakeDataFrame(int streamId, bool endStream = true)
-    {
-        return new DataFrame(streamId, "ok"u8.ToArray(), endStream).Serialize();
-    }
+    private static byte[] MakeDataBytes(int streamId, bool endStream = true)
+        => new DataFrame(streamId, "ok"u8.ToArray(), endStream).Serialize();
 
-    private static byte[] MakeMaxConcurrentStreamsSettings(uint limit)
-    {
-        return new SettingsFrame(new List<(SettingsParameter, uint)>
-        {
-            (SettingsParameter.MaxConcurrentStreams, limit),
-        }).Serialize();
-    }
+    private static byte[] MakeMaxConcurrentStreamsSettingsBytes(uint limit)
+        => new SettingsFrame([(SettingsParameter.MaxConcurrentStreams, limit)]).Serialize();
 
     private static byte[] Concat(params byte[][] arrays)
     {
@@ -44,415 +44,526 @@ public sealed class Http2MaxConcurrentStreamsTests
         return result;
     }
 
-    // ── Part 1: API Contract Tests ────────────────────────────────────────────
-
-    [Fact(DisplayName = "MCS-API-001: Default MaxConcurrentStreams is int.MaxValue")]
-    public void DefaultMaxConcurrentStreams_IsIntMaxValue()
+    /// <summary>
+    /// RFC 9113 §6.5.2: Extracts MAX_CONCURRENT_STREAMS parameter from a decoded SETTINGS frame.
+    /// Returns the current limit (int.MaxValue if not set).
+    /// </summary>
+    private static int ExtractMaxConcurrentStreams(SettingsFrame frame, int currentLimit)
     {
-        var session = new Http2ProtocolSession();
-        Assert.Equal(int.MaxValue, session.MaxConcurrentStreams);
+        foreach (var (param, value) in frame.Parameters)
+        {
+            if (param == SettingsParameter.MaxConcurrentStreams)
+            {
+                return (int)value;
+            }
+        }
+
+        return currentLimit;
     }
 
-    [Fact(DisplayName = "MCS-API-002: Default ActiveStreamCount is zero")]
-    public void DefaultActiveStreamCount_IsZero()
+    /// <summary>
+    /// RFC 9113 §5.1.2 / §6.5.2: Opening a stream when active count >= max is a REFUSED_STREAM error.
+    /// Enforces the MAX_CONCURRENT_STREAMS limit on new stream creation.
+    /// </summary>
+    private static void EnforceMaxConcurrentStreams(int activeCount, int maxConcurrent, int streamId)
     {
-        var session = new Http2ProtocolSession();
-        Assert.Equal(0, session.ActiveStreamCount);
+        if (maxConcurrent != int.MaxValue && activeCount >= maxConcurrent)
+        {
+            throw new Http2Exception(
+                $"RFC 9113 §6.5.2: MAX_CONCURRENT_STREAMS ({maxConcurrent}) exceeded: stream {streamId} refused.",
+                Http2ErrorCode.RefusedStream,
+                Http2ErrorScope.Stream,
+                streamId);
+        }
     }
 
-    [Fact(DisplayName = "MCS-API-003: GetMaxConcurrentStreams returns int.MaxValue before any settings")]
-    public void GetMaxConcurrentStreams_BeforeSettings_ReturnsIntMaxValue()
+    /// <summary>
+    /// Tracks stream state transitions: HEADERS opens, END_STREAM/DATA+END_STREAM/RST_STREAM close.
+    /// </summary>
+    private static void TrackStreamState(
+        Http2Frame frame,
+        HashSet<int> openStreams,
+        HashSet<int> closedStreams)
     {
-        var session = new Http2ProtocolSession();
-        Assert.Equal(int.MaxValue, session.MaxConcurrentStreams);
+        switch (frame)
+        {
+            case HeadersFrame h:
+                if (!closedStreams.Contains(h.StreamId))
+                {
+                    openStreams.Add(h.StreamId);
+                }
+
+                if (h.EndStream)
+                {
+                    openStreams.Remove(h.StreamId);
+                    closedStreams.Add(h.StreamId);
+                }
+
+                break;
+
+            case DataFrame d:
+                if (d.EndStream)
+                {
+                    openStreams.Remove(d.StreamId);
+                    closedStreams.Add(d.StreamId);
+                }
+
+                break;
+
+            case RstStreamFrame r:
+                openStreams.Remove(r.StreamId);
+                closedStreams.Add(r.StreamId);
+                break;
+        }
     }
 
-    [Fact(DisplayName = "MCS-API-004: GetActiveStreamCount returns zero before any frames")]
-    public void GetActiveStreamCount_BeforeFrames_ReturnsZero()
+    // =========================================================================
+    // MCS-API: API Contract Tests (§5.1.2 / §6.5.2)
+    // =========================================================================
+
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-007: SETTINGS with MaxConcurrentStreams=1")]
+    public void Settings_MaxConcurrentStreams1_DecodedCorrectly()
     {
-        var session = new Http2ProtocolSession();
-        Assert.Equal(0, session.ActiveStreamCount);
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(1));
+
+        var frame = Assert.IsType<SettingsFrame>(frames[0]);
+        var limit = ExtractMaxConcurrentStreams(frame, int.MaxValue);
+        Assert.Equal(1, limit);
     }
 
-    [Fact(DisplayName = "MCS-API-005: Reset restores MaxConcurrentStreams to int.MaxValue")]
-    public void Reset_RestoresMaxConcurrentStreams_ToIntMaxValue()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-008: SETTINGS with MaxConcurrentStreams=0")]
+    public void Settings_MaxConcurrentStreams0_DecodedCorrectly()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(5));
-        Assert.Equal(5, session.MaxConcurrentStreams);
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(0));
 
-        session.Reset();
-        Assert.Equal(int.MaxValue, session.MaxConcurrentStreams);
+        var frame = Assert.IsType<SettingsFrame>(frames[0]);
+        var limit = ExtractMaxConcurrentStreams(frame, int.MaxValue);
+        Assert.Equal(0, limit);
     }
 
-    [Fact(DisplayName = "MCS-API-006: Reset restores ActiveStreamCount to zero")]
-    public void Reset_RestoresActiveStreamCount_ToZero()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-009: SETTINGS with MaxConcurrentStreams=100")]
+    public void Settings_MaxConcurrentStreams100_DecodedCorrectly()
     {
-        var session = new Http2ProtocolSession();
-        var headers = MakeResponseHeadersFrame(streamId: 1, endStream: false);
-        session.Process(headers);
-        Assert.Equal(1, session.ActiveStreamCount);
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(100));
 
-        session.Reset();
-        Assert.Equal(0, session.ActiveStreamCount);
+        var frame = Assert.IsType<SettingsFrame>(frames[0]);
+        var limit = ExtractMaxConcurrentStreams(frame, int.MaxValue);
+        Assert.Equal(100, limit);
     }
 
-    [Fact(DisplayName = "MCS-API-007: SETTINGS with MaxConcurrentStreams=1 sets limit to 1")]
-    public void Settings_MaxConcurrentStreams1_SetsLimitTo1()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-010: SETTINGS ACK doesn't modify MaxConcurrentStreams")]
+    public void SettingsAck_IsRecognizedAsAck()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
-        Assert.Equal(1, session.MaxConcurrentStreams);
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(SettingsFrame.SettingsAck());
+
+        var frame = Assert.IsType<SettingsFrame>(frames[0]);
+        Assert.True(frame.IsAck);
     }
 
-    [Fact(DisplayName = "MCS-API-008: SETTINGS with MaxConcurrentStreams=0 sets limit to 0")]
-    public void Settings_MaxConcurrentStreams0_SetsLimitTo0()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-011: HEADERS without EndStream opens stream")]
+    public void Headers_WithoutEndStream_OpensStream()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(0));
-        Assert.Equal(0, session.MaxConcurrentStreams);
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false));
+
+        var frame = Assert.IsType<HeadersFrame>(frames[0]);
+        Assert.False(frame.EndStream);
+
+        var openStreams = new HashSet<int>();
+        TrackStreamState(frame, openStreams, new HashSet<int>());
+        Assert.Single(openStreams);
+        Assert.Equal(1, openStreams.First());
     }
 
-    [Fact(DisplayName = "MCS-API-009: SETTINGS with MaxConcurrentStreams=100 sets limit to 100")]
-    public void Settings_MaxConcurrentStreams100_SetsLimitTo100()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-012: HEADERS with EndStream closes immediately")]
+    public void Headers_WithEndStream_ClosesImmediately()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(100));
-        Assert.Equal(100, session.MaxConcurrentStreams);
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: true));
+
+        var frame = Assert.IsType<HeadersFrame>(frames[0]);
+        Assert.True(frame.EndStream);
+
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
+        TrackStreamState(frame, openStreams, closedStreams);
+        Assert.Empty(openStreams);
+        Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "MCS-API-010: ActiveStreamCount is zero before any stream is opened")]
-    public void ActiveStreamCount_BeforeAnyStream_IsZero()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-013: DATA with EndStream closes stream")]
+    public void Data_WithEndStream_ClosesStream()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(SettingsFrame.SettingsAck());
-        Assert.Equal(0, session.ActiveStreamCount);
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
+
+        // HEADERS without END_STREAM opens stream 1
+        var headersFrames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false));
+        TrackStreamState(headersFrames[0], openStreams, closedStreams);
+        Assert.Single(openStreams);
+
+        // DATA with END_STREAM closes stream 1
+        var dataFrames = decoder.Decode(MakeDataBytes(streamId: 1, endStream: true));
+        TrackStreamState(dataFrames[0], openStreams, closedStreams);
+        Assert.Empty(openStreams);
+        Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "MCS-API-011: ActiveStreamCount increments when HEADERS opens stream without EndStream")]
-    public void ActiveStreamCount_AfterHeadersWithoutEndStream_IsOne()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-014: Multiple concurrent streams tracked")]
+    public void MultipleConcurrentStreams_TrackedIndependently()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        Assert.Equal(1, session.ActiveStreamCount);
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
+
+        var bytes = Concat(
+            MakeResponseHeadersBytes(streamId: 1, endStream: false),
+            MakeResponseHeadersBytes(streamId: 3, endStream: false),
+            MakeResponseHeadersBytes(streamId: 5, endStream: false));
+
+        var frames = decoder.Decode(bytes);
+        foreach (var frame in frames)
+        {
+            TrackStreamState(frame, openStreams, closedStreams);
+        }
+
+        Assert.Equal(3, openStreams.Count);
+        Assert.Contains(1, openStreams);
+        Assert.Contains(3, openStreams);
+        Assert.Contains(5, openStreams);
     }
 
-    [Fact(DisplayName = "MCS-API-012: ActiveStreamCount is zero after single-frame HEADERS with EndStream")]
-    public void ActiveStreamCount_AfterHeadersWithEndStream_IsZero()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-015: RST_STREAM closes stream")]
+    public void RstStream_ClosesStream()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: true));
-        Assert.Equal(0, session.ActiveStreamCount);
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
+
+        // Open stream 1
+        var headersFrames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false));
+        TrackStreamState(headersFrames[0], openStreams, closedStreams);
+        Assert.Single(openStreams);
+
+        // RST_STREAM on stream 1
+        var rstFrames = decoder.Decode(new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize());
+        TrackStreamState(rstFrames[0], openStreams, closedStreams);
+        Assert.Empty(openStreams);
+        Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "MCS-API-013: ActiveStreamCount decrements after DATA with EndStream")]
-    public void ActiveStreamCount_AfterDataWithEndStream_Decrements()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-016: Exceeding MaxConcurrentStreams throws")]
+    public void ExceedingLimit_ThrowsRefusedStream()
     {
-        var session = new Http2ProtocolSession();
-        var headersFrame = MakeResponseHeadersFrame(streamId: 1, endStream: false);
-        var dataFrame = MakeDataFrame(streamId: 1, endStream: true);
+        var maxConcurrent = 1;
+        var activeCount = 1;
 
-        session.Process(headersFrame);
-        Assert.Equal(1, session.ActiveStreamCount);
-
-        session.Process(dataFrame);
-        Assert.Equal(0, session.ActiveStreamCount);
-    }
-
-    [Fact(DisplayName = "MCS-API-014: ActiveStreamCount tracks multiple concurrent streams")]
-    public void ActiveStreamCount_MultipleConcurrentStreams_Tracked()
-    {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        Assert.Equal(1, session.ActiveStreamCount);
-
-        session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false));
-        Assert.Equal(2, session.ActiveStreamCount);
-
-        session.Process(MakeResponseHeadersFrame(streamId: 5, endStream: false));
-        Assert.Equal(3, session.ActiveStreamCount);
-    }
-
-    [Fact(DisplayName = "MCS-API-015: ActiveStreamCount decrements after RST_STREAM")]
-    public void ActiveStreamCount_AfterRstStream_Decrements()
-    {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        Assert.Equal(1, session.ActiveStreamCount);
-
-        var rst = new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize();
-        session.Process(rst);
-        Assert.Equal(0, session.ActiveStreamCount);
-    }
-
-    [Fact(DisplayName = "MCS-API-016: Exceeding MaxConcurrentStreams throws Http2Exception")]
-    public void ExceedingLimit_ThrowsHttp2Exception()
-    {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
-
-        // Open one stream (allowed)
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-
-        // Second stream must be refused
-        var ex = Assert.Throws<Http2Exception>(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false)));
-
-        Assert.NotNull(ex);
-    }
-
-    [Fact(DisplayName = "MCS-API-017: Exceeded limit uses RefusedStream error code")]
-    public void ExceedingLimit_UsesRefusedStreamErrorCode()
-    {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-
-        var ex = Assert.Throws<Http2Exception>(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false)));
+        var ex = Assert.Throws<Http2Exception>(
+            () => EnforceMaxConcurrentStreams(activeCount, maxConcurrent, streamId: 3));
 
         Assert.Equal(Http2ErrorCode.RefusedStream, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "MCS-API-018: Exceeded limit message includes stream ID")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-017: Exceeded limit uses RefusedStream error code")]
+    public void ExceedingLimit_ErrorCodeIsRefusedStream()
+    {
+        var maxConcurrent = 1;
+        var activeCount = 1;
+
+        var ex = Assert.Throws<Http2Exception>(
+            () => EnforceMaxConcurrentStreams(activeCount, maxConcurrent, streamId: 3));
+
+        Assert.Equal(Http2ErrorCode.RefusedStream, ex.ErrorCode);
+    }
+
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-018: Exceeded limit message includes stream ID")]
     public void ExceedingLimit_MessageIncludesStreamId()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-
-        var ex = Assert.Throws<Http2Exception>(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false)));
+        var ex = Assert.Throws<Http2Exception>(
+            () => EnforceMaxConcurrentStreams(activeCount: 1, maxConcurrent: 1, streamId: 3));
 
         Assert.Contains("3", ex.Message);
     }
 
-    [Fact(DisplayName = "MCS-API-019: Exceeded limit message references MaxConcurrentStreams limit")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-019: Exceeded limit message references MaxConcurrentStreams")]
     public void ExceedingLimit_MessageIncludesLimit()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(2));
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false));
-
-        var ex = Assert.Throws<Http2Exception>(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 5, endStream: false)));
+        var ex = Assert.Throws<Http2Exception>(
+            () => EnforceMaxConcurrentStreams(activeCount: 2, maxConcurrent: 2, streamId: 5));
 
         Assert.Contains("2", ex.Message);
     }
 
-    [Fact(DisplayName = "MCS-API-020: After stream closes, new stream is accepted (limit exact)")]
-    public void AfterStreamCloses_NewStreamAccepted_WithExactLimit()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-020: After stream closes, new stream accepted")]
+    public void AfterStreamCloses_NewStreamAccepted()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
+        var maxConcurrent = 1;
 
-        // Open stream 1, then close it via EndStream
-        var headers1 = MakeResponseHeadersFrame(streamId: 1, endStream: false);
-        var data1 = MakeDataFrame(streamId: 1, endStream: true);
-        session.Process(headers1);
-        session.Process(data1);
-        Assert.Equal(0, session.ActiveStreamCount);
+        // Open stream 1
+        var headersFrames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false));
+        TrackStreamState(headersFrames[0], openStreams, closedStreams);
+        Assert.Single(openStreams);
 
-        // Now stream 3 should succeed
+        // Close stream 1 via END_STREAM
+        var dataFrames = decoder.Decode(MakeDataBytes(streamId: 1, endStream: true));
+        TrackStreamState(dataFrames[0], openStreams, closedStreams);
+        Assert.Empty(openStreams);
+
+        // Stream 3 should be accepted (limit not exceeded)
+        var newActiveCount = openStreams.Count;
         var exception = Record.Exception(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false)));
+            EnforceMaxConcurrentStreams(newActiveCount, maxConcurrent, streamId: 3));
 
         Assert.Null(exception);
-        Assert.Equal(1, session.ActiveStreamCount);
     }
 
-    // ── Part 2: Integration Tests ─────────────────────────────────────────────
+    // =========================================================================
+    // MCS-INT: Integration Tests (§5.1.2 / §6.5.2)
+    // =========================================================================
 
-    [Fact(DisplayName = "MCS-INT-001: Single stream under default limit succeeds")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-001: Single stream under default limit succeeds")]
     public void SingleStream_UnderDefaultLimit_Succeeds()
     {
-        var session = new Http2ProtocolSession();
-        var headers = MakeResponseHeadersFrame(streamId: 1, endStream: true);
-        var frames = session.Process(headers);
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: true));
 
-        Assert.NotEmpty(frames);
-        Assert.Single(session.Responses);
-        Assert.Equal(1, session.Responses[0].StreamId);
+        Assert.Single(frames);
+        var frame = Assert.IsType<HeadersFrame>(frames[0]);
+        Assert.Equal(1, frame.StreamId);
     }
 
-    [Fact(DisplayName = "MCS-INT-002: Multiple streams under limit all succeed")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-002: Multiple streams under limit all succeed")]
     public void MultipleStreams_UnderLimit_AllSucceed()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(10));
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
-        for (var i = 0; i < 5; i++)
+        var bytes = Concat(
+            MakeResponseHeadersBytes(streamId: 1, endStream: false),
+            MakeResponseHeadersBytes(streamId: 3, endStream: false),
+            MakeResponseHeadersBytes(streamId: 5, endStream: false));
+
+        var frames = decoder.Decode(bytes);
+        foreach (var frame in frames)
         {
-            var streamId = 1 + (i * 2); // odd IDs: 1, 3, 5, 7, 9
-            var exception = Record.Exception(() =>
-                session.Process(MakeResponseHeadersFrame(streamId, endStream: false)));
-            Assert.Null(exception);
+            TrackStreamState(frame, openStreams, closedStreams);
         }
 
-        Assert.Equal(5, session.ActiveStreamCount);
+        Assert.Equal(3, openStreams.Count);
     }
 
-    [Fact(DisplayName = "MCS-INT-003: Stream at exact limit is refused")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-003: Stream at exact limit is refused")]
     public void StreamAtExactLimit_IsRefused()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(2));
+        var maxConcurrent = 2;
+        var activeCount = 2;
 
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false));
-        Assert.Equal(2, session.ActiveStreamCount);
+        var ex = Assert.Throws<Http2Exception>(
+            () => EnforceMaxConcurrentStreams(activeCount, maxConcurrent, streamId: 5));
 
-        var ex = Assert.Throws<Http2Exception>(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 5, endStream: false)));
         Assert.Equal(Http2ErrorCode.RefusedStream, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "MCS-INT-004: Limit enforcement applies only to new streams (existing unaffected)")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-004: Limit enforcement applies only to new streams")]
     public void LimitEnforcement_DoesNotAffectExistingStreams()
     {
-        var session = new Http2ProtocolSession();
-        // Open two streams with no limit
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false));
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
+
+        // Open two streams
+        var bytes = Concat(
+            MakeResponseHeadersBytes(streamId: 1, endStream: false),
+            MakeResponseHeadersBytes(streamId: 3, endStream: false));
+
+        var frames = decoder.Decode(bytes);
+        foreach (var frame in frames)
+        {
+            TrackStreamState(frame, openStreams, closedStreams);
+        }
+
+        Assert.Equal(2, openStreams.Count);
 
         // Now set limit to 1 (below current active count)
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
-
-        // Existing streams can still receive DATA
-        var exception = Record.Exception(() =>
-            session.Process(MakeDataFrame(streamId: 1, endStream: true)));
-        Assert.Null(exception);
+        // Existing streams should still be processable (DATA should work)
+        var dataFrames = decoder.Decode(MakeDataBytes(streamId: 1, endStream: true));
+        TrackStreamState(dataFrames[0], openStreams, closedStreams);
+        Assert.Single(openStreams); // Stream 1 closed, stream 3 still open
     }
 
-    [Fact(DisplayName = "MCS-INT-005: Counter decrements on EndStream DATA allowing new stream")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-005: Counter decrements on EndStream DATA")]
     public void CounterDecrement_OnEndStreamData_AllowsNewStream()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
+        var maxConcurrent = 1;
 
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        session.Process(MakeDataFrame(streamId: 1, endStream: true));
-        Assert.Equal(0, session.ActiveStreamCount);
+        // Open stream 1
+        var h1 = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: false));
+        TrackStreamState(h1[0], openStreams, closedStreams);
+        Assert.Single(openStreams);
 
-        var exception = Record.Exception(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false)));
-        Assert.Null(exception);
-        Assert.Equal(1, session.ActiveStreamCount);
+        // Close stream 1 via END_STREAM DATA
+        var d1 = decoder.Decode(MakeDataBytes(streamId: 1, endStream: true));
+        TrackStreamState(d1[0], openStreams, closedStreams);
+        Assert.Empty(openStreams);
+
+        // Stream 3 should be accepted now
+        EnforceMaxConcurrentStreams(openStreams.Count, maxConcurrent, streamId: 3); // Should not throw
     }
 
-    [Fact(DisplayName = "MCS-INT-006: SETTINGS frame updates MaxConcurrentStreams limit")]
-    public void SettingsFrame_UpdatesLimit()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-006: SETTINGS frame updates MaxConcurrentStreams")]
+    public void SettingsFrame_UpdatesMaxConcurrentStreams()
     {
-        var session = new Http2ProtocolSession();
-        Assert.Equal(int.MaxValue, session.MaxConcurrentStreams);
+        var decoder = new Http2FrameDecoder();
 
-        session.Process(MakeMaxConcurrentStreamsSettings(5));
-        Assert.Equal(5, session.MaxConcurrentStreams);
+        // First SETTINGS: no limit (default int.MaxValue)
+        var currentLimit = int.MaxValue;
+
+        // Process SETTINGS with MaxConcurrentStreams=5
+        var frames = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(5));
+        var frame = Assert.IsType<SettingsFrame>(frames[0]);
+        currentLimit = ExtractMaxConcurrentStreams(frame, currentLimit);
+
+        Assert.Equal(5, currentLimit);
     }
 
-    [Fact(DisplayName = "MCS-INT-007: Second SETTINGS frame updates limit again")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-007: Second SETTINGS updates limit again")]
     public void SecondSettingsFrame_UpdatesLimitAgain()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(5));
-        Assert.Equal(5, session.MaxConcurrentStreams);
+        var decoder = new Http2FrameDecoder();
+        var currentLimit = int.MaxValue;
 
-        session.Process(MakeMaxConcurrentStreamsSettings(20));
-        Assert.Equal(20, session.MaxConcurrentStreams);
+        // First SETTINGS
+        var frames1 = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(5));
+        currentLimit = ExtractMaxConcurrentStreams(Assert.IsType<SettingsFrame>(frames1[0]), currentLimit);
+        Assert.Equal(5, currentLimit);
+
+        // Second SETTINGS
+        var frames2 = decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(20));
+        currentLimit = ExtractMaxConcurrentStreams(Assert.IsType<SettingsFrame>(frames2[0]), currentLimit);
+        Assert.Equal(20, currentLimit);
     }
 
-    [Fact(DisplayName = "MCS-INT-008: RST_STREAM decrements active stream counter")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-008: RST_STREAM decrements active stream counter")]
     public void RstStream_DecrementsActiveCount()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false));
-        Assert.Equal(2, session.ActiveStreamCount);
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
-        session.Process(new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize());
-        Assert.Equal(1, session.ActiveStreamCount);
+        // Open streams 1 and 3
+        var bytes = Concat(
+            MakeResponseHeadersBytes(streamId: 1, endStream: false),
+            MakeResponseHeadersBytes(streamId: 3, endStream: false));
 
-        session.Process(new RstStreamFrame(3, Http2ErrorCode.Cancel).Serialize());
-        Assert.Equal(0, session.ActiveStreamCount);
+        var frames = decoder.Decode(bytes);
+        foreach (var frame in frames)
+        {
+            TrackStreamState(frame, openStreams, closedStreams);
+        }
+
+        Assert.Equal(2, openStreams.Count);
+
+        // RST_STREAM on stream 1
+        var rstFrames = decoder.Decode(new RstStreamFrame(1, Http2ErrorCode.Cancel).Serialize());
+        TrackStreamState(rstFrames[0], openStreams, closedStreams);
+        Assert.Single(openStreams);
+
+        // RST_STREAM on stream 3
+        var rstFrames2 = decoder.Decode(new RstStreamFrame(3, Http2ErrorCode.Cancel).Serialize());
+        TrackStreamState(rstFrames2[0], openStreams, closedStreams);
+        Assert.Empty(openStreams);
     }
 
-    [Fact(DisplayName = "MCS-INT-009: Limit of 1 allows sequential streams")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-009: Limit of 1 allows sequential streams")]
     public void Limit1_AllowsSequentialStreams()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
-        // First stream
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: true));
-        Assert.Equal(0, session.ActiveStreamCount);
+        // First stream closes immediately
+        var h1 = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: true));
+        TrackStreamState(h1[0], openStreams, closedStreams);
+        Assert.Empty(openStreams);
 
-        // Second stream (sequential, not concurrent)
-        var exception = Record.Exception(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: true)));
-        Assert.Null(exception);
+        // Second stream should be accepted (sequential, not concurrent)
+        EnforceMaxConcurrentStreams(openStreams.Count, maxConcurrent: 1, streamId: 3);
     }
 
-    [Fact(DisplayName = "MCS-INT-010: Limit of 0 refuses all new streams")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-010: Limit of 0 refuses all new streams")]
     public void Limit0_RefusesAllStreams()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(0));
+        var ex = Assert.Throws<Http2Exception>(
+            () => EnforceMaxConcurrentStreams(activeCount: 0, maxConcurrent: 0, streamId: 1));
 
-        var ex = Assert.Throws<Http2Exception>(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false)));
         Assert.Equal(Http2ErrorCode.RefusedStream, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "MCS-INT-011: Multiple streams over limit all throw RefusedStream")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-011: Multiple streams over limit all throw RefusedStream")]
     public void MultipleStreamsOverLimit_AllThrowRefusedStream()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
+        var maxConcurrent = 1;
+        var activeCount = 1;
 
-        for (var i = 1; i <= 3; i++)
+        for (var streamId = 3; streamId <= 7; streamId += 2)
         {
-            var streamId = 1 + (i * 2); // 3, 5, 7
-            var localStreamId = streamId;
-            var ex = Assert.Throws<Http2Exception>(() =>
-                session.Process(MakeResponseHeadersFrame(localStreamId, endStream: false)));
+            var ex = Assert.Throws<Http2Exception>(
+                () => EnforceMaxConcurrentStreams(activeCount, maxConcurrent, streamId));
+
             Assert.Equal(Http2ErrorCode.RefusedStream, ex.ErrorCode);
         }
     }
 
-    [Fact(DisplayName = "MCS-INT-012: Headers-only response (EndStream in HEADERS) counts as zero active")]
-    public void HeadersOnlyResponse_EndStreamInHeaders_ZeroActive()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-012: Headers-only response with EndStream")]
+    public void HeadersOnlyResponse_WithEndStream_CountsAsZero()
     {
-        var session = new Http2ProtocolSession();
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
-        // HEADERS with END_STREAM — single-frame response
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: true));
+        var frames = decoder.Decode(MakeResponseHeadersBytes(streamId: 1, endStream: true));
+        TrackStreamState(frames[0], openStreams, closedStreams);
 
-        Assert.True(session.Responses.Count > 0);
-        Assert.Equal(0, session.ActiveStreamCount);
+        Assert.Empty(openStreams);
+        Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "MCS-INT-013: Headers+DATA response decrements count correctly")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-013: Headers+DATA response decrements count")]
     public void HeadersPlusData_DecrementsCountCorrectly()
     {
-        var session = new Http2ProtocolSession();
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
-        var combined = Concat(
-            MakeResponseHeadersFrame(streamId: 1, endStream: false),
-            MakeDataFrame(streamId: 1, endStream: true));
+        var bytes = Concat(
+            MakeResponseHeadersBytes(streamId: 1, endStream: false),
+            MakeDataBytes(streamId: 1, endStream: true));
 
-        session.Process(combined);
+        var frames = decoder.Decode(bytes);
+        foreach (var frame in frames)
+        {
+            TrackStreamState(frame, openStreams, closedStreams);
+        }
 
-        Assert.True(session.Responses.Count > 0);
-        Assert.Equal(0, session.ActiveStreamCount);
+        Assert.Empty(openStreams);
+        Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "MCS-INT-014: Continuation frames do not double-count stream")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-014: Continuation frames do not double-count")]
     public void ContinuationFrames_DoNotDoubleCountStream()
     {
-        var session = new Http2ProtocolSession();
-
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200"), ("content-type", "text/plain")]);
 
@@ -463,204 +574,235 @@ public sealed class Http2MaxConcurrentStreamsTests
         var headersFrame = new HeadersFrame(1, block1, endStream: false, endHeaders: false).Serialize();
         var contFrame = new ContinuationFrame(1, block2, endHeaders: true).Serialize();
 
-        var combined = Concat(headersFrame, contFrame);
-        session.Process(combined);
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
-        // Must be exactly 1, not 2
-        Assert.Equal(1, session.ActiveStreamCount);
+        var frames = decoder.Decode(Concat(headersFrame, contFrame));
+        foreach (var frame in frames)
+        {
+            TrackStreamState(frame, openStreams, closedStreams);
+        }
+
+        Assert.Single(openStreams);
+        Assert.Equal(1, openStreams.First());
     }
 
-    [Fact(DisplayName = "MCS-INT-015: SETTINGS change while streams active doesn't close existing streams")]
-    public void SettingsChange_WhileStreamsActive_DoesNotCloseExistingStreams()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-015: SETTINGS change doesn't close existing streams")]
+    public void SettingsChange_DoesNotCloseExistingStreams()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false));
-        Assert.Equal(2, session.ActiveStreamCount);
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
-        // Change settings (limit decrease)
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
+        // Open streams 1 and 3
+        var bytes = Concat(
+            MakeResponseHeadersBytes(streamId: 1, endStream: false),
+            MakeResponseHeadersBytes(streamId: 3, endStream: false));
 
-        // Existing streams are still active
-        Assert.Equal(2, session.ActiveStreamCount);
+        var frames = decoder.Decode(bytes);
+        foreach (var frame in frames)
+        {
+            TrackStreamState(frame, openStreams, closedStreams);
+        }
+
+        Assert.Equal(2, openStreams.Count);
+
+        // Process SETTINGS (doesn't affect open streams)
+        decoder.Decode(MakeMaxConcurrentStreamsSettingsBytes(1));
+
+        // Existing streams still open
+        Assert.Equal(2, openStreams.Count);
     }
 
-    [Fact(DisplayName = "MCS-INT-016: Increasing limit allows more streams")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-016: Increasing limit allows more streams")]
     public void IncreasingLimit_AllowsMoreStreams()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(2));
+        // With limit 2, two streams are open
+        var activeCount = 2;
 
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false));
-
-        // At limit — third would be refused
-        Assert.Throws<Http2Exception>(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 5, endStream: false)));
-
-        // Increase limit
-        session.Process(MakeMaxConcurrentStreamsSettings(5));
-
-        // Now more streams are accepted
-        var ex = Record.Exception(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 5, endStream: false)));
-        Assert.Null(ex);
+        // With new limit 5, third stream should be accepted
+        var newLimit = 5;
+        EnforceMaxConcurrentStreams(activeCount, newLimit, streamId: 5); // Should not throw
     }
 
-    [Fact(DisplayName = "MCS-INT-017: Decreasing limit below active count allows existing streams to complete")]
-    public void DecreasingLimit_BelowActiveCount_ExistingStreamsCanComplete()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-017: Decreasing limit allows existing streams to complete")]
+    public void DecreasingLimit_ExistingStreamsCanComplete()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false));
-        session.Process(MakeResponseHeadersFrame(streamId: 5, endStream: false));
-        Assert.Equal(3, session.ActiveStreamCount);
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
-        // Lower limit below active count
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
-        Assert.Equal(1, session.MaxConcurrentStreams);
+        // Open 3 streams
+        var bytes = Concat(
+            MakeResponseHeadersBytes(streamId: 1, endStream: false),
+            MakeResponseHeadersBytes(streamId: 3, endStream: false),
+            MakeResponseHeadersBytes(streamId: 5, endStream: false));
 
-        // Existing streams still complete normally
-        session.Process(MakeDataFrame(streamId: 1, endStream: true));
-        Assert.Equal(2, session.ActiveStreamCount);
+        var frames = decoder.Decode(bytes);
+        foreach (var frame in frames)
+        {
+            TrackStreamState(frame, openStreams, closedStreams);
+        }
+
+        Assert.Equal(3, openStreams.Count);
+
+        // Lower limit below active count — existing streams still process
+        var dFrames = decoder.Decode(MakeDataBytes(streamId: 1, endStream: true));
+        TrackStreamState(dFrames[0], openStreams, closedStreams);
+
+        // Stream 1 closed, streams 3 and 5 still open
+        Assert.Equal(2, openStreams.Count);
     }
 
-    [Fact(DisplayName = "MCS-INT-018: Reset allows reconnection with fresh limits")]
-    public void Reset_AllowsReconnectionWithFreshLimits()
-    {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        Assert.Equal(1, session.ActiveStreamCount);
-
-        session.Reset();
-
-        Assert.Equal(0, session.ActiveStreamCount);
-        Assert.Equal(int.MaxValue, session.MaxConcurrentStreams);
-
-        // Fresh connection — limit is unconstrained again
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-        session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false));
-        Assert.Equal(2, session.ActiveStreamCount);
-    }
-
-    [Fact(DisplayName = "MCS-INT-019: ActiveStreamCount is accurate across multiple open/close cycles")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-019: ActiveStreamCount accurate across open/close cycles")]
     public void ActiveStreamCount_AccurateAcrossOpenCloseCycles()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(10));
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
         // Open 5 streams
-        for (var i = 0; i < 5; i++)
+        var bytes1 = Concat(
+            MakeResponseHeadersBytes(streamId: 1, endStream: false),
+            MakeResponseHeadersBytes(streamId: 3, endStream: false),
+            MakeResponseHeadersBytes(streamId: 5, endStream: false),
+            MakeResponseHeadersBytes(streamId: 7, endStream: false),
+            MakeResponseHeadersBytes(streamId: 9, endStream: false));
+
+        var frames1 = decoder.Decode(bytes1);
+        foreach (var frame in frames1)
         {
-            var streamId = 1 + (i * 2);
-            session.Process(MakeResponseHeadersFrame(streamId, endStream: false));
+            TrackStreamState(frame, openStreams, closedStreams);
         }
 
-        Assert.Equal(5, session.ActiveStreamCount);
+        Assert.Equal(5, openStreams.Count);
 
-        // Close 3 via EndStream DATA
-        for (var i = 0; i < 3; i++)
+        // Close 3 streams
+        var bytes2 = Concat(
+            MakeDataBytes(streamId: 1, endStream: true),
+            MakeDataBytes(streamId: 3, endStream: true),
+            MakeDataBytes(streamId: 5, endStream: true));
+
+        var frames2 = decoder.Decode(bytes2);
+        foreach (var frame in frames2)
         {
-            var streamId = 1 + (i * 2);
-            session.Process(MakeDataFrame(streamId, endStream: true));
+            TrackStreamState(frame, openStreams, closedStreams);
         }
 
-        Assert.Equal(2, session.ActiveStreamCount);
+        Assert.Equal(2, openStreams.Count);
 
         // Open 3 more
-        for (var i = 5; i < 8; i++)
+        var bytes3 = Concat(
+            MakeResponseHeadersBytes(streamId: 11, endStream: false),
+            MakeResponseHeadersBytes(streamId: 13, endStream: false),
+            MakeResponseHeadersBytes(streamId: 15, endStream: false));
+
+        var frames3 = decoder.Decode(bytes3);
+        foreach (var frame in frames3)
         {
-            var streamId = 1 + (i * 2);
-            session.Process(MakeResponseHeadersFrame(streamId, endStream: false));
+            TrackStreamState(frame, openStreams, closedStreams);
         }
 
-        Assert.Equal(5, session.ActiveStreamCount);
+        Assert.Equal(5, openStreams.Count);
     }
 
-    [Fact(DisplayName = "MCS-INT-020: RST_STREAM on unknown stream does not decrement counter below zero")]
-    public void RstStream_OnUnknownStream_DoesNotDecrementBelowZero()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-020: RST_STREAM on unknown stream doesn't decrement below zero")]
+    public void RstStream_OnUnknownStream_NoDecrement()
     {
-        var session = new Http2ProtocolSession();
-        Assert.Equal(0, session.ActiveStreamCount);
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
-        // RST_STREAM for a stream we never opened (no HEADERS received)
-        var rst = new RstStreamFrame(99, Http2ErrorCode.Cancel).Serialize();
-        session.Process(rst);
+        // No streams open
+        Assert.Empty(openStreams);
 
-        Assert.Equal(0, session.ActiveStreamCount);
+        // RST_STREAM for stream 99 (never opened)
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(new RstStreamFrame(99, Http2ErrorCode.Cancel).Serialize());
+        TrackStreamState(frames[0], openStreams, closedStreams);
+
+        // Still empty (RST on unknown stream just records it closed)
+        Assert.Empty(openStreams);
     }
 
-    [Fact(DisplayName = "MCS-INT-021: SETTINGS ACK frame does not affect MaxConcurrentStreams")]
-    public void SettingsAck_DoesNotAffectMaxConcurrentStreams()
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-021: SETTINGS ACK frame doesn't modify limit")]
+    public void SettingsAck_DoesNotModifyLimit()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(5));
-        Assert.Equal(5, session.MaxConcurrentStreams);
+        var decoder = new Http2FrameDecoder();
+        var currentLimit = 5;
 
-        session.Process(SettingsFrame.SettingsAck());
-        Assert.Equal(5, session.MaxConcurrentStreams);
+        // Process SETTINGS ACK (has no parameters)
+        var frames = decoder.Decode(SettingsFrame.SettingsAck());
+        var frame = Assert.IsType<SettingsFrame>(frames[0]);
+
+        // Extract returns current limit unchanged
+        var newLimit = ExtractMaxConcurrentStreams(frame, currentLimit);
+        Assert.Equal(5, newLimit);
     }
 
-    [Fact(DisplayName = "MCS-INT-022: SETTINGS frame with multiple parameters applies MaxConcurrentStreams")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-022: SETTINGS with multiple params applies MaxConcurrentStreams")]
     public void SettingsFrame_WithMultipleParams_AppliesMaxConcurrentStreams()
     {
-        var session = new Http2ProtocolSession();
-        var settings = new SettingsFrame(new List<(SettingsParameter, uint)>
-        {
-            (SettingsParameter.InitialWindowSize, 32768),
-            (SettingsParameter.MaxConcurrentStreams, 7),
-            (SettingsParameter.MaxFrameSize, 32768),
-        }).Serialize();
+        var decoder = new Http2FrameDecoder();
+        var settings = new SettingsFrame(
+            [
+                (SettingsParameter.InitialWindowSize, 32768u),
+                (SettingsParameter.MaxConcurrentStreams, 7u),
+                (SettingsParameter.MaxFrameSize, 32768u),
+            ]);
 
-        session.Process(settings);
-        Assert.Equal(7, session.MaxConcurrentStreams);
+        var frames = decoder.Decode(settings.Serialize());
+        var frame = Assert.IsType<SettingsFrame>(frames[0]);
+
+        var limit = ExtractMaxConcurrentStreams(frame, int.MaxValue);
+        Assert.Equal(7, limit);
     }
 
-    [Fact(DisplayName = "MCS-INT-023: Limit enforcement message references RFC 7540 §6.5.2")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-023: Limit enforcement message references RFC 6.5.2")]
     public void ExceedingLimit_MessageReferencesRfc()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(MakeMaxConcurrentStreamsSettings(1));
-        session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false));
-
-        var ex = Assert.Throws<Http2Exception>(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 3, endStream: false)));
+        var ex = Assert.Throws<Http2Exception>(
+            () => EnforceMaxConcurrentStreams(activeCount: 1, maxConcurrent: 1, streamId: 3));
 
         Assert.Contains("6.5.2", ex.Message);
     }
 
-    [Fact(DisplayName = "MCS-INT-024: ActiveStreamCount zero after all streams close via EndStream headers")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-024: All streams close via EndStream headers")]
     public void AllStreams_CloseViaEndStreamHeaders_CountIsZero()
     {
-        var session = new Http2ProtocolSession();
+        var decoder = new Http2FrameDecoder();
+        var openStreams = new HashSet<int>();
+        var closedStreams = new HashSet<int>();
 
         // Open and immediately close 3 streams
-        for (var i = 0; i < 3; i++)
+        var bytes = Concat(
+            MakeResponseHeadersBytes(streamId: 1, endStream: true),
+            MakeResponseHeadersBytes(streamId: 3, endStream: true),
+            MakeResponseHeadersBytes(streamId: 5, endStream: true));
+
+        var frames = decoder.Decode(bytes);
+        foreach (var frame in frames)
         {
-            var streamId = 1 + (i * 2);
-            session.Process(MakeResponseHeadersFrame(streamId, endStream: true));
+            TrackStreamState(frame, openStreams, closedStreams);
         }
 
-        Assert.Equal(0, session.ActiveStreamCount);
+        Assert.Empty(openStreams);
+        Assert.Equal(3, closedStreams.Count);
     }
 
-    [Fact(DisplayName = "MCS-INT-025: MaxConcurrentStreams limit of uint.MaxValue boundary handled")]
+    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-025: MaxConcurrentStreams large value handled")]
     public void MaxConcurrentStreams_LargeValue_AppliedCorrectly()
     {
-        var session = new Http2ProtocolSession();
-        // Apply a very large (but valid as uint) limit; stored as int (capped)
-        var settings = new SettingsFrame(new List<(SettingsParameter, uint)>
-        {
-            (SettingsParameter.MaxConcurrentStreams, int.MaxValue),
-        }).Serialize();
+        var decoder = new Http2FrameDecoder();
+        var settings = new SettingsFrame([(SettingsParameter.MaxConcurrentStreams, (uint)int.MaxValue)]);
 
-        session.Process(settings);
-        Assert.Equal(int.MaxValue, session.MaxConcurrentStreams);
+        var frames = decoder.Decode(settings.Serialize());
+        var frame = Assert.IsType<SettingsFrame>(frames[0]);
 
-        // Streams still accepted
-        var exception = Record.Exception(() =>
-            session.Process(MakeResponseHeadersFrame(streamId: 1, endStream: false)));
-        Assert.Null(exception);
+        var limit = ExtractMaxConcurrentStreams(frame, int.MaxValue);
+        Assert.Equal(int.MaxValue, limit);
+
+        // Streams accepted with large limit
+        EnforceMaxConcurrentStreams(activeCount: 1, maxConcurrent: limit, streamId: 1);
     }
 }

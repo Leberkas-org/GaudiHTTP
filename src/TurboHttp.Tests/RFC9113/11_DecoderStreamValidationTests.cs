@@ -3,136 +3,224 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
-public sealed class Http2DecoderStreamValidationTests
+/// <summary>
+/// RFC 9113 §8.2 / §8.3 — HTTP/2 Header Block Decoding.
+///
+/// Tests verify that <see cref="Http2FrameDecoder"/>, <see cref="HpackDecoder"/>,
+/// <see cref="HeadersFrame"/>, and <see cref="ContinuationFrame"/> correctly
+/// decode header blocks at the wire level.
+///
+/// Covered (§8.2 / §8.3):
+///   - HEADERS frame: EndHeaders flag (true/false) decoded correctly
+///   - CONTINUATION frame: EndHeaders flag (true/false) decoded correctly
+///   - HEADERS + CONTINUATION: assembled block decoded by HpackDecoder
+///   - Multi-fragment header block: all headers present in decoded result
+///   - HeaderBlockFragment accessible from decoded HeadersFrame
+///   - HeaderBlockFragment accessible from decoded ContinuationFrame
+///   - HpackDecoder decodes :status and regular headers from fragment
+///   - End-to-end: build HeadersFrame → serialize → decode → HPACK → validate §8.3
+///
+/// Test IDs: HBD-001..008
+/// </summary>
+public sealed class Http2HeaderBlockDecoderTests
 {
-    [Fact(DisplayName = "7540-5.1-003: END_STREAM on incoming DATA moves stream to half-closed remote")]
-    public async Task StreamState_EndStreamOnData_StreamCompleted()
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static byte[] MakeBlock(params (string Name, string Value)[] headers)
     {
-        var hpack = new HpackEncoder(useHuffman: false);
-        var headerBlock = hpack.Encode([(":status", "200")]);
-        var headersFrame = new HeadersFrame(1, headerBlock, endStream: false, endHeaders: true).Serialize();
-        var dataFrame = new DataFrame(1, "body"u8.ToArray(), endStream: true).Serialize();
-
-        var combined = headersFrame.Concat(dataFrame).ToArray();
-        var session = new Http2ProtocolSession();
-        session.Process(combined);
-
-        // When END_STREAM arrives on DATA, the stream is half-closed remote → response produced.
-        Assert.Single(session.Responses);
-        Assert.Equal(200, (int)session.Responses[0].Response.StatusCode);
-        var body = await session.Responses[0].Response.Content.ReadAsStringAsync();
-        Assert.Equal("body", body);
+        var enc = new HpackEncoder(useHuffman: false);
+        return enc.Encode(headers).ToArray();
     }
 
-    [Fact(DisplayName = "7540-5.1-004: Both sides END_STREAM closes stream")]
-    public void StreamState_EndStreamOnHeaders_StreamFullyClosed()
+    private static byte[] Concat(params byte[][] arrays)
     {
-        var hpack = new HpackEncoder(useHuffman: false);
-        var headerBlock = hpack.Encode([(":status", "204")]);
-        // END_STREAM + END_HEADERS → stream fully closed, response produced immediately.
-        var headersFrame = new HeadersFrame(1, headerBlock, endStream: true, endHeaders: true).Serialize();
-
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
-
-        Assert.Single(session.Responses);
-        Assert.Equal(204, (int)session.Responses[0].Response.StatusCode);
-    }
-
-    [Fact(DisplayName = "7540-5.1-005: PUSH_PROMISE moves pushed stream to reserved remote")]
-    public void StreamState_PushPromise_ReservesStream()
-    {
-        // Build a raw PUSH_PROMISE frame: stream=1, promised-stream=2.
-        var hpack = new HpackEncoder(useHuffman: false);
-        var headerBlock = hpack.Encode([(":method", "GET"), (":path", "/pushed")]);
-        var ppFrame = new PushPromiseFrame(1, 2, headerBlock).Serialize();
-
-        var session = new Http2ProtocolSession();
-        session.Process(ppFrame);
-
-        // Promised stream ID 2 should be recorded.
-        Assert.Contains(2, session.PromisedStreamIds);
-    }
-
-    [Fact(DisplayName = "7540-5.1-006: DATA on closed stream causes STREAM_CLOSED error")]
-    public void StreamState_DataOnClosedStream_ThrowsStreamClosed()
-    {
-        var hpack = new HpackEncoder(useHuffman: false);
-        var headerBlock = hpack.Encode([(":status", "200")]);
-        // Close stream 1 with END_STREAM on HEADERS.
-        var headersFrame = new HeadersFrame(1, headerBlock, endStream: true, endHeaders: true).Serialize();
-
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
-
-        // Now send DATA on the closed stream.
-        var dataFrame = new DataFrame(1, new byte[4], endStream: false).Serialize();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(dataFrame));
-        Assert.Equal(Http2ErrorCode.StreamClosed, ex.ErrorCode);
-    }
-
-    [Fact(DisplayName = "7540-5.1-007: HEADERS on closed stream is connection error STREAM_CLOSED (RFC 7540 §6.2)")]
-    public void StreamState_ReuseClosedStreamId_ThrowsStreamClosed()
-    {
-        var hpack = new HpackEncoder(useHuffman: false);
-        var headerBlock = hpack.Encode([(":status", "200")]);
-        var headersFrame = new HeadersFrame(1, headerBlock, endStream: true, endHeaders: true).Serialize();
-
-        var session = new Http2ProtocolSession();
-        session.Process(headersFrame);
-
-        // RFC 7540 §6.2: HEADERS on a closed stream is a connection error of type STREAM_CLOSED.
-        var headerBlock2 = hpack.Encode([(":status", "200")]);
-        var headersFrame2 = new HeadersFrame(1, headerBlock2, endStream: true, endHeaders: true).Serialize();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(headersFrame2));
-        Assert.Equal(Http2ErrorCode.StreamClosed, ex.ErrorCode);
-        Assert.Equal(Http2ErrorScope.Connection, ex.Scope);
-    }
-
-    [Fact(DisplayName = "7540-5.1-008: Client even stream ID causes PROTOCOL_ERROR")]
-    public void StreamState_EvenStreamIdWithoutPushPromise_ThrowsProtocolError()
-    {
-        // Build a HEADERS frame on stream 2 (even, server-push) without preceding PUSH_PROMISE.
-        var hpack = new HpackEncoder(useHuffman: false);
-        var headerBlock = hpack.Encode([(":status", "200")]);
-        var headersFrame = new HeadersFrame(2, headerBlock, endStream: true, endHeaders: true).Serialize();
-
-        var session = new Http2ProtocolSession();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(headersFrame));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-    }
-
-    [Fact(DisplayName = "7540-5.1-009: DATA on stream 0 is PROTOCOL_ERROR")]
-    public void StreamState_DataOnStream0_ThrowsProtocolError()
-    {
-        var frame = new byte[]
+        var total = arrays.Sum(a => a.Length);
+        var result = new byte[total];
+        var offset = 0;
+        foreach (var a in arrays)
         {
-            0x00, 0x00, 0x04,       // length = 4
-            0x00,                   // type  = DATA
-            0x00,                   // flags = none
-            0x00, 0x00, 0x00, 0x00, // stream ID = 0
-            0x00, 0x00, 0x00, 0x00  // payload (4 bytes)
-        };
+            a.CopyTo(result, offset);
+            offset += a.Length;
+        }
 
-        var session = new Http2ProtocolSession();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
+        return result;
     }
 
-    [Fact(DisplayName = "7540-5.1-010: HEADERS on stream 0 is PROTOCOL_ERROR")]
-    public void StreamState_HeadersOnStream0_ThrowsProtocolError()
-    {
-        var frame = new byte[]
-        {
-            0x00, 0x00, 0x01,       // length = 1
-            0x01,                   // type  = HEADERS
-            0x05,                   // flags = END_STREAM | END_HEADERS
-            0x00, 0x00, 0x00, 0x00, // stream ID = 0
-            0x88                    // HPACK: :status 200
-        };
+    // ── HBD-001: END_HEADERS=true on HEADERS frame ───────────────────────────
 
-        var session = new Http2ProtocolSession();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
+    /// RFC 9113 §8.2 — HEADERS frame with END_HEADERS set is decoded with EndHeaders=true
+    [Fact(DisplayName = "RFC-9113-§8.2-HBD-001: HEADERS with END_HEADERS flag decoded with EndHeaders=true")]
+    public void HeadersFrame_EndHeadersTrue_WhenFlagSet()
+    {
+        var block = MakeBlock((":status", "200"));
+        var bytes = new HeadersFrame(1, block.AsMemory(), endStream: true, endHeaders: true).Serialize();
+
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(bytes);
+
+        Assert.Single(frames);
+        var hf = Assert.IsType<HeadersFrame>(frames[0]);
+        Assert.True(hf.EndHeaders);
+    }
+
+    // ── HBD-002: END_HEADERS=false on HEADERS frame ──────────────────────────
+
+    /// RFC 9113 §8.2 — HEADERS frame without END_HEADERS set is decoded with EndHeaders=false
+    [Fact(DisplayName = "RFC-9113-§8.2-HBD-002: HEADERS without END_HEADERS flag decoded with EndHeaders=false")]
+    public void HeadersFrame_EndHeadersFalse_WhenFlagNotSet()
+    {
+        var block = MakeBlock((":status", "200"));
+        var bytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: true, endHeaders: false).Serialize();
+
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(bytes);
+
+        Assert.Single(frames);
+        var hf = Assert.IsType<HeadersFrame>(frames[0]);
+        Assert.False(hf.EndHeaders);
+    }
+
+    // ── HBD-003: END_HEADERS=true on CONTINUATION frame ─────────────────────
+
+    /// RFC 9113 §8.2 — CONTINUATION frame with END_HEADERS is decoded with EndHeaders=true
+    [Fact(DisplayName = "RFC-9113-§8.2-HBD-003: CONTINUATION with END_HEADERS flag decoded with EndHeaders=true")]
+    public void ContinuationFrame_EndHeadersTrue_WhenFlagSet()
+    {
+        var block = MakeBlock((":status", "200"));
+        var contBytes = new ContinuationFrame(1, block.AsMemory(), endHeaders: true).Serialize();
+
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(contBytes);
+
+        Assert.Single(frames);
+        var cf = Assert.IsType<ContinuationFrame>(frames[0]);
+        Assert.True(cf.EndHeaders);
+    }
+
+    // ── HBD-004: END_HEADERS=false on CONTINUATION frame ────────────────────
+
+    /// RFC 9113 §8.2 — CONTINUATION frame without END_HEADERS is decoded with EndHeaders=false
+    [Fact(DisplayName = "RFC-9113-§8.2-HBD-004: CONTINUATION without END_HEADERS flag decoded with EndHeaders=false")]
+    public void ContinuationFrame_EndHeadersFalse_WhenFlagNotSet()
+    {
+        var block = MakeBlock((":status", "200"));
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[..1], endHeaders: false).Serialize();
+
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(contBytes);
+
+        Assert.Single(frames);
+        var cf = Assert.IsType<ContinuationFrame>(frames[0]);
+        Assert.False(cf.EndHeaders);
+    }
+
+    // ── HBD-005: HeaderBlockFragment accessible from HEADERS ─────────────────
+
+    /// RFC 9113 §8.2 — HeaderBlockFragment from decoded HEADERS frame is the original HPACK block
+    [Fact(DisplayName = "RFC-9113-§8.2-HBD-005: HeaderBlockFragment from decoded HEADERS frame contains the HPACK block")]
+    public void HeadersFrame_HeaderBlockFragment_IsOriginalHpackBlock()
+    {
+        var block = MakeBlock((":status", "200"), ("content-type", "text/plain"));
+        var bytes = new HeadersFrame(1, block.AsMemory(), endStream: true, endHeaders: true).Serialize();
+
+        var decoder = new Http2FrameDecoder();
+        var frames = decoder.Decode(bytes);
+
+        var hf = Assert.IsType<HeadersFrame>(frames[0]);
+        var fragment = hf.HeaderBlockFragment;
+        Assert.Equal(block, fragment.ToArray());
+
+        // HPACK decode of the fragment must yield the original headers.
+        var headers = new HpackDecoder().Decode(fragment.Span);
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "200");
+        Assert.Contains(headers, h => h.Name == "content-type" && h.Value == "text/plain");
+    }
+
+    // ── HBD-006: HeaderBlockFragment accessible from CONTINUATION ────────────
+
+    /// RFC 9113 §8.2 — HeaderBlockFragment from decoded CONTINUATION frame is the fragment bytes
+    [Fact(DisplayName = "RFC-9113-§8.2-HBD-006: HeaderBlockFragment from decoded CONTINUATION frame contains its fragment bytes")]
+    public void ContinuationFrame_HeaderBlockFragment_IsFragmentBytes()
+    {
+        var fullBlock = MakeBlock((":status", "201"), ("x-trace", "abc"));
+        var half = fullBlock.Length / 2;
+        var part1 = fullBlock[..half];
+        var part2 = fullBlock[half..];
+
+        var headersBytes = new HeadersFrame(1, part1.AsMemory(), endStream: true, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, part2.AsMemory(), endHeaders: true).Serialize();
+
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(Concat(headersBytes, contBytes));
+
+        Assert.Equal(2, decoded.Count);
+        var cf = Assert.IsType<ContinuationFrame>(decoded[1]);
+        Assert.Equal(part2, cf.HeaderBlockFragment.ToArray());
+    }
+
+    // ── HBD-007: Assembled multi-fragment block decodes all headers ───────────
+
+    /// RFC 9113 §8.2 — Assembled HEADERS + CONTINUATION block decoded by HpackDecoder yields all headers
+    [Fact(DisplayName = "RFC-9113-§8.2-HBD-007: Assembled HEADERS+CONTINUATION block decoded by HpackDecoder yields all headers")]
+    public void AssembledBlock_ContainsAllHeaders_WhenSplitAcrossFrames()
+    {
+        var block = MakeBlock(
+            (":status", "200"),
+            ("content-type", "application/json"),
+            ("x-custom", "value123"),
+            ("cache-control", "no-cache"));
+
+        var half = block.Length / 2;
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..half], endStream: true, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[half..], endHeaders: true).Serialize();
+
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(Concat(headersBytes, contBytes));
+
+        Assert.Equal(2, decoded.Count);
+        var hf = Assert.IsType<HeadersFrame>(decoded[0]);
+        var cf = Assert.IsType<ContinuationFrame>(decoded[1]);
+
+        // Assemble the full block from both fragments.
+        var fullBlock = new byte[hf.HeaderBlockFragment.Length + cf.HeaderBlockFragment.Length];
+        hf.HeaderBlockFragment.Span.CopyTo(fullBlock);
+        cf.HeaderBlockFragment.Span.CopyTo(fullBlock.AsSpan(hf.HeaderBlockFragment.Length));
+
+        var hpackDecoder = new HpackDecoder();
+        var headers = hpackDecoder.Decode(fullBlock.AsSpan());
+
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "200");
+        Assert.Contains(headers, h => h.Name == "content-type" && h.Value == "application/json");
+        Assert.Contains(headers, h => h.Name == "x-custom" && h.Value == "value123");
+        Assert.Contains(headers, h => h.Name == "cache-control" && h.Value == "no-cache");
+    }
+
+    // ── HBD-008: End-to-end — HEADERS frame header block round-trip with §8.3 validation ──
+
+    /// RFC 9113 §8.3 — HeadersFrame built with HpackEncoder encodes correctly; HpackDecoder decodes
+    /// the fragment; response pseudo-header :status is present and valid.
+    [Fact(DisplayName = "RFC-9113-§8.3-HBD-008: HeadersFrame HPACK fragment round-trips correctly through HpackDecoder")]
+    public void HeadersFrame_RoundTrip_HpackFragmentDecodesCorrectly()
+    {
+        var enc = new HpackEncoder(useHuffman: false);
+        var block = enc.Encode([(":status", "204"), ("content-length", "0")]);
+        var headersFrame = new HeadersFrame(1, block, endStream: true, endHeaders: true);
+
+        // Serialize → decode frame bytes → decode HPACK.
+        var bytes = headersFrame.Serialize();
+        var decoder = new Http2FrameDecoder();
+        var decoded = decoder.Decode(bytes);
+
+        Assert.Single(decoded);
+        var hf = Assert.IsType<HeadersFrame>(decoded[0]);
+        Assert.True(hf.EndHeaders);
+        Assert.True(hf.EndStream);
+        Assert.Equal(1, hf.StreamId);
+
+        var hpackDecoder = new HpackDecoder();
+        var headers = hpackDecoder.Decode(hf.HeaderBlockFragment.Span);
+
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "204");
+        Assert.Contains(headers, h => h.Name == "content-length" && h.Value == "0");
     }
 }

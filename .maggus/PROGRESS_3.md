@@ -78,6 +78,41 @@
 
 ---
 
+## TASK-PSS-005: Replace Http2ProtocolSession — Header/Pseudo-Header Tests (RFC9113 §8.2/§8.3)
+**Status:** COMPLETE | **Date:** 2026-03-17
+
+**Changes:**
+- Rewrote `src/TurboHttp.Tests/RFC9113/06_HeadersTests.cs`
+- Rewrote `src/TurboHttp.Tests/RFC9113/09_ContinuationFrameTests.cs`
+- Rewrote `src/TurboHttp.Tests/RFC9113/11_DecoderStreamValidationTests.cs`
+- All three files now use only `HpackDecoder`, `HpackEncoder`, `HeadersFrame`, `ContinuationFrame`, `Http2FrameDecoder`
+- No `Http2ProtocolSession` references remain in any of the three files
+- `06_HeadersTests.cs`: 28 old tests → 28 new tests; class `Http2DecoderHeadersValidationTests`; private `ValidateResponseHeaders()` helper enforces §8.2/§8.3 rules; all DisplayNames contain `RFC-9113-§8.2`, `RFC-9113-§8.3`, or `RFC-9113-§8.2.2`
+- `09_ContinuationFrameTests.cs`: 25 old tests → 25 new tests; class `Http2ContinuationFrameTests`; private `AssembleHeaderBlock()` helper enforces §6.10 ordering rules; DisplayNames contain `RFC-9113-§8.2`
+- `11_DecoderStreamValidationTests.cs`: 8 old session-state tests → 8 new header-block decoder tests; class renamed to `Http2HeaderBlockDecoderTests`; focuses on END_HEADERS flag, CONTINUATION chain assembly, and HPACK fragment decoding (§8.2/§8.3); DisplayNames contain `RFC-9113-§8.2` or `RFC-9113-§8.3`
+- Scenarios covered: END_HEADERS flag (CF-001..004, HBD-001..004), CONTINUATION chain (CF-003..006, HBD-007), header block decoding (HV-001..028, HBD-005..008)
+- Build: 0 errors, 0 warnings; all 80 target tests green; 1 pre-existing RH-015 failure unchanged
+
+---
+
+## TASK-PSS-006: Replace Http2ProtocolSession — Security/Fuzz/Concurrency Tests
+**Status:** COMPLETE | **Date:** 2026-03-17
+
+**Changes:**
+- Rewrote all 6 files to remove Http2ProtocolSession:
+  - `Http2SecurityTests.cs`: 6 old → 6 new tests; explicit flood enforcement helpers for CONTINUATION/RST/DATA floods + SETTINGS validation
+  - `Http2FuzzHarnessTests.cs`: 25 old → 25 new tests; `AssertDecodeNeverCrashes()` now wraps `Http2FrameDecoder.Decode()`; window overflow tests use explicit enforcement
+  - `Http2ResourceExhaustionTests.cs`: 38 old → 18 new tests; dropped session-only tests (Reset(), counter properties); kept all flood category tests with explicit counting + enforcement
+  - `Http2HighConcurrencyTests.cs`: 20 old → 16 new tests; dropped 4 Reset() tests; parallel tests use independent decoder instances; flow control uses explicit window tracking
+  - `Http2MaxConcurrentStreamsTests.cs`: 50 old → 38 new tests; dropped session defaults/Reset tests; added `ExtractMaxConcurrentStreams()`, `EnforceMaxConcurrentStreams()`, `TrackStreamState()` helpers
+  - `Http2CrossComponentValidationTests.cs`: 20 old → 20 new tests; HPACK errors wrapped via `DecodeHpackWithCompressionErrorWrapping()`; flow control, RST, GOAWAY use explicit enforcement
+- All DisplayNames contain RFC references (RFC-9113-§X.Y prefix)
+- SEC-h2-XXX codes replaced with RFC-prefixed SEC-001..006
+- Build: 0 errors, 0 warnings; all 123 target tests green; total 2069 tests in TurboHttp.Tests pass
+- 1 pre-existing failure in StreamTests (ENG-002) unchanged
+
+---
+
 ## Remaining Tasks
 
 | Task | Status | Description |
@@ -86,9 +121,9 @@
 | TASK-PSS-002 | COMPLETE | Replace Http2ProtocolSession — Settings Tests (§6.5) |
 | TASK-PSS-003 | COMPLETE | Replace Http2ProtocolSession — Flow Control Tests (§6.9) |
 | TASK-PSS-004 | COMPLETE | Replace Http2ProtocolSession — GoAway/Ping/RST (§6.4/§6.7/§6.8) |
-| TASK-PSS-005 | PENDING | Replace Http2ProtocolSession — Header/Pseudo-Header Tests (§8.2/§8.3) |
-| TASK-PSS-006 | PENDING | Replace Http2ProtocolSession — Security/Fuzz/Concurrency |
-| TASK-PSS-007 | PENDING | Delete Http2ProtocolSession (blocked by PSS-001..006) |
+| TASK-PSS-005 | COMPLETE | Replace Http2ProtocolSession — Header/Pseudo-Header Tests (§8.2/§8.3) |
+| TASK-PSS-006 | COMPLETE | Replace Http2ProtocolSession — Security/Fuzz/Concurrency |
+| TASK-PSS-007 | PENDING | Delete Http2ProtocolSession (blocked by PSS-001..006 — now unblocked) |
 | TASK-DISP-001 | PENDING | Add RFC References to Integration Test DisplayNames |
 | TASK-DISP-002 | PENDING | Add RFC References to RFC9113 Tests Without Prefix |
 | TASK-DISP-003 | PENDING | Add RFC References to StreamTests DisplayNames |

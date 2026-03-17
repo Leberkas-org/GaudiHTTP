@@ -192,6 +192,44 @@
 - 02_FrameParsingTests.cs CS0219 warning fixed in TASK-048 (removed unused `newMax` variable)
 - Zero warnings as of TASK-048
 
+## Http2ProtocolSession Migration Pattern (TASK-PSS-001, TASK-PSS-002, TASK-PSS-003)
+
+### Completed Migrations
+- `03_StreamStateMachineTests.cs` → uses `Http2FrameDecoder`, `Http2Frame` subclasses, `HpackDecoder` directly
+- `04_SettingsTests.cs` → uses `SettingsFrame`, `Http2FrameDecoder`, `SettingsParameter` directly
+- `05_FlowControlTests.cs` → uses `WindowUpdateFrame`, `DataFrame`, `Http2FrameDecoder` directly (26 tests, RFC-9113-§6.9)
+- `13_DecoderStreamFlowControlTests.cs` → uses `WindowUpdateFrame`, `DataFrame`, `Http2FrameDecoder` directly (6 tests, RFC-9113-§6.9)
+- `07_ErrorHandlingTests.cs` → uses `RstStreamFrame`, `PingFrame`, `Http2FrameDecoder` directly (14 tests, RFC-9113-§6.4/§6.7)
+- `08_GoAwayTests.cs` → uses `GoAwayFrame`, `Http2FrameDecoder` directly (17 tests, RFC-9113-§6.8)
+
+### What Http2FrameDecoder validates directly (throw on parse):
+- SETTINGS on non-zero stream → `Http2Exception(ProtocolError)`
+- SETTINGS ACK with non-empty payload → `Http2Exception(FrameSizeError)`
+- SETTINGS payload not multiple of 6 → `Http2Exception(FrameSizeError)`
+- MAX_FRAME_SIZE outside [16384, 16777215] → `Http2Exception(ProtocolError)` (default error code)
+- WINDOW_UPDATE payload != 4 bytes → `Http2Exception(FrameSizeError)`
+- WINDOW_UPDATE increment = 0 → `Http2Exception(ProtocolError)`
+
+### What Http2FrameDecoder passes through (caller must validate):
+- ENABLE_PUSH > 1 → caller throws `Http2Exception(ProtocolError)`
+- INITIAL_WINDOW_SIZE > 0x7FFFFFFF → caller throws `Http2Exception(FlowControlError)`
+- Stream state transitions (Idle/Open/Closed) — tested in `03_StreamStateMachineTests.cs`
+- Window overflow (connection or stream send window > 2^31-1) → belongs to Http20ConnectionStage, NOT tested in decoder tests
+
+### WINDOW_UPDATE decoder behavior
+- Reserved high bit of increment field (0x80000000) is stripped: `(int)(value & 0x7FFFFFFFu)`
+- Valid increment range after stripping: 1..0x7FFFFFFF
+- Stream 0 = connection-level; stream N = stream-level
+
+### Pattern: private static helper methods in test file enforce RFC rules
+```csharp
+private static void EnforceEnablePush(IReadOnlyList<(SettingsParameter, uint)> parameters) { ... }
+private static void EnforceInitialWindowSize(IReadOnlyList<(SettingsParameter, uint)> parameters) { ... }
+```
+Tests decode first, then call helpers, then assert `Http2Exception`.
+
+---
+
 ## Test Counts (TASK-048 Baseline — 2026-03-12)
 - Unit tests (TurboHttp.Tests): 2158
 - Stream tests (TurboHttp.StreamTests): 421

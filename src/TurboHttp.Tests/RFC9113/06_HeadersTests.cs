@@ -4,65 +4,179 @@ using TurboHttp.Protocol.RFC9113;
 namespace TurboHttp.Tests.RFC9113;
 
 /// <summary>
-/// Phase 12-13: HTTP/2 Decoder — HEADERS Validation.
-/// RFC 9113 §8.2 (header name rules), §8.2.2 (connection-specific forbidden),
-/// §8.3 (pseudo-header ordering), §8.3.2 (response pseudo-header requirements).
+/// RFC 9113 §8.2 — HTTP Header Field Validity
+/// RFC 9113 §8.3 — HTTP Request and Response Pseudo-Header Fields
+///
+/// Tests call <see cref="HpackDecoder"/> and <see cref="HeadersFrame"/> directly.
+/// Validation helpers (ValidateResponseHeaders) enforce RFC §8.2/§8.3 rules.
+///
+/// Covered (§8.2):
+///   - Uppercase header names → PROTOCOL_ERROR
+///   - Forbidden connection-specific headers → PROTOCOL_ERROR
+///   - Valid lowercase header names accepted
+///
+/// Covered (§8.3):
+///   - Missing :status → PROTOCOL_ERROR
+///   - Duplicate :status → PROTOCOL_ERROR
+///   - Request pseudo-headers in response → PROTOCOL_ERROR
+///   - Unknown pseudo-headers → PROTOCOL_ERROR
+///   - Pseudo-header after regular header → PROTOCOL_ERROR
+///   - Valid :status (200, 301, 404, 100) accepted
+///
+/// Test IDs: HV-001..028
 /// </summary>
 public sealed class Http2DecoderHeadersValidationTests
 {
-    // ── Helper: build a raw HEADERS frame with a literal-encoded header block ──
+    // ── Private helpers ───────────────────────────────────────────────────────
 
     /// <summary>
-    /// Builds a HEADERS frame using HpackEncoder so that the decoder
-    /// will see the headers after HPACK decoding.
+    /// Encodes a set of headers using HpackEncoder (no Huffman) and returns the block as Memory.
     /// </summary>
-    private static byte[] MakeHeadersFrame(
-        int streamId,
-        IEnumerable<(string Name, string Value)> headers,
-        bool endStream = true,
-        bool endHeaders = true)
+    private static ReadOnlyMemory<byte> MakeHeaderBlock(params (string Name, string Value)[] headers)
     {
-        var hpack = new HpackEncoder(useHuffman: false);
-        var headerBlock = hpack.Encode(new List<(string, string)>(headers));
-        return new HeadersFrame(streamId, headerBlock, endStream, endHeaders).Serialize();
+        var enc = new HpackEncoder(useHuffman: false);
+        return enc.Encode(headers);
     }
 
-    private static byte[] GoodResponse(int streamId = 1, bool endStream = true) =>
-        MakeHeadersFrame(streamId, [(":status", "200")], endStream);
+    /// <summary>
+    /// Decodes a raw HPACK header block using a fresh HpackDecoder.
+    /// </summary>
+    private static IReadOnlyList<HpackHeader> DecodeBlock(ReadOnlyMemory<byte> block)
+    {
+        return new HpackDecoder().Decode(block.Span);
+    }
 
-    // ── HV-001: Valid minimal response (status only) ──────────────────────────
+    /// <summary>
+    /// RFC 9113 §8.2 / §8.3: Validates that decoded response headers satisfy all
+    /// HTTP/2 header field validity requirements. Throws Http2Exception on violation.
+    /// </summary>
+    private static void ValidateResponseHeaders(IReadOnlyList<HpackHeader> headers)
+    {
+        if (headers.Count == 0)
+        {
+            throw new Http2Exception(
+                "RFC 9113 §8.3.2: Response HEADERS block is missing the required :status pseudo-header.",
+                Http2ErrorCode.ProtocolError, Http2ErrorScope.Connection);
+        }
 
-    /// RFC 9113 §8.2 — Valid response with only :status is accepted
-    [Fact(DisplayName = "HV-001: Valid response with only :status is accepted")]
+        var seenRegular = false;
+        var seenStatus = false;
+
+        foreach (var h in headers)
+        {
+            if (h.Name.StartsWith(':'))
+            {
+                if (seenRegular)
+                {
+                    throw new Http2Exception(
+                        $"RFC 9113 §8.3: Pseudo-header '{h.Name}' must not appear after regular header.",
+                        Http2ErrorCode.ProtocolError, Http2ErrorScope.Connection);
+                }
+
+                foreach (var c in h.Name)
+                {
+                    if (char.IsUpper(c))
+                    {
+                        throw new Http2Exception(
+                            $"RFC 9113 §8.2: Pseudo-header name '{h.Name}' contains uppercase characters.",
+                            Http2ErrorCode.ProtocolError, Http2ErrorScope.Connection);
+                    }
+                }
+
+                if (h.Name == ":status")
+                {
+                    if (seenStatus)
+                    {
+                        throw new Http2Exception(
+                            "RFC 9113 §8.3.2: Duplicate :status pseudo-header.",
+                            Http2ErrorCode.ProtocolError, Http2ErrorScope.Connection);
+                    }
+
+                    seenStatus = true;
+                }
+                else if (IsRequestPseudoHeader(h.Name))
+                {
+                    throw new Http2Exception(
+                        $"RFC 9113 §8.3.2: Request pseudo-header '{h.Name}' is not valid in a response.",
+                        Http2ErrorCode.ProtocolError, Http2ErrorScope.Connection);
+                }
+                else
+                {
+                    throw new Http2Exception(
+                        $"RFC 9113 §8.3: Unknown pseudo-header '{h.Name}' in response.",
+                        Http2ErrorCode.ProtocolError, Http2ErrorScope.Connection);
+                }
+            }
+            else
+            {
+                seenRegular = true;
+
+                foreach (var c in h.Name)
+                {
+                    if (char.IsUpper(c))
+                    {
+                        throw new Http2Exception(
+                            $"RFC 9113 §8.2: Header field name '{h.Name}' contains uppercase characters; all names must be lowercase.",
+                            Http2ErrorCode.ProtocolError, Http2ErrorScope.Connection);
+                    }
+                }
+
+                if (IsForbiddenConnectionHeader(h.Name))
+                {
+                    throw new Http2Exception(
+                        $"RFC 9113 §8.2.2: Header '{h.Name}' is forbidden in HTTP/2.",
+                        Http2ErrorCode.ProtocolError, Http2ErrorScope.Connection);
+                }
+            }
+        }
+
+        if (!seenStatus)
+        {
+            throw new Http2Exception(
+                "RFC 9113 §8.3.2: Response HEADERS block is missing the required :status pseudo-header.",
+                Http2ErrorCode.ProtocolError, Http2ErrorScope.Connection);
+        }
+    }
+
+    private static bool IsRequestPseudoHeader(string name) =>
+        name is ":method" or ":path" or ":scheme" or ":authority";
+
+    private static bool IsForbiddenConnectionHeader(string name) =>
+        name is "connection" or "keep-alive" or "proxy-connection" or "transfer-encoding" or "upgrade";
+
+    // ── HV-001: Valid minimal response ────────────────────────────────────────
+
+    /// RFC 9113 §8.3 — Valid response with only :status is accepted
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-001: Valid response with only :status is accepted")]
     public void Should_Accept_When_ValidMinimalResponse()
     {
-        var session = new Http2ProtocolSession();
-        session.Process(GoodResponse());
-        Assert.Single(session.Responses);
-        Assert.Equal(200, (int)session.Responses[0].Response.StatusCode);
+        var block = MakeHeaderBlock((":status", "200"));
+        var headers = DecodeBlock(block);
+        ValidateResponseHeaders(headers); // must not throw
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "200");
     }
 
     // ── HV-002: Valid response with :status + regular headers ─────────────────
 
-    /// RFC 9113 §8.2 — Valid response with :status then regular headers is accepted
-    [Fact(DisplayName = "HV-002: Valid response with :status then regular headers is accepted")]
+    /// RFC 9113 §8.3 — Valid response with :status then regular headers is accepted
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-002: Valid response with :status then regular headers is accepted")]
     public void Should_Accept_When_StatusFollowedByRegularHeaders()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), ("content-type", "text/plain")]);
-        session.Process(frame);
-        Assert.Single(session.Responses);
+        var block = MakeHeaderBlock((":status", "200"), ("content-type", "text/plain"));
+        var headers = DecodeBlock(block);
+        ValidateResponseHeaders(headers); // must not throw
+        Assert.Contains(headers, h => h.Name == "content-type");
     }
 
     // ── HV-003: Missing :status pseudo-header ─────────────────────────────────
 
-    /// RFC 9113 §8.2 — Missing :status pseudo-header is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-003: Missing :status pseudo-header is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.3 — Missing :status pseudo-header is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-003: Missing :status pseudo-header is PROTOCOL_ERROR")]
     public void Should_Throw_When_StatusPseudoHeaderMissing()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [("content-type", "text/plain")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock(("content-type", "text/plain"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains(":status", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -70,40 +184,30 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-004: Duplicate :status pseudo-header ───────────────────────────────
 
-    /// RFC 9113 §8.2 — Duplicate :status pseudo-header is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-004: Duplicate :status pseudo-header is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.3 — Duplicate :status pseudo-header is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-004: Duplicate :status pseudo-header is PROTOCOL_ERROR")]
     public void Should_Throw_When_StatusPseudoHeaderDuplicated()
     {
-        var session = new Http2ProtocolSession();
-
-        // Build header block manually to bypass HpackEncoder single-pass restrictions.
-        // Use literal encoding to produce duplicate :status entries.
-        // 0x40 = Literal Header Field with Incremental Indexing, new name
-        // ":status" = 0x07, ":status"
-        // "200" = 0x03, "200"
-        // Repeat twice.
+        // Build raw header block with two literal :status entries (never-index form = 0x10).
         var nameBytes = System.Text.Encoding.Latin1.GetBytes(":status");
         var val1Bytes = System.Text.Encoding.Latin1.GetBytes("200");
         var val2Bytes = System.Text.Encoding.Latin1.GetBytes("404");
 
-        // Build raw header block: two literal :status entries (never-index form = 0x10)
-        var block = new System.Collections.Generic.List<byte>();
-        void AddLiteral(byte[] name2, byte[] value2)
+        var block = new List<byte>();
+        void AddLiteral(byte[] name, byte[] value)
         {
-            block.Add(0x10);              // Literal Never Index, new name
-            block.Add((byte)name2.Length);
-            block.AddRange(name2);
-            block.Add((byte)value2.Length);
-            block.AddRange(value2);
+            block.Add(0x10);
+            block.Add((byte)name.Length);
+            block.AddRange(name);
+            block.Add((byte)value.Length);
+            block.AddRange(value);
         }
 
         AddLiteral(nameBytes, val1Bytes);
         AddLiteral(nameBytes, val2Bytes);
 
-        var blockArray = block.ToArray();
-        var frame = new HeadersFrame(1, blockArray.AsMemory(), endStream: true, endHeaders: true).Serialize();
-
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var headers = new HpackDecoder().Decode(block.ToArray().AsSpan());
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains(":status", ex.Message);
         Assert.Contains("Duplicate", ex.Message);
@@ -112,13 +216,13 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-005: Request pseudo-header :method in response is PROTOCOL_ERROR ──
 
-    /// RFC 9113 §8.2 — Request pseudo-header :method in response is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-005: Request pseudo-header :method in response is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.3 — Request pseudo-header :method in response is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-005: Request pseudo-header :method in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_MethodPseudoHeaderInResponse()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), (":method", "GET")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), (":method", "GET"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains(":method", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -126,13 +230,13 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-006: Request pseudo-header :path in response is PROTOCOL_ERROR ────
 
-    /// RFC 9113 §8.2 — Request pseudo-header :path in response is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-006: Request pseudo-header :path in response is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.3 — Request pseudo-header :path in response is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-006: Request pseudo-header :path in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_PathPseudoHeaderInResponse()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), (":path", "/")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), (":path", "/"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains(":path", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -140,13 +244,13 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-007: Request pseudo-header :scheme in response is PROTOCOL_ERROR ──
 
-    /// RFC 9113 §8.2 — Request pseudo-header :scheme in response is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-007: Request pseudo-header :scheme in response is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.3 — Request pseudo-header :scheme in response is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-007: Request pseudo-header :scheme in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_SchemePseudoHeaderInResponse()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), (":scheme", "https")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), (":scheme", "https"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains(":scheme", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -154,13 +258,13 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-008: Request pseudo-header :authority in response is PROTOCOL_ERROR
 
-    /// RFC 9113 §8.2 — Request pseudo-header :authority in response is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-008: Request pseudo-header :authority in response is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.3 — Request pseudo-header :authority in response is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-008: Request pseudo-header :authority in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_AuthorityPseudoHeaderInResponse()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), (":authority", "example.com")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), (":authority", "example.com"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains(":authority", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -168,34 +272,30 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-009: Unknown pseudo-header is PROTOCOL_ERROR ──────────────────────
 
-    /// RFC 9113 §8.2 — Unknown pseudo-header is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-009: Unknown pseudo-header is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.3 — Unknown pseudo-header is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-009: Unknown pseudo-header in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_UnknownPseudoHeaderInResponse()
     {
-        var session = new Http2ProtocolSession();
-
         var nameBytes = System.Text.Encoding.Latin1.GetBytes(":status");
         var valBytes = System.Text.Encoding.Latin1.GetBytes("200");
         var unknownName = System.Text.Encoding.Latin1.GetBytes(":custom");
         var unknownVal = System.Text.Encoding.Latin1.GetBytes("value");
 
-        var block = new System.Collections.Generic.List<byte>();
-        void AddLiteral(byte[] name2, byte[] value2)
+        var block = new List<byte>();
+        void AddLiteral(byte[] name, byte[] value)
         {
             block.Add(0x10);
-            block.Add((byte)name2.Length);
-            block.AddRange(name2);
-            block.Add((byte)value2.Length);
-            block.AddRange(value2);
+            block.Add((byte)name.Length);
+            block.AddRange(name);
+            block.Add((byte)value.Length);
+            block.AddRange(value);
         }
 
         AddLiteral(nameBytes, valBytes);
         AddLiteral(unknownName, unknownVal);
 
-        var blockArray = block.ToArray();
-        var frame = new HeadersFrame(1, blockArray.AsMemory(), endStream: true, endHeaders: true).Serialize();
-
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var headers = new HpackDecoder().Decode(block.ToArray().AsSpan());
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains(":custom", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -203,35 +303,30 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-010: Pseudo-header after regular header is PROTOCOL_ERROR ──────────
 
-    /// RFC 9113 §8.2 — Pseudo-header :status after regular header is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-010: Pseudo-header :status after regular header is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.3 — Pseudo-header :status after regular header is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-010: Pseudo-header :status after regular header is PROTOCOL_ERROR")]
     public void Should_Throw_When_PseudoHeaderAfterRegularHeader()
     {
-        var session = new Http2ProtocolSession();
-
-        // Encode: regular header first, then :status — violates ordering.
         var regularName = System.Text.Encoding.Latin1.GetBytes("content-type");
         var regularVal = System.Text.Encoding.Latin1.GetBytes("text/plain");
         var statusName = System.Text.Encoding.Latin1.GetBytes(":status");
         var statusVal = System.Text.Encoding.Latin1.GetBytes("200");
 
-        var block = new System.Collections.Generic.List<byte>();
-        void AddLiteral(byte[] name2, byte[] value2)
+        var block = new List<byte>();
+        void AddLiteral(byte[] name, byte[] value)
         {
             block.Add(0x10);
-            block.Add((byte)name2.Length);
-            block.AddRange(name2);
-            block.Add((byte)value2.Length);
-            block.AddRange(value2);
+            block.Add((byte)name.Length);
+            block.AddRange(name);
+            block.Add((byte)value.Length);
+            block.AddRange(value);
         }
 
         AddLiteral(regularName, regularVal);
         AddLiteral(statusName, statusVal);
 
-        var blockArray = block.ToArray();
-        var frame = new HeadersFrame(1, blockArray.AsMemory(), endStream: true, endHeaders: true).Serialize();
-
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var headers = new HpackDecoder().Decode(block.ToArray().AsSpan());
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains(":status", ex.Message);
         Assert.Contains("after regular header", ex.Message);
@@ -240,34 +335,30 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-011: Uppercase header name is PROTOCOL_ERROR ──────────────────────
 
-    /// RFC 9113 §8.2 — Uppercase header name is PROTOCOL ERROR (RFC 9113 §8.2)
-    [Fact(DisplayName = "HV-011: Uppercase header name is PROTOCOL_ERROR (RFC 9113 §8.2)")]
+    /// RFC 9113 §8.2 — Uppercase header name is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.2-HV-011: Uppercase header name is PROTOCOL_ERROR")]
     public void Should_Throw_When_UppercaseHeaderName()
     {
-        var session = new Http2ProtocolSession();
-
         var statusName = System.Text.Encoding.Latin1.GetBytes(":status");
         var statusVal = System.Text.Encoding.Latin1.GetBytes("200");
         var upperName = System.Text.Encoding.Latin1.GetBytes("Content-Type");
         var upperVal = System.Text.Encoding.Latin1.GetBytes("text/plain");
 
-        var block = new System.Collections.Generic.List<byte>();
-        void AddLiteral(byte[] name2, byte[] value2)
+        var block = new List<byte>();
+        void AddLiteral(byte[] name, byte[] value)
         {
             block.Add(0x10);
-            block.Add((byte)name2.Length);
-            block.AddRange(name2);
-            block.Add((byte)value2.Length);
-            block.AddRange(value2);
+            block.Add((byte)name.Length);
+            block.AddRange(name);
+            block.Add((byte)value.Length);
+            block.AddRange(value);
         }
 
         AddLiteral(statusName, statusVal);
         AddLiteral(upperName, upperVal);
 
-        var blockArray = block.ToArray();
-        var frame = new HeadersFrame(1, blockArray.AsMemory(), endStream: true, endHeaders: true).Serialize();
-
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var headers = new HpackDecoder().Decode(block.ToArray().AsSpan());
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains("uppercase", ex.Message.ToLower());
         Assert.True(ex.IsConnectionError);
@@ -275,36 +366,33 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-012: Uppercase in pseudo-header is PROTOCOL_ERROR ─────────────────
 
-    /// RFC 9113 §8.2 — Uppercase in pseudo-header name itself is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-012: Uppercase in pseudo-header name itself is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.2 — Uppercase in pseudo-header name is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.2-HV-012: Uppercase in pseudo-header name is PROTOCOL_ERROR")]
     public void Should_Throw_When_UppercaseInPseudoHeaderName()
     {
-        var session = new Http2ProtocolSession();
-
         var badName = System.Text.Encoding.Latin1.GetBytes(":Status");
         var val = System.Text.Encoding.Latin1.GetBytes("200");
 
-        var block = new System.Collections.Generic.List<byte> { 0x10, (byte)badName.Length };
+        var block = new List<byte> { 0x10, (byte)badName.Length };
         block.AddRange(badName);
         block.Add((byte)val.Length);
         block.AddRange(val);
 
-        var frame = new HeadersFrame(1, block.ToArray().AsMemory(), endStream: true, endHeaders: true).Serialize();
-
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var headers = new HpackDecoder().Decode(block.ToArray().AsSpan());
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
     // ── HV-013: connection header is forbidden ────────────────────────────────
 
-    /// RFC 9113 §8.2 — 'connection' header is PROTOCOL ERROR in HTTP/2
-    [Fact(DisplayName = "HV-013: 'connection' header is PROTOCOL_ERROR in HTTP/2")]
+    /// RFC 9113 §8.2.2 — 'connection' header is PROTOCOL_ERROR in HTTP/2
+    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-013: 'connection' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_ConnectionHeaderPresent()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), ("connection", "keep-alive")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), ("connection", "keep-alive"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains("connection", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -312,13 +400,13 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-014: keep-alive header is forbidden ────────────────────────────────
 
-    /// RFC 9113 §8.2 — 'keep-alive' header is PROTOCOL ERROR in HTTP/2
-    [Fact(DisplayName = "HV-014: 'keep-alive' header is PROTOCOL_ERROR in HTTP/2")]
+    /// RFC 9113 §8.2.2 — 'keep-alive' header is PROTOCOL_ERROR in HTTP/2
+    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-014: 'keep-alive' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_KeepAliveHeaderPresent()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), ("keep-alive", "timeout=5")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), ("keep-alive", "timeout=5"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains("keep-alive", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -326,13 +414,13 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-015: proxy-connection header is forbidden ──────────────────────────
 
-    /// RFC 9113 §8.2 — 'proxy-connection' header is PROTOCOL ERROR in HTTP/2
-    [Fact(DisplayName = "HV-015: 'proxy-connection' header is PROTOCOL_ERROR in HTTP/2")]
+    /// RFC 9113 §8.2.2 — 'proxy-connection' header is PROTOCOL_ERROR in HTTP/2
+    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-015: 'proxy-connection' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_ProxyConnectionHeaderPresent()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), ("proxy-connection", "keep-alive")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), ("proxy-connection", "keep-alive"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains("proxy-connection", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -340,13 +428,13 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-016: transfer-encoding header is forbidden ─────────────────────────
 
-    /// RFC 9113 §8.2 — 'transfer-encoding' header is PROTOCOL ERROR in HTTP/2
-    [Fact(DisplayName = "HV-016: 'transfer-encoding' header is PROTOCOL_ERROR in HTTP/2")]
+    /// RFC 9113 §8.2.2 — 'transfer-encoding' header is PROTOCOL_ERROR in HTTP/2
+    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-016: 'transfer-encoding' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_TransferEncodingHeaderPresent()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), ("transfer-encoding", "chunked")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), ("transfer-encoding", "chunked"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains("transfer-encoding", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -354,13 +442,13 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-017: upgrade header is forbidden ───────────────────────────────────
 
-    /// RFC 9113 §8.2 — 'upgrade' header is PROTOCOL ERROR in HTTP/2
-    [Fact(DisplayName = "HV-017: 'upgrade' header is PROTOCOL_ERROR in HTTP/2")]
+    /// RFC 9113 §8.2.2 — 'upgrade' header is PROTOCOL_ERROR in HTTP/2
+    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-017: 'upgrade' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_UpgradeHeaderPresent()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), ("upgrade", "h2c")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), ("upgrade", "h2c"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains("upgrade", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -369,64 +457,56 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-018: Valid response with multiple regular headers ──────────────────
 
     /// RFC 9113 §8.2 — Valid response with :status and multiple regular headers is accepted
-    [Fact(DisplayName = "HV-018: Valid response with :status and multiple regular headers is accepted")]
+    [Fact(DisplayName = "RFC-9113-§8.2-HV-018: Valid response with :status and multiple regular headers is accepted")]
     public void Should_Accept_When_MultipleRegularHeadersAfterStatus()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1,
-        [
+        var block = MakeHeaderBlock(
             (":status", "200"),
             ("content-type", "application/json"),
             ("content-length", "42"),
-            ("x-request-id", "abc123"),
-        ]);
-        session.Process(frame);
-        Assert.Single(session.Responses);
+            ("x-request-id", "abc123"));
+
+        var headers = DecodeBlock(block);
+        ValidateResponseHeaders(headers); // must not throw
+        Assert.Equal(4, headers.Count);
     }
 
     // ── HV-019: Valid 404 response ────────────────────────────────────────────
 
-    /// RFC 9113 §8.2 — Valid 404 response is accepted
-    [Fact(DisplayName = "HV-019: Valid 404 response is accepted")]
+    /// RFC 9113 §8.3 — Valid 404 response is accepted
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-019: Valid 404 response is accepted")]
     public void Should_Accept_When_Status404()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "404")]);
-        session.Process(frame);
-        Assert.Single(session.Responses);
-        Assert.Equal(404, (int)session.Responses[0].Response.StatusCode);
+        var block = MakeHeaderBlock((":status", "404"));
+        var headers = DecodeBlock(block);
+        ValidateResponseHeaders(headers); // must not throw
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "404");
     }
 
     // ── HV-020: Valid 301 redirect response ───────────────────────────────────
 
-    /// RFC 9113 §8.2 — Valid 301 redirect response with location header is accepted
-    [Fact(DisplayName = "HV-020: Valid 301 redirect response with location header is accepted")]
+    /// RFC 9113 §8.3 — Valid 301 redirect response with location header is accepted
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-020: Valid 301 redirect response with location header is accepted")]
     public void Should_Accept_When_Status301WithLocationHeader()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1,
-        [
-            (":status", "301"),
-            ("location", "https://example.com/new"),
-        ]);
-        session.Process(frame);
-        Assert.Single(session.Responses);
+        var block = MakeHeaderBlock((":status", "301"), ("location", "https://example.com/new"));
+        var headers = DecodeBlock(block);
+        ValidateResponseHeaders(headers); // must not throw
+        Assert.Contains(headers, h => h.Name == "location");
     }
 
     // ── HV-021: Error message includes header name ────────────────────────────
 
-    /// RFC 9113 §8.2 — PROTOCOL ERROR message for uppercase includes the offending header name
-    [Fact(DisplayName = "HV-021: PROTOCOL_ERROR message for uppercase includes the offending header name")]
+    /// RFC 9113 §8.2 — PROTOCOL_ERROR message for uppercase includes the offending header name
+    [Fact(DisplayName = "RFC-9113-§8.2-HV-021: PROTOCOL_ERROR message for uppercase includes the offending header name")]
     public void Should_IncludeHeaderName_In_UppercaseErrorMessage()
     {
-        var session = new Http2ProtocolSession();
-
         var statusBytes = System.Text.Encoding.Latin1.GetBytes(":status");
         var statusVal = System.Text.Encoding.Latin1.GetBytes("200");
         var badName = System.Text.Encoding.Latin1.GetBytes("X-Custom");
         var badVal = System.Text.Encoding.Latin1.GetBytes("value");
 
-        var block = new System.Collections.Generic.List<byte>();
+        var block = new List<byte>();
         void Add(byte[] n, byte[] v)
         {
             block.Add(0x10);
@@ -439,54 +519,53 @@ public sealed class Http2DecoderHeadersValidationTests
         Add(statusBytes, statusVal);
         Add(badName, badVal);
 
-        var frame = new HeadersFrame(1, block.ToArray().AsMemory(), endStream: true, endHeaders: true).Serialize();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var headers = new HpackDecoder().Decode(block.ToArray().AsSpan());
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Contains("X-Custom", ex.Message);
         Assert.True(ex.IsConnectionError);
     }
 
     // ── HV-022: Error message for connection-specific includes header name ─────
 
-    /// RFC 9113 §8.2 — PROTOCOL ERROR message for connection-specific includes the header name
-    [Fact(DisplayName = "HV-022: PROTOCOL_ERROR message for connection-specific includes the header name")]
+    /// RFC 9113 §8.2.2 — PROTOCOL_ERROR message for connection-specific includes the header name
+    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-022: PROTOCOL_ERROR message for connection-specific header includes name and 'forbidden'")]
     public void Should_IncludeHeaderName_In_ConnectionSpecificErrorMessage()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1, [(":status", "200"), ("transfer-encoding", "chunked")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var block = MakeHeaderBlock((":status", "200"), ("transfer-encoding", "chunked"));
+        var headers = DecodeBlock(block);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Contains("transfer-encoding", ex.Message);
         Assert.Contains("forbidden", ex.Message.ToLower());
         Assert.True(ex.IsConnectionError);
     }
 
-    // ── HV-023: Continuation frames — validation applies to full header block ─
+    // ── HV-023: CONTINUATION frames — validation applies to full header block ─
 
-    /// RFC 9113 §8.2 — Validation applies to reassembled headers from CONTINUATION frames
-    [Fact(DisplayName = "HV-023: Validation applies to reassembled headers from CONTINUATION frames")]
+    /// RFC 9113 §8.2 — Validation applies to reassembled header block from CONTINUATION frames
+    [Fact(DisplayName = "RFC-9113-§8.2-HV-023: Validation applies to reassembled headers from CONTINUATION frames")]
     public void Should_Throw_When_UppercaseInContinuationHeaderBlock()
     {
-        // HEADERS (no END_HEADERS) + CONTINUATION (with END_HEADERS).
-        // The :status is in the HEADERS frame; the bad uppercase header is in CONTINUATION.
-        var hpack1 = new HpackEncoder(useHuffman: false);
-        var statusBlock = hpack1.Encode([(":status", "200")]);
-        var headersFrame = new HeadersFrame(1, statusBlock, endStream: false, endHeaders: false).Serialize();
+        // HEADERS (no END_HEADERS) carries :status 200.
+        // CONTINUATION (END_HEADERS) carries an uppercase header name — violates §8.2.
+        var enc = new HpackEncoder(useHuffman: false);
+        var statusBlock = enc.Encode([(":status", "200")]).ToArray();
+        var headersFrame = new HeadersFrame(1, statusBlock.AsMemory(), endStream: false, endHeaders: false);
 
-        // Build a CONTINUATION payload with an uppercase header name.
+        // Build CONTINUATION payload with an uppercase header name via raw literal encoding.
         var badName = System.Text.Encoding.Latin1.GetBytes("X-Bad");
         var badVal = System.Text.Encoding.Latin1.GetBytes("value");
-        var contBlock = new System.Collections.Generic.List<byte> { 0x10, (byte)badName.Length };
+        var contBlock = new List<byte> { 0x10, (byte)badName.Length };
         contBlock.AddRange(badName);
         contBlock.Add((byte)badVal.Length);
         contBlock.AddRange(badVal);
 
-        var contFrame = new ContinuationFrame(1, contBlock.ToArray(), endHeaders: true).Serialize();
+        // Assemble the full header block from HEADERS + CONTINUATION fragments.
+        var fullBlock = new byte[statusBlock.Length + contBlock.Count];
+        statusBlock.CopyTo(fullBlock, 0);
+        contBlock.ToArray().CopyTo(fullBlock, statusBlock.Length);
 
-        var combined = new byte[headersFrame.Length + contFrame.Length];
-        headersFrame.CopyTo(combined, 0);
-        contFrame.CopyTo(combined, headersFrame.Length);
-
-        var session = new Http2ProtocolSession();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(combined));
+        var headers = new HpackDecoder().Decode(fullBlock.AsSpan());
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains("X-Bad", ex.Message);
         Assert.True(ex.IsConnectionError);
@@ -494,75 +573,63 @@ public sealed class Http2DecoderHeadersValidationTests
 
     // ── HV-024: Multiple streams — each validated independently ───────────────
 
-    /// RFC 9113 §8.2 — Each stream's HEADERS block is validated independently
-    [Fact(DisplayName = "HV-024: Each stream's HEADERS block is validated independently")]
+    /// RFC 9113 §8.2 — Each stream's header block is validated independently
+    [Fact(DisplayName = "RFC-9113-§8.2-HV-024: Each stream's header block is validated independently")]
     public void Should_Throw_On_SecondStream_When_SecondStreamHasMissingStatus()
     {
-        var session = new Http2ProtocolSession();
+        // Stream 1: valid response.
+        var block1 = MakeHeaderBlock((":status", "200"));
+        var headers1 = DecodeBlock(block1);
+        ValidateResponseHeaders(headers1); // must not throw
 
-        // Stream 1 is valid
-        session.Process(GoodResponse(streamId: 1));
-
-        // Stream 3 is missing :status
-        var badFrame = MakeHeadersFrame(3, [("content-type", "text/plain")]);
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(badFrame));
+        // Stream 3: missing :status → PROTOCOL_ERROR.
+        var block3 = MakeHeaderBlock(("content-type", "text/plain"));
+        var headers3 = DecodeBlock(block3);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers3));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
     // ── HV-025: 1xx informational response ───────────────────────────────────
 
-    /// RFC 9113 §8.2 — Valid 100 Continue response (HEADERS with endStream=false) is accepted
-    [Fact(DisplayName = "HV-025: Valid 100 Continue response (HEADERS with endStream=false) is accepted")]
+    /// RFC 9113 §8.3 — Valid :status 100 (1xx informational) is accepted
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-025: Valid 100 Continue response (:status 100) is accepted")]
     public void Should_Accept_When_Status100Informational()
     {
-        // 1xx responses arrive as HEADERS with END_STREAM not set, so we send a DATA frame
-        // to close the stream afterward.
-        var session = new Http2ProtocolSession();
-        var hpack = new HpackEncoder(useHuffman: false);
-        var block = hpack.Encode([(":status", "100")]);
-        var headersFrame = new HeadersFrame(1, block, endStream: false, endHeaders: true).Serialize();
-        var dataFrame = new DataFrame(1, "body"u8.ToArray(), endStream: true).Serialize();
-        var combined = new byte[headersFrame.Length + dataFrame.Length];
-        headersFrame.CopyTo(combined, 0);
-        dataFrame.CopyTo(combined, headersFrame.Length);
-        session.Process(combined);
-        // The 100 HEADERS doesn't produce a response in the usual flow (no END_STREAM).
-        // A response is produced when the DATA arrives with END_STREAM.
-        Assert.Single(session.Responses);
+        var block = MakeHeaderBlock((":status", "100"));
+        var headers = DecodeBlock(block);
+        ValidateResponseHeaders(headers); // must not throw
+        Assert.Contains(headers, h => h.Name == ":status" && h.Value == "100");
     }
 
     // ── HV-026: All-lowercase valid custom header ─────────────────────────────
 
-    /// RFC 9113 §8.2 — All-lowercase custom header name is accepted
-    [Fact(DisplayName = "HV-026: All-lowercase custom header name is accepted")]
+    /// RFC 9113 §8.2 — All-lowercase custom header names are accepted
+    [Fact(DisplayName = "RFC-9113-§8.2-HV-026: All-lowercase custom header names are accepted")]
     public void Should_Accept_When_AllLowercaseCustomHeader()
     {
-        var session = new Http2ProtocolSession();
-        var frame = MakeHeadersFrame(1,
-        [
+        var block = MakeHeaderBlock(
             (":status", "200"),
             ("x-custom-header", "value"),
-            ("another-header", "42"),
-        ]);
-        session.Process(frame);
-        Assert.Single(session.Responses);
+            ("another-header", "42"));
+
+        var headers = DecodeBlock(block);
+        ValidateResponseHeaders(headers); // must not throw
+        Assert.Contains(headers, h => h.Name == "x-custom-header");
     }
 
-    // ── HV-027: Only uppercase in middle of name ──────────────────────────────
+    // ── HV-027: Uppercase in middle of name ──────────────────────────────────
 
-    /// RFC 9113 §8.2 — Header name with uppercase in the middle is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-027: Header name with uppercase in the middle is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.2 — Header name with uppercase in the middle is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.2-HV-027: Header name with uppercase in the middle is PROTOCOL_ERROR")]
     public void Should_Throw_When_UppercaseInMiddleOfHeaderName()
     {
-        var session = new Http2ProtocolSession();
-
         var statusBytes = System.Text.Encoding.Latin1.GetBytes(":status");
         var statusVal = System.Text.Encoding.Latin1.GetBytes("200");
         var mixedName = System.Text.Encoding.Latin1.GetBytes("x-mY-Header");
         var mixedVal = System.Text.Encoding.Latin1.GetBytes("v");
 
-        var block = new System.Collections.Generic.List<byte>();
+        var block = new List<byte>();
         void Add(byte[] n, byte[] v)
         {
             block.Add(0x10);
@@ -575,22 +642,21 @@ public sealed class Http2DecoderHeadersValidationTests
         Add(statusBytes, statusVal);
         Add(mixedName, mixedVal);
 
-        var frame = new HeadersFrame(1, block.ToArray().AsMemory(), endStream: true, endHeaders: true).Serialize();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        var headers = new HpackDecoder().Decode(block.ToArray().AsSpan());
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.True(ex.IsConnectionError);
     }
 
-    // ── HV-028: Empty header block is PROTOCOL_ERROR (no :status) ────────────
+    // ── HV-028: Empty header block is PROTOCOL_ERROR ─────────────────────────
 
-    /// RFC 9113 §8.2 — Empty header block with no :status is PROTOCOL ERROR
-    [Fact(DisplayName = "HV-028: Empty header block with no :status is PROTOCOL_ERROR")]
+    /// RFC 9113 §8.3 — Empty header block (no :status) is PROTOCOL_ERROR
+    [Fact(DisplayName = "RFC-9113-§8.3-HV-028: Empty header block with no :status is PROTOCOL_ERROR")]
     public void Should_Throw_When_HeaderBlockIsEmpty()
     {
-        var session = new Http2ProtocolSession();
-        // Empty header block → no :status
-        var frame = new HeadersFrame(1, System.ReadOnlyMemory<byte>.Empty, endStream: true, endHeaders: true).Serialize();
-        var ex = Assert.Throws<Http2Exception>(() => session.Process(frame));
+        // Decode an empty block — no headers at all.
+        var headers = new HpackDecoder().Decode(ReadOnlySpan<byte>.Empty);
+        var ex = Assert.Throws<Http2Exception>(() => ValidateResponseHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
         Assert.Contains(":status", ex.Message);
         Assert.True(ex.IsConnectionError);
