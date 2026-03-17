@@ -120,18 +120,17 @@ public sealed class HostPoolActor : ReceiveActor
 
         if (conn?.Handle is not null)
         {
+            conn.MarkBusy();
             Sender.Tell(conn.Handle);
             return;
         }
 
-        // Queue the requester — they'll be served when ConnectionReady arrives
+        // Queue the requester BEFORE attempting to spawn — eliminates the race
+        // where ConnectionReady arrives before the requester is enqueued.
         _pendingHandleRequesters.Add(Sender);
 
-        // If there are no active connections, try to spawn one
-        if (_connections.All(c => !c.Active))
-        {
-            SpawnConnection();
-        }
+        // Attempt to open a new connection (noop if limiter refuses)
+        SpawnConnection();
     }
 
     // ── Connection lifecycle ──────────────────────────────────────────

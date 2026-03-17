@@ -588,7 +588,7 @@ queued requesters.
 and attempt to spawn a new connection.
 
 **Acceptance Criteria:**
-- [ ] Logic:
+- [x] Logic:
   ```
   conn = SelectConnection()
   if conn != null:
@@ -598,8 +598,8 @@ and attempt to spawn a new connection.
   _pendingHandleRequesters.Add(Sender)
   SpawnConnection()   // noop if _limiter refuses
   ```
-- [ ] Requester is always queued before `SpawnConnection` is called (no race)
-- [ ] Unit tests:
+- [x] Requester is always queued before `SpawnConnection` is called (no race)
+- [x] Unit tests:
   - Slot available → handle returned immediately, `MarkBusy` called
   - All slots full + under limiter → requester queued, new connection spawned
   - All slots full + at limiter limit → requester queued only, no spawn
