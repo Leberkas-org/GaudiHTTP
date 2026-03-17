@@ -1,6 +1,11 @@
+using System.Buffers;
 using System.IO.Compression;
 using System.Net;
 using System.Text;
+using Akka;
+using Akka.Streams;
+using Akka.Streams.Dsl;
+using TurboHttp.IO.Stages;
 using TurboHttp.Protocol.RFC7541;
 using TurboHttp.Protocol.RFC9113;
 using TurboHttp.Streams;
@@ -195,5 +200,66 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
         // Stream IDs must be 1, 3, 5 (client-side odd IDs, ascending)
         var streamIds = outboundHeaders.Select(f => f.StreamId).OrderBy(id => id).ToList();
         Assert.Equal(new[] { 1, 3, 5 }, streamIds);
+    }
+
+    // ── 20ENG-006: SETTINGS MAX_CONCURRENT_STREAMS → MaxConcurrentStreamsItem on outlet ─
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC-9113-ENG-006: SETTINGS MAX_CONCURRENT_STREAMS=50 produces MaxConcurrentStreamsItem(50) on IOutputItem outlet")]
+    public async Task ENG_006_Settings_MaxConcurrentStreams_Produces_Signal_On_Outlet()
+    {
+        var engine = new Http20Engine();
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/signal-test")
+        {
+            Version = HttpVersion.Version20
+        };
+
+        // Server sends SETTINGS with MAX_CONCURRENT_STREAMS = 50, then response headers
+        var settingsFrame = new SettingsFrame(
+            [(SettingsParameter.MaxConcurrentStreams, 50u)]).Serialize();
+
+        var headersFrame = new HeadersFrame(
+            streamId: 1,
+            headerBlock: EncodeResponseHeaders((":status", "200")),
+            endStream: true,
+            endHeaders: true).Serialize();
+
+        // Build a custom graph that captures all IOutputItem items (including IControlItem signals)
+        var capturedSignals = new List<IOutputItem>();
+        var responseTcs = new TaskCompletionSource<HttpResponseMessage>();
+
+        var bidiFlow = engine.CreateFlow();
+
+        // We need a flow that:
+        // 1. Passes IOutputItem items through (capturing them), forwarding DataItems as IInputItem responses
+        // 2. Feeds server frame bytes back as IInputItem
+        var fakeStage = new H2EngineFakeConnectionStage(settingsFrame, headersFrame);
+
+        // Wrap the fake stage to also capture signals
+        var capturingFake = Flow.Create<IOutputItem>()
+            .Select(item =>
+            {
+                if (item is IControlItem)
+                {
+                    capturedSignals.Add(item);
+                }
+
+                return item;
+            })
+            .Via(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fakeStage));
+
+        var flow = bidiFlow.Join(capturingFake);
+
+        _ = Source.Single(request)
+            .Via(flow)
+            .RunWith(Sink.ForEach<HttpResponseMessage>(res => responseTcs.TrySetResult(res)), Materializer);
+
+        var response = await responseTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var signalItem = capturedSignals.OfType<MaxConcurrentStreamsItem>().FirstOrDefault();
+        Assert.NotNull(signalItem);
+        Assert.Equal(50, signalItem.MaxStreams);
     }
 }

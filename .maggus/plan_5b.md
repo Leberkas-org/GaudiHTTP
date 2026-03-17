@@ -240,18 +240,18 @@ so that `Http20Engine` can eliminate its `flowIn` adapter.
 into the `IOutputItem` output stream using `MergePreferred<IOutputItem>`.
 
 **Acceptance Criteria:**
-- [ ] `flowOut` lambda deleted; encoder is wired directly to the BidiFlow's outlet
+- [x] `flowOut` lambda deleted; encoder is wired directly to the BidiFlow's outlet
 - [x] `flowIn` lambda deleted; decoder is wired directly from the BidiFlow's inlet (done in TASK-9-E02)
-- [ ] Add `var signalMerge = b.Add(new MergePreferred<IOutputItem>(1))` (1 non-preferred + 1 preferred)
-- [ ] Wire:
+- [x] Add `var signalMerge = b.Add(new MergePreferred<IOutputItem>(1))` (1 non-preferred + 1 preferred)
+- [x] Wire:
   ```
   frameEncoder.Outlet → signalMerge.In(0)        // DataItem (normal data)
   connection.OutletSignal → signalMerge.Preferred  // IControlItem (signals, higher priority)
   signalMerge.Out → BidiFlow.Outlet1 (IOutputItem)
   ```
-- [ ] BidiFlow type remains `BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage>`
-- [ ] No changes to `Engine.cs` or `IHttpProtocolEngine.CreateFlow()` signatures
-- [ ] Engine round-trip test: inbound SETTINGS `MAX_CONCURRENT_STREAMS = 50` produces
+- [x] BidiFlow type remains `BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage>`
+- [x] No changes to `Engine.cs` or `IHttpProtocolEngine.CreateFlow()` signatures
+- [x] Engine round-trip test: inbound SETTINGS `MAX_CONCURRENT_STREAMS = 50` produces
   `MaxConcurrentStreamsItem(50)` on the `IOutputItem` outlet
 
 ---

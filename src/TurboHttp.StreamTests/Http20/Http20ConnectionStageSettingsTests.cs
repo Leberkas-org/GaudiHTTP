@@ -1,5 +1,7 @@
+using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHttp.IO.Stages;
 using TurboHttp.Protocol.RFC9113;
 using TurboHttp.Streams.Stages;
 
@@ -26,11 +28,13 @@ public sealed class Http20ConnectionStageSettingsTests : StreamTestBase
                     var stage = b.Add(new Http20ConnectionStage());
                     var serverSource = b.Add(Source.From(serverFrames));
                     var requestSource = b.Add(Source.Never<Http2Frame>());
+                    var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
 
                     b.From(serverSource).To(stage.Inlet1);
                     b.From(stage.Outlet1).To(dsSink);
                     b.From(requestSource).To(stage.Inlet2);
                     b.From(stage.Outlet2).To(sbSink);
+                    b.From(stage.OutletSignal).To(signalSink);
 
                     return ClosedShape.Instance;
                 }));
