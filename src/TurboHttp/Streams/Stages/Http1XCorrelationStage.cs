@@ -1,23 +1,68 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Net.Http;
 using Akka.Streams;
 using Akka.Streams.Stage;
+using TurboHttp.IO.Stages;
 
 namespace TurboHttp.Streams.Stages;
 
-internal sealed class
-    Http1XCorrelationStage : GraphStage<FanInShape<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
+public sealed class Http1XCorrelationShape : Shape
+{
+    public Inlet<HttpRequestMessage> RequestIn { get; }
+    public Inlet<HttpResponseMessage> ResponseIn { get; }
+    public Outlet<HttpResponseMessage> Out { get; }
+    public Outlet<IControlItem> OutletSignal { get; }
+
+    public Http1XCorrelationShape(
+        Inlet<HttpRequestMessage> requestIn,
+        Inlet<HttpResponseMessage> responseIn,
+        Outlet<HttpResponseMessage> @out,
+        Outlet<IControlItem> outletSignal)
+    {
+        RequestIn = requestIn;
+        ResponseIn = responseIn;
+        Out = @out;
+        OutletSignal = outletSignal;
+    }
+
+    public override ImmutableArray<Inlet> Inlets =>
+        ImmutableArray.Create<Inlet>(RequestIn, ResponseIn);
+
+    public override ImmutableArray<Outlet> Outlets =>
+        ImmutableArray.Create<Outlet>(Out, OutletSignal);
+
+    public override Shape DeepCopy()
+    {
+        return new Http1XCorrelationShape(
+            (Inlet<HttpRequestMessage>)RequestIn.CarbonCopy(),
+            (Inlet<HttpResponseMessage>)ResponseIn.CarbonCopy(),
+            (Outlet<HttpResponseMessage>)Out.CarbonCopy(),
+            (Outlet<IControlItem>)OutletSignal.CarbonCopy());
+    }
+
+    public override Shape CopyFromPorts(ImmutableArray<Inlet> inlets, ImmutableArray<Outlet> outlets)
+    {
+        return new Http1XCorrelationShape(
+            (Inlet<HttpRequestMessage>)inlets[0],
+            (Inlet<HttpResponseMessage>)inlets[1],
+            (Outlet<HttpResponseMessage>)outlets[0],
+            (Outlet<IControlItem>)outlets[1]);
+    }
+}
+
+internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape>
 {
     private readonly Inlet<HttpRequestMessage> _requestIn = new("correlation.request.in");
     private readonly Inlet<HttpResponseMessage> _responseIn = new("correlation.response.in");
     private readonly Outlet<HttpResponseMessage> _out = new("correlation.out");
+    private readonly Outlet<IControlItem> _outletSignal = new("correlation.signal.out");
 
-    public override FanInShape<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape { get; }
+    public override Http1XCorrelationShape Shape { get; }
 
     public Http1XCorrelationStage()
     {
-        Shape = new FanInShape<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>(
-            _out, _requestIn, _responseIn);
+        Shape = new Http1XCorrelationShape(_requestIn, _responseIn, _out, _outletSignal);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -37,6 +82,7 @@ internal sealed class
                     if (_pending.Count == 0)
                     {
                         _pending.Enqueue(Grab(stage._requestIn));
+                        Emit(stage._outletSignal, new StreamAcquireItem());
                         TryCorrelateAndEmit(stage);
                     }
 
@@ -84,6 +130,11 @@ internal sealed class
                         Pull(stage._requestIn);
                     }
                 });
+
+            SetHandler(stage._outletSignal, onPull: () =>
+            {
+                // Demand-driven by Emit; no action needed.
+            });
         }
 
         private void TryCorrelateAndEmit(Http1XCorrelationStage stage)

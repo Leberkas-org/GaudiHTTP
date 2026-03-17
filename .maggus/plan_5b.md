@@ -293,14 +293,14 @@ into the `IOutputItem` output stream using `MergePreferred<IOutputItem>`.
 increment its in-flight counter and enforce the pipeline-depth limit.
 
 **Acceptance Criteria:**
-- [ ] Stage shape expands from `FanInShape<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>`
+- [x] Stage shape expands from `FanInShape<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>`
       to a custom shape adding `OutletSignal: Outlet<IControlItem>`
-- [ ] On each push to `_requestIn`: `Emit(OutletSignal, new StreamAcquireItem())`
-- [ ] `OnPull` handler for `OutletSignal` is a no-op (demand-driven by `Emit`)
-- [ ] Existing `_pending`/`_waiting` correlation logic is unchanged
-- [ ] Unit test: one request pushed → `OutletSignal` emits one `StreamAcquireItem`
-- [ ] Unit test: two requests pushed → two `StreamAcquireItem`s emitted
-- [ ] Existing correlation tests pass unchanged
+- [x] On each push to `_requestIn`: `Emit(OutletSignal, new StreamAcquireItem())`
+- [x] `OnPull` handler for `OutletSignal` is a no-op (demand-driven by `Emit`)
+- [x] Existing `_pending`/`_waiting` correlation logic is unchanged
+- [x] Unit test: one request pushed → `OutletSignal` emits one `StreamAcquireItem`
+- [x] Unit test: two requests pushed → two `StreamAcquireItem`s emitted
+- [x] Existing correlation tests pass unchanged
 
 ---
 

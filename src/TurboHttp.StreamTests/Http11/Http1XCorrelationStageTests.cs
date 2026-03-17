@@ -2,6 +2,7 @@ using System.Net;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHttp.IO.Stages;
 using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Http11;
@@ -9,7 +10,7 @@ namespace TurboHttp.StreamTests.Http11;
 public sealed class Http1XCorrelationStageTests : StreamTestBase
 {
     /// <summary>
-    /// Builds and runs a closed graph that wires requestSource → In0, responseSource → In1, Out → Sink.Seq.
+    /// Builds and runs a closed graph that wires requestSource → RequestIn, responseSource → ResponseIn, Out → Sink.Seq.
     /// Returns the collected responses once the stream completes.
     /// </summary>
     private async Task<List<HttpResponseMessage>> RunStageAsync(
@@ -24,10 +25,12 @@ public sealed class Http1XCorrelationStageTests : StreamTestBase
             var corr = b.Add(new Http1XCorrelationStage());
             var reqSrc = b.Add(requestSource);
             var resSrc = b.Add(responseSource);
+            var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
 
-            b.From(reqSrc).To(corr.In0);
-            b.From(resSrc).To(corr.In1);
+            b.From(reqSrc).To(corr.RequestIn);
+            b.From(resSrc).To(corr.ResponseIn);
             b.From(corr.Out).To(s);
+            b.From(corr.OutletSignal).To(signalSink);
 
             return ClosedShape.Instance;
         }));
@@ -144,10 +147,12 @@ public sealed class Http1XCorrelationStageTests : StreamTestBase
             var corr = b.Add(new Http1XCorrelationStage());
             var reqSrc = b.Add(Source.Single(request));
             var resSrc = b.Add(Source.Single(response));
+            var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
 
-            b.From(reqSrc).To(corr.In0);
-            b.From(resSrc).To(corr.In1);
+            b.From(reqSrc).To(corr.RequestIn);
+            b.From(resSrc).To(corr.ResponseIn);
             b.From(corr.Out).To(s);
+            b.From(corr.OutletSignal).To(signalSink);
 
             return ClosedShape.Instance;
         }));
@@ -182,10 +187,12 @@ public sealed class Http1XCorrelationStageTests : StreamTestBase
             var corr = b.Add(new Http1XCorrelationStage());
             var reqSrc = b.Add(Source.From(new[] { request1, request2 }));
             var resSrc = b.Add(neverEndingResponses);
+            var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
 
-            b.From(reqSrc).To(corr.In0);
-            b.From(resSrc).To(corr.In1);
+            b.From(reqSrc).To(corr.RequestIn);
+            b.From(resSrc).To(corr.ResponseIn);
             b.From(corr.Out).To(s);
+            b.From(corr.OutletSignal).To(signalSink);
 
             return ClosedShape.Instance;
         }));
@@ -197,5 +204,75 @@ public sealed class Http1XCorrelationStageTests : StreamTestBase
         var completed = task.WaitAsync(TimeSpan.FromMilliseconds(500));
 
         await Assert.ThrowsAsync<TimeoutException>(() => completed);
+    }
+
+    [Fact(Timeout = 10_000, DisplayName = "COR1X-008: One request pushed → OutletSignal emits one StreamAcquireItem")]
+    public async Task Single_Request_Emits_One_StreamAcquireItem()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        var response = OkResponse();
+
+        var signalSink = Sink.Seq<IControlItem>();
+
+        var graph = RunnableGraph.FromGraph(GraphDsl.Create(signalSink, (b, s) =>
+        {
+            var corr = b.Add(new Http1XCorrelationStage());
+            var reqSrc = b.Add(Source.Single(request));
+            var resSrc = b.Add(Source.Single(response));
+            var responseSink = b.Add(Sink.Ignore<HttpResponseMessage>().MapMaterializedValue(_ => NotUsed.Instance));
+
+            b.From(reqSrc).To(corr.RequestIn);
+            b.From(resSrc).To(corr.ResponseIn);
+            b.From(corr.Out).To(responseSink);
+            b.From(corr.OutletSignal).To(s);
+
+            return ClosedShape.Instance;
+        }));
+
+        var task = graph.Run(Materializer);
+        var signals = await task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var items = signals.ToList();
+        Assert.Single(items);
+        Assert.IsType<StreamAcquireItem>(items[0]);
+    }
+
+    [Fact(Timeout = 10_000, DisplayName = "COR1X-009: Two requests pushed → two StreamAcquireItems emitted")]
+    public async Task Two_Requests_Emit_Two_StreamAcquireItems()
+    {
+        var requests = new[]
+        {
+            new HttpRequestMessage(HttpMethod.Get, "http://example.com/1"),
+            new HttpRequestMessage(HttpMethod.Get, "http://example.com/2")
+        };
+        var responses = new[]
+        {
+            OkResponse(),
+            OkResponse()
+        };
+
+        var signalSink = Sink.Seq<IControlItem>();
+
+        var graph = RunnableGraph.FromGraph(GraphDsl.Create(signalSink, (b, s) =>
+        {
+            var corr = b.Add(new Http1XCorrelationStage());
+            var reqSrc = b.Add(Source.From(requests));
+            var resSrc = b.Add(Source.From(responses));
+            var responseSink = b.Add(Sink.Ignore<HttpResponseMessage>().MapMaterializedValue(_ => NotUsed.Instance));
+
+            b.From(reqSrc).To(corr.RequestIn);
+            b.From(resSrc).To(corr.ResponseIn);
+            b.From(corr.Out).To(responseSink);
+            b.From(corr.OutletSignal).To(s);
+
+            return ClosedShape.Instance;
+        }));
+
+        var task = graph.Run(Materializer);
+        var signals = await task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var items = signals.ToList();
+        Assert.Equal(2, items.Count);
+        Assert.All(items, item => Assert.IsType<StreamAcquireItem>(item));
     }
 }

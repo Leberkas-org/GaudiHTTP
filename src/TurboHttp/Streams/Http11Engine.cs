@@ -18,11 +18,13 @@ public class Http11Engine : IHttpProtocolEngine
             var correlation = b.Add(new Http1XCorrelationStage());
 
             var requestBCast = b.Add(new Broadcast<HttpRequestMessage>(2));
+            var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
 
             b.From(requestBCast.Out(0)).To(encoder.Inlet);
-            b.From(requestBCast.Out(1)).To(correlation.In0);
+            b.From(requestBCast.Out(1)).To(correlation.RequestIn);
 
-            b.From(decoder.Outlet).To(correlation.In1);
+            b.From(decoder.Outlet).To(correlation.ResponseIn);
+            b.From(correlation.OutletSignal).To(signalSink);
 
             return new BidiShape<
                 HttpRequestMessage,

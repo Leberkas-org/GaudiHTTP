@@ -26,9 +26,12 @@ public class Http10Engine : IHttpProtocolEngine
                 .Select(x => (((DataItem)x).Memory, ((DataItem)x).Length)));
 
             b.From(requestBCast.Out(0)).Via(encoder).To(flowOut.Inlet);
-            b.From(requestBCast.Out(1)).To(correlation.In0);
+            b.From(requestBCast.Out(1)).To(correlation.RequestIn);
 
-            b.From(flowIn.Outlet).Via(decoder).To(correlation.In1);
+            var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
+            b.From(correlation.OutletSignal).To(signalSink);
+
+            b.From(flowIn.Outlet).Via(decoder).To(correlation.ResponseIn);
 
             return new BidiShape<
                 HttpRequestMessage,
