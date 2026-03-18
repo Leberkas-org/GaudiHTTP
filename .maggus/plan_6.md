@@ -137,11 +137,11 @@ After all moves and deletions the `Integration/` folder will be **empty and remo
 > `Http2FrameTests.cs` stays **unnumbered** — it is a utility helper file, not an RFC-section-specific test file.
 
 **Acceptance Criteria:**
-- [ ] All 8 files renamed (old names no longer exist)
-- [ ] Class names updated to match new file names (e.g. `Http2EncoderPseudoHeaderValidationTests` → `Http2EncoderPseudoHeaderTests`)
-- [ ] Namespaces remain `namespace TurboHttp.Tests.RFC9113;`
-- [ ] `dotnet test --filter "FullyQualifiedName~RFC9113"` returns all tests
-- [ ] Build: 0 errors, 0 xunit1000 warnings
+- [x] All 8 files renamed (old names no longer exist)
+- [x] Class names updated to match new file names (e.g. `Http2EncoderPseudoHeaderValidationTests` → `Http2EncoderPseudoHeaderTests`)
+- [x] Namespaces remain `namespace TurboHttp.Tests.RFC9113;`
+- [x] `dotnet test --filter "FullyQualifiedName~RFC9113"` returns all tests
+- [x] Build: 0 errors, 0 xunit1000 warnings
 
 ---
 

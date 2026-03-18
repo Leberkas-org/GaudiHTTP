@@ -12,7 +12,7 @@ namespace TurboHttp.Tests.RFC9113;
 ///
 /// The decoder produces frames; enforcement is the caller's responsibility.
 /// </summary>
-public sealed class Http2MaxConcurrentStreamsTests
+public sealed class Http2SettingsMaxConcurrentTests
 {
     // =========================================================================
     // Helpers
