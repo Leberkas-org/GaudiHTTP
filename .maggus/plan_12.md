@@ -22,12 +22,12 @@ Optimize TurboHttp's Akka.Streams pipeline for balanced throughput, latency, and
 **Description:** As a developer, I want a lightweight benchmark harness that measures request throughput and p99 latency through the Engine pipeline so that I have a baseline before optimizing.
 
 **Acceptance Criteria:**
-- [ ] BenchmarkDotNet project or benchmarks exist at `src/TurboHttp.Benchmarks/`
-- [ ] Benchmark exercises the full Engine graph (encode -> decode -> correlate) for HTTP/1.1 and HTTP/2
-- [ ] Measures: ops/sec, p50/p99 latency, allocations (bytes/op)
-- [ ] Benchmark runs against a loopback `Source`/`Sink` (no real TCP) to isolate stream overhead
-- [ ] Results captured as baseline in `.maggus/runs/benchmark_baseline_plan6.md`
-- [ ] Unit tests are written and successful
+- [x] BenchmarkDotNet project or benchmarks exist at `src/TurboHttp.Benchmarks/`
+- [x] Benchmark exercises the full Engine graph (encode -> decode -> correlate) for HTTP/1.1 and HTTP/2
+- [x] Measures: ops/sec, p50/p99 latency, allocations (bytes/op)
+- [x] Benchmark runs against a loopback `Source`/`Sink` (no real TCP) to isolate stream overhead
+- [x] Results captured as baseline in `.maggus/runs/benchmark_baseline_plan6.md`
+- [x] Unit tests are written and successful
 
 ### TASK-12-002: Fix InitialAttributes in All GraphStages
 
