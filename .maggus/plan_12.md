@@ -133,13 +133,13 @@ Optimize TurboHttp's Akka.Streams pipeline for balanced throughput, latency, and
 **Description:** As a developer, I want to apply a similar batching strategy for HTTP/1.1 pipelined request encoding so that multiple small requests are coalesced into fewer TCP writes.
 
 **Acceptance Criteria:**
-- [ ] A `Flow.Batch` operator inserted in `Http11Engine` between `Http11EncoderStage` and the DataItem wrapper
-- [ ] Max batch count: 8 requests or 64 KB total (via `BatchWeighted`), whichever comes first
-- [ ] Coalesces encoded byte buffers into single contiguous `IMemoryOwner<byte>`
-- [ ] No batching applied to HTTP/1.0 (connection-per-request, no benefit)
-- [ ] No existing stage shapes or public APIs changed
-- [ ] Existing HTTP/1.1 stream tests still pass
-- [ ] Unit tests are written and successful
+- [x] A `Flow.Batch` operator inserted in `Http11Engine` between `Http11EncoderStage` and the DataItem wrapper
+- [x] Max batch count: 8 requests or 64 KB total (via `BatchWeighted`), whichever comes first
+- [x] Coalesces encoded byte buffers into single contiguous `IMemoryOwner<byte>`
+- [x] No batching applied to HTTP/1.0 (connection-per-request, no benefit)
+- [x] No existing stage shapes or public APIs changed
+- [x] Existing HTTP/1.1 stream tests still pass
+- [x] Unit tests are written and successful
 
 ### TASK-12-008: Redirect/Retry Feedback Buffer Optimization
 
