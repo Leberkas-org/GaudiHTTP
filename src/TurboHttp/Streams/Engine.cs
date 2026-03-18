@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.Net;
 using System.Net.Http;
 using Akka;
@@ -79,12 +80,12 @@ public class Engine
 
         return Flow.FromGraph(GraphDsl.Create(builder =>
         {
-            // ---- REQUEST CHAIN ----
+            // ---- PRE-PROCESSING ISLAND (fused island 1: lightweight request stages) ----
 
             var enricher = builder.Add(new RequestEnricherStage(requestOptionsFactory));
             var requestTip = enricher.Outlet;
 
-            // Redirect merge (feedback from redirect stage)
+            // Redirect merge (feedback from redirect stage in post-processing island)
             var redirectMerge = builder.Add(new MergePreferred<HttpRequestMessage>(1));
             builder.From(requestTip).To(redirectMerge.In(0));
             requestTip = redirectMerge.Out;
@@ -94,7 +95,7 @@ public class Engine
             builder.From(requestTip).To(cookieInject.Inlet);
             requestTip = cookieInject.Outlet;
 
-            // Retry merge (feedback from retry stage)
+            // Retry merge (feedback from retry stage in post-processing island)
             var retryMerge = builder.Add(new MergePreferred<HttpRequestMessage>(1));
             builder.From(requestTip).To(retryMerge.In(0));
             requestTip = retryMerge.Out;
@@ -106,62 +107,126 @@ public class Engine
             var engineRequest = cacheLookup.Out0; // cache miss
             var cacheHit = cacheLookup.Out1; // cache hit
 
-            // ---- ENGINE CORE ----
+            // ---- PROTOCOL ENGINE ISLAND (fused island 2: CPU-intensive encode/decode + decompression) ----
+            // Async boundary separates this from the lightweight pre/post-processing stages,
+            // allowing protocol work to run in parallel on a separate thread.
 
-            var engineCore = builder.Add(
-                BuildEngineCoreGraph(poolRouter, options, http10Factory, http11Factory, http20Factory));
+            var engineAndDecomp = builder.Add(
+                Flow.FromGraph(
+                        BuildEngineCoreGraph(poolRouter, options, http10Factory, http11Factory, http20Factory))
+                    .Via(new DecompressionStage())
+                    .WithAttributes(Attributes.CreateAsyncBoundary()));
 
-            builder.From(engineRequest).To(engineCore.Inlet);
-            var responseTip = engineCore.Outlet;
+            builder.From(engineRequest).To(engineAndDecomp.Inlet);
 
-            // ---- RESPONSE CHAIN ----
+            // ---- POST-PROCESSING ISLAND (fused island 3: response evaluation stages) ----
+            // Async boundary separates this from the protocol engine island.
 
-            // Decompression
-            var decomp = builder.Add(new DecompressionStage());
-            builder.From(responseTip).To(decomp.Inlet);
-            responseTip = decomp.Outlet;
+            var postProcess = builder.Add(
+                BuildPostProcessGraph(cookieJar, cacheStore, options)
+                    .Async());
 
-            // Cookie storage
-            var cookieStorage = builder.Add(new CookieStorageStage(cookieJar));
-            builder.From(responseTip).To(cookieStorage.Inlet);
-            responseTip = cookieStorage.Outlet;
+            builder.From(engineAndDecomp.Outlet).To(postProcess.ResponseIn);
+            builder.From(cacheHit).To(postProcess.CacheHitIn);
 
-            // Cache storage
-            var cacheStorage = builder.Add(new CacheStorageStage(cacheStore));
-            builder.From(responseTip).To(cacheStorage.Inlet);
-            responseTip = cacheStorage.Outlet;
-
-            // Retry stage
-            var retry = builder.Add(new RetryStage(options.RetryPolicy));
-            builder.From(responseTip).To(retry.In);
-
-            builder.From(retry.Out1)
+            // Feedback loops: cross from post-processing island back to pre-processing island.
+            // Buffer(1) breaks the cycle and decouples backpressure across island boundaries.
+            builder.From(postProcess.RetryFeedbackOut)
                 .Via(Flow.Create<HttpRequestMessage>().Buffer(1, OverflowStrategy.Backpressure))
                 .To(retryMerge.Preferred);
 
-            responseTip = retry.Out0;
-
-            // Cache merge
-            var cacheMerge = builder.Add(new Merge<HttpResponseMessage>(2));
-            builder.From(responseTip).To(cacheMerge.In(0));
-            builder.From(cacheHit).To(cacheMerge.In(1));
-            responseTip = cacheMerge.Out;
-
-            // Redirect stage
-            var redirect = builder.Add(new RedirectStage(new RedirectHandler(options.RedirectPolicy)));
-            builder.From(responseTip).To(redirect.In);
-
-            builder.From(redirect.Out1)
+            builder.From(postProcess.RedirectFeedbackOut)
                 .Via(Flow.Create<HttpRequestMessage>().Buffer(1, OverflowStrategy.Backpressure))
                 .To(redirectMerge.Preferred);
 
-            responseTip = redirect.Out0;
-
             return new FlowShape<HttpRequestMessage, HttpResponseMessage>(
                 enricher.Inlet,
-                responseTip
+                postProcess.ResponseOut
             );
         }));
+    }
+
+    /// <summary>
+    /// Builds the post-processing sub-graph as a single fused island.
+    /// Contains: CookieStorage → CacheStorage → Retry → CacheMerge → Redirect.
+    /// Exposed ports: 2 inlets (response, cache hits), 3 outlets (response, retry feedback, redirect feedback).
+    /// </summary>
+    private static IGraph<PostProcessShape, NotUsed> BuildPostProcessGraph(
+        CookieJar cookieJar,
+        HttpCacheStore cacheStore,
+        TurboClientOptions options)
+    {
+        return GraphDsl.Create(builder =>
+        {
+            var cookieStorage = builder.Add(new CookieStorageStage(cookieJar));
+            var cacheStorage = builder.Add(new CacheStorageStage(cacheStore));
+            var retry = builder.Add(new RetryStage(options.RetryPolicy));
+            var cacheMerge = builder.Add(new Merge<HttpResponseMessage>(2));
+            var redirect = builder.Add(new RedirectStage(new RedirectHandler(options.RedirectPolicy)));
+
+            // CookieStorage → CacheStorage → Retry
+            builder.From(cookieStorage.Outlet).To(cacheStorage.Inlet);
+            builder.From(cacheStorage.Outlet).To(retry.In);
+
+            // Retry.Out0 (pass-through) → CacheMerge.In(0), CacheMerge → Redirect
+            builder.From(retry.Out0).To(cacheMerge.In(0));
+            builder.From(cacheMerge.Out).To(redirect.In);
+
+            return new PostProcessShape(
+                cookieStorage.Inlet,    // response input from engine+decompression
+                cacheMerge.In(1),       // cache hit input from cache lookup
+                redirect.Out0,          // final response output
+                retry.Out1,             // retry feedback → pre-processing
+                redirect.Out1);         // redirect feedback → pre-processing
+        });
+    }
+
+    /// <summary>
+    /// Shape for the post-processing sub-graph: 2 inlets (response, cache hits),
+    /// 3 outlets (final response, retry feedback, redirect feedback).
+    /// </summary>
+    private sealed class PostProcessShape : Shape
+    {
+        public Inlet<HttpResponseMessage> ResponseIn { get; }
+        public Inlet<HttpResponseMessage> CacheHitIn { get; }
+        public Outlet<HttpResponseMessage> ResponseOut { get; }
+        public Outlet<HttpRequestMessage> RetryFeedbackOut { get; }
+        public Outlet<HttpRequestMessage> RedirectFeedbackOut { get; }
+
+        public PostProcessShape(
+            Inlet<HttpResponseMessage> responseIn,
+            Inlet<HttpResponseMessage> cacheHitIn,
+            Outlet<HttpResponseMessage> responseOut,
+            Outlet<HttpRequestMessage> retryFeedbackOut,
+            Outlet<HttpRequestMessage> redirectFeedbackOut)
+        {
+            ResponseIn = responseIn;
+            CacheHitIn = cacheHitIn;
+            ResponseOut = responseOut;
+            RetryFeedbackOut = retryFeedbackOut;
+            RedirectFeedbackOut = redirectFeedbackOut;
+        }
+
+        public override ImmutableArray<Inlet> Inlets =>
+            ImmutableArray.Create<Inlet>(ResponseIn, CacheHitIn);
+
+        public override ImmutableArray<Outlet> Outlets =>
+            ImmutableArray.Create<Outlet>(ResponseOut, RetryFeedbackOut, RedirectFeedbackOut);
+
+        public override Shape DeepCopy() => new PostProcessShape(
+            (Inlet<HttpResponseMessage>)ResponseIn.CarbonCopy(),
+            (Inlet<HttpResponseMessage>)CacheHitIn.CarbonCopy(),
+            (Outlet<HttpResponseMessage>)ResponseOut.CarbonCopy(),
+            (Outlet<HttpRequestMessage>)RetryFeedbackOut.CarbonCopy(),
+            (Outlet<HttpRequestMessage>)RedirectFeedbackOut.CarbonCopy());
+
+        public override Shape CopyFromPorts(ImmutableArray<Inlet> inlets, ImmutableArray<Outlet> outlets)
+            => new PostProcessShape(
+                (Inlet<HttpResponseMessage>)inlets[0],
+                (Inlet<HttpResponseMessage>)inlets[1],
+                (Outlet<HttpResponseMessage>)outlets[0],
+                (Outlet<HttpRequestMessage>)outlets[1],
+                (Outlet<HttpRequestMessage>)outlets[2]);
     }
 
     private static IGraph<FlowShape<HttpRequestMessage, HttpResponseMessage>, NotUsed> BuildEngineCoreGraph(

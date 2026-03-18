@@ -1,5 +1,16 @@
 # Maggus Project Memory — TurboHttp
 
+## Engine Async Boundaries (TASK-12-004, 2026-03-18)
+
+### Three Fused Islands in Engine.cs
+- **Island 1 (Pre-processing):** RequestEnricherStage → redirect merge → CookieInjectionStage → retry merge → CacheLookupStage — default fusion island (no explicit boundary)
+- **Island 2 (Protocol Engine):** EngineCore + DecompressionStage — combined flow with `.WithAttributes(Attributes.CreateAsyncBoundary())`
+- **Island 3 (Post-Processing):** CookieStorageStage → CacheStorageStage → RetryStage → CacheMerge → RedirectStage — built as `IGraph<PostProcessShape, NotUsed>` with `.Async()`
+- Feedback loops (retry.Out1, redirect.Out1) cross from Island 3 back to Island 1 via Buffer(1) cycle-breakers
+- `PostProcessShape` is a private sealed class in Engine.cs (2 inlets: response + cache hits, 3 outlets: final response + retry feedback + redirect feedback)
+- No async boundaries inside individual protocol engines — they stay fused internally for low overhead
+- Benchmark (loopback): HTTP/1.1 ~29 µs/req (33.9K req/sec), HTTP/2 ~22 µs/req (45.6K req/sec)
+
 ## Integration Test Patterns
 
 ### Http10 Integration Tests
