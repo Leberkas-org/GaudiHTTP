@@ -443,3 +443,11 @@ Production mode: `GroupBy(HostKey.FromRequest, maxSubstreams)` → per-host subs
 - `01_RedirectHandlerTests.cs` — RFC 9110 §15.4 redirects (51 tests, RH-001..051)
 - `02_RetryEvaluatorTests.cs` — RFC 9110 §9.2 retries (40 tests, RE-001..040)
 - `03_ContentEncodingIntegrationTests.cs` — stacked encodings (27 tests)
+
+## H2EngineFakeConnectionStage Unlock Constraint (TASK-003, 2026-03-18)
+
+- The fake stage gates server frame delivery: 1 unlock per `ConnectItem` or `DataItem` received on In
+- `IControlItem` (e.g. `StreamAcquireItem`, `MaxConcurrentStreamsItem`) does NOT unlock — adding unlock for these causes race regression (server response arrives before client DATA written to OutboundChannel)
+- For multi-frame server responses (e.g. HEADERS + DATA), concatenate into single byte[] so only 1 unlock is consumed
+- GET requests produce exactly 2 DataItems: client HEADERS + SETTINGS ACK (no ConnectItem without ExtractOptionsStage)
+- POST requests produce 3+ DataItems: client HEADERS + SETTINGS ACK + client DATA

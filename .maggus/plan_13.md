@@ -137,19 +137,19 @@ contains bytes starting with the HTTP/2 magic (`"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\
 > with the engine's output and asserts the preface in the combined output.
 
 **Acceptance Criteria:**
-- [ ] Test `ENG_007_Preface_Emitted_On_First_ConnectItem` exists and passes.
-- [ ] Test asserts that outbound bytes to fake TCP begin with the 24-byte magic string.
-- [ ] `DisplayName` follows project convention: `"RFC-9113-ENG-007: ..."`
+- [x] Test `ENG_007_Preface_Emitted_On_First_ConnectItem` exists and passes.
+- [x] Test asserts that outbound bytes to fake TCP begin with the 24-byte magic string.
+- [x] `DisplayName` follows project convention: `"RFC-9113-ENG-007: ..."`
 
 #### Test ENG-008 — preface NOT emitted on second ConnectItem to same host
 After the first `ConnectItem` triggers a preface, send a second `ConnectItem` for the same host
 and assert that no *additional* preface magic bytes appear in `OutboundChannel`.
 
 **Acceptance Criteria:**
-- [ ] Test `ENG_008_Preface_Not_Emitted_On_Second_ConnectItem_Same_Host` exists and passes.
-- [ ] `DisplayName` follows project convention: `"RFC-9113-ENG-008: ..."`
-- [ ] Typecheck/lint passes.
-- [ ] Unit tests for TASK-004 are written and successful.
+- [x] Test `ENG_008_Preface_Not_Emitted_On_Second_ConnectItem_Same_Host` exists and passes.
+- [x] `DisplayName` follows project convention: `"RFC-9113-ENG-008: ..."`
+- [x] Typecheck/lint passes.
+- [x] Unit tests for TASK-004 are written and successful.
 
 ---
 

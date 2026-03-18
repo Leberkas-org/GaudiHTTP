@@ -2,11 +2,14 @@ using System.IO.Compression;
 using System.Net;
 using System.Text;
 using Akka;
+using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHttp.IO;
 using TurboHttp.IO.Stages;
 using TurboHttp.Protocol.RFC7541;
 using TurboHttp.Protocol.RFC9113;
 using TurboHttp.Streams;
+using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Http20;
 
@@ -265,5 +268,136 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
         var signalItem = capturedSignals.OfType<MaxConcurrentStreamsItem>().FirstOrDefault();
         Assert.NotNull(signalItem);
         Assert.Equal(50, signalItem.MaxStreams);
+    }
+
+    // ── 20ENG-007: preface emitted on first ConnectItem ───────────────────────
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC-9113-ENG-007: Preface emitted on first ConnectItem through engine graph")]
+    public async Task ENG_007_Preface_Emitted_On_First_ConnectItem()
+    {
+        var engine = new Http20Engine();
+        var bidiFlow = engine.CreateFlow();
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/preface-test")
+        {
+            Version = HttpVersion.Version20
+        };
+
+        var headersFrame = new HeadersFrame(
+            streamId: 1,
+            headerBlock: EncodeResponseHeaders((":status", "200")),
+            endStream: true,
+            endHeaders: true).Serialize();
+
+        var connectItem = new ConnectItem(new TcpOptions { Host = "example.com", Port = 80 })
+        {
+            Key = new RequestEndpoint
+            {
+                Scheme = "http",
+                Host = "example.com",
+                Port = 80,
+                Version = HttpVersion.Version20
+            }
+        };
+
+        var capturedByteSnapshots = new List<byte[]>();
+        var fakeStage = new H2EngineFakeConnectionStage(ServerSettings(), headersFrame);
+        var responseTcs = new TaskCompletionSource<HttpResponseMessage>();
+
+        // Build a custom flow that injects ConnectItem (via MergePreferred) before engine output,
+        // routes through an external PrependPrefaceStage, captures DataItem bytes, then feeds to fake TCP.
+        var customFlow = Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(GraphDsl.Create(b =>
+        {
+            var merge = b.Add(new MergePreferred<IOutputItem>(1));
+            var connectSrc = b.Add(Source.Single<IOutputItem>(connectItem));
+            var preface = b.Add(new PrependPrefaceStage());
+            var capture = b.Add(Flow.Create<IOutputItem>()
+                .Select(item =>
+                {
+                    if (item is DataItem(var owner, var len))
+                    {
+                        capturedByteSnapshots.Add(owner.Memory.Span[..len].ToArray());
+                    }
+
+                    return item;
+                }));
+            var fake = b.Add(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fakeStage));
+
+            b.From(connectSrc.Outlet).To(merge.Preferred);
+            b.From(merge.Out).To(preface.Inlet);
+            b.From(preface.Outlet).To(capture.Inlet);
+            b.From(capture.Outlet).To(fake.Inlet);
+
+            return new FlowShape<IOutputItem, IInputItem>(merge.In(0), fake.Outlet);
+        }));
+
+        var flow = bidiFlow.Join(customFlow);
+
+        _ = Source.Single(request)
+            .Via(flow)
+            .RunWith(Sink.ForEach<HttpResponseMessage>(res => responseTcs.TrySetResult(res)), Materializer);
+
+        var response = await responseTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // Verify that a captured DataItem begins with the 24-byte HTTP/2 magic
+        var magic = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
+        var hasPrefaceMagic = capturedByteSnapshots.Exists(
+            bytes => bytes.Length >= 24 && bytes.AsSpan(0, 24).SequenceEqual(magic));
+        Assert.True(hasPrefaceMagic, "Expected outbound bytes to contain the 24-byte HTTP/2 connection preface magic");
+    }
+
+    // ── 20ENG-008: preface not emitted on second ConnectItem for same host ────
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC-9113-ENG-008: Preface not emitted on second ConnectItem for same host")]
+    public async Task ENG_008_Preface_Not_Emitted_On_Second_ConnectItem_Same_Host()
+    {
+        var tcpOptions = new TcpOptions { Host = "example.com", Port = 80 };
+        var endpoint = new RequestEndpoint
+        {
+            Scheme = "http",
+            Host = "example.com",
+            Port = 80,
+            Version = HttpVersion.Version20
+        };
+        var connectItem1 = new ConnectItem(tcpOptions) { Key = endpoint };
+        var connectItem2 = new ConnectItem(tcpOptions) { Key = endpoint };
+
+        var items = new List<IOutputItem>();
+        var twoItemsReceived = new TaskCompletionSource();
+
+        // Feed two ConnectItems (same host) through PrependPrefaceStage.
+        // The first produces ConnectItem + DataItem(preface). The second is swallowed
+        // (host already seen), so the stream stalls after exactly 2 items.
+        _ = Source.From(new IOutputItem[] { connectItem1, connectItem2 })
+            .Via(new PrependPrefaceStage())
+            .RunWith(Sink.ForEach<IOutputItem>(item =>
+            {
+                items.Add(item);
+                if (items.Count >= 2)
+                {
+                    twoItemsReceived.TrySetResult();
+                }
+            }), Materializer);
+
+        await twoItemsReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Allow time for any unexpected items from the second ConnectItem
+        await Task.Delay(300);
+
+        // Only the first ConnectItem should produce output: ConnectItem + DataItem(preface)
+        Assert.Equal(2, items.Count);
+
+        var magic = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
+        var prefaceCount = 0;
+        foreach (var item in items.OfType<DataItem>())
+        {
+            if (item.Length >= 24 && item.Memory.Memory.Span[..24].SequenceEqual(magic))
+            {
+                prefaceCount++;
+            }
+        }
+
+        Assert.Equal(1, prefaceCount);
     }
 }
