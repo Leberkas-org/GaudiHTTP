@@ -247,14 +247,14 @@ Both are currently covered only indirectly through pipeline tests.
 **Context:** Per GAP_LIST.md GAP-008, 4 of 5 "Current Limitations" in `CLAUDE.md` are outdated. The test organisation also changes substantially from Plan 11.
 
 **Acceptance Criteria:**
-- [ ] "Current Limitations" section updated:
+- [x] "Current Limitations" section updated:
   - Stale entries removed (pipeline not wired, SendAsync not implemented, no business logic stages, etc.)
   - Real remaining limitations kept: no E2E integration tests against Kestrel, `PerHostConnectionLimiter` not wired in the actor pool
-- [ ] "Test Organisation" section updated:
+- [x] "Test Organisation" section updated:
   - Table reflects post-Plan-11 state: RFC9110 (3 files), RFC9112 (23+ files), RFC9113 (29+ files), RFC6265 (1 file), Integration folder removed
   - Reference to `RFC_COVERAGE.md` as the central RFC reference
-- [ ] No factual inaccuracies remain
-- [ ] Build: 0 errors
+- [x] No factual inaccuracies remain
+- [x] Build: 0 errors
 
 ---
 

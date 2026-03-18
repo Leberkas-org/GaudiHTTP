@@ -185,8 +185,8 @@ Network (TCP)
 
 Tests live in `src/TurboHttp.Tests/` organised by RFC:
 
-| Folder | RFC | Files | Tests |
-|--------|-----|-------|-------|
+| Folder | RFC | Files | Unit Tests |
+|--------|-----|-------|------------|
 | `RFC1945/` (01–17) | HTTP/1.0 | 17 | 232 |
 | `RFC9112/` (01–23 + 3 preserved) | HTTP/1.1 | 26 | 379 |
 | `RFC9113/` (01–29 + Http2FrameTests) | HTTP/2 | 28 | 580 |
@@ -217,9 +217,7 @@ Integration tests: `src/TurboHttp.IntegrationTests/Shared/` — Kestrel fixtures
 
 ## Current Limitations
 
-- **Business logic stages not wired into pipeline**: Protocol handlers (RedirectHandler, CookieJar, RetryEvaluator, CacheFreshnessEvaluator, HttpCacheStore, etc.) have unit tests and exist as standalone classes but are NOT yet integrated as Akka.Streams stages in the Engine pipeline. The Engine currently does: encode → ConnectionStage (direct Channel I/O) → decode → correlate.
-- **Client graph not materialized**: `TurboClientStreamManager` has graph construction commented out. `TurboHttpClient.SendAsync` does not work end-to-end yet.
-- **No end-to-end integration tests**: Kestrel fixtures are defined with 60+ routes but no test classes consume them.
+- **No end-to-end integration tests**: Kestrel fixtures are defined with 60+ routes but no test classes consume them yet.
 
 
 ## Dependencies
