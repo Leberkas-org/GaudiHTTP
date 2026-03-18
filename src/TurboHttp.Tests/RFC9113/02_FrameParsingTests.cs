@@ -241,9 +241,8 @@ public sealed class Http2FrameParsingCoreTests
             0x00, 0x00, 0x00, 0x01, // stream = 1
             0x00, 0x00, 0x00, 0x00
         };
-        // Unknown frames should be decodable
         var frames = new Http2FrameDecoder().Decode(frame);
-        Assert.NotEmpty(frames);
+        Assert.Empty(frames);
     }
 
     /// RFC 7540 §4.1 — Multiple unknown frame types in sequence are all decoded
@@ -258,8 +257,7 @@ public sealed class Http2FrameParsingCoreTests
         frame2.CopyTo(combined, frame1.Length);
 
         var frames = new Http2FrameDecoder().Decode(combined);
-        // Unknown frames should be decoded
-        Assert.NotEmpty(frames);
+        Assert.Empty(frames);
     }
 
     /// RFC 7540 §4.1 — Unknown frame type with maximum payload is handled
@@ -280,7 +278,7 @@ public sealed class Http2FrameParsingCoreTests
         frame[8] = 1; // stream = 1
 
         var frames = new Http2FrameDecoder().Decode(frame);
-        Assert.NotEmpty(frames);
+        Assert.Empty(frames);
     }
 
     // =========================================================================

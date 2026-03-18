@@ -92,7 +92,7 @@ public sealed class Http2FrameDecoder
             FrameType.PushPromise => ParsePushPromise(streamId, flags, payload),
 
             // RFC 7540 §4.1 / RFC 9113 §5.5: Unknown frame types MUST be ignored.
-            _ => new UnknownFrame((byte)type, streamId, payload.ToArray())
+            _ => null
         };
     }
 
