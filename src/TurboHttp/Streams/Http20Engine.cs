@@ -33,6 +33,7 @@ public class Http20Engine : IHttpProtocolEngine
             var frameEncoder = b.Add(new Http20EncoderStage());
             var frameDecoder = b.Add(new Http20DecoderStage());
             var streamDecoder = b.Add(new Http20StreamStage());
+            var prependPreface = b.Add(new PrependPrefaceStage());
             var connection = b.Add(new Http20ConnectionStage(windowSize));
             var signalMerge = b.Add(new MergePreferred<IOutputItem>(1));
 
@@ -45,6 +46,7 @@ public class Http20Engine : IHttpProtocolEngine
             var signalCast = b.Add(Flow.Create<IControlItem>().Select(IOutputItem (x) => x));
 
             b.From(frameEncoder.Outlet).To(signalMerge.In(0));
+            b.From(signalMerge.Out).To(prependPreface.Inlet);
             b.From(connection.OutletSignal).Via(signalCast).To(signalMerge.Preferred);
 
             return new BidiShape<
@@ -53,7 +55,7 @@ public class Http20Engine : IHttpProtocolEngine
                 IInputItem,
                 HttpResponseMessage>(
                 streamIdAllocator.Inlet,
-                signalMerge.Out,
+                prependPreface.Outlet,
                 frameDecoder.Inlet,
                 streamDecoder.Outlet);
         }));

@@ -108,7 +108,8 @@ views {
     turbohttp.streams.StreamIdAllocatorStage -> turbohttp.streams.Request2FrameStage 'HPACK-encode headers → HEADERS + DATA frames'
     turbohttp.streams.Request2FrameStage -> turbohttp.streams.Http20ConnectionStage 'Http2Frame (flow-control)'
     turbohttp.streams.Http20ConnectionStage -> turbohttp.streams.Http20EncoderStage 'serialise frame'
-    turbohttp.streams.Http20EncoderStage -> turbohttp.streams.ConnectionStage 'frame bytes'
+    turbohttp.streams.Http20EncoderStage -> turbohttp.streams.PrependPrefaceStage 'IOutputItem'
+    turbohttp.streams.PrependPrefaceStage -> turbohttp.streams.ConnectionStage 'IOutputItem (preface injected on first ConnectItem)'
 
     // ── Connection setup ───────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouterActor 'EnsureHost'
