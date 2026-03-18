@@ -14,6 +14,7 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
 
     public override FlowShape<IInputItem, HttpResponseMessage> Shape { get; }
 
+
     public Http10DecoderStage()
     {
         Shape = new FlowShape<IInputItem, HttpResponseMessage>(_inlet, _outlet);

@@ -77,6 +77,7 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
     public override Http20ConnectionShape Shape =>
         new(_inletRaw, _outletStream, _inletRequest, _outletRaw, _outletSignal);
 
+
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 

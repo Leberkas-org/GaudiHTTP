@@ -19,6 +19,7 @@ public sealed class Http11DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
 
         public override FlowShape<IInputItem, HttpResponseMessage> Shape { get; }
 
+
         protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         {
             return new Logic(this);

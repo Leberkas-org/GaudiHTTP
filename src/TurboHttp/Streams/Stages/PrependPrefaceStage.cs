@@ -26,6 +26,7 @@ public sealed class PrependPrefaceStage : GraphStage<FlowShape<IOutputItem, IOut
     public override FlowShape<IOutputItem, IOutputItem> Shape
         => new(_inlet, _outlet);
 
+
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 

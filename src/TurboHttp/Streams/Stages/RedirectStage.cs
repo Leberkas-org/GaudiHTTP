@@ -36,6 +36,7 @@ internal sealed class
 
     public override FanOutShape<HttpResponseMessage, HttpResponseMessage, HttpRequestMessage> Shape { get; }
 
+
     /// <summary>
     /// Creates a new <see cref="RedirectStage"/> with the given handler and optional cookie jar.
     /// </summary>

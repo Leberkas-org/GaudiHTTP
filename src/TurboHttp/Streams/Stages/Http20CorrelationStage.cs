@@ -18,6 +18,7 @@ internal sealed class
         get;
     }
 
+
     public Http20CorrelationStage()
     {
         Shape = new FanInShape<(HttpRequestMessage, int), (HttpResponseMessage, int), HttpResponseMessage>(

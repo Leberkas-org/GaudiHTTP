@@ -35,6 +35,7 @@ internal sealed class RetryStage : GraphStage<FanOutShape<HttpResponseMessage, H
 
     public override FanOutShape<HttpResponseMessage, HttpResponseMessage, HttpRequestMessage> Shape { get; }
 
+
     /// <summary>
     /// Creates a new <see cref="RetryStage"/> with the given retry policy.
     /// </summary>

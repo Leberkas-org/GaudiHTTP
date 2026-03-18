@@ -46,6 +46,7 @@ internal sealed class CacheLookupStage
 
     public override FanOutShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage> Shape { get; }
 
+
     public CacheLookupStage(HttpCacheStore store, CachePolicy? policy = null)
     {
         _store = store;

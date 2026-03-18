@@ -21,6 +21,7 @@ internal sealed class DecompressionStage : GraphStage<FlowShape<HttpResponseMess
 
     public override FlowShape<HttpResponseMessage, HttpResponseMessage> Shape { get; }
 
+
     public DecompressionStage()
     {
         Shape = new FlowShape<HttpResponseMessage, HttpResponseMessage>(_inlet, _outlet);

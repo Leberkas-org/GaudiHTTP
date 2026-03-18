@@ -12,6 +12,7 @@ public sealed class StreamIdAllocatorStage : GraphStage<FlowShape<HttpRequestMes
 
     public override FlowShape<HttpRequestMessage, (HttpRequestMessage, int)> Shape { get; }
 
+
     public StreamIdAllocatorStage(int startStreamId = 1)
     {
         _startStreamId = startStreamId;

@@ -17,6 +17,7 @@ internal sealed class
 
     public override FanOutShape<HttpResponseMessage, HttpResponseMessage, IOutputItem> Shape { get; }
 
+
     public ConnectionReuseStage(bool bodyFullyConsumed = true)
     {
         _bodyFullyConsumed = bodyFullyConsumed;

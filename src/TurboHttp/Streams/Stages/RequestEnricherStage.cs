@@ -16,6 +16,7 @@ internal sealed class RequestEnricherStage : GraphStage<FlowShape<HttpRequestMes
 
     public override FlowShape<HttpRequestMessage, HttpRequestMessage> Shape { get; }
 
+
     public RequestEnricherStage(Func<TurboRequestOptions> optionsFactory)
     {
         _optionsFactory = optionsFactory;

@@ -20,6 +20,7 @@ public sealed class Http20StreamStage : GraphStage<FlowShape<Http2Frame, HttpRes
 
     public override FlowShape<Http2Frame, HttpResponseMessage> Shape => new(_inlet, _outlet);
 
+
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 

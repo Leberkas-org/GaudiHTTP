@@ -18,6 +18,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
 
     public override FlowShape<IOutputItem, IInputItem> Shape { get; }
 
+
     public ConnectionStage(IActorRef poolRouter)
     {
         PoolRouter = poolRouter;

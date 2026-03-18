@@ -34,13 +34,13 @@ Optimize TurboHttp's Akka.Streams pipeline for balanced throughput, latency, and
 **Description:** As a developer, I want all custom `GraphStage` implementations to properly declare `InitialAttributes` and read `inheritedAttributes` where relevant, so that composition-level `.WithAttributes()` calls actually take effect.
 
 **Acceptance Criteria:**
-- [ ] Every `GraphStage` subclass overrides `InitialAttributes` with a meaningful `Attributes.CreateName("stage-name")`
-- [ ] Stages that use internal buffer sizes (encoder min/max, decoder growth, GroupByHostKey queue size) read `inheritedAttributes.GetAttribute<Attributes.InputBuffer>(fallback)` in `CreateLogic` and use it to configure their buffers
-- [ ] Lightweight pass-through stages (CookieInjectionStage, CookieStorageStage, StreamIdAllocatorStage, RequestEnricherStage) declare `InitialAttributes` with name only (no buffer override needed — they don't buffer)
-- [ ] Stages affected: all 26 custom GraphStages listed below
-- [ ] No existing stage shapes or public APIs changed
-- [ ] All existing tests still pass
-- [ ] Unit tests verify that `inheritedAttributes` buffer config is respected (e.g., encoder uses custom buffer size when attribute is set)
+- [x] Every `GraphStage` subclass overrides `InitialAttributes` with a meaningful `Attributes.CreateName("stage-name")`
+- [x] Stages that use internal buffer sizes (encoder min/max, decoder growth, GroupByHostKey queue size) read `inheritedAttributes.GetAttribute<Attributes.InputBuffer>(fallback)` in `CreateLogic` and use it to configure their buffers
+- [x] Lightweight pass-through stages (CookieInjectionStage, CookieStorageStage, StreamIdAllocatorStage, RequestEnricherStage) declare `InitialAttributes` with name only (no buffer override needed — they don't buffer)
+- [x] Stages affected: all 26 custom GraphStages listed below
+- [x] No existing stage shapes or public APIs changed
+- [x] All existing tests still pass
+- [x] Unit tests verify that `inheritedAttributes` buffer config is respected (e.g., encoder uses custom buffer size when attribute is set)
 
 **Stages requiring `InitialAttributes` + buffer-aware `CreateLogic`:**
 

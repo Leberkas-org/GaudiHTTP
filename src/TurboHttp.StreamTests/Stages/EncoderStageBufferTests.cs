@@ -1,3 +1,5 @@
+using System.Linq;
+using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.IO.Stages;
 using TurboHttp.Streams.Stages;
@@ -140,7 +142,7 @@ public sealed class EncoderStageBufferTests : StreamTestBase
 
     // ── BUF-004 ───────────────────────────────────────────────────────────────────
 
-    [Fact(Timeout = 10_000, DisplayName = "BUF-004: Binary body → bytes passed through correctly")]
+    [Fact(DisplayName = "BUF-004: Binary body → bytes passed through correctly")]
     public async Task BUF_004_BinaryBody_PassedThroughCorrectly()
     {
         // Build a 512-byte body containing the full 0x00-0xFF byte range repeated twice
@@ -170,5 +172,92 @@ public sealed class EncoderStageBufferTests : StreamTestBase
         Assert.Equal(bodySize, encodedBody.Length);
         Assert.True(bodyBytes.AsSpan().SequenceEqual(encodedBody),
             "Binary body bytes must be passed through without modification");
+    }
+
+    // ── BUF-005 ───────────────────────────────────────────────────────────────────
+
+
+    // ── BUF-007 ───────────────────────────────────────────────────────────────────
+
+    [Fact(Timeout = 10_000, DisplayName = "BUF-007: Http11EncoderStage with custom InputBuffer attribute encodes correctly")]
+    public async Task BUF_007_Http11Encoder_CustomInputBuffer_EncodesCorrectly()
+    {
+        // 512-byte body — fits well within a custom max of 8 KB
+        const int bodySize = 512;
+        var bodyBytes = new byte[bodySize];
+        for (var i = 0; i < bodySize; i++)
+        {
+            bodyBytes[i] = (byte)(i % 256);
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/upload")
+        {
+            Version = System.Net.HttpVersion.Version11,
+            Content = new ByteArrayContent(bodyBytes)
+        };
+
+        // Apply a custom InputBuffer: initial=128, max=8 KB
+        var customAttrs = Attributes.CreateInputBuffer(128, 8 * 1024);
+        var items = await Source.Single(request)
+            .Via(Flow.FromGraph(new Http11EncoderStage()).AddAttributes(customAttrs))
+            .RunWith(Sink.Seq<IOutputItem>(), Materializer);
+
+        var allBytes = new List<byte>();
+        foreach (var item in items)
+        {
+            var data = (DataItem)item;
+            allBytes.AddRange(data.Memory.Memory.Span[..data.Length].ToArray());
+            data.Memory.Dispose();
+        }
+
+        var raw = allBytes.ToArray();
+        var bodyOffset = FindBodyOffset(raw);
+        Assert.True(bodyOffset >= 0, "Expected \\r\\n\\r\\n separator in output");
+
+        var encodedBody = raw.AsSpan(bodyOffset);
+        Assert.Equal(bodySize, encodedBody.Length);
+        Assert.True(bodyBytes.AsSpan().SequenceEqual(encodedBody),
+            "Body bytes must be preserved when custom InputBuffer attribute is applied");
+    }
+
+    // ── BUF-008 ───────────────────────────────────────────────────────────────────
+
+    [Fact(Timeout = 10_000, DisplayName = "BUF-008: Http10EncoderStage with custom InputBuffer attribute encodes correctly")]
+    public async Task BUF_008_Http10Encoder_CustomInputBuffer_EncodesCorrectly()
+    {
+        const int bodySize = 256;
+        var bodyBytes = new byte[bodySize];
+        for (var i = 0; i < bodySize; i++)
+        {
+            bodyBytes[i] = (byte)(i % 256);
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/upload")
+        {
+            Version = System.Net.HttpVersion.Version10,
+            Content = new ByteArrayContent(bodyBytes)
+        };
+
+        var customAttrs = Attributes.CreateInputBuffer(64, 4 * 1024);
+        var items = await Source.Single(request)
+            .Via(Flow.FromGraph(new Http10EncoderStage()).AddAttributes(customAttrs))
+            .RunWith(Sink.Seq<IOutputItem>(), Materializer);
+
+        var allBytes = new List<byte>();
+        foreach (var item in items)
+        {
+            var data = (DataItem)item;
+            allBytes.AddRange(data.Memory.Memory.Span[..data.Length].ToArray());
+            data.Memory.Dispose();
+        }
+
+        var raw = allBytes.ToArray();
+        var bodyOffset = FindBodyOffset(raw);
+        Assert.True(bodyOffset >= 0, "Expected \\r\\n\\r\\n separator in output");
+
+        var encodedBody = raw.AsSpan(bodyOffset);
+        Assert.Equal(bodySize, encodedBody.Length);
+        Assert.True(bodyBytes.AsSpan().SequenceEqual(encodedBody),
+            "Body bytes must be preserved when custom InputBuffer attribute is applied");
     }
 }

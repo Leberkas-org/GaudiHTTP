@@ -13,6 +13,7 @@ public sealed class Http20EncoderStage : GraphStage<FlowShape<Http2Frame, IOutpu
 
     public override FlowShape<Http2Frame, IOutputItem> Shape => new(_inlet, _outlet);
 
+
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 

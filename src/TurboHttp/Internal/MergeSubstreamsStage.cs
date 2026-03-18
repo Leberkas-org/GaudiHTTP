@@ -16,6 +16,7 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
     private readonly Outlet<T> _outlet = new("merge.substreams.out");
     public override FlowShape<Source<T, NotUsed>, T> Shape { get; }
 
+
     public MergeSubstreamsStage(int maxConcurrent)
     {
         _maxConcurrent = maxConcurrent;

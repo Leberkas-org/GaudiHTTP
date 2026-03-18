@@ -20,18 +20,23 @@ public sealed class Http11EncoderStage : GraphStage<FlowShape<HttpRequestMessage
 
     public override FlowShape<HttpRequestMessage, IOutputItem> Shape { get; }
 
+
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
     {
-        return new Logic(this);
+        return new Logic(this, inheritedAttributes);
     }
 
     private sealed class Logic : GraphStageLogic
     {
-        private const int MinBufferSize = 4 * 1024; // 4 KB
-        private const int MaxBufferSize = 256 * 1024; // 256 KB
+        private readonly int _minBufferSize;
+        private readonly int _maxBufferSize;
 
-        public Logic(Http11EncoderStage stage) : base(stage.Shape)
+        public Logic(Http11EncoderStage stage, Attributes inheritedAttributes) : base(stage.Shape)
         {
+            var memoryBuffer = inheritedAttributes.GetAttribute(new TurboAttributes.MemoryBuffer(4 * 1024, 256 * 1024));
+            _minBufferSize = memoryBuffer.Initial;
+            _maxBufferSize = memoryBuffer.Max;
+
             SetHandler(stage._inlet,
                 onPush: () =>
                 {
@@ -41,8 +46,8 @@ public sealed class Http11EncoderStage : GraphStage<FlowShape<HttpRequestMessage
                     {
                         var key = RequestEndpoint.FromRequest(request);
                         var contentLength = Convert.ToInt32(request.Content?.Headers.ContentLength ?? 0);
-                        var estimatedSize = MinBufferSize + contentLength;
-                        var bufferSize = Math.Min(estimatedSize, MaxBufferSize);
+                        var estimatedSize = Math.Max(_minBufferSize, contentLength);
+                        var bufferSize = Math.Min(estimatedSize, _maxBufferSize);
                         var owner = MemoryPool<byte>.Shared.Rent(bufferSize);
                         var buffer = owner.Memory.Span;
 

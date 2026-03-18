@@ -16,6 +16,7 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
     private readonly Outlet<Source<T, NotUsed>> _outlet = new("groupby.hostkey.in");
     public override FlowShape<T, Source<T, NotUsed>> Shape { get; }
 
+
     private readonly Func<T, RequestEndpoint> _keyFor;
     private readonly int _maxSubstreams;
 
@@ -27,7 +28,7 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new Logic(this);
+        => new Logic(this, inheritedAttributes);
 
     private sealed class SubflowState(ISourceQueueWithComplete<T> queue)
     {
@@ -39,14 +40,17 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
     private sealed class Logic : GraphStageLogic
     {
         private readonly GroupByHostKeyStage<T> _stage;
+        private readonly int _queueSize;
         private readonly Dictionary<RequestEndpoint, SubflowState> _subflows = new();
         private readonly Queue<Source<T, NotUsed>> _pendingSources = new();
         private Action<RequestEndpoint>? _onOfferComplete;
         private bool _upstreamFinished;
 
-        public Logic(GroupByHostKeyStage<T> stage) : base(stage.Shape)
+        public Logic(GroupByHostKeyStage<T> stage, Attributes inheritedAttributes) : base(stage.Shape)
         {
             _stage = stage;
+            var inputBuffer = inheritedAttributes.GetAttribute(new Attributes.InputBuffer(16, 16));
+            _queueSize = inputBuffer.Initial;
 
             SetHandler(stage._inlet,
                 onPush: HandlePush,
@@ -132,7 +136,7 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
                 }
 
                 var (matQueue, source) = Source
-                    .Queue<T>(16, OverflowStrategy.Backpressure)
+                    .Queue<T>(_queueSize, OverflowStrategy.Backpressure)
                     .PreMaterialize(SubFusingMaterializer);
 
                 var state = new SubflowState(matQueue);

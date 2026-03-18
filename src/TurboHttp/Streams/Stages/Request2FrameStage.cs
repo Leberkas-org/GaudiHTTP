@@ -19,6 +19,7 @@ public sealed class Request2FrameStage : GraphStage<FlowShape<(HttpRequestMessag
 
     public override FlowShape<(HttpRequestMessage, int), Http2Frame> Shape => new(_inlet, _outlet);
 
+
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes) => new Logic(this);
 
     private sealed class Logic : GraphStageLogic

@@ -15,6 +15,7 @@ internal sealed class ExtractOptionsStage : GraphStage<FanOutShape<HttpRequestMe
     private readonly Outlet<HttpRequestMessage> _outletRequest = new("options.out.request");
     public override FanOutShape<HttpRequestMessage, HttpRequestMessage, IOutputItem> Shape { get; }
 
+
     public ExtractOptionsStage(TurboClientOptions? clientOptions = null)
     {
         _clientOptions = clientOptions ?? new TurboClientOptions();

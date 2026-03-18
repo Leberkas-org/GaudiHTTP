@@ -41,6 +41,7 @@ internal sealed class CacheStorageStage : GraphStage<FlowShape<HttpResponseMessa
 
     public override FlowShape<HttpResponseMessage, HttpResponseMessage> Shape { get; }
 
+
     public CacheStorageStage(HttpCacheStore store)
     {
         _store = store;
