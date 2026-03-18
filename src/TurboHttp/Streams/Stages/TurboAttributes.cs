@@ -43,4 +43,25 @@ public static class TurboAttributes
         }
         public override string ToString() => $"MemoryBuffer(initial={Initial}, max={Max})";
     }
+
+    public sealed class SubstreamQueueSize : Attributes.IMandatoryAttribute, IEquatable<SubstreamQueueSize>
+    {
+        public readonly int Size;
+
+        public SubstreamQueueSize(int size)
+        {
+            Size = size;
+        }
+
+        public bool Equals(SubstreamQueueSize? other)
+        {
+            if (ReferenceEquals(other, null)) return false;
+            if (ReferenceEquals(other, this)) return true;
+            return Size == other.Size;
+        }
+
+        public override bool Equals(object? obj) => obj is SubstreamQueueSize qs && Equals(qs);
+        public override int GetHashCode() => Size;
+        public override string ToString() => $"SubstreamQueueSize(size={Size})";
+    }
 }

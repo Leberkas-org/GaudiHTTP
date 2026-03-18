@@ -106,12 +106,12 @@ Optimize TurboHttp's Akka.Streams pipeline for balanced throughput, latency, and
 **Description:** As a developer, I want to increase the per-host substream queue capacity and make it configurable so that bursty request patterns don't cause excessive backpressure stalls.
 
 **Acceptance Criteria:**
-- [ ] `GroupByHostKeyStage` queue size changed from hardcoded `16` to a constructor parameter with default `64`
-- [ ] Queue size is passed from `Engine.BuildProtocolFlow` — no public API changes on `ITurboHttpClient`
-- [ ] The queue size reads from `inheritedAttributes` (TASK-6-002) so it can be overridden via `.WithAttributes()` at composition level
-- [ ] No existing stage shapes changed
-- [ ] Existing stream tests still pass
-- [ ] Unit tests are written and successful
+- [x] `GroupByHostKeyStage` queue size changed from hardcoded `16` to a constructor parameter with default `64`
+- [x] Queue size is passed from `Engine.BuildProtocolFlow` — no public API changes on `ITurboHttpClient`
+- [x] The queue size reads from `inheritedAttributes` (TASK-6-002) so it can be overridden via `.WithAttributes()` at composition level
+- [x] No existing stage shapes changed
+- [x] Existing stream tests still pass
+- [x] Unit tests are written and successful
 
 ### TASK-12-006: Batch Encoding for HTTP/2 Frame Output
 

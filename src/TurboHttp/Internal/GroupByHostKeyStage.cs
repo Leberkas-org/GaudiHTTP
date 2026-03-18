@@ -7,6 +7,7 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.Stage;
 using TurboHttp.IO.Stages;
+using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.Internal;
 
@@ -19,11 +20,13 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
 
     private readonly Func<T, RequestEndpoint> _keyFor;
     private readonly int _maxSubstreams;
+    private readonly int _defaultQueueSize;
 
-    public GroupByHostKeyStage(Func<T, RequestEndpoint> keyFor, int maxSubstreams = -1)
+    public GroupByHostKeyStage(Func<T, RequestEndpoint> keyFor, int maxSubstreams = -1, int queueSize = 64)
     {
         _keyFor = keyFor ?? throw new ArgumentNullException(nameof(keyFor));
         _maxSubstreams = maxSubstreams;
+        _defaultQueueSize = queueSize;
         Shape = new FlowShape<T, Source<T, NotUsed>>(_inlet, _outlet);
     }
 
@@ -49,8 +52,9 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
         public Logic(GroupByHostKeyStage<T> stage, Attributes inheritedAttributes) : base(stage.Shape)
         {
             _stage = stage;
-            var inputBuffer = inheritedAttributes.GetAttribute(new Attributes.InputBuffer(16, 16));
-            _queueSize = inputBuffer.Initial;
+            var queueAttr = inheritedAttributes.GetAttribute(
+                new TurboAttributes.SubstreamQueueSize(stage._defaultQueueSize));
+            _queueSize = queueAttr.Size;
 
             SetHandler(stage._inlet,
                 onPush: HandlePush,
