@@ -19,16 +19,16 @@ Create a set of architecture diagrams for TurboHttp that serve two purposes: (1)
 **Description:** As an external user or reviewer, I want a C4 Component diagram showing TurboHttp's internal structure so that I can understand the library's layered architecture at a glance.
 
 **Acceptance Criteria:**
-- [ ] Mermaid file created at `docs/c4-components.md`
-- [ ] Shows four containers/boundaries matching the architecture layers:
+- [x] Mermaid file created at `docs/c4-components.md`
+- [x] Shows four containers/boundaries matching the architecture layers:
   - **Client Layer** — `ITurboHttpClient`, `TurboClientStreamManager`, `TurboClientOptions`
   - **Streams Layer** — `Engine`, `Http10Engine`, `Http11Engine`, `Http20Engine`, all GraphStages grouped by function (encoding, decoding, correlation, business logic)
   - **Protocol Layer** — Encoders (`Http10Encoder`, `Http11Encoder`, `Http2RequestEncoder`), Decoders (`Http10Decoder`, `Http11Decoder`), HPACK (`HpackEncoder`, `HpackDecoder`, `HpackDynamicTable`, `HuffmanCodec`), Business Logic (`RedirectHandler`, `RetryEvaluator`, `CookieJar`, `ConnectionReuseEvaluator`, `ContentEncodingDecoder`), Caching (`HttpCacheStore`, `CacheFreshnessEvaluator`, `CacheValidationRequestBuilder`, `CacheControlParser`)
   - **I/O Layer** — `PoolRouterActor`, `HostPoolActor`, `ConnectionActor`, `ClientByteMover`, `ClientState`
-- [ ] Dependencies between components shown as arrows with labels (e.g., "encodes requests", "manages TCP connections")
-- [ ] External system shown: TCP Network
-- [ ] Diagram renders correctly in GitHub Markdown preview
-- [ ] Components match actual class names in the codebase
+- [x] Dependencies between components shown as arrows with labels (e.g., "encodes requests", "manages TCP connections")
+- [x] External system shown: TCP Network
+- [x] Diagram renders correctly in GitHub Markdown preview
+- [x] Components match actual class names in the codebase
 
 ### TASK-7-002: Full Engine Stream Graph
 
