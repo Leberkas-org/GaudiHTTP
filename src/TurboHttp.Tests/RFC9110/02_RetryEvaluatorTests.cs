@@ -1,7 +1,7 @@
 using System.Net;
 using TurboHttp.Protocol.RFC9110;
 
-namespace TurboHttp.Tests.Integration;
+namespace TurboHttp.Tests.RFC9110;
 
 /// <summary>
 /// Tests for <see cref="RetryEvaluator"/> and <see cref="RetryPolicy"/>.

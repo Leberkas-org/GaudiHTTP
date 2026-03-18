@@ -55,13 +55,13 @@ After all moves and deletions the `Integration/` folder will be **empty and remo
 **Description:** As a developer, I want `RedirectHandlerTests.cs` and `RetryEvaluatorTests.cs` moved from `Integration/` to `RFC9110/` and correctly numbered, so that RFC 9110 §15.4 and §9.2 are visible in the compliance matrix.
 
 **Acceptance Criteria:**
-- [ ] `Integration/RedirectHandlerTests.cs` → `RFC9110/01_RedirectHandlerTests.cs`
-- [ ] `Integration/RetryEvaluatorTests.cs` → `RFC9110/02_RetryEvaluatorTests.cs`
-- [ ] Namespace of both files: `namespace TurboHttp.Tests.RFC9110;`
-- [ ] All existing `DisplayName` values preserved (RFC tags, IDs, descriptions)
-- [ ] Source files in `Integration/` deleted
-- [ ] `dotnet test --filter "FullyQualifiedName~RFC9110"` returns all Redirect and Retry tests
-- [ ] Build: 0 errors
+- [x] `Integration/RedirectHandlerTests.cs` → `RFC9110/01_RedirectHandlerTests.cs`
+- [x] `Integration/RetryEvaluatorTests.cs` → `RFC9110/02_RetryEvaluatorTests.cs`
+- [x] Namespace of both files: `namespace TurboHttp.Tests.RFC9110;`
+- [x] All existing `DisplayName` values preserved (RFC tags, IDs, descriptions)
+- [x] Source files in `Integration/` deleted
+- [x] `dotnet test --filter "FullyQualifiedName~RFC9110"` returns all Redirect and Retry tests
+- [x] Build: 0 errors
 
 ---
 
