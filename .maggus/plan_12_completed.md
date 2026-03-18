@@ -159,12 +159,12 @@ Optimize TurboHttp's Akka.Streams pipeline for balanced throughput, latency, and
 **Description:** As a developer, I want to run the benchmark suite after all optimizations to measure improvements against the TASK-6-001 baseline.
 
 **Acceptance Criteria:**
-- [ ] All previous TASKs merged and building green
-- [ ] Benchmark harness from TASK-6-001 re-executed with identical parameters
-- [ ] Results saved to `.maggus/runs/benchmark_optimized_plan6.md`
-- [ ] Comparison table produced: baseline vs. optimized (ops/sec, p99, allocations)
-- [ ] Any regressions flagged and investigated
-- [ ] Summary written to `.maggus/runs/benchmark_comparison_plan6.md`
+- [x] All previous TASKs merged and building green
+- [x] Benchmark harness from TASK-6-001 re-executed with identical parameters
+- [x] Results saved to `.maggus/runs/benchmark_optimized_plan6.md`
+- [x] Comparison table produced: baseline vs. optimized (ops/sec, p99, allocations)
+- [x] Any regressions flagged and investigated
+- [x] Summary written to `.maggus/runs/benchmark_comparison_plan6.md`
 
 ## Functional Requirements
 
