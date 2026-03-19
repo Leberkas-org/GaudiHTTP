@@ -22,7 +22,10 @@
       "Read(//tmp/**)",
       "Bash(sed -i 's/net6.0/net10.0/' subflow_inspect.csproj)",
       "Bash(dotnet run:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "WebFetch(domain:likec4.dev)",
+      "WebSearch",
+      "WebFetch(domain:www.npmjs.com)"
     ]
   },
   "enabledPlugins": {}

@@ -239,4 +239,100 @@ public sealed class RetryStageTests : StreamTestBase
         Assert.Equal(method, retryRequest.Method);
         final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
+
+    // ── per-request retry isolation ────────────────────────────────────────────
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-014: Request B starts at attempt 1 after Request A retried 2x")]
+    public async Task RETRY_014_SequentialRequests_IndependentRetryBudgets()
+    {
+        // MaxRetries = 3 means attempts 1 and 2 are retried, attempt 3 is final.
+        // Request A: two 503 responses → retried twice (attempts 1, 2).
+        // Request B: one 503 response → should be retried (attempt 1), NOT treated as attempt 3.
+        var policy = new RetryPolicy { MaxRetries = 3 };
+
+        var requestA = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a");
+        var responseA1 = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = requestA };
+        var responseA2 = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = requestA };
+
+        var requestB = new HttpRequestMessage(HttpMethod.Get, "http://example.com/b");
+        var responseB1 = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = requestB };
+
+        // Feed all three responses sequentially through the stage.
+        var (final, retry) = Run(new RetryStage(policy), 5, responseA1, responseA2, responseB1);
+
+        // A1 → retry (attempt 1 < MaxRetries)
+        var retryA1 = retry.ExpectNext();
+        Assert.Same(requestA, retryA1);
+
+        // A2 → retry (attempt 2 < MaxRetries)
+        var retryA2 = retry.ExpectNext();
+        Assert.Same(requestA, retryA2);
+
+        // B1 → retry (attempt 1 < MaxRetries — independent of A's count)
+        var retryB1 = retry.ExpectNext();
+        Assert.Same(requestB, retryB1);
+
+        final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+    }
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-015: Interleaved requests each get independent retry budgets")]
+    public async Task RETRY_015_InterleavedRequests_IndependentRetryBudgets()
+    {
+        var policy = new RetryPolicy { MaxRetries = 2 };
+
+        var requestA = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a");
+        var requestB = new HttpRequestMessage(HttpMethod.Get, "http://example.com/b");
+
+        var responseA1 = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = requestA };
+        var responseB1 = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = requestB };
+        var responseA2 = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = requestA };
+        var responseB2 = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = requestB };
+
+        // Interleaved: A, B, A, B — with MaxRetries=2, first attempt of each should retry,
+        // second attempt (attemptCount=2 >= MaxRetries=2) should be final.
+        var (final, retry) = Run(new RetryStage(policy), 5, responseA1, responseB1, responseA2, responseB2);
+
+        // A1 → retry (attempt 1)
+        var retryA1 = retry.ExpectNext();
+        Assert.Same(requestA, retryA1);
+
+        // B1 → retry (attempt 1, independent of A)
+        var retryB1 = retry.ExpectNext();
+        Assert.Same(requestB, retryB1);
+
+        // A2 → final (attempt 2 >= MaxRetries)
+        var finalA = final.ExpectNext();
+        Assert.Same(responseA2, finalA);
+
+        // B2 → final (attempt 2 >= MaxRetries, independent of A)
+        var finalB = final.ExpectNext();
+        Assert.Same(responseB2, finalB);
+    }
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-016: Retry-After on Request A does not affect Request B's attempt count")]
+    public async Task RETRY_016_RetryAfterTimer_DoesNotAffectOtherRequests()
+    {
+        // Request A has Retry-After: 0 (immediate). Request B also gets 503.
+        // Both should be retried independently — B at attempt 1, not affected by A's state.
+        var policy = new RetryPolicy { MaxRetries = 3, RespectRetryAfter = true };
+
+        var requestA = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a");
+        var responseA = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = requestA };
+        responseA.Headers.TryAddWithoutValidation("Retry-After", "0");
+
+        var requestB = new HttpRequestMessage(HttpMethod.Get, "http://example.com/b");
+        var responseB = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = requestB };
+
+        var (final, retry) = Run(new RetryStage(policy), 5, responseA, responseB);
+
+        // A → retried (attempt 1, with Retry-After: 0 → immediate)
+        var retryA = retry.ExpectNext();
+        Assert.Same(requestA, retryA);
+
+        // B → retried (attempt 1, independent of A)
+        var retryB = retry.ExpectNext();
+        Assert.Same(requestB, retryB);
+
+        final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+    }
 }

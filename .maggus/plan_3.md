@@ -65,14 +65,14 @@ if (decision.ShouldRetry)
 This eliminates the `_attemptCount` field entirely. Each request carries its own retry count.
 
 **Acceptance Criteria:**
-- [ ] `_attemptCount` field removed from RetryStage Logic
-- [ ] Retry count tracked per-request via `HttpRequestMessage.Options`
-- [ ] Concurrent request chains don't interfere with each other's retry counts
-- [ ] Unit tests: Request A retried 2x, then Request B retried 1x — B starts at attempt 1, not 3
-- [ ] Unit tests: Interleaved requests each get independent retry budgets
-- [ ] Unit tests: Retry-After timer on Request A doesn't block Request B's retry evaluation
-- [ ] Existing RetryStage tests stay green
-- [ ] Build compiles without errors
+- [x] `_attemptCount` field removed from RetryStage Logic
+- [x] Retry count tracked per-request via `HttpRequestMessage.Options`
+- [x] Concurrent request chains don't interfere with each other's retry counts
+- [x] Unit tests: Request A retried 2x, then Request B retried 1x — B starts at attempt 1, not 3
+- [x] Unit tests: Interleaved requests each get independent retry budgets
+- [x] Unit tests: Retry-After timer on Request A doesn't block Request B's retry evaluation
+- [x] Existing RetryStage tests stay green
+- [x] Build compiles without errors
 
 ---
 

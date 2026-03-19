@@ -52,10 +52,11 @@ internal sealed class RetryStage : GraphStage<FanOutShape<HttpResponseMessage, H
 
     private sealed class Logic : TimerGraphStageLogic
     {
+        private static readonly HttpRequestOptionsKey<int> AttemptCountKey = new("TurboHttp.RetryAttemptCount");
+
         private readonly RetryStage _stage;
         private bool _finalHasDemand;
         private bool _retryHasDemand;
-        private int _attemptCount = 1;
         private HttpRequestMessage? _pendingRetryRequest;
 
         private const string RetryTimerKey = "retry-timer";
@@ -79,12 +80,14 @@ internal sealed class RetryStage : GraphStage<FanOutShape<HttpResponseMessage, H
                         return;
                     }
 
+                    var attemptCount = original.Options.TryGetValue(AttemptCountKey, out var count) ? count : 1;
+
                     var decision = RetryEvaluator.Evaluate(
                         original,
                         response,
                         networkFailure: false,
                         bodyPartiallyConsumed: false,
-                        attemptCount: _attemptCount,
+                        attemptCount: attemptCount,
                         policy: _stage._policy);
 
                     if (!decision.ShouldRetry)
@@ -94,7 +97,7 @@ internal sealed class RetryStage : GraphStage<FanOutShape<HttpResponseMessage, H
                         return;
                     }
 
-                    _attemptCount++;
+                    original.Options.Set(AttemptCountKey, attemptCount + 1);
                     _pendingRetryRequest = original;
 
                     if (decision.RetryAfterDelay.HasValue && decision.RetryAfterDelay.Value > TimeSpan.Zero)
