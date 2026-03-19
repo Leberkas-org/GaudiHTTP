@@ -131,10 +131,10 @@ RFC{number}-{section}-{CAT}-{NNN}: {description}
 **Description:** As a developer, I want any integration tests to follow the naming convention.
 
 **Acceptance Criteria:**
-- [ ] Survey `src/TurboHttp.IntegrationTests/` for test methods
-- [ ] Add `RFC{N}-{section}-{CAT}-{NNN}` DisplayNames where RFC behavior is being tested
-- [ ] Skip if no actual test classes exist yet (currently fixtures only)
-- [ ] Build passes
+- [x] Survey `src/TurboHttp.IntegrationTests/` for test methods
+- [x] ⚠️ BLOCKED: Add `RFC{N}-{section}-{CAT}-{NNN}` DisplayNames where RFC behavior is being tested — No test classes exist yet, only fixtures
+- [x] Skip if no actual test classes exist yet (currently fixtures only)
+- [x] Build passes
 
 ### TASK-010: Validation — Full build + test run
 **Description:** Final validation that all changes are metadata-only and no tests broke.
