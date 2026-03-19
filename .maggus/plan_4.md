@@ -131,9 +131,9 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 **New pattern:** `Should_ReturnFalse_When_FrameHeaderHasZeroBytes()`, `Should_DecodeFrame_When_HeaderIsExactly9Bytes()`
 
 **Acceptance Criteria:**
-- [ ] All methods in 9 files follow `Should_Action_When_Condition`
-- [ ] `DisplayName` attributes unchanged
-- [ ] `dotnet test --filter "FullyQualifiedName~RFC9113"` — all green
+- [x] All methods in 9 files follow `Should_Action_When_Condition`
+- [x] `DisplayName` attributes unchanged
+- [x] `dotnet test --filter "FullyQualifiedName~RFC9113"` — all green
 
 ---
 

@@ -80,7 +80,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Client preface starts with exact magic octets
     [Fact(DisplayName = "RFC9113-3.4-CP-001: Client preface starts with exact magic octets")]
-    public void ClientPreface_MagicOctets_MatchRfc9113Spec()
+    public void Should_MatchSpec_When_CheckingMagicOctets()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
 
@@ -90,7 +90,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Client preface magic is exactly 24 bytes
     [Fact(DisplayName = "RFC9113-3.4-CP-002: Client preface magic is exactly 24 bytes")]
-    public void ClientPreface_Magic_IsExactly24Bytes()
+    public void Should_BeExactly24Bytes_When_CheckingMagicLength()
     {
         // RFC 9113 §3.4 specifies the exact byte sequence (24 octets)
         Assert.Equal(24, MagicLength);
@@ -99,7 +99,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — SETTINGS frame follows magic immediately at byte 24
     [Fact(DisplayName = "RFC9113-3.4-CP-003: SETTINGS frame follows magic immediately at byte 24")]
-    public void ClientPreface_SettingsFrame_ImmediatelyFollowsMagic()
+    public void Should_FollowMagicImmediately_When_CheckingSettingsFrame()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
 
@@ -113,7 +113,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — SETTINGS frame in client preface uses stream ID 0
     [Fact(DisplayName = "RFC9113-3.4-CP-004: SETTINGS frame in client preface uses stream ID 0")]
-    public void ClientPreface_SettingsFrame_StreamIdIsZero()
+    public void Should_UseStreamIdZero_When_PrefaceSettingsFrame()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
 
@@ -126,7 +126,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Client preface total length is magic + SETTINGS frame
     [Fact(DisplayName = "RFC9113-3.4-CP-005: Client preface total length is magic + SETTINGS frame")]
-    public void ClientPreface_Length_IsMagicPlusSettingsFrame()
+    public void Should_BeMagicPlusSettingsFrameLength_When_CheckingPrefaceLength()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
 
@@ -136,7 +136,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — SETTINGS frame payload length is a multiple of 6
     [Fact(DisplayName = "RFC9113-3.4-CP-006: SETTINGS frame payload length is a multiple of 6")]
-    public void ClientPreface_SettingsPayload_LengthIsMultipleOf6()
+    public void Should_BeMultipleOf6_When_CheckingSettingsPayloadLength()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
 
@@ -151,7 +151,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — SETTINGS frame flags are 0 (not ACK)
     [Fact(DisplayName = "RFC9113-3.4-CP-007: SETTINGS frame flags are 0 (not ACK)")]
-    public void ClientPreface_SettingsFrame_FlagsAreZero()
+    public void Should_HaveFlagsZero_When_CheckingPrefaceSettingsFrame()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
 
@@ -161,7 +161,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Magic bytes spell 'PRI * HTTP/2.0 SM' as ASCII
     [Fact(DisplayName = "RFC9113-3.4-CP-008: Magic bytes spell 'PRI * HTTP/2.0 SM' as ASCII")]
-    public void ClientPreface_Magic_SpellsCorrectAsciiString()
+    public void Should_SpellCorrectAsciiString_When_CheckingMagicBytes()
     {
         // Verify readable portion: "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
         var preface = Http2FrameUtils.BuildConnectionPreface();
@@ -175,7 +175,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Valid SETTINGS frame on stream 0 is accepted
     [Fact(DisplayName = "RFC9113-3.4-SP-001: Valid SETTINGS frame on stream 0 is accepted")]
-    public void ServerPreface_ValidSettingsFrame_ReturnsTrue()
+    public void Should_ReturnTrue_When_ServerSendsValidSettingsFrame()
     {
         var bytes = SettingsFrame.SettingsAck();
         var list = new Http2FrameDecoder().Decode(bytes);
@@ -187,7 +187,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Fewer than 9 bytes returns false (need more data)
     [Fact(DisplayName = "RFC9113-3.4-SP-002: Fewer than 9 bytes returns false (need more data)")]
-    public void ServerPreface_FewerThan9Bytes_ReturnsFalse()
+    public void Should_ReturnFalse_When_ServerSendsFewerThan9Bytes()
     {
         // RFC 9113 §4.1: Frame header is 9 bytes minimum
         // Fewer than 9 bytes cannot contain a complete frame header, so preface is incomplete
@@ -207,7 +207,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — DATA frame as first frame throws PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-3.4-SP-003: DATA frame as first frame throws PROTOCOL_ERROR")]
-    public void ServerPreface_DataFrame_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ServerSendsDataFrameFirst()
     {
         // Build a minimal DATA frame: payload=1 byte, stream=1
         var buf = new byte[10];
@@ -226,7 +226,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — HEADERS frame as first frame throws PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-3.4-SP-004: HEADERS frame as first frame throws PROTOCOL_ERROR")]
-    public void ServerPreface_HeadersFrame_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ServerSendsHeadersFrameFirst()
     {
         var buf = new byte[9];
         buf[3] = (byte)FrameType.Headers;
@@ -239,7 +239,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — PING frame as first frame throws PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-3.4-SP-005: PING frame as first frame throws PROTOCOL_ERROR")]
-    public void ServerPreface_PingFrame_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ServerSendsPingFrameFirst()
     {
         var ping = new PingFrame(new byte[8], isAck: false).Serialize();
 
@@ -250,7 +250,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — GOAWAY frame as first frame throws PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-3.4-SP-006: GOAWAY frame as first frame throws PROTOCOL_ERROR")]
-    public void ServerPreface_GoAwayFrame_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ServerSendsGoAwayFrameFirst()
     {
         var goAway = new GoAwayFrame(lastStreamId: 0, Http2ErrorCode.NoError, null).Serialize();
 
@@ -261,7 +261,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — RST_STREAM frame as first frame throws PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-3.4-SP-007: RST_STREAM frame as first frame throws PROTOCOL_ERROR")]
-    public void ServerPreface_RstStreamFrame_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ServerSendsRstStreamFrameFirst()
     {
         var rst = new RstStreamFrame(streamId: 1, Http2ErrorCode.NoError).Serialize();
 
@@ -272,7 +272,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — WINDOW_UPDATE frame as first frame throws PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-3.4-SP-008: WINDOW_UPDATE frame as first frame throws PROTOCOL_ERROR")]
-    public void ServerPreface_WindowUpdateFrame_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ServerSendsWindowUpdateFrameFirst()
     {
         var wu = new WindowUpdateFrame(streamId: 0, increment: 1024).Serialize();
 
@@ -283,7 +283,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — SETTINGS frame on non-zero stream throws PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-3.4-SP-009: SETTINGS frame on non-zero stream throws PROTOCOL_ERROR")]
-    public void ServerPreface_SettingsFrameOnNonZeroStream_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ServerSendsSettingsOnNonZeroStream()
     {
         // Craft a SETTINGS frame header with stream ID = 1 (invalid; SETTINGS must use stream 0)
         var buf = new byte[9];
@@ -298,7 +298,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Exactly 9 bytes of SETTINGS on stream 0 is accepted
     [Fact(DisplayName = "RFC9113-3.4-SP-010: Exactly 9 bytes of SETTINGS on stream 0 is accepted")]
-    public void ServerPreface_Exactly9BytesOfSettingsOnStream0_ReturnsTrue()
+    public void Should_ReturnTrue_When_ServerSendsExactly9ByteSettingsOnStream0()
     {
         // 9-byte empty SETTINGS frame: length=0, type=SETTINGS, flags=0, stream=0
         var buf = new byte[9];
@@ -311,7 +311,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Multiple decoders each validate their own preface independently
     [Fact(DisplayName = "RFC9113-3.4-SP-011: Multiple decoders each validate their own preface independently")]
-    public void ServerPreface_MultipleDecoders_ValidateIndependently()
+    public void Should_ValidateIndependently_When_UsingMultipleDecoders()
     {
         var validFrame = new byte[9];
         validFrame[3] = (byte)FrameType.Settings;
@@ -332,7 +332,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — CONTINUATION frame as first frame throws PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-3.4-SP-012: CONTINUATION frame as first frame throws PROTOCOL_ERROR")]
-    public void ServerPreface_ContinuationFrame_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ServerSendsContinuationFrameFirst()
     {
         var buf = new byte[9];
         buf[3] = (byte)FrameType.Continuation;
@@ -345,7 +345,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — PRIORITY frame as first frame throws PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-3.4-SP-013: PRIORITY frame as first frame throws PROTOCOL_ERROR")]
-    public void ServerPreface_PriorityFrame_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ServerSendsPriorityFrameFirst()
     {
         var buf = new byte[9];
         buf[3] = (byte)FrameType.Priority;
@@ -362,7 +362,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Encoder preface passes validation if server echoes SETTINGS
     [Fact(DisplayName = "RFC9113-3.4-RT-001: Encoder preface passes validation if server echoes SETTINGS")]
-    public void ClientPreface_FollowedByServerSettingsAck_ValidatesCorrectly()
+    public void Should_ValidateCorrectly_When_ClientPrefaceFollowedByServerSettingsAck()
     {
         // After sending the client preface, the server responds with a SETTINGS frame.
         // Simulate server sending back an empty SETTINGS (valid server preface).
@@ -375,7 +375,7 @@ public sealed class Http2ConnectionPrefaceTests
 
     /// RFC 9113 §3.4 — Client preface SETTINGS payload entries are each 6 bytes
     [Fact(DisplayName = "RFC9113-3.4-RT-002: Client preface SETTINGS payload entries are each 6 bytes")]
-    public void ClientPreface_SettingsEntries_AreEach6Bytes()
+    public void Should_HaveEntriesOf6Bytes_When_CheckingClientPrefaceSettings()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
 
@@ -398,7 +398,7 @@ public sealed class Http2ConnectionPrefaceTests
     // =========================================================================
 
     [Fact(DisplayName = "RFC9113-4.1-001: Valid 9-byte frame header decoded correctly")]
-    public void FrameHeader_Valid9Bytes_DecodedCorrectly()
+    public void Should_DecodeCorrectly_When_FrameHeaderIsValid9Bytes()
     {
         // A SETTINGS ACK is the smallest valid frame (9-byte header, no payload).
         var frameBytes = SettingsFrame.SettingsAck();
@@ -410,7 +410,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-4.1-002: Frame length uses 24-bit field")]
-    public void FrameHeader_LargePayload_24BitLengthParsed()
+    public void Should_Parse24BitLength_When_FrameHasLargePayload()
     {
         // Build a SETTINGS frame with payload > 65535 bytes (66006 = 11001 × 6).
         const int payloadLen = 66006;
@@ -447,7 +447,7 @@ public sealed class Http2ConnectionPrefaceTests
     [InlineData(0x7)] // GOAWAY
     [InlineData(0x8)] // WINDOW_UPDATE
     [InlineData(0x9)] // CONTINUATION
-    public void FrameType_AllKnownTypes_DispatchedWithoutCrash(byte typeCode)
+    public void Should_DispatchWithoutCrash_When_AllKnownFrameTypes(byte typeCode)
     {
         byte[] frame;
         switch ((FrameType)typeCode)
@@ -515,7 +515,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-4.1-004: Unknown frame type 0x0A — silently ignored per RFC 9113 §5.5")]
-    public void FrameType_Unknown0x0A_SilentlyIgnored()
+    public void Should_SilentlyIgnore_When_FrameTypeIsUnknown0x0A()
     {
         // Build a raw frame with unknown type 0x0A (10).
         var frame = new byte[]
@@ -534,7 +534,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-4.1-005: R-bit masked out when reading GoAway last-stream-id")]
-    public void FrameHeader_RBitSetInGoAway_LastStreamIdMasked()
+    public void Should_MaskLastStreamId_When_RBitSetInGoAway()
     {
         // RFC 7540 §6.8: The GOAWAY last-stream-id has a reserved bit that MUST be ignored.
         var payload = new byte[8];
@@ -558,7 +558,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-4.1-006: R-bit in stream ID is silently stripped by Http2FrameDecoder")]
-    public void FrameHeader_RBitSetInStreamId_StrippedSilently()
+    public void Should_StripSilently_When_RBitSetInStreamId()
     {
         // A SETTINGS ACK frame with R-bit set in the stream word.
         var settingsFrame = new byte[9];
@@ -575,7 +575,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-4.1-007: Oversized DATA frame — Http2FrameDecoder does not enforce MAX_FRAME_SIZE")]
-    public void FrameHeader_PayloadExceedsMaxFrameSize_ProcessedByFrameDecoder()
+    public void Should_BeProcessedByFrameDecoder_When_PayloadExceedsMaxFrameSize()
     {
         // Build a DATA frame with length = 16385 (just over the default MAX_FRAME_SIZE of 16384).
         const int overSize = 16385;
@@ -603,7 +603,7 @@ public sealed class Http2ConnectionPrefaceTests
     // =========================================================================
 
     [Fact(DisplayName = "RFC9113-6.1-001: DATA frame received — response available on stream")]
-    public void DataFrame_Payload_DecodedCorrectly()
+    public void Should_DecodeCorrectly_When_DataFrameHasPayload()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
@@ -618,7 +618,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-002: END_STREAM on DATA marks stream closed")]
-    public void DataFrame_EndStream_MarksStreamClosed()
+    public void Should_MarkStreamClosed_When_EndStreamSetOnDataFrame()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
@@ -636,7 +636,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-003: Padded DATA frame processed — response status correct")]
-    public void DataFrame_Padded_PaddingStripped()
+    public void Should_StripPadding_When_DataFrameIsPadded()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
@@ -663,7 +663,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-004: DATA on stream 0 is PROTOCOL_ERROR")]
-    public void DataFrame_Stream0_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_DataFrameOnStream0()
     {
         var frame = new byte[]
         {
@@ -678,7 +678,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-005: DATA on closed stream causes STREAM_CLOSED")]
-    public void DataFrame_ClosedStream_ThrowsStreamClosed()
+    public void Should_ThrowStreamClosed_When_DataFrameOnClosedStream()
     {
         // RFC 9113 §6.1: DATA on a closed stream is a stream error.
         // Http2FrameDecoder is a frame parser and does not track stream state.
@@ -699,7 +699,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-006: Empty DATA frame with END_STREAM valid")]
-    public void DataFrame_EmptyWithEndStream_ResponseComplete()
+    public void Should_CompleteResponse_When_EmptyDataFrameHasEndStream()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
@@ -717,7 +717,7 @@ public sealed class Http2ConnectionPrefaceTests
     // =========================================================================
 
     [Fact(DisplayName = "RFC9113-6.2-001: HEADERS frame decoded into response headers")]
-    public void HeadersFrame_ResponseHeaders_Decoded()
+    public void Should_DecodeResponseHeaders_When_HeadersFrameReceived()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200"), ("x-custom", "value")]);
@@ -732,7 +732,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.2-002: END_STREAM on HEADERS closes stream immediately")]
-    public void HeadersFrame_EndStream_StreamClosedImmediately()
+    public void Should_CloseStreamImmediately_When_HeadersFrameHasEndStream()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "204")]);
@@ -745,7 +745,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.2-003: END_HEADERS on HEADERS marks complete block")]
-    public void HeadersFrame_EndHeaders_HeaderBlockComplete()
+    public void Should_CompleteHeaderBlock_When_HeadersFrameHasEndHeaders()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
@@ -761,7 +761,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.2-004: Padded HEADERS padding stripped")]
-    public void HeadersFrame_Padded_PaddingStripped()
+    public void Should_StripPadding_When_HeadersFrameIsPadded()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
@@ -792,7 +792,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.2-005: PRIORITY flag in HEADERS consumed correctly")]
-    public void HeadersFrame_PriorityFlag_ConsumedCorrectly()
+    public void Should_ConsumePriorityFlagCorrectly_When_HeadersFrameHasPriorityFlag()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
@@ -820,7 +820,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.2-006: HEADERS without END_HEADERS waits for CONTINUATION")]
-    public void HeadersFrame_WithoutEndHeaders_WaitsForContinuation()
+    public void Should_WaitForContinuation_When_HeadersFrameLacksEndHeaders()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
@@ -841,7 +841,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.2-007: HEADERS on stream 0 is PROTOCOL_ERROR")]
-    public void HeadersFrame_Stream0_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_HeadersFrameOnStream0()
     {
         // RFC 9113 §6.2: HEADERS on stream 0 is a connection error.
         // Http2FrameDecoder parses the frame; stream=0 validation happens at session layer.
@@ -864,7 +864,7 @@ public sealed class Http2ConnectionPrefaceTests
     // =========================================================================
 
     [Fact(DisplayName = "RFC9113-6.9-001: CONTINUATION appended to HEADERS block")]
-    public void ContinuationFrame_AppendedToHeaders_HeaderBlockMerged()
+    public void Should_MergeHeaderBlock_When_ContinuationFrameAppendedToHeaders()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200"), ("x-test", "cont")]);
@@ -884,7 +884,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-dec-002: END_HEADERS on final CONTINUATION completes block")]
-    public void ContinuationFrame_EndHeaders_CompletesBlock()
+    public void Should_CompleteBlock_When_ContinuationFrameHasEndHeaders()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
@@ -902,7 +902,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-003: Multiple CONTINUATION frames all merged")]
-    public void ContinuationFrame_Multiple_AllMerged()
+    public void Should_MergeAll_When_MultipleContinuationFrames()
     {
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200"), ("a", "1"), ("b", "2"), ("c", "3")]);
@@ -923,7 +923,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-004: CONTINUATION on wrong stream is PROTOCOL_ERROR")]
-    public void ContinuationFrame_WrongStream_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ContinuationFrameOnWrongStream()
     {
         var headersFrame = new byte[]
         {
@@ -947,7 +947,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-005: Non-CONTINUATION after HEADERS is PROTOCOL_ERROR")]
-    public void ContinuationFrame_NonContinuationAfterHeaders_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_NonContinuationFollowsHeadersWithoutEndHeaders()
     {
         // RFC 9113 §6.9: After HEADERS without END_HEADERS, next frame MUST be CONTINUATION.
         // Http2FrameDecoder enforces this and throws PROTOCOL_ERROR if violated.
@@ -965,7 +965,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-006: CONTINUATION on stream 0 is PROTOCOL_ERROR")]
-    public void ContinuationFrame_Stream0_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ContinuationFrameOnStream0()
     {
         var headersOnStream1 = new byte[]
         {
@@ -989,7 +989,7 @@ public sealed class Http2ConnectionPrefaceTests
     }
 
     [Fact(DisplayName = "RFC9113-6.10-CONT-001: CONTINUATION without HEADERS is PROTOCOL_ERROR")]
-    public void ContinuationFrame_WithoutPrecedingHeaders_ThrowsProtocolError()
+    public void Should_ThrowProtocolError_When_ContinuationFrameHasNoPrecedingHeaders()
     {
         var contFrame = new ContinuationFrame(1, new byte[] { 0x88 }, endHeaders: true).Serialize();
         var decoder = new Http2FrameDecoder();

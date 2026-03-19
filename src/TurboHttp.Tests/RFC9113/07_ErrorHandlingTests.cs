@@ -35,7 +35,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.4 — RST_STREAM decoded with correct StreamId
     [Fact(DisplayName = "RFC9113-6.4-RST-001: RST_STREAM decoded with correct StreamId")]
-    public void RstStream_DecodedWithCorrectStreamId()
+    public void Should_DecodeWithCorrectStreamId_When_RstStreamFrameReceived()
     {
         var bytes = new RstStreamFrame(5, Http2ErrorCode.Cancel).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -48,7 +48,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.4 — RST_STREAM decoded with correct ErrorCode
     [Fact(DisplayName = "RFC9113-6.4-RST-002: RST_STREAM decoded with correct ErrorCode")]
-    public void RstStream_DecodedWithCorrectErrorCode()
+    public void Should_DecodeWithCorrectErrorCode_When_RstStreamFrameReceived()
     {
         var bytes = new RstStreamFrame(3, Http2ErrorCode.Cancel).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -61,7 +61,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.4 — RST_STREAM has correct FrameType
     [Fact(DisplayName = "RFC9113-6.4-RST-003: RST_STREAM has correct FrameType")]
-    public void RstStream_HasCorrectFrameType()
+    public void Should_HaveCorrectFrameType_When_RstStreamFrameReceived()
     {
         var bytes = new RstStreamFrame(1, Http2ErrorCode.NoError).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -73,7 +73,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.4 — RST_STREAM with wrong payload length is FRAME_SIZE_ERROR
     [Fact(DisplayName = "RFC9113-6.4-RST-004: RST_STREAM with wrong payload length is FRAME_SIZE_ERROR")]
-    public void RstStream_WrongPayloadLength_IsFrameSizeError()
+    public void Should_BeFrameSizeError_When_RstStreamHasWrongPayloadLength()
     {
         // RST_STREAM must be exactly 4 bytes; send 3 bytes.
         var frame = new byte[9 + 3];
@@ -90,7 +90,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.4 — RST_STREAM round-trip preserves StreamId and ErrorCode
     [Fact(DisplayName = "RFC9113-6.4-RST-005: RST_STREAM round-trip preserves StreamId and ErrorCode")]
-    public void RstStream_RoundTrip_PreservesFields()
+    public void Should_PreserveFields_When_RstStreamRoundTrip()
     {
         var original = new RstStreamFrame(7, Http2ErrorCode.InternalError);
         var bytes = original.Serialize();
@@ -105,7 +105,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.4 — RST_STREAM with ProtocolError decoded correctly
     [Fact(DisplayName = "RFC9113-6.4-RST-006: RST_STREAM with ProtocolError decoded correctly")]
-    public void RstStream_ProtocolError_DecodedCorrectly()
+    public void Should_DecodeCorrectly_When_RstStreamHasProtocolError()
     {
         var bytes = new RstStreamFrame(11, Http2ErrorCode.ProtocolError).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -123,7 +123,7 @@ public sealed class Http2RstStreamPingTests
     [InlineData(Http2ErrorCode.FlowControlError)]
     [InlineData(Http2ErrorCode.RefusedStream)]
     [InlineData(Http2ErrorCode.StreamClosed)]
-    public void RstStream_VariousErrorCodes_DecodedCorrectly(Http2ErrorCode errorCode)
+    public void Should_DecodeCorrectly_When_RstStreamHasVariousErrorCodes(Http2ErrorCode errorCode)
     {
         var bytes = new RstStreamFrame(1, errorCode).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -139,7 +139,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.7 — PING decoded with correct Data
     [Fact(DisplayName = "RFC9113-6.7-PNG-001: PING decoded with correct Data")]
-    public void Ping_DecodedWithCorrectData()
+    public void Should_DecodeWithCorrectData_When_PingFrameReceived()
     {
         var pingData = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
         var bytes = new PingFrame(pingData).Serialize();
@@ -153,7 +153,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.7 — PING IsAck=false when ACK bit not set
     [Fact(DisplayName = "RFC9113-6.7-PNG-002: PING IsAck=false when ACK bit not set")]
-    public void Ping_NonAck_IsAckFalse()
+    public void Should_HaveIsAckFalse_When_PingIsNonAck()
     {
         var bytes = new PingFrame(new byte[8]).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -165,7 +165,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.7 — PING ACK decoded with IsAck=true
     [Fact(DisplayName = "RFC9113-6.7-PNG-003: PING ACK decoded with IsAck=true")]
-    public void Ping_Ack_IsAckTrue()
+    public void Should_HaveIsAckTrue_When_PingIsAck()
     {
         var bytes = new PingFrame(new byte[8], isAck: true).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -177,7 +177,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.7 — PING with wrong payload length is FRAME_SIZE_ERROR
     [Fact(DisplayName = "RFC9113-6.7-PNG-004: PING with wrong payload length is FRAME_SIZE_ERROR")]
-    public void Ping_WrongPayloadLength_IsFrameSizeError()
+    public void Should_BeFrameSizeError_When_PingHasWrongPayloadLength()
     {
         // PING must be exactly 8 bytes; send 4 bytes.
         var frame = new byte[9 + 4];
@@ -194,7 +194,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.7 — PING on non-zero stream is PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-6.7-PNG-005: PING on non-zero stream is PROTOCOL_ERROR")]
-    public void Ping_OnNonZeroStream_IsProtocolError()
+    public void Should_BeProtocolError_When_PingOnNonZeroStream()
     {
         // Craft a PING frame with stream ID = 1 (violates RFC 9113 §6.7).
         var frame = new byte[9 + 8];
@@ -211,7 +211,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.7 — PING has correct FrameType
     [Fact(DisplayName = "RFC9113-6.7-PNG-006: PING has correct FrameType")]
-    public void Ping_HasCorrectFrameType()
+    public void Should_HaveCorrectFrameType_When_PingFrameReceived()
     {
         var bytes = new PingFrame(new byte[8]).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -222,7 +222,7 @@ public sealed class Http2RstStreamPingTests
 
     /// RFC 9113 §6.7 — PING round-trip preserves Data and IsAck
     [Fact(DisplayName = "RFC9113-6.7-PNG-007: PING round-trip preserves Data and IsAck")]
-    public void Ping_RoundTrip_PreservesFields()
+    public void Should_PreserveFields_When_PingRoundTrip()
     {
         var data = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF, 0xCA, 0xFE, 0xBA, 0xBE };
         var original = new PingFrame(data, isAck: true);

@@ -30,7 +30,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — GOAWAY decoded with correct LastStreamId
     [Fact(DisplayName = "RFC9113-6.8-GA-001: GOAWAY decoded with correct LastStreamId")]
-    public void GoAway_DecodedWithCorrectLastStreamId()
+    public void Should_DecodeWithCorrectLastStreamId_When_GoAwayFrameReceived()
     {
         var bytes = new GoAwayFrame(7, Http2ErrorCode.NoError).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -43,7 +43,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — GOAWAY decoded with correct ErrorCode
     [Fact(DisplayName = "RFC9113-6.8-GA-002: GOAWAY decoded with correct ErrorCode")]
-    public void GoAway_DecodedWithCorrectErrorCode()
+    public void Should_DecodeWithCorrectErrorCode_When_GoAwayFrameReceived()
     {
         var bytes = new GoAwayFrame(3, Http2ErrorCode.ProtocolError).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -56,7 +56,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — GOAWAY has FrameType GoAway
     [Fact(DisplayName = "RFC9113-6.8-GA-003: GOAWAY has FrameType GoAway")]
-    public void GoAway_HasCorrectFrameType()
+    public void Should_HaveCorrectFrameType_When_GoAwayFrameReceived()
     {
         var bytes = new GoAwayFrame(1, Http2ErrorCode.NoError).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -67,7 +67,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — GOAWAY StreamId is always 0
     [Fact(DisplayName = "RFC9113-6.8-GA-004: GOAWAY StreamId is always 0")]
-    public void GoAway_StreamIdIsZero()
+    public void Should_HaveZeroStreamId_When_GoAwayFrameReceived()
     {
         var bytes = new GoAwayFrame(5, Http2ErrorCode.NoError).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -78,7 +78,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — GOAWAY without debug data has empty DebugData
     [Fact(DisplayName = "RFC9113-6.8-GA-005: GOAWAY without debug data has empty DebugData")]
-    public void GoAway_WithoutDebugData_HasEmptyDebugData()
+    public void Should_HaveEmptyDebugData_When_GoAwayHasNoDebugData()
     {
         var bytes = new GoAwayFrame(1, Http2ErrorCode.NoError).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -94,7 +94,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — GOAWAY with debug data decoded correctly
     [Fact(DisplayName = "RFC9113-6.8-GA-006: GOAWAY with debug data decoded correctly")]
-    public void GoAway_WithDebugData_DecodedCorrectly()
+    public void Should_DecodeCorrectly_When_GoAwayHasDebugData()
     {
         var debugData = "graceful shutdown"u8.ToArray();
         var bytes = new GoAwayFrame(3, Http2ErrorCode.NoError, debugData).Serialize();
@@ -107,7 +107,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — GOAWAY with lastStreamId=0 decoded correctly
     [Fact(DisplayName = "RFC9113-6.8-GA-007: GOAWAY with lastStreamId=0 decoded correctly")]
-    public void GoAway_LastStreamIdZero_DecodedCorrectly()
+    public void Should_DecodeCorrectly_When_GoAwayLastStreamIdIsZero()
     {
         var bytes = new GoAwayFrame(0, Http2ErrorCode.NoError).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -123,7 +123,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — GOAWAY on non-zero stream is PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-6.8-GA-008: GOAWAY on non-zero stream is PROTOCOL_ERROR")]
-    public void GoAway_OnNonZeroStream_IsProtocolError()
+    public void Should_BeProtocolError_When_GoAwayOnNonZeroStream()
     {
         // Craft a GOAWAY frame with stream ID = 1 (violates RFC 9113 §6.8).
         var frame = new byte[9 + 8];
@@ -145,7 +145,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — GOAWAY round-trip preserves LastStreamId, ErrorCode, and DebugData
     [Fact(DisplayName = "RFC9113-6.8-GA-009: GOAWAY round-trip preserves LastStreamId, ErrorCode, and DebugData")]
-    public void GoAway_RoundTrip_PreservesAllFields()
+    public void Should_PreserveAllFields_When_GoAwayRoundTrip()
     {
         var debugData = new byte[] { 0xAB, 0xCD };
         var original = new GoAwayFrame(9, Http2ErrorCode.InternalError, debugData);
@@ -171,7 +171,7 @@ public sealed class Http2GoAwayTests
     [InlineData(Http2ErrorCode.Cancel)]
     [InlineData(Http2ErrorCode.FlowControlError)]
     [InlineData(Http2ErrorCode.CompressionError)]
-    public void GoAway_VariousErrorCodes_DecodedCorrectly(Http2ErrorCode errorCode)
+    public void Should_DecodeCorrectly_When_GoAwayHasVariousErrorCodes(Http2ErrorCode errorCode)
     {
         var bytes = new GoAwayFrame(1, errorCode).Serialize();
         var decoder = new Http2FrameDecoder();
@@ -187,7 +187,7 @@ public sealed class Http2GoAwayTests
 
     /// RFC 9113 §6.8 — Reserved high bit in LastStreamId field is stripped
     [Fact(DisplayName = "RFC9113-6.8-GA-011: Reserved high bit in LastStreamId field is stripped")]
-    public void GoAway_ReservedHighBit_IsStripped()
+    public void Should_Strip_When_GoAwayLastStreamIdHasReservedHighBit()
     {
         // Craft a GOAWAY frame with the reserved high bit set in lastStreamId.
         var frame = new byte[9 + 8];
