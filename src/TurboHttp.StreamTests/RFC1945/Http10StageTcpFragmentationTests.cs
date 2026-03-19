@@ -63,7 +63,7 @@ public sealed class Http10StageTcpFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC1945-6-10FR-001: Response split into 3 TCP fragments → correctly reassembled")]
-    public async Task ST_10F_001_Three_Fragments_Reassembled()
+    public async Task Should_ReassembleResponse_When_SplitIntoThreeFragments()
     {
         const string fullResponse =
             "HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 13\r\n\r\nHello, World!";
@@ -83,7 +83,7 @@ public sealed class Http10StageTcpFragmentationTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-6.2-10FR-002: Headers split across 2 fragments → correctly parsed")]
-    public async Task ST_10F_002_Headers_Split_Across_Two_Fragments()
+    public async Task Should_ParseHeaders_When_SplitAcrossTwoFragments()
     {
         const string fullResponse =
             "HTTP/1.0 200 OK\r\nServer: TurboHttp\r\nX-Custom: test-value\r\nContent-Length: 4\r\n\r\nData";
@@ -105,7 +105,7 @@ public sealed class Http10StageTcpFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC1945-7-10FR-003: Body fragment arrives in separate chunk → content complete")]
-    public async Task ST_10F_003_Body_In_Separate_Fragment()
+    public async Task Should_CompleteBody_When_BodyArrivesInSeparateFragment()
     {
         const string bodyText = "This is the body content that arrives separately";
         var fullResponse = $"HTTP/1.0 200 OK\r\nContent-Length: {bodyText.Length}\r\n\r\n{bodyText}";
@@ -123,7 +123,7 @@ public sealed class Http10StageTcpFragmentationTests : StreamTestBase
     }
 
     [Fact(Timeout = 30_000, DisplayName = "RFC1945-6-10FR-004: 1-byte fragments → decoder handles gracefully")]
-    public async Task ST_10F_004_Single_Byte_Fragments()
+    public async Task Should_HandleGracefully_When_SingleByteFragments()
     {
         const string fullResponse = "HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nABC";
         var bytes = Encoding.Latin1.GetBytes(fullResponse);
@@ -141,7 +141,7 @@ public sealed class Http10StageTcpFragmentationTests : StreamTestBase
     [Fact(Timeout = 10_000,
         DisplayName =
             "RFC1945-6-10FR-005: Fragment boundary in middle of \\r\\n\\r\\n → header end correctly detected")]
-    public async Task ST_10F_005_Fragment_Boundary_Inside_CrLfCrLf()
+    public async Task Should_DetectHeaderEnd_When_FragmentBoundaryInsideCrLfCrLf()
     {
         const string fullResponse = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nHello";
         var bytes = Encoding.Latin1.GetBytes(fullResponse);

@@ -39,7 +39,7 @@ public sealed class Http10EncoderStageRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.1-10ES-001: Request-line format: GET /path HTTP/1.0 CRLF")]
-    public async Task _10E_RFC_001_RequestLine_Format()
+    public async Task Should_FormatRequestLineCorrectly_When_GetRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
 
@@ -49,7 +49,7 @@ public sealed class Http10EncoderStageRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-7-10ES-002: POST with body includes Content-Length header")]
-    public async Task _10E_RFC_002_Post_ContentLengthPresent()
+    public async Task Should_IncludeContentLength_When_PostWithBody()
     {
         var body = "hello=world"u8.ToArray();
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/submit")
@@ -63,7 +63,7 @@ public sealed class Http10EncoderStageRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5-10ES-003: No Host header in HTTP/1.0 request")]
-    public async Task _10E_RFC_003_NoHostHeader()
+    public async Task Should_NotEmitHostHeader_When_Http10Request()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
@@ -73,7 +73,7 @@ public sealed class Http10EncoderStageRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.2-10ES-004: Connection header is not sent (no keep-alive in HTTP/1.0)")]
-    public async Task _10E_RFC_004_NoConnectionHeader()
+    public async Task Should_NotEmitConnectionHeader_When_Http10Request()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
@@ -83,7 +83,7 @@ public sealed class Http10EncoderStageRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.1-10ES-005: Query string is preserved in request target")]
-    public async Task _10E_RFC_005_QueryString_InRequestTarget()
+    public async Task Should_PreserveQueryString_When_RequestTargetHasQuery()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/search?q=foo");
 

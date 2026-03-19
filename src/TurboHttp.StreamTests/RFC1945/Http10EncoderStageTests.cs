@@ -27,7 +27,7 @@ public sealed class Http10EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.1-10ES-001: Request-Line is METHOD SP path SP HTTP/1.0 CRLF")]
-    public async Task ST_10_ENC_001_RequestLine_Format()
+    public async Task Should_FormatRequestLine_When_GetRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/index.html")
         {
@@ -40,7 +40,7 @@ public sealed class Http10EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-7.1-10ES-002: Custom header is forwarded verbatim")]
-    public async Task ST_10_ENC_002_CustomHeader_Forwarded()
+    public async Task Should_ForwardCustomHeaderVerbatim_When_CustomHeaderSet()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -54,7 +54,7 @@ public sealed class Http10EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-D.1-10ES-003: No Host header emitted")]
-    public async Task ST_10_ENC_003_NoHostHeader()
+    public async Task Should_NotEmitHostHeader_When_Http10Request()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -67,7 +67,7 @@ public sealed class Http10EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-7.1-10ES-004: No Connection header emitted even when set on request")]
-    public async Task ST_10_ENC_004_ConnectionHeader_Suppressed()
+    public async Task Should_SuppressConnectionHeader_When_ConnectionHeaderSet()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -81,7 +81,7 @@ public sealed class Http10EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-D.1-10ES-005: POST body bytes follow headers after double-CRLF")]
-    public async Task ST_10_ENC_005_PostBody_FollowsHeaders()
+    public async Task Should_PlacePostBodyAfterHeaders_When_PostWithBody()
     {
         var body = "hello"u8.ToArray();
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/submit")
@@ -99,7 +99,7 @@ public sealed class Http10EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-D.1-10ES-006: Content-Length header present for POST body")]
-    public async Task ST_10_ENC_006_ContentLength_PresentForPostBody()
+    public async Task Should_IncludeContentLengthHeader_When_PostBodyPresent()
     {
         var body = "hello"u8.ToArray();
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/submit")

@@ -34,7 +34,7 @@ public sealed class Http10DecoderStageRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-6.1-10DS-001: Status-line HTTP/1.0 200 OK → StatusCode=200, Version=1.0")]
-    public async Task _10D_RFC_001_StatusLine_200OK()
+    public async Task Should_ParseStatusCode200AndVersion10_When_StatusLineIs200OK()
     {
         var response = await DecodeAsync("HTTP/1.0 200 OK\r\n\r\n");
 
@@ -43,7 +43,7 @@ public sealed class Http10DecoderStageRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-6.1-10DS-002: Status-line HTTP/1.0 404 Not Found → StatusCode=404")]
-    public async Task _10D_RFC_002_StatusLine_404NotFound()
+    public async Task Should_ParseStatusCode404_When_StatusLineIs404NotFound()
     {
         var response = await DecodeAsync("HTTP/1.0 404 Not Found\r\n\r\n");
 
@@ -52,7 +52,7 @@ public sealed class Http10DecoderStageRfcTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC1945-6.2-10DS-003: Response headers Content-Type and Content-Length correctly parsed")]
-    public async Task _10D_RFC_003_ResponseHeaders_Parsed()
+    public async Task Should_ParseContentTypeAndContentLength_When_ResponseHeadersPresent()
     {
         const string raw =
             "HTTP/1.0 200 OK\r\n" +
@@ -69,7 +69,7 @@ public sealed class Http10DecoderStageRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-7-10DS-004: Body with Content-Length correctly read")]
-    public async Task _10D_RFC_004_Body_ContentLength_Read()
+    public async Task Should_ReadBodyCorrectly_When_ContentLengthHeaderPresent()
     {
         const string raw =
             "HTTP/1.0 200 OK\r\n" +
@@ -85,7 +85,7 @@ public sealed class Http10DecoderStageRfcTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC1945-6-10DS-005: Connection-Close — stream ends after body, exactly 1 response emitted")]
-    public async Task _10D_RFC_005_ConnectionClose_StreamEndsAfterBody()
+    public async Task Should_EmitExactlyOneResponse_When_ConnectionClosesAfterBody()
     {
         // HTTP/1.0 has no persistent connections; after the body the connection closes.
         // The decoder stage must emit exactly one response and then complete cleanly.

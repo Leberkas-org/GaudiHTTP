@@ -46,7 +46,7 @@ public sealed class Http10StageRoundTripMethodTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.1-10RT-001: GET → 200 OK — request-line + response correct")]
-    public async Task ST_10RT_M_001_Get_200_Ok()
+    public async Task Should_EncodeGetRequestAndDecode200Response_When_GetRequest()
     {
         // Encode
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource")
@@ -66,7 +66,7 @@ public sealed class Http10StageRoundTripMethodTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.1-10RT-002: POST with body → body in wire format + 200 response")]
-    public async Task ST_10RT_M_002_Post_Body_200()
+    public async Task Should_EncodePostBodyAndDecode200Response_When_PostWithBody()
     {
         // Encode
         const string payload = "field=value&other=123";
@@ -97,7 +97,7 @@ public sealed class Http10StageRoundTripMethodTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC1945-5.1-10RT-003: HEAD → response without body, but with Content-Length header")]
-    public async Task ST_10RT_M_003_Head_No_Body_With_ContentLength()
+    public async Task Should_EncodeHeadRequestAndDecodeResponseWithoutBody_When_HeadRequest()
     {
         // Encode
         var request = new HttpRequestMessage(HttpMethod.Head, "http://example.com/resource")
@@ -118,7 +118,7 @@ public sealed class Http10StageRoundTripMethodTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.1-10RT-004: DELETE → 204 No Content (empty body)")]
-    public async Task ST_10RT_M_004_Delete_204_NoContent()
+    public async Task Should_EncodeDeleteRequestAndDecode204Response_When_DeleteRequest()
     {
         // Encode
         var request = new HttpRequestMessage(HttpMethod.Delete, "http://example.com/resource/42")
@@ -137,7 +137,7 @@ public sealed class Http10StageRoundTripMethodTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.1-10RT-005: PUT → body correctly transmitted and response parsed")]
-    public async Task ST_10RT_M_005_Put_Body_RoundTrip()
+    public async Task Should_EncodeAndDecodeBodyCorrectly_When_PutWithBody()
     {
         // Encode
         const string payload = "{\"name\":\"updated\"}";

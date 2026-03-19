@@ -24,7 +24,7 @@ public sealed class Http10DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-6.1-10DS-001: Status-Line decoded to StatusCode and Version")]
-    public async Task ST_10_DEC_001_StatusLine_Decoded()
+    public async Task Should_DecodeStatusLineToStatusCodeAndVersion_When_ValidHttp10Response()
     {
         var response = await DecodeAsync("HTTP/1.0 200 OK\r\n\r\n");
 
@@ -33,7 +33,7 @@ public sealed class Http10DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-6.2-10DS-002: Response header decoded to response.Headers")]
-    public async Task ST_10_DEC_002_ResponseHeader_Decoded()
+    public async Task Should_DecodeResponseHeaderToResponseHeaders_When_HeaderPresent()
     {
         var response = await DecodeAsync("HTTP/1.0 200 OK\r\nX-Custom: test\r\n\r\n");
 
@@ -42,7 +42,7 @@ public sealed class Http10DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-7-10DS-003: Body delimited by Content-Length decoded correctly")]
-    public async Task ST_10_DEC_003_ContentLength_Body_Decoded()
+    public async Task Should_DecodeBodyCorrectly_When_DelimitedByContentLength()
     {
         var response = await DecodeAsync("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
 
@@ -52,7 +52,7 @@ public sealed class Http10DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-6.1-10DS-004: 404 response decoded to HttpStatusCode.NotFound")]
-    public async Task ST_10_DEC_004_NotFound_StatusCode()
+    public async Task Should_Decode404ToNotFound_When_StatusCodeIs404()
     {
         var response = await DecodeAsync("HTTP/1.0 404 Not Found\r\n\r\n");
 
@@ -60,7 +60,7 @@ public sealed class Http10DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-7-10DS-005: Response split across two TCP chunks reassembled")]
-    public async Task ST_10_DEC_005_Fragmented_Reassembled()
+    public async Task Should_ReassembleFragmentedResponse_When_SplitAcrossTwoChunks()
     {
         // Body split: first chunk has partial body ("he"), second chunk has remainder ("llo")
         var response = await DecodeAsync("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhe", "llo");

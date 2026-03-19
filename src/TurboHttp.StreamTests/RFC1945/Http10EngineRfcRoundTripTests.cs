@@ -16,7 +16,7 @@ public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
     // ── 10ENG-001: GET → 200 with body — version 1.0 in response ────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-4.1-10EN-001: GET → 200 with body — version 1.0 in response")]
-    public async Task ENG_001_Get_Returns_200_With_Body_And_Version10()
+    public async Task Should_ReturnBodyWithVersion10_When_GetReturns200()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/hello")
         {
@@ -40,7 +40,7 @@ public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
     // ── 10ENG-002: POST with body → request body in wire, 200 response with body ─
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-7-10EN-002: POST with body → request body in wire, 200 response with body")]
-    public async Task ENG_002_Post_Body_In_Wire_And_Response_Body()
+    public async Task Should_IncludeBodyInWireAndDecodeResponse_When_PostWithBody()
     {
         const string payload = "field=value&other=42";
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/submit")
@@ -70,7 +70,7 @@ public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
     // ── 10ENG-003: 404 response → StatusCode correct, ReasonPhrase present ───────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-6.1-10EN-003: 404 response → StatusCode correct, ReasonPhrase present")]
-    public async Task ENG_003_404_Response_StatusCode_And_ReasonPhrase()
+    public async Task Should_SetCorrectStatusCodeAndReasonPhrase_When_404Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/missing")
         {
@@ -91,7 +91,7 @@ public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
     // ── 10ENG-004: Custom request header → in wire and response carries header ───
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.2-10EN-004: Custom request header → present in wire bytes")]
-    public async Task ENG_004_Custom_Request_Header_In_Wire()
+    public async Task Should_IncludeCustomHeaderInWire_When_CustomRequestHeaderSet()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/api")
         {
@@ -114,7 +114,7 @@ public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
     // ── 10ENG-005: Response correlation — response.RequestMessage == sent request ─
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-4.1-10EN-005: response.RequestMessage is the original sent request")]
-    public async Task ENG_005_Response_RequestMessage_Is_Original_Request()
+    public async Task Should_SetRequestMessageToOriginalRequest_When_ResponseReceived()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/corr")
         {

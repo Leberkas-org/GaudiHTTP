@@ -74,7 +74,7 @@ public sealed class Http10StageRoundTripHeaderBodyTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-7-10RT-001: Empty body → Content-Length: 0")]
-    public async Task ST_10RT_B_001_Empty_Body_ContentLength_Zero()
+    public async Task Should_EncodeContentLengthZero_When_EmptyBody()
     {
         // Encode a POST with empty content
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/empty")
@@ -97,7 +97,7 @@ public sealed class Http10StageRoundTripHeaderBodyTests : StreamTestBase
 
     [Fact(Timeout = 30_000,
         DisplayName = "RFC1945-7-10RT-002: Large body (64 KB) → correctly serialized and deserialized")]
-    public async Task ST_10RT_B_002_Large_Body_64KB()
+    public async Task Should_SerializeAndDeserializeCorrectly_When_LargeBody64KB()
     {
         // Build a 64 KB payload
         var payload = new string('A', 65536);
@@ -131,7 +131,7 @@ public sealed class Http10StageRoundTripHeaderBodyTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC1945-7-10RT-003: Binary body (bytes 0x00–0xFF) → byte-for-byte identical")]
-    public async Task ST_10RT_B_003_Binary_Body_ByteForByte()
+    public async Task Should_PreserveBytesExactly_When_BinaryBody()
     {
         // Build a 256-byte binary payload (0x00..0xFF)
         var binaryPayload = new byte[256];
@@ -172,7 +172,7 @@ public sealed class Http10StageRoundTripHeaderBodyTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.2-10RT-004: Custom headers in request → present in wire format")]
-    public async Task ST_10RT_B_004_Custom_Request_Headers_In_Wire()
+    public async Task Should_IncludeCustomHeadersInWire_When_CustomHeadersSet()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/api")
         {
@@ -195,7 +195,7 @@ public sealed class Http10StageRoundTripHeaderBodyTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC1945-6.2-10RT-005: Response with multiple headers → all correctly parsed")]
-    public async Task ST_10RT_B_005_Response_Multiple_Headers()
+    public async Task Should_ParseAllHeaders_When_ResponseHasMultipleHeaders()
     {
         var response = await DecodeAsync(
             "HTTP/1.0 200 OK\r\n" +
