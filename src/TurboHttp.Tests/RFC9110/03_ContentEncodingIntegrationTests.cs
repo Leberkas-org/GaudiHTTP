@@ -12,7 +12,6 @@ namespace TurboHttp.Tests.RFC9110;
 /// </summary>
 public sealed class ContentEncodingIntegrationTests
 {
-    // ── Compression helpers ──────────────────────────────────────────────────
 
     private static byte[] GzipCompress(byte[] data)
     {
@@ -71,7 +70,6 @@ public sealed class ContentEncodingIntegrationTests
         return result;
     }
 
-    // ── Stacked Encoding Tests ───────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-8.4-SE-001: Should_DecompressStackedEncodings_GzipThenBr")]
     public async Task Should_DecompressStackedEncodings_When_GzipThenBrEncoding()
@@ -141,7 +139,6 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Equal(original.Length, response.Content.Headers.ContentLength);
     }
 
-    // ── Accept-Encoding Injection Tests ──────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-8.4-AE-001: Should_AddAcceptEncoding_When_NotAlreadySet")]
     public void Should_AddAcceptEncoding_When_NotAlreadySet()
@@ -204,7 +201,6 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Contains("Accept-Encoding: gzip, deflate, br", encoded);
     }
 
-    // ── Content-Encoding + Accept-Encoding Round-Trip Tests ─────────────────
 
     [Fact(DisplayName = "RFC9110-8.4-RT-001: Should_HandleRequestResponseWithCompressionCycle")]
     public async Task Should_HandleCompressionCycle_When_RequestAndResponseCompressed()
@@ -276,7 +272,6 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Equal(responseBody, decompressed);
     }
 
-    // ── HTTP Version Compatibility ───────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-8.4-CV-001: Should_DecodeStackedEncodingsConsistentlyAcrossVersions")]
     public async Task Should_DecodeStackedEncodings_When_CheckingMultipleVersions()

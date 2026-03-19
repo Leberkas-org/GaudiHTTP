@@ -9,7 +9,6 @@ namespace TurboHttp.Tests.RFC9110;
 /// </summary>
 public sealed class RetryEvaluatorTests
 {
-    // ── Idempotent method retry (network failure) ────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-001: Should_Retry_When_GET_And_NetworkFailure")]
     public void Should_Retry_When_GET_And_NetworkFailure()
@@ -65,7 +64,6 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    // ── Non-idempotent methods MUST NOT be retried ───────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-007: Should_NotRetry_When_POST_And_NetworkFailure")]
     public void Should_NotRetry_When_POST_And_NetworkFailure()
@@ -109,7 +107,6 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("not idempotent", decision.Reason);
     }
 
-    // ── Retriable status codes: 408, 503 ─────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-011: Should_Retry_When_GET_And_408Response")]
     public void Should_Retry_When_GET_And_408Response()
@@ -143,7 +140,6 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    // ── Non-retriable status codes ────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-014: Should_NotRetry_When_GET_And_500Response")]
     public void Should_NotRetry_When_GET_And_500Response()
@@ -187,7 +183,6 @@ public sealed class RetryEvaluatorTests
         Assert.False(decision.ShouldRetry);
     }
 
-    // ── Partially-consumed body blocks all retries ────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-018: Should_NotRetry_When_BodyPartiallyConsumed_GET")]
     public void Should_NotRetry_When_BodyPartiallyConsumed_GET()
@@ -222,7 +217,6 @@ public sealed class RetryEvaluatorTests
         Assert.False(decision.ShouldRetry);
     }
 
-    // ── Retry limit enforcement ───────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-021: Should_NotRetry_When_MaxRetries_Reached")]
     public void Should_NotRetry_When_MaxRetries_Reached()
@@ -270,7 +264,6 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("Retry limit", decision.Reason);
     }
 
-    // ── Retry-After header parsing ────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-025: Should_IncludeRetryAfterDelay_When_503_With_Seconds")]
     public void Should_IncludeRetryAfterDelay_When_503_With_Seconds()
@@ -355,7 +348,6 @@ public sealed class RetryEvaluatorTests
         Assert.Null(decision.RetryAfterDelay);
     }
 
-    // ── Default policy and fallback behavior ──────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-031: Should_UseDefaultPolicy_When_Policy_Null")]
     public void Should_UseDefaultPolicy_When_Policy_Null()
@@ -386,7 +378,6 @@ public sealed class RetryEvaluatorTests
         Assert.False(decision.ShouldRetry);
     }
 
-    // ── Decision includes non-empty reason ───────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-034: Should_AlwaysHaveNonEmptyReason")]
     public void Should_AlwaysHaveNonEmptyReason()
@@ -401,7 +392,6 @@ public sealed class RetryEvaluatorTests
         Assert.NotEmpty(noRetryDecision.Reason);
     }
 
-    // ── RetryPolicy defaults ──────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-035: RetryPolicy_Default_MaxRetries_Is_Three")]
     public void RetryPolicy_Default_MaxRetries_Is_Three()
@@ -415,7 +405,6 @@ public sealed class RetryEvaluatorTests
         Assert.True(RetryPolicy.Default.RespectRetryAfter);
     }
 
-    // ── RetryDecision factory methods ─────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-037: RetryDecision_Retry_Sets_ShouldRetry_True")]
     public void RetryDecision_Retry_Sets_ShouldRetry_True()
@@ -447,7 +436,6 @@ public sealed class RetryEvaluatorTests
         Assert.Null(decision.RetryAfterDelay);
     }
 
-    // ── Retry-After with future HTTP-date ─────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-9.2-RE-040: Should_RetryAfterDelay_Be_Positive_When_Date_In_Future")]
     public void Should_RetryAfterDelay_Be_Positive_When_Date_In_Future()

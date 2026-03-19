@@ -7,7 +7,6 @@ public sealed class CacheFreshnessTests
 {
     private static readonly DateTimeOffset _baseTime = new(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-    // ── Helper ───────────────────────────────────────────────────────────────
 
     private static CacheEntry MakeEntry(
         int? maxAgeSeconds = null,
@@ -46,7 +45,6 @@ public sealed class CacheFreshnessTests
         };
     }
 
-    // ── GetFreshnessLifetime ─────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4.2-CF-001: max-age=60 → freshness lifetime = 60s")]
     public void Should_ReturnFreshnessLifetime60s_When_MaxAge60()
@@ -108,7 +106,6 @@ public sealed class CacheFreshnessTests
         Assert.Equal(TimeSpan.Zero, lifetime);
     }
 
-    // ── GetCurrentAge ────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4.2.3-CF-008: current age uses Age header value")]
     public void Should_UseAgeHeader_When_ComputingCurrentAge()
@@ -135,7 +132,6 @@ public sealed class CacheFreshnessTests
         Assert.Equal(TimeSpan.FromSeconds(11), age);
     }
 
-    // ── IsFresh ──────────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4.2-CF-010: fresh entry: freshness_lifetime > current_age → IsFresh=true")]
     public void Should_ReturnIsFreshTrue_When_FreshnessLifetimeExceedsCurrentAge()
@@ -153,7 +149,6 @@ public sealed class CacheFreshnessTests
         Assert.False(CacheFreshnessEvaluator.IsFresh(entry, now));
     }
 
-    // ── Evaluate ─────────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4-CF-012: Evaluate with null entry → Miss")]
     public void Should_ReturnMiss_When_EntryIsNull()

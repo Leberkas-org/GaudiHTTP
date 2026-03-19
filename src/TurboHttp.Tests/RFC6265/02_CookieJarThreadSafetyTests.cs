@@ -20,7 +20,6 @@ public sealed class CookieJarThreadSafetyTests
         return response;
     }
 
-    // ── TS-001–TS-004: Concurrent read + write safety ────────────────────────
 
     [Fact(DisplayName = "RFC6265-5.3-TS-001: Concurrent ProcessResponse calls don't throw")]
     public async Task Should_NotThrow_When_ConcurrentProcessResponse()
@@ -166,7 +165,6 @@ public sealed class CookieJarThreadSafetyTests
         Assert.Empty(exceptions);
     }
 
-    // ── TS-005–TS-007: Correctness under contention ─────────────────────────
 
     [Fact(DisplayName = "RFC6265-5.3-TS-005: Cookie injection returns correct cookies under contention")]
     public async Task Should_ReturnCorrectCookies_When_ConcurrentInjectionUnderContention()

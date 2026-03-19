@@ -7,7 +7,6 @@ public sealed class CacheStoreTests
 {
     private static readonly DateTimeOffset _baseTime = new(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
-    // ── Helper ───────────────────────────────────────────────────────────────
 
     private static HttpRequestMessage GetRequest(string uri = "http://example.com/resource")
         => new(HttpMethod.Get, uri);
@@ -20,7 +19,6 @@ public sealed class CacheStoreTests
         return r;
     }
 
-    // ── IsCacheable ───────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-3.1-CS-001: GET 200 with max-age is cacheable")]
     public void Should_BeCacheable_When_200OkWithMaxAge()
@@ -52,7 +50,6 @@ public sealed class CacheStoreTests
         Assert.False(HttpCacheStore.IsCacheable(response));
     }
 
-    // ── ShouldStore ───────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-3-CS-004: GET 200 with max-age should be stored")]
     public void Should_StoreEntry_When_Get200WithMaxAge()
@@ -83,7 +80,6 @@ public sealed class CacheStoreTests
         Assert.False(HttpCacheStore.ShouldStore(GetRequest(), response));
     }
 
-    // ── Get / Put / Invalidate ────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4-CS-008: Get on empty store returns null")]
     public void Should_ReturnNull_When_StoreIsEmpty()
@@ -120,7 +116,6 @@ public sealed class CacheStoreTests
         Assert.Null(store.Get(GetRequest()));
     }
 
-    // ── Vary ──────────────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4.1-CS-011: Vary header — different Accept is a cache miss")]
     public void Should_ReturnMiss_When_VaryHeaderAndDifferentAccept()
@@ -174,7 +169,6 @@ public sealed class CacheStoreTests
         Assert.Null(store.Get(GetRequest()));
     }
 
-    // ── LRU eviction ─────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-3-CS-014: LRU eviction when MaxEntries exceeded")]
     public void Should_EvictEntries_When_MaxEntriesExceeded()

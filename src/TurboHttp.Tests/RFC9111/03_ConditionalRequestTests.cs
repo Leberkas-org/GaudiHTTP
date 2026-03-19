@@ -7,7 +7,6 @@ public sealed class ConditionalRequestTests
 {
     private static readonly DateTimeOffset _baseTime = new(2024, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-    // ── Helper ───────────────────────────────────────────────────────────────
 
     private static CacheEntry MakeEntry(string? etag = null, DateTimeOffset? lastModified = null)
     {
@@ -22,7 +21,6 @@ public sealed class ConditionalRequestTests
         };
     }
 
-    // ── BuildConditionalRequest ───────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4.3.1-CR-001: entry with ETag adds If-None-Match header")]
     public void Should_AddIfNoneMatchHeader_When_EntryHasETag()
@@ -87,7 +85,6 @@ public sealed class ConditionalRequestTests
         Assert.Equal(HttpMethod.Get, conditional.Method);
     }
 
-    // ── CanRevalidate ─────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4.3.2-CR-006: CanRevalidate returns false for entry without ETag or Last-Modified")]
     public void Should_ReturnFalse_When_NoValidatorsPresent()
@@ -110,7 +107,6 @@ public sealed class ConditionalRequestTests
         Assert.True(CacheValidationRequestBuilder.CanRevalidate(entry));
     }
 
-    // ── MergeNotModifiedResponse ──────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4.3.4-CR-009: merged response StatusCode is 200 (not 304)")]
     public void Should_Return200StatusCode_When_MergingNotModifiedResponse()

@@ -11,7 +11,6 @@ public sealed class CacheIntegrationTests
 {
     private static readonly DateTimeOffset _baseTime = new(2024, 6, 1, 12, 0, 0, TimeSpan.Zero);
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static HttpRequestMessage GetRequest(string uri = "http://example.com/api/data")
         => new(HttpMethod.Get, uri);
@@ -24,7 +23,6 @@ public sealed class CacheIntegrationTests
         return r;
     }
 
-    // ── Full cycle tests ──────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9111-4-CI-001: PUT response then GET same URI → Fresh hit")]
     public void Should_ReturnFreshHit_When_PutThenGetSameUri()

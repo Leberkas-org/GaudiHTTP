@@ -349,8 +349,8 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 **Scope:** `src/TurboHttp.Tests/RFC9110/` + `src/TurboHttp.Tests/RFC9111/` + `src/TurboHttp.Tests/RFC6265/`
 
 **Acceptance Criteria:**
-- [ ] Same rules as TASK-024
-- [ ] Build + tests green
+- [x] Same rules as TASK-024
+- [x] Build + tests green
 
 ---
 

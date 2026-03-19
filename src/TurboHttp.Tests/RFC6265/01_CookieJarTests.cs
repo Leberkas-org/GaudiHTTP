@@ -20,7 +20,6 @@ public sealed class CookieJarTests
         return response;
     }
 
-    // ── CM-001–CM-005: Basic cookie parsing ───────────────────────────────────
 
     [Fact(DisplayName = "RFC6265-5.3-CM-001: Basic name=value cookie is stored")]
     public void Should_StoreCookie_When_BasicNameValueCookie()
@@ -73,7 +72,6 @@ public sealed class CookieJarTests
         Assert.Equal(3, jar.Count);
     }
 
-    // ── CM-006–CM-010: Domain matching (RFC 6265 §5.1.3) ─────────────────────
 
     [Fact(DisplayName = "RFC6265-5.1.3-CM-006: Host-only cookie (no Domain attr) matches exact host only")]
     public void Should_MatchExactHostOnly_When_HostOnlyCookie()
@@ -136,7 +134,6 @@ public sealed class CookieJarTests
         Assert.True(req.Headers.Contains("Cookie"));
     }
 
-    // ── CM-011–CM-015: Path matching (RFC 6265 §5.1.4) ───────────────────────
 
     [Fact(DisplayName = "RFC6265-5.1.4-CM-011: Cookie with path=/api matches /api/users")]
     public void Should_MatchSubPath_When_PathCookie()
@@ -200,7 +197,6 @@ public sealed class CookieJarTests
         Assert.True(req.Headers.Contains("Cookie"));
     }
 
-    // ── CM-016–CM-020: Secure attribute ──────────────────────────────────────
 
     [Fact(DisplayName = "RFC6265-5.3-CM-016: Secure cookie is NOT sent over HTTP")]
     public void Should_NotSendCookie_When_SecureCookieAndHttpScheme()
@@ -238,7 +234,6 @@ public sealed class CookieJarTests
         Assert.True(req.Headers.Contains("Cookie"));
     }
 
-    // ── CM-019–CM-020: HttpOnly attribute ─────────────────────────────────────
 
     [Fact(DisplayName = "RFC6265-5.3-CM-019: HttpOnly cookie is stored with HttpOnly=true")]
     public void Should_StoreCookie_When_HttpOnlyAttribute()
@@ -266,7 +261,6 @@ public sealed class CookieJarTests
         Assert.True(req.Headers.Contains("Cookie"));
     }
 
-    // ── CM-021–CM-025: Expires and Max-Age ────────────────────────────────────
 
     [Fact(DisplayName = "RFC6265-5.3-CM-021: Expired cookie (past Expires) is not sent")]
     public void Should_NotSendCookie_When_CookieIsExpired()
@@ -332,7 +326,6 @@ public sealed class CookieJarTests
         Assert.True(req.Headers.Contains("Cookie"));
     }
 
-    // ── CM-026–CM-028: Cookie replacement ────────────────────────────────────
 
     [Fact(DisplayName = "RFC6265-5.3-CM-026: Cookie with same name+domain+path replaces existing cookie")]
     public void Should_ReplaceCookie_When_SameNameDomainPath()
@@ -372,7 +365,6 @@ public sealed class CookieJarTests
         Assert.Equal(0, jar.Count);
     }
 
-    // ── CM-029–CM-030: SameSite attribute ─────────────────────────────────────
 
     [Fact(DisplayName = "RFC6265-5.3-CM-029: SameSite=Strict is stored correctly")]
     public void Should_StoreCookie_When_SameSiteStrict()
@@ -391,7 +383,6 @@ public sealed class CookieJarTests
         Assert.Equal(1, jar.Count);
     }
 
-    // ── CM-031–CM-033: Domain rejection ──────────────────────────────────────
 
     [Fact(DisplayName = "RFC6265-5.3-CM-031: Cookie with Domain for unrelated host is rejected")]
     public void Should_RejectCookie_When_DomainForUnrelatedHost()
@@ -420,7 +411,6 @@ public sealed class CookieJarTests
         Assert.Equal(0, jar.Count);
     }
 
-    // ── CM-034–CM-038: IP address and IP domain matching ──────────────────────
 
     [Fact(DisplayName = "RFC6265-5.1.3-CM-034: Cookie from IP address is host-only")]
     public void Should_BeHostOnly_When_CookieFromIpAddress()
@@ -441,7 +431,6 @@ public sealed class CookieJarTests
         Assert.False(CookieJar.DomainMatches("example.com", false, "192.168.1.1"));
     }
 
-    // ── CM-036–CM-038: DomainMatches unit tests ────────────────────────────────
 
     [Theory(DisplayName = "RFC6265-5.1.3-CM-036: DomainMatches returns correct result for various combinations")]
     [InlineData("example.com", true, "example.com", true)]
@@ -456,7 +445,6 @@ public sealed class CookieJarTests
         Assert.Equal(expected, CookieJar.DomainMatches(cookieDomain, isHostOnly, requestHost));
     }
 
-    // ── CM-037–CM-038: PathMatches unit tests ─────────────────────────────────
 
     [Theory(DisplayName = "RFC6265-5.1.4-CM-037: PathMatches returns correct result for various combinations")]
     [InlineData("/", "/", true)]
@@ -498,7 +486,6 @@ public sealed class CookieJarTests
         Assert.True(idxApi < idxRoot);
     }
 
-    // ── CM-039–CM-042: Cross-origin redirect cookie re-evaluation ─────────────
 
     [Fact(DisplayName = "RFC6265-5.3-CM-039: Cookie jar evaluates cookies for new URI on redirect")]
     public void Should_EvaluateCookiesForNewUri_When_Redirecting()
@@ -531,7 +518,6 @@ public sealed class CookieJarTests
         Assert.False(req.Headers.Contains("Cookie"));
     }
 
-    // ── CM-041–CM-042: Expires date formats ──────────────────────────────────
 
     [Theory(DisplayName = "RFC6265-5.3-CM-041: Various Expires date formats are parsed correctly")]
     [InlineData("Thu, 01 Jan 2099 00:00:00 GMT")]

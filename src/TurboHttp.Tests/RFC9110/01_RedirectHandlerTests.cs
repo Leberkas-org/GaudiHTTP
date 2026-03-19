@@ -12,7 +12,6 @@ namespace TurboHttp.Tests.RFC9110;
 /// </summary>
 public sealed class RedirectHandlerTests
 {
-    // ── IsRedirect ────────────────────────────────────────────────────────────
 
     [Theory(DisplayName = "RFC9110-15.4-RH-001: IsRedirect returns true for redirect status codes")]
     [InlineData(301)]
@@ -39,7 +38,6 @@ public sealed class RedirectHandlerTests
         Assert.False(RedirectHandler.IsRedirect(response));
     }
 
-    // ── 303 See Other: Always rewrite to GET, no body ─────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-003: 303 rewrites POST to GET and drops body")]
     public void Should_RewritePostToGet_When_303SeeOther()
@@ -85,7 +83,6 @@ public sealed class RedirectHandlerTests
         Assert.Equal(HttpMethod.Get, redirected.Method);
     }
 
-    // ── 307 Temporary Redirect: Preserve method and body ─────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-006: 307 preserves POST method and body")]
     public void Should_PreservePostMethodAndBody_When_307TemporaryRedirect()
@@ -133,7 +130,6 @@ public sealed class RedirectHandlerTests
         Assert.Equal(HttpMethod.Delete, redirected.Method);
     }
 
-    // ── 308 Permanent Redirect: Preserve method and body ─────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-009: 308 preserves POST method and body")]
     public void Should_PreservePostMethodAndBody_When_308PermanentRedirect()
@@ -169,7 +165,6 @@ public sealed class RedirectHandlerTests
         Assert.Same(content, redirected.Content);
     }
 
-    // ── 301/302: Historical GET rewrite for POST ──────────────────────────────
 
     [Theory(DisplayName = "RFC9110-15.4-RH-011: 301/302 rewrites POST to GET (historical behavior)")]
     [InlineData(301)]
@@ -217,7 +212,6 @@ public sealed class RedirectHandlerTests
         Assert.Equal(HttpMethod.Head, redirected.Method);
     }
 
-    // ── Location header resolution ────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-014: Absolute Location URI used as-is")]
     public void Should_UseAbsoluteLocation_When_LocationIsAbsolute()
@@ -256,7 +250,6 @@ public sealed class RedirectHandlerTests
         Assert.Equal("example.com", redirected.RequestUri.Host);
     }
 
-    // ── Max redirects ─────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-017: Throws RedirectException when max redirects exceeded")]
     public void Should_ThrowRedirectException_When_MaxRedirectsExceeded()
@@ -316,7 +309,6 @@ public sealed class RedirectHandlerTests
         Assert.Equal(2, handler.RedirectCount);
     }
 
-    // ── Loop detection ────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-020: Throws RedirectException on direct redirect loop")]
     public void Should_ThrowRedirectException_When_DirectRedirectLoop()
@@ -349,7 +341,6 @@ public sealed class RedirectHandlerTests
         Assert.Equal(RedirectError.RedirectLoop, ex.Error);
     }
 
-    // ── Missing Location header ───────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-022: Throws RedirectException when Location header is missing")]
     public void Should_ThrowRedirectException_When_LocationHeaderMissing()
@@ -377,7 +368,6 @@ public sealed class RedirectHandlerTests
         Assert.Null(redirected.Content);
     }
 
-    // ── Cross-origin security: Authorization header stripping ────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-024: Strips Authorization header on cross-origin redirect")]
     public void Should_StripAuthorizationHeader_When_CrossOriginRedirect()
@@ -438,7 +428,6 @@ public sealed class RedirectHandlerTests
             "Authorization must be stripped when port changes");
     }
 
-    // ── HTTPS → HTTP downgrade ────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-028: Throws RedirectDowngradeException on HTTPS to HTTP redirect")]
     public void Should_ThrowRedirectDowngradeException_When_HttpsToHttpDowngrade()
@@ -475,7 +464,6 @@ public sealed class RedirectHandlerTests
         Assert.Equal("https://example.com/page", redirected.RequestUri?.AbsoluteUri);
     }
 
-    // ── Reset ─────────────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-031: Reset clears redirect count and history")]
     public void Should_ClearRedirectCountAndHistory_When_Reset()
@@ -513,7 +501,6 @@ public sealed class RedirectHandlerTests
         Assert.NotNull(redirected);
     }
 
-    // ── Custom headers preserved ──────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-033: Non-sensitive headers are copied on redirect")]
     public void Should_CopyNonSensitiveHeaders_When_Redirecting()
@@ -546,7 +533,6 @@ public sealed class RedirectHandlerTests
             "Host header must not be blindly copied — it is set from the new URI");
     }
 
-    // ── Policy defaults ───────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-035: Default policy has MaxRedirects = 10")]
     public void Should_HaveMaxRedirects10_When_UsingDefaultPolicy()
@@ -560,7 +546,6 @@ public sealed class RedirectHandlerTests
         Assert.False(RedirectPolicy.Default.AllowHttpsToHttpDowngrade);
     }
 
-    // ── Null guard ────────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-037: IsRedirect throws ArgumentNullException for null response")]
     public void Should_ThrowArgumentNullException_When_IsRedirectWithNullResponse()
@@ -589,7 +574,6 @@ public sealed class RedirectHandlerTests
             handler.BuildRedirectRequest(original, null!));
     }
 
-    // ── Cookie re-evaluation on redirect ─────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-040: Cookie header is stripped when building redirect request")]
     public void Should_StripCookieHeader_When_Redirecting()
@@ -812,7 +796,6 @@ public sealed class RedirectHandlerTests
         Assert.Contains("track=xyz", cookieHeader);
     }
 
-    // ── Version preservation ─────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-052: Redirect from HTTP/2 request preserves Version 2.0")]
     public void Should_PreserveVersion_When_RedirectingHttp2Request()
@@ -890,7 +873,6 @@ public sealed class RedirectHandlerTests
         Assert.Equal(new Version(2, 0), redirected.Version);
     }
 
-    // ── Per-request isolation ─────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9110-15.4-RH-057: Request A exhausts 5 redirects, Request B starts fresh with 0")]
     public void Should_IsolateRedirectCount_When_UsingIndependentHandlers()
@@ -941,7 +923,6 @@ public sealed class RedirectHandlerTests
         Assert.Equal("http://example.com/shared", redirectedB.RequestUri?.AbsoluteUri);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static HttpResponseMessage BuildRedirect(HttpStatusCode statusCode, string location)
     {
