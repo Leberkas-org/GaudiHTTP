@@ -8,17 +8,10 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Tests for TASK-12-005: GroupByHostKey queue size tuning.
-/// Verifies that the per-host substream queue capacity is configurable via
-/// constructor parameter (default 64) and overridable via inherited attributes.
-/// </summary>
 public sealed class GroupByHostKeyQueueSizeTests : StreamTestBase
 {
     private static HttpRequestMessage Req(string url)
         => new(HttpMethod.Get, url);
-
-    // ── GBHQ-001: Default queue size changed from 16 to 64 ──────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "GBHQ-001: Default queue size of 64 handles burst without stalling")]
@@ -42,8 +35,6 @@ public sealed class GroupByHostKeyQueueSizeTests : StreamTestBase
         Assert.Equal(32, results.Count);
     }
 
-    // ── GBHQ-002: Constructor parameter controls queue size ──────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "GBHQ-002: Custom queue size via constructor parameter")]
     public async Task Should_ControlQueueSize_When_ConstructorParameterSpecified()
@@ -64,8 +55,6 @@ public sealed class GroupByHostKeyQueueSizeTests : StreamTestBase
 
         Assert.Equal(20, results.Count);
     }
-
-    // ── GBHQ-003: Inherited attributes override constructor default ──────
 
     [Fact(Timeout = 10_000,
         DisplayName = "GBHQ-003: SubstreamQueueSize attribute overrides constructor default")]
@@ -94,8 +83,6 @@ public sealed class GroupByHostKeyQueueSizeTests : StreamTestBase
 
         Assert.Equal(10, results.Count);
     }
-
-    // ── GBHQ-004: Multiple hosts with default queue size ─────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "GBHQ-004: Multiple hosts each get independent queue with default size")]
@@ -128,8 +115,6 @@ public sealed class GroupByHostKeyQueueSizeTests : StreamTestBase
         Assert.All(hostCounts.Values, count => Assert.Equal(20, count));
     }
 
-    // ── GBHQ-005: Stage shape unchanged ──────────────────────────────────
-
     [Fact(DisplayName = "GBHQ-005: GroupByHostKeyStage shape is FlowShape with same inlet/outlet types")]
     public void Should_HaveFlowShape_When_GroupByHostKeyStageCreated()
     {
@@ -139,8 +124,6 @@ public sealed class GroupByHostKeyQueueSizeTests : StreamTestBase
         Assert.NotNull(stage.Shape.Inlet);
         Assert.NotNull(stage.Shape.Outlet);
     }
-
-    // ── GBHQ-006: Queue size parameter defaults to 64 ───────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "GBHQ-006: Extension method defaults queueSize to 64")]

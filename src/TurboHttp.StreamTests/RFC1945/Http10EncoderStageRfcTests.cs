@@ -6,10 +6,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC1945;
 
-/// <summary>
-/// RFC 1945 §5.1 — Http10EncoderStage request-line compliance tests.
-/// Verifies that the stage produces correctly formatted HTTP/1.0 requests.
-/// </summary>
 public sealed class Http10EncoderStageRfcTests : StreamTestBase
 {
     private async Task<string> EncodeAsync(HttpRequestMessage request)

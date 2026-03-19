@@ -8,15 +8,8 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Tests decoder stage partial-frame handling.
-/// RFC 9112 §6 (HTTP/1.x) and RFC 9113 §4.1 (HTTP/2):
-/// Decoders must buffer incomplete data across TCP boundaries and
-/// emit only when a complete message or frame has been received.
-/// </summary>
 public sealed class DecoderStagePartialTests : StreamTestBase
 {
-    // ── Helpers ──────────────────────────────────────────────────────────────────
     private static IInputItem H2Chunk(byte[] data)
         => new DataItem(new SimpleMemoryOwner(data), data.Length) { Key = RequestEndpoint.Default };
 
@@ -41,8 +34,6 @@ public sealed class DecoderStagePartialTests : StreamTestBase
             .Via(Flow.FromGraph(new Http20DecoderStage()))
             .RunWith(Sink.Seq<Http2Frame>(), Materializer);
     }
-
-    // ── PART-001: HTTP/1.x — incomplete header → decoder waits for next chunk ──
 
     [Fact(Timeout = 10_000,
         DisplayName =
@@ -94,8 +85,6 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         Assert.Equal("ABC", body);
     }
 
-    // ── PART-002: HTTP/1.x — body fragment → accumulates until Content-Length ──
-
     [Fact(Timeout = 10_000,
         DisplayName = "RFC-9112-§6-PART-002: HTTP/1.x body fragment → accumulates until Content-Length reached")]
     public async Task Should_AccumulateBodyFragments_When_Http1xBodyIncomplete()
@@ -146,8 +135,6 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(bodyText, body);
     }
-
-    // ── PART-003: HTTP/2 — 5 of 9 header bytes → frame waits for remainder ──────
 
     [Fact(Timeout = 10_000,
         DisplayName =
@@ -211,8 +198,6 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         Assert.True(dataFrame.EndStream);
         Assert.Equal(body, dataFrame.Data.ToArray());
     }
-
-    // ── PART-004: HTTP/2 — frame payload spread across 3 chunks ─────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC-9113-§4.1-PART-004: HTTP/2 frame payload spread across 3 chunks → correctly reassembled")]

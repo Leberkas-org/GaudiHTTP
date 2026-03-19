@@ -15,15 +15,8 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Verifies the 10 ordering invariants of the three-island pipeline topology
-/// defined in Engine.BuildExtendedPipeline. Tests compose stages in documented
-/// order and verify observable side-effects that would break if ordering changed.
-/// </summary>
 public sealed class StageOrderingTests : EngineTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     private static CookieJar JarWithCookie(string name, string value, string domain, string path = "/")
     {
         var jar = new CookieJar();
@@ -124,12 +117,6 @@ public sealed class StageOrderingTests : EngineTestBase
         return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // PRE-PROCESSING ISLAND — Ordering Invariant Tests
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    // ── Invariant 2: CookieInjection (3) before CacheLookup (5) ────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-001: INV-2 CookieInjection before CacheLookup — request has cookies when reaching cache")]
     public async Task Should_HaveCookieHeaderWhenReachingCacheLookup_When_CookieInjectionRunsBeforeCacheLookup()
@@ -171,8 +158,6 @@ public sealed class StageOrderingTests : EngineTestBase
         Assert.Contains("session=abc123", cookieValue);
     }
 
-    // ── Invariant 7: Redirect feedback enters BEFORE CookieInjection (3) ────
-
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-002: INV-7 Redirected request gets fresh cookies for new domain")]
     public async Task Should_InjectFreshCookies_When_RedirectRequestEntersPipelineBeforeCookieInjection()
@@ -195,8 +180,6 @@ public sealed class StageOrderingTests : EngineTestBase
         var cookieValue = string.Join("; ", result.Headers.GetValues("Cookie"));
         Assert.Contains("auth=token456", cookieValue);
     }
-
-    // ── Invariant 8: Retry feedback enters AFTER CookieInjection (3) ────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-003: INV-8 Retried request preserves original cookies (retry merge after CookieInjection)")]
@@ -240,8 +223,6 @@ public sealed class StageOrderingTests : EngineTestBase
         Assert.Contains("session=abc123", cookieValue);
     }
 
-    // ── Invariant 9: Redirect feedback enters AFTER RequestEnricherStage (1) ─
-
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-004: INV-9 RequestEnricherStage overrides default Version — redirect skips this")]
     public async Task Should_OverrideDefaultVersion_When_RequestEnricherStageProcessesRequest()
@@ -275,12 +256,6 @@ public sealed class StageOrderingTests : EngineTestBase
         // the enricher only overrides when Version == 1.1 (the default).
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // POST-PROCESSING ISLAND — Ordering Invariant Tests
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    // ── Invariant 3: CookieStorageStage (11) before CacheStorageStage (12) ──
-
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-005: INV-3 CookieStorage before CacheStorage — cookies stored before response cached")]
     public async Task Should_StoreCookiesBeforeCachingResponse_When_CookieStorageRunsBeforeCacheStorage()
@@ -312,8 +287,6 @@ public sealed class StageOrderingTests : EngineTestBase
         var cacheResult = store.Get(new HttpRequestMessage(HttpMethod.Get, "http://example.com/page"));
         Assert.NotNull(cacheResult);
     }
-
-    // ── Invariant 4: CacheStorageStage (12) before RetryStage (13) ──────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-006: INV-4 CacheStorage before RetryStage — 200 cached and passed through as final")]
@@ -358,8 +331,6 @@ public sealed class StageOrderingTests : EngineTestBase
         var cacheResult = store.Get(new HttpRequestMessage(HttpMethod.Get, "http://example.com/data"));
         Assert.NotNull(cacheResult);
     }
-
-    // ── Invariant 5: RetryStage (13) before RedirectStage (15) ──────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-007: INV-5 RetryStage before RedirectStage — 200 passes through both as final")]
@@ -407,8 +378,6 @@ public sealed class StageOrderingTests : EngineTestBase
         await probeRedirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── Invariant 10: Cache hits merge AFTER RetryStage (13) ────────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-008: INV-10 Cache hits bypass RetryStage — merge after retry, before redirect")]
     public async Task Should_BypassRetryStage_When_ResponseIsCacheHit()
@@ -454,12 +423,6 @@ public sealed class StageOrderingTests : EngineTestBase
         Assert.Same(cachedResponse, finalResponse);
         await probeRedirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // CROSS-ISLAND — Ordering Invariant Tests
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    // ── Invariant 1: ConnectionReuseStage (9) before CacheStorageStage (12) ─
 
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-009: INV-1 ConnectionReuse signals before post-processing — response flows through both")]
@@ -515,8 +478,6 @@ public sealed class StageOrderingTests : EngineTestBase
         Assert.True(nextReq.Headers.Contains("Cookie"));
     }
 
-    // ── Invariant 6: DecompressionStage (10) before CacheStorageStage (12) ──
-
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-010: INV-6 Decompression before CacheStorage — cached body is decompressed")]
     public async Task Should_CacheDecompressedBody_When_DecompressionRunsBeforeCacheStorage()
@@ -547,12 +508,6 @@ public sealed class StageOrderingTests : EngineTestBase
         Assert.Equal(plainBody, cacheResult.Body);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // INTEGRATION-LEVEL STREAM TESTS — Full Engine Pipeline
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    // ── Integration 1: Cookie injection happens before cache lookup ──────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-011: INTG-1 Full pipeline: cookie injection occurs before cache lookup")]
     public async Task Should_CompleteRequest_When_FullPipelineWithCookieInjectionBeforeCacheLookup()
@@ -577,8 +532,6 @@ public sealed class StageOrderingTests : EngineTestBase
         var response = await RunSingleAsync(flow, request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // ── Integration 2: ConnectionReuseItem signalled before post-processing ─
 
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-012: INTG-2 Full pipeline: response reaches post-processing after engine island")]
@@ -606,8 +559,6 @@ public sealed class StageOrderingTests : EngineTestBase
         // Response successfully traversed all three islands
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // ── Integration 3: Decompressed body is what gets cached ────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-013: INTG-3 Full pipeline: gzip response decompressed before reaching client")]
@@ -646,8 +597,6 @@ public sealed class StageOrderingTests : EngineTestBase
             "Content-Encoding: gzip should be removed after decompression (before post-processing)");
     }
 
-    // ── Integration 4: Redirect feedback gets fresh cookies for new URI ─────
-
     [Fact(Timeout = 15_000,
         DisplayName = "SORD-014: INTG-4 Full pipeline: redirect produces new request through pipeline")]
     public async Task Should_ProduceNewRequestAfterRedirect_When_FullPipelineWith301Response()
@@ -683,8 +632,6 @@ public sealed class StageOrderingTests : EngineTestBase
         // Two calls to factory: first (301), second (200)
         Assert.Equal(2, callCount);
     }
-
-    // ── Integration 5: Cache hits bypass retry evaluation ───────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-015: INTG-5 Full pipeline: non-retryable response passes through entire pipeline")]

@@ -6,10 +6,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC9112;
 
-/// <summary>
-/// RFC 9112 §3.2 / §7.2 — Http11EncoderStage request-line and host header compliance tests.
-/// Verifies that the stage produces correctly formatted HTTP/1.1 requests.
-/// </summary>
 public sealed class Http11EncoderStageRfcTests : StreamTestBase
 {
     private async Task<string> EncodeAsync(HttpRequestMessage request)

@@ -6,17 +6,8 @@ using TurboHttp.IO.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Tests for <see cref="FlowHostKeyGroupByExtensions.GroupByHostKey{T,TMat}"/>.
-///
-/// Verifies that GroupByHostKey returns a real Akka SubFlow so that standard
-/// SubFlowOperations extension methods (Select, Where, Take, SelectMany) are
-/// available on the result and that the fan-out / fan-in mechanics work correctly.
-/// </summary>
 public sealed class HostKeySubFlowTests : StreamTestBase
 {
-    // ── helpers ──────────────────────────────────────────────────────────────
-
     private static HttpRequestMessage Req(string url)
         => new(HttpMethod.Get, url);
 
@@ -47,8 +38,6 @@ public sealed class HostKeySubFlowTests : StreamTestBase
         return result;
     }
 
-    // ── HKSF-001: identity pass-through ─────────────────────────────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "HKSF-001: GroupByHostKey + MergeSubstreams passes all elements through unchanged")]
     public async Task Should_PassAllElementsThrough_When_GroupByHostKeyAndMergeSubstreamsApplied()
@@ -74,8 +63,6 @@ public sealed class HostKeySubFlowTests : StreamTestBase
         Assert.Contains(results, r => r.RequestUri!.Host == "host-b.example.com");
     }
 
-    // ── HKSF-002: SubFlowOperations.Select ──────────────────────────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "HKSF-002: Select on SubFlow transforms each element per-substream")]
     public async Task Should_TransformEachElement_When_SelectAppliedOnSubFlow()
@@ -95,8 +82,6 @@ public sealed class HostKeySubFlowTests : StreamTestBase
         Assert.Equal(2, results.Count(h => h == "alpha.example.com"));
         Assert.Equal(1, results.Count(h => h == "beta.example.com"));
     }
-
-    // ── HKSF-003: SubFlowOperations.Where ───────────────────────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "HKSF-003: Where on SubFlow filters elements within each substream")]
@@ -120,8 +105,6 @@ public sealed class HostKeySubFlowTests : StreamTestBase
         Assert.Equal(2, results.Count);
         Assert.All(results, r => Assert.StartsWith("/api", r.RequestUri!.AbsolutePath));
     }
-
-    // ── HKSF-004: SubFlowOperations.Take ────────────────────────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "HKSF-004: Take on SubFlow limits elements per-substream")]
@@ -148,8 +131,6 @@ public sealed class HostKeySubFlowTests : StreamTestBase
         Assert.Equal(2, results.Count(r => r.RequestUri!.Host == "host-b.example.com"));
     }
 
-    // ── HKSF-005: SubFlowOperations.Select + Where chained ──────────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "HKSF-005: Select and Where can be chained on the SubFlow")]
     public async Task Should_ApplyChainedOperations_When_SelectAndWhereChained()
@@ -171,8 +152,6 @@ public sealed class HostKeySubFlowTests : StreamTestBase
         Assert.Equal(2, results.Count);
         Assert.All(results, path => Assert.StartsWith("/api", path));
     }
-
-    // ── HKSF-006: multiple hosts produce independent substreams ──────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "HKSF-006: Each host gets its own independent substream")]

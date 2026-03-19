@@ -4,11 +4,6 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.RFC9112;
 
-/// <summary>
-/// RFC 9112 — Http11Engine end-to-end round-trip tests.
-/// Each test drives a full request → encoder → fake-TCP → decoder → correlation cycle
-/// using <see cref="EngineTestBase.SendAsync"/> or <see cref="EngineTestBase.SendManyAsync"/>.
-/// </summary>
 public sealed class Http11EngineRfcRoundTripTests : EngineTestBase
 {
     private static Http11Engine Engine => new();
@@ -25,8 +20,6 @@ public sealed class Http11EngineRfcRoundTripTests : EngineTestBase
         return Encoding.Latin1.GetBytes(
             $"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n{hex}\r\n{body}\r\n0\r\n\r\n");
     }
-
-    // ── 11ENG-001: GET → 200 with Content-Length body — version 1.1 ────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-6-11EN-001: GET → 200 with Content-Length body — version 1.1")]
     public async Task Should_Return200WithContentLengthBody_WhenGetRequest()
@@ -48,8 +41,6 @@ public sealed class Http11EngineRfcRoundTripTests : EngineTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(responseBody, body);
     }
-
-    // ── 11ENG-002: POST → chunked request + chunked response ────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7-11EN-002: POST → chunked request + chunked response")]
     public async Task Should_HandleChunkedRequestAndResponse_WhenPostWithChunkedEncoding()
@@ -78,8 +69,6 @@ public sealed class Http11EngineRfcRoundTripTests : EngineTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(responseBody, body);
     }
-
-    // ── 11ENG-003: 5 sequential requests → FIFO correlation ─────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11EN-003: 5 sequential requests → FIFO correlation")]
     public async Task Should_CorrelateInFifoOrder_WhenFiveSequentialRequests()
@@ -116,8 +105,6 @@ public sealed class Http11EngineRfcRoundTripTests : EngineTestBase
         }
     }
 
-    // ── 11ENG-004: Host header in wire correct for each URI ─────────────────────
-
     [Theory(Timeout = 10_000, DisplayName = "RFC9112-3.2-11EN-004: Host header in wire correct for each URI")]
     [InlineData("http://api.example.com/v1", "Host: api.example.com\r\n")]
     [InlineData("http://other.example.com:9090/endpoint", "Host: other.example.com:9090\r\n")]
@@ -136,8 +123,6 @@ public sealed class Http11EngineRfcRoundTripTests : EngineTestBase
 
         Assert.Contains(expectedHost, rawRequest);
     }
-
-    // ── 11ENG-005: Hop-by-hop headers stripped in wire ──────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-5-11EN-005: Hop-by-hop headers (TE, Keep-Alive, Proxy-Connection) stripped in wire")]
     public async Task Should_StripHopByHopHeaders_WhenSentOverWire()

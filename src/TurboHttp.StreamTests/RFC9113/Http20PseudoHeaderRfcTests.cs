@@ -36,8 +36,6 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     private static List<HpackHeader> DecodeHeaders(HeadersFrame frame)
         => new HpackDecoder().Decode(frame.HeaderBlockFragment.Span);
 
-    // ─── H2PH-001: :method = HTTP method (GET, POST, etc.) ─────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-001: :method pseudo-header equals GET for GET request")]
     public async Task Should_SetMethodPseudoHeaderToGET_When_RequestIsGet()
     {
@@ -79,8 +77,6 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
         Assert.Equal(method, methodHeader.Value);
     }
 
-    // ─── H2PH-002: :path = absolute path + query ───────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-002: :path pseudo-header equals absolute path")]
     public async Task Should_SetPathPseudoHeaderToAbsolutePath_When_SimpleUriUsed()
     {
@@ -111,8 +107,6 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
         Assert.Equal("/", path.Value);
     }
 
-    // ─── H2PH-003: :scheme = URI scheme (http/https) ───────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-003: :scheme pseudo-header equals http for http URI")]
     public async Task Should_SetSchemePseudoHeaderToHttp_When_UriSchemeIsHttp()
     {
@@ -133,8 +127,6 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
         Assert.Equal("https", scheme.Value);
     }
 
-    // ─── H2PH-004: :authority = host:port ───────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-004: :authority pseudo-header equals host")]
     public async Task Should_SetAuthorityPseudoHeaderToHost_When_UriHasNoPort()
     {
@@ -154,8 +146,6 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
         var authority = Assert.Single(headers, h => h.Name == ":authority");
         Assert.Equal("example.com:8080", authority.Value);
     }
-
-    // ─── H2PH-005: Pseudo-headers appear BEFORE regular headers ─────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-005: All pseudo-headers appear before regular headers")]
     public async Task Should_PlacePseudoHeadersBeforeRegularHeaders_When_RequestHasBothTypes()

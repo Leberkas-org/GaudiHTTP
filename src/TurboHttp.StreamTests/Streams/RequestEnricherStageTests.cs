@@ -9,8 +9,6 @@ namespace TurboHttp.StreamTests.Streams;
 
 public sealed class RequestEnricherStageTests : StreamTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     private Task<IImmutableList<HttpRequestMessage>> RunAsync(
         RequestEnricherStage stage,
         params HttpRequestMessage[] requests)
@@ -25,8 +23,6 @@ public sealed class RequestEnricherStageTests : StreamTestBase
         var holder = new HttpRequestMessage();
         return (holder, holder.Headers);
     }
-
-    // ── URI enrichment ─────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "ENR-001: Null URI + BaseAddress → RequestUri becomes BaseAddress root")]
     public async Task Should_SetRequestUriToBaseAddress_When_RequestUriIsNull()
@@ -145,8 +141,6 @@ public sealed class RequestEnricherStageTests : StreamTestBase
         Assert.IsType<InvalidOperationException>(inner);
     }
 
-    // ── Version enrichment ─────────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "ENR-006: request.Version == 1.1 (default), defaultVersion == 2.0 → version becomes 2.0")]
     public async Task Should_SetVersionTo20_When_RequestVersionIs11AndDefaultIs20()
@@ -246,8 +240,6 @@ public sealed class RequestEnricherStageTests : StreamTestBase
         var result = Assert.Single(results);
         Assert.Equal(HttpVersion.Version20, result.Version);
     }
-
-    // ── Header enrichment ──────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "ENR-010: DefaultRequestHeaders has X-Foo:bar → merged into request")]
     public async Task Should_MergeDefaultHeader_When_DefaultRequestHeadersContainsXFoo()

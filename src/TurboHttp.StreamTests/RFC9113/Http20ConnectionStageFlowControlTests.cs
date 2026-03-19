@@ -92,8 +92,6 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         return (downstream, serverBound);
     }
 
-    // ─── 20CW-001: Inbound DATA → connection window decremented ────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.9-20CW-001: Inbound DATA decrements connection window")]
     public async Task Should_Decrement_Connection_Window_When_Data_Received_Inbound()
     {
@@ -122,8 +120,6 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         await Assert.ThrowsAnyAsync<Exception>(() => RunAsync(data1, data2));
     }
 
-    // ─── 20CW-002: Inbound DATA → stream window decremented ────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.9-20CW-002: Inbound DATA decrements stream window")]
     public async Task Should_Decrement_Stream_Window_When_Data_Received_Inbound()
     {
@@ -148,8 +144,6 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         await Assert.ThrowsAnyAsync<Exception>(() => RunAsync(data1, data2));
     }
 
-    // ─── 20CW-003: Inbound DATA → WINDOW_UPDATE(stream=0) sent ─────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.9-20CW-003: Inbound DATA triggers WINDOW_UPDATE on stream 0")]
     public async Task Should_Send_Connection_WindowUpdate_When_Data_Received_Inbound()
     {
@@ -165,8 +159,6 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         Assert.NotNull(connectionUpdate);
         Assert.Equal(1024, connectionUpdate.Increment);
     }
-
-    // ─── 20CW-004: Inbound DATA → WINDOW_UPDATE(stream=N) sent ─────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.9-20CW-004: Inbound DATA triggers WINDOW_UPDATE on stream N")]
     public async Task Should_Send_Stream_WindowUpdate_When_Data_Received_Inbound()
@@ -198,8 +190,6 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         Assert.Contains(windowUpdates, f => f.StreamId == 3 && f.Increment == 512);
     }
 
-    // ─── 20CW-005: Connection window < 0 → stage fails with exception ──────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.9-20CW-005: Connection window exceeded causes stage failure")]
     public async Task Should_Fail_Stage_When_Connection_Window_Exceeded()
     {
@@ -210,8 +200,6 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         Assert.Contains("window", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
-    // ─── 20CW-006: Stream window < 0 → stage fails with exception ──────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.9-20CW-006: Stream window exceeded causes stage failure")]
     public async Task Should_Fail_Stage_When_Stream_Window_Exceeded()
     {
@@ -221,8 +209,6 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         var ex = await Assert.ThrowsAnyAsync<Exception>(() => RunAsync(data));
         Assert.Contains("window", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
-
-    // ─── 20CW-007: Outbound DATA → connection window decremented ────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.9-20CW-007: Outbound DATA decrements connection send window")]
     public async Task Should_Fail_Stage_When_Outbound_Data_Exceeds_Connection_Window()
@@ -301,8 +287,6 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         Assert.Equal(1024, dataFrame.Data.Length);
     }
 
-    // ─── 20CW-008: WINDOW_UPDATE(stream=0) received → connection window incremented ─
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.9-20CW-008: WINDOW_UPDATE on stream 0 increments connection window")]
     public async Task Should_Increment_Connection_Window_When_WindowUpdate_On_Stream0()
     {
@@ -366,8 +350,6 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         Assert.Equal(0, wu.StreamId);
         Assert.Equal(5000, wu.Increment);
     }
-
-    // ─── 20CW-009: WINDOW_UPDATE(stream=N) received → stream window incremented ─
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.9-20CW-009: WINDOW_UPDATE on stream N increments stream window")]
     public async Task Should_Increment_Stream_Window_When_WindowUpdate_On_StreamN()

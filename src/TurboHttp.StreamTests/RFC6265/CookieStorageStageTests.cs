@@ -7,8 +7,6 @@ namespace TurboHttp.StreamTests.RFC6265;
 
 public sealed class CookieStorageStageTests : StreamTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     private Task<IImmutableList<HttpResponseMessage>> RunAsync(
         CookieStorageStage stage,
         params HttpResponseMessage[] responses)
@@ -32,8 +30,6 @@ public sealed class CookieStorageStageTests : StreamTestBase
         return response;
     }
 
-    // ── null jar (pass-through) ────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.3-CSTO-001: null CookieJar → response passes through unchanged")]
     public async Task Should_PassThroughUnchanged_When_CookieJarIsNull()
     {
@@ -45,8 +41,6 @@ public sealed class CookieStorageStageTests : StreamTestBase
         Assert.Single(results);
         Assert.Same(response, results[0]);
     }
-
-    // ── cookie storage ─────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.3-CSTO-002: Set-Cookie in response → stored in jar for next request")]
     public async Task Should_StoreCookieInJar_When_SetCookieHeaderPresent()

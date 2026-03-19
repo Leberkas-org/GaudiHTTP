@@ -11,16 +11,8 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Tests that Engine.CreateFlow conditionally inserts pipeline stages based on
-/// TurboClientOptions feature flags (TASK-010).
-/// </summary>
 public sealed class EnginePipelineWiringTests : EngineTestBase
 {
-    // -----------------------------------------------------------------------
-    // Helpers
-    // -----------------------------------------------------------------------
-
     private static Flow<IOutputItem, IInputItem, NotUsed> Http11Flow(
         Func<byte[]> responseFactory)
         => Flow.FromGraph(new EngineFakeConnectionStage(responseFactory));
@@ -46,10 +38,6 @@ public sealed class EnginePipelineWiringTests : EngineTestBase
         return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
-    // -----------------------------------------------------------------------
-    // EPIPE-001: All flags false — pipeline identical to current behaviour
-    // -----------------------------------------------------------------------
-
     [Fact(Timeout = 10_000, DisplayName = "EPIPE-001: All flags false — HTTP/1.1 request routes correctly")]
     public async Task Should_RouteHttp11Correctly_When_AllFlagsFalse()
     {
@@ -70,10 +58,6 @@ public sealed class EnginePipelineWiringTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // -----------------------------------------------------------------------
-    // EPIPE-002: EnableCookies — CookieInjectionStage injects cookies
-    // -----------------------------------------------------------------------
 
     [Fact(Timeout = 10_000, DisplayName = "EPIPE-002: EnableCookies — cookies are injected into outgoing requests")]
     public async Task Should_CompletePipelineWithoutError_When_EnableCookiesIsTrue()
@@ -112,10 +96,6 @@ public sealed class EnginePipelineWiringTests : EngineTestBase
         // The fake transport captures the raw request bytes so we can inspect Cookie header
         byte[] ResponseFactory() => "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
     }
-
-    // -----------------------------------------------------------------------
-    // EPIPE-003: EnableDecompression — gzip body is decompressed
-    // -----------------------------------------------------------------------
 
     [Fact(Timeout = 10_000, DisplayName = "EPIPE-003: EnableDecompression — gzip response body is decompressed")]
     public async Task Should_DecompressGzipBody_When_EnableDecompressionIsTrue()
@@ -168,10 +148,6 @@ public sealed class EnginePipelineWiringTests : EngineTestBase
         return [.. headerBytes, .. compressedBody];
     }
 
-    // -----------------------------------------------------------------------
-    // EPIPE-004: EnableCaching — cache hit bypasses engine
-    // -----------------------------------------------------------------------
-
     [Fact(Timeout = 10_000, DisplayName = "EPIPE-004: EnableCaching — pipeline assembles without error")]
     public async Task Should_AssemblePipelineWithoutError_When_EnableCachingIsTrue()
     {
@@ -193,10 +169,6 @@ public sealed class EnginePipelineWiringTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // -----------------------------------------------------------------------
-    // EPIPE-005: EnableRetry — pipeline assembles with retry cycle
-    // -----------------------------------------------------------------------
 
     [Fact(Timeout = 10_000, DisplayName = "EPIPE-005: EnableRetry — pipeline assembles with retry cycle wired")]
     public async Task Should_AssemblePipelineWithRetryCycle_When_EnableRetryIsTrue()
@@ -221,10 +193,6 @@ public sealed class EnginePipelineWiringTests : EngineTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    // -----------------------------------------------------------------------
-    // EPIPE-006: EnableRedirectHandling — pipeline assembles with redirect cycle
-    // -----------------------------------------------------------------------
-
     [Fact(Timeout = 10_000, DisplayName = "EPIPE-006: EnableRedirectHandling — non-redirect response passes through")]
     public async Task Should_PassThroughNonRedirectResponse_When_EnableRedirectHandlingIsTrue()
     {
@@ -246,10 +214,6 @@ public sealed class EnginePipelineWiringTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // -----------------------------------------------------------------------
-    // EPIPE-007: All flags true — full pipeline assembles without error
-    // -----------------------------------------------------------------------
 
     [Fact(Timeout = 10_000,
         DisplayName = "EPIPE-007: All flags true — full pipeline assembles and processes a request")]
@@ -274,10 +238,6 @@ public sealed class EnginePipelineWiringTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // -----------------------------------------------------------------------
-    // EPIPE-008: TurboClientOptions null options — same as no-options overload
-    // -----------------------------------------------------------------------
 
     [Fact(Timeout = 10_000, DisplayName = "EPIPE-008: CreateFlow with null options routes HTTP/1.1 correctly")]
     public async Task Should_RouteHttp11Correctly_When_OptionsIsNull()

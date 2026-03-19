@@ -39,8 +39,6 @@ public sealed class Http20EncoderStageTests : StreamTestBase
         return items.Cast<DataItem>().ToList();
     }
 
-    // ─── Key propagation tests ──────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-005: DataItem Key is set from frame Endpoint")]
     public async Task Should_SetDataItemKeyFromEndpoint_When_FrameHasEndpoint()
     {

@@ -6,11 +6,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC9113;
 
-/// <summary>
-/// TASK-ERR-04: Http20StreamStage — Memory Management
-/// Verifies that StreamState buffers grow correctly, are disposed after emission,
-/// and that the stream dictionary is cleaned up after each completed response.
-/// </summary>
 public sealed class Http20StreamStageMemoryTests : StreamTestBase
 {
     private readonly HpackEncoder _hpack = new(useHuffman: false);
@@ -21,8 +16,6 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
             .Via(Flow.FromGraph(new Http20StreamStage()))
             .RunWith(Sink.Seq<HttpResponseMessage>(), Materializer);
     }
-
-    // ─── MEM-001: StreamState.Dispose() called after response emission ────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-001: StreamState.Dispose() called — HEADERS path: stream completes without DATA")]
     public async Task Should_DisposeStreamState_When_HeadersOnlyResponseEmitted()
@@ -85,8 +78,6 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
         Assert.Equal(body1, result1);
         Assert.Equal(body3, result3);
     }
-
-    // ─── MEM-002: BodyBuffer grows correctly for large body ───────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-003: BodyBuffer Rent→Copy→Dispose: two growths produce correct body")]
     public async Task Should_GrowBodyBufferCorrectly_When_MultipleDataFramesAccumulated()
@@ -155,8 +146,6 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
         Assert.Equal(expected.Length, body.Length);
         Assert.Equal(expected, body);
     }
-
-    // ─── MEM-003: HeaderBuffer grows correctly for CONTINUATION frames ────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-005: HeaderBuffer Rent→Copy→Dispose: growth via CONTINUATION frames")]
     public async Task Should_GrowHeaderBufferCorrectly_When_ContinuationFramesAccumulated()
@@ -288,8 +277,6 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
         }
     }
 
-    // ─── MEM-004: Stream dictionary cleaned up after response emission ─────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-007: _streams.Remove called — stream ID reuse after HEADERS+END_STREAM completion")]
     public async Task Should_CleanStreamDictionaryAfterEmission_When_HeadersOnlyResponseCompletes()
     {
@@ -399,8 +386,6 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
             Assert.Equal(expectedCodes[i], responses[i].StatusCode);
         }
     }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────────────
 
     private static byte[] MakeChunk(int size, byte fillByte)
     {

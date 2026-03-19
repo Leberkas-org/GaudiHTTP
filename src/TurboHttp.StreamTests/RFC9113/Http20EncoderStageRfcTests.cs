@@ -20,8 +20,6 @@ public sealed class Http20EncoderStageRfcTests : StreamTestBase
         return bytes;
     }
 
-    // ─── 20E-RFC-001: HEADERS frame → 9-byte header + HPACK payload ───────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-001: HEADERS frame produces 9-byte header followed by HPACK payload")]
     public async Task Should_Produce9ByteHeaderPlusHpackPayload_When_EncodingHeadersFrame()
     {
@@ -45,8 +43,6 @@ public sealed class Http20EncoderStageRfcTests : StreamTestBase
         Assert.Equal(9, bytes.Length);
     }
 
-    // ─── 20E-RFC-002: DATA frame → 9-byte header + body payload ───────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-002: DATA frame produces 9-byte header followed by body payload")]
     public async Task Should_Produce9ByteHeaderPlusBody_When_EncodingDataFrame()
     {
@@ -68,8 +64,6 @@ public sealed class Http20EncoderStageRfcTests : StreamTestBase
 
         Assert.Equal(9, bytes.Length);
     }
-
-    // ─── 20E-RFC-003: Frame-length field (3 bytes) → correct payload length ───
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-003: Length field (bytes 0-2) matches DATA payload size")]
     public async Task Should_SetLengthFieldToDataPayloadSize_When_EncodingDataFrame()
@@ -108,8 +102,6 @@ public sealed class Http20EncoderStageRfcTests : StreamTestBase
         Assert.Equal(0, lengthField);
     }
 
-    // ─── 20E-RFC-004: Frame type (1 byte): 0x0=DATA, 0x1=HEADERS ─────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-004: DATA frame type byte (offset 3) is 0x0")]
     public async Task Should_SetFrameTypeByteTo0x0_When_EncodingDataFrame()
     {
@@ -129,8 +121,6 @@ public sealed class Http20EncoderStageRfcTests : StreamTestBase
 
         Assert.Equal(0x01, bytes[3]);
     }
-
-    // ─── 20E-RFC-005: Stream ID in big-endian (4 bytes), highest bit = 0 ──────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-005: Stream ID 1 encoded big-endian in bytes 5-8")]
     public async Task Should_EncodeStreamId1BigEndian_When_StreamIdIs1()

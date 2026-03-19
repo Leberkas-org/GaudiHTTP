@@ -6,9 +6,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC9112;
 
-/// <summary>
-/// RFC 9112 §7.1 — Chunked Transfer Coding compliance tests for Http11DecoderStage.
-/// </summary>
 public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
 {
     private static IInputItem Chunk(string ascii)
@@ -33,8 +30,6 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
             .RunWith(Sink.Seq<HttpResponseMessage>(), Materializer);
     }
 
-    // ── 11D-CH-001: Single chunk → body = "hello" ──────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-001: Single chunk 5\\r\\nhello\\r\\n0\\r\\n\\r\\n → body = hello")]
     public async Task Should_DecodeBody_WhenSingleChunk()
     {
@@ -44,8 +39,6 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal("hello", body);
     }
-
-    // ── 11D-CH-002: Multiple chunks → bodies correctly concatenated ─────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-002: Multiple chunks concatenated into single body")]
     public async Task Should_ConcatenateChunks_WhenMultipleChunksPresent()
@@ -72,8 +65,6 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
         Assert.Equal("foobarbaz", body);
     }
 
-    // ── 11D-CH-003: Zero-length terminator → stream ends ────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-003: Zero-length terminator 0\\r\\n\\r\\n ends stream")]
     public async Task Should_EndStream_WhenZeroLengthTerminator()
     {
@@ -95,8 +86,6 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal("", body);
     }
-
-    // ── 11D-CH-004: Chunk extension (;ext=val) is ignored ───────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-004: Chunk extension ;ext=val is ignored, body intact")]
     public async Task Should_IgnoreChunkExtension_WhenPresent()
@@ -130,8 +119,6 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal("hello", body);
     }
-
-    // ── 11D-CH-005: Trailers after last chunk → correctly parsed or ignored ─────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-005: Trailer header after last chunk is parsed")]
     public async Task Should_ParseTrailerHeaders_WhenAfterLastChunk()

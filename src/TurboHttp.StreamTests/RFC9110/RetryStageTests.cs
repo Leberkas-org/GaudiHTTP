@@ -9,8 +9,6 @@ namespace TurboHttp.StreamTests.RFC9110;
 
 public sealed class RetryStageTests : StreamTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     /// <summary>
     /// Materialises a <see cref="RetryStage"/> with manual subscriber probes,
     /// gives each outlet <paramref name="demandEach"/> demand, and returns the probes.
@@ -65,8 +63,6 @@ public sealed class RetryStageTests : StreamTestBase
         return response;
     }
 
-    // ── non-retriable responses pass through on Out0 ───────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-001: 200 OK on GET → forwarded on Out0 (final)")]
     public async Task Should_ForwardOnOut0_When_GetReturns200()
     {
@@ -97,8 +93,6 @@ public sealed class RetryStageTests : StreamTestBase
         retry.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── 408 triggers retry for idempotent methods ─────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-004: 408 on GET → retry request emitted on Out1")]
     public async Task Should_EmitRetryOnOut1_When_GetReturns408()
     {
@@ -121,8 +115,6 @@ public sealed class RetryStageTests : StreamTestBase
         final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── non-idempotent methods are never retried ──────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-006: 408 on POST → forwarded on Out0 (not idempotent)")]
     public async Task Should_ForwardOnOut0_When_PostReturns408()
     {
@@ -143,8 +135,6 @@ public sealed class RetryStageTests : StreamTestBase
         retry.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── retry limit enforcement ────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-008: retry limit of 1 → second 408 forwarded as final on Out0")]
     public async Task Should_ForwardOnOut0_When_RetryLimitExhausted()
     {
@@ -158,8 +148,6 @@ public sealed class RetryStageTests : StreamTestBase
         retry.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── null RequestMessage ────────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-009: response with null RequestMessage → passes through on Out0")]
     public async Task Should_ForwardOnOut0_When_RequestMessageIsNull()
     {
@@ -171,8 +159,6 @@ public sealed class RetryStageTests : StreamTestBase
         Assert.Same(response, final.ExpectNext());
         retry.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── retry preserves original request ─────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-010: retry request on Out1 is the original RequestMessage")]
     public async Task Should_RetryWithOriginalRequestMessage_When_EmittingRetry()
@@ -190,8 +176,6 @@ public sealed class RetryStageTests : StreamTestBase
         final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── Retry-After delay respected ────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-011: Retry-After: 0 on 503 GET → immediate retry on Out1")]
     public async Task Should_RetryImmediately_When_RetryAfterIsZero()
     {
@@ -204,8 +188,6 @@ public sealed class RetryStageTests : StreamTestBase
         Assert.Equal(HttpMethod.Get, retryRequest.Method);
         final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── default policy ─────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-012: null policy constructor → uses RetryPolicy.Default")]
     public async Task Should_UseDefaultRetryPolicy_When_PolicyIsNull()
@@ -220,8 +202,6 @@ public sealed class RetryStageTests : StreamTestBase
         Assert.Equal(HttpMethod.Delete, retryRequest.Method);
         final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── idempotent method coverage ─────────────────────────────────────────────
 
     [Theory(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-013: idempotent methods retry on 408")]
     [InlineData("PUT")]
@@ -239,8 +219,6 @@ public sealed class RetryStageTests : StreamTestBase
         Assert.Equal(method, retryRequest.Method);
         final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── per-request retry isolation ────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-9.2.2-RTRY-014: Request B starts at attempt 1 after Request A retried 2x")]
     public async Task Should_StartFreshRetryBudget_When_RequestBIsAfterRequestA()
@@ -335,8 +313,6 @@ public sealed class RetryStageTests : StreamTestBase
 
         final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── concurrent retry tests ──────────────────────────────────────────────
 
     /// <summary>
     /// Materialises a <see cref="RetryStage"/> with a manual publisher probe on the inlet

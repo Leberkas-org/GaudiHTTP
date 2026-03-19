@@ -14,11 +14,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC9113;
 
-/// <summary>
-/// RFC 9113 — Http20Engine end-to-end round-trip tests.
-/// Each test drives a full request → encoder → fake-TCP → decoder cycle
-/// using <see cref="EngineTestBase.SendH2EngineAsync"/> or <see cref="EngineTestBase.SendH2EngineAsyncMany"/>.
-/// </summary>
 public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
 {
     private static Http20Engine Engine => new();
@@ -30,8 +25,6 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
 
     private static byte[] ServerSettings()
         => new SettingsFrame([]).Serialize();
-
-    // ── 20ENG-001: GET → 200 — SETTINGS + HEADERS round-trip ────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-ENG-001: GET → 200 with SETTINGS and HEADERS round-trip")]
     public async Task Should_Return200Response_When_GetRequestRoundTripsWithSettingsAndHeaders()
@@ -56,8 +49,6 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains(outboundFrames, f => f is HeadersFrame);
     }
-
-    // ── 20ENG-002: POST with body → outbound has HEADERS + DATA frames ───────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-ENG-002: POST with body → outbound has HEADERS + DATA frames")]
     public async Task Should_EmitHeadersAndDataFrames_When_PostRequestWithBodyEncoded()
@@ -85,8 +76,6 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
         Assert.Contains(outboundFrames, f => f is HeadersFrame);
         Assert.Contains(outboundFrames, f => f is DataFrame);
     }
-
-    // ── 20ENG-003: gzip-compressed response → body correctly decompressed ───────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-ENG-003: gzip-compressed response body is correctly decompressed")]
     public async Task Should_DecompressGzipResponseBody_When_ContentEncodingIsGzip()
@@ -139,8 +128,6 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
         Assert.Equal(originalBody, body);
     }
 
-    // ── 20ENG-004: Server SETTINGS → SETTINGS ACK in outbound ───────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-ENG-004: Server SETTINGS produces SETTINGS ACK in outbound frames")]
     public async Task Should_EmitSettingsAck_When_ServerSettingsReceived()
     {
@@ -166,8 +153,6 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
         Assert.NotNull(ack);
         Assert.Empty(ack.Parameters);
     }
-
-    // ── 20ENG-005: 3 requests → 3 responses, stream IDs 1/3/5 ──────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-ENG-005: 3 requests produce 3 responses with outbound stream IDs 1, 3, 5")]
     public async Task Should_ProduceThreeResponsesWithStreamIds1And3And5_When_ThreeRequestsSent()
@@ -209,8 +194,6 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
         var streamIds = outboundHeaders.Select(f => f.StreamId).OrderBy(id => id).ToList();
         Assert.Equal(new[] { 1, 3, 5 }, streamIds);
     }
-
-    // ── 20ENG-006: SETTINGS MAX_CONCURRENT_STREAMS → MaxConcurrentStreamsItem on outlet ─
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-ENG-006: SETTINGS MAX_CONCURRENT_STREAMS=50 produces MaxConcurrentStreamsItem(50) on IOutputItem outlet")]
     public async Task Should_ProduceMaxConcurrentStreamsSignal_When_SettingsMaxConcurrentStreamsReceived()
@@ -270,8 +253,6 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
         Assert.NotNull(signalItem);
         Assert.Equal(50, signalItem.MaxStreams);
     }
-
-    // ── 20ENG-007: preface emitted on first ConnectItem ───────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-ENG-007: Preface emitted on first ConnectItem through engine graph")]
     public async Task Should_EmitConnectionPreface_When_FirstConnectItemArrives()
@@ -347,8 +328,6 @@ public sealed class Http20EngineRfcRoundTripTests : EngineTestBase
             bytes => bytes.Length >= 24 && bytes.AsSpan(0, 24).SequenceEqual(magic));
         Assert.True(hasPrefaceMagic, "Expected outbound bytes to contain the 24-byte HTTP/2 connection preface magic");
     }
-
-    // ── 20ENG-008: preface not emitted on second ConnectItem for same host ────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-ENG-008: Preface not emitted on second ConnectItem for same host")]
     public async Task Should_NotEmitPreface_When_SecondConnectItemForSameHostArrives()

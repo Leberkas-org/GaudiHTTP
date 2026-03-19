@@ -35,8 +35,6 @@ public sealed class Http20HpackStreamTests : StreamTestBase
     private static HttpRequestMessage GetRequest(string uri = "http://example.com/")
         => new(HttpMethod.Get, uri);
 
-    // ─── H2HP-001: Static table: :method GET transmitted as indexed ─────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-001: Static table :method GET transmitted as indexed byte 0x82")]
     public async Task Should_TransmitGetAsIndexedByte_When_UsingStaticTable()
     {
@@ -72,8 +70,6 @@ public sealed class Http20HpackStreamTests : StreamTestBase
         var method = Assert.Single(headers, h => h.Name == ":method");
         Assert.Equal("GET", method.Value);
     }
-
-    // ─── H2HP-002: Dynamic table: repeated custom headers → smaller on 2nd ──
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-002: Repeated custom header produces smaller block on 2nd request")]
     public async Task Should_ProduceSmallerBlock_When_CustomHeaderRepeatedAcrossRequests()
@@ -129,8 +125,6 @@ public sealed class Http20HpackStreamTests : StreamTestBase
         Assert.Equal("value123", custom1.Value);
         Assert.Equal("value123", custom2.Value);
     }
-
-    // ─── H2HP-003: 3 requests with same host → progressive compression ──────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-003: 3 requests with same host show progressive compression")]
     public async Task Should_ShowProgressiveCompression_When_ThreeRequestsUseSameHost()
@@ -197,8 +191,6 @@ public sealed class Http20HpackStreamTests : StreamTestBase
             Assert.Equal("trace-val", trace.Value);
         }
     }
-
-    // ─── H2HP-004: Huffman encoding → smaller header block ──────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-004: Huffman encoding produces smaller header block than without")]
     public async Task Should_ProduceSmallerHeaderBlock_When_HuffmanEncodingIsUsed()

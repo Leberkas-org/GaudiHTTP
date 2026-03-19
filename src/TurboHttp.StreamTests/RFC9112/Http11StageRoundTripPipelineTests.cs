@@ -3,19 +3,12 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.RFC9112;
 
-/// <summary>
-/// RFC 9112 §9.3 — HTTP/1.1 Pipelining round-trip tests through Akka.Streams stages.
-/// Validates FIFO request-response ordering, correct RequestMessage correlation,
-/// and mixed-method pipelining through the Http11Engine (Encoder → FakeTCP → Decoder → Correlation).
-/// </summary>
 public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
 {
     private static readonly Func<byte[]> Ok200 =
         () => "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
 
     private static Http11Engine Engine => new();
-
-    // ── 11RT-P-001: 3 sequential GET requests → 3 responses in FIFO order ───────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-001: 3 sequential GET requests → 3 responses in FIFO order")]
     public async Task Should_ReturnResponsesInFifoOrder_WhenThreeSequentialGetRequests()
@@ -33,8 +26,6 @@ public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
         }
     }
 
-    // ── 11RT-P-002: Each response has correct RequestMessage reference ───────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-002: Each response has correct RequestMessage reference")]
     public async Task Should_SetCorrectRequestMessageReference_WhenPipelined()
     {
@@ -51,8 +42,6 @@ public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
             Assert.Same(requests[i], responses[i].RequestMessage);
         }
     }
-
-    // ── 11RT-P-003: Mixed methods (GET, POST, DELETE) → correct assignment ───────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-003: Mixed methods (GET, POST, DELETE) → correct assignment")]
     public async Task Should_AssignCorrectRequestMessage_WhenMixedMethods()
@@ -74,8 +63,6 @@ public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
         Assert.Same(deleteReq, responses[2].RequestMessage);
     }
 
-    // ── 11RT-P-004: 10 requests → all 10 responses received ─────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-004: 10 requests → all 10 responses received")]
     public async Task Should_ReceiveAllResponses_WhenTenRequestsSent()
     {
@@ -92,8 +79,6 @@ public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
             Assert.Equal(HttpStatusCode.OK, responses[i].StatusCode);
         }
     }
-
-    // ── 11RT-P-005: Response order matches request order (FIFO guarantee) ────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-005: Response order matches request order (FIFO guarantee)")]
     public async Task Should_MatchResponseOrderToRequestOrder_WhenFifoGuaranteed()

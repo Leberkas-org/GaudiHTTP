@@ -3,16 +3,9 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.RFC9112;
 
-/// <summary>
-/// RFC 9110 §15 — HTTP/1.1 Status Code tests through Akka.Streams stages.
-/// Validates that various HTTP status codes are correctly parsed and surfaced
-/// in the HttpResponseMessage after flowing through the Http11Engine pipeline.
-/// </summary>
 public sealed class Http11StageStatusCodeTests : EngineTestBase
 {
     private static Http11Engine Engine => new();
-
-    // ── 11SC-001: 200 OK → StatusCode=200 ────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.1-11SC-001: 200 OK → StatusCode=200")]
     public async Task Should_Return200_WhenServerRespondsOk()
@@ -29,8 +22,6 @@ public sealed class Http11StageStatusCodeTests : EngineTestBase
         Assert.Equal("ok", body);
     }
 
-    // ── 11SC-002: 301 Moved Permanently → StatusCode=301, Location header present ─
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.1-11SC-002: 301 Moved Permanently → StatusCode=301, Location header present")]
     public async Task Should_Return301WithLocationHeader_WhenMovedPermanently()
     {
@@ -44,8 +35,6 @@ public sealed class Http11StageStatusCodeTests : EngineTestBase
         Assert.NotNull(response.Headers.Location);
         Assert.Equal(new Uri("http://example.com/new"), response.Headers.Location);
     }
-
-    // ── 11SC-003: 404 Not Found → StatusCode=404 ─────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.1-11SC-003: 404 Not Found → StatusCode=404")]
     public async Task Should_Return404_WhenResourceNotFound()
@@ -61,8 +50,6 @@ public sealed class Http11StageStatusCodeTests : EngineTestBase
         Assert.Equal("not found", body);
     }
 
-    // ── 11SC-004: 500 Internal Server Error → StatusCode=500 ──────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.1-11SC-004: 500 Internal Server Error → StatusCode=500")]
     public async Task Should_Return500_WhenInternalServerError()
     {
@@ -76,8 +63,6 @@ public sealed class Http11StageStatusCodeTests : EngineTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal("error", body);
     }
-
-    // ── 11SC-005: 204 No Content → StatusCode=204, no body ────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.1-11SC-005: 204 No Content → StatusCode=204, no body")]
     public async Task Should_Return204WithEmptyBody_WhenNoContent()

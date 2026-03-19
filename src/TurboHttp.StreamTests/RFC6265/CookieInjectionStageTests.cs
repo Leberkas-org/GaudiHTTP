@@ -7,8 +7,6 @@ namespace TurboHttp.StreamTests.RFC6265;
 
 public sealed class CookieInjectionStageTests : StreamTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     private Task<IImmutableList<HttpRequestMessage>> RunAsync(
         CookieInjectionStage stage,
         params HttpRequestMessage[] requests)
@@ -28,8 +26,6 @@ public sealed class CookieInjectionStageTests : StreamTestBase
         return jar;
     }
 
-    // ── null jar (pass-through) ────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.4-CINJ-001: null CookieJar → request passes through unchanged")]
     public async Task Should_PassThroughUnchanged_When_CookieJarIsNull()
     {
@@ -41,8 +37,6 @@ public sealed class CookieInjectionStageTests : StreamTestBase
         var result = Assert.Single(results);
         Assert.False(result.Headers.Contains("Cookie"));
     }
-
-    // ── cookie injection ────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.4-CINJ-002: matching cookie in jar → Cookie header injected into request")]
     public async Task Should_InjectCookieHeader_When_MatchingCookieInJar()

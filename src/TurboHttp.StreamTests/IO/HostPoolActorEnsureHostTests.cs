@@ -6,13 +6,8 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
-/// <summary>
-/// Unit tests for <see cref="HostPool.HandleEnsureHost"/> rewrite (TASK-9-011).
-/// </summary>
 public sealed class HostPoolActorEnsureHostTests : IoActorTestBase
 {
-    // ── EH-001: Slot available → handle returned immediately, MarkBusy called ──
-
     [Fact(DisplayName = "EH-001: Slot available returns handle immediately and marks connection busy")]
     public void Should_ReturnHandleImmediatelyAndMarkBusy_WhenSlotAvailable()
     {
@@ -36,8 +31,6 @@ public sealed class HostPoolActorEnsureHostTests : IoActorTestBase
         pool.Tell(new PoolRouter.EnsureHost(Key11, TestOptions), TestActor);
         ExpectNoMsg(TimeSpan.FromMilliseconds(300));
     }
-
-    // ── EH-002: All slots full + under limiter → requester queued, new connection spawned ──
 
     [Fact(DisplayName = "EH-002: All slots full spawns new connection when under limiter limit")]
     public void Should_SpawnNewConnection_WhenAllSlotsFull()
@@ -68,8 +61,6 @@ public sealed class HostPoolActorEnsureHostTests : IoActorTestBase
         // The queued requester should now receive the handle.
         requesterProbe.ExpectMsg<ConnectionHandle>(TimeSpan.FromSeconds(5));
     }
-
-    // ── EH-003: All slots full + at limiter limit → requester queued, no spawn ──
 
     [Fact(DisplayName = "EH-003: At limiter limit queues requester without spawning")]
     public void Should_QueueRequesterWithoutSpawning_WhenAtLimiterLimit()

@@ -96,8 +96,6 @@ public sealed class Http20ConnectionStageStreamAcquireTests : StreamTestBase
         return (serverBound, signals);
     }
 
-    // ─── 20CS-SA-001: HeadersFrame on InletRequest emits StreamAcquireItem ──────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20CS-SA-001: HeadersFrame on InletRequest emits StreamAcquireItem on OutletSignal")]
     public async Task Should_Emit_StreamAcquireItem_When_HeadersFrame_Received()
     {
@@ -109,8 +107,6 @@ public sealed class Http20ConnectionStageStreamAcquireTests : StreamTestBase
         Assert.IsType<StreamAcquireItem>(signal);
     }
 
-    // ─── 20CS-SA-002: DataFrame on InletRequest does not emit on OutletSignal ───
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20CS-SA-002: DataFrame on InletRequest does not emit on OutletSignal")]
     public async Task Should_Not_Emit_Signal_When_DataFrame_Received()
     {
@@ -120,8 +116,6 @@ public sealed class Http20ConnectionStageStreamAcquireTests : StreamTestBase
 
         Assert.Empty(signals);
     }
-
-    // ─── 20CS-SA-003: StreamAcquireItem carries correct Key from tagged HeadersFrame ─
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20CS-SA-003: StreamAcquireItem carries correct Key from pipeline endpoint")]
     public async Task Should_Include_Correct_Key_In_StreamAcquireItem_From_Pipeline()
@@ -146,8 +140,6 @@ public sealed class Http20ConnectionStageStreamAcquireTests : StreamTestBase
         Assert.Equal(endpoint, acquire.Key);
     }
 
-    // ─── 20CS-SA-004: StreamAcquireItem uses default when no endpoint tagged ────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20CS-SA-004: StreamAcquireItem uses default endpoint when frame has no Endpoint")]
     public async Task Should_Use_Default_Key_In_StreamAcquireItem_When_No_Endpoint()
     {
@@ -160,8 +152,6 @@ public sealed class Http20ConnectionStageStreamAcquireTests : StreamTestBase
         var acquire = Assert.IsType<StreamAcquireItem>(signal);
         Assert.Equal(default(RequestEndpoint), acquire.Key);
     }
-
-    // ─── 20CS-SA-005: Endpoint captured once from first tagged frame, reused ────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20CS-SA-005: Endpoint captured from first tagged frame is reused for subsequent streams")]
     public async Task Should_Capture_Endpoint_Once_And_Reuse_For_Subsequent_Streams()
@@ -190,8 +180,6 @@ public sealed class Http20ConnectionStageStreamAcquireTests : StreamTestBase
         Assert.Equal(endpoint, acquire1.Key);
         Assert.Equal(endpoint, acquire2.Key);
     }
-
-    // ─── 20CS-SA-006: MaxConcurrentStreamsItem carries captured endpoint Key ─────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20CS-SA-006: MaxConcurrentStreamsItem carries captured endpoint Key after HEADERS")]
     public async Task Should_Set_Endpoint_Key_In_MaxConcurrentStreamsItem_After_Headers()
@@ -227,8 +215,6 @@ public sealed class Http20ConnectionStageStreamAcquireTests : StreamTestBase
         // that once captured, subsequent emissions use it.
         Assert.NotNull(maxStreamsSignal);
     }
-
-    // ─── 20CS-SA-007: MaxConcurrentStreamsItem has default Key before endpoint capture ─
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20CS-SA-007: MaxConcurrentStreamsItem has default Key when no endpoint captured yet")]
     public async Task Should_Use_Default_Key_In_MaxConcurrentStreamsItem_Before_Endpoint_Capture()

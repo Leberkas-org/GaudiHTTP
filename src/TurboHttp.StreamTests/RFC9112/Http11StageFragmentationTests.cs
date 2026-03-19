@@ -7,12 +7,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC9112;
 
-/// <summary>
-/// RFC 9112 §6 — TCP fragmentation tests through Http11DecoderStage.
-/// Verifies that the Akka.Streams decoder stage correctly reassembles
-/// HTTP/1.1 responses split across multiple TCP fragments, including
-/// chunked transfer-encoding and Content-Length framed bodies.
-/// </summary>
 public sealed class Http11StageFragmentationTests : StreamTestBase
 {
     private static IInputItem Chunk(byte[] data)
@@ -82,8 +76,6 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
             .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
     }
 
-    // ── 11F-001: Chunked response over 4 TCP segments → correctly reassembled ───
-
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9112-6-11FR-001: Chunked response over 4 TCP segments → correctly reassembled")]
     public async Task Should_ReassembleChunkedResponse_WhenFourTcpSegments()
@@ -128,8 +120,6 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
         Assert.Equal("foobar", body);
     }
 
-    // ── 11F-002: Header/body boundary on TCP segment boundary → correctly separated ─
-
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9112-6-11FR-002: Header/body boundary on TCP segment boundary → correctly separated")]
     public async Task Should_SeparateHeaderAndBody_WhenBoundaryOnSegmentBoundary()
@@ -168,8 +158,6 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal("Hello", body);
     }
-
-    // ── 11F-003: Chunk-size line split across 2 segments → correctly parsed ─────
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9112-6-11FR-003: Chunk-size line split across 2 segments → correctly parsed")]
@@ -215,8 +203,6 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
         Assert.Equal(chunkBody, body);
     }
 
-    // ── 11F-004: Content-Length body in 3 fragments → fully read ─────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-6-11FR-004: Content-Length body in 3 fragments → fully read")]
     public async Task Should_ReadContentLengthBody_WhenThreeFragments()
     {
@@ -254,8 +240,6 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(bodyText, body);
     }
-
-    // ── 11F-005: Very small fragments (1–2 bytes) → decoder handles gracefully ──
 
     [Fact(Timeout = 30_000,
         DisplayName = "RFC9112-6-11FR-005: 1-byte fragments with Content-Length body → decoder handles gracefully")]

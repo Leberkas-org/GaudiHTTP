@@ -12,10 +12,6 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
-/// <summary>
-/// Shared test infrastructure for <see cref="HostPool"/> tests.
-/// Provides <see cref="FakeConnectionActor"/>, common test keys, and pool/handle factory helpers.
-/// </summary>
 public abstract class IoActorTestBase : TestKit
 {
     protected static readonly TcpOptions TestOptions = new() { Host = "localhost", Port = 8080 };

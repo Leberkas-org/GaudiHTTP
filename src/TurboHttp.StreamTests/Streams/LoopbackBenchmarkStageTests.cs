@@ -9,15 +9,6 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Validates the persistent-queue pipeline pattern used by
-/// <c>EnginePipelineBenchmarks</c>: a single materialized stream stays alive
-/// across multiple offer/read cycles (rather than materializing a fresh graph
-/// per request as the unit tests do).
-///
-/// HTTP/2 round-trip coverage is in Http20/ — these tests focus on the
-/// benchmark infrastructure pattern (Source.Queue → persistent flow → Channel sink).
-/// </summary>
 public sealed class LoopbackBenchmarkStageTests : EngineTestBase
 {
     private static byte[] Http11OkResponse() =>

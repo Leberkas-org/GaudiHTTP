@@ -33,8 +33,6 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
         return request;
     }
 
-    // ─── H2FH-001: connection header stripped ─────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-001: connection header not present in wire format")]
     public async Task Should_StripConnectionHeader_When_RequestEncoded()
     {
@@ -43,8 +41,6 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
         var headers = DecodeHeaders(Assert.IsType<HeadersFrame>(frames[0]));
         Assert.DoesNotContain(headers, h => h.Name == "connection");
     }
-
-    // ─── H2FH-002: transfer-encoding header stripped ──────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-002: transfer-encoding header not present in wire format")]
     public async Task Should_StripTransferEncodingHeader_When_RequestEncoded()
@@ -55,8 +51,6 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
         Assert.DoesNotContain(headers, h => h.Name == "transfer-encoding");
     }
 
-    // ─── H2FH-003: upgrade header stripped ────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-003: upgrade header not present in wire format")]
     public async Task Should_StripUpgradeHeader_When_RequestEncoded()
     {
@@ -66,8 +60,6 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
         Assert.DoesNotContain(headers, h => h.Name == "upgrade");
     }
 
-    // ─── H2FH-004: keep-alive header stripped ─────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-004: keep-alive header not present in wire format")]
     public async Task Should_StripKeepAliveHeader_When_RequestEncoded()
     {
@@ -76,8 +68,6 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
         var headers = DecodeHeaders(Assert.IsType<HeadersFrame>(frames[0]));
         Assert.DoesNotContain(headers, h => h.Name == "keep-alive");
     }
-
-    // ─── H2FH-005: custom header preserved ────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-005: custom header (x-custom) present in wire format")]
     public async Task Should_PreserveCustomHeader_When_RequestEncoded()

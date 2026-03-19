@@ -12,18 +12,12 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Tests that async boundaries (TASK-12-004) are correctly placed in the Engine pipeline
-/// to create three fused islands without breaking existing functionality.
-/// </summary>
 public sealed class AsyncBoundaryTests : TestKit
 {
     public AsyncBoundaryTests()
         : base(ActorSystem.Create("async-boundary-" + Guid.NewGuid()))
     {
     }
-
-    // ── Helpers ──────────────────────────────────────────────────────────
 
     private static Flow<IOutputItem, IInputItem, NotUsed> Http11Flow(
         Func<byte[]> responseFactory)
@@ -55,8 +49,6 @@ public sealed class AsyncBoundaryTests : TestKit
         return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
     }
 
-    // ── ABND-001: HTTP/1.1 request completes with async boundaries ──────
-
     [Fact(Timeout = 15_000, DisplayName = "ABND-001: HTTP/1.1 request completes with async boundary islands")]
     public async Task Should_CompleteRequest_When_Http11UsesAsyncBoundaryIslands()
     {
@@ -77,8 +69,6 @@ public sealed class AsyncBoundaryTests : TestKit
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpVersion.Version11, response.Version);
     }
-
-    // ── ABND-002: HTTP/1.0 request completes with async boundaries ──────
 
     [Fact(Timeout = 15_000, DisplayName = "ABND-002: HTTP/1.0 request completes with async boundary islands")]
     public async Task Should_CompleteRequest_When_Http10UsesAsyncBoundaryIslands()
@@ -101,8 +91,6 @@ public sealed class AsyncBoundaryTests : TestKit
         Assert.Equal(HttpVersion.Version10, response.Version);
     }
 
-    // ── ABND-003: Multiple sequential requests complete ──────────────────
-
     [Fact(Timeout = 15_000, DisplayName = "ABND-003: Multiple sequential requests complete with async boundaries")]
     public async Task Should_CompleteAllRequests_When_MultipleRequestsSentWithAsyncBoundaries()
     {
@@ -124,8 +112,6 @@ public sealed class AsyncBoundaryTests : TestKit
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
     }
-
-    // ── ABND-004: Reduced materializer buffer with async boundaries ──────
 
     [Fact(Timeout = 15_000, DisplayName = "ABND-004: Reduced materializer buffer 4/16 works with async boundaries")]
     public async Task Should_CompleteRequest_When_ReducedMaterializerBufferUsedWithAsyncBoundaries()
@@ -151,8 +137,6 @@ public sealed class AsyncBoundaryTests : TestKit
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    // ── ABND-005: Full pipeline with TurboClientOptions ──────────────────
-
     [Fact(Timeout = 15_000, DisplayName = "ABND-005: Full pipeline with TurboClientOptions completes with async boundaries")]
     public async Task Should_CompleteRequest_When_FullPipelineWithOptionsAndAsyncBoundaries()
     {
@@ -174,8 +158,6 @@ public sealed class AsyncBoundaryTests : TestKit
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // ── ABND-006: Null options overload works with async boundaries ──────
 
     [Fact(Timeout = 15_000, DisplayName = "ABND-006: CreateFlow with null options works with async boundaries")]
     public async Task Should_CompleteRequest_When_CreateFlowCalledWithNullOptionsAndAsyncBoundaries()

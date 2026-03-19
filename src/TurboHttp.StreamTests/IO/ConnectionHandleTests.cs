@@ -10,9 +10,6 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
-/// <summary>
-/// Unit tests for <see cref="ConnectionHandle"/> mutable state (MaxConcurrentStreams).
-/// </summary>
 public sealed class ConnectionHandleTests : TestKit
 {
     private ConnectionHandle CreateHandle()

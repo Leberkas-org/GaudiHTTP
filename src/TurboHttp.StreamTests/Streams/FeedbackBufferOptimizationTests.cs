@@ -10,16 +10,8 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Tests that redirect/retry feedback buffer optimization (TASK-12-008)
-/// allows multiple in-flight feedback items without deadlock or backpressure stalls.
-/// Buffer(4) on each feedback loop enables up to 4 concurrent redirect/retry items.
-/// MergePreferred ensures feedback items are always processed before new source requests.
-/// </summary>
 public sealed class FeedbackBufferOptimizationTests : EngineTestBase
 {
-    // ── Helpers ──────────────────────────────────────────────────────────
-
     /// <summary>
     /// Creates an EngineFakeConnectionStage that cycles through responses in order.
     /// Each call to the response factory returns the next response in the sequence.
@@ -78,8 +70,6 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
     }
 
-    // ── FBUF-001: Single redirect completes through feedback loop ────────
-
     [Fact(Timeout = 15_000,
         DisplayName = "FBUF-001: Single 301 redirect completes via feedback buffer")]
     public async Task Should_CompleteViaFeedbackBuffer_When_Single301RedirectOccurs()
@@ -103,8 +93,6 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // ── FBUF-002: Three chained redirects complete without deadlock ──────
 
     [Fact(Timeout = 15_000,
         DisplayName = "FBUF-002: Three chained 301 redirects complete without deadlock")]
@@ -137,8 +125,6 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    // ── FBUF-003: Single retry completes through feedback loop ───────────
-
     [Fact(Timeout = 15_000,
         DisplayName = "FBUF-003: Single 408 retry completes via feedback buffer")]
     public async Task Should_CompleteViaFeedbackBuffer_When_Single408RetryOccurs()
@@ -165,8 +151,6 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // ── FBUF-004: Multiple retries then success ─────────────────────────
 
     [Fact(Timeout = 15_000,
         DisplayName = "FBUF-004: Two 408 retries then 200 OK completes")]
@@ -195,8 +179,6 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    // ── FBUF-005: 307 redirect preserves method via feedback loop ────────
-
     [Fact(Timeout = 15_000,
         DisplayName = "FBUF-005: 307 redirect preserves original HTTP method")]
     public async Task Should_PreserveOriginalMethod_When_307RedirectViaFeedbackLoop()
@@ -220,8 +202,6 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // ── FBUF-006: Non-retryable response passes through without buffering ─
 
     [Fact(Timeout = 15_000,
         DisplayName = "FBUF-006: 200 OK passes through without entering feedback loop")]

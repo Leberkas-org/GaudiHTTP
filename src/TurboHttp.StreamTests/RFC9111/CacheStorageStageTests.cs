@@ -8,8 +8,6 @@ namespace TurboHttp.StreamTests.RFC9111;
 
 public sealed class CacheStorageStageTests : StreamTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     /// <summary>Materialises a CacheStorageStage and collects all output responses.</summary>
     private async Task<List<HttpResponseMessage>> RunAsync(
         HttpCacheStore store,
@@ -72,8 +70,6 @@ public sealed class CacheStorageStageTests : StreamTestBase
         return store;
     }
 
-    // ── 2xx storage ────────────────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-001: 2xx cacheable response → stored in cache")]
     public async Task Should_StoreInCache_When_ResponseIsCacheable2xx()
     {
@@ -127,8 +123,6 @@ public sealed class CacheStorageStageTests : StreamTestBase
         Assert.NotNull(entry);
         Assert.Equal(bodyBytes, entry.Body);
     }
-
-    // ── 304 Not Modified ──────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-005: 304 Not Modified with cached entry → merged 200 pushed downstream")]
     public async Task Should_MergeCachedEntryAndPush200_When_304NotModifiedReceived()
@@ -188,8 +182,6 @@ public sealed class CacheStorageStageTests : StreamTestBase
         Assert.Equal(HttpStatusCode.NotModified, results[0].StatusCode);
     }
 
-    // ── unsafe method invalidation ────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-008: POST response → cached entry for URI invalidated")]
     public async Task Should_InvalidateCachedEntry_When_PostResponseReceived()
     {
@@ -242,8 +234,6 @@ public sealed class CacheStorageStageTests : StreamTestBase
         Assert.Equal(0, store.Count);
     }
 
-    // ── null request message ──────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-012: null RequestMessage → response passed through without exception")]
     public async Task Should_PassThroughSafely_When_RequestMessageIsNull()
     {
@@ -259,8 +249,6 @@ public sealed class CacheStorageStageTests : StreamTestBase
         Assert.Same(response, results[0]);
         Assert.Equal(0, store.Count);
     }
-
-    // ── sync fast-path (ByteArrayContent) ────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-013: sync fast-path — ByteArrayContent body stored correctly")]
     public async Task Should_StoreBodyCorrectly_When_SyncFastPathWithByteArrayContent()
@@ -295,8 +283,6 @@ public sealed class CacheStorageStageTests : StreamTestBase
         Assert.NotNull(entry);
         Assert.Equal(bodyBytes, entry.Body);
     }
-
-    // ── async path (StreamContent) ───────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-015: async path — StreamContent body stored correctly")]
     public async Task Should_StoreBodyCorrectly_When_AsyncPathWithStreamContent()

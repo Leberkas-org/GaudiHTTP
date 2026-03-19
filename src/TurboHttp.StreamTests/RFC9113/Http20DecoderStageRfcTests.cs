@@ -19,8 +19,6 @@ public sealed class Http20DecoderStageRfcTests : StreamTestBase
             .RunWith(Sink.Seq<Http2Frame>(), Materializer);
     }
 
-    // ─── 20D-RFC-001: Complete frame → correctly decoded ─────────────────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9113-4.1-20D-RFC-001: Complete HEADERS frame decoded with correct type and payload")]
     public async Task Should_DecodeHeadersFrameWithTypeAndPayload_When_FrameIsComplete()
@@ -67,8 +65,6 @@ public sealed class Http20DecoderStageRfcTests : StreamTestBase
         Assert.Equal(7, wuFrame.StreamId);
         Assert.Equal(65535, wuFrame.Increment);
     }
-
-    // ─── 20D-RFC-002: Frame split across 2 TCP segments → reassembled ────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9113-4.1-20D-RFC-002: HEADERS frame split at midpoint reassembled correctly")]
@@ -130,8 +126,6 @@ public sealed class Http20DecoderStageRfcTests : StreamTestBase
         Assert.Equal(2, settingsFrame.Parameters.Count);
     }
 
-    // ─── 20D-RFC-003: 2 frames in one TCP segment → both decoded ─────────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9113-4.1-20D-RFC-003: Two frames in single TCP segment both decoded in order")]
     public async Task Should_DecodeBothFramesInOrder_When_TwoFramesInOneTcpSegment()
@@ -171,8 +165,6 @@ public sealed class Http20DecoderStageRfcTests : StreamTestBase
         Assert.IsType<DataFrame>(frames[1]);
         Assert.IsType<WindowUpdateFrame>(frames[2]);
     }
-
-    // ─── 20D-RFC-004: SETTINGS frame (Type 0x4) → flags and parameters correct ──
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9113-4.1-20D-RFC-004: SETTINGS frame parameters decoded with correct keys and values")]
@@ -214,8 +206,6 @@ public sealed class Http20DecoderStageRfcTests : StreamTestBase
         Assert.True(settingsFrame.IsAck);
         Assert.Empty(settingsFrame.Parameters);
     }
-
-    // ─── 20D-RFC-005: DATA frame → stream ID and payload correct ─────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName =

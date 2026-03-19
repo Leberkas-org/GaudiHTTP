@@ -47,8 +47,6 @@ public sealed class Http20ConnectionStagePingTests : StreamTestBase
         return (downstream, serverBound);
     }
 
-    // ─── 20CP-001: PING without ACK → PING with ACK sent back ───────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.7-20CP-001: PING without ACK produces PING ACK response")]
     public async Task Should_Send_Ack_Response_When_Ping_Without_Ack_Received()
     {
@@ -60,8 +58,6 @@ public sealed class Http20ConnectionStagePingTests : StreamTestBase
         var pingAck = Assert.IsType<PingFrame>(response);
         Assert.True(pingAck.IsAck, "Response must be a PING with ACK flag set");
     }
-
-    // ─── 20CP-002: PING payload (8 bytes) → identical in ACK ─────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.7-20CP-002: PING ACK echoes identical 8-byte payload")]
     public async Task Should_Echo_Identical_Payload_In_Ping_Ack()
@@ -76,8 +72,6 @@ public sealed class Http20ConnectionStagePingTests : StreamTestBase
         Assert.Equal(payload, pingAck.Data);
     }
 
-    // ─── 20CP-003: PING with ACK flag → no new PING sent ────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.7-20CP-003: PING with ACK flag does not trigger another PING")]
     public async Task Should_Not_Trigger_Response_When_Ping_With_Ack_Received()
     {
@@ -87,8 +81,6 @@ public sealed class Http20ConnectionStagePingTests : StreamTestBase
 
         Assert.Empty(serverBound);
     }
-
-    // ─── 20CP-004: PING on stream 0 → response on stream 0 ──────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.7-20CP-004: PING response is on stream 0")]
     public async Task Should_Send_Ping_Response_On_Stream_Zero()

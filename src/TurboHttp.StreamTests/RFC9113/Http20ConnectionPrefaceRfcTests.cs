@@ -55,8 +55,6 @@ public sealed class Http20ConnectionPrefaceRfcTests : StreamTestBase
         return bytes.ToArray();
     }
 
-    // ─── H2P-001: First 24 bytes = PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n ──────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9113-3.4-H2P-001: First 24 bytes are the HTTP/2 connection preface magic")]
     public async Task Should_Set_First_24_Bytes_As_Http2_Magic()
@@ -70,8 +68,6 @@ public sealed class Http20ConnectionPrefaceRfcTests : StreamTestBase
         Assert.True(bytes.Length >= 24, $"Expected at least 24 bytes, got {bytes.Length}");
         Assert.Equal(Http2Magic, bytes[..24]);
     }
-
-    // ─── H2P-002: SETTINGS frame directly after magic (byte 24+) ────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9113-3.4-H2P-002: SETTINGS frame immediately follows the 24-byte magic")]
@@ -135,8 +131,6 @@ public sealed class Http20ConnectionPrefaceRfcTests : StreamTestBase
         Assert.Equal(16384u, parameters[(ushort)SettingsParameter.MaxFrameSize]);
     }
 
-    // ─── H2P-003: Preface is sent exactly once (not repeated on second request) ──
-
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9113-3.4-H2P-003: Preface is sent exactly once — not repeated on subsequent data")]
     public async Task Should_Send_Preface_Exactly_Once()
@@ -166,8 +160,6 @@ public sealed class Http20ConnectionPrefaceRfcTests : StreamTestBase
         var dataItems = output.OfType<DataItem>().ToList();
         Assert.Equal(4, dataItems.Count); // 1 preface + 3 data
     }
-
-    // ─── H2P-004: SETTINGS frame on stream 0 ────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-3.4-H2P-004: SETTINGS frame in preface has stream ID 0")]
     public async Task Should_Use_Stream_Id_Zero_In_Settings_Frame()

@@ -7,11 +7,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC1945;
 
-/// <summary>
-/// RFC 1945 §8 — Round-trip method tests through Akka.Streams stages.
-/// Each test encodes an HTTP/1.0 request via Http10EncoderStage, verifies the wire format,
-/// then decodes a matching response via Http10DecoderStage and validates the result.
-/// </summary>
 public sealed class Http10StageRoundTripMethodTests : StreamTestBase
 {
     private async Task<string> EncodeAsync(HttpRequestMessage request)

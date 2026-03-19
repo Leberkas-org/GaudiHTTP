@@ -7,14 +7,8 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Tests encoder and decoder stage lifecycle and termination behaviour.
-/// Covers: upstream finish, downstream cancel, encoder exception, decoder exception.
-/// </summary>
 public sealed class StageLifecycleTests : StreamTestBase
 {
-    // ── Helpers ──────────────────────────────────────────────────────────────────
-
     private static HttpRequestMessage ValidRequest()
         => new(HttpMethod.Get, "http://example.com/")
         {
@@ -29,8 +23,6 @@ public sealed class StageLifecycleTests : StreamTestBase
 
     private static Exception Unwrap(Exception ex)
         => ex is AggregateException agg ? agg.InnerException! : ex;
-
-    // ── LIFE-001 ──────────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "LIFE-001: UpstreamFinish → encoder stage completes without exception")]
@@ -58,8 +50,6 @@ public sealed class StageLifecycleTests : StreamTestBase
 
         Assert.Empty(results);
     }
-
-    // ── LIFE-002 ──────────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "LIFE-002: DownstreamCancel → encoder stage shuts down cleanly")]
@@ -100,8 +90,6 @@ public sealed class StageLifecycleTests : StreamTestBase
         Assert.Equal(System.Net.HttpStatusCode.OK, response.StatusCode);
     }
 
-    // ── LIFE-003 ──────────────────────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "LIFE-003: Exception in encoder → stage fails with meaningful error message")]
     public async Task Should_FailWithMeaningfulMessage_When_EncoderStageReceivesInvalidRequest()
@@ -127,8 +115,6 @@ public sealed class StageLifecycleTests : StreamTestBase
         Assert.False(string.IsNullOrWhiteSpace(inner.Message),
             "Exception must carry a meaningful, non-empty error message");
     }
-
-    // ── LIFE-004 ──────────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "LIFE-004: Exception in decoder → stage fails with HttpDecoderException")]

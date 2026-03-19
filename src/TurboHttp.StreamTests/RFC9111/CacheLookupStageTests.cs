@@ -9,8 +9,6 @@ namespace TurboHttp.StreamTests.RFC9111;
 
 public sealed class CacheLookupStageTests : StreamTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     /// <summary>
     /// Materialises a CacheLookupStage with manual subscriber probes, gives each outlet
     /// <paramref name="demandEach"/> demand, and returns the probes ready for assertions.
@@ -89,8 +87,6 @@ public sealed class CacheLookupStageTests : StreamTestBase
         return store;
     }
 
-    // ── cache miss ─────────────────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-001: cache miss → request forwarded to Out0 unchanged")]
     public async Task Should_ForwardToOut0_When_CacheMiss()
     {
@@ -114,8 +110,6 @@ public sealed class CacheLookupStageTests : StreamTestBase
         Assert.Same(request, miss.ExpectNext());
         hit.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── cache hit (fresh) ──────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-003: fresh cache entry → cached response emitted on Out1")]
     public async Task Should_EmitOnOut1_When_CacheEntryIsFresh()
@@ -148,8 +142,6 @@ public sealed class CacheLookupStageTests : StreamTestBase
         Assert.Same(resp, hit.ExpectNext());
         miss.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── must-revalidate ────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-005: stale must-revalidate with ETag → If-None-Match added on Out0")]
     public async Task Should_AddIfNoneMatchHeader_When_StaleMustRevalidateWithETag()
@@ -200,8 +192,6 @@ public sealed class CacheLookupStageTests : StreamTestBase
         hit.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── request Cache-Control directives ──────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-008: request no-cache → forces MustRevalidate even for fresh entry")]
     public async Task Should_ForceMustRevalidate_When_RequestHasNoCache()
     {
@@ -214,8 +204,6 @@ public sealed class CacheLookupStageTests : StreamTestBase
         miss.ExpectNext(); // revalidation request forwarded
         hit.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── multiple requests ──────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-009: two sequential misses → both forwarded to Out0")]
     public async Task Should_ForwardBothToOut0_When_TwoSequentialMisses()
@@ -275,8 +263,6 @@ public sealed class CacheLookupStageTests : StreamTestBase
         Assert.Same(reqMiss, miss.ExpectNext());
         Assert.Equal(HttpStatusCode.OK, hit.ExpectNext().StatusCode);
     }
-
-    // ── policy ────────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-012: null policy → defaults to CachePolicy.Default, fresh entries served from cache")]
     public async Task Should_UseDefaultPolicyAndServeFreshEntriesFromCache_When_PolicyIsNull()

@@ -6,8 +6,6 @@ namespace TurboHttp.StreamTests.RFC9110;
 
 public sealed class DecompressionStageTests : StreamTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     private async Task<IReadOnlyList<HttpResponseMessage>> RunAsync(
         params HttpResponseMessage[] responses)
     {
@@ -56,8 +54,6 @@ public sealed class DecompressionStageTests : StreamTestBase
         return new HttpResponseMessage { Content = content };
     }
 
-    // ── pass-through cases ─────────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-8.4-DCMP-001: no Content-Encoding → response passes through unchanged")]
     public async Task Should_PassThroughUnchanged_When_NoContentEncoding()
     {
@@ -84,8 +80,6 @@ public sealed class DecompressionStageTests : StreamTestBase
         var resultBody = await result.Content.ReadAsByteArrayAsync();
         Assert.Equal(body, resultBody);
     }
-
-    // ── gzip decompression ─────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-8.4-DCMP-003: Content-Encoding: gzip → body decompressed")]
     public async Task Should_Decompress_When_ContentEncodingIsGzip()
@@ -115,8 +109,6 @@ public sealed class DecompressionStageTests : StreamTestBase
         Assert.Equal(original, resultBody);
     }
 
-    // ── deflate decompression ──────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-8.4-DCMP-005: Content-Encoding: deflate → body decompressed")]
     public async Task Should_Decompress_When_ContentEncodingIsDeflate()
     {
@@ -131,8 +123,6 @@ public sealed class DecompressionStageTests : StreamTestBase
         Assert.Equal(original, resultBody);
     }
 
-    // ── brotli decompression ───────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-8.4-DCMP-006: Content-Encoding: br → body decompressed")]
     public async Task Should_Decompress_When_ContentEncodingIsBrotli()
     {
@@ -146,8 +136,6 @@ public sealed class DecompressionStageTests : StreamTestBase
         var resultBody = await result.Content.ReadAsByteArrayAsync();
         Assert.Equal(original, resultBody);
     }
-
-    // ── header management ──────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-8.4-DCMP-007: after decompression Content-Encoding header is removed")]
     public async Task Should_RemoveContentEncodingHeader_When_DecompressionApplied()
@@ -192,8 +180,6 @@ public sealed class DecompressionStageTests : StreamTestBase
         var contentType = string.Join("", result.Content.Headers.GetValues("Content-Type"));
         Assert.Contains("application/json", contentType);
     }
-
-    // ── multiple responses ─────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-8.4-DCMP-010: multiple responses with different encodings all decompressed")]
     public async Task Should_DecompressAll_When_MultipleResponsesWithDifferentEncodings()

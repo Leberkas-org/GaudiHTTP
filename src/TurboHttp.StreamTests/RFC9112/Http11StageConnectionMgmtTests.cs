@@ -3,16 +3,9 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.RFC9112;
 
-/// <summary>
-/// RFC 9112 §9.6/§9.8 — HTTP/1.1 Connection Management round-trip tests through Akka.Streams stages.
-/// Validates Connection: close header handling, default keep-alive behavior, chunked transfer
-/// with keep-alive, Content-Length body reading, and empty body emission.
-/// </summary>
 public sealed class Http11StageConnectionMgmtTests : EngineTestBase
 {
     private static Http11Engine Engine => new();
-
-    // ── 11RT-C-001: Response with Connection: close → version correctly set ──────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.6-11CM-001: Response with Connection: close → version correctly set")]
     public async Task Should_SetVersion_WhenConnectionCloseHeaderPresent()
@@ -29,8 +22,6 @@ public sealed class Http11StageConnectionMgmtTests : EngineTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal("hello", body);
     }
-
-    // ── 11RT-C-002: Response without Connection header → keep-alive (default) ────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.8-11CM-002: Response without Connection header → keep-alive default")]
     public async Task Should_DefaultToKeepAlive_WhenNoConnectionHeader()
@@ -50,8 +41,6 @@ public sealed class Http11StageConnectionMgmtTests : EngineTestBase
             Assert.Empty(responses[i].Headers.Connection);
         }
     }
-
-    // ── 11RT-C-003: Chunked + Connection: keep-alive → stream stays open ─────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.8-11CM-003: Chunked + Connection: keep-alive → stream stays open")]
     public async Task Should_KeepStreamOpen_WhenChunkedWithKeepAlive()
@@ -77,8 +66,6 @@ public sealed class Http11StageConnectionMgmtTests : EngineTestBase
         }
     }
 
-    // ── 11RT-C-004: Content-Length body → correctly read, not prematurely closed ──
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.6-11CM-004: Content-Length body → correctly read, connection not prematurely closed")]
     public async Task Should_ReadContentLengthBody_WhenConnectionNotPrematurelyClosed()
     {
@@ -102,8 +89,6 @@ public sealed class Http11StageConnectionMgmtTests : EngineTestBase
             Assert.Equal(bodyBytes.Length, responses[i].Content.Headers.ContentLength);
         }
     }
-
-    // ── 11RT-C-005: Empty body with Content-Length: 0 → response emitted immediately
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.6-11CM-005: Empty body with Content-Length: 0 → response emitted immediately")]
     public async Task Should_EmitResponseImmediately_WhenContentLengthIsZero()

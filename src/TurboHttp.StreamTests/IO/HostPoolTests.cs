@@ -7,13 +7,8 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
-/// <summary>
-/// Unit tests for <see cref="HostPool"/> connection lifecycle and stale-state cleanup.
-/// </summary>
 public sealed class HostPoolTests : IoActorTestBase
 {
-    // ── HPA-001: ConnectionFailed clears active handle ────────────────────────
-
     [Fact(DisplayName = "HPA-001: ConnectionFailed clears active handle; next EnsureHost is queued")]
     public void Should_ClearActiveHandleAndQueueRequester_WhenConnectionFailed()
     {
@@ -34,8 +29,6 @@ public sealed class HostPoolTests : IoActorTestBase
         pool.Tell(new PoolRouter.EnsureHost(Key11, TestOptions), TestActor);
         ExpectNoMsg(TimeSpan.FromMilliseconds(500));
     }
-
-    // ── HPA-002: Queued requester served when new ConnectionReady arrives ─────
 
     [Fact(DisplayName = "HPA-002: Queued EnsureHost requester is served when reconnected handle arrives")]
     public void Should_ServeQueuedRequester_WhenReconnectedHandleArrives()

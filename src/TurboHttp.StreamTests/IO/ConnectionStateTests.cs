@@ -10,14 +10,8 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
-/// <summary>
-/// Unit tests for <see cref="ConnectionState"/> — handle association, version-aware
-/// MaxConcurrentStreams, and HasAvailableSlot logic.
-/// </summary>
 public sealed class ConnectionStateTests : TestKit
 {
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
     private ConnectionHandle CreateHandle(Version version)
     {
         var outbound = Channel.CreateUnbounded<(IMemoryOwner<byte> Buffer, int ReadableBytes)>();
@@ -32,8 +26,6 @@ public sealed class ConnectionStateTests : TestKit
 
         return new ConnectionHandle(outbound.Writer, inbound.Reader, key, ActorRefs.Nobody);
     }
-
-    // ── Handle property ─────────────────────────────────────────────────────
 
     [Fact(DisplayName = "TASK-9-003-001: Handle is null by default")]
     public void Should_BeNull_WhenHandleNotSet()
@@ -56,8 +48,6 @@ public sealed class ConnectionStateTests : TestKit
         Assert.True(state.LastActivity >= before);
     }
 
-    // ── HttpVersion (computed) ──────────────────────────────────────────────
-
     [Fact(DisplayName = "TASK-9-003-003: HttpVersion defaults to 1.1 when no handle")]
     public void Should_DefaultToHttp11_WhenNoHandleSet()
     {
@@ -78,8 +68,6 @@ public sealed class ConnectionStateTests : TestKit
 
         Assert.Equal(version, state.HttpVersion);
     }
-
-    // ── MaxConcurrentStreams (version-dependent) ────────────────────────────
 
     [Fact(DisplayName = "TASK-9-003-005: HTTP/1.0 MaxConcurrentStreams is 1")]
     public void Should_Be1_WhenHttp10ConnectionSet()
@@ -128,8 +116,6 @@ public sealed class ConnectionStateTests : TestKit
 
         Assert.Equal(6, state.MaxConcurrentStreams);
     }
-
-    // ── HasAvailableSlot ────────────────────────────────────────────────────
 
     [Fact(DisplayName = "TASK-9-003-010: HasAvailableSlot true for fresh connection")]
     public void Should_BeTrue_WhenConnectionIsFresh()
@@ -198,8 +184,6 @@ public sealed class ConnectionStateTests : TestKit
         state.MarkIdle();
         Assert.True(state.HasAvailableSlot);
     }
-
-    // ── Existing methods still work ─────────────────────────────────────────
 
     [Fact(DisplayName = "TASK-9-003-016: Existing MarkBusy/MarkIdle/MarkDead/MarkNoReuse preserved")]
     public void Should_TrackStateCorrectly_WhenBusyIdleDeadNoReuseMarked()

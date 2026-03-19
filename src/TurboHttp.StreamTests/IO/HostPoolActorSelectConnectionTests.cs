@@ -8,14 +8,8 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
-/// <summary>
-/// Unit tests for <see cref="HostPool.SelectConnection"/> — MRU ordering,
-/// capacity filtering, and dead/non-reusable connection skipping.
-/// </summary>
 public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
 {
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
     private ConnectionHandle CreateHandle(Version version)
     {
         var outbound = Channel.CreateUnbounded<(IMemoryOwner<byte> Buffer, int ReadableBytes)>();
@@ -37,8 +31,6 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
         return state;
     }
 
-    // ── SEL-001: Empty list → null ───────────────────────────────────────────
-
     [Fact(DisplayName = "SEL-001: Empty connection list returns null")]
     public void Should_ReturnNull_WhenConnectionListIsEmpty()
     {
@@ -48,8 +40,6 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
 
         Assert.Null(result);
     }
-
-    // ── SEL-002: All connections at capacity → null ──────────────────────────
 
     [Fact(DisplayName = "SEL-002: All connections at capacity returns null")]
     public void Should_ReturnNull_WhenAllConnectionsAtCapacity()
@@ -64,8 +54,6 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
         Assert.Null(result);
     }
 
-    // ── SEL-003: Single eligible connection → returns it ─────────────────────
-
     [Fact(DisplayName = "SEL-003: Single eligible connection is returned")]
     public void Should_ReturnEligibleConnection_WhenOnlyOneExists()
     {
@@ -76,8 +64,6 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
 
         Assert.Same(conn, result);
     }
-
-    // ── SEL-004: Multiple eligible → returns most recently active ────────────
 
     [Fact(DisplayName = "SEL-004: Multiple eligible connections returns most recently active")]
     public void Should_ReturnMostRecentlyActiveConnection_WhenMultipleEligibleExist()
@@ -91,8 +77,6 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
 
         Assert.Same(newer, result);
     }
-
-    // ── SEL-005: Dead connections are skipped ────────────────────────────────
 
     [Fact(DisplayName = "SEL-005: Dead connections are skipped")]
     public void Should_SkipDeadConnections_WhenSelectingConnection()
@@ -108,8 +92,6 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
         Assert.Same(alive, result);
     }
 
-    // ── SEL-006: Non-reusable connections are skipped ────────────────────────
-
     [Fact(DisplayName = "SEL-006: Non-reusable connections are skipped")]
     public void Should_SkipNonReusableConnections_WhenSelectingConnection()
     {
@@ -123,8 +105,6 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
 
         Assert.Same(reusable, result);
     }
-
-    // ── SEL-007: Mixed — dead, full, non-reusable, eligible ──────────────────
 
     [Fact(DisplayName = "SEL-007: Mixed state list returns correct MRU eligible connection")]
     public void Should_ReturnCorrectMruEligible_WhenConnectionListHasMixedStates()

@@ -359,9 +359,9 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 **Scope:** All files in `src/TurboHttp.StreamTests/` (RFC folders + Engine + IO + Pipeline + Stages)
 
 **Acceptance Criteria:**
-- [ ] Same rules as TASK-024
-- [ ] Akka-specific explanations preserved (Materializer, TestKit, Stage lifecycle)
-- [ ] Build + tests green
+- [x] Same rules as TASK-024
+- [x] Akka-specific explanations preserved (Materializer, TestKit, Stage lifecycle)
+- [x] Build + tests green
 
 ---
 

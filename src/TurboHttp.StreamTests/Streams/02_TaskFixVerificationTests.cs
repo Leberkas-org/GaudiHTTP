@@ -15,17 +15,8 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// TASK-010: Comprehensive tests verifying all fixes from TASK-001 through TASK-009.
-/// Tests focus on cross-cutting behaviors, fix correctness, and edge cases
-/// not covered by individual stage test files.
-/// </summary>
 public sealed class TaskFixVerificationTests : StreamTestBase
 {
-    // ═══════════════════════════════════════════════════════════════════════════
-    // TASK-001: RetryStage — Per-Request Attempt Tracking
-    // ═══════════════════════════════════════════════════════════════════════════
-
     [Fact(Timeout = 10_000,
         DisplayName = "TASK001-VFY-001: Retry attempt count stored in HttpRequestMessage.Options")]
     public async Task Should_StoreRetryAttemptCountInOptions_When_RetryOccurs()
@@ -91,10 +82,6 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         Assert.Same(response, final.ExpectNext());
         retry.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // TASK-002: RedirectStage — Per-Request State + Version Preservation
-    // ═══════════════════════════════════════════════════════════════════════════
 
     [Fact(DisplayName = "TASK002-VFY-001: RedirectHandler.BuildRedirectRequest preserves HTTP/2 Version")]
     public void Should_PreserveHttp2Version_When_BuildingRedirectRequest()
@@ -180,10 +167,6 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         Assert.Equal(new Version(2, 0), newRequest.Version);
         Assert.Equal("http", newRequest.RequestUri!.Scheme);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // TASK-003: CookieJar Thread-Safety
-    // ═══════════════════════════════════════════════════════════════════════════
 
     [Fact(Timeout = 10_000,
         DisplayName = "TASK003-VFY-001: Concurrent ProcessResponse and AddCookiesToRequest do not throw")]
@@ -324,10 +307,6 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         Assert.Empty(exceptions);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // TASK-004: ConnectionReuseStage — RequestEndpoint Extraction
-    // ═══════════════════════════════════════════════════════════════════════════
-
     [Fact(Timeout = 10_000,
         DisplayName = "TASK004-VFY-001: ConnectionReuseItem Key matches RequestEndpoint.FromRequest")]
     public async Task Should_MatchRequestEndpointFromRequest_When_ConnectionReuseItemCreated()
@@ -367,10 +346,6 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         var signal = (ConnectionReuseItem)await probe1.ExpectNextAsync(CancellationToken.None);
         Assert.Equal(expected, signal.Key);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // TASK-005: Http2Frame.Endpoint Does Not Affect Serialization
-    // ═══════════════════════════════════════════════════════════════════════════
 
     [Fact(DisplayName = "TASK005-VFY-001: Http2Frame.Endpoint does not change SerializedSize")]
     public void Should_NotAffectSerializedSize_When_Http2FrameHasEndpoint()
@@ -441,10 +416,6 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // TASK-006: Http20ConnectionStage — Endpoint From Pipeline
-    // ═══════════════════════════════════════════════════════════════════════════
-
     [Fact(Timeout = 10_000,
         DisplayName = "TASK006-VFY-001: Two HEADERS frames → both StreamAcquireItems have same captured endpoint")]
     public async Task Should_HaveSameEndpointOnBothAcquireItems_When_TwoHeaderFramesSent()
@@ -473,10 +444,6 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         Assert.Equal(endpoint, a2.Key);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // TASK-007: Http20EncoderStage — Endpoint From Pipeline
-    // ═══════════════════════════════════════════════════════════════════════════
-
     [Fact(Timeout = 10_000,
         DisplayName = "TASK007-VFY-001: Frame without Endpoint before any tagged frame → Key is default")]
     public async Task Should_HaveDefaultKey_When_Http2FrameHasNoEndpoint()
@@ -492,10 +459,6 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         Assert.IsType<DataItem>(dataItem);
         Assert.Equal(default(RequestEndpoint), ((DataItem)dataItem).Key);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // TASK-008: CacheStorageStage — Async Body Reading
-    // ═══════════════════════════════════════════════════════════════════════════
 
     [Fact(Timeout = 10_000,
         DisplayName = "TASK008-VFY-001: StreamContent body stored via async path")]
@@ -559,10 +522,6 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         Assert.Equal("sync"u8.ToArray(), store.Get(syncRequest)!.Body);
         Assert.Equal("async"u8.ToArray(), store.Get(asyncRequest)!.Body);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // CROSS-TASK INTEGRATION TESTS
-    // ═══════════════════════════════════════════════════════════════════════════
 
     [Fact(Timeout = 10_000,
         DisplayName = "CROSS-VFY-001: Retry then redirect — independent state tracking")]
@@ -680,10 +639,6 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         Assert.Equal(0x01, bytes[3]); // HEADERS frame type
         dataItem.Memory.Dispose();
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Helpers
-    // ═══════════════════════════════════════════════════════════════════════════
 
     private (TestSubscriber.ManualProbe<HttpResponseMessage> final,
         TestSubscriber.ManualProbe<HttpRequestMessage> retry) RunRetry(

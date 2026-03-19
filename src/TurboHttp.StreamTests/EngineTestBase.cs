@@ -93,11 +93,6 @@ public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem
     }
 }
 
-/// <summary>
-/// H2-aware fake TCP stage that accepts <see cref="IOutputItem"/> input (as produced by Http20Engine).
-/// Inbound (In): captures outbound DataItem bytes for inspection, always pulls more.
-/// Outbound (Out): serves pre-queued server frames when downstream pulls.
-/// </summary>
 public sealed class H2EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
 {
     private readonly IReadOnlyList<byte[]> _serverFrames;

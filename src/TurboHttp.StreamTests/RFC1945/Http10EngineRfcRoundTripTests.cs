@@ -4,16 +4,9 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.RFC1945;
 
-/// <summary>
-/// RFC 1945 — Http10Engine end-to-end round-trip tests.
-/// Each test drives a full request → encoder → fake-TCP → decoder → correlation cycle
-/// using <see cref="EngineTestBase.SendAsync"/>.
-/// </summary>
 public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
 {
     private static Http10Engine Engine => new();
-
-    // ── 10ENG-001: GET → 200 with body — version 1.0 in response ────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-4.1-10EN-001: GET → 200 with body — version 1.0 in response")]
     public async Task Should_ReturnBodyWithVersion10_When_GetReturns200()
@@ -36,8 +29,6 @@ public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(responseBody, body);
     }
-
-    // ── 10ENG-002: POST with body → request body in wire, 200 response with body ─
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-7-10EN-002: POST with body → request body in wire, 200 response with body")]
     public async Task Should_IncludeBodyInWireAndDecodeResponse_When_PostWithBody()
@@ -67,8 +58,6 @@ public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
         Assert.Equal(responseBody, respBody);
     }
 
-    // ── 10ENG-003: 404 response → StatusCode correct, ReasonPhrase present ───────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-6.1-10EN-003: 404 response → StatusCode correct, ReasonPhrase present")]
     public async Task Should_SetCorrectStatusCodeAndReasonPhrase_When_404Response()
     {
@@ -87,8 +76,6 @@ public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("Not Found", response.ReasonPhrase);
     }
-
-    // ── 10ENG-004: Custom request header → in wire and response carries header ───
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-5.2-10EN-004: Custom request header → present in wire bytes")]
     public async Task Should_IncludeCustomHeaderInWire_When_CustomRequestHeaderSet()
@@ -110,8 +97,6 @@ public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
         Assert.Contains("X-Correlation-Id: abc-123", rawRequest);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // ── 10ENG-005: Response correlation — response.RequestMessage == sent request ─
 
     [Fact(Timeout = 10_000, DisplayName = "RFC1945-4.1-10EN-005: response.RequestMessage is the original sent request")]
     public async Task Should_SetRequestMessageToOriginalRequest_When_ResponseReceived()

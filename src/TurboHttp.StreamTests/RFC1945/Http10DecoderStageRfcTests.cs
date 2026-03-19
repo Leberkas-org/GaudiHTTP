@@ -6,9 +6,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC1945;
 
-/// <summary>
-/// RFC 1945 §6.1 — Status-Line, §4.2 — Headers compliance tests for Http10DecoderStage.
-/// </summary>
 public sealed class Http10DecoderStageRfcTests : StreamTestBase
 {
     private static IInputItem Chunk(string ascii)

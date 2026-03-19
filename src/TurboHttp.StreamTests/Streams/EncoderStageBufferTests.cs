@@ -9,8 +9,6 @@ namespace TurboHttp.StreamTests.Streams;
 
 public sealed class EncoderStageBufferTests : StreamTestBase
 {
-    // ── Helpers ──────────────────────────────────────────────────────────────────
-
     private async Task<(byte[] bytes, int written)> Encode11Async(HttpRequestMessage request)
     {
         var items = await Source.Single(request)
@@ -43,8 +41,6 @@ public sealed class EncoderStageBufferTests : StreamTestBase
         return -1;
     }
 
-    // ── BUF-001 ───────────────────────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "BUF-001: Small request (< 4 KB) → adaptive buffer starts small")]
     public async Task Should_WriteSmallByteCount_When_RequestIsSmall()
     {
@@ -63,8 +59,6 @@ public sealed class EncoderStageBufferTests : StreamTestBase
         // Sanity: something was actually written (at least the request line + blank line)
         Assert.True(written > 0, "Expected non-zero bytes for a valid request");
     }
-
-    // ── BUF-002 ───────────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "BUF-002: Large request (> 64 KB) → buffer grows (no overflow)")]
     public async Task Should_EncodeWithoutOverflow_When_RequestBodyIsLarge()
@@ -99,8 +93,6 @@ public sealed class EncoderStageBufferTests : StreamTestBase
         Assert.True(bodyBytes.AsSpan().SequenceEqual(encodedBody),
             "Body bytes in wire format must match the original body exactly");
     }
-
-    // ── BUF-003 ───────────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "BUF-003: Sequential requests → buffer reuse (no memory leak)")]
     public async Task Should_EncodeAllRequestsCorrectly_When_RequestsAreSequential()
@@ -141,8 +133,6 @@ public sealed class EncoderStageBufferTests : StreamTestBase
         }
     }
 
-    // ── BUF-004 ───────────────────────────────────────────────────────────────────
-
     [Fact(DisplayName = "BUF-004: Binary body → bytes passed through correctly")]
     public async Task Should_PassThroughBodyUnchanged_When_ContentIsBinary()
     {
@@ -174,11 +164,6 @@ public sealed class EncoderStageBufferTests : StreamTestBase
         Assert.True(bodyBytes.AsSpan().SequenceEqual(encodedBody),
             "Binary body bytes must be passed through without modification");
     }
-
-    // ── BUF-005 ───────────────────────────────────────────────────────────────────
-
-
-    // ── BUF-007 ───────────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "BUF-007: Http11EncoderStage with custom InputBuffer attribute encodes correctly")]
     public async Task Should_EncodeCorrectly_When_Http11EncoderHasCustomInputBuffer()
@@ -220,8 +205,6 @@ public sealed class EncoderStageBufferTests : StreamTestBase
         Assert.True(bodyBytes.AsSpan().SequenceEqual(encodedBody),
             "Body bytes must be preserved when custom InputBuffer attribute is applied");
     }
-
-    // ── BUF-008 ───────────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "BUF-008: Http10EncoderStage with custom InputBuffer attribute encodes correctly")]
     public async Task Should_EncodeCorrectly_When_Http10EncoderHasCustomInputBuffer()

@@ -7,11 +7,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC1945;
 
-/// <summary>
-/// RFC 1945 — Round-trip header and body tests through Akka.Streams stages.
-/// Verifies that bodies (empty, large, binary) and custom headers survive
-/// the Http10EncoderStage → wire → Http10DecoderStage cycle.
-/// </summary>
 public sealed class Http10StageRoundTripHeaderBodyTests : StreamTestBase
 {
     private async Task<string> EncodeAsync(HttpRequestMessage request)

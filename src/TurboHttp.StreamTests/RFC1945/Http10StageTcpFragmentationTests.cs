@@ -7,11 +7,6 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.RFC1945;
 
-/// <summary>
-/// RFC 1945 — TCP fragmentation tests through Http10DecoderStage.
-/// Verifies that the Akka.Streams decoder stage correctly reassembles
-/// HTTP/1.0 responses split across multiple TCP fragments.
-/// </summary>
 public sealed class Http10StageTcpFragmentationTests : StreamTestBase
 {
     private static DataItem Chunk(byte[] data)

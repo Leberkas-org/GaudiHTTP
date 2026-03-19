@@ -6,15 +6,8 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
-/// <summary>
-/// Unit tests for <see cref="HostPool"/> stream lifecycle handlers (TASK-9-012):
-/// <see cref="HostPool.StreamCompleted"/>, <see cref="HostPool.StreamAcquired"/>,
-/// <see cref="HostPool.UpdateMaxConcurrentStreams"/>, and ServeQueuedRequesters.
-/// </summary>
 public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
 {
-    // ── SLC-001: StreamCompleted frees slot, queued requester served ────────
-
     [Fact(DisplayName = "SLC-001: StreamCompleted frees slot and serves queued requester")]
     public void Should_FreeSlotAndServeQueuedRequester_WhenStreamCompleted()
     {
@@ -40,8 +33,6 @@ public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
         var received = requesterProbe.ExpectMsg<ConnectionHandle>(TimeSpan.FromSeconds(5));
         Assert.Equal(handle, received);
     }
-
-    // ── SLC-002: StreamCompleted with no eligible connection → queue unchanged ──
 
     [Fact(DisplayName = "SLC-002: StreamCompleted with no eligible connection leaves queue unchanged")]
     public void Should_LeaveQueueUnchanged_WhenStreamCompletedButNoEligibleConnection()
@@ -71,8 +62,6 @@ public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
         // Requester should NOT be served — still at capacity.
         requesterProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
     }
-
-    // ── SLC-003: Multiple queued requesters drained in FIFO order ──────────
 
     [Fact(DisplayName = "SLC-003: Multiple queued requesters drained in FIFO order")]
     public void Should_DrainQueuedRequestersFIFO_WhenMultipleSlotsFreed()
@@ -110,8 +99,6 @@ public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
         }
     }
 
-    // ── SLC-004: UpdateMaxConcurrentStreams with increased limit serves queued ──
-
     [Fact(DisplayName = "SLC-004: UpdateMaxConcurrentStreams with increased limit serves queued requesters")]
     public void Should_ServeQueuedRequesters_WhenMaxConcurrentStreamsIncreased()
     {
@@ -142,8 +129,6 @@ public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
         var received = requesterProbe.ExpectMsg<ConnectionHandle>(TimeSpan.FromSeconds(5));
         Assert.Equal(handle, received);
     }
-
-    // ── SLC-005: StreamAcquired marks connection busy ──────────────────────
 
     [Fact(DisplayName = "SLC-005: StreamAcquired marks connection busy, reducing available slots")]
     public void Should_MarkConnectionBusy_WhenStreamAcquiredReceived()

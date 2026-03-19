@@ -23,8 +23,6 @@ public sealed class Http20StreamStageTests : StreamTestBase
         return _hpack.Encode(headers);
     }
 
-    // ─── 20S-001: HEADERS with END_STREAM → response without body ────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20S-001: HEADERS with END_STREAM produces response without body")]
     public async Task Should_ProduceResponseWithoutBody_When_HeadersFrameHasEndStream()
     {
@@ -73,8 +71,6 @@ public sealed class Http20StreamStageTests : StreamTestBase
         }
     }
 
-    // ─── 20S-002: HEADERS + DATA with END_STREAM → response with body ────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20S-002: HEADERS + DATA with END_STREAM produces response with body")]
     public async Task Should_ProduceResponseWithBody_When_HeadersPlusDataWithEndStream()
     {
@@ -119,8 +115,6 @@ public sealed class Http20StreamStageTests : StreamTestBase
         var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
         Assert.Equal("Hello, World!"u8.ToArray(), responseBody);
     }
-
-    // ─── 20S-003: HEADERS + CONTINUATION + DATA → header block reassembled ───────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20S-003: HEADERS + CONTINUATION reassembles header block before DATA")]
     public async Task Should_ReassembleHeaderBlock_When_HeadersPlusContinuationPlusDataArrives()
@@ -180,8 +174,6 @@ public sealed class Http20StreamStageTests : StreamTestBase
         Assert.Equal("value-a", responses[0].Headers.GetValues("x-header-a").Single());
         Assert.Equal("value-b", responses[0].Headers.GetValues("x-header-b").Single());
     }
-
-    // ─── 20S-004: Multiple streams (ID 1, 3) → separate responses ────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20S-004: Two streams produce two separate responses")]
     public async Task Should_ProduceTwoResponses_When_TwoStreamsPresent()
@@ -250,8 +242,6 @@ public sealed class Http20StreamStageTests : StreamTestBase
         Assert.Equal("one"u8.ToArray(), body1);
     }
 
-    // ─── 20S-005: :status pseudo-header → correct HttpStatusCode ─────────────────
-
     [Theory(Timeout = 10_000, DisplayName = "RFC9113-8.1-20S-005: :status pseudo-header maps to correct HttpStatusCode")]
     [InlineData("200", HttpStatusCode.OK)]
     [InlineData("301", HttpStatusCode.MovedPermanently)]
@@ -276,8 +266,6 @@ public sealed class Http20StreamStageTests : StreamTestBase
         Assert.Single(responses);
         Assert.Equal(expected, responses[0].StatusCode);
     }
-
-    // ─── 20S-006: Content-Encoding header → decompression applied (gzip) ─────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20S-006: Content-Encoding gzip triggers decompression")]
     public async Task Should_DecompressBody_When_ContentEncodingIsGzip()
@@ -332,8 +320,6 @@ public sealed class Http20StreamStageTests : StreamTestBase
         var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
         Assert.Equal(body, responseBody);
     }
-
-    // ─── 20S-007: Regular headers (non-pseudo) → present in Response.Headers ─────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20S-007: Regular headers present in response headers")]
     public async Task Should_IncludeRegularHeadersInResponse_When_ResponseHeadersPresent()

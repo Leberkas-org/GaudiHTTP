@@ -9,8 +9,6 @@ namespace TurboHttp.StreamTests.RFC9110;
 
 public sealed class RedirectStageTests : StreamTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     /// <summary>
     /// Materialises a <see cref="RedirectStage"/> with manual subscriber probes,
     /// gives each outlet <paramref name="demandEach"/> demand, and returns the probes.
@@ -73,8 +71,6 @@ public sealed class RedirectStageTests : StreamTestBase
         request.Options.Set(RedirectStage.RedirectHandlerKey, handler);
     }
 
-    // ── non-redirect pass-through ──────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-001: 200 OK → forwarded on Out0 (final)")]
     public async Task Should_ForwardOnOut0_When_ResponseIsNonRedirect()
     {
@@ -100,8 +96,6 @@ public sealed class RedirectStageTests : StreamTestBase
         Assert.Same(response, await final.ExpectNextAsync());
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── redirect forwarding to Out1 ────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-003: 301 Moved Permanently → redirect request emitted on Out1")]
     public async Task Should_EmitRedirectOnOut1_When_ResponseIs301()
@@ -172,8 +166,6 @@ public sealed class RedirectStageTests : StreamTestBase
         await final.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── max redirects enforcement ──────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-008: max redirects exceeded → final response forwarded on Out0")]
     public async Task Should_ForwardOnOut0_When_MaxRedirectsExceeded()
     {
@@ -200,8 +192,6 @@ public sealed class RedirectStageTests : StreamTestBase
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── redirect loop detection ────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-009: redirect loop detected → final response forwarded on Out0")]
     public async Task Should_ForwardOnOut0_When_RedirectLoopDetected()
     {
@@ -227,8 +217,6 @@ public sealed class RedirectStageTests : StreamTestBase
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── HTTPS → HTTP downgrade protection ─────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-010: HTTPS to HTTP downgrade blocked → final response on Out0")]
     public async Task Should_ForwardOnOut0_When_HttpsToHttpDowngradeAttempted()
     {
@@ -243,8 +231,6 @@ public sealed class RedirectStageTests : StreamTestBase
         Assert.Same(response, await final.ExpectNextAsync());
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── missing Location header ────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-011: redirect with no Location header → final response on Out0")]
     public async Task Should_ForwardOnOut0_When_LocationHeaderIsMissing()
@@ -261,8 +247,6 @@ public sealed class RedirectStageTests : StreamTestBase
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── null RequestMessage ────────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9110-15.4-RDIR-012: redirect response with null RequestMessage → passes through on Out0")]
     public async Task Should_ForwardOnOut0_When_RequestMessageIsNull()
@@ -276,8 +260,6 @@ public sealed class RedirectStageTests : StreamTestBase
         Assert.Same(response, await final.ExpectNextAsync());
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── default constructor (null policy) ────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-013: null policy → uses default RedirectPolicy")]
     public async Task Should_UseDefaultRedirectPolicy_When_PolicyIsNull()
@@ -293,8 +275,6 @@ public sealed class RedirectStageTests : StreamTestBase
         await final.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── redirect request URL ───────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-014: redirect request on Out1 targets the Location URI")]
     public async Task Should_TargetLocationUri_When_EmittingRedirectRequest()
     {
@@ -306,8 +286,6 @@ public sealed class RedirectStageTests : StreamTestBase
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal(target, newRequest.RequestUri?.AbsoluteUri);
     }
-
-    // ── cross-origin Authorization header stripping ───────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-015: cross-origin redirect strips Authorization header")]
     public async Task Should_StripAuthorizationHeader_When_CrossOriginRedirect()
@@ -327,8 +305,6 @@ public sealed class RedirectStageTests : StreamTestBase
         Assert.False(newRequest.Headers.Contains("Authorization"),
             "Authorization must be stripped on cross-origin redirect");
     }
-
-    // ── per-request isolation ──────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9110-15.4-RDIR-016: Request A exhausts redirects, Request B starts fresh")]
@@ -387,8 +363,6 @@ public sealed class RedirectStageTests : StreamTestBase
 
         await final.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
-
-    // ── version preservation ──────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9110-15.4-RDIR-018: Redirect from HTTP/2 request preserves Version 2.0")]
@@ -449,8 +423,6 @@ public sealed class RedirectStageTests : StreamTestBase
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal(new Version(2, 0), newRequest.Version);
     }
-
-    // ── redirect handler propagation ──────────────────────────────────────────
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9110-15.4-RDIR-021: Redirect request carries RedirectHandler in Options")]

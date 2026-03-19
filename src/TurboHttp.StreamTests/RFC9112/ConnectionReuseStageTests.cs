@@ -10,8 +10,6 @@ namespace TurboHttp.StreamTests.RFC9112;
 
 public sealed class ConnectionReuseStageTests : StreamTestBase
 {
-    // ── helpers ────────────────────────────────────────────────────────────────
-
     private async Task<(IReadOnlyList<HttpResponseMessage> responses, IReadOnlyList<ConnectionReuseItem> decisions)>
         RunAsync(Version httpVersion, bool bodyFullyConsumed = true, params HttpResponseMessage[] responses)
     {
@@ -87,8 +85,6 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         return response;
     }
 
-    // ── HTTP/2: always reuse ───────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-001: HTTP/2 → CanReuse = true (multiplexed streams)")]
     public async Task Should_AlwaysAllowReuse_WhenHttp2()
     {
@@ -100,8 +96,6 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         var decision = Assert.Single(decisions);
         Assert.True(decision.Decision.CanReuse);
     }
-
-    // ── HTTP/1.1: persistent by default ───────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-002: HTTP/1.1 no Connection header → CanReuse = true")]
     public async Task Should_AllowReuse_WhenHttp11WithNoConnectionHeader()
@@ -127,8 +121,6 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         Assert.False(decision.Decision.CanReuse);
     }
 
-    // ── HTTP/1.0: opt-in keep-alive ────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-004: HTTP/1.0 Connection: Keep-Alive → CanReuse = true")]
     public async Task Should_AllowReuse_WhenHttp10WithKeepAlive()
     {
@@ -153,8 +145,6 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         Assert.False(decision.Decision.CanReuse);
     }
 
-    // ── body not fully consumed ────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-006: bodyFullyConsumed = false → CanReuse = false")]
     public async Task Should_DisallowReuse_WhenBodyNotFullyConsumed()
     {
@@ -166,8 +156,6 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         var decision = Assert.Single(decisions);
         Assert.False(decision.Decision.CanReuse);
     }
-
-    // ── 101 Switching Protocols ────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-007: 101 Switching Protocols → CanReuse = false")]
     public async Task Should_DisallowReuse_WhenSwitchingProtocols()
@@ -181,8 +169,6 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         Assert.False(decision.Decision.CanReuse);
     }
 
-    // ── response passes through unchanged ─────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-008: response object passes through the stage unchanged")]
     public async Task Should_PassResponseThrough_WhenProcessingReuse()
     {
@@ -194,8 +180,6 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         Assert.Same(response, result);
         Assert.Equal(HttpStatusCode.Created, result.StatusCode);
     }
-
-    // ── multiple responses ─────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-009: multiple responses each produce one decision")]
     public async Task Should_ProduceOneDecisionPerResponse_WhenMultipleResponses()
@@ -213,8 +197,6 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         Assert.True(decisions[2].Decision.CanReuse);
     }
 
-    // ── Keep-Alive parameters ──────────────────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-010: HTTP/1.1 Keep-Alive timeout and max parsed into decision")]
     public async Task Should_ParseKeepAliveParameters_WhenHttp11KeepAliveHeader()
     {
@@ -228,8 +210,6 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
         Assert.Equal(TimeSpan.FromSeconds(30), decision.Decision.KeepAliveTimeout);
         Assert.Equal(100, decision.Decision.MaxRequests);
     }
-
-    // ── RequestEndpoint propagation ───────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-011: HTTP/1.1 response with RequestMessage → Key has correct endpoint")]
     public async Task Should_SetCorrectEndpointKey_WhenHttp11ResponseWithRequestMessage()

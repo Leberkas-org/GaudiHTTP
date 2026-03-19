@@ -29,8 +29,6 @@ public sealed class Http20StreamIdRfcTests : StreamTestBase
             .RunWith(Sink.Seq<Http2Frame>(), Materializer);
     }
 
-    // ─── H2S-001: First request → stream ID 1 ────────────────────────────────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-H2S-001: First request produces stream ID 1")]
     public async Task Should_AssignStreamId1_When_FirstRequestSentThroughAllocatorAndEncoder()
     {
@@ -39,8 +37,6 @@ public sealed class Http20StreamIdRfcTests : StreamTestBase
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
         Assert.Equal(1, headersFrame.StreamId);
     }
-
-    // ─── H2S-002: Second request → stream ID 3 ───────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-H2S-002: Second request produces stream ID 3")]
     public async Task Should_AssignStreamId3_When_SecondRequestSentThroughAllocatorAndEncoder()
@@ -52,8 +48,6 @@ public sealed class Http20StreamIdRfcTests : StreamTestBase
         Assert.Equal(1, headersFrames[0].StreamId);
         Assert.Equal(3, headersFrames[1].StreamId);
     }
-
-    // ─── H2S-003: 5 requests → IDs 1, 3, 5, 7, 9 ────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-H2S-003: 5 requests produce stream IDs 1, 3, 5, 7, 9")]
     public async Task Should_ProduceStreamIds1To9_When_FiveRequestsSentThroughAllocatorAndEncoder()
@@ -71,8 +65,6 @@ public sealed class Http20StreamIdRfcTests : StreamTestBase
             Assert.Equal(expectedIds[i], headersFrames[i].StreamId);
         }
     }
-
-    // ─── H2S-004: All HEADERS frames have correct stream ID ──────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-H2S-004: All HEADERS frames have correct odd stream IDs")]
     public async Task Should_AssignCorrectOddStreamIdToAllHeadersFrames_When_MultipleRequestsEncoded()
@@ -92,8 +84,6 @@ public sealed class Http20StreamIdRfcTests : StreamTestBase
                 $"Stream ID {headersFrames[i].StreamId} must be odd");
         }
     }
-
-    // ─── H2S-005: DATA frames have same stream ID as associated HEADERS ──────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-H2S-005: DATA frames share the same stream ID as their associated HEADERS")]
     public async Task Should_AssignSameStreamIdToDataAndHeadersFrames_When_PostRequestEncoded()

@@ -82,8 +82,6 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
         return streamId;
     }
 
-    // ─── 20CS-BP-001: 3 HeadersFrames at limit=3 → no pull after 3rd ────────
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-20CS-BP-001: Backpressure gates request inlet at max concurrent streams")]
     public async Task Should_Stop_Pulling_When_At_MaxConcurrentStreams_Limit()
     {
@@ -106,8 +104,6 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
         // The 4th frame should NOT appear on ServerOut because the stage is gating _inletRequest
         serverBoundProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
     }
-
-    // ─── 20CS-BP-002: 3 HeadersFrames + 1 END_STREAM → pull resumes ─────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-20CS-BP-002: END_STREAM decrements active streams and resumes pull")]
     public async Task Should_Decrement_And_Resume_Pull_When_EndStream_Received()
@@ -142,8 +138,6 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
         signalProbe.ExpectNext(TimeSpan.FromSeconds(3));
     }
 
-    // ─── 20CS-BP-003: RstStreamFrame → activeStreams decrements, pull resumes ─
-
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-20CS-BP-003: RstStreamFrame decrements active streams and resumes pull")]
     public async Task Should_Decrement_And_Resume_Pull_When_RstStream_Received()
     {
@@ -174,8 +168,6 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
         serverBoundProbe.ExpectNext(TimeSpan.FromSeconds(3));
         signalProbe.ExpectNext(TimeSpan.FromSeconds(3));
     }
-
-    // ─── 20CS-BP-004: SETTINGS MAX_CONCURRENT_STREAMS mid-session → new limit ─
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-20CS-BP-004: SETTINGS MAX_CONCURRENT_STREAMS mid-session enforces new limit immediately")]
     public async Task Should_Enforce_New_ConcurrentStreams_Limit_When_Settings_Updated_MidSession()

@@ -12,9 +12,6 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
-/// <summary>
-/// Unit tests for <see cref="ConnectionActor"/> reconnect, backoff, and failure notification behaviour.
-/// </summary>
 public sealed class ConnectionActorTests : TestKit
 {
     private static readonly RequestEndpoint TestKey = new()
@@ -26,8 +23,6 @@ public sealed class ConnectionActorTests : TestKit
     };
 
     private static readonly TcpOptions TestOptions = new() { Host = "localhost", Port = 8080 };
-
-    // ── Helpers ─────────────────────────────────────────────────────────────
 
     /// <summary>
     /// Wraps <see cref="ConnectionActor"/> as a child actor so parent-directed messages
@@ -78,8 +73,6 @@ public sealed class ConnectionActorTests : TestKit
             outbound.Writer);
     }
 
-    // ── CA-001: ConnectionFailed sent on ClientDisconnected ──────────────────
-
     [Fact(DisplayName = "CA-001: ConnectionFailed sent to parent when ClientDisconnected received")]
     public void Should_SendConnectionFailedToParent_WhenClientDisconnectedReceived()
     {
@@ -96,8 +89,6 @@ public sealed class ConnectionActorTests : TestKit
         var failed = parentProbe.ExpectMsg<HostPool.ConnectionFailed>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActor, failed.Connection);
     }
-
-    // ── CA-002: ConnectionFailed sent when watched runner terminates ──────────
 
     [Fact(DisplayName = "CA-002: ConnectionFailed sent to parent when watched runner actor terminates")]
     public void Should_SendConnectionFailedToParent_WhenWatchedRunnerTerminates()
@@ -122,8 +113,6 @@ public sealed class ConnectionActorTests : TestKit
         var failed = parentProbe.ExpectMsg<HostPool.ConnectionFailed>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActor, failed.Connection);
     }
-
-    // ── CA-003: Exponential backoff — second delay is larger than first ───────
 
     [Fact(DisplayName = "CA-003: Backoff delay increases exponentially between reconnect attempts")]
     public void Should_IncreaseBackoffDelay_WhenReconnectingExponentially()
@@ -159,8 +148,6 @@ public sealed class ConnectionActorTests : TestKit
             $"Expected delay2 ({delay2.TotalMilliseconds:F1}ms) > delay1 ({delay1.TotalMilliseconds:F1}ms)");
     }
 
-    // ── CA-004: Stops reconnecting after MaxReconnectAttempts ─────────────────
-
     [Fact(DisplayName = "CA-004: Stops reconnecting after MaxReconnectAttempts reached")]
     public void Should_StopReconnecting_WhenMaxReconnectAttemptsReached()
     {
@@ -188,8 +175,6 @@ public sealed class ConnectionActorTests : TestKit
         clientManagerProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
     }
 
-    // ── CA-006: StreamCompleted forwarded to parent ────────────────────────────
-
     [Fact(DisplayName = "CA-006: StreamCompleted forwarded to parent")]
     public void Should_ForwardStreamCompletedToParent_WhenStreamCompletedReceived()
     {
@@ -206,8 +191,6 @@ public sealed class ConnectionActorTests : TestKit
         var msg = parentProbe.ExpectMsg<HostPool.StreamCompleted>(TimeSpan.FromSeconds(5));
         Assert.Equal(connectionActor, msg.Connection);
     }
-
-    // ── CA-007: StreamAcquired forwarded to parent ───────────────────────────
 
     [Fact(DisplayName = "CA-007: StreamAcquired forwarded to parent")]
     public void Should_ForwardStreamAcquiredToParent_WhenStreamAcquiredReceived()
@@ -226,8 +209,6 @@ public sealed class ConnectionActorTests : TestKit
         Assert.Equal(connectionActor, msg.Connection);
     }
 
-    // ── CA-008: UpdateMaxConcurrentStreams forwarded to parent ────────────────
-
     [Fact(DisplayName = "CA-008: UpdateMaxConcurrentStreams forwarded to parent")]
     public void Should_ForwardUpdateMaxConcurrentStreamsToParent_WhenUpdateMaxConcurrentStreamsReceived()
     {
@@ -245,8 +226,6 @@ public sealed class ConnectionActorTests : TestKit
         Assert.Equal(connectionActor, msg.Connection);
         Assert.Equal(128, msg.MaxStreams);
     }
-
-    // ── CA-005: ConnectionReady sent after reconnect succeeds ─────────────────
 
     [Fact(DisplayName = "CA-005: ConnectionReady sent to parent after successful reconnect")]
     public void Should_SendConnectionReadyToParent_WhenReconnectSucceeds()

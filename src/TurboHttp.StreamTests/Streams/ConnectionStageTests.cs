@@ -14,14 +14,8 @@ using TurboHttp.Protocol.RFC9112;
 
 namespace TurboHttp.StreamTests.Streams;
 
-/// <summary>
-/// Stream-level tests for <see cref="ConnectionStage"/>.
-/// Uses stub actors and in-memory channels to isolate ConnectionStage from real TCP.
-/// </summary>
 public sealed class ConnectionStageTests : StreamTestBase
 {
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
     /// <summary>
     /// Stub router that handles EnsureHost by replying with a pre-built
     /// <see cref="ConnectionHandle"/>, and forwards the message to a probe.
@@ -85,8 +79,6 @@ public sealed class ConnectionStageTests : StreamTestBase
         return (stageFlow, outbound.Reader, inbound.Writer, routerProbe);
     }
 
-    // ── CS-001: ConnectItem triggers EnsureHost to PoolRouter ────────────────
-
     [Fact(Timeout = 15_000,
         DisplayName = "CS-001: ConnectItem pushed into inlet triggers EnsureHost to PoolRouter")]
     public async Task Should_TriggerEnsureHost_When_ConnectItemPushedToInlet()
@@ -110,8 +102,6 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         inboundWriter.Complete();
     }
-
-    // ── CS-002: Inbound data from channel appears at outlet ──────────────────
 
     [Fact(Timeout = 15_000,
         DisplayName = "CS-002: Inbound data from ConnectionHandle.InboundReader appears at outlet")]
@@ -147,8 +137,6 @@ public sealed class ConnectionStageTests : StreamTestBase
         inboundWriter.Complete();
     }
 
-    // ── CS-003: Outbound DataItem written to ConnectionHandle.OutboundWriter ─
-
     [Fact(Timeout = 15_000,
         DisplayName = "CS-003: DataItem pushed to inlet is written to ConnectionHandle.OutboundWriter")]
     public async Task Should_WriteToOutboundChannel_When_DataItemPushedToInlet()
@@ -182,8 +170,6 @@ public sealed class ConnectionStageTests : StreamTestBase
         buffer.Dispose();
         inboundWriter.Complete();
     }
-
-    // ── CS-004: End-to-end byte flow through ConnectionStage ─────────────────
 
     [Fact(Timeout = 15_000,
         DisplayName = "CS-004: Full round-trip — outbound DataItem written, inbound data read")]
@@ -235,8 +221,6 @@ public sealed class ConnectionStageTests : StreamTestBase
         Assert.Equal(0x02, inbound.Memory.Memory.Span[0]);
     }
 
-    // ── CS-005: ConnectionReuseItem CanReuse=false sends MarkConnectionNoReuse + StreamCompleted ─
-
     [Fact(Timeout = 15_000,
         DisplayName =
             "CS-005: ConnectionReuseItem with CanReuse=false sends MarkConnectionNoReuse and StreamCompleted")]
@@ -277,8 +261,6 @@ public sealed class ConnectionStageTests : StreamTestBase
         inboundWriter.Complete();
     }
 
-    // ── CS-006: ConnectionReuseItem CanReuse=true sends only StreamCompleted ─
-
     [Fact(Timeout = 15_000,
         DisplayName = "CS-006: ConnectionReuseItem with CanReuse=true sends only StreamCompleted (no MarkNoReuse)")]
     public async Task Should_SendOnlyStreamCompleted_When_ConnectionReuseItemCanReuseIsTrue()
@@ -316,8 +298,6 @@ public sealed class ConnectionStageTests : StreamTestBase
         inboundWriter.Complete();
     }
 
-    // ── CS-007: MaxConcurrentStreamsItem forwarded to ConnectionActor ─
-
     [Fact(Timeout = 15_000,
         DisplayName =
             "CS-007: MaxConcurrentStreamsItem(50) forwarded as UpdateMaxConcurrentStreams to ConnectionActor")]
@@ -352,8 +332,6 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         inboundWriter.Complete();
     }
-
-    // ── CS-008: StreamAcquireItem forwarded to ConnectionActor ─
 
     [Fact(Timeout = 15_000,
         DisplayName = "CS-008: StreamAcquireItem forwarded as StreamAcquired to ConnectionActor")]
