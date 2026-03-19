@@ -24,7 +24,7 @@ public sealed class ConditionalRequestTests
 
     // ── BuildConditionalRequest ───────────────────────────────────────────────
 
-    [Fact(DisplayName = "RFC-9111-§4.3.1: entry with ETag adds If-None-Match header")]
+    [Fact(DisplayName = "RFC9111-4.3.1-CR-001: entry with ETag adds If-None-Match header")]
     public void ETag_AddsIfNoneMatch()
     {
         var entry = MakeEntry(etag: "\"abc123\"");
@@ -37,7 +37,7 @@ public sealed class ConditionalRequestTests
         Assert.Equal("\"abc123\"", value);
     }
 
-    [Fact(DisplayName = "RFC-9111-§4.3.1: entry with Last-Modified adds If-Modified-Since header")]
+    [Fact(DisplayName = "RFC9111-4.3.1-CR-002: entry with Last-Modified adds If-Modified-Since header")]
     public void LastModified_AddsIfModifiedSince()
     {
         var lm = new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
@@ -50,7 +50,7 @@ public sealed class ConditionalRequestTests
         Assert.Equal(lm, conditional.Headers.IfModifiedSince!.Value);
     }
 
-    [Fact(DisplayName = "RFC-9111-§4.3.1: entry with both ETag and Last-Modified adds both headers")]
+    [Fact(DisplayName = "RFC9111-4.3.1-CR-003: entry with both ETag and Last-Modified adds both headers")]
     public void BothETagAndLastModified_AddsBothHeaders()
     {
         var lm = new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
@@ -63,7 +63,7 @@ public sealed class ConditionalRequestTests
         Assert.NotNull(conditional.Headers.IfModifiedSince);
     }
 
-    [Fact(DisplayName = "RFC-9111-§4.3.1: entry with neither ETag nor Last-Modified adds no conditional headers")]
+    [Fact(DisplayName = "RFC9111-4.3.1-CR-004: entry with neither ETag nor Last-Modified adds no conditional headers")]
     public void NoETagNorLastModified_NoConditionalHeaders()
     {
         var entry = MakeEntry();
@@ -75,7 +75,7 @@ public sealed class ConditionalRequestTests
         Assert.Null(conditional.Headers.IfModifiedSince);
     }
 
-    [Fact(DisplayName = "RFC-9111-§4.3.1: conditional request preserves original URI and method")]
+    [Fact(DisplayName = "RFC9111-4.3.1-CR-005: conditional request preserves original URI and method")]
     public void ConditionalRequest_PreservesUriAndMethod()
     {
         var entry = MakeEntry(etag: "\"v1\"");
@@ -89,21 +89,21 @@ public sealed class ConditionalRequestTests
 
     // ── CanRevalidate ─────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "RFC-9111-§4.3.2: CanRevalidate returns false for entry without ETag or Last-Modified")]
+    [Fact(DisplayName = "RFC9111-4.3.2-CR-006: CanRevalidate returns false for entry without ETag or Last-Modified")]
     public void CanRevalidate_False_WhenNoValidators()
     {
         var entry = MakeEntry();
         Assert.False(CacheValidationRequestBuilder.CanRevalidate(entry));
     }
 
-    [Fact(DisplayName = "RFC-9111-§4.3.2: CanRevalidate returns true when ETag present")]
+    [Fact(DisplayName = "RFC9111-4.3.2-CR-007: CanRevalidate returns true when ETag present")]
     public void CanRevalidate_True_WhenETag()
     {
         var entry = MakeEntry(etag: "\"v1\"");
         Assert.True(CacheValidationRequestBuilder.CanRevalidate(entry));
     }
 
-    [Fact(DisplayName = "RFC-9111-§4.3.2: CanRevalidate returns true when Last-Modified present")]
+    [Fact(DisplayName = "RFC9111-4.3.2-CR-008: CanRevalidate returns true when Last-Modified present")]
     public void CanRevalidate_True_WhenLastModified()
     {
         var entry = MakeEntry(lastModified: _baseTime);
@@ -112,7 +112,7 @@ public sealed class ConditionalRequestTests
 
     // ── MergeNotModifiedResponse ──────────────────────────────────────────────
 
-    [Fact(DisplayName = "RFC-9111-§4.3.4: merged response StatusCode is 200 (not 304)")]
+    [Fact(DisplayName = "RFC9111-4.3.4-CR-009: merged response StatusCode is 200 (not 304)")]
     public void MergeNotModified_StatusCode_Is200()
     {
         var entry = MakeEntry(etag: "\"v1\"");
@@ -123,7 +123,7 @@ public sealed class ConditionalRequestTests
         Assert.Equal(HttpStatusCode.OK, merged.StatusCode);
     }
 
-    [Fact(DisplayName = "RFC-9111-§4.3.4: merged response body is the cached body")]
+    [Fact(DisplayName = "RFC9111-4.3.4-CR-010: merged response body is the cached body")]
     public async Task MergeNotModified_Body_IsCachedBody()
     {
         var entry = MakeEntry(etag: "\"v1\"");
@@ -135,7 +135,7 @@ public sealed class ConditionalRequestTests
         Assert.Equal(entry.Body, body);
     }
 
-    [Fact(DisplayName = "RFC-9111-§4.3.4: 304 ETag header overrides cached ETag in merged response")]
+    [Fact(DisplayName = "RFC9111-4.3.4-CR-011: 304 ETag header overrides cached ETag in merged response")]
     public void MergeNotModified_NewHeaderOverridesCached()
     {
         var entry = MakeEntry(etag: "\"old\"");
@@ -148,7 +148,7 @@ public sealed class ConditionalRequestTests
         Assert.Equal("\"new\"", etag);
     }
 
-    [Fact(DisplayName = "RFC-9111-§4.3.4: merged response preserves cached response version")]
+    [Fact(DisplayName = "RFC9111-4.3.4-CR-012: merged response preserves cached response version")]
     public void MergeNotModified_PreservesVersion()
     {
         var entry = MakeEntry();

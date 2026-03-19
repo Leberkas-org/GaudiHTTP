@@ -105,9 +105,9 @@ RFC{number}-{section}-{CAT}-{NNN}: {description}
 **Description:** As a developer, I want caching tests to use `RFC9111-{section}-{CAT}-{NNN}` instead of `RFC-9111-§5.2`.
 
 **Acceptance Criteria:**
-- [ ] `RFC-9111-§5.2` becomes `RFC9111-5.2-CC-001` (no hyphens in RFC prefix, no §)
-- [ ] Category codes: CC=CacheControl, CF=CacheFreshness, CR=ConditionalRequest, CS=CacheStore, CI=CacheIntegration
-- [ ] `dotnet test --filter "FullyQualifiedName~RFC9111"` passes with 0 failures
+- [x] `RFC-9111-§5.2` becomes `RFC9111-5.2-CC-001` (no hyphens in RFC prefix, no §)
+- [x] Category codes: CC=CacheControl, CF=CacheFreshness, CR=ConditionalRequest, CS=CacheStore, CI=CacheIntegration
+- [x] `dotnet test --filter "FullyQualifiedName~RFC9111"` passes with 0 failures
 
 ### TASK-007: RFC 6265 — Add RFC prefix to Cookies (1 file, ~42 DisplayNames)
 **Description:** As a developer, I want cookie tests to include the RFC prefix for consistency.
