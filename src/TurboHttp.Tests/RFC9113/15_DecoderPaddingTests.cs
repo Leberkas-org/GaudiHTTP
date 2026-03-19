@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests padding handling in DATA and HEADERS frames per RFC 9113 §4.3.
+/// Verifies that the pad length byte and padding bytes are correctly consumed during decoding.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §4.3: When the PADDED flag is set, the frame payload begins with a 1-byte pad length followed by that many zero-valued padding bytes.
+/// </remarks>
 public sealed class Http2DecoderPaddingTests
 {
     private readonly Http2FrameDecoder _decoder = new();

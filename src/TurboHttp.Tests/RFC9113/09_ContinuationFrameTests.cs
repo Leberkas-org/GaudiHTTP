@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests CONTINUATION frame handling and header block reassembly per RFC 9113 §6.10.
+/// Verifies that fragmented header blocks are correctly joined before HPACK decoding.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6.10: CONTINUATION frames must immediately follow HEADERS or PUSH_PROMISE; END_HEADERS flag terminates the sequence.
+/// </remarks>
 public sealed class Http2ContinuationFrameTests
 {
 

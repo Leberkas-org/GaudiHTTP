@@ -2,6 +2,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests SETTINGS frame parameter validation per RFC 9113 §6.5.
+/// Verifies that out-of-range parameter values are rejected with PROTOCOL_ERROR.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6.5.2: SETTINGS_ENABLE_PUSH must be 0 or 1; SETTINGS_INITIAL_WINDOW_SIZE must not exceed 2^31-1.
+/// </remarks>
 public sealed class Http2SettingsTests
 {
     // Helpers — RFC-mandated validators that the decoder delegates to the caller

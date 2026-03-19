@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests decoder robustness against malformed, truncated, and adversarial byte sequences per RFC 9113 §4.
+/// Verifies that the decoder either succeeds or throws Http2Exception — never an unhandled crash.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §4.2: Receivers must treat frames with unknown types as PROTOCOL_ERROR or ignore them safely.
+/// </remarks>
 public sealed class Http2FuzzHarnessTests
 {
     // Core invariant helper

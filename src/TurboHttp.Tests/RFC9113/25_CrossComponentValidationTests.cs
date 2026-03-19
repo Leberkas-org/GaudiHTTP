@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests cross-component encoder/decoder round-trip contracts per RFC 9113.
+/// Verifies that every frame produced by the encoder can be decoded to equivalent values.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/> and <see cref="Http2RequestEncoder"/>.
+/// These tests validate the full encode→transmit→decode pipeline used by TurboHttp connections.
+/// </remarks>
 public sealed class Http2CrossComponentValidationTests
 {
     // Helpers

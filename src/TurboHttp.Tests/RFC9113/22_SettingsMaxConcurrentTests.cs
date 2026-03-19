@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests SETTINGS_MAX_CONCURRENT_STREAMS enforcement per RFC 9113 §6.5.2.
+/// Verifies stream creation limits and correct error signalling when the limit is exceeded.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6.5.2: SETTINGS_MAX_CONCURRENT_STREAMS limits the number of simultaneously open streams on a connection.
+/// </remarks>
 public sealed class Http2SettingsMaxConcurrentTests
 {
     // Helpers

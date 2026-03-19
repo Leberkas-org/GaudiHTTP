@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests pseudo-header validation and encoding per RFC 9113 §8.1.2.1.
+/// Verifies that :method, :path, :scheme, and :authority are correctly populated and validated.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2RequestEncoder"/>.
+/// RFC 9113 §8.1.2.1: Request pseudo-headers must include :method; :path, :scheme, and :authority are required for absolute URIs.
+/// </remarks>
 public sealed class Http2EncoderPseudoHeaderTests
 {
     // PART 1: Contract Tests for ValidatePseudoHeaders

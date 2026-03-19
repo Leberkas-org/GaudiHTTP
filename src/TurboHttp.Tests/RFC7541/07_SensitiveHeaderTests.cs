@@ -5,6 +5,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC7541;
 
+/// <summary>
+/// Tests sensitive header (never-indexed) encoding per RFC 7541 §7.1.3.
+/// Verifies that Authorization and Cookie headers use the NeverIndexed literal representation.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="HpackEncoder"/>.
+/// RFC 7541 §7.1.3: Sensitive headers must be encoded with the never-indexed literal representation to prevent compression oracle attacks.
+/// </remarks>
 public sealed class HpackSensitiveHeaderTests
 {
     [Fact(DisplayName = "RFC7541-7.1.3-SH-001: Authorization header encoded as NeverIndexed")]

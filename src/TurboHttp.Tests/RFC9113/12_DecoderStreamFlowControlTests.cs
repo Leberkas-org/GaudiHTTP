@@ -2,6 +2,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests stream-level and connection-level WINDOW_UPDATE decoding per RFC 9113 §6.9.
+/// Verifies increment values, boundary conditions, and zero-increment error handling.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6.9.1: A zero-increment WINDOW_UPDATE on a stream is a stream error (PROTOCOL_ERROR).
+/// </remarks>
 public sealed class Http2DecoderStreamFlowControlTests
 {
     /// RFC 9113 §6.9 — WINDOW_UPDATE on stream 0 (connection window) decoded correctly

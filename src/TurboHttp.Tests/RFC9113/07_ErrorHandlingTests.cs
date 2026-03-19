@@ -3,6 +3,15 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests RST_STREAM and PING frame decoding per RFC 9113 §6.3 and §6.4.
+/// Verifies correct stream ID, error code, and flag extraction for both frame types.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6.4: RST_STREAM carries a 4-byte error code and abruptly terminates a stream.
+/// RFC 9113 §6.3: PING frames carry 8 bytes of opaque data and may carry the ACK flag.
+/// </remarks>
 public sealed class Http2RstStreamPingTests
 {
     // RST-001..RST-007: RST_STREAM Frame — §6.4

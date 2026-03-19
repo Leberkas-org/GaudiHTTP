@@ -2,6 +2,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests HTTP/2 error code decoding from GOAWAY and RST_STREAM frames per RFC 9113 §7.
+/// Verifies that all defined error codes round-trip correctly through the decoder.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §7: Defines error codes NO_ERROR through HTTP_1_1_REQUIRED used in RST_STREAM and GOAWAY frames.
+/// </remarks>
 public sealed class Http2DecoderErrorCodeTests
 {
     [Fact(DisplayName = "RFC9113-err-000: NO_ERROR (0x0) in GOAWAY decoded")]

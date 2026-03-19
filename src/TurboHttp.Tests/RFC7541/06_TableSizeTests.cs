@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC7541;
 
 namespace TurboHttp.Tests.RFC7541;
 
+/// <summary>
+/// Tests HPACK dynamic table size update signalling and eviction per RFC 7541 §6.3.
+/// Verifies that size-update signals change the maximum table size and trigger appropriate eviction.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="HpackDynamicTable"/>.
+/// RFC 7541 §6.3: A dynamic table size update must appear at the beginning of the first header block after a SETTINGS_HEADER_TABLE_SIZE change.
+/// </remarks>
 public sealed class HpackHeaderListSizeTests
 {
 

@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests RFC-tagged encoder behaviors for connection setup and request encoding per RFC 9113 §3.5 and §8.1.
+/// Covers preface format, HPACK header compression, and END_STREAM flag semantics.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2RequestEncoder"/>.
+/// RFC 9113 §8.1: HTTP requests are encoded as HEADERS frames with optional DATA frames for the body.
+/// </remarks>
 public sealed class Http2EncoderRfcTaggedTests
 {
     [Fact(DisplayName = "RFC9113-3.5-001: Client preface is PRI * HTTP/2.0 SM")]

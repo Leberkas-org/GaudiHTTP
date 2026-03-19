@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests HEADERS frame decoding and pseudo-header validation per RFC 9113 §6.2 and §8.1.2.
+/// Verifies that malformed or missing pseudo-headers cause the appropriate error.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §8.1.2: Request pseudo-headers (:method, :path, :scheme, :authority) must be present and valid.
+/// </remarks>
 public sealed class Http2DecoderHeadersValidationTests
 {
 

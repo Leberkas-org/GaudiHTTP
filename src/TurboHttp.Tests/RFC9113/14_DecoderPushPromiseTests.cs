@@ -2,6 +2,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests PUSH_PROMISE frame decoding per RFC 9113 §6.6.
+/// Verifies promised stream ID and header block extraction.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6.6: A PUSH_PROMISE frame reserves an idle stream for server push, carrying a promised stream ID and header block.
+/// </remarks>
 public sealed class Http2DecoderPushPromiseTests
 {
 

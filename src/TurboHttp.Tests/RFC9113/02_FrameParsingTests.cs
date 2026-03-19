@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests HTTP/2 frame header parsing per RFC 9113 §4.1.
+/// Covers partial input, unknown frame types, and correct field extraction.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §4.1: The frame header is 9 bytes — length(24) + type(8) + flags(8) + stream(31).
+/// </remarks>
 public sealed class Http2FrameParsingCoreTests
 {
     // Frame Header Parsing (RFC 7540 §4.1)

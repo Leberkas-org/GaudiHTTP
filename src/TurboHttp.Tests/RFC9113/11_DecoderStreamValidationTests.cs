@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests HEADERS frame stream validation and multi-frame header block reassembly per RFC 9113 §5 and §6.2.
+/// Verifies END_HEADERS continuations and stream ID constraints.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6.2: When END_HEADERS is not set, the HEADERS frame must be followed by CONTINUATION frames on the same stream.
+/// </remarks>
 public sealed class Http2HeaderBlockDecoderTests
 {
 

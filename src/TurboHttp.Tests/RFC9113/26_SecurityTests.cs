@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests security-sensitive decoder behaviors including CONTINUATION flood detection per RFC 9113 §10.
+/// Verifies that implementation-defined safety limits are enforced.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §10: HTTP/2 connections are susceptible to amplification attacks; implementations must enforce resource limits.
+/// </remarks>
 public sealed class Http2SecurityTests
 {
     // Helpers — RFC-mandated validators that the decoder delegates to the caller

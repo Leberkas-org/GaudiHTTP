@@ -2,6 +2,14 @@ using TurboHttp.Protocol.RFC7541;
 
 namespace TurboHttp.Tests.RFC7541;
 
+/// <summary>
+/// Tests the HPACK static table definition per RFC 7541 Appendix A.
+/// Verifies table size, reserved index 0, and correctness of all 61 static entries.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="HpackStaticTable"/>.
+/// RFC 7541 Appendix A: The static table contains 61 predefined header name-value pairs at indices 1–61.
+/// </remarks>
 public sealed class HpackStaticTableTests
 {
 

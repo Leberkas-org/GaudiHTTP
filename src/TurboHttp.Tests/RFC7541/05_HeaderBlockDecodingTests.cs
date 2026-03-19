@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC7541;
 
 namespace TurboHttp.Tests.RFC7541;
 
+/// <summary>
+/// Tests HPACK header block decoding for indexed, literal, and never-indexed representations per RFC 7541 §6.
+/// Verifies dynamic table updates triggered by literal-with-indexing representations.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="HpackDecoder"/>.
+/// RFC 7541 §6: Header field representations are indexed (§6.1), literal with indexing (§6.2.1), or never indexed (§6.2.3).
+/// </remarks>
 public sealed class HpackHeaderBlockDecodingTests
 {
 

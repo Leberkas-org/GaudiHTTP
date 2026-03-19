@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests HTTP/2 stream state machine transitions per RFC 9113 §5.1.
+/// Verifies that HEADERS, DATA, and RST_STREAM frames drive stream state correctly.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §5.1: Streams progress through idle, open, half-closed, and closed states.
+/// </remarks>
 public sealed class Http2StreamStateMachineTests
 {
     // Helpers

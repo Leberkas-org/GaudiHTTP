@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC7541;
 
 namespace TurboHttp.Tests.RFC7541;
 
+/// <summary>
+/// Tests Huffman encoding and decoding per RFC 7541 §5.2.
+/// Verifies RFC 7541 Appendix B test vectors and encode/decode round-trip correctness.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="HuffmanCodec"/>.
+/// RFC 7541 §5.2: String literals may be Huffman-encoded; the H-bit distinguishes encoded from raw strings.
+/// </remarks>
 public sealed class HuffmanDecoderTests
 {
     // HF-00x: Valid RFC 7541 decode vectors

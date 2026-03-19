@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC7541;
 
 namespace TurboHttp.Tests.RFC7541;
 
+/// <summary>
+/// Tests HPACK dynamic table insertion, eviction, and size tracking per RFC 7541 §4.
+/// Verifies FIFO ordering and correct eviction when the maximum size is reached.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="HpackDynamicTable"/>.
+/// RFC 7541 §4: Each dynamic table entry has a 32-byte overhead added to its name and value length.
+/// </remarks>
 public sealed class HpackDynamicTableTests
 {
 

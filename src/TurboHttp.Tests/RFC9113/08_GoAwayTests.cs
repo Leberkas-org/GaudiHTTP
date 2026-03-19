@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests GOAWAY frame decoding per RFC 9113 §6.8.
+/// Verifies last-stream-ID, error code, and optional debug data extraction.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6.8: GOAWAY initiates graceful shutdown, carrying the highest processed stream ID and an error code.
+/// </remarks>
 public sealed class Http2GoAwayTests
 {
     // GA-001..GA-005: GOAWAY basic field decoding

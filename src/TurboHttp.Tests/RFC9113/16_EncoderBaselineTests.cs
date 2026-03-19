@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests HTTP/2 encoder baseline behaviors including connection preface and request frame production per RFC 9113 §3.5.
+/// Verifies the magic octets, SETTINGS frame structure, and HEADERS frame encoding.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2RequestEncoder"/>.
+/// RFC 9113 §3.5: The client connection preface consists of the PRI magic octets followed by a SETTINGS frame.
+/// </remarks>
 public sealed class Http2EncoderBaselineTests
 {
     [Fact]

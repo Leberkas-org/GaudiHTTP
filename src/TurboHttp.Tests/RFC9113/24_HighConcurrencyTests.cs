@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests decoder correctness under high-concurrency and high-volume frame sequences per RFC 9113 §5.
+/// Verifies stream multiplexing with many parallel streams processed sequentially through the decoder.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §5.1.1: Stream identifiers are assigned sequentially by the client; concurrent streams are multiplexed on a single connection.
+/// </remarks>
 public sealed class Http2HighConcurrencyTests
 {
 

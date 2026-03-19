@@ -5,6 +5,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests HTTP/2 connection preface encoding and decoding per RFC 9113 §3.4/3.5.
+/// Verifies the magic octets and initial SETTINGS frame are correctly produced and parsed.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §3.4: The client connection preface starts with the PRI magic string followed by a SETTINGS frame.
+/// </remarks>
 public sealed class Http2ConnectionPrefaceTests
 {
     // RFC 9113 §3.4: client connection preface = magic octets + SETTINGS frame

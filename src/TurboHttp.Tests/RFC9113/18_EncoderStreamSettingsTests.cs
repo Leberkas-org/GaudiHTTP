@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests SETTINGS frame parameter encoding and round-trip per RFC 9113 §6.5.
+/// Verifies that all defined SETTINGS parameters serialize and deserialize correctly.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="SettingsFrame"/>.
+/// RFC 9113 §6.5: A SETTINGS frame carries zero or more key-value pairs; each parameter is 6 bytes (2 identifier + 4 value).
+/// </remarks>
 public sealed class Http2EncoderStreamSettingsTests
 {
     [Theory(DisplayName = "RFC9113-6.5-SET-001: SETTINGS parameter {param} encoded correctly")]

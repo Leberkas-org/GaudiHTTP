@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests basic frame decoding covering SETTINGS, DATA, and HEADERS frames per RFC 9113 §6.
+/// Verifies frame field extraction for core frame types.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6: Defines the core frame types: DATA, HEADERS, SETTINGS, WINDOW_UPDATE, and their binary formats.
+/// </remarks>
 public sealed class Http2FrameDecoderBasicTests
 {
 

@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC7541;
 
 namespace TurboHttp.Tests.RFC7541;
 
+/// <summary>
+/// Tests full HPACK header encoding and decoding round-trips per RFC 7541.
+/// Covers indexed representations, literal-with-indexing, and Huffman-encoded values.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="HpackEncoder"/> and <see cref="HpackDecoder"/>.
+/// RFC 7541 §3: HPACK uses static and dynamic tables to compress HTTP header fields.
+/// </remarks>
 public sealed class HpackTests
 {
     [Fact(DisplayName = "RFC7541-A-ST-060: Encode indexed static entry produces single byte")]

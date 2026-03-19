@@ -3,6 +3,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests HTTP request serialization to HTTP/2 frames per RFC 9113 §8.1.
+/// Verifies frame types, flags, stream IDs, and HPACK-encoded pseudo-headers.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2RequestEncoder"/>.
+/// RFC 9113 §8.1: GET requests produce a HEADERS frame with END_STREAM; POST requests with a body produce HEADERS + DATA.
+/// </remarks>
 public sealed class Http2RequestEncoderFrameTests
 {
 

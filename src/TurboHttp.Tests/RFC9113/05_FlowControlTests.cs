@@ -2,6 +2,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests HTTP/2 flow control and WINDOW_UPDATE frame decoding per RFC 9113 §6.9.
+/// Covers both connection-level (stream 0) and stream-level window update semantics.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §6.9: WINDOW_UPDATE frames carry a 31-bit increment and apply to stream 0 (connection) or a specific stream.
+/// </remarks>
 public sealed class Http2FlowControlTests
 {
     // FC-WU-001..006: WINDOW_UPDATE Decoding — Connection Level (Stream 0)

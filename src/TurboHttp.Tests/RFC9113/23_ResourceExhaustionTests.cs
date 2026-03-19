@@ -4,6 +4,14 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9113;
 
+/// <summary>
+/// Tests decoder defenses against resource-exhaustion attacks such as SETTINGS floods.
+/// Verifies that flood protection thresholds produce Http2Exception with EnhanceYourCalm.
+/// </summary>
+/// <remarks>
+/// Class under test: <see cref="Http2FrameDecoder"/>.
+/// RFC 9113 §10.5: Implementations should limit the rate at which control frames can be received to protect against floods.
+/// </remarks>
 public sealed class Http2ResourceExhaustionTests
 {
 
