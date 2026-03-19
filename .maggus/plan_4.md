@@ -27,9 +27,9 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 **Status:** Done
 
 **Acceptance Criteria:**
-- [ ] `.maggus/naming-convention.md` created
-- [ ] `Should_Action_When_Condition` defined as standard
-- [ ] Edge cases documented
+- [x] `.maggus/naming-convention.md` created
+- [x] `Should_Action_When_Condition` defined as standard
+- [x] Edge cases documented
 
 ---
 
