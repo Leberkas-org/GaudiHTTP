@@ -129,13 +129,13 @@ a new HTTP method requires a single `[InlineData]` line rather than a new test m
 into `[Theory]` groups so the file is readable and gaps are visible at a glance.
 
 **Acceptance Criteria:**
-- [ ] Read `RFC9113/22_EncoderPseudoHeaderTests.cs` fully before changing anything
-- [ ] Group tests by shared assertion pattern (same assertion shape, different header value)
-- [ ] Each group becomes one `[Theory]` with `[InlineData]` entries
-- [ ] Method count in the file reduces by ≥ 60%
-- [ ] All previously passing tests still pass (same number of `[InlineData]` rows as old `[Fact]`
+- [x] Read `RFC9113/22_EncoderPseudoHeaderTests.cs` fully before changing anything
+- [x] Group tests by shared assertion pattern (same assertion shape, different header value)
+- [x] Each group becomes one `[Theory]` with `[InlineData]` entries
+- [x] Method count in the file reduces by ≥ 60%
+- [x] All previously passing tests still pass (same number of `[InlineData]` rows as old `[Fact]`
   methods)
-- [ ] `dotnet test --filter "FullyQualifiedName~RFC9113"` all pass
+- [x] `dotnet test --filter "FullyQualifiedName~RFC9113"` all pass
 
 ---
 

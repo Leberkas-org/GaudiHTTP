@@ -6,213 +6,109 @@ namespace TurboHttp.Tests.RFC9113;
 
 /// <summary>
 /// Phase 29-30: Http2RequestEncoder — Pseudo-Header Validation (RFC 7540 §8.1.2.1)
-/// Part 1: 20 contract tests for ValidatePseudoHeaders directly.
-/// Part 2: 25+ integration tests through Encode().
+/// Part 1: Contract tests for ValidatePseudoHeaders.
+/// Part 2: Integration tests through Encode().
 /// </summary>
 public sealed class Http2EncoderPseudoHeaderTests
 {
     // =========================================================================
-    // PART 1: Contract Tests for ValidatePseudoHeaders (20 tests)
+    // PART 1: Contract Tests for ValidatePseudoHeaders
     // =========================================================================
 
     // --- Happy Path ----------------------------------------------------------
 
-    [Fact(DisplayName = "7540-8.1.2.1-c001: All four required pseudo-headers passes validation")]
-    public void Validate_AllFourPseudoHeaders_Passes()
+    [Theory(DisplayName = "7540-8.1.2.1-c001: Valid pseudo-header configurations pass validation")]
+    [InlineData("/path", "GET", "https", "example.com", 0)]
+    [InlineData("/", "GET", "https", "example.com", 1)]
+    [InlineData("/api", "POST", "https", "api.example.com", 3)]
+    [InlineData("/", "HEAD", "http", "host.example.com", 0)]
+    public void Validate_ValidHeaders_Pass(string path, string method, string scheme, string authority, int regularHeaderCount)
     {
-        var headers = AllFourPseudos("/path", "GET", "https", "example.com");
-        var ex = Record.Exception(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Null(ex);
-    }
+        var headers = AllFourPseudos(path, method, scheme, authority);
+        for (var i = 0; i < regularHeaderCount; i++)
+        {
+            headers.Add(($"x-header-{i}", $"value-{i}"));
+        }
 
-    [Fact(DisplayName = "7540-8.1.2.1-c002: Pseudo-headers followed by regular headers passes")]
-    public void Validate_PseudoThenRegular_Passes()
-    {
-        var headers = AllFourPseudos("/", "GET", "https", "example.com");
-        headers.Add(("content-type", "text/plain"));
-        var ex = Record.Exception(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Null(ex);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c003: Multiple regular headers after pseudo-headers passes")]
-    public void Validate_PseudoThenMultipleRegular_Passes()
-    {
-        var headers = AllFourPseudos("/api", "POST", "https", "api.example.com");
-        headers.Add(("accept", "application/json"));
-        headers.Add(("content-type", "application/json"));
-        headers.Add(("x-custom-id", "abc123"));
-        var ex = Record.Exception(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Null(ex);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c004: No regular headers (only pseudo-headers) passes")]
-    public void Validate_OnlyPseudoHeaders_Passes()
-    {
-        var headers = AllFourPseudos("/", "HEAD", "http", "host.example.com");
         var ex = Record.Exception(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
         Assert.Null(ex);
     }
 
     // --- Missing Required Pseudo-Headers ------------------------------------
 
-    [Fact(DisplayName = "7540-8.1.2.1-c005: Missing :method throws Http2Exception")]
-    public void Validate_MissingMethod_ThrowsHttp2Exception()
+    [Theory(DisplayName = "7540-8.1.2.1-c005: Missing [{missingHeader}] throws Http2Exception")]
+    [InlineData(":method")]
+    [InlineData(":path")]
+    [InlineData(":scheme")]
+    [InlineData(":authority")]
+    public void Validate_MissingSinglePseudoHeader_Throws(string missingHeader)
     {
-        var headers = new List<(string, string)>
-        {
-            (":path", "/"),
-            (":scheme", "https"),
-            (":authority", "example.com"),
-        };
+        var headers = AllFourPseudos("/", "GET", "https", "example.com");
+        headers.RemoveAll(h => h.Item1 == missingHeader);
         var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":method", ex.Message);
+        Assert.Contains(missingHeader, ex.Message);
     }
 
-    [Fact(DisplayName = "7540-8.1.2.1-c006: Missing :path throws Http2Exception")]
-    public void Validate_MissingPath_ThrowsHttp2Exception()
-    {
-        var headers = new List<(string, string)>
-        {
-            (":method", "GET"),
-            (":scheme", "https"),
-            (":authority", "example.com"),
-        };
-        var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":path", ex.Message);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c007: Missing :scheme throws Http2Exception")]
-    public void Validate_MissingScheme_ThrowsHttp2Exception()
-    {
-        var headers = new List<(string, string)>
-        {
-            (":method", "GET"),
-            (":path", "/"),
-            (":authority", "example.com"),
-        };
-        var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":scheme", ex.Message);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c008: Missing :authority throws Http2Exception")]
-    public void Validate_MissingAuthority_ThrowsHttp2Exception()
-    {
-        var headers = new List<(string, string)>
-        {
-            (":method", "GET"),
-            (":path", "/"),
-            (":scheme", "https"),
-        };
-        var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":authority", ex.Message);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c009: Empty header list throws with all missing pseudo-headers")]
-    public void Validate_EmptyHeaders_ThrowsWithAllMissing()
+    [Theory(DisplayName = "7540-8.1.2.1-c009: Multiple missing pseudo-headers listed in error message")]
+    [InlineData(false, ":method,:path,:scheme,:authority")]
+    [InlineData(true, ":path,:scheme,:authority")]
+    public void Validate_MultipleMissing_AllListedInMessage(bool includeMethod, string expectedMissingCsv)
     {
         var headers = new List<(string, string)>();
+        if (includeMethod)
+        {
+            headers.Add((":method", "GET"));
+        }
+
         var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":method", ex.Message);
-        Assert.Contains(":path", ex.Message);
-        Assert.Contains(":scheme", ex.Message);
-        Assert.Contains(":authority", ex.Message);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c010: Multiple missing pseudo-headers listed together in message")]
-    public void Validate_MultipleMissing_AllListedInMessage()
-    {
-        var headers = new List<(string, string)>
+        foreach (var expected in expectedMissingCsv.Split(','))
         {
-            (":method", "GET"),
-        };
-        var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Contains(":path", ex.Message);
-        Assert.Contains(":scheme", ex.Message);
-        Assert.Contains(":authority", ex.Message);
+            Assert.Contains(expected, ex.Message);
+        }
     }
 
     // --- Duplicate Pseudo-Headers -------------------------------------------
 
-    [Fact(DisplayName = "7540-8.1.2.1-c011: Duplicate :method throws Http2Exception")]
-    public void Validate_DuplicateMethod_Throws()
+    [Theory(DisplayName = "7540-8.1.2.1-c011: Duplicate [{pseudoHeader}] throws Http2Exception")]
+    [InlineData(":method", "POST")]
+    [InlineData(":path", "/second")]
+    [InlineData(":scheme", "http")]
+    [InlineData(":authority", "other.com")]
+    public void Validate_DuplicatePseudoHeader_Throws(string pseudoHeader, string duplicateValue)
     {
         var headers = AllFourPseudos("/", "GET", "https", "example.com");
-        headers.Insert(1, (":method", "POST")); // duplicate :method at index 1
+        headers.Insert(1, (pseudoHeader, duplicateValue));
         var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":method", ex.Message);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c012: Duplicate :path throws Http2Exception")]
-    public void Validate_DuplicatePath_Throws()
-    {
-        var headers = AllFourPseudos("/first", "GET", "https", "example.com");
-        headers.Insert(1, (":path", "/second"));
-        var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":path", ex.Message);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c013: Duplicate :scheme throws Http2Exception")]
-    public void Validate_DuplicateScheme_Throws()
-    {
-        var headers = AllFourPseudos("/", "GET", "https", "example.com");
-        headers.Insert(1, (":scheme", "http"));
-        var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":scheme", ex.Message);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c014: Duplicate :authority throws Http2Exception")]
-    public void Validate_DuplicateAuthority_Throws()
-    {
-        var headers = AllFourPseudos("/", "GET", "https", "example.com");
-        headers.Insert(1, (":authority", "other.com"));
-        var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":authority", ex.Message);
+        Assert.Contains(pseudoHeader, ex.Message);
     }
 
     // --- Unknown Pseudo-Headers ---------------------------------------------
 
-    [Fact(DisplayName = "7540-8.1.2.1-c015: Unknown pseudo-header :status throws Http2Exception")]
-    public void Validate_StatusPseudo_ThrowsForRequest()
+    [Theory(DisplayName = "7540-8.1.2.1-c015: Unknown pseudo-header [{unknownHeader}] throws Http2Exception")]
+    [InlineData(":status", "200")]
+    [InlineData(":custom", "value")]
+    public void Validate_UnknownPseudoHeader_Throws(string unknownHeader, string value)
     {
         var headers = AllFourPseudos("/", "GET", "https", "example.com");
-        headers.Insert(0, (":status", "200"));
+        headers.Add((unknownHeader, value));
         var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":status", ex.Message);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c016: Unknown pseudo-header :custom throws Http2Exception")]
-    public void Validate_CustomPseudo_Throws()
-    {
-        var headers = AllFourPseudos("/", "GET", "https", "example.com");
-        headers.Add((":custom", "value"));
-        var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.Contains(":custom", ex.Message);
+        Assert.Contains(unknownHeader, ex.Message);
     }
 
     // --- Pseudo-Headers After Regular Headers --------------------------------
 
-    [Fact(DisplayName = "7540-8.1.2.1-c017: Pseudo-header after regular header throws Http2Exception")]
-    public void Validate_PseudoAfterRegular_Throws()
+    [Theory(DisplayName = "7540-8.1.2.1-c017: Pseudo-header after regular header at index [{insertIndex}] throws")]
+    [InlineData(2, "x-custom", "value")]
+    [InlineData(1, "host", "example.com")]
+    [InlineData(1, "x-header", "val")]
+    public void Validate_PseudoAfterRegular_Throws(int insertIndex, string regularName, string regularValue)
     {
-        var headers = new List<(string, string)>
-        {
-            (":method", "GET"),
-            (":path", "/"),
-            ("x-custom", "value"),    // regular header at index 2
-            (":scheme", "https"),     // pseudo after regular at index 3 — INVALID
-            (":authority", "example.com"),
-        };
+        var headers = AllFourPseudos("/", "GET", "https", "example.com");
+        headers.Insert(insertIndex, (regularName, regularValue));
         var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
     }
@@ -234,37 +130,8 @@ public sealed class Http2EncoderPseudoHeaderTests
         Assert.Contains("1", ex.Message);
     }
 
-    [Fact(DisplayName = "7540-8.1.2.1-c019: All pseudo-headers interleaved with regular headers throws")]
-    public void Validate_InterleavedPseudoAndRegular_Throws()
-    {
-        var headers = new List<(string, string)>
-        {
-            (":method", "GET"),
-            ("host", "example.com"),   // regular between pseudos — INVALID
-            (":path", "/"),
-            (":scheme", "https"),
-            (":authority", "example.com"),
-        };
-        Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-c020: Error code on pseudo-after-regular is ProtocolError")]
-    public void Validate_PseudoAfterRegular_ErrorCode_IsProtocolError()
-    {
-        var headers = new List<(string, string)>
-        {
-            (":method", "GET"),
-            ("x-header", "val"),
-            (":path", "/"),
-            (":scheme", "https"),
-            (":authority", "example.com"),
-        };
-        var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-    }
-
     // =========================================================================
-    // PART 2: Integration Tests via Encode() (25 tests)
+    // PART 2: Integration Tests via Encode()
     // =========================================================================
 
     // --- Standard Methods ---------------------------------------------------
@@ -284,45 +151,31 @@ public sealed class Http2EncoderPseudoHeaderTests
         Assert.Null(ex);
     }
 
-    // --- Scheme Encoding ----------------------------------------------------
+    // --- Pseudo-Header Value Round-Trip -------------------------------------
 
-    [Fact(DisplayName = "7540-8.1.2.1-i002: Encode HTTPS request encodes :scheme as 'https'")]
-    public void Encode_HttpsRequest_SchemeIsHttps()
+    [Theory(DisplayName = "7540-8.1.2.1-i002: Encode [{method}] {url} produces [{expectedHeader}]=[{expectedValue}]")]
+    [InlineData("GET", "https://example.com/", ":scheme", "https")]
+    [InlineData("GET", "http://example.com/", ":scheme", "http")]
+    [InlineData("GET", "https://example.com/search?q=hello&page=1", ":path", "/search?q=hello&page=1")]
+    [InlineData("GET", "https://example.com/", ":path", "/")]
+    [InlineData("GET", "https://example.com:443/", ":authority", "example.com")]
+    [InlineData("GET", "https://example.com:8443/", ":authority", "example.com:8443")]
+    [InlineData("DELETE", "https://api.example.com/resource/1", ":method", "DELETE")]
+    [InlineData("GET", "https://example.com/api/users?role=admin&active=true", ":path", "/api/users?role=admin&active=true")]
+    [InlineData("GET", "https://api.backend.internal/health", ":authority", "api.backend.internal")]
+    [InlineData("POST", "https://example.com/submit", ":method", "POST")]
+    [InlineData("PUT", "https://example.com/item/42", ":method", "PUT")]
+    [InlineData("GET", "http://insecure.example.com/data", ":scheme", "http")]
+    [InlineData("GET", "https://example.com/a/b/c/d/resource", ":path", "/a/b/c/d/resource")]
+    public void Encode_PseudoHeaderValue_MatchesExpected(string method, string url, string expectedHeader, string expectedValue)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
+        var request = new HttpRequestMessage(new HttpMethod(method), url);
         var (_, data) = EncodeRequest(request);
         var headers = DecodeHeaderList(data);
-        Assert.Equal("https", headers.First(h => h.Name == ":scheme").Value);
+        Assert.Equal(expectedValue, headers.First(h => h.Name == expectedHeader).Value);
     }
 
-    [Fact(DisplayName = "7540-8.1.2.1-i003: Encode HTTP request encodes :scheme as 'http'")]
-    public void Encode_HttpRequest_SchemeIsHttp()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
-        var (_, data) = EncodeRequest(request);
-        var headers = DecodeHeaderList(data);
-        Assert.Equal("http", headers.First(h => h.Name == ":scheme").Value);
-    }
-
-    // --- Path Encoding ------------------------------------------------------
-
-    [Fact(DisplayName = "7540-8.1.2.1-i004: Encode encodes query string in :path")]
-    public void Encode_WithQueryString_PathIncludesQuery()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/search?q=hello&page=1");
-        var (_, data) = EncodeRequest(request);
-        var path = DecodeHeaderList(data).First(h => h.Name == ":path").Value;
-        Assert.Equal("/search?q=hello&page=1", path);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-i005: Root path encodes :path as '/'")]
-    public void Encode_RootPath_EncodesSlash()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
-        var (_, data) = EncodeRequest(request);
-        var path = DecodeHeaderList(data).First(h => h.Name == ":path").Value;
-        Assert.Equal("/", path);
-    }
+    // --- Long Path ----------------------------------------------------------
 
     [Fact(DisplayName = "7540-8.1.2.1-i006: Long path encodes correctly in :path")]
     public void Encode_LongPath_EncodesCorrectly()
@@ -334,40 +187,34 @@ public sealed class Http2EncoderPseudoHeaderTests
         Assert.Equal(longPath, path);
     }
 
-    // --- Authority Encoding -------------------------------------------------
+    // --- Pseudo-Header Presence & Count -------------------------------------
 
-    [Fact(DisplayName = "7540-8.1.2.1-i007: Standard port not included in :authority")]
-    public void Encode_StandardHttpsPort_AuthorityExcludesPort()
+    [Theory(DisplayName = "7540-8.1.2.1-i009: All four pseudo-headers present in encoded [{method}] request")]
+    [InlineData("GET", "https://example.com/data", false, false)]
+    [InlineData("POST", "https://example.com/api/items", false, true)]
+    [InlineData("GET", "https://example.com/", false, false)]
+    [InlineData("GET", "https://example.com/huffman-test", true, false)]
+    public void Encode_AllFourPseudoHeaders_PresentAndCounted(string method, string url, bool useHuffman, bool includeBody)
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com:443/");
-        var (_, data) = EncodeRequest(request);
-        var authority = DecodeHeaderList(data).First(h => h.Name == ":authority").Value;
-        Assert.Equal("example.com", authority);
-    }
+        var request = new HttpRequestMessage(new HttpMethod(method), url);
+        if (includeBody)
+        {
+            request.Content = new StringContent("{\"name\":\"test\"}", Encoding.UTF8, "application/json");
+        }
 
-    [Fact(DisplayName = "7540-8.1.2.1-i008: Non-standard port included in :authority")]
-    public void Encode_NonStandardPort_AuthorityIncludesPort()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com:8443/");
-        var (_, data) = EncodeRequest(request);
-        var authority = DecodeHeaderList(data).First(h => h.Name == ":authority").Value;
-        Assert.Equal("example.com:8443", authority);
-    }
-
-    // --- Pseudo-Header Order & Presence -------------------------------------
-
-    [Fact(DisplayName = "7540-8.1.2.1-i009: All four pseudo-headers present in encoded output")]
-    public void Encode_AllFourPseudoHeaders_Present()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/data");
-        var (_, data) = EncodeRequest(request);
-        var names = DecodeHeaderList(data).Select(h => h.Name).ToList();
+        var (_, data) = EncodeRequest(request, useHuffman);
+        var headers = DecodeHeaderList(data);
+        var names = headers.Select(h => h.Name).ToList();
+        var pseudoCount = headers.Count(h => h.Name.StartsWith(':'));
 
         Assert.Contains(":method", names);
         Assert.Contains(":path", names);
         Assert.Contains(":scheme", names);
         Assert.Contains(":authority", names);
+        Assert.Equal(4, pseudoCount);
     }
+
+    // --- Pseudo-Header Order & Structure ------------------------------------
 
     [Fact(DisplayName = "7540-8.1.2.1-i010: Pseudo-headers precede regular headers in output")]
     public void Encode_PseudoHeaders_PrecedeRegular()
@@ -468,112 +315,6 @@ public sealed class Http2EncoderPseudoHeaderTests
             Assert.Contains(":scheme", names);
             Assert.Contains(":authority", names);
         }
-    }
-
-    // --- Correct Values Encoded ---------------------------------------------
-
-    [Fact(DisplayName = "7540-8.1.2.1-i016: :method value matches request method")]
-    public void Encode_MethodValue_MatchesRequestMethod()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Delete, "https://api.example.com/resource/1");
-        var (_, data) = EncodeRequest(request);
-        var dict = DecodeHeaderList(data).ToDictionary(h => h.Name, h => h.Value);
-        Assert.Equal("DELETE", dict[":method"]);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-i017: :path value includes path and query string")]
-    public void Encode_PathValue_IncludesPathAndQuery()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/api/users?role=admin&active=true");
-        var (_, data) = EncodeRequest(request);
-        var dict = DecodeHeaderList(data).ToDictionary(h => h.Name, h => h.Value);
-        Assert.Equal("/api/users?role=admin&active=true", dict[":path"]);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-i018: :authority value matches URI host")]
-    public void Encode_AuthorityValue_MatchesUriHost()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://api.backend.internal/health");
-        var (_, data) = EncodeRequest(request);
-        var dict = DecodeHeaderList(data).ToDictionary(h => h.Name, h => h.Value);
-        Assert.Equal("api.backend.internal", dict[":authority"]);
-    }
-
-    // --- POST Requests with Body --------------------------------------------
-
-    [Fact(DisplayName = "7540-8.1.2.1-i019: POST request with body includes all pseudo-headers")]
-    public void Encode_PostWithBody_AllPseudoHeadersPresent()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/api/items");
-        request.Content = new StringContent("{\"name\":\"test\"}", Encoding.UTF8, "application/json");
-        var (_, data) = EncodeRequest(request);
-        var names = DecodeHeaderList(data).Select(h => h.Name).ToList();
-
-        Assert.Contains(":method", names);
-        Assert.Contains(":path", names);
-        Assert.Contains(":scheme", names);
-        Assert.Contains(":authority", names);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-i020: POST :method value is POST")]
-    public void Encode_Post_MethodIsPOST()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/submit");
-        request.Content = new StringContent("data", Encoding.UTF8, "text/plain");
-        var (_, data) = EncodeRequest(request);
-        var dict = DecodeHeaderList(data).ToDictionary(h => h.Name, h => h.Value);
-        Assert.Equal("POST", dict[":method"]);
-    }
-
-    // --- Encode then Decode Round-Trip -------------------------------------
-
-    [Fact(DisplayName = "7540-8.1.2.1-i021: Encode-decode round trip preserves :method value")]
-    public void Encode_Decode_RoundTrip_MethodPreserved()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Put, "https://example.com/item/42");
-        var (_, data) = EncodeRequest(request);
-        var dict = DecodeHeaderList(data).ToDictionary(h => h.Name, h => h.Value);
-        Assert.Equal("PUT", dict[":method"]);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-i022: Encode-decode round trip preserves :scheme value")]
-    public void Encode_Decode_RoundTrip_SchemePreserved()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://insecure.example.com/data");
-        var (_, data) = EncodeRequest(request);
-        var dict = DecodeHeaderList(data).ToDictionary(h => h.Name, h => h.Value);
-        Assert.Equal("http", dict[":scheme"]);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-i023: Exactly four pseudo-headers in encoded GET request")]
-    public void Encode_GetRequest_ExactlyFourPseudoHeaders()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
-        var (_, data) = EncodeRequest(request);
-        var pseudoCount = DecodeHeaderList(data).Count(h => h.Name.StartsWith(':'));
-        Assert.Equal(4, pseudoCount);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-i024: :path for nested path encodes full path")]
-    public void Encode_NestedPath_FullPathEncoded()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/a/b/c/d/resource");
-        var (_, data) = EncodeRequest(request);
-        var dict = DecodeHeaderList(data).ToDictionary(h => h.Name, h => h.Value);
-        Assert.Equal("/a/b/c/d/resource", dict[":path"]);
-    }
-
-    [Fact(DisplayName = "7540-8.1.2.1-i025: Encode with Huffman compression still produces valid pseudo-headers")]
-    public void Encode_WithHuffman_PseudoHeadersValid()
-    {
-        var (_, data) = EncodeRequest(new HttpRequestMessage(HttpMethod.Get, "https://example.com/huffman-test"), useHuffman: true);
-        var headers = DecodeHeaderList(data);
-        var names = headers.Select(h => h.Name).ToList();
-
-        Assert.Contains(":method", names);
-        Assert.Contains(":path", names);
-        Assert.Contains(":scheme", names);
-        Assert.Contains(":authority", names);
     }
 
     // =========================================================================
