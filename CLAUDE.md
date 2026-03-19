@@ -244,18 +244,19 @@ IMPORTANT: Prefer retrieval-led reasoning over pretraining for any .NET work.
 Workflow: skim repo patterns -> consult dotnet-skills by name -> implement smallest-change -> note conflicts.
 
 Routing (invoke by name)
-- C# / code quality: modern-csharp-coding-standards, csharp-concurrency-patterns, api-design, type-design-performance
-- ASP.NET Core / Web (incl. Aspire): aspire-service-defaults, aspire-integration-testing, transactional-emails
+- C# / code quality: csharp-coding-standards, csharp-concurrency-patterns, csharp-api-design, csharp-type-design-performance, serialization, project-structure, package-management, local-tools
+- Akka / distributed: akka-best-practices, akka-testing-patterns, akka-hosting-actor-patterns, akka-aspire-configuration, akka-management
+- ASP.NET Core / Web (incl. Aspire): aspire-service-defaults, aspire-integration-testing, aspire-configuration, aspire-mailpit-integration, mjml-email-templates
 - Data: efcore-patterns, database-performance
-- DI / config: dependency-injection-patterns, microsoft-extensions-configuration
-- Testing: testcontainers-integration-tests, playwright-blazor-testing, snapshot-testing
+- DI / config: microsoft-extensions-dependency-injection, microsoft-extensions-configuration
+- Testing: testcontainers, playwright-blazor, snapshot-testing, verify-email-snapshots, playwright-ci-caching
 
 Quality gates (use when applicable)
-- dotnet-slopwatch: after substantial new/refactor/LLM-authored code
+- slopwatch: after substantial new/refactor/LLM-authored code
 - crap-analysis: after tests added/changed in complex code
 
 Specialist agents
-- dotnet-concurrency-specialist, dotnet-performance-analyst, dotnet-benchmark-designer, akka-net-specialist, docfx-specialist
+- dotnet-concurrency-specialist, dotnet-performance-analyst, dotnet-benchmark-designer, akka-net-specialist, docfx-specialist, roslyn-incremental-generator-specialist
 
 # C# Semantic Enforcement (csharp-lsp)
 
