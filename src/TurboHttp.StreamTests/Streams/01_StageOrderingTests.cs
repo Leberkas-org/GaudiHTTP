@@ -15,6 +15,14 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests that the engine stage ordering preserves RFC-compliant request and response semantics.
+/// Verifies that cookie injection, cache lookup, retry, redirect, and decompression stages execute in the correct sequence.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="Engine"/>.
+/// Validates the execution order of all middleware stages within the engine pipeline.
+/// </remarks>
 public sealed class StageOrderingTests : EngineTestBase
 {
     private static CookieJar JarWithCookie(string name, string value, string domain, string path = "/")

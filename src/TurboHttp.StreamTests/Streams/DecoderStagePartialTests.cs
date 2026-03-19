@@ -8,6 +8,14 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests partial-frame accumulation in HTTP/1.x and HTTP/2 decoder stages.
+/// Verifies that incomplete frames are buffered and correctly reassembled across TCP chunks.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="Http11DecoderStage"/>, <see cref="Http20DecoderStage"/>.
+/// Validates stateful remainder buffering across fragmented TCP delivery.
+/// </remarks>
 public sealed class DecoderStagePartialTests : StreamTestBase
 {
     private static IInputItem H2Chunk(byte[] data)

@@ -8,6 +8,14 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests queue-size limits of the GroupByHostKey subflow used to multiplex connections per host.
+/// Verifies default and configurable buffer limits and back-pressure under burst load.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="GroupByHostKeyStage{T}"/>.
+/// Validates that per-host subflow queues respect capacity constraints.
+/// </remarks>
 public sealed class GroupByHostKeyQueueSizeTests : StreamTestBase
 {
     private static HttpRequestMessage Req(string url)

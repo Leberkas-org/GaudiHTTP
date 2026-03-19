@@ -12,6 +12,14 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
+/// <summary>
+/// Tests the <see cref="ConnectionActor"/> lifecycle: connect, reconnect, exponential backoff, and idle eviction.
+/// Verifies that ConnectionReady is sent to the parent on successful connect and backoff intervals are respected.
+/// </summary>
+/// <remarks>
+/// Actor under test: <see cref="ConnectionActor"/>.
+/// Validates actor message handling for the full connection lifecycle.
+/// </remarks>
 public sealed class ConnectionActorTests : TestKit
 {
     private static readonly RequestEndpoint TestKey = new()

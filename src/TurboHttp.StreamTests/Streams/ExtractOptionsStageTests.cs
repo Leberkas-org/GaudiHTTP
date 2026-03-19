@@ -7,6 +7,14 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests <see cref="ExtractOptionsStage"/> which splits a composed HttpRequest into transport options and HttpRequestMessage.
+/// Verifies that demand sequencing avoids 'Cannot pull port twice' races at graph startup.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="ExtractOptionsStage"/>.
+/// Validates fan-out shape behavior and correct downstream demand sequencing.
+/// </remarks>
 public sealed class ExtractOptionsStageTests : StreamTestBase
 {
     private static HttpRequestMessage MakeRequest(string url = "http://example.com/")

@@ -7,6 +7,14 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests the <see cref="RequestEnricherStage"/> that applies base address, default version, and default headers.
+/// Verifies RFC 9110-compliant header merging and URI resolution behavior.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="RequestEnricherStage"/>.
+/// Validates base-address combination, version override, and header merge/skip-if-present semantics.
+/// </remarks>
 public sealed class RequestEnricherStageTests : StreamTestBase
 {
     private Task<IImmutableList<HttpRequestMessage>> RunAsync(

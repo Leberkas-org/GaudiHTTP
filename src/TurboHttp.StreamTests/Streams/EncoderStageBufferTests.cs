@@ -7,6 +7,14 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests buffer management and pre-allocation in the HTTP/1.1 encoder stage.
+/// Verifies that the encoder produces correctly-sized byte slices without excess allocation.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="Http11EncoderStage"/>.
+/// Validates zero-waste buffer pre-allocation for request serialisation.
+/// </remarks>
 public sealed class EncoderStageBufferTests : StreamTestBase
 {
     private async Task<(byte[] bytes, int written)> Encode11Async(HttpRequestMessage request)

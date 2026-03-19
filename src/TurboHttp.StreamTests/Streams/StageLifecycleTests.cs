@@ -7,6 +7,14 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests startup and teardown behavior of encoder and decoder stages.
+/// Verifies clean completion and failure propagation during stage lifecycle events.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="Http11EncoderStage"/>, <see cref="Http11DecoderStage"/>.
+/// Validates upstream finish, downstream cancel, and error failure paths.
+/// </remarks>
 public sealed class StageLifecycleTests : StreamTestBase
 {
     private static HttpRequestMessage ValidRequest()

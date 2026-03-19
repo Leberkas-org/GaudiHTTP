@@ -12,6 +12,14 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests that Akka materializer buffer settings do not cause backpressure deadlocks under burst load.
+/// Verifies correct buffer sizing for the engine's feedback paths.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="Engine"/>.
+/// Validates buffer-size tuning prevents stalls when responses arrive faster than they are consumed.
+/// </remarks>
 public sealed class MaterializerBufferTuningTests : TestKit
 {
     public MaterializerBufferTuningTests()

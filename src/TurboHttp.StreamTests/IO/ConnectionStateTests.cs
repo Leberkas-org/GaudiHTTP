@@ -10,6 +10,14 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
+/// <summary>
+/// Tests <see cref="ConnectionState"/> transitions managed by <see cref="HostPool"/>.
+/// Verifies state field values and that slot transitions respect per-host concurrency limits.
+/// </summary>
+/// <remarks>
+/// Actor under test: <see cref="ConnectionState"/>.
+/// Validates Active, Idle, Busy, and Reusable state semantics.
+/// </remarks>
 public sealed class ConnectionStateTests : TestKit
 {
     private ConnectionHandle CreateHandle(Version version)

@@ -6,6 +6,14 @@ using TurboHttp.IO.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests the host-key subflow grouping used to multiplex multiple requests onto per-host connections.
+/// Verifies that requests are partitioned by host key and each subflow completes independently.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="GroupByHostKeyStage{T}"/>.
+/// Validates subflow isolation, completion propagation, and back-pressure per host partition.
+/// </remarks>
 public sealed class HostKeySubFlowTests : StreamTestBase
 {
     private static HttpRequestMessage Req(string url)

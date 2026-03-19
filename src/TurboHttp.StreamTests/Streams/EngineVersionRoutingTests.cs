@@ -9,6 +9,14 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests HTTP version routing within the engine's protocol demultiplexer.
+/// Verifies that HTTP/1.0, HTTP/1.1, and HTTP/2 requests are dispatched to the correct sub-engine.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="Engine"/>.
+/// Validates version-based partitioning and per-version round-trip correctness.
+/// </remarks>
 public sealed class EngineVersionRoutingTests : EngineTestBase
 {
     private static Flow<IOutputItem, IInputItem, NotUsed> NoOpTransportFlow()

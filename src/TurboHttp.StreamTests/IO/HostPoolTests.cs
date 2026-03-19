@@ -7,6 +7,14 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
+/// <summary>
+/// Tests <see cref="HostPool"/> composite behavior including failure recovery, reconnect scheduling, and slot management.
+/// Covers ConnectionFailed, Reconnect, and EnsureHost message interactions.
+/// </summary>
+/// <remarks>
+/// Actor under test: <see cref="HostPool"/>.
+/// Validates the pool actor's response to connection failures and subsequent reconnect scheduling.
+/// </remarks>
 public sealed class HostPoolTests : IoActorTestBase
 {
     [Fact(DisplayName = "HPA-001: ConnectionFailed clears active handle; next EnsureHost is queued")]

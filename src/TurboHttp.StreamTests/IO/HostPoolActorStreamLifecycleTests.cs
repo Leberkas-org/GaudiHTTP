@@ -6,6 +6,14 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
+/// <summary>
+/// Tests <see cref="HostPool"/> reaction to stream-lifecycle messages: StreamCompleted and StreamFailed.
+/// Verifies that slot release and queued-requester dispatch occur correctly on stream completion.
+/// </summary>
+/// <remarks>
+/// Actor under test: <see cref="HostPool"/>.
+/// Validates that slot reclamation after stream completion correctly triggers pending EnsureHost requests.
+/// </remarks>
 public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
 {
     [Fact(DisplayName = "SLC-001: StreamCompleted frees slot and serves queued requester")]

@@ -12,6 +12,14 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests that async boundary insertions in the engine graph do not cause deadlocks or data loss.
+/// Verifies thread-safe message passing across Akka.Streams dispatcher boundaries.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="Engine"/>.
+/// Validates correct behavior when requests and responses flow across different thread-pool dispatchers.
+/// </remarks>
 public sealed class AsyncBoundaryTests : TestKit
 {
     public AsyncBoundaryTests()

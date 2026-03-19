@@ -13,6 +13,13 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.StreamTests;
 
+/// <summary>
+/// Fake TCP connection stage for HTTP/1.x engine tests.
+/// Intercepts outbound serialised bytes and injects a synthetic response produced by a caller-supplied factory.
+/// </summary>
+/// <remarks>
+/// Exposes <see cref="EngineFakeConnectionStage.OutboundChannel"/> so tests can inspect the raw bytes sent by the encoder.
+/// </remarks>
 public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
 {
     private readonly Func<byte[]> _responseFactory;
@@ -93,6 +100,13 @@ public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem
     }
 }
 
+/// <summary>
+/// Fake TCP connection stage for HTTP/2 engine tests.
+/// Intercepts outbound H2 frames (skipping the preface) and injects pre-queued server frames one per request.
+/// </summary>
+/// <remarks>
+/// Exposes <see cref="H2EngineFakeConnectionStage.OutboundChannel"/> so tests can decode and inspect outbound H2 frames.
+/// </remarks>
 public sealed class H2EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
 {
     private readonly IReadOnlyList<byte[]> _serverFrames;
@@ -202,6 +216,13 @@ public sealed class H2EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
     }
 }
 
+/// <summary>
+/// Abstract base class for engine round-trip tests.
+/// Provides SendAsync/SendManyAsync helpers that pipe requests through an engine and a fake connection stage.
+/// </summary>
+/// <remarks>
+/// Inherits from TestKit; uses <see cref="EngineFakeConnectionStage"/> and <see cref="H2EngineFakeConnectionStage"/> to simulate TCP connections.
+/// </remarks>
 public abstract class EngineTestBase : TestKit
 {
     protected readonly IMaterializer Materializer;

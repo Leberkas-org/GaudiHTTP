@@ -9,6 +9,14 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Measures throughput and latency of the HTTP/1.1 engine via an in-process loopback pipeline.
+/// Validates sustained round-trip performance under sequential and burst request loads.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="Engine"/>.
+/// Uses an in-memory fake connection stage to eliminate network overhead from measurements.
+/// </remarks>
 public sealed class LoopbackBenchmarkStageTests : EngineTestBase
 {
     private static byte[] Http11OkResponse() =>

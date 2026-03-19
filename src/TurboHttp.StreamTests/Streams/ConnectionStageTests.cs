@@ -14,6 +14,14 @@ using TurboHttp.Protocol.RFC9112;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests <see cref="ConnectionStage"/> integration with the actor-based connection pool.
+/// Verifies that the stage acquires a ConnectionHandle and routes bytes through in-memory channels.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="ConnectionStage"/>.
+/// Validates the handshake between ConnectionStage and PoolRouterActor via fake actor stubs.
+/// </remarks>
 public sealed class ConnectionStageTests : StreamTestBase
 {
     /// <summary>

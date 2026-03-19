@@ -6,6 +6,14 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
+/// <summary>
+/// Tests <see cref="HostPool"/> handling of EnsureHost messages under various slot-availability conditions.
+/// Verifies immediate reply when slots are free and queuing when the per-host connection limit is reached.
+/// </summary>
+/// <remarks>
+/// Actor under test: <see cref="HostPool"/>.
+/// Validates connection slot reservation, immediate dispatch, and requester queuing semantics.
+/// </remarks>
 public sealed class HostPoolActorEnsureHostTests : IoActorTestBase
 {
     [Fact(DisplayName = "EH-001: Slot available returns handle immediately and marks connection busy")]

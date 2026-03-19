@@ -442,8 +442,8 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 **Scope:** `src/TurboHttp.StreamTests/Engine/` + `IO/` + `Pipeline/` + `Stages/`
 
 **Acceptance Criteria:**
-- [ ] Every test class has `<summary>` + `<remarks>`
-- [ ] Build green
+- [x] Every test class has `<summary>` + `<remarks>`
+- [x] Build green
 
 ---
 
@@ -464,11 +464,11 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 | `Http1XCorrelationStageTests.cs` | `Http1X` inconsistent | `Http11CorrelationStageTests.cs` |
 
 **Acceptance Criteria:**
-- [ ] All HTTP/1.0 stage tests start with `Http10`
-- [ ] All HTTP/1.1 stage tests start with `Http11`
-- [ ] All HTTP/2 stage tests start with `Http20`
-- [ ] Class names inside files updated to match new file names
-- [ ] Build + tests green
+- [x] All HTTP/1.0 stage tests start with `Http10`
+- [x] All HTTP/1.1 stage tests start with `Http11`
+- [x] All HTTP/2 stage tests start with `Http20`
+- [x] Class names inside files updated to match new file names
+- [x] Build + tests green
 
 ---
 

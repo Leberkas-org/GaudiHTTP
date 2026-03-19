@@ -15,6 +15,14 @@ using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Regression tests that verify fixes for async Task-related bugs in stage interaction.
+/// Guards against re-introduction of known concurrency bugs caused by improper Task cancellation handling.
+/// </summary>
+/// <remarks>
+/// Stage under test: various pipeline stages.
+/// Ensures specific concurrency edge cases that were previously broken remain correctly handled.
+/// </remarks>
 public sealed class TaskFixVerificationTests : StreamTestBase
 {
     [Fact(Timeout = 10_000,

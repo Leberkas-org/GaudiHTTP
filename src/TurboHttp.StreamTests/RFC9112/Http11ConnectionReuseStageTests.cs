@@ -16,7 +16,7 @@ namespace TurboHttp.StreamTests.RFC9112;
 /// Stage under test: <see cref="ConnectionReuseStage"/>.
 /// RFC 9112 §9: HTTP/1.1 persistent connection management and connection reuse eligibility.
 /// </remarks>
-public sealed class ConnectionReuseStageTests : StreamTestBase
+public sealed class Http11ConnectionReuseStageTests : StreamTestBase
 {
     private async Task<(IReadOnlyList<HttpResponseMessage> responses, IReadOnlyList<ConnectionReuseItem> decisions)>
         RunAsync(Version httpVersion, bool bodyFullyConsumed = true, params HttpResponseMessage[] responses)

@@ -10,6 +10,14 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
+/// <summary>
+/// Tests the <see cref="ConnectionHandle"/> record that bundles channel reader/writer pairs with connection identity.
+/// Verifies property accessors, channel I/O, and HTTP version reflection from the RequestEndpoint.
+/// </summary>
+/// <remarks>
+/// Actor under test: <see cref="ConnectionHandle"/>.
+/// Validates that the handle correctly exposes the underlying channel pair and host key.
+/// </remarks>
 public sealed class ConnectionHandleTests : TestKit
 {
     private ConnectionHandle CreateHandle()

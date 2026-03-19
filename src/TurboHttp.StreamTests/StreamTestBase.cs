@@ -4,6 +4,13 @@ using Akka.TestKit.Xunit2;
 
 namespace TurboHttp.StreamTests;
 
+/// <summary>
+/// Abstract base class for all Akka.Streams stage tests.
+/// Creates a fresh ActorSystem and IMaterializer per test and tears them down on dispose.
+/// </summary>
+/// <remarks>
+/// Inherits from TestKit; actor system name includes a Guid to avoid port conflicts between parallel tests.
+/// </remarks>
 public abstract class StreamTestBase : TestKit
 {
     protected readonly IMaterializer Materializer;

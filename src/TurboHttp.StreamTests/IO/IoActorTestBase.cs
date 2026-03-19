@@ -12,6 +12,13 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
+/// <summary>
+/// Abstract base class for I/O actor tests.
+/// Provides factory helpers for constructing <see cref="HostPool"/>, <see cref="ConnectionActor"/>, and <see cref="ConnectionHandle"/> test doubles.
+/// </summary>
+/// <remarks>
+/// Inherits from TestKit; all derived tests use Akka's TestProbe infrastructure for actor interaction verification.
+/// </remarks>
 public abstract class IoActorTestBase : TestKit
 {
     protected static readonly TcpOptions TestOptions = new() { Host = "localhost", Port = 8080 };

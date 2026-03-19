@@ -8,6 +8,14 @@ using TurboHttp.Lifecycle;
 
 namespace TurboHttp.StreamTests.IO;
 
+/// <summary>
+/// Tests the connection-selection algorithm in <see cref="HostPool"/> for routing requests to the most suitable idle connection.
+/// Verifies preference ordering by HTTP version and idle status, with fallback to queuing when all connections are busy.
+/// </summary>
+/// <remarks>
+/// Actor under test: <see cref="HostPool"/>.
+/// Validates the selection heuristics for multi-connection host pools.
+/// </remarks>
 public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
 {
     private ConnectionHandle CreateHandle(Version version)

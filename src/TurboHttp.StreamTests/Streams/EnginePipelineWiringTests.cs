@@ -11,6 +11,14 @@ using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
 
+/// <summary>
+/// Tests full-stack engine pipeline wiring including all middleware stages.
+/// Verifies that redirect, retry, cookie, cache, and decompression stages integrate correctly with the engine.
+/// </summary>
+/// <remarks>
+/// Stage under test: <see cref="Engine"/>.
+/// Validates end-to-end request/response flow through the complete middleware pipeline.
+/// </remarks>
 public sealed class EnginePipelineWiringTests : EngineTestBase
 {
     private static Flow<IOutputItem, IInputItem, NotUsed> Http11Flow(
