@@ -5,7 +5,7 @@ namespace TurboHttp.Tests.RFC9113;
 public sealed class Http2FrameTests
 {
     [Fact]
-    public void SettingsFrame_Serialize_CorrectFormat()
+    public void Should_SerializeToCorrectFormat_WhenSettingsFrameBuilt()
     {
         var frame = new SettingsFrame(new List<(SettingsParameter, uint)>
         {
@@ -27,7 +27,7 @@ public sealed class Http2FrameTests
     }
 
     [Fact]
-    public void SettingsAck_Serialize_EmptyPayload()
+    public void Should_SerializeEmptyPayload_WhenSettingsAckBuilt()
     {
         var ack = SettingsFrame.SettingsAck();
         Assert.Equal(9, ack.Length);
@@ -35,7 +35,7 @@ public sealed class Http2FrameTests
     }
 
     [Fact]
-    public void PingFrame_Serialize_8BytePayload()
+    public void Should_Serialize8BytePayload_WhenPingFrameBuilt()
     {
         var data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
         var frame = new PingFrame(data).Serialize();
@@ -45,7 +45,7 @@ public sealed class Http2FrameTests
     }
 
     [Fact]
-    public void WindowUpdateFrame_Serialize_CorrectIncrement()
+    public void Should_SerializeCorrectIncrement_WhenWindowUpdateFrameBuilt()
     {
         var frame = new WindowUpdateFrame(0, 65535).Serialize();
         Assert.Equal(13, frame.Length);
@@ -57,7 +57,7 @@ public sealed class Http2FrameTests
     }
 
     [Fact]
-    public void DataFrame_Serialize_WithEndStream()
+    public void Should_SerializeWithEndStreamFlag_WhenDataFrameBuilt()
     {
         var data = new byte[] { 1, 2, 3 };
         var frame = new DataFrame(1, data, endStream: true).Serialize();
@@ -67,7 +67,7 @@ public sealed class Http2FrameTests
     }
 
     [Fact]
-    public void GoAwayFrame_Serialize_WithDebugData()
+    public void Should_SerializeWithDebugData_WhenGoAwayFrameBuilt()
     {
         var debug = "test error"u8.ToArray();
         var frame = new GoAwayFrame(3, Http2ErrorCode.ProtocolError, debug).Serialize();

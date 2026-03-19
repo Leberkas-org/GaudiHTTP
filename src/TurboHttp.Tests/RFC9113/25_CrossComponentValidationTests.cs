@@ -173,7 +173,7 @@ public sealed class Http2CrossComponentValidationTests
     // =========================================================================
 
     [Fact(DisplayName = "RFC9113-4.3-CC-001: Malformed HPACK → CompressionError connection error")]
-    public void MalformedHpackBytes_ThrowsCompressionError()
+    public void Should_ThrowCompressionError_WhenMalformedHpackBytesDecoded()
     {
         // 0x80 = indexed representation with index 0 (reserved → HpackException)
         var corruptHpack = new byte[] { 0x80 };
@@ -193,7 +193,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-4.3-CC-002: Out-of-range dynamic index in HPACK → CompressionError")]
-    public void OutOfRangeDynamicIndex_ThrowsCompressionError()
+    public void Should_ThrowCompressionError_WhenOutOfRangeDynamicIndexReceived()
     {
         // Dynamic table is empty; reference dynamic index out of range
         // Encoded as 0xFF 0x3F (indexed, index = 127, out of range)
@@ -213,7 +213,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-4.3-CC-003: HPACK CompressionError is connection-level, not stream-level")]
-    public void HpackCompressionError_IsConnectionLevel_NotStreamLevel()
+    public void Should_BeConnectionLevelError_WhenHpackCompressionFails()
     {
         var corruptHpack = new byte[] { 0x80 }; // index 0 is reserved → HpackException
         var headersFrame = BuildHeadersFrame(3, corruptHpack);
@@ -233,7 +233,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-4.3-CC-004: HPACK empty header name → CompressionError")]
-    public void HpackEmptyHeaderName_ThrowsCompressionError()
+    public void Should_ThrowCompressionError_WhenHpackHeaderNameIsEmpty()
     {
         // Literal without indexing (0x00), name index=0 (new name), name length = 0 (empty)
         // RFC 7541 §7.2: empty header name is a protocol violation
@@ -253,7 +253,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-4.3-CC-005: HPACK failure on stream 5 is connection error")]
-    public void HpackFailureOnAnyStream_IsConnectionError()
+    public void Should_BeConnectionError_WhenHpackFailureOccursOnAnyStream()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -283,7 +283,7 @@ public sealed class Http2CrossComponentValidationTests
     // =========================================================================
 
     [Fact(DisplayName = "RFC9113-6.9-CC-006: Connection window tracked independently from HPACK")]
-    public void ConnectionWindow_TrackedIndependentlyFromHpack()
+    public void Should_TrackConnectionWindowIndependentlyFromHpack()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -302,7 +302,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-CC-007: Stream windows are independent across streams")]
-    public void StreamWindows_AreIndependent_AcrossStreams()
+    public void Should_HaveIndependentWindows_WhenMultipleStreamsActive()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -321,7 +321,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-CC-008: Flow control error on stream 1 doesn't corrupt stream 3")]
-    public void FlowControlErrorOnStream1_DoesNotCorruptStream3()
+    public void Should_NotCorruptOtherStreams_WhenFlowControlErrorOnOneStream()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -341,7 +341,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-CC-009: WINDOW_UPDATE on stream 1 doesn't affect stream 3")]
-    public void WindowUpdateOnStream1_DoesNotAffectStream3()
+    public void Should_NotAffectOtherStreams_WhenWindowUpdateAppliedToOneStream()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -362,7 +362,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-CC-010: Connection WINDOW_UPDATE is independent from stream windows")]
-    public void ConnectionWindowUpdate_IsIndependentFromStreams()
+    public void Should_BeIndependentFromStreams_WhenConnectionWindowUpdated()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -381,7 +381,7 @@ public sealed class Http2CrossComponentValidationTests
     // =========================================================================
 
     [Fact(DisplayName = "RFC9113-6.4-CC-011: RST_STREAM decrements active stream count")]
-    public void RstStream_DecrementsActiveStreamCount()
+    public void Should_DecrementActiveStreamCount_WhenRstStreamReceived()
     {
         var decoder = new Http2FrameDecoder();
         var openStreams = new HashSet<int>();
@@ -409,7 +409,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.4-CC-012: RST_STREAM carries correct error code")]
-    public void RstStream_Result_CarriesErrorCode()
+    public void Should_CarryErrorCode_WhenRstStreamFrameReceived()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -425,7 +425,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.4-CC-013: After RST_STREAM, DATA on that stream is stream error")]
-    public void AfterRstStream_DataOnResetStream_IsStreamClosedError()
+    public void Should_ThrowStreamClosedError_WhenDataSentOnResetStream()
     {
         var decoder = new Http2FrameDecoder();
         var closedStreams = new HashSet<int>();
@@ -451,7 +451,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.4-CC-014: RST_STREAM error code in frame payload")]
-    public void RstStream_ErrorCodeInPayload()
+    public void Should_HaveErrorCodeInPayload_WhenRstStreamFrameBuilt()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -470,7 +470,7 @@ public sealed class Http2CrossComponentValidationTests
     // =========================================================================
 
     [Fact(DisplayName = "RFC9113-6.8-CC-015: GOAWAY frame decoded with correct lastStreamId")]
-    public void GoAway_DecodedWithCorrectLastStreamId()
+    public void Should_DecodeCorrectLastStreamId_WhenGoAwayReceived()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -486,7 +486,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.8-CC-016: New HEADERS after GOAWAY with streamId > lastStreamId is rejected")]
-    public void NewHeadersAfterGoAway_AboveLastStreamId_IsRejected()
+    public void Should_RejectNewHeaders_WhenStreamIdExceedsGoAwayLastStreamId()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -506,7 +506,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.8-CC-017: GOAWAY sets LastStreamId field correctly")]
-    public void GoAway_SetsLastStreamIdCorrectly()
+    public void Should_SetLastStreamIdCorrectly_WhenGoAwayBuilt()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -523,7 +523,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-6.8-CC-018: GOAWAY error code decoded correctly")]
-    public void GoAway_ErrorCodeDecodedCorrectly()
+    public void Should_DecodeErrorCodeCorrectly_WhenGoAwayReceived()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -538,7 +538,7 @@ public sealed class Http2CrossComponentValidationTests
     // =========================================================================
 
     [Fact(DisplayName = "RFC9113-8.2-CC-019: Invalid HPACK index cannot inject headers")]
-    public void InvalidHpackIndex_CannotInjectHeaders()
+    public void Should_PreventHeaderInjection_WhenHpackIndexIsInvalid()
     {
         // HPACK block that references index 0 (reserved) → HpackException
         var corruptHpack = new byte[] { 0x80 }; // indexed, index=0 (reserved)
@@ -557,7 +557,7 @@ public sealed class Http2CrossComponentValidationTests
     }
 
     [Fact(DisplayName = "RFC9113-8.2-CC-020: Uppercase header name is rejected by validation")]
-    public void HpackEncodedUppercaseHeaderName_IsRejectedByValidation()
+    public void Should_RejectHeaders_WhenUppercaseHeaderNameDetected()
     {
         // Build a valid HPACK block with an uppercase header name
         // Start with :status: 200 (indexed, index 8)

@@ -7,7 +7,7 @@ namespace TurboHttp.Tests.RFC9113;
 public sealed class Http2EncoderRfcTaggedTests
 {
     [Fact(DisplayName = "RFC9113-3.5-001: Client preface is PRI * HTTP/2.0 SM")]
-    public void Preface_MagicBytes_MatchSpec()
+    public void Should_MatchSpec_WhenPrefaceMagicBytesBuilt()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
         var expected = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
@@ -15,7 +15,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-3.5-003: SETTINGS frame immediately follows client preface")]
-    public void Preface_SettingsFrame_ImmediatelyFollowsMagic()
+    public void Should_ImmediatelyFollowMagic_WhenPrefaceSettingsFrame()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
         const int magicLen = 24; // "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
@@ -23,7 +23,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-8.1-001: All four pseudo-headers emitted")]
-    public void PseudoHeaders_AllFourEmitted()
+    public void Should_EmitAllFourPseudoHeaders_WhenEncodingRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/v1/data");
         var headers = DecodeHeaders(request);
@@ -34,7 +34,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-8.1-002: Pseudo-headers precede regular headers")]
-    public void PseudoHeaders_PrecedeRegularHeaders()
+    public void Should_PrecedeRegularHeaders_WhenPseudoHeadersEncoded()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         request.Headers.Add("X-Custom", "value");
@@ -47,7 +47,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-8.1-003: No duplicate pseudo-headers")]
-    public void PseudoHeaders_NoDuplicates()
+    public void Should_NotProduceDuplicates_WhenPseudoHeadersEncoded()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path");
         var headers = DecodeHeaders(request);
@@ -57,7 +57,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-8.1-004: Connection-specific headers absent in HTTP/2")]
-    public void Http2_ConnectionSpecificHeaders_Absent()
+    public void Should_OmitConnectionSpecificHeaders_WhenEncodingHttp2Request()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/")
         {
@@ -87,7 +87,7 @@ public sealed class Http2EncoderRfcTaggedTests
     [InlineData("OPTIONS")]
     [InlineData("TRACE")]
     [InlineData("CONNECT")]
-    public void PseudoHeader_Method_CorrectForAllMethods(string method)
+    public void Should_ProduceCorrectMethodPseudoHeader_WhenEncodingRequest(string method)
     {
         var uri = "https://example.com/test";
         var request = new HttpRequestMessage(new HttpMethod(method), uri);
@@ -96,7 +96,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-8.3-PH-002: :scheme reflects request URI scheme")]
-    public void PseudoHeader_Scheme_ReflectsUriScheme()
+    public void Should_ReflectUriScheme_WhenSchemePseudoHeaderEncoded()
     {
         var httpRequest = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         var httpsRequest = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -109,7 +109,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.2-001: HEADERS frame has correct 9-byte header and payload")]
-    public void HeadersFrame_HasCorrect9ByteHeader_TypeByte()
+    public void Should_ProduceHeadersFrame_WhenEncodingRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         var frames = EncodeToFrames(request);
@@ -119,7 +119,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.2-002: END_STREAM flag set on HEADERS for GET")]
-    public void HeadersFrame_EndStream_SetForGet()
+    public void Should_SetEndStream_WhenHeadersFrameForGetRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         var frames = EncodeToFrames(request);
@@ -129,7 +129,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.2-003: END_HEADERS flag set on single HEADERS frame")]
-    public void HeadersFrame_EndHeaders_SetOnSingleFrame()
+    public void Should_SetEndHeaders_WhenSingleHeadersFrameUsed()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         var frames = EncodeToFrames(request);
@@ -139,7 +139,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-001: Headers exceeding max frame size split into CONTINUATION")]
-    public void LargeHeaders_SplitIntoContinuation()
+    public void Should_SplitIntoContinuationFrames_WhenHeadersExceedMaxFrameSize()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 64u)]);
@@ -158,7 +158,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-002: END_HEADERS on final CONTINUATION frame")]
-    public void ContinuationFrame_FinalHasEndHeaders()
+    public void Should_HaveEndHeadersOnFinalContinuationFrame()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 64u)]);
@@ -177,7 +177,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.9-003: Multiple CONTINUATION frames for very large headers")]
-    public void VeryLargeHeaders_MultipleContinuationFrames()
+    public void Should_ProduceMultipleContinuationFrames_WhenHeadersVeryLarge()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 32u)]);
@@ -199,7 +199,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-enc-002: END_STREAM set on final DATA frame")]
-    public void DataFrame_EndStream_SetOnFinalFrame()
+    public void Should_SetEndStreamOnFinalDataFrame()
     {
         var request = CreatePostRequest("example.com", "/api", "hello");
         var frames = EncodeToFrames(request);
@@ -211,7 +211,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-enc-003: GET END_STREAM on HEADERS frame")]
-    public void Get_EndStream_OnHeadersNotData()
+    public void Should_SetEndStreamOnHeaders_WhenGetRequestProducesNoDataFrame()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         var frames = EncodeToFrames(request);
@@ -223,7 +223,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-DATA-001: DATA frame has type byte 0x00")]
-    public void DataFrame_TypeByte_IsZero()
+    public void Should_ProduceDataFrame_WhenPostRequestEncoded()
     {
         var request = CreatePostRequest("example.com", "/api", "payload");
         var frames = EncodeToFrames(request);
@@ -234,7 +234,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-DATA-002: DATA frame carries correct stream ID")]
-    public void DataFrame_CarriesCorrectStreamId()
+    public void Should_CarryCorrectStreamId_WhenDataFrameEncoded()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         var request = CreatePostRequest("example.com", "/api", "payload");
@@ -245,7 +245,7 @@ public sealed class Http2EncoderRfcTaggedTests
     }
 
     [Fact(DisplayName = "RFC9113-6.1-DATA-003: Body exceeding MAX_FRAME_SIZE split into multiple DATA frames")]
-    public void DataFrame_LargeBody_SplitIntoMultipleFrames()
+    public void Should_SplitIntoMultipleDataFrames_WhenBodyExceedsMaxFrameSize()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 16u)]);

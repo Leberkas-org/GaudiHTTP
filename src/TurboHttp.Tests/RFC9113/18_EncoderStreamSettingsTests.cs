@@ -13,7 +13,7 @@ public sealed class Http2EncoderStreamSettingsTests
     [InlineData(SettingsParameter.InitialWindowSize, 65535u)]
     [InlineData(SettingsParameter.MaxFrameSize, 16384u)]
     [InlineData(SettingsParameter.MaxHeaderListSize, 8192u)]
-    public void Settings_Parameter_EncodedCorrectly(SettingsParameter param, uint value)
+    public void Should_EncodeSettingsParameterCorrectly_WhenBuildingSettingsFrame(SettingsParameter param, uint value)
     {
         var frame = Http2FrameUtils.EncodeSettings([(param, value)]);
         Assert.Equal((byte)FrameType.Settings, frame[3]);
@@ -27,7 +27,7 @@ public sealed class Http2EncoderStreamSettingsTests
     }
 
     [Fact(DisplayName = "RFC9113-6.5-SET-002: SETTINGS ACK frame has type=0x04 flags=0x01 stream=0")]
-    public void SettingsAck_HasCorrectTypeAndFlags()
+    public void Should_HaveCorrectTypeAndFlags_WhenSettingsAckBuilt()
     {
         var ack = Http2FrameUtils.EncodeSettingsAck();
         Assert.Equal((byte)FrameType.Settings, ack[3]);         // type = 0x04
@@ -37,7 +37,7 @@ public sealed class Http2EncoderStreamSettingsTests
     }
 
     [Fact(DisplayName = "RFC9113-5.1-001: First request uses stream ID 1")]
-    public void StreamId_FirstRequest_IsOne()
+    public void Should_UseStreamIdOne_WhenFirstRequestEncoded()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         var req = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -48,7 +48,7 @@ public sealed class Http2EncoderStreamSettingsTests
     }
 
     [Fact(DisplayName = "RFC9113-5.1.1-SID-001: Client never produces even stream IDs")]
-    public void StreamId_NeverEven()
+    public void Should_NeverProduceEvenStreamId_WhenEncoding()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         var req = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -63,7 +63,7 @@ public sealed class Http2EncoderStreamSettingsTests
     }
 
     [Fact(DisplayName = "RFC9113-5.1.1-SID-002: Stream ID approaching 2^31 handled gracefully")]
-    public void StreamId_Near2Pow31_ThrowsGracefully()
+    public void Should_ThrowGracefully_WhenStreamIdNears2Pow31()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
 
@@ -86,7 +86,7 @@ public sealed class Http2EncoderStreamSettingsTests
     }
 
     [Fact(DisplayName = "RFC9113-5.2-enc-001: Encoder does not exceed initial 65535-byte window")]
-    public void FlowControl_InitialWindow_LimitsToDefault()
+    public void Should_LimitDataToDefaultWindow_WhenInitialWindowNotExtended()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         var body = new string('X', 65535); // exactly fills the default window
@@ -102,7 +102,7 @@ public sealed class Http2EncoderStreamSettingsTests
     }
 
     [Fact(DisplayName = "RFC9113-5.2-enc-002: WINDOW_UPDATE allows more DATA to be sent")]
-    public void FlowControl_WindowUpdate_AllowsMoreData()
+    public void Should_AllowMoreData_WhenWindowUpdateApplied()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
 
@@ -126,7 +126,7 @@ public sealed class Http2EncoderStreamSettingsTests
     }
 
     [Fact(DisplayName = "RFC9113-5.2-enc-005: Encoder blocks when window is zero")]
-    public void FlowControl_ZeroWindow_BlocksData()
+    public void Should_BlockData_WhenConnectionWindowIsZero()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
 
@@ -145,7 +145,7 @@ public sealed class Http2EncoderStreamSettingsTests
     }
 
     [Fact(DisplayName = "RFC9113-5.2-enc-006: Connection-level window limits total DATA")]
-    public void FlowControl_ConnectionWindow_LimitsTotalData()
+    public void Should_LimitTotalData_WhenConnectionWindowConstrainsEncoder()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
 
@@ -168,7 +168,7 @@ public sealed class Http2EncoderStreamSettingsTests
     }
 
     [Fact(DisplayName = "RFC9113-5.2-enc-007: Per-stream window limits DATA on that stream")]
-    public void FlowControl_PerStreamWindow_LimitsStreamData()
+    public void Should_LimitStreamData_WhenPerStreamWindowConstrainsEncoder()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
 

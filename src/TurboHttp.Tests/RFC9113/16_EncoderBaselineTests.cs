@@ -7,7 +7,7 @@ namespace TurboHttp.Tests.RFC9113;
 public sealed class Http2EncoderBaselineTests
 {
     [Fact]
-    public void BuildConnectionPreface_StartsWithMagic()
+    public void Should_StartWithMagic_WhenBuildingConnectionPreface()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
         var magic = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
@@ -17,14 +17,14 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void BuildConnectionPreface_ContainsSettingsFrame()
+    public void Should_ContainSettingsFrame_WhenBuildingConnectionPreface()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
         Assert.Equal((byte)FrameType.Settings, preface[27]);
     }
 
     [Fact]
-    public void EncodeRequest_Get_ProducesHeadersFrame()
+    public void Should_ProduceHeadersFrame_WhenEncodingGetRequest()
     {
         var request = CreateGetRequest("example.com", "/index.html");
 
@@ -35,7 +35,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_Get_HeadersFrame_HasEndStream()
+    public void Should_HaveEndStreamAndEndHeaders_WhenEncodingGetRequest()
     {
         var request = CreateGetRequest("example.com", "/");
 
@@ -47,7 +47,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_Get_NoBannedHeaders()
+    public void Should_ExcludeBannedHeaders_WhenEncodingGetRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/")
         {
@@ -70,7 +70,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_Get_ContainsPseudoHeaders()
+    public void Should_ContainAllPseudoHeaders_WhenEncodingGetRequest()
     {
         var request = CreateGetRequest("example.com", "/v1/data", 443, isHttps: true);
 
@@ -84,7 +84,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_Get_NonStandardPort_AuthorityIncludesPort()
+    public void Should_IncludePortInAuthority_WhenGetRequestHasNonStandardPort()
     {
         var request = CreateGetRequest("example.com", "/", 8080);
 
@@ -95,7 +95,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_Post_HasDataFrame()
+    public void Should_ProduceDataFrame_WhenEncodingPostRequest()
     {
         var request = CreatePostRequest("example.com", "/api", "{\"key\":\"value\"}");
 
@@ -107,7 +107,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_Post_HeadersFrame_NoEndStream()
+    public void Should_NotSetEndStreamOnHeaders_WhenEncodingPostRequest()
     {
         var request = CreatePostRequest("example.com", "/api", "{}");
 
@@ -119,7 +119,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_Post_DataFrame_HasEndStream()
+    public void Should_SetEndStreamOnDataFrame_WhenEncodingPostRequest()
     {
         var request = CreatePostRequest("example.com", "/api", "{\"x\":1}");
 
@@ -130,7 +130,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_Post_ContentHeadersPresent()
+    public void Should_IncludeContentHeaders_WhenEncodingPostRequest()
     {
         const string json = "{\"name\":\"test\"}";
         var request = CreatePostRequest("example.com", "/users", json);
@@ -142,7 +142,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_Post_EmptyBody_ProducesEmptyDataFrame()
+    public void Should_ProduceEmptyDataFrame_WhenEncodingPostWithEmptyBody()
     {
         var request = CreatePostRequest("example.com", "/api", "");
 
@@ -154,7 +154,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeSettingsAck_ProducesAckFrame()
+    public void Should_ProduceAckFrame_WhenEncodingSettingsAck()
     {
         var ack = Http2FrameUtils.EncodeSettingsAck();
 
@@ -163,7 +163,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeSettings_ProducesSettingsFrame()
+    public void Should_ProduceSettingsFrame_WhenEncodingSettings()
     {
         var frame = Http2FrameUtils.EncodeSettings(
         [
@@ -175,7 +175,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodePing_ProducesPingFrame()
+    public void Should_ProducePingFrame_WhenEncodingPing()
     {
         byte[] data = [1, 2, 3, 4, 5, 6, 7, 8];
         var frame = Http2FrameUtils.EncodePing(data);
@@ -185,7 +185,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodePingAck_ProducesPingAckFrame()
+    public void Should_ProducePingAckFrame_WhenEncodingPingAck()
     {
         byte[] data = [1, 2, 3, 4, 5, 6, 7, 8];
         var frame = Http2FrameUtils.EncodePingAck(data);
@@ -195,7 +195,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeWindowUpdate_ProducesWindowUpdateFrame()
+    public void Should_ProduceWindowUpdateFrame_WhenEncodingWindowUpdate()
     {
         var frame = Http2FrameUtils.EncodeWindowUpdate(streamId: 1, increment: 65535);
 
@@ -205,7 +205,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRstStream_ProducesRstStreamFrame()
+    public void Should_ProduceRstStreamFrame_WhenEncodingRstStream()
     {
         var frame = Http2FrameUtils.EncodeRstStream(streamId: 3, Http2ErrorCode.Cancel);
 
@@ -215,7 +215,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeGoAway_WithDebugMessage_ProducesGoAwayFrame()
+    public void Should_ProduceGoAwayFrame_WhenEncodingGoAwayWithDebugMessage()
     {
         var frame = Http2FrameUtils.EncodeGoAway(5, Http2ErrorCode.NoError, "shutdown");
 
@@ -225,7 +225,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeGoAway_WithoutDebugMessage_ProducesGoAwayFrame()
+    public void Should_ProduceGoAwayFrame_WhenEncodingGoAwayWithoutDebugMessage()
     {
         var frame = Http2FrameUtils.EncodeGoAway(0, Http2ErrorCode.NoError);
 
@@ -234,7 +234,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void ApplyServerSettings_MaxFrameSize_UpdatesEncoder()
+    public void Should_UpdateEncoder_WhenApplyingMaxFrameSizeSetting()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 32768u)]);
@@ -245,7 +245,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void ApplyServerSettings_OtherParameter_IsIgnored()
+    public void Should_IgnoreParameter_WhenApplyingNonMaxFrameSizeSetting()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         encoder.ApplyServerSettings([(SettingsParameter.InitialWindowSize, 65535u)]);
@@ -256,7 +256,7 @@ public sealed class Http2EncoderBaselineTests
     }
 
     [Fact]
-    public void EncodeRequest_LargeHeaders_ProducesContinuationFrames()
+    public void Should_ProduceContinuationFrames_WhenEncodingRequestWithLargeHeaders()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
         encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 64u)]);

@@ -106,7 +106,7 @@ public sealed class Http2SecurityTests
 
     /// RFC 9113 §6.10: Excessive CONTINUATION frames detected by explicit enforcement
     [Fact(DisplayName = "RFC9113-6.10-SEC-001: Excessive CONTINUATION frames detected by flood enforcement")]
-    public void ContinuationFlood_DetectedByExplicitEnforcement()
+    public void Should_DetectContinuationFlood_WhenExplicitEnforcementApplied()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -153,7 +153,7 @@ public sealed class Http2SecurityTests
 
     /// RFC 9113 §5.1 + §6.4: Rapid RST_STREAM cycling (101 frames) detected by enforcement
     [Fact(DisplayName = "RFC9113-5.1-SEC-002: Rapid RST_STREAM cycling detected by flood enforcement (CVE-2023-44487)")]
-    public void RstFlood_DetectedByExplicitEnforcement()
+    public void Should_DetectRstFlood_WhenExplicitEnforcementApplied()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -191,7 +191,7 @@ public sealed class Http2SecurityTests
 
     /// RFC 9113 §6.1: Excessive zero-length DATA frames detected by enforcement
     [Fact(DisplayName = "RFC9113-6.1-SEC-003: Excessive zero-length DATA frames detected by flood enforcement")]
-    public void EmptyDataFlood_DetectedByExplicitEnforcement()
+    public void Should_DetectEmptyDataFlood_WhenExplicitEnforcementApplied()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -223,7 +223,7 @@ public sealed class Http2SecurityTests
 
     /// RFC 9113 §6.5.2: SETTINGS_ENABLE_PUSH > 1 causes PROTOCOL_ERROR
     [Fact(DisplayName = "RFC9113-6.5-SEC-004: SETTINGS ENABLE_PUSH > 1 rejected by enforcement")]
-    public void SettingsEnablePushInvalid_DetectedByEnforcement()
+    public void Should_DetectInvalidEnablePush_WhenSettingsEnforcementApplied()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -245,7 +245,7 @@ public sealed class Http2SecurityTests
 
     /// RFC 9113 §6.5.2: SETTINGS_INITIAL_WINDOW_SIZE > 2^31-1 causes FLOW_CONTROL_ERROR
     [Fact(DisplayName = "RFC9113-6.5-SEC-005: SETTINGS INITIAL_WINDOW_SIZE > 2^31-1 rejected by enforcement")]
-    public void SettingsInitialWindowSizeOverflow_DetectedByEnforcement()
+    public void Should_DetectInitialWindowSizeOverflow_WhenSettingsEnforcementApplied()
     {
         var decoder = new Http2FrameDecoder();
 
@@ -271,7 +271,7 @@ public sealed class Http2SecurityTests
 
     /// RFC 9113 §5.5: Unknown SETTINGS parameter IDs are silently decoded
     [Fact(DisplayName = "RFC9113-6.5-SEC-006: Unknown SETTINGS parameter silently decoded per RFC §5.5")]
-    public void UnknownSettingsParameter_SilentlyDecoded()
+    public void Should_SilentlyDecodeUnknownParameter_WhenSettingsReceived()
     {
         var decoder = new Http2FrameDecoder();
 

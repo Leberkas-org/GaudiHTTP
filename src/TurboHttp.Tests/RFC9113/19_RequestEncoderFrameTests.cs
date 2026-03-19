@@ -8,7 +8,7 @@ public sealed class Http2RequestEncoderFrameTests
     // ── Frame structure ───────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9113-8.1-001: GET request produces HEADERS frame with END_STREAM and END_HEADERS")]
-    public void Encode_GetRequest_ProducesHeadersFrameWithEndStream()
+    public void Should_ProduceHeadersFrameWithEndStream_WhenEncodingGetRequest()
     {
         var encoder = new Http2RequestEncoder();
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
@@ -25,7 +25,7 @@ public sealed class Http2RequestEncoderFrameTests
     }
 
     [Fact(DisplayName = "RFC9113-8.1-002: POST request produces HEADERS frame (no END_STREAM) followed by DATA")]
-    public void Encode_PostRequest_ProducesHeadersThenData()
+    public void Should_ProduceHeadersThenData_WhenEncodingPostRequest()
     {
         var encoder = new Http2RequestEncoder();
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/submit")
@@ -51,7 +51,7 @@ public sealed class Http2RequestEncoderFrameTests
     // ── Pseudo-headers ────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9113-8.3.1-001: Encoded header block contains required HTTP/2 pseudo-headers")]
-    public void Encode_GetRequest_HeaderBlockContainsPseudoHeaders()
+    public void Should_ContainPseudoHeaders_WhenEncodingGetRequestHeaderBlock()
     {
         var encoder = new Http2RequestEncoder();
         var request = new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/v1/data?q=1");
@@ -65,7 +65,7 @@ public sealed class Http2RequestEncoderFrameTests
     }
 
     [Fact(DisplayName = "RFC9113-8.3.1-002: Path includes query string in :path pseudo-header")]
-    public void Encode_RequestWithQuery_PathIncludesQuery()
+    public void Should_IncludeQueryInPath_WhenEncodingRequestWithQuery()
     {
         var encoder = new Http2RequestEncoder();
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/search?term=foo&page=2");
@@ -78,7 +78,7 @@ public sealed class Http2RequestEncoderFrameTests
     // ── Forbidden headers ─────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9113-8.2.2-001: Connection-specific headers are stripped from encoded output")]
-    public void Encode_ConnectionHeaders_AreStripped()
+    public void Should_StripConnectionHeaders_WhenEncoding()
     {
         var encoder = new Http2RequestEncoder();
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
@@ -94,7 +94,7 @@ public sealed class Http2RequestEncoderFrameTests
     // ── Large header block (CONTINUATION) ─────────────────────────────────────
 
     [Fact(DisplayName = "RFC9113-6.10-002: Header block larger than max frame size uses CONTINUATION frames")]
-    public void Encode_LargeHeaderBlock_UsesContinuationFrames()
+    public void Should_UseContinuationFrames_WhenEncodingLargeHeaderBlock()
     {
         // Use a tiny maxFrameSize to force continuation
         var encoder = new Http2RequestEncoder(useHuffman: false, maxFrameSize: 30);
@@ -125,7 +125,7 @@ public sealed class Http2RequestEncoderFrameTests
     // ── Stream ID ─────────────────────────────────────────────────────────────
 
     [Fact(DisplayName = "RFC9113-5.1.1-001: All frames for a request share the same stream ID")]
-    public void Encode_PostRequest_AllFramesHaveSameStreamId()
+    public void Should_HaveSameStreamIdOnAllFrames_WhenEncodingPostRequest()
     {
         var encoder = new Http2RequestEncoder();
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/data")
