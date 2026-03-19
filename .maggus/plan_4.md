@@ -347,12 +347,12 @@ src/TurboHttp.StreamTests/
 ```
 
 **Acceptance Criteria:**
-- [ ] All files moved to new folders
-- [ ] Namespaces updated in all moved files (e.g., `TurboHttp.StreamTests.RFC1945`)
-- [ ] Old folders `Http10/`, `Http11/`, `Http20/`, `Streams/` deleted
-- [ ] `ConnectionReuseStageTests.cs` placed in `RFC9112/`
-- [ ] Build passes (`dotnet build src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj`)
-- [ ] All StreamTests pass
+- [x] All files moved to new folders
+- [x] Namespaces updated in all moved files (e.g., `TurboHttp.StreamTests.RFC1945`)
+- [x] Old folders `Http10/`, `Http11/`, `Http20/`, `Streams/` deleted
+- [x] `ConnectionReuseStageTests.cs` placed in `RFC9112/`
+- [x] Build passes (`dotnet build src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj`)
+- [x] All StreamTests pass
 
 ---
 
