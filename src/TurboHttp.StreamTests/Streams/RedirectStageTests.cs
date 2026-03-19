@@ -62,6 +62,17 @@ public sealed class RedirectStageTests : StreamTestBase
         return response;
     }
 
+    /// <summary>
+    /// Pre-seeds a <see cref="RedirectHandler"/> on the request's Options,
+    /// simulating a request that has already been through prior redirects.
+    /// </summary>
+    private static void SeedRedirectHandler(
+        HttpRequestMessage request,
+        RedirectHandler handler)
+    {
+        request.Options.Set(RedirectStage.RedirectHandlerKey, handler);
+    }
+
     // ── non-redirect pass-through ──────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-001: 200 OK → forwarded on Out0 (final)")]
@@ -174,11 +185,16 @@ public sealed class RedirectStageTests : StreamTestBase
         res1.Headers.TryAddWithoutValidation("Location", "http://example.com/b");
         handler.BuildRedirectRequest(req1, res1);
 
-        // The next redirect should fail with max exceeded
-        var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/c",
-            "http://example.com/b");
+        // The next redirect should fail with max exceeded — seed handler on request Options
+        var requestMsg = new HttpRequestMessage(HttpMethod.Get, "http://example.com/b");
+        SeedRedirectHandler(requestMsg, handler);
+        var response = new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            RequestMessage = requestMsg
+        };
+        response.Headers.TryAddWithoutValidation("Location", "http://example.com/c");
 
-        var (final, redirect) = Run(new RedirectStage(handler), 1, response);
+        var (final, redirect) = Run(new RedirectStage(policy), 1, response);
 
         Assert.Same(response, await final.ExpectNextAsync());
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
@@ -196,11 +212,16 @@ public sealed class RedirectStageTests : StreamTestBase
         res1.Headers.TryAddWithoutValidation("Location", "http://example.com/b");
         handler.BuildRedirectRequest(req1, res1);
 
-        // Loop: b → a (already visited)
-        var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/a",
-            "http://example.com/b");
+        // Loop: b → a (already visited) — seed handler on request Options
+        var requestMsg = new HttpRequestMessage(HttpMethod.Get, "http://example.com/b");
+        SeedRedirectHandler(requestMsg, handler);
+        var response = new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            RequestMessage = requestMsg
+        };
+        response.Headers.TryAddWithoutValidation("Location", "http://example.com/a");
 
-        var (final, redirect) = Run(new RedirectStage(handler), 1, response);
+        var (final, redirect) = Run(new RedirectStage(), 1, response);
 
         Assert.Same(response, await final.ExpectNextAsync());
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
@@ -211,14 +232,13 @@ public sealed class RedirectStageTests : StreamTestBase
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-010: HTTPS to HTTP downgrade blocked → final response on Out0")]
     public async Task REDIR_010_HttpsToHttpDowngrade_ForwardedOnOut0()
     {
-        var handler = new RedirectHandler(); // AllowHttpsToHttpDowngrade = false
         var response = new HttpResponseMessage(HttpStatusCode.Found)
         {
             RequestMessage = new HttpRequestMessage(HttpMethod.Get, "https://example.com/secure")
         };
         response.Headers.TryAddWithoutValidation("Location", "http://example.com/insecure");
 
-        var (final, redirect) = Run(new RedirectStage(handler), 1, response);
+        var (final, redirect) = Run(new RedirectStage(), 1, response);
 
         Assert.Same(response, await final.ExpectNextAsync());
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
@@ -257,12 +277,12 @@ public sealed class RedirectStageTests : StreamTestBase
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
 
-    // ── default constructor (null handler) ────────────────────────────────────
+    // ── default constructor (null policy) ────────────────────────────────────
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-013: null handler → uses default RedirectHandler with default policy")]
+    [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-013: null policy → uses default RedirectPolicy")]
     public async Task REDIR_013_NullHandler_UsesDefaults()
     {
-        // Using default constructor (no handler)
+        // Using default constructor (no policy)
         var stage = new RedirectStage();
         var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/new");
 
@@ -306,5 +326,143 @@ public sealed class RedirectStageTests : StreamTestBase
         var newRequest = await redirect.ExpectNextAsync();
         Assert.False(newRequest.Headers.Contains("Authorization"),
             "Authorization must be stripped on cross-origin redirect");
+    }
+
+    // ── per-request isolation ──────────────────────────────────────────────────
+
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC9110-15.4-RDIR-016: Request A exhausts redirects, Request B starts fresh")]
+    public async Task REDIR_016_PerRequest_RedirectCountIsolated()
+    {
+        var policy = new RedirectPolicy { MaxRedirects = 1 };
+
+        // Request A: exhaust the single redirect via pre-seeded handler
+        var handlerA = new RedirectHandler(policy);
+        var reqA = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a");
+        var resA1 = new HttpResponseMessage(HttpStatusCode.Found);
+        resA1.Headers.TryAddWithoutValidation("Location", "http://example.com/a2");
+        handlerA.BuildRedirectRequest(reqA, resA1);
+        // handlerA is now at max (1 redirect used)
+
+        // Response A2: second redirect for chain A — should be forwarded as final (max exceeded)
+        var reqMsgA2 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a2");
+        SeedRedirectHandler(reqMsgA2, handlerA);
+        var responseA = new HttpResponseMessage(HttpStatusCode.Found) { RequestMessage = reqMsgA2 };
+        responseA.Headers.TryAddWithoutValidation("Location", "http://example.com/a3");
+
+        // Response B: first redirect for chain B — should succeed (fresh handler)
+        var responseB = BuildRedirect(HttpStatusCode.Found, "http://example.com/b2",
+            "http://example.com/b");
+
+        var (final, redirect) = Run(new RedirectStage(policy), 5, responseA, responseB);
+
+        // A should be forwarded as final (max exceeded)
+        Assert.Same(responseA, await final.ExpectNextAsync());
+
+        // B should get a redirect request (fresh handler, count = 0)
+        var newRequestB = await redirect.ExpectNextAsync();
+        Assert.Equal("http://example.com/b2", newRequestB.RequestUri?.AbsoluteUri);
+    }
+
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC9110-15.4-RDIR-017: Independent requests can visit same URI without false loop detection")]
+    public async Task REDIR_017_PerRequest_NoFalseLoopDetection()
+    {
+        // Request A redirects to /shared
+        var responseA = BuildRedirect(HttpStatusCode.Found, "http://example.com/shared",
+            "http://example.com/a");
+
+        // Request B also redirects to /shared — should NOT trigger loop detection
+        var responseB = BuildRedirect(HttpStatusCode.Found, "http://example.com/shared",
+            "http://example.com/b");
+
+        var (final, redirect) = Run(new RedirectStage(), 5, responseA, responseB);
+
+        // Both should produce redirect requests (no false loop detection)
+        var newRequestA = await redirect.ExpectNextAsync();
+        Assert.Equal("http://example.com/shared", newRequestA.RequestUri?.AbsoluteUri);
+
+        var newRequestB = await redirect.ExpectNextAsync();
+        Assert.Equal("http://example.com/shared", newRequestB.RequestUri?.AbsoluteUri);
+
+        await final.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
+    }
+
+    // ── version preservation ──────────────────────────────────────────────────
+
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC9110-15.4-RDIR-018: Redirect from HTTP/2 request preserves Version 2.0")]
+    public async Task REDIR_018_RedirectPreservesHttp2Version()
+    {
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page")
+        {
+            Version = new Version(2, 0)
+        };
+        var response = new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            RequestMessage = original
+        };
+        response.Headers.TryAddWithoutValidation("Location", "http://example.com/new");
+
+        var (_, redirect) = Run(new RedirectStage(), 1, response);
+
+        var newRequest = await redirect.ExpectNextAsync();
+        Assert.Equal(new Version(2, 0), newRequest.Version);
+    }
+
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC9110-15.4-RDIR-019: Redirect from HTTP/1.0 request preserves Version 1.0")]
+    public async Task REDIR_019_RedirectPreservesHttp10Version()
+    {
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page")
+        {
+            Version = new Version(1, 0)
+        };
+        var response = new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            RequestMessage = original
+        };
+        response.Headers.TryAddWithoutValidation("Location", "http://example.com/new");
+
+        var (_, redirect) = Run(new RedirectStage(), 1, response);
+
+        var newRequest = await redirect.ExpectNextAsync();
+        Assert.Equal(new Version(1, 0), newRequest.Version);
+    }
+
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC9110-15.4-RDIR-020: Cross-origin redirect preserves Version")]
+    public async Task REDIR_020_CrossOriginRedirectPreservesVersion()
+    {
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/api")
+        {
+            Version = new Version(2, 0)
+        };
+        var response = new HttpResponseMessage(HttpStatusCode.Found)
+        {
+            RequestMessage = original
+        };
+        response.Headers.TryAddWithoutValidation("Location", "http://other.com/api");
+
+        var (_, redirect) = Run(new RedirectStage(), 1, response);
+
+        var newRequest = await redirect.ExpectNextAsync();
+        Assert.Equal(new Version(2, 0), newRequest.Version);
+    }
+
+    // ── redirect handler propagation ──────────────────────────────────────────
+
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC9110-15.4-RDIR-021: Redirect request carries RedirectHandler in Options")]
+    public async Task REDIR_021_RedirectRequestCarriesHandler()
+    {
+        var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/new");
+
+        var (_, redirect) = Run(new RedirectStage(), 1, response);
+
+        var newRequest = await redirect.ExpectNextAsync();
+        Assert.True(newRequest.Options.TryGetValue(RedirectStage.RedirectHandlerKey, out var handler));
+        Assert.NotNull(handler);
+        Assert.Equal(1, handler.RedirectCount);
     }
 }

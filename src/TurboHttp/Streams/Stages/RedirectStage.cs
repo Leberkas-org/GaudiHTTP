@@ -11,9 +11,10 @@ namespace TurboHttp.Streams.Stages;
 /// re-injection into the HTTP engine, while forwarding final (non-redirect) responses
 /// on <see cref="FanOutShape{TIn,TOut0,TOut1}.Out0"/>.
 /// <para>
-/// Loop detection and max-redirect enforcement are handled by the
-/// <see cref="RedirectHandler"/>. When either limit is reached (or the response has no
-/// <c>RequestMessage</c>), the redirect response is forwarded unchanged on Out0.
+/// Each request chain gets its own <see cref="RedirectHandler"/> instance, tracked via
+/// <see cref="HttpRequestMessage.Options"/>. This ensures that <c>_visitedUris</c> and
+/// <c>_redirectCount</c> are isolated per request chain — concurrent request chains
+/// cannot interfere with each other's redirect limits or loop detection.
 /// </para>
 /// <para>
 /// Both downstream outlets must have demand before the stage pulls the inlet,
@@ -23,7 +24,10 @@ namespace TurboHttp.Streams.Stages;
 internal sealed class
     RedirectStage : GraphStage<FanOutShape<HttpResponseMessage, HttpResponseMessage, HttpRequestMessage>>
 {
-    private readonly RedirectHandler _handler;
+    internal static readonly HttpRequestOptionsKey<RedirectHandler> RedirectHandlerKey
+        = new("TurboHttp.RedirectHandler");
+
+    internal readonly RedirectPolicy _policy;
 
     private readonly Inlet<HttpResponseMessage> _in
         = new("redirect.in");
@@ -38,12 +42,12 @@ internal sealed class
 
 
     /// <summary>
-    /// Creates a new <see cref="RedirectStage"/> with the given handler and optional cookie jar.
+    /// Creates a new <see cref="RedirectStage"/> with the given policy.
     /// </summary>
-    /// <param name="handler">Redirect handler (with policy and state). Defaults to <see cref="RedirectHandler"/> with <see cref="RedirectPolicy.Default"/>.</param>
-    public RedirectStage(RedirectHandler? handler = null)
+    /// <param name="policy">Redirect policy configuration. Defaults to <see cref="RedirectPolicy.Default"/>.</param>
+    public RedirectStage(RedirectPolicy? policy = null)
     {
-        _handler = handler ?? new RedirectHandler();
+        _policy = policy ?? RedirectPolicy.Default;
         Shape = new FanOutShape<HttpResponseMessage, HttpResponseMessage, HttpRequestMessage>(
             _in, _outFinal, _outRedirect);
     }
@@ -85,7 +89,16 @@ internal sealed class
 
                     try
                     {
-                        var newRequest = _stage._handler.BuildRedirectRequest(original, response);
+                        // Get or create a per-request-chain RedirectHandler via Options
+                        if (!original.Options.TryGetValue(RedirectHandlerKey, out var handler))
+                        {
+                            handler = new RedirectHandler(_stage._policy);
+                        }
+
+                        var newRequest = handler.BuildRedirectRequest(original, response);
+
+                        // Carry the handler forward with the redirect request
+                        newRequest.Options.Set(RedirectHandlerKey, handler);
 
                         _redirectHasDemand = false;
                         Push(stage._outRedirect, newRequest);

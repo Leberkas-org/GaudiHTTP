@@ -105,8 +105,11 @@ public sealed class RedirectHandler
         // Determine new method and whether to preserve the body
         var (newMethod, preserveBody) = ResolveMethodAndBody(original.Method, response.StatusCode);
 
-        // Build the new request
-        var newRequest = new HttpRequestMessage(newMethod, locationUri);
+        // Build the new request — preserve Version from original (e.g. HTTP/2 stays HTTP/2)
+        var newRequest = new HttpRequestMessage(newMethod, locationUri)
+        {
+            Version = original.Version
+        };
 
         // Copy non-sensitive headers from the original request
         var isCrossOrigin = IsCrossOrigin(original.RequestUri, locationUri);

@@ -164,7 +164,7 @@ public class Engine
             var cacheStorage = builder.Add(new CacheStorageStage(cacheStore));
             var retry = builder.Add(new RetryStage(options.RetryPolicy));
             var cacheMerge = builder.Add(new Merge<HttpResponseMessage>(2));
-            var redirect = builder.Add(new RedirectStage(new RedirectHandler(options.RedirectPolicy)));
+            var redirect = builder.Add(new RedirectStage(options.RedirectPolicy));
 
             // CookieStorage → CacheStorage → Retry
             builder.From(cookieStorage.Outlet).To(cacheStorage.Inlet);

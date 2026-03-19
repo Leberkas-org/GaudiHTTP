@@ -129,19 +129,19 @@ var newRequest = new HttpRequestMessage(newMethod, locationUri)
 **Edge case:** On cross-scheme redirects (e.g. `http://` → `https://`), the ideal version might change. However, preserving the version is RFC-compliant since version negotiation happens at the transport level. The redirect request re-enters the pipeline at `redirectMerge` (AFTER `RequestEnricherStage`), so `DefaultRequestVersion` is NOT re-applied.
 
 **Acceptance Criteria:**
-- [ ] Each request chain gets its own `RedirectHandler` instance
-- [ ] `_visitedUris` and `_redirectCount` are isolated per request chain
-- [ ] Concurrent request chains don't interfere with each other's redirect limits or loop detection
-- [ ] `newRequest.Version = original.Version` in `BuildRedirectRequest()` (line 109)
-- [ ] Verify the CookieJar overload (line 232) inherits the Version fix (it calls `BuildRedirectRequest` internally, so automatic)
-- [ ] Policy (`MaxRedirects`, `AllowHttpsToHttpDowngrade`) still shared from `TurboClientOptions` — only the tracking state is per-request
-- [ ] Unit tests: Request A exhausts 5 redirects, then Request B starts fresh with 0
-- [ ] Unit tests: Request A and B can visit the same URI independently without false loop detection
-- [ ] Unit tests: Redirect from HTTP/2 request preserves Version 2.0
-- [ ] Unit tests: Redirect from HTTP/1.0 request preserves Version 1.0
-- [ ] Unit tests: Cross-origin redirect preserves Version
-- [ ] Existing RedirectHandler and RedirectStage tests stay green
-- [ ] Build compiles without errors
+- [x] Each request chain gets its own `RedirectHandler` instance
+- [x] `_visitedUris` and `_redirectCount` are isolated per request chain
+- [x] Concurrent request chains don't interfere with each other's redirect limits or loop detection
+- [x] `newRequest.Version = original.Version` in `BuildRedirectRequest()` (line 109)
+- [x] Verify the CookieJar overload (line 232) inherits the Version fix (it calls `BuildRedirectRequest` internally, so automatic)
+- [x] Policy (`MaxRedirects`, `AllowHttpsToHttpDowngrade`) still shared from `TurboClientOptions` — only the tracking state is per-request
+- [x] Unit tests: Request A exhausts 5 redirects, then Request B starts fresh with 0
+- [x] Unit tests: Request A and B can visit the same URI independently without false loop detection
+- [x] Unit tests: Redirect from HTTP/2 request preserves Version 2.0
+- [x] Unit tests: Redirect from HTTP/1.0 request preserves Version 1.0
+- [x] Unit tests: Cross-origin redirect preserves Version
+- [x] Existing RedirectHandler and RedirectStage tests stay green
+- [x] Build compiles without errors
 
 ---
 

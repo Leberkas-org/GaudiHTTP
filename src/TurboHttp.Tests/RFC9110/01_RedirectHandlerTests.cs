@@ -812,6 +812,135 @@ public sealed class RedirectHandlerTests
         Assert.Contains("track=xyz", cookieHeader);
     }
 
+    // ── Version preservation ─────────────────────────────────────────────────
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-052: Redirect from HTTP/2 request preserves Version 2.0")]
+    public void BuildRedirectRequest_Preserves_Http2_Version()
+    {
+        var handler = new RedirectHandler();
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page")
+        {
+            Version = new Version(2, 0)
+        };
+        var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/new");
+
+        var redirected = handler.BuildRedirectRequest(original, response);
+
+        Assert.Equal(new Version(2, 0), redirected.Version);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-053: Redirect from HTTP/1.0 request preserves Version 1.0")]
+    public void BuildRedirectRequest_Preserves_Http10_Version()
+    {
+        var handler = new RedirectHandler();
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page")
+        {
+            Version = new Version(1, 0)
+        };
+        var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/new");
+
+        var redirected = handler.BuildRedirectRequest(original, response);
+
+        Assert.Equal(new Version(1, 0), redirected.Version);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-054: Cross-origin redirect preserves Version")]
+    public void BuildRedirectRequest_Preserves_Version_On_CrossOrigin()
+    {
+        var handler = new RedirectHandler();
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/api")
+        {
+            Version = new Version(2, 0)
+        };
+        var response = BuildRedirect(HttpStatusCode.Found, "http://other.com/api");
+
+        var redirected = handler.BuildRedirectRequest(original, response);
+
+        Assert.Equal(new Version(2, 0), redirected.Version);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-055: Redirect default Version is HTTP/1.1 when original is 1.1")]
+    public void BuildRedirectRequest_Preserves_Http11_Version()
+    {
+        var handler = new RedirectHandler();
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page")
+        {
+            Version = new Version(1, 1)
+        };
+        var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/new");
+
+        var redirected = handler.BuildRedirectRequest(original, response);
+
+        Assert.Equal(new Version(1, 1), redirected.Version);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-056: CookieJar overload also preserves Version")]
+    public void BuildRedirectRequest_WithJar_Preserves_Version()
+    {
+        var handler = new RedirectHandler();
+        var jar = new CookieJar();
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page")
+        {
+            Version = new Version(2, 0)
+        };
+        var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/new");
+
+        var redirected = handler.BuildRedirectRequest(original, response, jar);
+
+        Assert.Equal(new Version(2, 0), redirected.Version);
+    }
+
+    // ── Per-request isolation ─────────────────────────────────────────────────
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-057: Request A exhausts 5 redirects, Request B starts fresh with 0")]
+    public void PerRequest_IndependentHandlers_RedirectCountIsolated()
+    {
+        var policy = new RedirectPolicy { MaxRedirects = 5 };
+
+        // Request A: exhaust all 5 redirects
+        var handlerA = new RedirectHandler(policy);
+        for (var i = 0; i < 5; i++)
+        {
+            var req = new HttpRequestMessage(HttpMethod.Get, $"http://example.com/a{i}");
+            var res = BuildRedirect(HttpStatusCode.Found, $"http://example.com/a{i + 1}");
+            handlerA.BuildRedirectRequest(req, res);
+        }
+        Assert.Equal(5, handlerA.RedirectCount);
+
+        // Request A's 6th redirect should throw
+        var reqA6 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a5");
+        var resA6 = BuildRedirect(HttpStatusCode.Found, "http://example.com/a6");
+        Assert.Throws<RedirectException>(() => handlerA.BuildRedirectRequest(reqA6, resA6));
+
+        // Request B: fresh handler, should start at 0
+        var handlerB = new RedirectHandler(policy);
+        Assert.Equal(0, handlerB.RedirectCount);
+
+        var reqB = new HttpRequestMessage(HttpMethod.Get, "http://example.com/b0");
+        var resB = BuildRedirect(HttpStatusCode.Found, "http://example.com/b1");
+        var redirectedB = handlerB.BuildRedirectRequest(reqB, resB);
+        Assert.NotNull(redirectedB);
+        Assert.Equal(1, handlerB.RedirectCount);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-058: Request A and B can visit same URI independently without false loop")]
+    public void PerRequest_IndependentHandlers_NoFalseLoopDetection()
+    {
+        // Handler A visits /shared
+        var handlerA = new RedirectHandler();
+        var reqA = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a");
+        var resA = BuildRedirect(HttpStatusCode.Found, "http://example.com/shared");
+        handlerA.BuildRedirectRequest(reqA, resA);
+
+        // Handler B also visits /shared — should NOT throw loop detection
+        var handlerB = new RedirectHandler();
+        var reqB = new HttpRequestMessage(HttpMethod.Get, "http://example.com/b");
+        var resB = BuildRedirect(HttpStatusCode.Found, "http://example.com/shared");
+        var redirectedB = handlerB.BuildRedirectRequest(reqB, resB);
+        Assert.NotNull(redirectedB);
+        Assert.Equal("http://example.com/shared", redirectedB.RequestUri?.AbsoluteUri);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static HttpResponseMessage BuildRedirect(HttpStatusCode statusCode, string location)
