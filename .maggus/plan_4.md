@@ -37,9 +37,9 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 **Status:** Done
 
 **Acceptance Criteria:**
-- [ ] All RFC files have `NN_` prefix
-- [ ] No numbering gaps
-- [ ] Build + tests green
+- [x] All RFC files have `NN_` prefix
+- [x] No numbering gaps
+- [x] Build + tests green
 
 ---
 
