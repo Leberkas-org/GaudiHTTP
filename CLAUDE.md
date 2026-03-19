@@ -187,10 +187,10 @@ Tests live in `src/TurboHttp.Tests/` organised by RFC:
 
 | Folder | RFC | Files | Unit Tests |
 |--------|-----|-------|------------|
-| `RFC1945/` (01–17) | HTTP/1.0 | 17 | 232 |
+| `RFC1945/` (01–18) | HTTP/1.0 | 18 | 232 |
 | `RFC9112/` (01–23 + 3 preserved) | HTTP/1.1 | 26 | 379 |
-| `RFC9113/` (01–29 + Http2FrameTests) | HTTP/2 | 28 | 580 |
-| `RFC7541/` (01–06 + HpackTests) | HPACK | 6 | 384 |
+| `RFC9113/` (01–29 + Http2FrameTests) | HTTP/2 | 27 | 580 |
+| `RFC7541/` (01–07 + HpackTests) | HPACK | 7 | 384 |
 | `RFC9110/` (01–03) | HTTP Semantics | 3 | 118 |
 | `RFC9111/` (01–05) | Caching | 5 | 75 |
 | `RFC6265/` (01) | Cookies | 1 | 59 |
@@ -222,7 +222,7 @@ Integration tests: `src/TurboHttp.IntegrationTests/Shared/` — Kestrel fixtures
 
 ## Dependencies
 
-- **Akka.Streams** 1.5.60 — actor-based stream processing
+- **Akka.Streams** 1.5.62 — actor-based stream processing
 - **Servus.Akka** 0.3.10 — TCP abstraction layer
 - **.NET 10.0** — target framework
 - **xunit** 2.9.3 — test framework
@@ -230,7 +230,7 @@ Integration tests: `src/TurboHttp.IntegrationTests/Shared/` — Kestrel fixtures
 
 # Custom Agents (`.claude/agents/`)
 
-Four project-specific agents are available via `/agent-name` or the Agent tool:
+Three project-specific agents are available via `/agent-name` or the Agent tool:
 
 | Agent | When to use |
 |-------|-------------|
