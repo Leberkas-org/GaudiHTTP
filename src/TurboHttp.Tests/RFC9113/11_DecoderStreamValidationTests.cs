@@ -49,7 +49,7 @@ public sealed class Http2HeaderBlockDecoderTests
     // ── HBD-001: END_HEADERS=true on HEADERS frame ───────────────────────────
 
     /// RFC 9113 §8.2 — HEADERS frame with END_HEADERS set is decoded with EndHeaders=true
-    [Fact(DisplayName = "RFC-9113-§8.2-HBD-001: HEADERS with END_HEADERS flag decoded with EndHeaders=true")]
+    [Fact(DisplayName = "RFC9113-8.2-HBD-001: HEADERS with END_HEADERS flag decoded with EndHeaders=true")]
     public void HeadersFrame_EndHeadersTrue_WhenFlagSet()
     {
         var block = MakeBlock((":status", "200"));
@@ -66,7 +66,7 @@ public sealed class Http2HeaderBlockDecoderTests
     // ── HBD-002: END_HEADERS=false on HEADERS frame ──────────────────────────
 
     /// RFC 9113 §8.2 — HEADERS frame without END_HEADERS set is decoded with EndHeaders=false
-    [Fact(DisplayName = "RFC-9113-§8.2-HBD-002: HEADERS without END_HEADERS flag decoded with EndHeaders=false")]
+    [Fact(DisplayName = "RFC9113-8.2-HBD-002: HEADERS without END_HEADERS flag decoded with EndHeaders=false")]
     public void HeadersFrame_EndHeadersFalse_WhenFlagNotSet()
     {
         var block = MakeBlock((":status", "200"));
@@ -83,7 +83,7 @@ public sealed class Http2HeaderBlockDecoderTests
     // ── HBD-003: END_HEADERS=true on CONTINUATION frame ─────────────────────
 
     /// RFC 9113 §8.2 — CONTINUATION frame with END_HEADERS is decoded with EndHeaders=true
-    [Fact(DisplayName = "RFC-9113-§8.2-HBD-003: CONTINUATION with END_HEADERS flag decoded with EndHeaders=true")]
+    [Fact(DisplayName = "RFC9113-8.2-HBD-003: CONTINUATION with END_HEADERS flag decoded with EndHeaders=true")]
     public void ContinuationFrame_EndHeadersTrue_WhenFlagSet()
     {
         var block = MakeBlock((":status", "200"));
@@ -100,7 +100,7 @@ public sealed class Http2HeaderBlockDecoderTests
     // ── HBD-004: END_HEADERS=false on CONTINUATION frame ────────────────────
 
     /// RFC 9113 §8.2 — CONTINUATION frame without END_HEADERS is decoded with EndHeaders=false
-    [Fact(DisplayName = "RFC-9113-§8.2-HBD-004: CONTINUATION without END_HEADERS flag decoded with EndHeaders=false")]
+    [Fact(DisplayName = "RFC9113-8.2-HBD-004: CONTINUATION without END_HEADERS flag decoded with EndHeaders=false")]
     public void ContinuationFrame_EndHeadersFalse_WhenFlagNotSet()
     {
         var block = MakeBlock((":status", "200"));
@@ -117,7 +117,7 @@ public sealed class Http2HeaderBlockDecoderTests
     // ── HBD-005: HeaderBlockFragment accessible from HEADERS ─────────────────
 
     /// RFC 9113 §8.2 — HeaderBlockFragment from decoded HEADERS frame is the original HPACK block
-    [Fact(DisplayName = "RFC-9113-§8.2-HBD-005: HeaderBlockFragment from decoded HEADERS frame contains the HPACK block")]
+    [Fact(DisplayName = "RFC9113-8.2-HBD-005: HeaderBlockFragment from decoded HEADERS frame contains the HPACK block")]
     public void HeadersFrame_HeaderBlockFragment_IsOriginalHpackBlock()
     {
         var block = MakeBlock((":status", "200"), ("content-type", "text/plain"));
@@ -139,7 +139,7 @@ public sealed class Http2HeaderBlockDecoderTests
     // ── HBD-006: HeaderBlockFragment accessible from CONTINUATION ────────────
 
     /// RFC 9113 §8.2 — HeaderBlockFragment from decoded CONTINUATION frame is the fragment bytes
-    [Fact(DisplayName = "RFC-9113-§8.2-HBD-006: HeaderBlockFragment from decoded CONTINUATION frame contains its fragment bytes")]
+    [Fact(DisplayName = "RFC9113-8.2-HBD-006: HeaderBlockFragment from decoded CONTINUATION frame contains its fragment bytes")]
     public void ContinuationFrame_HeaderBlockFragment_IsFragmentBytes()
     {
         var fullBlock = MakeBlock((":status", "201"), ("x-trace", "abc"));
@@ -161,7 +161,7 @@ public sealed class Http2HeaderBlockDecoderTests
     // ── HBD-007: Assembled multi-fragment block decodes all headers ───────────
 
     /// RFC 9113 §8.2 — Assembled HEADERS + CONTINUATION block decoded by HpackDecoder yields all headers
-    [Fact(DisplayName = "RFC-9113-§8.2-HBD-007: Assembled HEADERS+CONTINUATION block decoded by HpackDecoder yields all headers")]
+    [Fact(DisplayName = "RFC9113-8.2-HBD-007: Assembled HEADERS+CONTINUATION block decoded by HpackDecoder yields all headers")]
     public void AssembledBlock_ContainsAllHeaders_WhenSplitAcrossFrames()
     {
         var block = MakeBlock(
@@ -199,7 +199,7 @@ public sealed class Http2HeaderBlockDecoderTests
 
     /// RFC 9113 §8.3 — HeadersFrame built with HpackEncoder encodes correctly; HpackDecoder decodes
     /// the fragment; response pseudo-header :status is present and valid.
-    [Fact(DisplayName = "RFC-9113-§8.3-HBD-008: HeadersFrame HPACK fragment round-trips correctly through HpackDecoder")]
+    [Fact(DisplayName = "RFC9113-8.3-HBD-008: HeadersFrame HPACK fragment round-trips correctly through HpackDecoder")]
     public void HeadersFrame_RoundTrip_HpackFragmentDecodesCorrectly()
     {
         var enc = new HpackEncoder(useHuffman: false);

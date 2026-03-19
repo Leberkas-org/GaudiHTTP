@@ -397,7 +397,7 @@ public sealed class Http2ConnectionPrefaceTests
     // Frame header tests (migrated from 12_DecoderConnectionPrefaceTests — Phase 6)
     // =========================================================================
 
-    [Fact(DisplayName = "7540-4.1-001: Valid 9-byte frame header decoded correctly")]
+    [Fact(DisplayName = "RFC9113-4.1-001: Valid 9-byte frame header decoded correctly")]
     public void FrameHeader_Valid9Bytes_DecodedCorrectly()
     {
         // A SETTINGS ACK is the smallest valid frame (9-byte header, no payload).
@@ -409,7 +409,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.True(settings.IsAck); // ACK is not a new SETTINGS
     }
 
-    [Fact(DisplayName = "7540-4.1-002: Frame length uses 24-bit field")]
+    [Fact(DisplayName = "RFC9113-4.1-002: Frame length uses 24-bit field")]
     public void FrameHeader_LargePayload_24BitLengthParsed()
     {
         // Build a SETTINGS frame with payload > 65535 bytes (66006 = 11001 × 6).
@@ -436,7 +436,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.True(settings.Parameters.Count > 0);
     }
 
-    [Theory(DisplayName = "7540-4.1-003: Frame type {0} dispatched to correct handler")]
+    [Theory(DisplayName = "RFC9113-4.1-003: Frame type {0} dispatched to correct handler")]
     [InlineData(0x0)] // DATA
     [InlineData(0x1)] // HEADERS
     [InlineData(0x2)] // PRIORITY
@@ -514,7 +514,7 @@ public sealed class Http2ConnectionPrefaceTests
         }
     }
 
-    [Fact(DisplayName = "7540-4.1-004: Unknown frame type 0x0A — silently ignored per RFC 9113 §5.5")]
+    [Fact(DisplayName = "RFC9113-4.1-004: Unknown frame type 0x0A — silently ignored per RFC 9113 §5.5")]
     public void FrameType_Unknown0x0A_SilentlyIgnored()
     {
         // Build a raw frame with unknown type 0x0A (10).
@@ -533,7 +533,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Empty(result); // unknown frame produces no output — silently discarded
     }
 
-    [Fact(DisplayName = "7540-4.1-005: R-bit masked out when reading GoAway last-stream-id")]
+    [Fact(DisplayName = "RFC9113-4.1-005: R-bit masked out when reading GoAway last-stream-id")]
     public void FrameHeader_RBitSetInGoAway_LastStreamIdMasked()
     {
         // RFC 7540 §6.8: The GOAWAY last-stream-id has a reserved bit that MUST be ignored.
@@ -557,7 +557,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(3, goAway.LastStreamId); // R-bit stripped → 3, not 0x80000003
     }
 
-    [Fact(DisplayName = "7540-4.1-006: R-bit in stream ID is silently stripped by Http2FrameDecoder")]
+    [Fact(DisplayName = "RFC9113-4.1-006: R-bit in stream ID is silently stripped by Http2FrameDecoder")]
     public void FrameHeader_RBitSetInStreamId_StrippedSilently()
     {
         // A SETTINGS ACK frame with R-bit set in the stream word.
@@ -574,7 +574,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.NotEmpty(frames); // decoded successfully — no exception
     }
 
-    [Fact(DisplayName = "7540-4.1-007: Oversized DATA frame — Http2FrameDecoder does not enforce MAX_FRAME_SIZE")]
+    [Fact(DisplayName = "RFC9113-4.1-007: Oversized DATA frame — Http2FrameDecoder does not enforce MAX_FRAME_SIZE")]
     public void FrameHeader_PayloadExceedsMaxFrameSize_ProcessedByFrameDecoder()
     {
         // Build a DATA frame with length = 16385 (just over the default MAX_FRAME_SIZE of 16384).
@@ -602,7 +602,7 @@ public sealed class Http2ConnectionPrefaceTests
     // DATA frame tests (migrated from 12_DecoderConnectionPrefaceTests — Phase 6)
     // =========================================================================
 
-    [Fact(DisplayName = "7540-6.1-001: DATA frame received — response available on stream")]
+    [Fact(DisplayName = "RFC9113-6.1-001: DATA frame received — response available on stream")]
     public void DataFrame_Payload_DecodedCorrectly()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -617,7 +617,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(200, (int)responses[0].Response.StatusCode);
     }
 
-    [Fact(DisplayName = "7540-6.1-002: END_STREAM on DATA marks stream closed")]
+    [Fact(DisplayName = "RFC9113-6.1-002: END_STREAM on DATA marks stream closed")]
     public void DataFrame_EndStream_MarksStreamClosed()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -635,7 +635,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.True(frame.EndStream);
     }
 
-    [Fact(DisplayName = "7540-6.1-003: Padded DATA frame processed — response status correct")]
+    [Fact(DisplayName = "RFC9113-6.1-003: Padded DATA frame processed — response status correct")]
     public void DataFrame_Padded_PaddingStripped()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -662,7 +662,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(200, (int)responses[0].Response.StatusCode);
     }
 
-    [Fact(DisplayName = "7540-6.1-004: DATA on stream 0 is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-6.1-004: DATA on stream 0 is PROTOCOL_ERROR")]
     public void DataFrame_Stream0_ThrowsProtocolError()
     {
         var frame = new byte[]
@@ -677,7 +677,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "7540-6.1-005: DATA on closed stream causes STREAM_CLOSED")]
+    [Fact(DisplayName = "RFC9113-6.1-005: DATA on closed stream causes STREAM_CLOSED")]
     public void DataFrame_ClosedStream_ThrowsStreamClosed()
     {
         // RFC 9113 §6.1: DATA on a closed stream is a stream error.
@@ -698,7 +698,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Single(frames);
     }
 
-    [Fact(DisplayName = "7540-6.1-006: Empty DATA frame with END_STREAM valid")]
+    [Fact(DisplayName = "RFC9113-6.1-006: Empty DATA frame with END_STREAM valid")]
     public void DataFrame_EmptyWithEndStream_ResponseComplete()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -716,7 +716,7 @@ public sealed class Http2ConnectionPrefaceTests
     // HEADERS frame tests (migrated from 12_DecoderConnectionPrefaceTests — Phase 6)
     // =========================================================================
 
-    [Fact(DisplayName = "7540-6.2-001: HEADERS frame decoded into response headers")]
+    [Fact(DisplayName = "RFC9113-6.2-001: HEADERS frame decoded into response headers")]
     public void HeadersFrame_ResponseHeaders_Decoded()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -731,7 +731,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.True(response.Headers.Contains("x-custom"));
     }
 
-    [Fact(DisplayName = "7540-6.2-002: END_STREAM on HEADERS closes stream immediately")]
+    [Fact(DisplayName = "RFC9113-6.2-002: END_STREAM on HEADERS closes stream immediately")]
     public void HeadersFrame_EndStream_StreamClosedImmediately()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -744,7 +744,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(204, (int)responses[0].Response.StatusCode);
     }
 
-    [Fact(DisplayName = "7540-6.2-003: END_HEADERS on HEADERS marks complete block")]
+    [Fact(DisplayName = "RFC9113-6.2-003: END_HEADERS on HEADERS marks complete block")]
     public void HeadersFrame_EndHeaders_HeaderBlockComplete()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -760,7 +760,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Single(frames); // no exception → END_HEADERS was recognised
     }
 
-    [Fact(DisplayName = "7540-6.2-004: Padded HEADERS padding stripped")]
+    [Fact(DisplayName = "RFC9113-6.2-004: Padded HEADERS padding stripped")]
     public void HeadersFrame_Padded_PaddingStripped()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -791,7 +791,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(200, (int)responses[0].Response.StatusCode);
     }
 
-    [Fact(DisplayName = "7540-6.2-005: PRIORITY flag in HEADERS consumed correctly")]
+    [Fact(DisplayName = "RFC9113-6.2-005: PRIORITY flag in HEADERS consumed correctly")]
     public void HeadersFrame_PriorityFlag_ConsumedCorrectly()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -819,7 +819,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(200, (int)responses[0].Response.StatusCode);
     }
 
-    [Fact(DisplayName = "7540-6.2-006: HEADERS without END_HEADERS waits for CONTINUATION")]
+    [Fact(DisplayName = "RFC9113-6.2-006: HEADERS without END_HEADERS waits for CONTINUATION")]
     public void HeadersFrame_WithoutEndHeaders_WaitsForContinuation()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -840,7 +840,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Single(frames2); // CONTINUATION frame is decoded
     }
 
-    [Fact(DisplayName = "7540-6.2-007: HEADERS on stream 0 is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-6.2-007: HEADERS on stream 0 is PROTOCOL_ERROR")]
     public void HeadersFrame_Stream0_ThrowsProtocolError()
     {
         // RFC 9113 §6.2: HEADERS on stream 0 is a connection error.
@@ -863,7 +863,7 @@ public sealed class Http2ConnectionPrefaceTests
     // CONTINUATION frame tests (migrated from 12_DecoderConnectionPrefaceTests — Phase 6)
     // =========================================================================
 
-    [Fact(DisplayName = "7540-6.9-001: CONTINUATION appended to HEADERS block")]
+    [Fact(DisplayName = "RFC9113-6.9-001: CONTINUATION appended to HEADERS block")]
     public void ContinuationFrame_AppendedToHeaders_HeaderBlockMerged()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -883,7 +883,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.True(cont.EndHeaders);
     }
 
-    [Fact(DisplayName = "7540-6.9-dec-002: END_HEADERS on final CONTINUATION completes block")]
+    [Fact(DisplayName = "RFC9113-6.9-dec-002: END_HEADERS on final CONTINUATION completes block")]
     public void ContinuationFrame_EndHeaders_CompletesBlock()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -901,7 +901,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.True(cont.EndHeaders);
     }
 
-    [Fact(DisplayName = "7540-6.9-003: Multiple CONTINUATION frames all merged")]
+    [Fact(DisplayName = "RFC9113-6.9-003: Multiple CONTINUATION frames all merged")]
     public void ContinuationFrame_Multiple_AllMerged()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -922,7 +922,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.True(cont.EndHeaders);
     }
 
-    [Fact(DisplayName = "7540-6.9-004: CONTINUATION on wrong stream is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-6.9-004: CONTINUATION on wrong stream is PROTOCOL_ERROR")]
     public void ContinuationFrame_WrongStream_ThrowsProtocolError()
     {
         var headersFrame = new byte[]
@@ -946,7 +946,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "7540-6.9-005: Non-CONTINUATION after HEADERS is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-6.9-005: Non-CONTINUATION after HEADERS is PROTOCOL_ERROR")]
     public void ContinuationFrame_NonContinuationAfterHeaders_ThrowsProtocolError()
     {
         // RFC 9113 §6.9: After HEADERS without END_HEADERS, next frame MUST be CONTINUATION.
@@ -964,7 +964,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "7540-6.9-006: CONTINUATION on stream 0 is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-6.9-006: CONTINUATION on stream 0 is PROTOCOL_ERROR")]
     public void ContinuationFrame_Stream0_ThrowsProtocolError()
     {
         var headersOnStream1 = new byte[]
@@ -988,7 +988,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "dec6-cont-001: CONTINUATION without HEADERS is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-6.10-CONT-001: CONTINUATION without HEADERS is PROTOCOL_ERROR")]
     public void ContinuationFrame_WithoutPrecedingHeaders_ThrowsProtocolError()
     {
         var contFrame = new ContinuationFrame(1, new byte[] { 0x88 }, endHeaders: true).Serialize();

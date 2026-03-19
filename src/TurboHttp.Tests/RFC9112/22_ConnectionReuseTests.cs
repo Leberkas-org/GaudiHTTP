@@ -11,7 +11,7 @@ public sealed class ConnectionReuseTests
 {
     // ── HTTP/1.0 — default is close ──────────────────────────────────────────────
 
-    [Fact(DisplayName = "CM-001: Should_Close_When_Http10_And_No_Connection_Header")]
+    [Fact(DisplayName = "RFC9112-9-CR-001: Should_Close_When_Http10_And_No_Connection_Header")]
     public void Should_Close_When_Http10_And_No_Connection_Header()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -20,7 +20,7 @@ public sealed class ConnectionReuseTests
         Assert.Contains("not persistent by default", decision.Reason);
     }
 
-    [Fact(DisplayName = "CM-002: Should_KeepAlive_When_Http10_And_Connection_KeepAlive")]
+    [Fact(DisplayName = "RFC9112-9-CR-002: Should_KeepAlive_When_Http10_And_Connection_KeepAlive")]
     public void Should_KeepAlive_When_Http10_And_Connection_KeepAlive()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -29,7 +29,7 @@ public sealed class ConnectionReuseTests
         Assert.True(decision.CanReuse);
     }
 
-    [Fact(DisplayName = "CM-003: Should_KeepAlive_When_Http10_And_Connection_Keep_Alive_Lowercase")]
+    [Fact(DisplayName = "RFC9112-9-CR-003: Should_KeepAlive_When_Http10_And_Connection_Keep_Alive_Lowercase")]
     public void Should_KeepAlive_When_Http10_And_Connection_Keep_Alive_Lowercase()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -38,7 +38,7 @@ public sealed class ConnectionReuseTests
         Assert.True(decision.CanReuse);
     }
 
-    [Fact(DisplayName = "CM-004: Should_KeepAlive_When_Http10_And_Connection_KEEP_ALIVE_Uppercase")]
+    [Fact(DisplayName = "RFC9112-9-CR-004: Should_KeepAlive_When_Http10_And_Connection_KEEP_ALIVE_Uppercase")]
     public void Should_KeepAlive_When_Http10_And_Connection_KEEP_ALIVE_Uppercase()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -47,7 +47,7 @@ public sealed class ConnectionReuseTests
         Assert.True(decision.CanReuse);
     }
 
-    [Fact(DisplayName = "CM-005: Should_Close_When_Http10_And_Connection_Close")]
+    [Fact(DisplayName = "RFC9112-9-CR-005: Should_Close_When_Http10_And_Connection_Close")]
     public void Should_Close_When_Http10_And_Connection_Close()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -59,7 +59,7 @@ public sealed class ConnectionReuseTests
 
     // ── HTTP/1.1 — default is keep-alive ────────────────────────────────────────
 
-    [Fact(DisplayName = "CM-006: Should_KeepAlive_When_Http11_And_No_Connection_Header")]
+    [Fact(DisplayName = "RFC9112-9-CR-006: Should_KeepAlive_When_Http11_And_No_Connection_Header")]
     public void Should_KeepAlive_When_Http11_And_No_Connection_Header()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -68,7 +68,7 @@ public sealed class ConnectionReuseTests
         Assert.Contains("persistent connection", decision.Reason);
     }
 
-    [Fact(DisplayName = "CM-007: Should_Close_When_Http11_And_Connection_Close")]
+    [Fact(DisplayName = "RFC9112-9-CR-007: Should_Close_When_Http11_And_Connection_Close")]
     public void Should_Close_When_Http11_And_Connection_Close()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -78,7 +78,7 @@ public sealed class ConnectionReuseTests
         Assert.Contains("Connection: close", decision.Reason);
     }
 
-    [Fact(DisplayName = "CM-008: Should_Close_When_Http11_And_Connection_Close_Uppercase")]
+    [Fact(DisplayName = "RFC9112-9-CR-008: Should_Close_When_Http11_And_Connection_Close_Uppercase")]
     public void Should_Close_When_Http11_And_Connection_Close_Uppercase()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -87,7 +87,7 @@ public sealed class ConnectionReuseTests
         Assert.False(decision.CanReuse);
     }
 
-    [Fact(DisplayName = "CM-009: Should_KeepAlive_When_Http11_And_Connection_KeepAlive_Header")]
+    [Fact(DisplayName = "RFC9112-9-CR-009: Should_KeepAlive_When_Http11_And_Connection_KeepAlive_Header")]
     public void Should_KeepAlive_When_Http11_And_Connection_KeepAlive_Header()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -98,7 +98,7 @@ public sealed class ConnectionReuseTests
 
     // ── Keep-Alive header parameter parsing ─────────────────────────────────────
 
-    [Fact(DisplayName = "CM-010: Should_ParseTimeout_When_Http11_And_KeepAlive_Timeout")]
+    [Fact(DisplayName = "RFC9112-9-CR-010: Should_ParseTimeout_When_Http11_And_KeepAlive_Timeout")]
     public void Should_ParseTimeout_When_Http11_And_KeepAlive_Timeout()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -109,7 +109,7 @@ public sealed class ConnectionReuseTests
         Assert.Null(decision.MaxRequests);
     }
 
-    [Fact(DisplayName = "CM-011: Should_ParseTimeoutAndMax_When_Http11_And_KeepAlive_Both_Params")]
+    [Fact(DisplayName = "RFC9112-9-CR-011: Should_ParseTimeoutAndMax_When_Http11_And_KeepAlive_Both_Params")]
     public void Should_ParseTimeoutAndMax_When_Http11_And_KeepAlive_Both_Params()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -120,7 +120,7 @@ public sealed class ConnectionReuseTests
         Assert.Equal(100, decision.MaxRequests);
     }
 
-    [Fact(DisplayName = "CM-012: Should_ParseTimeout_When_Http10_KeepAlive_With_Timeout_Param")]
+    [Fact(DisplayName = "RFC9112-9-CR-012: Should_ParseTimeout_When_Http10_KeepAlive_With_Timeout_Param")]
     public void Should_ParseTimeout_When_Http10_KeepAlive_With_Timeout_Param()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -131,7 +131,7 @@ public sealed class ConnectionReuseTests
         Assert.Equal(TimeSpan.FromSeconds(10), decision.KeepAliveTimeout);
     }
 
-    [Fact(DisplayName = "CM-013: Should_IgnoreInvalidTimeout_When_KeepAlive_Has_Non_Numeric_Timeout")]
+    [Fact(DisplayName = "RFC9112-9-CR-013: Should_IgnoreInvalidTimeout_When_KeepAlive_Has_Non_Numeric_Timeout")]
     public void Should_IgnoreInvalidTimeout_When_KeepAlive_Has_Non_Numeric_Timeout()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -141,7 +141,7 @@ public sealed class ConnectionReuseTests
         Assert.Null(decision.KeepAliveTimeout);
     }
 
-    [Fact(DisplayName = "CM-014: Should_ParseMax_When_KeepAlive_Has_Max_Only")]
+    [Fact(DisplayName = "RFC9112-9-CR-014: Should_ParseMax_When_KeepAlive_Has_Max_Only")]
     public void Should_ParseMax_When_KeepAlive_Has_Max_Only()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -154,7 +154,7 @@ public sealed class ConnectionReuseTests
 
     // ── Body / error flags ───────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "CM-015: Should_Close_When_Http11_And_Body_Not_Fully_Consumed")]
+    [Fact(DisplayName = "RFC9112-9-CR-015: Should_Close_When_Http11_And_Body_Not_Fully_Consumed")]
     public void Should_Close_When_Http11_And_Body_Not_Fully_Consumed()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -164,7 +164,7 @@ public sealed class ConnectionReuseTests
         Assert.Contains("body not fully consumed", decision.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact(DisplayName = "CM-016: Should_Close_When_Http11_And_Protocol_Error_Occurred")]
+    [Fact(DisplayName = "RFC9112-9-CR-016: Should_Close_When_Http11_And_Protocol_Error_Occurred")]
     public void Should_Close_When_Http11_And_Protocol_Error_Occurred()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -174,7 +174,7 @@ public sealed class ConnectionReuseTests
         Assert.Contains("Protocol error", decision.Reason);
     }
 
-    [Fact(DisplayName = "CM-017: Should_Close_On_ProtocolError_Even_When_ConnectionClose_Not_Set")]
+    [Fact(DisplayName = "RFC9112-9-CR-017: Should_Close_On_ProtocolError_Even_When_ConnectionClose_Not_Set")]
     public void Should_Close_On_ProtocolError_Even_When_ConnectionClose_Not_Set()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -186,7 +186,7 @@ public sealed class ConnectionReuseTests
 
     // ── Status code: 101 Switching Protocols ────────────────────────────────────
 
-    [Fact(DisplayName = "CM-018: Should_Close_When_101_Switching_Protocols")]
+    [Fact(DisplayName = "RFC9112-9-CR-018: Should_Close_When_101_Switching_Protocols")]
     public void Should_Close_When_101_Switching_Protocols()
     {
         var response = new HttpResponseMessage(HttpStatusCode.SwitchingProtocols);
@@ -197,7 +197,7 @@ public sealed class ConnectionReuseTests
 
     // ── HTTP/2 — always keep-alive at this layer ─────────────────────────────────
 
-    [Fact(DisplayName = "CM-019: Should_KeepAlive_When_Http2_No_Headers")]
+    [Fact(DisplayName = "RFC9112-9-CR-019: Should_KeepAlive_When_Http2_No_Headers")]
     public void Should_KeepAlive_When_Http2_No_Headers()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -206,7 +206,7 @@ public sealed class ConnectionReuseTests
         Assert.Contains("multiplexed", decision.Reason, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact(DisplayName = "CM-020: Should_KeepAlive_When_Http2_Body_Not_Consumed")]
+    [Fact(DisplayName = "RFC9112-9-CR-020: Should_KeepAlive_When_Http2_Body_Not_Consumed")]
     public void Should_KeepAlive_When_Http2_Body_Not_Consumed()
     {
         // HTTP/2 stream close != connection close; the evaluator always returns keep-alive
@@ -217,7 +217,7 @@ public sealed class ConnectionReuseTests
         Assert.True(decision.CanReuse);
     }
 
-    [Fact(DisplayName = "CM-021: Should_KeepAlive_When_Http2_Protocol_Error_Occurred")]
+    [Fact(DisplayName = "RFC9112-9-CR-021: Should_KeepAlive_When_Http2_Protocol_Error_Occurred")]
     public void Should_KeepAlive_When_Http2_Protocol_Error_Occurred()
     {
         // The I/O layer handles HTTP/2 connection errors (GOAWAY); this evaluator does not.
@@ -227,7 +227,7 @@ public sealed class ConnectionReuseTests
         Assert.True(decision.CanReuse);
     }
 
-    [Fact(DisplayName = "CM-022: Should_KeepAlive_When_Http2_Even_If_Connection_Close_Present")]
+    [Fact(DisplayName = "RFC9112-9-CR-022: Should_KeepAlive_When_Http2_Even_If_Connection_Close_Present")]
     public void Should_KeepAlive_When_Http2_Even_If_Connection_Close_Present()
     {
         // RFC 9113 §8.2.2: Connection-specific headers MUST NOT be forwarded in HTTP/2.
@@ -240,7 +240,7 @@ public sealed class ConnectionReuseTests
 
     // ── Reason string quality ────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "CM-023: Should_Have_NonEmpty_Reason_On_KeepAlive")]
+    [Fact(DisplayName = "RFC9112-9-CR-023: Should_Have_NonEmpty_Reason_On_KeepAlive")]
     public void Should_Have_NonEmpty_Reason_On_KeepAlive()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -248,7 +248,7 @@ public sealed class ConnectionReuseTests
         Assert.NotEmpty(decision.Reason);
     }
 
-    [Fact(DisplayName = "CM-024: Should_Have_NonEmpty_Reason_On_Close")]
+    [Fact(DisplayName = "RFC9112-9-CR-024: Should_Have_NonEmpty_Reason_On_Close")]
     public void Should_Have_NonEmpty_Reason_On_Close()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
@@ -257,7 +257,7 @@ public sealed class ConnectionReuseTests
         Assert.NotEmpty(decision.Reason);
     }
 
-    [Fact(DisplayName = "CM-025: Should_HaveNullTimeouts_When_Http11_No_KeepAlive_Header")]
+    [Fact(DisplayName = "RFC9112-9-CR-025: Should_HaveNullTimeouts_When_Http11_No_KeepAlive_Header")]
     public void Should_HaveNullTimeouts_When_Http11_No_KeepAlive_Header()
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);

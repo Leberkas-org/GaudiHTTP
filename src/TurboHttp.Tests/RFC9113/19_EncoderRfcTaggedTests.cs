@@ -6,7 +6,7 @@ namespace TurboHttp.Tests.RFC9113;
 
 public sealed class Http2EncoderRfcTaggedTests
 {
-    [Fact(DisplayName = "7540-3.5-001: Client preface is PRI * HTTP/2.0 SM")]
+    [Fact(DisplayName = "RFC9113-3.5-001: Client preface is PRI * HTTP/2.0 SM")]
     public void Preface_MagicBytes_MatchSpec()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
@@ -14,7 +14,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.Equal(expected, preface[..expected.Length]);
     }
 
-    [Fact(DisplayName = "7540-3.5-003: SETTINGS frame immediately follows client preface")]
+    [Fact(DisplayName = "RFC9113-3.5-003: SETTINGS frame immediately follows client preface")]
     public void Preface_SettingsFrame_ImmediatelyFollowsMagic()
     {
         var preface = Http2FrameUtils.BuildConnectionPreface();
@@ -22,7 +22,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.Equal((byte)FrameType.Settings, preface[magicLen + 3]);
     }
 
-    [Fact(DisplayName = "7540-8.1-001: All four pseudo-headers emitted")]
+    [Fact(DisplayName = "RFC9113-8.1-001: All four pseudo-headers emitted")]
     public void PseudoHeaders_AllFourEmitted()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/v1/data");
@@ -33,7 +33,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.Contains(headers, h => h.Name == ":path");
     }
 
-    [Fact(DisplayName = "7540-8.1-002: Pseudo-headers precede regular headers")]
+    [Fact(DisplayName = "RFC9113-8.1-002: Pseudo-headers precede regular headers")]
     public void PseudoHeaders_PrecedeRegularHeaders()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -46,7 +46,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.True(lastPseudo < firstRegular, "All pseudo-headers must appear before regular headers");
     }
 
-    [Fact(DisplayName = "7540-8.1-003: No duplicate pseudo-headers")]
+    [Fact(DisplayName = "RFC9113-8.1-003: No duplicate pseudo-headers")]
     public void PseudoHeaders_NoDuplicates()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path");
@@ -56,7 +56,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.Equal(pseudos.Count, pseudos.Distinct().Count());
     }
 
-    [Fact(DisplayName = "7540-8.1-004: Connection-specific headers absent in HTTP/2")]
+    [Fact(DisplayName = "RFC9113-8.1-004: Connection-specific headers absent in HTTP/2")]
     public void Http2_ConnectionSpecificHeaders_Absent()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/")
@@ -77,7 +77,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.DoesNotContain("te", names);
     }
 
-    [Theory(DisplayName = "enc5-ph-001: :method pseudo-header correct for [{method}]")]
+    [Theory(DisplayName = "RFC9113-8.3-PH-001: :method pseudo-header correct for [{method}]")]
     [InlineData("GET")]
     [InlineData("POST")]
     [InlineData("PUT")]
@@ -95,7 +95,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.Equal(method, dict[":method"]);
     }
 
-    [Fact(DisplayName = "enc5-ph-002: :scheme reflects request URI scheme")]
+    [Fact(DisplayName = "RFC9113-8.3-PH-002: :scheme reflects request URI scheme")]
     public void PseudoHeader_Scheme_ReflectsUriScheme()
     {
         var httpRequest = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
@@ -108,7 +108,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.Equal("https", httpsDict[":scheme"]);
     }
 
-    [Fact(DisplayName = "7540-6.2-001: HEADERS frame has correct 9-byte header and payload")]
+    [Fact(DisplayName = "RFC9113-6.2-001: HEADERS frame has correct 9-byte header and payload")]
     public void HeadersFrame_HasCorrect9ByteHeader_TypeByte()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -118,7 +118,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.IsType<HeadersFrame>(frames[0]);
     }
 
-    [Fact(DisplayName = "7540-6.2-002: END_STREAM flag set on HEADERS for GET")]
+    [Fact(DisplayName = "RFC9113-6.2-002: END_STREAM flag set on HEADERS for GET")]
     public void HeadersFrame_EndStream_SetForGet()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -128,7 +128,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.True(hf.EndStream);
     }
 
-    [Fact(DisplayName = "7540-6.2-003: END_HEADERS flag set on single HEADERS frame")]
+    [Fact(DisplayName = "RFC9113-6.2-003: END_HEADERS flag set on single HEADERS frame")]
     public void HeadersFrame_EndHeaders_SetOnSingleFrame()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -138,7 +138,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.True(hf.EndHeaders);
     }
 
-    [Fact(DisplayName = "7540-6.9-001: Headers exceeding max frame size split into CONTINUATION")]
+    [Fact(DisplayName = "RFC9113-6.9-001: Headers exceeding max frame size split into CONTINUATION")]
     public void LargeHeaders_SplitIntoContinuation()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -157,7 +157,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.IsType<ContinuationFrame>(frames[1]);
     }
 
-    [Fact(DisplayName = "7540-6.9-002: END_HEADERS on final CONTINUATION frame")]
+    [Fact(DisplayName = "RFC9113-6.9-002: END_HEADERS on final CONTINUATION frame")]
     public void ContinuationFrame_FinalHasEndHeaders()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -176,7 +176,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.True(cf.EndHeaders);
     }
 
-    [Fact(DisplayName = "7540-6.9-003: Multiple CONTINUATION frames for very large headers")]
+    [Fact(DisplayName = "RFC9113-6.9-003: Multiple CONTINUATION frames for very large headers")]
     public void VeryLargeHeaders_MultipleContinuationFrames()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -198,7 +198,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.True(contCount >= 2, $"Expected >= 2 CONTINUATION frames, got {contCount}");
     }
 
-    [Fact(DisplayName = "7540-6.1-enc-002: END_STREAM set on final DATA frame")]
+    [Fact(DisplayName = "RFC9113-6.1-enc-002: END_STREAM set on final DATA frame")]
     public void DataFrame_EndStream_SetOnFinalFrame()
     {
         var request = CreatePostRequest("example.com", "/api", "hello");
@@ -210,7 +210,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.True(df.EndStream);
     }
 
-    [Fact(DisplayName = "7540-6.1-enc-003: GET END_STREAM on HEADERS frame")]
+    [Fact(DisplayName = "RFC9113-6.1-enc-003: GET END_STREAM on HEADERS frame")]
     public void Get_EndStream_OnHeadersNotData()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -222,7 +222,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.True(hf.EndStream);
     }
 
-    [Fact(DisplayName = "enc5-data-001: DATA frame has type byte 0x00")]
+    [Fact(DisplayName = "RFC9113-6.1-DATA-001: DATA frame has type byte 0x00")]
     public void DataFrame_TypeByte_IsZero()
     {
         var request = CreatePostRequest("example.com", "/api", "payload");
@@ -233,7 +233,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.NotNull(df);
     }
 
-    [Fact(DisplayName = "enc5-data-002: DATA frame carries correct stream ID")]
+    [Fact(DisplayName = "RFC9113-6.1-DATA-002: DATA frame carries correct stream ID")]
     public void DataFrame_CarriesCorrectStreamId()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -244,7 +244,7 @@ public sealed class Http2EncoderRfcTaggedTests
         Assert.All(frames, f => Assert.Equal(streamId, f.StreamId));
     }
 
-    [Fact(DisplayName = "enc5-data-003: Body exceeding MAX_FRAME_SIZE split into multiple DATA frames")]
+    [Fact(DisplayName = "RFC9113-6.1-DATA-003: Body exceeding MAX_FRAME_SIZE split into multiple DATA frames")]
     public void DataFrame_LargeBody_SplitIntoMultipleFrames()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);

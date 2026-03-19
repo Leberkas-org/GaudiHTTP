@@ -54,7 +54,7 @@ public sealed class Http2HighConcurrencyTests
 
 	// ── HC-001..005: Sequential Stream Decoding (§5.1) ────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-001: 1000 sequential streams with END_STREAM HEADERS — all close cleanly")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-001: 1000 sequential streams with END_STREAM HEADERS — all close cleanly")]
 	public void Should_Handle1000SequentialStreams_WithEndStreamHeaders()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -84,7 +84,7 @@ public sealed class Http2HighConcurrencyTests
 		Assert.Equal(1000, closedStreams.Count);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-002: 1000 streams with END_STREAM HEADERS produce exactly 1000 decoded frames")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-002: 1000 streams with END_STREAM HEADERS produce exactly 1000 decoded frames")]
 	public void Should_Decode1000Responses_From1000Streams()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -100,7 +100,7 @@ public sealed class Http2HighConcurrencyTests
 		Assert.Equal(1000, decodedFrameCount);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-003: SETTINGS MAX_CONCURRENT_STREAMS parameter decoded correctly")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-003: SETTINGS MAX_CONCURRENT_STREAMS parameter decoded correctly")]
 	public void Should_DecodeMaxConcurrentStreamsFromSettings()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -113,7 +113,7 @@ public sealed class Http2HighConcurrencyTests
 		// Verify we can extract the parameter (implementation detail of SettingsFrame)
 	}
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-004: Bulk open-close cycle: 100 streams opened and closed cleanly")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-004: Bulk open-close cycle: 100 streams opened and closed cleanly")]
 	public void Should_RecycleStreamCapacity_AfterBulkDataClose()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -155,7 +155,7 @@ public sealed class Http2HighConcurrencyTests
 		Assert.Equal(100, closedStreams.Count);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-005: 10001 sequential streams all close correctly — unbounded stream tracking")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-005: 10001 sequential streams all close correctly — unbounded stream tracking")]
 	public void Should_TrackAllClosedStreams_WithNoCapOnClosedStreamCount()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -179,7 +179,7 @@ public sealed class Http2HighConcurrencyTests
 
 	// ── HC-006..010: Parallel Header Decoding (§5.1) ───────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-006: 50 independent decoders decode same HEADERS frame in parallel — no exceptions")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-006: 50 independent decoders decode same HEADERS frame in parallel — no exceptions")]
 	public async Task Should_Decode50IndependentDecoders_InParallel_WithoutException()
 	{
 		var headersFrame = BuildHeadersFrame(1, endStream: true);
@@ -194,7 +194,7 @@ public sealed class Http2HighConcurrencyTests
 		await Task.WhenAll(tasks);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-007: 100 independent decoders each decode 20 streams in parallel — all complete successfully")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-007: 100 independent decoders each decode 20 streams in parallel — all complete successfully")]
 	public async Task Should_Handle100DecoderInstances_EachDecoding20Streams_InParallel()
 	{
 		var tasks = Enumerable.Range(0, 100).Select(_idx => Task.Run(() =>
@@ -225,7 +225,7 @@ public sealed class Http2HighConcurrencyTests
 		Assert.All(results, count => Assert.Equal(0, count));
 	}
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-008: Independent decoder instances maintain isolated stream state under parallel load")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-008: Independent decoder instances maintain isolated stream state under parallel load")]
 	public async Task Should_MaintainIsolatedStreamState_AcrossParallelDecoderInstances()
 	{
 		// Decoder i decodes (i + 1) streams; verify each decoder's stream count matches
@@ -253,7 +253,7 @@ public sealed class Http2HighConcurrencyTests
 		Assert.All(results, r => Assert.Equal(r.Expected, r.Actual));
 	}
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-009: 50 independent HpackEncoder instances encode the same headers in parallel — identical output")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-009: 50 independent HpackEncoder instances encode the same headers in parallel — identical output")]
 	public async Task Should_ProduceIdenticalHpackOutput_When50EncoderInstancesRunInParallel()
 	{
 		var headers = new List<(string Name, string Value)>
@@ -273,7 +273,7 @@ public sealed class Http2HighConcurrencyTests
 		Assert.All(results, bytes => Assert.Equal(baseline, bytes));
 	}
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-010: Parallel decoders produce the same closed-stream count as sequential baseline")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-010: Parallel decoders produce the same closed-stream count as sequential baseline")]
 	public async Task Should_ProduceConsistentClosedStreamCount_WhenParallelMatchesSequential()
 	{
 		const int streamCount = 10;
@@ -320,7 +320,7 @@ public sealed class Http2HighConcurrencyTests
 
 	// ── HC-011..015: Flow Control Saturation (§6.9) ────────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§6.9-HC-011: Three sequential DATA frames with explicit window tracking — correct payload sizes")]
+	[Fact(DisplayName = "RFC9113-6.9-HC-011: Three sequential DATA frames with explicit window tracking — correct payload sizes")]
 	public void Should_AcceptData_WhenTotalBytesDoNotExceedConnectionWindow()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -363,7 +363,7 @@ public sealed class Http2HighConcurrencyTests
 		Assert.True(connectionWindow >= 0);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.9-HC-012: DATA exceeding the connection receive window triggers FlowControlError")]
+	[Fact(DisplayName = "RFC9113-6.9-HC-012: DATA exceeding the connection receive window triggers FlowControlError")]
 	public void Should_ThrowFlowControlError_WhenDataExceedsConnectionReceiveWindow()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -386,7 +386,7 @@ public sealed class Http2HighConcurrencyTests
 		}
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.9-HC-013: Window restoration via explicit tracking allows subsequent DATA frames to succeed")]
+	[Fact(DisplayName = "RFC9113-6.9-HC-013: Window restoration via explicit tracking allows subsequent DATA frames to succeed")]
 	public void Should_AcceptFurtherData_AfterConnectionWindowRestored()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -424,7 +424,7 @@ public sealed class Http2HighConcurrencyTests
 		Assert.True(connectionWindow >= 0);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.9-HC-014: Per-stream window saturation is independent — other streams remain unaffected")]
+	[Fact(DisplayName = "RFC9113-6.9-HC-014: Per-stream window saturation is independent — other streams remain unaffected")]
 	public void Should_EnforcePerStreamWindow_WithoutAffectingOtherStreams()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -461,7 +461,7 @@ public sealed class Http2HighConcurrencyTests
 		}
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.9-HC-015: Five sequential open-send-close cycles all succeed with correct final state")]
+	[Fact(DisplayName = "RFC9113-6.9-HC-015: Five sequential open-send-close cycles all succeed with correct final state")]
 	public void Should_HandleSequentialOpenSendCloseCycles_WithCorrectFinalState()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -508,7 +508,7 @@ public sealed class Http2HighConcurrencyTests
 
 	// ── HC-020: Fresh Stream Reuse (§5.1) ───────────────────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§5.1-HC-020: Fresh decoder instance decodes new streams without prior-state interference")]
+	[Fact(DisplayName = "RFC9113-5.1-HC-020: Fresh decoder instance decodes new streams without prior-state interference")]
 	public void Should_DecodeNewStreams_OnFreshDecoder_WithoutPriorStateInterference()
 	{
 		var decoder1 = new Http2FrameDecoder();

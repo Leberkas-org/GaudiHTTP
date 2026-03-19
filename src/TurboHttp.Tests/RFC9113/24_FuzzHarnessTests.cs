@@ -112,7 +112,7 @@ public sealed class Http2FuzzHarnessTests
     // FZ-001..005: Random frame ordering (RFC 9113 §5.5)
     // =========================================================================
 
-    [Fact(DisplayName = "RFC-9113-§5.5-FZ-001: Random valid HEADERS + DATA sequences never crash the decoder")]
+    [Fact(DisplayName = "RFC9113-5.5-FZ-001: Random valid HEADERS + DATA sequences never crash the decoder")]
     public void Should_HandleRandomHeadersDataSequences_WithoutCrashing()
     {
         var rng = new Random(42);
@@ -131,7 +131,7 @@ public sealed class Http2FuzzHarnessTests
         }
     }
 
-    [Fact(DisplayName = "RFC-9113-§5.5-FZ-002: Random RST_STREAM frames for unknown streams never produce unhandled exceptions")]
+    [Fact(DisplayName = "RFC9113-5.5-FZ-002: Random RST_STREAM frames for unknown streams never produce unhandled exceptions")]
     public void Should_HandleRandomRstStreamFrames_WithoutCrashing()
     {
         var rng = new Random(137);
@@ -148,7 +148,7 @@ public sealed class Http2FuzzHarnessTests
         }
     }
 
-    [Fact(DisplayName = "RFC-9113-§5.5-FZ-003: Random WINDOW_UPDATE frames on arbitrary streams never produce unhandled exceptions")]
+    [Fact(DisplayName = "RFC9113-5.5-FZ-003: Random WINDOW_UPDATE frames on arbitrary streams never produce unhandled exceptions")]
     public void Should_HandleRandomWindowUpdateFrames_WithoutCrashing()
     {
         var rng = new Random(7);
@@ -162,7 +162,7 @@ public sealed class Http2FuzzHarnessTests
         }
     }
 
-    [Fact(DisplayName = "RFC-9113-§5.5-FZ-004: Interleaved PING and SETTINGS frames in random order never produce unhandled exceptions")]
+    [Fact(DisplayName = "RFC9113-5.5-FZ-004: Interleaved PING and SETTINGS frames in random order never produce unhandled exceptions")]
     public void Should_HandleInterleavedFrameTypes_WithoutCrashing()
     {
         var rng = new Random(99);
@@ -184,7 +184,7 @@ public sealed class Http2FuzzHarnessTests
         }
     }
 
-    [Fact(DisplayName = "RFC-9113-§5.5-FZ-005: Unknown frame types (0x0A..0xFF) are tolerated per RFC 9113 §5.5")]
+    [Fact(DisplayName = "RFC9113-5.5-FZ-005: Unknown frame types (0x0A..0xFF) are tolerated per RFC 9113 §5.5")]
     public void Should_IgnoreUnknownFrameTypes_PerRfc9113()
     {
         var rng = new Random(555);
@@ -205,7 +205,7 @@ public sealed class Http2FuzzHarnessTests
     // FZ-006..010: Invalid frame lengths (RFC 9113 §4.2)
     // =========================================================================
 
-    [Fact(DisplayName = "RFC-9113-§4.2-FZ-006: Frame with payload length exceeding MaxFrameSize throws Http2Exception")]
+    [Fact(DisplayName = "RFC9113-4.2-FZ-006: Frame with payload length exceeding MaxFrameSize throws Http2Exception")]
     public void Should_RejectOversizedFrame_WithFrameSizeError()
     {
         var decoder = new Http2FrameDecoder();
@@ -225,7 +225,7 @@ public sealed class Http2FuzzHarnessTests
         AssertDecodeNeverCrashes(decoder, frame);
     }
 
-    [Fact(DisplayName = "RFC-9113-§4.2-FZ-007: Truncated frame (buffer smaller than declared length) is buffered without crashing")]
+    [Fact(DisplayName = "RFC9113-4.2-FZ-007: Truncated frame (buffer smaller than declared length) is buffered without crashing")]
     public void Should_BufferTruncatedFrame_WithoutCrashing()
     {
         var decoder = new Http2FrameDecoder();
@@ -241,7 +241,7 @@ public sealed class Http2FuzzHarnessTests
         Assert.Empty(framesDecoded); // incomplete frame — buffered, not crashed
     }
 
-    [Fact(DisplayName = "RFC-9113-§4.2-FZ-008: PING with wrong payload length throws Http2Exception(FrameSizeError)")]
+    [Fact(DisplayName = "RFC9113-4.2-FZ-008: PING with wrong payload length throws Http2Exception(FrameSizeError)")]
     public void Should_RejectPingWithWrongPayloadLength_WithFrameSizeError()
     {
         var decoder = new Http2FrameDecoder();
@@ -254,7 +254,7 @@ public sealed class Http2FuzzHarnessTests
         Assert.Equal(Http2ErrorCode.FrameSizeError, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "RFC-9113-§4.2-FZ-009: SETTINGS with payload length not a multiple of 6 throws Http2Exception(FrameSizeError)")]
+    [Fact(DisplayName = "RFC9113-4.2-FZ-009: SETTINGS with payload length not a multiple of 6 throws Http2Exception(FrameSizeError)")]
     public void Should_RejectSettingsWithNonMultipleOf6Payload_WithFrameSizeError()
     {
         var decoder = new Http2FrameDecoder();
@@ -267,7 +267,7 @@ public sealed class Http2FuzzHarnessTests
         Assert.Equal(Http2ErrorCode.FrameSizeError, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "RFC-9113-§4.2-FZ-010: Random corrupted frame headers never produce unhandled exceptions")]
+    [Fact(DisplayName = "RFC9113-4.2-FZ-010: Random corrupted frame headers never produce unhandled exceptions")]
     public void Should_HandleCorruptedFrameHeaders_WithoutUnhandledExceptions()
     {
         var rng = new Random(1234);
@@ -296,7 +296,7 @@ public sealed class Http2FuzzHarnessTests
     // FZ-011..015: Invalid header (HPACK) encodings (RFC 9113 §4.3)
     // =========================================================================
 
-    [Fact(DisplayName = "RFC-9113-§4.3-FZ-011: Fully random bytes fed as HPACK header block never crash the decoder")]
+    [Fact(DisplayName = "RFC9113-4.3-FZ-011: Fully random bytes fed as HPACK header block never crash the decoder")]
     public void Should_HandleRandomHpackBytes_WithoutCrashing()
     {
         var rng = new Random(42_000);
@@ -311,7 +311,7 @@ public sealed class Http2FuzzHarnessTests
         }
     }
 
-    [Fact(DisplayName = "RFC-9113-§4.3-FZ-012: Valid HPACK prefix followed by garbage bytes never crashes the decoder")]
+    [Fact(DisplayName = "RFC9113-4.3-FZ-012: Valid HPACK prefix followed by garbage bytes never crashes the decoder")]
     public void Should_HandleValidHpackPrefixWithGarbage_WithoutCrashing()
     {
         var rng = new Random(99_000);
@@ -332,7 +332,7 @@ public sealed class Http2FuzzHarnessTests
         }
     }
 
-    [Fact(DisplayName = "RFC-9113-§4.3-FZ-013: HPACK literal with oversized declared string length never crashes the decoder")]
+    [Fact(DisplayName = "RFC9113-4.3-FZ-013: HPACK literal with oversized declared string length never crashes the decoder")]
     public void Should_HandleHpackOversizedStringLength_WithoutCrashing()
     {
         var decoder = new Http2FrameDecoder();
@@ -345,7 +345,7 @@ public sealed class Http2FuzzHarnessTests
         AssertDecodeNeverCrashes(decoder, frame);
     }
 
-    [Fact(DisplayName = "RFC-9113-§4.3-FZ-014: HPACK index beyond static + dynamic table never crashes the decoder")]
+    [Fact(DisplayName = "RFC9113-4.3-FZ-014: HPACK index beyond static + dynamic table never crashes the decoder")]
     public void Should_HandleOutOfRangeHpackIndex_WithoutCrashing()
     {
         var decoder = new Http2FrameDecoder();
@@ -358,7 +358,7 @@ public sealed class Http2FuzzHarnessTests
         AssertDecodeNeverCrashes(decoder, frame);
     }
 
-    [Fact(DisplayName = "RFC-9113-§4.3-FZ-015: Huffman-flagged header with invalid bitstream never crashes the decoder")]
+    [Fact(DisplayName = "RFC9113-4.3-FZ-015: Huffman-flagged header with invalid bitstream never crashes the decoder")]
     public void Should_HandleInvalidHuffmanBitstream_WithoutCrashing()
     {
         var rng = new Random(777);
@@ -389,7 +389,7 @@ public sealed class Http2FuzzHarnessTests
     // FZ-016..020: Window overflow attempts (RFC 9113 §6.9)
     // =========================================================================
 
-    [Fact(DisplayName = "RFC-9113-§6.9-FZ-016: Connection WINDOW_UPDATE overflow detected by explicit enforcement")]
+    [Fact(DisplayName = "RFC9113-6.9-FZ-016: Connection WINDOW_UPDATE overflow detected by explicit enforcement")]
     public void Should_RejectConnectionWindowOverflow_WithExplicitEnforcement()
     {
         var decoder = new Http2FrameDecoder();
@@ -412,7 +412,7 @@ public sealed class Http2FuzzHarnessTests
         Assert.True(newWindow > int.MaxValue, "Expected overflow to be detected");
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.9-FZ-017: Stream WINDOW_UPDATE overflow detected by explicit enforcement")]
+    [Fact(DisplayName = "RFC9113-6.9-FZ-017: Stream WINDOW_UPDATE overflow detected by explicit enforcement")]
     public void Should_RejectStreamWindowOverflow_WithExplicitEnforcement()
     {
         var decoder = new Http2FrameDecoder();
@@ -436,7 +436,7 @@ public sealed class Http2FuzzHarnessTests
         Assert.True(newWindow > 0x7FFFFFFF, "Expected stream window overflow");
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.9-FZ-018: Zero-increment WINDOW_UPDATE throws Http2Exception(ProtocolError)")]
+    [Fact(DisplayName = "RFC9113-6.9-FZ-018: Zero-increment WINDOW_UPDATE throws Http2Exception(ProtocolError)")]
     public void Should_RejectZeroIncrementWindowUpdate_WithProtocolError()
     {
         var decoder = new Http2FrameDecoder();
@@ -448,7 +448,7 @@ public sealed class Http2FuzzHarnessTests
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.9-FZ-019: SETTINGS INITIAL_WINDOW_SIZE at maximum valid value (2^31-1) is accepted")]
+    [Fact(DisplayName = "RFC9113-6.9-FZ-019: SETTINGS INITIAL_WINDOW_SIZE at maximum valid value (2^31-1) is accepted")]
     public void Should_AcceptSettingsInitialWindowSizeAtMax_WithoutException()
     {
         var decoder = new Http2FrameDecoder();
@@ -460,7 +460,7 @@ public sealed class Http2FuzzHarnessTests
         Assert.IsType<SettingsFrame>(settings);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.9-FZ-020: SETTINGS INITIAL_WINDOW_SIZE exceeding 2^31-1 detected by enforcement")]
+    [Fact(DisplayName = "RFC9113-6.9-FZ-020: SETTINGS INITIAL_WINDOW_SIZE exceeding 2^31-1 detected by enforcement")]
     public void Should_RejectSettingsInitialWindowSizeAboveMax_WithExplicitEnforcement()
     {
         var decoder = new Http2FrameDecoder();
@@ -482,7 +482,7 @@ public sealed class Http2FuzzHarnessTests
     // FZ-021..025: Dynamic table resizing storms (RFC 7541 §6.3)
     // =========================================================================
 
-    [Fact(DisplayName = "RFC-7541-§6.3-FZ-021: Repeated HpackDecoder table size oscillation between 0 and 256 never crashes")]
+    [Fact(DisplayName = "RFC7541-6.3-FZ-021: Repeated HpackDecoder table size oscillation between 0 and 256 never crashes")]
     public void Should_HandleRepeatedTableSizeOscillation_WithoutCrashing()
     {
         var hpack = new HpackDecoder();
@@ -499,7 +499,7 @@ public sealed class Http2FuzzHarnessTests
         }
     }
 
-    [Fact(DisplayName = "RFC-7541-§6.3-FZ-022: Filling dynamic table then resizing to 0 evicts all entries without crashing")]
+    [Fact(DisplayName = "RFC7541-6.3-FZ-022: Filling dynamic table then resizing to 0 evicts all entries without crashing")]
     public void Should_EvictAllEntries_WhenTableSizeReducedToZero_AfterFilling()
     {
         var hpack = new HpackDecoder();
@@ -518,7 +518,7 @@ public sealed class Http2FuzzHarnessTests
         hpack.Decode(resizeBlock); // must not throw
     }
 
-    [Fact(DisplayName = "RFC-7541-§6.3-FZ-023: Rapid SETTINGS HEADER_TABLE_SIZE changes with random values never crash decoder")]
+    [Fact(DisplayName = "RFC7541-6.3-FZ-023: Rapid SETTINGS HEADER_TABLE_SIZE changes with random values never crash decoder")]
     public void Should_HandleRapidHeaderTableSizeChanges_WithoutCrashing()
     {
         var rng = new Random(42);
@@ -532,7 +532,7 @@ public sealed class Http2FuzzHarnessTests
         }
     }
 
-    [Fact(DisplayName = "RFC-7541-§6.3-FZ-024: SETTINGS HEADER_TABLE_SIZE=0 followed by normal HPACK headers is handled correctly")]
+    [Fact(DisplayName = "RFC7541-6.3-FZ-024: SETTINGS HEADER_TABLE_SIZE=0 followed by normal HPACK headers is handled correctly")]
     public void Should_HandleHeaderTableSizeZero_FollowedByNormalHeaders()
     {
         var decoder = new Http2FrameDecoder();
@@ -547,7 +547,7 @@ public sealed class Http2FuzzHarnessTests
         AssertDecodeNeverCrashes(decoder, frame);
     }
 
-    [Fact(DisplayName = "RFC-7541-§6.3-FZ-025: Extended random frame sequence (1000 iterations) never produces unhandled exceptions")]
+    [Fact(DisplayName = "RFC7541-6.3-FZ-025: Extended random frame sequence (1000 iterations) never produces unhandled exceptions")]
     public void Should_SurviveExtendedRandomFrameSequence_WithoutUnhandledExceptions()
     {
         var rng = new Random(314159);

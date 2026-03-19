@@ -54,13 +54,13 @@ RFC{number}-{section}-{CAT}-{NNN}: {description}
 **Description:** As a developer reading test output, I want HTTP/2 tests to reference the current RFC 9113 so that section lookups match the current specification.
 
 **Acceptance Criteria:**
-- [ ] All `7540-` prefixes in DisplayName replaced with `RFC9113-`
-- [ ] Format unified to `RFC9113-{section}-{CAT}-{NNN}: {description}`
-- [ ] Category codes preserved where already 2-3 chars (CP, SP, GA, RST, etc.)
-- [ ] Shorthand prefixes like `enc5-ph-` and `enc5-set-` converted to `RFC9113-{section}-{CAT}-{NNN}`
-- [ ] Files affected: all 28 files in `src/TurboHttp.Tests/RFC9113/`
-- [ ] `dotnet test --filter "FullyQualifiedName~RFC9113"` passes with 0 failures
-- [ ] No non-DisplayName code changes (test logic untouched)
+- [x] All `7540-` prefixes in DisplayName replaced with `RFC9113-`
+- [x] Format unified to `RFC9113-{section}-{CAT}-{NNN}: {description}`
+- [x] Category codes preserved where already 2-3 chars (CP, SP, GA, RST, etc.)
+- [x] Shorthand prefixes like `enc5-ph-` and `enc5-set-` converted to `RFC9113-{section}-{CAT}-{NNN}`
+- [x] Files affected: all 28 files in `src/TurboHttp.Tests/RFC9113/`
+- [x] `dotnet test --filter "FullyQualifiedName~RFC9113"` passes with 0 failures
+- [x] No non-DisplayName code changes (test logic untouched)
 
 ### TASK-002: RFC 9112 — Replace 7230 references & unify format (26 files, ~278 DisplayNames)
 **Description:** As a developer, I want HTTP/1.1 tests to reference RFC 9112 consistently so that mixed RFC7230/RFC9112 citations disappear.

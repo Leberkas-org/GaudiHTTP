@@ -8,7 +8,7 @@ public sealed class Http11SecurityTests
 {
     // ── HTTP/1.1 Header Count Limits ──────────────────────────────────────────
 
-    [Fact(DisplayName = "SEC-001a: 100 headers accepted at default limit")]
+    [Fact(DisplayName = "RFC9112-9-SC-001: 100 headers accepted at default limit")]
     public void Should_Accept100Headers_When_AtDefaultLimit()
     {
         var decoder = new Http11Decoder(); // default maxHeaderCount = 100
@@ -19,7 +19,7 @@ public sealed class Http11SecurityTests
         Assert.Single(responses);
     }
 
-    [Fact(DisplayName = "SEC-001b: 101 headers rejected above default limit")]
+    [Fact(DisplayName = "RFC9112-9-SC-002: 101 headers rejected above default limit")]
     public void Should_Reject101Headers_When_AboveDefaultLimit()
     {
         var decoder = new Http11Decoder();
@@ -29,7 +29,7 @@ public sealed class Http11SecurityTests
         Assert.Equal(HttpDecoderError.TooManyHeaders, ex.DecodeError);
     }
 
-    [Fact(DisplayName = "SEC-001c: Custom header count limit respected")]
+    [Fact(DisplayName = "RFC9112-9-SC-003: Custom header count limit respected")]
     public void Should_RejectAtCustomLimit_When_HeaderCountExceeded()
     {
         var decoder = new Http11Decoder(maxHeaderCount: 5);
@@ -41,7 +41,7 @@ public sealed class Http11SecurityTests
 
     // ── HTTP/1.1 Header Block Size Limits ─────────────────────────────────────
 
-    [Fact(DisplayName = "SEC-002a: Header block below 8KB limit accepted")]
+    [Fact(DisplayName = "RFC9112-9-SC-004: Header block below 8KB limit accepted")]
     public void Should_AcceptHeaderBlock_When_Below8KBLimit()
     {
         var decoder = new Http11Decoder();
@@ -53,7 +53,7 @@ public sealed class Http11SecurityTests
         Assert.Single(responses);
     }
 
-    [Fact(DisplayName = "SEC-002b: Header block above 8KB limit rejected")]
+    [Fact(DisplayName = "RFC9112-9-SC-005: Header block above 8KB limit rejected")]
     public void Should_RejectHeaderBlock_When_Above8KBLimit()
     {
         var decoder = new Http11Decoder();
@@ -64,7 +64,7 @@ public sealed class Http11SecurityTests
         Assert.Equal(HttpDecoderError.LineTooLong, ex.DecodeError);
     }
 
-    [Fact(DisplayName = "SEC-002c: Single header value exceeding limit rejected")]
+    [Fact(DisplayName = "RFC9112-9-SC-006: Single header value exceeding limit rejected")]
     public void Should_RejectSingleHeader_When_ValueExceedsLimit()
     {
         var decoder = new Http11Decoder();
@@ -76,7 +76,7 @@ public sealed class Http11SecurityTests
 
     // ── HTTP/1.1 Body Size Limits ─────────────────────────────────────────────
 
-    [Fact(DisplayName = "SEC-003a: Body at configurable limit accepted")]
+    [Fact(DisplayName = "RFC9112-9-SC-007: Body at configurable limit accepted")]
     public void Should_AcceptBody_When_AtConfigurableLimit()
     {
         var decoder = new Http11Decoder(maxBodySize: 1024);
@@ -87,7 +87,7 @@ public sealed class Http11SecurityTests
         Assert.Single(responses);
     }
 
-    [Fact(DisplayName = "SEC-003b: Body exceeding limit rejected")]
+    [Fact(DisplayName = "RFC9112-9-SC-008: Body exceeding limit rejected")]
     public void Should_RejectBody_When_ExceedingLimit()
     {
         var decoder = new Http11Decoder(maxBodySize: 1024);
@@ -97,7 +97,7 @@ public sealed class Http11SecurityTests
         Assert.Equal(HttpDecoderError.InvalidContentLength, ex.DecodeError);
     }
 
-    [Fact(DisplayName = "SEC-003c: Zero body limit rejects any body")]
+    [Fact(DisplayName = "RFC9112-9-SC-009: Zero body limit rejects any body")]
     public void Should_RejectBody_When_ZeroBodyLimit()
     {
         var decoder = new Http11Decoder(maxBodySize: 0);
@@ -109,7 +109,7 @@ public sealed class Http11SecurityTests
 
     // ── HTTP Smuggling ────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "SEC-005a: Transfer-Encoding + Content-Length rejected")]
+    [Fact(DisplayName = "RFC9112-9-SC-010: Transfer-Encoding + Content-Length rejected")]
     public void Should_RejectResponse_When_BothTransferEncodingAndContentLengthPresent()
     {
         var decoder = new Http11Decoder();
@@ -119,7 +119,7 @@ public sealed class Http11SecurityTests
         Assert.Equal(HttpDecoderError.ChunkedWithContentLength, ex.DecodeError);
     }
 
-    [Fact(DisplayName = "SEC-005b: CRLF injection in header value rejected")]
+    [Fact(DisplayName = "RFC9112-9-SC-011: CRLF injection in header value rejected")]
     public void Should_RejectHeader_When_CrlfInjectedInValue()
     {
         var decoder = new Http11Decoder();
@@ -129,7 +129,7 @@ public sealed class Http11SecurityTests
         Assert.Equal(HttpDecoderError.InvalidFieldValue, ex.DecodeError);
     }
 
-    [Fact(DisplayName = "SEC-005c: NUL byte in decoded header value rejected")]
+    [Fact(DisplayName = "RFC9112-9-SC-012: NUL byte in decoded header value rejected")]
     public void Should_RejectHeader_When_NulByteInValue()
     {
         var decoder = new Http11Decoder();
@@ -141,7 +141,7 @@ public sealed class Http11SecurityTests
 
     // ── State Isolation ───────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "SEC-006a: Reset() after partial headers restores clean state")]
+    [Fact(DisplayName = "RFC9112-9-SC-013: Reset() after partial headers restores clean state")]
     public void Should_DecodeCleanly_When_ResetAfterPartialHeaders()
     {
         var decoder = new Http11Decoder();
@@ -162,7 +162,7 @@ public sealed class Http11SecurityTests
         Assert.Single(responses);
     }
 
-    [Fact(DisplayName = "SEC-006b: Reset() after partial body restores clean state")]
+    [Fact(DisplayName = "RFC9112-9-SC-014: Reset() after partial body restores clean state")]
     public void Should_DecodeCleanly_When_ResetAfterPartialBody()
     {
         var decoder = new Http11Decoder();

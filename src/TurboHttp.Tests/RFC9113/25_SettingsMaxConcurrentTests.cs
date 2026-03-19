@@ -121,7 +121,7 @@ public sealed class Http2SettingsMaxConcurrentTests
     // MCS-API: API Contract Tests (§5.1.2 / §6.5.2)
     // =========================================================================
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-007: SETTINGS with MaxConcurrentStreams=1")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-007: SETTINGS with MaxConcurrentStreams=1")]
     public void Settings_MaxConcurrentStreams1_DecodedCorrectly()
     {
         var decoder = new Http2FrameDecoder();
@@ -132,7 +132,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(1, limit);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-008: SETTINGS with MaxConcurrentStreams=0")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-008: SETTINGS with MaxConcurrentStreams=0")]
     public void Settings_MaxConcurrentStreams0_DecodedCorrectly()
     {
         var decoder = new Http2FrameDecoder();
@@ -143,7 +143,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(0, limit);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-009: SETTINGS with MaxConcurrentStreams=100")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-009: SETTINGS with MaxConcurrentStreams=100")]
     public void Settings_MaxConcurrentStreams100_DecodedCorrectly()
     {
         var decoder = new Http2FrameDecoder();
@@ -154,7 +154,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(100, limit);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-010: SETTINGS ACK doesn't modify MaxConcurrentStreams")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-010: SETTINGS ACK doesn't modify MaxConcurrentStreams")]
     public void SettingsAck_IsRecognizedAsAck()
     {
         var decoder = new Http2FrameDecoder();
@@ -164,7 +164,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.True(frame.IsAck);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-011: HEADERS without EndStream opens stream")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-011: HEADERS without EndStream opens stream")]
     public void Headers_WithoutEndStream_OpensStream()
     {
         var decoder = new Http2FrameDecoder();
@@ -179,7 +179,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(1, openStreams.First());
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-012: HEADERS with EndStream closes immediately")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-012: HEADERS with EndStream closes immediately")]
     public void Headers_WithEndStream_ClosesImmediately()
     {
         var decoder = new Http2FrameDecoder();
@@ -195,7 +195,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-013: DATA with EndStream closes stream")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-013: DATA with EndStream closes stream")]
     public void Data_WithEndStream_ClosesStream()
     {
         var decoder = new Http2FrameDecoder();
@@ -214,7 +214,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-014: Multiple concurrent streams tracked")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-014: Multiple concurrent streams tracked")]
     public void MultipleConcurrentStreams_TrackedIndependently()
     {
         var decoder = new Http2FrameDecoder();
@@ -238,7 +238,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Contains(5, openStreams);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-015: RST_STREAM closes stream")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-015: RST_STREAM closes stream")]
     public void RstStream_ClosesStream()
     {
         var decoder = new Http2FrameDecoder();
@@ -257,7 +257,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-016: Exceeding MaxConcurrentStreams throws")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-016: Exceeding MaxConcurrentStreams throws")]
     public void ExceedingLimit_ThrowsRefusedStream()
     {
         var maxConcurrent = 1;
@@ -269,7 +269,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(Http2ErrorCode.RefusedStream, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-017: Exceeded limit uses RefusedStream error code")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-017: Exceeded limit uses RefusedStream error code")]
     public void ExceedingLimit_ErrorCodeIsRefusedStream()
     {
         var maxConcurrent = 1;
@@ -281,7 +281,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(Http2ErrorCode.RefusedStream, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-018: Exceeded limit message includes stream ID")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-018: Exceeded limit message includes stream ID")]
     public void ExceedingLimit_MessageIncludesStreamId()
     {
         var ex = Assert.Throws<Http2Exception>(
@@ -290,7 +290,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Contains("3", ex.Message);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-019: Exceeded limit message references MaxConcurrentStreams")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-019: Exceeded limit message references MaxConcurrentStreams")]
     public void ExceedingLimit_MessageIncludesLimit()
     {
         var ex = Assert.Throws<Http2Exception>(
@@ -299,7 +299,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Contains("2", ex.Message);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-API-020: After stream closes, new stream accepted")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-API-020: After stream closes, new stream accepted")]
     public void AfterStreamCloses_NewStreamAccepted()
     {
         var decoder = new Http2FrameDecoder();
@@ -329,7 +329,7 @@ public sealed class Http2SettingsMaxConcurrentTests
     // MCS-INT: Integration Tests (§5.1.2 / §6.5.2)
     // =========================================================================
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-001: Single stream under default limit succeeds")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-001: Single stream under default limit succeeds")]
     public void SingleStream_UnderDefaultLimit_Succeeds()
     {
         var decoder = new Http2FrameDecoder();
@@ -340,7 +340,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(1, frame.StreamId);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-002: Multiple streams under limit all succeed")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-002: Multiple streams under limit all succeed")]
     public void MultipleStreams_UnderLimit_AllSucceed()
     {
         var decoder = new Http2FrameDecoder();
@@ -361,7 +361,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(3, openStreams.Count);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-003: Stream at exact limit is refused")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-003: Stream at exact limit is refused")]
     public void StreamAtExactLimit_IsRefused()
     {
         var maxConcurrent = 2;
@@ -373,7 +373,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(Http2ErrorCode.RefusedStream, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-004: Limit enforcement applies only to new streams")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-004: Limit enforcement applies only to new streams")]
     public void LimitEnforcement_DoesNotAffectExistingStreams()
     {
         var decoder = new Http2FrameDecoder();
@@ -400,7 +400,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Single(openStreams); // Stream 1 closed, stream 3 still open
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-005: Counter decrements on EndStream DATA")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-005: Counter decrements on EndStream DATA")]
     public void CounterDecrement_OnEndStreamData_AllowsNewStream()
     {
         var decoder = new Http2FrameDecoder();
@@ -422,7 +422,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         EnforceMaxConcurrentStreams(openStreams.Count, maxConcurrent, streamId: 3); // Should not throw
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-006: SETTINGS frame updates MaxConcurrentStreams")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-006: SETTINGS frame updates MaxConcurrentStreams")]
     public void SettingsFrame_UpdatesMaxConcurrentStreams()
     {
         var decoder = new Http2FrameDecoder();
@@ -438,7 +438,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(5, currentLimit);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-007: Second SETTINGS updates limit again")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-007: Second SETTINGS updates limit again")]
     public void SecondSettingsFrame_UpdatesLimitAgain()
     {
         var decoder = new Http2FrameDecoder();
@@ -455,7 +455,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(20, currentLimit);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-008: RST_STREAM decrements active stream counter")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-008: RST_STREAM decrements active stream counter")]
     public void RstStream_DecrementsActiveCount()
     {
         var decoder = new Http2FrameDecoder();
@@ -486,7 +486,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Empty(openStreams);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-009: Limit of 1 allows sequential streams")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-009: Limit of 1 allows sequential streams")]
     public void Limit1_AllowsSequentialStreams()
     {
         var decoder = new Http2FrameDecoder();
@@ -502,7 +502,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         EnforceMaxConcurrentStreams(openStreams.Count, maxConcurrent: 1, streamId: 3);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-010: Limit of 0 refuses all new streams")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-010: Limit of 0 refuses all new streams")]
     public void Limit0_RefusesAllStreams()
     {
         var ex = Assert.Throws<Http2Exception>(
@@ -511,7 +511,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(Http2ErrorCode.RefusedStream, ex.ErrorCode);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-011: Multiple streams over limit all throw RefusedStream")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-011: Multiple streams over limit all throw RefusedStream")]
     public void MultipleStreamsOverLimit_AllThrowRefusedStream()
     {
         var maxConcurrent = 1;
@@ -526,7 +526,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         }
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-012: Headers-only response with EndStream")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-012: Headers-only response with EndStream")]
     public void HeadersOnlyResponse_WithEndStream_CountsAsZero()
     {
         var decoder = new Http2FrameDecoder();
@@ -540,7 +540,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-013: Headers+DATA response decrements count")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-013: Headers+DATA response decrements count")]
     public void HeadersPlusData_DecrementsCountCorrectly()
     {
         var decoder = new Http2FrameDecoder();
@@ -561,7 +561,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Single(closedStreams);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-014: Continuation frames do not double-count")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-014: Continuation frames do not double-count")]
     public void ContinuationFrames_DoNotDoubleCountStream()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -588,7 +588,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(1, openStreams.First());
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-015: SETTINGS change doesn't close existing streams")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-015: SETTINGS change doesn't close existing streams")]
     public void SettingsChange_DoesNotCloseExistingStreams()
     {
         var decoder = new Http2FrameDecoder();
@@ -615,7 +615,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(2, openStreams.Count);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-016: Increasing limit allows more streams")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-016: Increasing limit allows more streams")]
     public void IncreasingLimit_AllowsMoreStreams()
     {
         // With limit 2, two streams are open
@@ -626,7 +626,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         EnforceMaxConcurrentStreams(activeCount, newLimit, streamId: 5); // Should not throw
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-017: Decreasing limit allows existing streams to complete")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-017: Decreasing limit allows existing streams to complete")]
     public void DecreasingLimit_ExistingStreamsCanComplete()
     {
         var decoder = new Http2FrameDecoder();
@@ -655,7 +655,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(2, openStreams.Count);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-019: ActiveStreamCount accurate across open/close cycles")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-019: ActiveStreamCount accurate across open/close cycles")]
     public void ActiveStreamCount_AccurateAcrossOpenCloseCycles()
     {
         var decoder = new Http2FrameDecoder();
@@ -707,7 +707,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(5, openStreams.Count);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-020: RST_STREAM on unknown stream doesn't decrement below zero")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-020: RST_STREAM on unknown stream doesn't decrement below zero")]
     public void RstStream_OnUnknownStream_NoDecrement()
     {
         var openStreams = new HashSet<int>();
@@ -725,7 +725,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Empty(openStreams);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-021: SETTINGS ACK frame doesn't modify limit")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-021: SETTINGS ACK frame doesn't modify limit")]
     public void SettingsAck_DoesNotModifyLimit()
     {
         var decoder = new Http2FrameDecoder();
@@ -740,7 +740,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(5, newLimit);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-022: SETTINGS with multiple params applies MaxConcurrentStreams")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-022: SETTINGS with multiple params applies MaxConcurrentStreams")]
     public void SettingsFrame_WithMultipleParams_AppliesMaxConcurrentStreams()
     {
         var decoder = new Http2FrameDecoder();
@@ -758,7 +758,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(7, limit);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-023: Limit enforcement message references RFC 6.5.2")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-023: Limit enforcement message references RFC 6.5.2")]
     public void ExceedingLimit_MessageReferencesRfc()
     {
         var ex = Assert.Throws<Http2Exception>(
@@ -767,7 +767,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Contains("6.5.2", ex.Message);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-024: All streams close via EndStream headers")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-024: All streams close via EndStream headers")]
     public void AllStreams_CloseViaEndStreamHeaders_CountIsZero()
     {
         var decoder = new Http2FrameDecoder();
@@ -790,7 +790,7 @@ public sealed class Http2SettingsMaxConcurrentTests
         Assert.Equal(3, closedStreams.Count);
     }
 
-    [Fact(DisplayName = "RFC-9113-§6.5.2-MCS-INT-025: MaxConcurrentStreams large value handled")]
+    [Fact(DisplayName = "RFC9113-6.5.2-MCS-INT-025: MaxConcurrentStreams large value handled")]
     public void MaxConcurrentStreams_LargeValue_AppliedCorrectly()
     {
         var decoder = new Http2FrameDecoder();

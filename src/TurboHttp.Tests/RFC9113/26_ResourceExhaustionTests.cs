@@ -24,7 +24,7 @@ public sealed class Http2ResourceExhaustionTests
 {
 	// ── RE-01x: SETTINGS Flood ────────────────────────────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§6.5-RE-010: 101st non-ACK SETTINGS frame triggers EnhanceYourCalm flood protection")]
+	[Fact(DisplayName = "RFC9113-6.5-RE-010: 101st non-ACK SETTINGS frame triggers EnhanceYourCalm flood protection")]
 	public void Should_ThrowHttp2Exception_When_101SettingsFramesReceived()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -59,7 +59,7 @@ public sealed class Http2ResourceExhaustionTests
 		Assert.Equal(Http2ErrorCode.EnhanceYourCalm, ex.ErrorCode);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.5-RE-011: Exactly 100 non-ACK SETTINGS frames are accepted without error")]
+	[Fact(DisplayName = "RFC9113-6.5-RE-011: Exactly 100 non-ACK SETTINGS frames are accepted without error")]
 	public void Should_Accept100SettingsFrames_WithoutException()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -82,7 +82,7 @@ public sealed class Http2ResourceExhaustionTests
 		Assert.Equal(100, settingsCount);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.5-RE-012: SETTINGS ACK frames do NOT count toward the flood threshold")]
+	[Fact(DisplayName = "RFC9113-6.5-RE-012: SETTINGS ACK frames do NOT count toward the flood threshold")]
 	public void Should_NotCountSettingsAck_TowardFloodThreshold()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -108,7 +108,7 @@ public sealed class Http2ResourceExhaustionTests
 
 	// ── RE-02x: Rapid Reset Attack (CVE-2023-44487) ───────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§6.4-RE-020: 101st RST_STREAM triggers rapid-reset ProtocolError (CVE-2023-44487)")]
+	[Fact(DisplayName = "RFC9113-6.4-RE-020: 101st RST_STREAM triggers rapid-reset ProtocolError (CVE-2023-44487)")]
 	public void Should_ThrowHttp2Exception_When_101RstStreamReceived()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -145,7 +145,7 @@ public sealed class Http2ResourceExhaustionTests
 		Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.4-RE-021: Exactly 100 RST_STREAM frames are accepted without error")]
+	[Fact(DisplayName = "RFC9113-6.4-RE-021: Exactly 100 RST_STREAM frames are accepted without error")]
 	public void Should_Accept100RstStreamFrames_WithoutException()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -169,7 +169,7 @@ public sealed class Http2ResourceExhaustionTests
 		Assert.Equal(100, rstCount);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.4-RE-022: Rapid-reset exception message references CVE-2023-44487")]
+	[Fact(DisplayName = "RFC9113-6.4-RE-022: Rapid-reset exception message references CVE-2023-44487")]
 	public void Should_IncludeCveReference_InRapidResetMessage()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -196,7 +196,7 @@ public sealed class Http2ResourceExhaustionTests
 
 	// ── RE-03x: CONTINUATION Flood ────────────────────────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§6.10-RE-030: 1000th CONTINUATION frame triggers ProtocolError flood protection")]
+	[Fact(DisplayName = "RFC9113-6.10-RE-030: 1000th CONTINUATION frame triggers ProtocolError flood protection")]
 	public void Should_ThrowHttp2Exception_When_1000ContinuationFramesReceived()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -238,7 +238,7 @@ public sealed class Http2ResourceExhaustionTests
 		Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.10-RE-031: 999 CONTINUATION frames after HEADERS are accepted without error")]
+	[Fact(DisplayName = "RFC9113-6.10-RE-031: 999 CONTINUATION frames after HEADERS are accepted without error")]
 	public void Should_Accept999ContinuationFrames_WithoutException()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -268,7 +268,7 @@ public sealed class Http2ResourceExhaustionTests
 
 	// ── RE-04x: PING Flood (§6.7) ──────────────────────────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§6.7-RE-040: 1001st non-ACK PING frame triggers EnhanceYourCalm flood protection")]
+	[Fact(DisplayName = "RFC9113-6.7-RE-040: 1001st non-ACK PING frame triggers EnhanceYourCalm flood protection")]
 	public void Should_ThrowHttp2Exception_When_1001PingFramesReceived()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -303,7 +303,7 @@ public sealed class Http2ResourceExhaustionTests
 		Assert.Equal(Http2ErrorCode.EnhanceYourCalm, ex.ErrorCode);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.7-RE-041: Exactly 1000 non-ACK PING frames are accepted without error")]
+	[Fact(DisplayName = "RFC9113-6.7-RE-041: Exactly 1000 non-ACK PING frames are accepted without error")]
 	public void Should_Accept1000PingFrames_WithoutException()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -327,7 +327,7 @@ public sealed class Http2ResourceExhaustionTests
 		Assert.Equal(1000, pingCount);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.7-RE-042: PING ACK frames do NOT count toward the flood threshold")]
+	[Fact(DisplayName = "RFC9113-6.7-RE-042: PING ACK frames do NOT count toward the flood threshold")]
 	public void Should_NotCountPingAck_TowardFloodThreshold()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -352,7 +352,7 @@ public sealed class Http2ResourceExhaustionTests
 		Assert.Equal(0, pingCount);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.7-RE-045: PING flood exception message mentions excessive PING frames")]
+	[Fact(DisplayName = "RFC9113-6.7-RE-045: PING flood exception message mentions excessive PING frames")]
 	public void Should_IncludeContextInPingFloodMessage()
 	{
 		var pingCount = 1001;
@@ -363,7 +363,7 @@ public sealed class Http2ResourceExhaustionTests
 
 	// ── RE-05x: Dynamic Table Abuse (HPACK, §6.3) ─────────────────────────────
 
-	[Fact(DisplayName = "RFC-7541-§6.3-RE-050: HPACK dynamic table stays within HEADER_TABLE_SIZE limit")]
+	[Fact(DisplayName = "RFC7541-6.3-RE-050: HPACK dynamic table stays within HEADER_TABLE_SIZE limit")]
 	public void Should_KeepDynamicTableWithinLimit_WhenAddingManyHeaders()
 	{
 		var hpack = new HpackDecoder();
@@ -388,7 +388,7 @@ public sealed class Http2ResourceExhaustionTests
 		hpack.Decode([..fullBlock]);  // must not throw; eviction must have maintained bounds
 	}
 
-	[Fact(DisplayName = "RFC-7541-§6.3-RE-051: HPACK table size update to 0 evicts all entries")]
+	[Fact(DisplayName = "RFC7541-6.3-RE-051: HPACK table size update to 0 evicts all entries")]
 	public void Should_EvictAllEntries_WhenTableSizeSetToZero()
 	{
 		var hpack = new HpackDecoder();
@@ -403,7 +403,7 @@ public sealed class Http2ResourceExhaustionTests
 		hpack.Decode(blockWithUpdate);  // must not throw; table is now empty
 	}
 
-	[Fact(DisplayName = "RFC-7541-§6.3-RE-052: SetMaxAllowedTableSize(0) prevents any dynamic table entries")]
+	[Fact(DisplayName = "RFC7541-6.3-RE-052: SetMaxAllowedTableSize(0) prevents any dynamic table entries")]
 	public void Should_PreventTableGrowth_WhenMaxAllowedTableSizeIsZero()
 	{
 		var hpack = new HpackDecoder();
@@ -418,7 +418,7 @@ public sealed class Http2ResourceExhaustionTests
 
 	// ── RE-06x: Stream ID Exhaustion (§5.1) ────────────────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§5.1-RE-060: Decoder handles 10000+ streams without crash — explicit stream tracking")]
+	[Fact(DisplayName = "RFC9113-5.1-RE-060: Decoder handles 10000+ streams without crash — explicit stream tracking")]
 	public void Should_HandleStreamIdExhaustionWithoutCrash()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -446,7 +446,7 @@ public sealed class Http2ResourceExhaustionTests
 
 	// ── RE-07x: Empty DATA Frame Exhaustion (§6.1) ──────────────────────────────
 
-	[Fact(DisplayName = "RFC-9113-§6.1-RE-070: 10001st zero-length DATA frame triggers ProtocolError exhaustion protection")]
+	[Fact(DisplayName = "RFC9113-6.1-RE-070: 10001st zero-length DATA frame triggers ProtocolError exhaustion protection")]
 	public void Should_ThrowHttp2Exception_When_10001EmptyDataFramesReceived()
 	{
 		var decoder = new Http2FrameDecoder();
@@ -487,7 +487,7 @@ public sealed class Http2ResourceExhaustionTests
 		Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
 	}
 
-	[Fact(DisplayName = "RFC-9113-§6.1-RE-071: Exactly 10000 zero-length DATA frames are accepted without error")]
+	[Fact(DisplayName = "RFC9113-6.1-RE-071: Exactly 10000 zero-length DATA frames are accepted without error")]
 	public void Should_Accept10000EmptyDataFrames_WithoutException()
 	{
 		var decoder = new Http2FrameDecoder();

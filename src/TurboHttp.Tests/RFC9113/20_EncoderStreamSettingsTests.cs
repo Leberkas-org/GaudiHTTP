@@ -6,7 +6,7 @@ namespace TurboHttp.Tests.RFC9113;
 
 public sealed class Http2EncoderStreamSettingsTests
 {
-    [Theory(DisplayName = "enc5-set-001: SETTINGS parameter {param} encoded correctly")]
+    [Theory(DisplayName = "RFC9113-6.5-SET-001: SETTINGS parameter {param} encoded correctly")]
     [InlineData(SettingsParameter.HeaderTableSize, 4096u)]
     [InlineData(SettingsParameter.EnablePush, 0u)]
     [InlineData(SettingsParameter.MaxConcurrentStreams, 100u)]
@@ -26,7 +26,7 @@ public sealed class Http2EncoderStreamSettingsTests
         Assert.Equal(value, val);
     }
 
-    [Fact(DisplayName = "enc5-set-002: SETTINGS ACK frame has type=0x04 flags=0x01 stream=0")]
+    [Fact(DisplayName = "RFC9113-6.5-SET-002: SETTINGS ACK frame has type=0x04 flags=0x01 stream=0")]
     public void SettingsAck_HasCorrectTypeAndFlags()
     {
         var ack = Http2FrameUtils.EncodeSettingsAck();
@@ -36,7 +36,7 @@ public sealed class Http2EncoderStreamSettingsTests
         Assert.Equal(0u, streamId);                             // stream = 0
     }
 
-    [Fact(DisplayName = "7540-5.1-001: First request uses stream ID 1")]
+    [Fact(DisplayName = "RFC9113-5.1-001: First request uses stream ID 1")]
     public void StreamId_FirstRequest_IsOne()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -47,7 +47,7 @@ public sealed class Http2EncoderStreamSettingsTests
         Assert.Equal(1, id);
     }
 
-    [Fact(DisplayName = "enc5-sid-001: Client never produces even stream IDs")]
+    [Fact(DisplayName = "RFC9113-5.1.1-SID-001: Client never produces even stream IDs")]
     public void StreamId_NeverEven()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -62,7 +62,7 @@ public sealed class Http2EncoderStreamSettingsTests
         }
     }
 
-    [Fact(DisplayName = "enc5-sid-002: Stream ID approaching 2^31 handled gracefully")]
+    [Fact(DisplayName = "RFC9113-5.1.1-SID-002: Stream ID approaching 2^31 handled gracefully")]
     public void StreamId_Near2Pow31_ThrowsGracefully()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -85,7 +85,7 @@ public sealed class Http2EncoderStreamSettingsTests
         Assert.Throws<Http2Exception>(() => encoder.Encode(req, ref buf2));
     }
 
-    [Fact(DisplayName = "7540-5.2-enc-001: Encoder does not exceed initial 65535-byte window")]
+    [Fact(DisplayName = "RFC9113-5.2-enc-001: Encoder does not exceed initial 65535-byte window")]
     public void FlowControl_InitialWindow_LimitsToDefault()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -101,7 +101,7 @@ public sealed class Http2EncoderStreamSettingsTests
         Assert.Equal(65535L, totalData);
     }
 
-    [Fact(DisplayName = "7540-5.2-enc-002: WINDOW_UPDATE allows more DATA to be sent")]
+    [Fact(DisplayName = "RFC9113-5.2-enc-002: WINDOW_UPDATE allows more DATA to be sent")]
     public void FlowControl_WindowUpdate_AllowsMoreData()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -125,7 +125,7 @@ public sealed class Http2EncoderStreamSettingsTests
         Assert.Equal(50000L, totalData);
     }
 
-    [Fact(DisplayName = "7540-5.2-enc-005: Encoder blocks when window is zero")]
+    [Fact(DisplayName = "RFC9113-5.2-enc-005: Encoder blocks when window is zero")]
     public void FlowControl_ZeroWindow_BlocksData()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -144,7 +144,7 @@ public sealed class Http2EncoderStreamSettingsTests
         Assert.False(hasNonEmptyData, "Encoder must not emit DATA when connection window is zero");
     }
 
-    [Fact(DisplayName = "7540-5.2-enc-006: Connection-level window limits total DATA")]
+    [Fact(DisplayName = "RFC9113-5.2-enc-006: Connection-level window limits total DATA")]
     public void FlowControl_ConnectionWindow_LimitsTotalData()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);
@@ -167,7 +167,7 @@ public sealed class Http2EncoderStreamSettingsTests
         Assert.Equal(100L, totalData); // exactly 100 bytes sent
     }
 
-    [Fact(DisplayName = "7540-5.2-enc-007: Per-stream window limits DATA on that stream")]
+    [Fact(DisplayName = "RFC9113-5.2-enc-007: Per-stream window limits DATA on that stream")]
     public void FlowControl_PerStreamWindow_LimitsStreamData()
     {
         var encoder = new Http2RequestEncoder(useHuffman: false);

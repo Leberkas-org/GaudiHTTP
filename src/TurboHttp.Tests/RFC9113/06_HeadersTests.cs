@@ -147,7 +147,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-001: Valid minimal response ────────────────────────────────────────
 
     /// RFC 9113 §8.3 — Valid response with only :status is accepted
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-001: Valid response with only :status is accepted")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-001: Valid response with only :status is accepted")]
     public void Should_Accept_When_ValidMinimalResponse()
     {
         var block = MakeHeaderBlock((":status", "200"));
@@ -159,7 +159,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-002: Valid response with :status + regular headers ─────────────────
 
     /// RFC 9113 §8.3 — Valid response with :status then regular headers is accepted
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-002: Valid response with :status then regular headers is accepted")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-002: Valid response with :status then regular headers is accepted")]
     public void Should_Accept_When_StatusFollowedByRegularHeaders()
     {
         var block = MakeHeaderBlock((":status", "200"), ("content-type", "text/plain"));
@@ -171,7 +171,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-003: Missing :status pseudo-header ─────────────────────────────────
 
     /// RFC 9113 §8.3 — Missing :status pseudo-header is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-003: Missing :status pseudo-header is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-003: Missing :status pseudo-header is PROTOCOL_ERROR")]
     public void Should_Throw_When_StatusPseudoHeaderMissing()
     {
         var block = MakeHeaderBlock(("content-type", "text/plain"));
@@ -185,7 +185,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-004: Duplicate :status pseudo-header ───────────────────────────────
 
     /// RFC 9113 §8.3 — Duplicate :status pseudo-header is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-004: Duplicate :status pseudo-header is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-004: Duplicate :status pseudo-header is PROTOCOL_ERROR")]
     public void Should_Throw_When_StatusPseudoHeaderDuplicated()
     {
         // Build raw header block with two literal :status entries (never-index form = 0x10).
@@ -217,7 +217,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-005: Request pseudo-header :method in response is PROTOCOL_ERROR ──
 
     /// RFC 9113 §8.3 — Request pseudo-header :method in response is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-005: Request pseudo-header :method in response is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-005: Request pseudo-header :method in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_MethodPseudoHeaderInResponse()
     {
         var block = MakeHeaderBlock((":status", "200"), (":method", "GET"));
@@ -231,7 +231,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-006: Request pseudo-header :path in response is PROTOCOL_ERROR ────
 
     /// RFC 9113 §8.3 — Request pseudo-header :path in response is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-006: Request pseudo-header :path in response is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-006: Request pseudo-header :path in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_PathPseudoHeaderInResponse()
     {
         var block = MakeHeaderBlock((":status", "200"), (":path", "/"));
@@ -245,7 +245,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-007: Request pseudo-header :scheme in response is PROTOCOL_ERROR ──
 
     /// RFC 9113 §8.3 — Request pseudo-header :scheme in response is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-007: Request pseudo-header :scheme in response is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-007: Request pseudo-header :scheme in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_SchemePseudoHeaderInResponse()
     {
         var block = MakeHeaderBlock((":status", "200"), (":scheme", "https"));
@@ -259,7 +259,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-008: Request pseudo-header :authority in response is PROTOCOL_ERROR
 
     /// RFC 9113 §8.3 — Request pseudo-header :authority in response is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-008: Request pseudo-header :authority in response is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-008: Request pseudo-header :authority in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_AuthorityPseudoHeaderInResponse()
     {
         var block = MakeHeaderBlock((":status", "200"), (":authority", "example.com"));
@@ -273,7 +273,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-009: Unknown pseudo-header is PROTOCOL_ERROR ──────────────────────
 
     /// RFC 9113 §8.3 — Unknown pseudo-header is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-009: Unknown pseudo-header in response is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-009: Unknown pseudo-header in response is PROTOCOL_ERROR")]
     public void Should_Throw_When_UnknownPseudoHeaderInResponse()
     {
         var nameBytes = System.Text.Encoding.Latin1.GetBytes(":status");
@@ -304,7 +304,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-010: Pseudo-header after regular header is PROTOCOL_ERROR ──────────
 
     /// RFC 9113 §8.3 — Pseudo-header :status after regular header is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-010: Pseudo-header :status after regular header is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-010: Pseudo-header :status after regular header is PROTOCOL_ERROR")]
     public void Should_Throw_When_PseudoHeaderAfterRegularHeader()
     {
         var regularName = System.Text.Encoding.Latin1.GetBytes("content-type");
@@ -336,7 +336,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-011: Uppercase header name is PROTOCOL_ERROR ──────────────────────
 
     /// RFC 9113 §8.2 — Uppercase header name is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-HV-011: Uppercase header name is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-HV-011: Uppercase header name is PROTOCOL_ERROR")]
     public void Should_Throw_When_UppercaseHeaderName()
     {
         var statusName = System.Text.Encoding.Latin1.GetBytes(":status");
@@ -367,7 +367,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-012: Uppercase in pseudo-header is PROTOCOL_ERROR ─────────────────
 
     /// RFC 9113 §8.2 — Uppercase in pseudo-header name is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-HV-012: Uppercase in pseudo-header name is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-HV-012: Uppercase in pseudo-header name is PROTOCOL_ERROR")]
     public void Should_Throw_When_UppercaseInPseudoHeaderName()
     {
         var badName = System.Text.Encoding.Latin1.GetBytes(":Status");
@@ -387,7 +387,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-013: connection header is forbidden ────────────────────────────────
 
     /// RFC 9113 §8.2.2 — 'connection' header is PROTOCOL_ERROR in HTTP/2
-    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-013: 'connection' header is PROTOCOL_ERROR in HTTP/2")]
+    [Fact(DisplayName = "RFC9113-8.2.2-HV-013: 'connection' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_ConnectionHeaderPresent()
     {
         var block = MakeHeaderBlock((":status", "200"), ("connection", "keep-alive"));
@@ -401,7 +401,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-014: keep-alive header is forbidden ────────────────────────────────
 
     /// RFC 9113 §8.2.2 — 'keep-alive' header is PROTOCOL_ERROR in HTTP/2
-    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-014: 'keep-alive' header is PROTOCOL_ERROR in HTTP/2")]
+    [Fact(DisplayName = "RFC9113-8.2.2-HV-014: 'keep-alive' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_KeepAliveHeaderPresent()
     {
         var block = MakeHeaderBlock((":status", "200"), ("keep-alive", "timeout=5"));
@@ -415,7 +415,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-015: proxy-connection header is forbidden ──────────────────────────
 
     /// RFC 9113 §8.2.2 — 'proxy-connection' header is PROTOCOL_ERROR in HTTP/2
-    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-015: 'proxy-connection' header is PROTOCOL_ERROR in HTTP/2")]
+    [Fact(DisplayName = "RFC9113-8.2.2-HV-015: 'proxy-connection' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_ProxyConnectionHeaderPresent()
     {
         var block = MakeHeaderBlock((":status", "200"), ("proxy-connection", "keep-alive"));
@@ -429,7 +429,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-016: transfer-encoding header is forbidden ─────────────────────────
 
     /// RFC 9113 §8.2.2 — 'transfer-encoding' header is PROTOCOL_ERROR in HTTP/2
-    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-016: 'transfer-encoding' header is PROTOCOL_ERROR in HTTP/2")]
+    [Fact(DisplayName = "RFC9113-8.2.2-HV-016: 'transfer-encoding' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_TransferEncodingHeaderPresent()
     {
         var block = MakeHeaderBlock((":status", "200"), ("transfer-encoding", "chunked"));
@@ -443,7 +443,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-017: upgrade header is forbidden ───────────────────────────────────
 
     /// RFC 9113 §8.2.2 — 'upgrade' header is PROTOCOL_ERROR in HTTP/2
-    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-017: 'upgrade' header is PROTOCOL_ERROR in HTTP/2")]
+    [Fact(DisplayName = "RFC9113-8.2.2-HV-017: 'upgrade' header is PROTOCOL_ERROR in HTTP/2")]
     public void Should_Throw_When_UpgradeHeaderPresent()
     {
         var block = MakeHeaderBlock((":status", "200"), ("upgrade", "h2c"));
@@ -457,7 +457,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-018: Valid response with multiple regular headers ──────────────────
 
     /// RFC 9113 §8.2 — Valid response with :status and multiple regular headers is accepted
-    [Fact(DisplayName = "RFC-9113-§8.2-HV-018: Valid response with :status and multiple regular headers is accepted")]
+    [Fact(DisplayName = "RFC9113-8.2-HV-018: Valid response with :status and multiple regular headers is accepted")]
     public void Should_Accept_When_MultipleRegularHeadersAfterStatus()
     {
         var block = MakeHeaderBlock(
@@ -474,7 +474,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-019: Valid 404 response ────────────────────────────────────────────
 
     /// RFC 9113 §8.3 — Valid 404 response is accepted
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-019: Valid 404 response is accepted")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-019: Valid 404 response is accepted")]
     public void Should_Accept_When_Status404()
     {
         var block = MakeHeaderBlock((":status", "404"));
@@ -486,7 +486,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-020: Valid 301 redirect response ───────────────────────────────────
 
     /// RFC 9113 §8.3 — Valid 301 redirect response with location header is accepted
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-020: Valid 301 redirect response with location header is accepted")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-020: Valid 301 redirect response with location header is accepted")]
     public void Should_Accept_When_Status301WithLocationHeader()
     {
         var block = MakeHeaderBlock((":status", "301"), ("location", "https://example.com/new"));
@@ -498,7 +498,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-021: Error message includes header name ────────────────────────────
 
     /// RFC 9113 §8.2 — PROTOCOL_ERROR message for uppercase includes the offending header name
-    [Fact(DisplayName = "RFC-9113-§8.2-HV-021: PROTOCOL_ERROR message for uppercase includes the offending header name")]
+    [Fact(DisplayName = "RFC9113-8.2-HV-021: PROTOCOL_ERROR message for uppercase includes the offending header name")]
     public void Should_IncludeHeaderName_In_UppercaseErrorMessage()
     {
         var statusBytes = System.Text.Encoding.Latin1.GetBytes(":status");
@@ -528,7 +528,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-022: Error message for connection-specific includes header name ─────
 
     /// RFC 9113 §8.2.2 — PROTOCOL_ERROR message for connection-specific includes the header name
-    [Fact(DisplayName = "RFC-9113-§8.2.2-HV-022: PROTOCOL_ERROR message for connection-specific header includes name and 'forbidden'")]
+    [Fact(DisplayName = "RFC9113-8.2.2-HV-022: PROTOCOL_ERROR message for connection-specific header includes name and 'forbidden'")]
     public void Should_IncludeHeaderName_In_ConnectionSpecificErrorMessage()
     {
         var block = MakeHeaderBlock((":status", "200"), ("transfer-encoding", "chunked"));
@@ -542,7 +542,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-023: CONTINUATION frames — validation applies to full header block ─
 
     /// RFC 9113 §8.2 — Validation applies to reassembled header block from CONTINUATION frames
-    [Fact(DisplayName = "RFC-9113-§8.2-HV-023: Validation applies to reassembled headers from CONTINUATION frames")]
+    [Fact(DisplayName = "RFC9113-8.2-HV-023: Validation applies to reassembled headers from CONTINUATION frames")]
     public void Should_Throw_When_UppercaseInContinuationHeaderBlock()
     {
         // HEADERS (no END_HEADERS) carries :status 200.
@@ -574,7 +574,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-024: Multiple streams — each validated independently ───────────────
 
     /// RFC 9113 §8.2 — Each stream's header block is validated independently
-    [Fact(DisplayName = "RFC-9113-§8.2-HV-024: Each stream's header block is validated independently")]
+    [Fact(DisplayName = "RFC9113-8.2-HV-024: Each stream's header block is validated independently")]
     public void Should_Throw_On_SecondStream_When_SecondStreamHasMissingStatus()
     {
         // Stream 1: valid response.
@@ -593,7 +593,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-025: 1xx informational response ───────────────────────────────────
 
     /// RFC 9113 §8.3 — Valid :status 100 (1xx informational) is accepted
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-025: Valid 100 Continue response (:status 100) is accepted")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-025: Valid 100 Continue response (:status 100) is accepted")]
     public void Should_Accept_When_Status100Informational()
     {
         var block = MakeHeaderBlock((":status", "100"));
@@ -605,7 +605,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-026: All-lowercase valid custom header ─────────────────────────────
 
     /// RFC 9113 §8.2 — All-lowercase custom header names are accepted
-    [Fact(DisplayName = "RFC-9113-§8.2-HV-026: All-lowercase custom header names are accepted")]
+    [Fact(DisplayName = "RFC9113-8.2-HV-026: All-lowercase custom header names are accepted")]
     public void Should_Accept_When_AllLowercaseCustomHeader()
     {
         var block = MakeHeaderBlock(
@@ -621,7 +621,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-027: Uppercase in middle of name ──────────────────────────────────
 
     /// RFC 9113 §8.2 — Header name with uppercase in the middle is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-HV-027: Header name with uppercase in the middle is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-HV-027: Header name with uppercase in the middle is PROTOCOL_ERROR")]
     public void Should_Throw_When_UppercaseInMiddleOfHeaderName()
     {
         var statusBytes = System.Text.Encoding.Latin1.GetBytes(":status");
@@ -651,7 +651,7 @@ public sealed class Http2DecoderHeadersValidationTests
     // ── HV-028: Empty header block is PROTOCOL_ERROR ─────────────────────────
 
     /// RFC 9113 §8.3 — Empty header block (no :status) is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.3-HV-028: Empty header block with no :status is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.3-HV-028: Empty header block with no :status is PROTOCOL_ERROR")]
     public void Should_Throw_When_HeaderBlockIsEmpty()
     {
         // Decode an empty block — no headers at all.

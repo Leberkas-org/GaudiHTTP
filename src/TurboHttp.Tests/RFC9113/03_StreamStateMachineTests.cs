@@ -97,7 +97,7 @@ public sealed class Http2StreamStateMachineTests
     // =========================================================================
 
     /// RFC 9113 §5.1 — Idle→Open: HEADERS without END_STREAM decoded as open-stream frame
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-001: Idle→Open — HEADERS (no END_STREAM) decoded correctly")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-001: Idle→Open — HEADERS (no END_STREAM) decoded correctly")]
     public void Headers_NoEndStream_DecodedAsHeadersFrame()
     {
         var decoder = new Http2FrameDecoder();
@@ -112,7 +112,7 @@ public sealed class Http2StreamStateMachineTests
     }
 
     /// RFC 9113 §5.1 — HEADERS+END_STREAM decoded with both flags set
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-002: HEADERS+END_STREAM decoded with EndStream flag set")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-002: HEADERS+END_STREAM decoded with EndStream flag set")]
     public void Headers_WithEndStream_DecodedWithEndStreamFlag()
     {
         var decoder = new Http2FrameDecoder();
@@ -126,7 +126,7 @@ public sealed class Http2StreamStateMachineTests
     }
 
     /// RFC 9113 §5.1 — Open→Closed: DATA+END_STREAM decoded with END_STREAM flag
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-003: Open→Closed — DATA+END_STREAM decoded with EndStream flag")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-003: Open→Closed — DATA+END_STREAM decoded with EndStream flag")]
     public void Data_WithEndStream_DecodedWithEndStreamFlag()
     {
         var decoder = new Http2FrameDecoder();
@@ -142,7 +142,7 @@ public sealed class Http2StreamStateMachineTests
     }
 
     /// RFC 9113 §5.1 — DATA without END_STREAM keeps stream open
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-004: DATA without END_STREAM decoded with EndStream=false")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-004: DATA without END_STREAM decoded with EndStream=false")]
     public void Data_NoEndStream_DecodedWithEndStreamFalse()
     {
         var decoder = new Http2FrameDecoder();
@@ -160,7 +160,7 @@ public sealed class Http2StreamStateMachineTests
     // =========================================================================
 
     /// RFC 9113 §5.1 / §6.4 — RST_STREAM decoded with correct ErrorCode and StreamId
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-005: RST_STREAM decoded with correct StreamId and ErrorCode")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-005: RST_STREAM decoded with correct StreamId and ErrorCode")]
     public void RstStream_DecodedWithCorrectFields()
     {
         var decoder = new Http2FrameDecoder();
@@ -174,7 +174,7 @@ public sealed class Http2StreamStateMachineTests
     }
 
     /// RFC 9113 §5.1 — HEADERS+DATA+END_STREAM sequence decoded in order
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-006: HEADERS followed by DATA+END_STREAM decoded as two frames")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-006: HEADERS followed by DATA+END_STREAM decoded as two frames")]
     public void Headers_ThenDataEndStream_DecodedAsSequence()
     {
         var decoder = new Http2FrameDecoder();
@@ -194,7 +194,7 @@ public sealed class Http2StreamStateMachineTests
     }
 
     /// RFC 9113 §5.1 — Frames for different streams decoded with independent StreamIds
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-007: Frames for streams 1 and 3 carry independent StreamIds")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-007: Frames for streams 1 and 3 carry independent StreamIds")]
     public void Frames_ForDifferentStreams_HaveIndependentStreamIds()
     {
         var decoder = new Http2FrameDecoder();
@@ -214,7 +214,7 @@ public sealed class Http2StreamStateMachineTests
     // =========================================================================
 
     /// RFC 9113 §5.1 / RFC 7541 — HPACK-encoded :status header decoded from HEADERS fragment
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-008: HPACK-encoded :status in HEADERS fragment decoded correctly")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-008: HPACK-encoded :status in HEADERS fragment decoded correctly")]
     public void Headers_HpackFragment_DecodedByHpackDecoder()
     {
         var hpack = new HpackEncoder(useHuffman: false);
@@ -239,7 +239,7 @@ public sealed class Http2StreamStateMachineTests
     // =========================================================================
 
     /// RFC 9113 §5.1 — HEADERS on stream 0 is a connection PROTOCOL_ERROR.
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-009: HEADERS on stream 0 is connection PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-009: HEADERS on stream 0 is connection PROTOCOL_ERROR")]
     public void Headers_OnStream0_IsProtocolError()
     {
         var decoder = new Http2FrameDecoder();
@@ -256,7 +256,7 @@ public sealed class Http2StreamStateMachineTests
     }
 
     /// RFC 9113 §5.1 — DATA on stream 0 is a connection PROTOCOL_ERROR.
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-010: DATA on stream 0 is connection PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-010: DATA on stream 0 is connection PROTOCOL_ERROR")]
     public void Data_OnStream0_IsProtocolError()
     {
         // Build a raw DATA frame with stream ID = 0 (bypasses frame constructor defaults).
@@ -285,7 +285,7 @@ public sealed class Http2StreamStateMachineTests
     // =========================================================================
 
     /// RFC 9113 §5.1 — DATA on idle stream (no prior HEADERS) is connection PROTOCOL_ERROR.
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-011: DATA on idle stream (no HEADERS) is connection PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-011: DATA on idle stream (no HEADERS) is connection PROTOCOL_ERROR")]
     public void Data_OnIdleStream_IsProtocolError()
     {
         var decoder = new Http2FrameDecoder();
@@ -303,7 +303,7 @@ public sealed class Http2StreamStateMachineTests
     }
 
     /// RFC 9113 §6.1 — DATA on closed stream (after END_STREAM) is STREAM_CLOSED stream error.
-    [Fact(DisplayName = "RFC-9113-§5.1-SS-012: DATA on closed stream (after END_STREAM) is STREAM_CLOSED error")]
+    [Fact(DisplayName = "RFC9113-5.1-SS-012: DATA on closed stream (after END_STREAM) is STREAM_CLOSED error")]
     public void Data_OnClosedStream_IsStreamClosedError()
     {
         var decoder = new Http2FrameDecoder();

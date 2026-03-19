@@ -27,7 +27,7 @@ public sealed class Http2FlowControlTests
     // =========================================================================
 
     /// RFC 9113 §6.9 — WINDOW_UPDATE on stream 0 decoded with correct StreamId
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-001: WINDOW_UPDATE on stream 0 decoded with correct StreamId")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-001: WINDOW_UPDATE on stream 0 decoded with correct StreamId")]
     public void WindowUpdate_Stream0_HasCorrectStreamId()
     {
         var bytes = new WindowUpdateFrame(0, 1000).Serialize();
@@ -40,7 +40,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — WINDOW_UPDATE on stream 0 decoded with correct Increment
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-002: WINDOW_UPDATE on stream 0 decoded with correct Increment")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-002: WINDOW_UPDATE on stream 0 decoded with correct Increment")]
     public void WindowUpdate_Stream0_HasCorrectIncrement()
     {
         var bytes = new WindowUpdateFrame(0, 32768).Serialize();
@@ -53,7 +53,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — WINDOW_UPDATE on stream 0 has correct FrameType
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-003: WINDOW_UPDATE on stream 0 has correct FrameType")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-003: WINDOW_UPDATE on stream 0 has correct FrameType")]
     public void WindowUpdate_Stream0_HasCorrectFrameType()
     {
         var bytes = new WindowUpdateFrame(0, 1).Serialize();
@@ -66,7 +66,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Multiple connection-level WINDOW_UPDATEs decoded as independent frames
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-004: Multiple connection-level WINDOW_UPDATEs decoded independently")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-004: Multiple connection-level WINDOW_UPDATEs decoded independently")]
     public void WindowUpdate_MultipleStream0_DecodedAsIndependentFrames()
     {
         var wu1 = new WindowUpdateFrame(0, 1000).Serialize();
@@ -86,7 +86,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Connection WINDOW_UPDATE with minimum valid increment (1) accepted
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-005: Connection WINDOW_UPDATE with increment=1 accepted")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-005: Connection WINDOW_UPDATE with increment=1 accepted")]
     public void WindowUpdate_Stream0_IncrementOne_Accepted()
     {
         var bytes = new WindowUpdateFrame(0, 1).Serialize();
@@ -99,7 +99,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Connection WINDOW_UPDATE with maximum valid increment (0x7FFFFFFF) accepted
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-006: Connection WINDOW_UPDATE with max increment accepted")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-006: Connection WINDOW_UPDATE with max increment accepted")]
     public void WindowUpdate_Stream0_MaxIncrement_Accepted()
     {
         var bytes = new WindowUpdateFrame(0, 0x7FFFFFFF).Serialize();
@@ -116,7 +116,7 @@ public sealed class Http2FlowControlTests
     // =========================================================================
 
     /// RFC 9113 §6.9 — WINDOW_UPDATE on stream 1 decoded with correct StreamId
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-007: WINDOW_UPDATE on stream 1 decoded with correct StreamId")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-007: WINDOW_UPDATE on stream 1 decoded with correct StreamId")]
     public void WindowUpdate_Stream1_HasCorrectStreamId()
     {
         var bytes = new WindowUpdateFrame(1, 2000).Serialize();
@@ -129,7 +129,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — WINDOW_UPDATE on stream 3 decoded with correct Increment
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-008: WINDOW_UPDATE on stream 3 decoded with correct Increment")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-008: WINDOW_UPDATE on stream 3 decoded with correct Increment")]
     public void WindowUpdate_Stream3_HasCorrectIncrement()
     {
         var bytes = new WindowUpdateFrame(3, 65535).Serialize();
@@ -143,7 +143,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Mixed stream-0 and stream-N WINDOW_UPDATEs decoded independently
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-009: Mixed stream-0 and stream-N WINDOW_UPDATEs decoded independently")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-009: Mixed stream-0 and stream-N WINDOW_UPDATEs decoded independently")]
     public void WindowUpdate_Mixed_Stream0AndStreamN_DecodedIndependently()
     {
         var wu0 = new WindowUpdateFrame(0, 100).Serialize();
@@ -167,7 +167,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Stream WINDOW_UPDATE with large stream ID decoded correctly
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-010: Stream WINDOW_UPDATE with large stream ID decoded correctly")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-010: Stream WINDOW_UPDATE with large stream ID decoded correctly")]
     public void WindowUpdate_LargeStreamId_DecodedCorrectly()
     {
         var bytes = new WindowUpdateFrame(0x7FFFFFFE, 1024).Serialize();
@@ -181,7 +181,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Stream WINDOW_UPDATE with minimum increment (1) accepted
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-011: Stream WINDOW_UPDATE with increment=1 accepted")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-011: Stream WINDOW_UPDATE with increment=1 accepted")]
     public void WindowUpdate_StreamN_IncrementOne_Accepted()
     {
         var bytes = new WindowUpdateFrame(5, 1).Serialize();
@@ -195,7 +195,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Stream WINDOW_UPDATE with maximum increment (0x7FFFFFFF) accepted
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-012: Stream WINDOW_UPDATE with max increment accepted")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-012: Stream WINDOW_UPDATE with max increment accepted")]
     public void WindowUpdate_StreamN_MaxIncrement_Accepted()
     {
         var bytes = new WindowUpdateFrame(7, 0x7FFFFFFF).Serialize();
@@ -213,7 +213,7 @@ public sealed class Http2FlowControlTests
     // =========================================================================
 
     /// RFC 9113 §6.9 — Reserved high bit of increment field is stripped on decode
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-013: Reserved high bit of increment field stripped on decode")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-013: Reserved high bit of increment field stripped on decode")]
     public void WindowUpdate_ReservedHighBit_StrippedOnDecode()
     {
         // Build raw WINDOW_UPDATE with high bit set: 0x80000001 → increment should be 1
@@ -234,7 +234,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — WINDOW_UPDATE round-trip on stream 0 preserves all fields
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-014: WINDOW_UPDATE round-trip on stream 0 preserves fields")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-014: WINDOW_UPDATE round-trip on stream 0 preserves fields")]
     public void WindowUpdate_RoundTrip_Stream0_PreservesFields()
     {
         var original = new WindowUpdateFrame(0, 131072);
@@ -249,7 +249,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — WINDOW_UPDATE round-trip on stream N preserves all fields
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-015: WINDOW_UPDATE round-trip on stream N preserves fields")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-015: WINDOW_UPDATE round-trip on stream N preserves fields")]
     public void WindowUpdate_RoundTrip_StreamN_PreservesFields()
     {
         var original = new WindowUpdateFrame(9, 4096);
@@ -264,7 +264,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — TCP-fragmented WINDOW_UPDATE decoded correctly across two calls
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-016: TCP-fragmented WINDOW_UPDATE decoded across two calls")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-016: TCP-fragmented WINDOW_UPDATE decoded across two calls")]
     public void WindowUpdate_TcpFragmented_DecodedAcrossTwoCalls()
     {
         var bytes = new WindowUpdateFrame(0, 8192).Serialize(); // 13 bytes total
@@ -287,7 +287,7 @@ public sealed class Http2FlowControlTests
     // =========================================================================
 
     /// RFC 9113 §6.9 — Zero increment on stream 0 is connection PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-017: Zero increment on stream 0 is connection PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-017: Zero increment on stream 0 is connection PROTOCOL_ERROR")]
     public void WindowUpdate_ZeroIncrement_Stream0_IsProtocolError()
     {
         var rawFrame = new byte[]
@@ -305,7 +305,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Zero increment on stream N is connection PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-018: Zero increment on stream N is connection PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-018: Zero increment on stream N is connection PROTOCOL_ERROR")]
     public void WindowUpdate_ZeroIncrement_StreamN_IsProtocolError()
     {
         var rawFrame = new byte[]
@@ -323,7 +323,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — WINDOW_UPDATE with wrong payload size is FRAME_SIZE_ERROR
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-WU-019: WINDOW_UPDATE with wrong payload size is FRAME_SIZE_ERROR")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-WU-019: WINDOW_UPDATE with wrong payload size is FRAME_SIZE_ERROR")]
     public void WindowUpdate_WrongPayloadSize_IsFrameSizeError()
     {
         var rawFrame = new byte[]
@@ -345,7 +345,7 @@ public sealed class Http2FlowControlTests
     // =========================================================================
 
     /// RFC 9113 §6.9 — DATA frame decoded with correct stream ID and payload
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-DF-001: DATA frame decoded with correct StreamId and data")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-DF-001: DATA frame decoded with correct StreamId and data")]
     public void DataFrame_DecodedWithCorrectStreamIdAndData()
     {
         var data = new byte[] { 1, 2, 3, 4, 5 };
@@ -360,7 +360,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — DATA frame with END_STREAM decoded with EndStream=true
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-DF-002: DATA frame with END_STREAM decoded with EndStream=true")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-DF-002: DATA frame with END_STREAM decoded with EndStream=true")]
     public void DataFrame_WithEndStream_DecodedAsEndStream()
     {
         var data = new byte[10];
@@ -375,7 +375,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — DATA frame without END_STREAM decoded with EndStream=false
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-DF-003: DATA frame without END_STREAM decoded with EndStream=false")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-DF-003: DATA frame without END_STREAM decoded with EndStream=false")]
     public void DataFrame_WithoutEndStream_DecodedAsNotEndStream()
     {
         var data = new byte[10];
@@ -389,7 +389,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Zero-length DATA frame decoded correctly
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-DF-004: Zero-length DATA frame decoded correctly")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-DF-004: Zero-length DATA frame decoded correctly")]
     public void DataFrame_ZeroLength_DecodedCorrectly()
     {
         var bytes = new DataFrame(1, ReadOnlyMemory<byte>.Empty, endStream: true).Serialize();
@@ -403,7 +403,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — DATA frame round-trip preserves StreamId, Data, and EndStream
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-DF-005: DATA frame round-trip preserves all fields")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-DF-005: DATA frame round-trip preserves all fields")]
     public void DataFrame_RoundTrip_PreservesAllFields()
     {
         var data = new byte[] { 0xDE, 0xAD, 0xBE, 0xEF };
@@ -420,7 +420,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — WINDOW_UPDATE followed by DATA decoded as two frames in order
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-DF-006: WINDOW_UPDATE followed by DATA decoded as two frames in order")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-DF-006: WINDOW_UPDATE followed by DATA decoded as two frames in order")]
     public void WindowUpdateThenDataFrame_DecodedInOrder()
     {
         var wu = new WindowUpdateFrame(1, 65535).Serialize();
@@ -436,7 +436,7 @@ public sealed class Http2FlowControlTests
     }
 
     /// RFC 9113 §6.9 — Large DATA payload decoded with correct length
-    [Fact(DisplayName = "RFC-9113-§6.9-FC-DF-007: Large DATA payload decoded with correct length")]
+    [Fact(DisplayName = "RFC9113-6.9-FC-DF-007: Large DATA payload decoded with correct length")]
     public void DataFrame_LargePayload_DecodedCorrectly()
     {
         var data = new byte[16384]; // 16 KB

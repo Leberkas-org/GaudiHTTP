@@ -124,7 +124,7 @@ public sealed class Http2ContinuationFrameTests
     // ── Enforce END_HEADERS ──────────────────────────────────────────────────
 
     /// RFC 9113 §8.2 / §6.10 — HEADERS with END_HEADERS flag set completes immediately
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-001: HEADERS with END_HEADERS decoded with EndHeaders=true")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-001: HEADERS with END_HEADERS decoded with EndHeaders=true")]
     public void Should_HaveEndHeadersTrue_When_HeadersHasEndHeadersSet()
     {
         var block = EncodeBlock((":status", "200"));
@@ -145,7 +145,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — HEADERS without END_HEADERS decoded with EndHeaders=false
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-002: HEADERS without END_HEADERS decoded with EndHeaders=false")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-002: HEADERS without END_HEADERS decoded with EndHeaders=false")]
     public void Should_HaveEndHeadersFalse_When_HeadersLacksEndHeaders()
     {
         var block = EncodeBlock((":status", "200"));
@@ -161,7 +161,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — Single CONTINUATION with END_HEADERS completes the header block
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-003: Single CONTINUATION with END_HEADERS completes header block")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-003: Single CONTINUATION with END_HEADERS completes header block")]
     public void Should_DecodeCorrectly_When_ContinuationHasEndHeaders()
     {
         var block = EncodeBlock((":status", "200"));
@@ -185,7 +185,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — CONTINUATION without END_HEADERS does not complete the block
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-004: CONTINUATION without END_HEADERS has EndHeaders=false")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-004: CONTINUATION without END_HEADERS has EndHeaders=false")]
     public void Should_HaveEndHeadersFalse_When_ContinuationLacksEndHeaders()
     {
         var block = EncodeBlock((":status", "200"));
@@ -202,7 +202,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — Three CONTINUATION frames with last having END_HEADERS
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-005: Three CONTINUATION frames with last END_HEADERS assembles correctly")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-005: Three CONTINUATION frames with last END_HEADERS assembles correctly")]
     public void Should_AssembleBlock_When_ThreeContinuationFramesComplete()
     {
         var block = EncodeBlock((":status", "200"), ("x-a", "1"), ("x-b", "2"), ("x-c", "3"));
@@ -225,7 +225,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — Header values preserved across multiple CONTINUATION fragments
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-006: Header values preserved across multiple CONTINUATION fragments")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-006: Header values preserved across multiple CONTINUATION fragments")]
     public void Should_PreserveHeaderValues_When_SplitAcrossContinuationFrames()
     {
         var block = EncodeBlock((":status", "201"), ("content-type", "application/json"), ("x-custom", "hello"));
@@ -248,7 +248,7 @@ public sealed class Http2ContinuationFrameTests
     // ── Require contiguous CONTINUATION frames ───────────────────────────────
 
     /// RFC 9113 §6.10 — DATA frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-007: DATA frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-007: DATA frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_DataFrameInterleavesContinuation()
     {
         var block = EncodeBlock((":status", "200"));
@@ -274,7 +274,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — PING frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-008: PING frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-008: PING frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_PingInterleavesContinuation()
     {
         var block = EncodeBlock((":status", "200"));
@@ -292,7 +292,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — SETTINGS frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-009: SETTINGS frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-009: SETTINGS frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_SettingsInterleavesContinuation()
     {
         var block = EncodeBlock((":status", "200"));
@@ -310,7 +310,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — RST_STREAM frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-010: RST_STREAM frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-010: RST_STREAM frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_RstStreamInterleavesContinuation()
     {
         var block = EncodeBlock((":status", "200"));
@@ -328,7 +328,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — WINDOW_UPDATE frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-011: WINDOW_UPDATE frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-011: WINDOW_UPDATE frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_WindowUpdateInterleavesContinuation()
     {
         var block = EncodeBlock((":status", "200"));
@@ -346,7 +346,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — GOAWAY frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-012: GOAWAY frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-012: GOAWAY frame interleaved while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_GoAwayInterleavesContinuation()
     {
         var block = EncodeBlock((":status", "200"));
@@ -364,7 +364,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — HEADERS on a different stream while awaiting CONTINUATION is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-013: HEADERS on different stream while awaiting CONTINUATION is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-013: HEADERS on different stream while awaiting CONTINUATION is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_HeadersForOtherStreamInterleavesContinuation()
     {
         var block = EncodeBlock((":status", "200"));
@@ -384,7 +384,7 @@ public sealed class Http2ContinuationFrameTests
     // ── Reject orphaned CONTINUATION frames ──────────────────────────────────
 
     /// RFC 9113 §6.10 — CONTINUATION on stream 0 is decoded with StreamId=0; treated as wrong stream
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-014: CONTINUATION on stream 0 while awaiting stream 1 is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-014: CONTINUATION on stream 0 while awaiting stream 1 is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_ContinuationOnStream0()
     {
         var block = EncodeBlock((":status", "200"));
@@ -410,7 +410,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — CONTINUATION on different stream than HEADERS is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-015: CONTINUATION on stream 3 while awaiting stream 1 is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-015: CONTINUATION on stream 3 while awaiting stream 1 is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_ContinuationOnDifferentStream()
     {
         var block = EncodeBlock((":status", "200"));
@@ -428,7 +428,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — CONTINUATION without preceding HEADERS is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-016: CONTINUATION without preceding HEADERS is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-016: CONTINUATION without preceding HEADERS is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_ContinuationWithoutPrecedingHeaders()
     {
         var block = EncodeBlock((":status", "200"));
@@ -443,7 +443,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — CONTINUATION after completed header block (after END_HEADERS) is PROTOCOL_ERROR
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-017: CONTINUATION after completed header block is PROTOCOL_ERROR")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-017: CONTINUATION after completed header block is PROTOCOL_ERROR")]
     public void Should_ThrowProtocolError_When_ContinuationAfterCompletedHeaderBlock()
     {
         var block = EncodeBlock((":status", "200"));
@@ -463,7 +463,7 @@ public sealed class Http2ContinuationFrameTests
     // ── Combined delivery ─────────────────────────────────────────────────────
 
     /// RFC 9113 §8.2 / §6.10 — HEADERS and CONTINUATION in same byte buffer are decoded together
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-018: HEADERS and CONTINUATION in same Decode call are decoded together")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-018: HEADERS and CONTINUATION in same Decode call are decoded together")]
     public void Should_DecodeBothFrames_When_HeadersAndContinuationDeliveredTogether()
     {
         var block = EncodeBlock((":status", "200"));
@@ -484,7 +484,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — HEADERS + three CONTINUATION frames in single Decode call
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-019: HEADERS + three CONTINUATION frames in single Decode call")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-019: HEADERS + three CONTINUATION frames in single Decode call")]
     public void Should_DecodeAllFrames_When_ThreeFramesDeliveredTogether()
     {
         var block = EncodeBlock((":status", "404"), ("x-error", "not-found"));
@@ -506,7 +506,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — Partial CONTINUATION (TCP fragmentation) buffered until complete
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-020: Partial CONTINUATION (TCP-fragmented) is buffered until complete")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-020: Partial CONTINUATION (TCP-fragmented) is buffered until complete")]
     public void Should_BufferPartialContinuation_When_TcpFragmented()
     {
         var block = EncodeBlock((":status", "200"));
@@ -535,7 +535,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — Decoder.Reset() clears buffered remainder; next block accepted cleanly
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-021: Decoder Reset clears buffered remainder; next header block accepted")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-021: Decoder Reset clears buffered remainder; next header block accepted")]
     public void Should_AcceptNewBlock_After_DecoderReset()
     {
         var block = EncodeBlock((":status", "200"));
@@ -563,7 +563,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — Error message includes offending stream ID
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-022: Error message includes offending stream ID when CONTINUATION on wrong stream")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-022: Error message includes offending stream ID when CONTINUATION on wrong stream")]
     public void Should_IncludeStreamIdInErrorMessage_When_ContinuationOnWrongStream()
     {
         var block = EncodeBlock((":status", "200"));
@@ -582,7 +582,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §6.10 — CONTINUATION flood protection triggers at ≥1000 frames
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-023: CONTINUATION flood protection triggers at 1000 frames")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-023: CONTINUATION flood protection triggers at 1000 frames")]
     public void Should_ThrowProtocolError_When_ContinuationFloodExceeds1000Frames()
     {
         var block = EncodeBlock((":status", "200"));
@@ -605,7 +605,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — END_STREAM flag on HEADERS is carried through to the final frame
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-024: END_STREAM flag on HEADERS is preserved in the decoded frame")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-024: END_STREAM flag on HEADERS is preserved in the decoded frame")]
     public void Should_PreserveEndStream_When_ContinuationCompletesHeaderBlock()
     {
         var block = EncodeBlock((":status", "200"));
@@ -625,7 +625,7 @@ public sealed class Http2ContinuationFrameTests
     }
 
     /// RFC 9113 §8.2 / §6.10 — HEADERS without END_STREAM decoded with EndStream=false
-    [Fact(DisplayName = "RFC-9113-§8.2-CF-025: HEADERS without END_STREAM decoded with EndStream=false")]
+    [Fact(DisplayName = "RFC9113-8.2-CF-025: HEADERS without END_STREAM decoded with EndStream=false")]
     public void Should_HaveEndStreamFalse_When_HeadersLacksEndStream()
     {
         var block = EncodeBlock((":status", "200"));
