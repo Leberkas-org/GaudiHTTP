@@ -24,7 +24,7 @@ public sealed class Http11DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-4-11DS-001: Status-Line decoded to StatusCode and Version11")]
-    public async Task ST_11_DEC_001_StatusLine_Decoded()
+    public async Task Should_DecodeStatusLine_WhenHttp11Response()
     {
         var response = await DecodeAsync("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
 
@@ -33,7 +33,7 @@ public sealed class Http11DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-6.1-11DS-002: Content-Length body decoded correctly")]
-    public async Task ST_11_DEC_002_ContentLength_Body_Decoded()
+    public async Task Should_DecodeContentLengthBody_WhenPresent()
     {
         var response = await DecodeAsync("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
 
@@ -43,7 +43,7 @@ public sealed class Http11DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11DS-003: Chunked body decoded correctly")]
-    public async Task ST_11_DEC_003_ChunkedBody_Decoded()
+    public async Task Should_DecodeChunkedBody_WhenTransferEncodingChunked()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n");
@@ -53,7 +53,7 @@ public sealed class Http11DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-4-11DS-004: Two pipelined responses decoded as two messages")]
-    public async Task ST_11_DEC_004_Pipelined_Responses_Decoded()
+    public async Task Should_DecodePipelinedResponses_WhenTwoResponsesInStream()
     {
         var source = Source.From(new[]
         {
@@ -70,7 +70,7 @@ public sealed class Http11DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-4-11DS-005: Response header decoded to response.Headers")]
-    public async Task ST_11_DEC_005_ResponseHeader_Decoded()
+    public async Task Should_DecodeResponseHeader_WhenPresent()
     {
         var response = await DecodeAsync("HTTP/1.1 200 OK\r\nX-Custom: myval\r\nContent-Length: 0\r\n\r\n");
 
@@ -79,7 +79,7 @@ public sealed class Http11DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-6.1-11DS-006: Response split across three TCP chunks reassembled")]
-    public async Task ST_11_DEC_006_Fragmented_ThreeChunks_Reassembled()
+    public async Task Should_ReassembleFragmentedResponse_WhenSplitAcrossThreeChunks()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhe",

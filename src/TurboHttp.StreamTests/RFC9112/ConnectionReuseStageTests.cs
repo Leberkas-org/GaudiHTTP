@@ -90,7 +90,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     // ── HTTP/2: always reuse ───────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-001: HTTP/2 → CanReuse = true (multiplexed streams)")]
-    public async Task REUSE_001_Http2_AlwaysReuse()
+    public async Task Should_AlwaysAllowReuse_WhenHttp2()
     {
         var response = MakeResponse();
 
@@ -104,7 +104,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     // ── HTTP/1.1: persistent by default ───────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-002: HTTP/1.1 no Connection header → CanReuse = true")]
-    public async Task REUSE_002_Http11_NoConnectionHeader_Reuse()
+    public async Task Should_AllowReuse_WhenHttp11WithNoConnectionHeader()
     {
         var response = MakeResponse();
 
@@ -116,7 +116,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-003: HTTP/1.1 Connection: close → CanReuse = false")]
-    public async Task REUSE_003_Http11_ConnectionClose_NoReuse()
+    public async Task Should_DisallowReuse_WhenHttp11WithConnectionClose()
     {
         var response = MakeResponse(connectionHeader: "close");
 
@@ -130,7 +130,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     // ── HTTP/1.0: opt-in keep-alive ────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-004: HTTP/1.0 Connection: Keep-Alive → CanReuse = true")]
-    public async Task REUSE_004_Http10_KeepAlive_Reuse()
+    public async Task Should_AllowReuse_WhenHttp10WithKeepAlive()
     {
         var response = MakeResponse(connectionHeader: "Keep-Alive");
 
@@ -142,7 +142,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-005: HTTP/1.0 no Connection header → CanReuse = false (not persistent by default)")]
-    public async Task REUSE_005_Http10_NoKeepAlive_NoReuse()
+    public async Task Should_DisallowReuse_WhenHttp10WithNoKeepAlive()
     {
         var response = MakeResponse();
 
@@ -156,7 +156,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     // ── body not fully consumed ────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-006: bodyFullyConsumed = false → CanReuse = false")]
-    public async Task REUSE_006_BodyNotConsumed_NoReuse()
+    public async Task Should_DisallowReuse_WhenBodyNotFullyConsumed()
     {
         var response = MakeResponse();
 
@@ -170,7 +170,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     // ── 101 Switching Protocols ────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-007: 101 Switching Protocols → CanReuse = false")]
-    public async Task REUSE_007_SwitchingProtocols_NoReuse()
+    public async Task Should_DisallowReuse_WhenSwitchingProtocols()
     {
         var response = MakeResponse(HttpStatusCode.SwitchingProtocols);
 
@@ -184,7 +184,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     // ── response passes through unchanged ─────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-008: response object passes through the stage unchanged")]
-    public async Task REUSE_008_Response_PassesThrough()
+    public async Task Should_PassResponseThrough_WhenProcessingReuse()
     {
         var response = MakeResponse(HttpStatusCode.Created);
 
@@ -198,7 +198,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     // ── multiple responses ─────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-009: multiple responses each produce one decision")]
-    public async Task REUSE_009_MultipleResponses_EachDecision()
+    public async Task Should_ProduceOneDecisionPerResponse_WhenMultipleResponses()
     {
         var resp1 = MakeResponse(); // 200 → reuse
         var resp2 = MakeResponse(connectionHeader: "close"); // close → no reuse
@@ -216,7 +216,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     // ── Keep-Alive parameters ──────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-010: HTTP/1.1 Keep-Alive timeout and max parsed into decision")]
-    public async Task REUSE_010_Http11_KeepAliveParams_Parsed()
+    public async Task Should_ParseKeepAliveParameters_WhenHttp11KeepAliveHeader()
     {
         var response = MakeResponse(keepAliveHeader: "timeout=30, max=100");
 
@@ -232,7 +232,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     // ── RequestEndpoint propagation ───────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-011: HTTP/1.1 response with RequestMessage → Key has correct endpoint")]
-    public async Task REUSE_011_Http11_Key_HasCorrectEndpoint()
+    public async Task Should_SetCorrectEndpointKey_WhenHttp11ResponseWithRequestMessage()
     {
         var response = MakeResponseWithRequest(HttpVersion.Version11, "https://api.example.com:8443/resource");
 
@@ -246,7 +246,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-012: HTTP/1.0 response with RequestMessage → Key has correct endpoint")]
-    public async Task REUSE_012_Http10_Key_HasCorrectEndpoint()
+    public async Task Should_SetCorrectEndpointKey_WhenHttp10ResponseWithRequestMessage()
     {
         var response = MakeResponseWithRequest(HttpVersion.Version10, "http://legacy.example.com:80/old",
             connectionHeader: "Keep-Alive");
@@ -261,7 +261,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-013: HTTP/2 response with RequestMessage → Key has correct endpoint")]
-    public async Task REUSE_013_Http20_Key_HasCorrectEndpoint()
+    public async Task Should_SetCorrectEndpointKey_WhenHttp20ResponseWithRequestMessage()
     {
         var response = MakeResponseWithRequest(HttpVersion.Version20, "https://h2.example.com:443/stream");
 
@@ -275,7 +275,7 @@ public sealed class ConnectionReuseStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-CRUS-014: response without RequestMessage → Key falls back to RequestEndpoint.Default")]
-    public async Task REUSE_014_NullRequestMessage_FallsBackToDefault()
+    public async Task Should_FallBackToDefaultEndpointKey_WhenRequestMessageIsNull()
     {
         var response = MakeResponse(); // no RequestMessage set
 

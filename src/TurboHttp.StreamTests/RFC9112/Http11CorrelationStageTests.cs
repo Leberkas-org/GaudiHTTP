@@ -45,7 +45,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
         => new(HttpStatusCode.OK);
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-001: Single request/response pairing → response.RequestMessage == request")]
-    public async Task Single_Request_Response_Pairing()
+    public async Task Should_PairRequestWithResponse_WhenSingleRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         var response = OkResponse();
@@ -60,7 +60,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-002: 5 sequential requests → FIFO order maintained")]
-    public async Task Five_Sequential_Requests_Fifo_Order()
+    public async Task Should_MaintainFifoOrder_WhenFiveSequentialRequests()
     {
         var requests = Enumerable.Range(1, 5)
             .Select(i => new HttpRequestMessage(HttpMethod.Get, $"http://example.com/{i}"))
@@ -83,7 +83,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-003: Request reference is the exact same object (not copied)")]
-    public async Task Request_Reference_Is_Same_Object()
+    public async Task Should_PreserveRequestReference_WhenCorrelated()
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/data")
         {
@@ -100,7 +100,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-004: Response arrives before request → correctly buffered and correlated")]
-    public async Task Response_Before_Request_Buffered_And_Correlated()
+    public async Task Should_BufferAndCorrelate_WhenResponseArrivesBeforeRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/delayed");
         var response = OkResponse();
@@ -117,7 +117,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-005: Request arrives before response → correctly buffered and correlated")]
-    public async Task Request_Before_Response_Buffered_And_Correlated()
+    public async Task Should_BufferAndCorrelate_WhenRequestArrivesBeforeResponse()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/eager");
         var response = OkResponse();
@@ -134,7 +134,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-006: Stage terminates on empty queue after UpstreamFinish on both inlets")]
-    public async Task Stage_Terminates_When_Both_Upstreams_Finish_And_Queues_Empty()
+    public async Task Should_Terminate_WhenBothUpstreamsFinishAndQueuesEmpty()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/done");
         var response = OkResponse();
@@ -168,7 +168,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-007: Stage remains open while pending requests still exist")]
-    public async Task Stage_Remains_Open_With_Pending_Requests()
+    public async Task Should_RemainOpen_WhenPendingRequestsExist()
     {
         // Send 2 requests but only 1 response.
         // The response source stays open (via Concat+Never) so the stage cannot
@@ -208,7 +208,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-008: One request pushed → OutletSignal emits one StreamAcquireItem")]
-    public async Task Single_Request_Emits_One_StreamAcquireItem()
+    public async Task Should_EmitOneStreamAcquireItem_WhenSingleRequestPushed()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         var response = OkResponse();
@@ -239,7 +239,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-009: Two requests pushed → two StreamAcquireItems emitted")]
-    public async Task Two_Requests_Emit_Two_StreamAcquireItems()
+    public async Task Should_EmitTwoStreamAcquireItems_WhenTwoRequestsPushed()
     {
         var requests = new[]
         {

@@ -11,7 +11,7 @@ public sealed class Http11ResponseCorrelationTests : EngineTestBase
     private static Http11Engine Engine => new();
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-001: Single request/response pair — response.RequestMessage set to the originating request")]
-    public async Task Single_Request_Response_Correlation()
+    public async Task Should_SetRequestMessageOnResponse_WhenSingleRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
@@ -22,7 +22,7 @@ public sealed class Http11ResponseCorrelationTests : EngineTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-002: 5 sequential requests — each response.RequestMessage matches correct in-order request")]
-    public async Task Five_Sequential_Requests_InOrder_Correlation()
+    public async Task Should_CorrelateInOrder_WhenFiveSequentialRequests()
     {
         var requests = Enumerable.Range(1, 5)
             .Select(i => new HttpRequestMessage(HttpMethod.Get, $"http://example.com/{i}"))
@@ -38,7 +38,7 @@ public sealed class Http11ResponseCorrelationTests : EngineTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-003: response.RequestMessage is the exact same object instance (reference equality)")]
-    public async Task RequestMessage_Is_Same_Reference()
+    public async Task Should_UseExactSameReference_WhenCorrelatingRequestMessage()
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/data")
         {
@@ -53,7 +53,7 @@ public sealed class Http11ResponseCorrelationTests : EngineTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-004: Http11Engine flow with fake TCP — correlation preserved end-to-end")]
-    public async Task Http11Engine_FakeTcp_CorrelationPreserved()
+    public async Task Should_PreserveCorrelation_WhenFakeTcpUsed()
     {
         var engine = new Http11Engine();
 

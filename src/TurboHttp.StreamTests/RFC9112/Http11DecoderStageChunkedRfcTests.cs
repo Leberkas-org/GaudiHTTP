@@ -36,7 +36,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     // ── 11D-CH-001: Single chunk → body = "hello" ──────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-001: Single chunk 5\\r\\nhello\\r\\n0\\r\\n\\r\\n → body = hello")]
-    public async Task _11D_CH_001_SingleChunk_BodyDecoded()
+    public async Task Should_DecodeBody_WhenSingleChunk()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n");
@@ -48,7 +48,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     // ── 11D-CH-002: Multiple chunks → bodies correctly concatenated ─────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-002: Multiple chunks concatenated into single body")]
-    public async Task _11D_CH_002_MultipleChunks_Concatenated()
+    public async Task Should_ConcatenateChunks_WhenMultipleChunksPresent()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -62,7 +62,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-002b: Three equal-sized chunks concatenated")]
-    public async Task _11D_CH_002b_ThreeEqualChunks_Concatenated()
+    public async Task Should_ConcatenateThreeEqualChunks_WhenChunkedEncoding()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -75,7 +75,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     // ── 11D-CH-003: Zero-length terminator → stream ends ────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-003: Zero-length terminator 0\\r\\n\\r\\n ends stream")]
-    public async Task _11D_CH_003_ZeroLengthTerminator_StreamEnds()
+    public async Task Should_EndStream_WhenZeroLengthTerminator()
     {
         var responses = await DecodeAllAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -87,7 +87,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-003b: Empty chunked body (only terminator) → empty body")]
-    public async Task _11D_CH_003b_EmptyChunkedBody_OnlyTerminator()
+    public async Task Should_ProduceEmptyBody_WhenOnlyTerminatorChunk()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n");
@@ -99,7 +99,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     // ── 11D-CH-004: Chunk extension (;ext=val) is ignored ───────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-004: Chunk extension ;ext=val is ignored, body intact")]
-    public async Task _11D_CH_004_ChunkExtension_Ignored()
+    public async Task Should_IgnoreChunkExtension_WhenPresent()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -110,7 +110,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-004b: Name-only chunk extension is ignored")]
-    public async Task _11D_CH_004b_NameOnlyChunkExtension_Ignored()
+    public async Task Should_IgnoreNameOnlyChunkExtension_WhenPresent()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -121,7 +121,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-004c: Chunk extension on terminator chunk is ignored")]
-    public async Task _11D_CH_004c_ChunkExtensionOnTerminator_Ignored()
+    public async Task Should_IgnoreChunkExtensionOnTerminator_WhenPresent()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -134,7 +134,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     // ── 11D-CH-005: Trailers after last chunk → correctly parsed or ignored ─────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-005: Trailer header after last chunk is parsed")]
-    public async Task _11D_CH_005_TrailerHeaders_Parsed()
+    public async Task Should_ParseTrailerHeaders_WhenAfterLastChunk()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -147,7 +147,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-005b: Multiple trailer headers after last chunk")]
-    public async Task _11D_CH_005b_MultipleTrailerHeaders_Parsed()
+    public async Task Should_ParseMultipleTrailerHeaders_WhenAfterLastChunk()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -164,7 +164,7 @@ public sealed class Http11DecoderStageChunkedRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-7.1-11CH-005c: No trailers — empty trailer section after terminator")]
-    public async Task _11D_CH_005c_NoTrailers_EmptyTrailerSection()
+    public async Task Should_HaveEmptyTrailingHeaders_WhenNoTrailers()
     {
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +

@@ -18,7 +18,7 @@ public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
     // ── 11RT-P-001: 3 sequential GET requests → 3 responses in FIFO order ───────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-001: 3 sequential GET requests → 3 responses in FIFO order")]
-    public async Task _11RT_P_001_Three_Gets_Fifo_Order()
+    public async Task Should_ReturnResponsesInFifoOrder_WhenThreeSequentialGetRequests()
     {
         var requests = Enumerable.Range(1, 3)
             .Select(i => new HttpRequestMessage(HttpMethod.Get, $"http://example.com/resource/{i}"))
@@ -36,7 +36,7 @@ public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
     // ── 11RT-P-002: Each response has correct RequestMessage reference ───────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-002: Each response has correct RequestMessage reference")]
-    public async Task _11RT_P_002_Each_Response_Has_Correct_RequestMessage()
+    public async Task Should_SetCorrectRequestMessageReference_WhenPipelined()
     {
         var requests = Enumerable.Range(1, 3)
             .Select(i => new HttpRequestMessage(HttpMethod.Get, $"http://example.com/item/{i}"))
@@ -55,7 +55,7 @@ public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
     // ── 11RT-P-003: Mixed methods (GET, POST, DELETE) → correct assignment ───────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-003: Mixed methods (GET, POST, DELETE) → correct assignment")]
-    public async Task _11RT_P_003_Mixed_Methods_Correct_Assignment()
+    public async Task Should_AssignCorrectRequestMessage_WhenMixedMethods()
     {
         var getReq = new HttpRequestMessage(HttpMethod.Get, "http://example.com/items");
         var postReq = new HttpRequestMessage(HttpMethod.Post, "http://example.com/items")
@@ -77,7 +77,7 @@ public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
     // ── 11RT-P-004: 10 requests → all 10 responses received ─────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-004: 10 requests → all 10 responses received")]
-    public async Task _11RT_P_004_Ten_Requests_All_Responses_Received()
+    public async Task Should_ReceiveAllResponses_WhenTenRequestsSent()
     {
         var requests = Enumerable.Range(1, 10)
             .Select(i => new HttpRequestMessage(HttpMethod.Get, $"http://example.com/page/{i}"))
@@ -96,7 +96,7 @@ public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
     // ── 11RT-P-005: Response order matches request order (FIFO guarantee) ────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11PL-005: Response order matches request order (FIFO guarantee)")]
-    public async Task _11RT_P_005_Response_Order_Matches_Request_Order()
+    public async Task Should_MatchResponseOrderToRequestOrder_WhenFifoGuaranteed()
     {
         var requests = Enumerable.Range(1, 10)
             .Select(i => new HttpRequestMessage(HttpMethod.Get, $"http://example.com/seq/{i}"))

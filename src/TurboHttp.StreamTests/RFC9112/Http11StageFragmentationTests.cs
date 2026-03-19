@@ -86,7 +86,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9112-6-11FR-001: Chunked response over 4 TCP segments → correctly reassembled")]
-    public async Task ST_11F_001_Chunked_Four_Segments_Reassembled()
+    public async Task Should_ReassembleChunkedResponse_WhenFourTcpSegments()
     {
         const string fullResponse =
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -110,7 +110,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9112-6-11FR-001b: Chunked response — each chunk in separate TCP segment")]
-    public async Task ST_11F_001b_Chunked_Each_Chunk_Separate_Segment()
+    public async Task Should_ReassembleChunkedResponse_WhenEachChunkInSeparateSegment()
     {
         // Headers in one segment, each chunk data in its own segment, terminator in last
         var fragments = new List<IInputItem>
@@ -132,7 +132,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9112-6-11FR-002: Header/body boundary on TCP segment boundary → correctly separated")]
-    public async Task ST_11F_002_HeaderBody_Boundary_On_Segment_Boundary()
+    public async Task Should_SeparateHeaderAndBody_WhenBoundaryOnSegmentBoundary()
     {
         const string bodyText = "Response body content here";
         var fullResponse = $"HTTP/1.1 200 OK\r\nContent-Length: {bodyText.Length}\r\n\r\n{bodyText}";
@@ -152,7 +152,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9112-6-11FR-002b: Split in middle of \\r\\n\\r\\n separator → header end detected")]
-    public async Task ST_11F_002b_Split_Inside_CrLfCrLf()
+    public async Task Should_DetectHeaderEnd_WhenSplitInsideCrLfCrLf()
     {
         const string fullResponse = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nHello";
         var bytes = Encoding.Latin1.GetBytes(fullResponse);
@@ -173,7 +173,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9112-6-11FR-003: Chunk-size line split across 2 segments → correctly parsed")]
-    public async Task ST_11F_003_ChunkSize_Split_Across_Two_Segments()
+    public async Task Should_ParseChunkSize_WhenSplitAcrossTwoSegments()
     {
         const string fullResponse =
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -194,7 +194,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-6-11FR-003b: Multi-digit chunk size split across segments")]
-    public async Task ST_11F_003b_MultiDigitChunkSize_Split()
+    public async Task Should_ParseMultiDigitChunkSize_WhenSplitAcrossSegments()
     {
         // Use a hex chunk size "1a" (= 26 bytes) split across segments
         var chunkBody = new string('X', 26);
@@ -218,7 +218,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
     // ── 11F-004: Content-Length body in 3 fragments → fully read ─────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-6-11FR-004: Content-Length body in 3 fragments → fully read")]
-    public async Task ST_11F_004_ContentLength_Body_Three_Fragments()
+    public async Task Should_ReadContentLengthBody_WhenThreeFragments()
     {
         const string bodyText = "AAAAABBBBBCCCCC"; // 15 bytes, will be split into 3 fragments of 5
         var fullResponse = $"HTTP/1.1 200 OK\r\nContent-Length: {bodyText.Length}\r\n\r\n{bodyText}";
@@ -239,7 +239,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 10_000,
         DisplayName = "RFC9112-6-11FR-004b: Large Content-Length body fragmented into many small pieces")]
-    public async Task ST_11F_004b_LargeContentLength_ManyFragments()
+    public async Task Should_ReadLargeContentLengthBody_WhenManyFragments()
     {
         var bodyText = new string('Z', 1024);
         var fullResponse = $"HTTP/1.1 200 OK\r\nContent-Length: {bodyText.Length}\r\n\r\n{bodyText}";
@@ -259,7 +259,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 30_000,
         DisplayName = "RFC9112-6-11FR-005: 1-byte fragments with Content-Length body → decoder handles gracefully")]
-    public async Task ST_11F_005_SingleByte_Fragments_ContentLength()
+    public async Task Should_HandleContentLengthBody_WhenSingleByteFragments()
     {
         const string fullResponse = "HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nABC";
         var bytes = Encoding.Latin1.GetBytes(fullResponse);
@@ -276,7 +276,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
 
     [Fact(Timeout = 30_000,
         DisplayName = "RFC9112-6-11FR-005b: 1-byte fragments with chunked body → decoder handles gracefully")]
-    public async Task ST_11F_005b_SingleByte_Fragments_Chunked()
+    public async Task Should_HandleChunkedBody_WhenSingleByteFragments()
     {
         const string fullResponse =
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
@@ -293,7 +293,7 @@ public sealed class Http11StageFragmentationTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-6-11FR-005c: 2-byte fragments → decoder handles gracefully")]
-    public async Task ST_11F_005c_TwoByte_Fragments()
+    public async Task Should_HandleBody_WhenTwoByteFragments()
     {
         const string fullResponse = "HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nHello!";
         var bytes = Encoding.Latin1.GetBytes(fullResponse);

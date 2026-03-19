@@ -233,8 +233,8 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 **Scope:** `src/TurboHttp.StreamTests/RFC9112/`
 
 **Acceptance Criteria:**
-- [ ] All methods follow `Should_Action_When_Condition`
-- [ ] `dotnet test src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj --filter "FullyQualifiedName~RFC9112"` — all green
+- [x] All methods follow `Should_Action_When_Condition`
+- [x] `dotnet test src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj --filter "FullyQualifiedName~RFC9112"` — all green
 
 ---
 

@@ -26,7 +26,7 @@ public sealed class Http11EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-3.1-11ES-001: Request-Line is METHOD SP path SP HTTP/1.1 CRLF")]
-    public async Task ST_11_ENC_001_RequestLine_Format()
+    public async Task Should_FormatRequestLine_WhenHttp11Request()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/index.html")
         {
@@ -39,7 +39,7 @@ public sealed class Http11EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-3.2-11ES-002: Host header is emitted for HTTP/1.1 requests")]
-    public async Task ST_11_ENC_002_HostHeader_Emitted()
+    public async Task Should_EmitHostHeader_WhenHttp11Request()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -52,7 +52,7 @@ public sealed class Http11EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-6.1-11ES-003: POST with known body has Content-Length or Transfer-Encoding chunked")]
-    public async Task ST_11_ENC_003_PostBody_HasFramingHeader()
+    public async Task Should_IncludeFramingHeader_WhenPostBodyEncoded()
     {
         var body = "hello"u8.ToArray();
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/submit")
@@ -69,7 +69,7 @@ public sealed class Http11EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-5-11ES-004: Hop-by-hop connection-specific headers are stripped from wire")]
-    public async Task ST_11_ENC_004_HopByHop_Headers_Stripped()
+    public async Task Should_StripHopByHopHeaders_WhenEncoding()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -87,7 +87,7 @@ public sealed class Http11EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-3-11ES-005: Custom request header forwarded verbatim")]
-    public async Task ST_11_ENC_005_CustomHeader_Forwarded()
+    public async Task Should_ForwardCustomHeader_WhenPresent()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
