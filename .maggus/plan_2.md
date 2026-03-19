@@ -95,11 +95,11 @@ RFC{number}-{section}-{CAT}-{NNN}: {description}
 **Description:** As a developer, I want HTTP Semantics tests (redirects, retries, content encoding) to use the `RFC9110-{section}-{CAT}-{NNN}` format.
 
 **Acceptance Criteria:**
-- [ ] `RH-001` becomes `RFC9110-15.4-RH-001: ...`
-- [ ] `RE-001` (retry) becomes `RFC9110-9.2-RE-001: ...`
-- [ ] Content encoding tests (01-03 files) get DisplayNames where RFC section is clear
-- [ ] Any `RFC7231-` or `RFC7232-` references migrated to `RFC9110-`
-- [ ] `dotnet test --filter "FullyQualifiedName~RFC9110"` passes with 0 failures
+- [x] `RH-001` becomes `RFC9110-15.4-RH-001: ...`
+- [x] `RE-001` (retry) becomes `RFC9110-9.2-RE-001: ...`
+- [x] Content encoding tests (01-03 files) get DisplayNames where RFC section is clear
+- [x] Any `RFC7231-` or `RFC7232-` references migrated to `RFC9110-`
+- [x] `dotnet test --filter "FullyQualifiedName~RFC9110"` passes with 0 failures
 
 ### TASK-006: RFC 9111 — Unify Caching format (5 files, ~67 DisplayNames)
 **Description:** As a developer, I want caching tests to use `RFC9111-{section}-{CAT}-{NNN}` instead of `RFC-9111-§5.2`.

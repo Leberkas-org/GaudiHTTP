@@ -14,7 +14,7 @@ public sealed class RedirectHandlerTests
 {
     // ── IsRedirect ────────────────────────────────────────────────────────────
 
-    [Theory(DisplayName = "RH-001: IsRedirect returns true for redirect status codes")]
+    [Theory(DisplayName = "RFC9110-15.4-RH-001: IsRedirect returns true for redirect status codes")]
     [InlineData(301)]
     [InlineData(302)]
     [InlineData(303)]
@@ -26,7 +26,7 @@ public sealed class RedirectHandlerTests
         Assert.True(RedirectHandler.IsRedirect(response));
     }
 
-    [Theory(DisplayName = "RH-002: IsRedirect returns false for non-redirect status codes")]
+    [Theory(DisplayName = "RFC9110-15.4-RH-002: IsRedirect returns false for non-redirect status codes")]
     [InlineData(200)]
     [InlineData(201)]
     [InlineData(304)]
@@ -41,7 +41,7 @@ public sealed class RedirectHandlerTests
 
     // ── 303 See Other: Always rewrite to GET, no body ─────────────────────────
 
-    [Fact(DisplayName = "RH-003: 303 rewrites POST to GET and drops body")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-003: 303 rewrites POST to GET and drops body")]
     public void SeeOther_303_Rewrites_Post_To_Get()
     {
         var handler = new RedirectHandler();
@@ -57,7 +57,7 @@ public sealed class RedirectHandlerTests
         Assert.Null(redirected.Content);
     }
 
-    [Fact(DisplayName = "RH-004: 303 rewrites PUT to GET and drops body")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-004: 303 rewrites PUT to GET and drops body")]
     public void SeeOther_303_Rewrites_Put_To_Get()
     {
         var handler = new RedirectHandler();
@@ -73,7 +73,7 @@ public sealed class RedirectHandlerTests
         Assert.Null(redirected.Content);
     }
 
-    [Fact(DisplayName = "RH-005: 303 rewrites DELETE to GET")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-005: 303 rewrites DELETE to GET")]
     public void SeeOther_303_Rewrites_Delete_To_Get()
     {
         var handler = new RedirectHandler();
@@ -87,7 +87,7 @@ public sealed class RedirectHandlerTests
 
     // ── 307 Temporary Redirect: Preserve method and body ─────────────────────
 
-    [Fact(DisplayName = "RH-006: 307 preserves POST method and body")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-006: 307 preserves POST method and body")]
     public void TemporaryRedirect_307_Preserves_Post_Method_And_Body()
     {
         var handler = new RedirectHandler();
@@ -104,7 +104,7 @@ public sealed class RedirectHandlerTests
         Assert.Same(content, redirected.Content);
     }
 
-    [Fact(DisplayName = "RH-007: 307 preserves PUT method and body")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-007: 307 preserves PUT method and body")]
     public void TemporaryRedirect_307_Preserves_Put_Method_And_Body()
     {
         var handler = new RedirectHandler();
@@ -121,7 +121,7 @@ public sealed class RedirectHandlerTests
         Assert.Same(content, redirected.Content);
     }
 
-    [Fact(DisplayName = "RH-008: 307 preserves DELETE method")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-008: 307 preserves DELETE method")]
     public void TemporaryRedirect_307_Preserves_Delete_Method()
     {
         var handler = new RedirectHandler();
@@ -135,7 +135,7 @@ public sealed class RedirectHandlerTests
 
     // ── 308 Permanent Redirect: Preserve method and body ─────────────────────
 
-    [Fact(DisplayName = "RH-009: 308 preserves POST method and body")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-009: 308 preserves POST method and body")]
     public void PermanentRedirect_308_Preserves_Post_Method_And_Body()
     {
         var handler = new RedirectHandler();
@@ -152,7 +152,7 @@ public sealed class RedirectHandlerTests
         Assert.Same(content, redirected.Content);
     }
 
-    [Fact(DisplayName = "RH-010: 308 preserves PATCH method and body")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-010: 308 preserves PATCH method and body")]
     public void PermanentRedirect_308_Preserves_Patch_Method_And_Body()
     {
         var handler = new RedirectHandler();
@@ -171,7 +171,7 @@ public sealed class RedirectHandlerTests
 
     // ── 301/302: Historical GET rewrite for POST ──────────────────────────────
 
-    [Theory(DisplayName = "RH-011: 301/302 rewrites POST to GET (historical behavior)")]
+    [Theory(DisplayName = "RFC9110-15.4-RH-011: 301/302 rewrites POST to GET (historical behavior)")]
     [InlineData(301)]
     [InlineData(302)]
     public void MovedPermanently_302_Rewrites_Post_To_Get(int statusCode)
@@ -189,7 +189,7 @@ public sealed class RedirectHandlerTests
         Assert.Null(redirected.Content);
     }
 
-    [Theory(DisplayName = "RH-012: 301/302 preserves GET method")]
+    [Theory(DisplayName = "RFC9110-15.4-RH-012: 301/302 preserves GET method")]
     [InlineData(301)]
     [InlineData(302)]
     public void MovedPermanently_302_Preserves_Get_Method(int statusCode)
@@ -203,7 +203,7 @@ public sealed class RedirectHandlerTests
         Assert.Equal(HttpMethod.Get, redirected.Method);
     }
 
-    [Theory(DisplayName = "RH-013: 301/302 preserves HEAD method")]
+    [Theory(DisplayName = "RFC9110-15.4-RH-013: 301/302 preserves HEAD method")]
     [InlineData(301)]
     [InlineData(302)]
     public void MovedPermanently_302_Preserves_Head_Method(int statusCode)
@@ -219,7 +219,7 @@ public sealed class RedirectHandlerTests
 
     // ── Location header resolution ────────────────────────────────────────────
 
-    [Fact(DisplayName = "RH-014: Absolute Location URI used as-is")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-014: Absolute Location URI used as-is")]
     public void BuildRedirectRequest_Uses_Absolute_Location()
     {
         var handler = new RedirectHandler();
@@ -231,7 +231,7 @@ public sealed class RedirectHandlerTests
         Assert.Equal("http://other.com/new-page", redirected.RequestUri?.AbsoluteUri);
     }
 
-    [Fact(DisplayName = "RH-015: Relative Location URI resolved against request URI")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-015: Relative Location URI resolved against request URI")]
     public void BuildRedirectRequest_Resolves_Relative_Location()
     {
         var handler = new RedirectHandler();
@@ -243,7 +243,7 @@ public sealed class RedirectHandlerTests
         Assert.Equal("http://example.com/api/v2/resource", redirected.RequestUri?.AbsoluteUri);
     }
 
-    [Fact(DisplayName = "RH-016: Relative path Location URI resolved correctly")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-016: Relative path Location URI resolved correctly")]
     public void BuildRedirectRequest_Resolves_Relative_Path_Location()
     {
         var handler = new RedirectHandler();
@@ -258,7 +258,7 @@ public sealed class RedirectHandlerTests
 
     // ── Max redirects ─────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "RH-017: Throws RedirectException when max redirects exceeded")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-017: Throws RedirectException when max redirects exceeded")]
     public void BuildRedirectRequest_Throws_When_Max_Redirects_Exceeded()
     {
         var handler = new RedirectHandler(new RedirectPolicy { MaxRedirects = 3 });
@@ -280,7 +280,7 @@ public sealed class RedirectHandlerTests
         Assert.Equal(RedirectError.MaxRedirectsExceeded, ex.Error);
     }
 
-    [Fact(DisplayName = "RH-018: Throws RedirectException after default max 10 redirects")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-018: Throws RedirectException after default max 10 redirects")]
     public void BuildRedirectRequest_Throws_When_Default_Max_Redirects_Exceeded()
     {
         var handler = new RedirectHandler(); // default: 10
@@ -299,7 +299,7 @@ public sealed class RedirectHandlerTests
             handler.BuildRedirectRequest(original, response));
     }
 
-    [Fact(DisplayName = "RH-019: RedirectCount tracks number of redirects")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-019: RedirectCount tracks number of redirects")]
     public void RedirectCount_Tracks_Number_Of_Redirects()
     {
         var handler = new RedirectHandler();
@@ -318,7 +318,7 @@ public sealed class RedirectHandlerTests
 
     // ── Loop detection ────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "RH-020: Throws RedirectException on direct redirect loop")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-020: Throws RedirectException on direct redirect loop")]
     public void BuildRedirectRequest_Throws_On_Direct_Loop()
     {
         var handler = new RedirectHandler();
@@ -336,7 +336,7 @@ public sealed class RedirectHandlerTests
         Assert.Equal(RedirectError.RedirectLoop, ex.Error);
     }
 
-    [Fact(DisplayName = "RH-021: Throws RedirectException on self-redirect (A → A)")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-021: Throws RedirectException on self-redirect (A → A)")]
     public void BuildRedirectRequest_Throws_On_Self_Redirect()
     {
         var handler = new RedirectHandler();
@@ -351,7 +351,7 @@ public sealed class RedirectHandlerTests
 
     // ── Missing Location header ───────────────────────────────────────────────
 
-    [Fact(DisplayName = "RH-022: Throws RedirectException when Location header is missing")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-022: Throws RedirectException when Location header is missing")]
     public void BuildRedirectRequest_Throws_When_Location_Header_Missing()
     {
         var handler = new RedirectHandler();
@@ -364,7 +364,7 @@ public sealed class RedirectHandlerTests
         Assert.Equal(RedirectError.MissingLocationHeader, ex.Error);
     }
 
-    [Fact(DisplayName = "RH-023: 308 preserves GET method (no body rewrite)")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-023: 308 preserves GET method (no body rewrite)")]
     public void PermanentRedirect_308_Preserves_Get_Method()
     {
         var handler = new RedirectHandler();
@@ -379,7 +379,7 @@ public sealed class RedirectHandlerTests
 
     // ── Cross-origin security: Authorization header stripping ────────────────
 
-    [Fact(DisplayName = "RH-024: Strips Authorization header on cross-origin redirect")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-024: Strips Authorization header on cross-origin redirect")]
     public void BuildRedirectRequest_Strips_Authorization_On_Cross_Origin()
     {
         var handler = new RedirectHandler();
@@ -396,7 +396,7 @@ public sealed class RedirectHandlerTests
             "Non-sensitive headers should still be forwarded");
     }
 
-    [Fact(DisplayName = "RH-025: Preserves Authorization header on same-origin redirect")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-025: Preserves Authorization header on same-origin redirect")]
     public void BuildRedirectRequest_Preserves_Authorization_On_Same_Origin()
     {
         var handler = new RedirectHandler();
@@ -410,7 +410,7 @@ public sealed class RedirectHandlerTests
             "Authorization header should be preserved for same-origin redirects");
     }
 
-    [Fact(DisplayName = "RH-026: Strips Authorization header when scheme changes (HTTPS→HTTP)")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-026: Strips Authorization header when scheme changes (HTTPS→HTTP)")]
     public void BuildRedirectRequest_Strips_Authorization_When_Scheme_Changes()
     {
         var handler = new RedirectHandler(new RedirectPolicy { AllowHttpsToHttpDowngrade = true });
@@ -424,7 +424,7 @@ public sealed class RedirectHandlerTests
             "Authorization must be stripped when scheme changes");
     }
 
-    [Fact(DisplayName = "RH-027: Strips Authorization header when port changes")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-027: Strips Authorization header when port changes")]
     public void BuildRedirectRequest_Strips_Authorization_When_Port_Changes()
     {
         var handler = new RedirectHandler();
@@ -440,7 +440,7 @@ public sealed class RedirectHandlerTests
 
     // ── HTTPS → HTTP downgrade ────────────────────────────────────────────────
 
-    [Fact(DisplayName = "RH-028: Throws RedirectDowngradeException on HTTPS to HTTP redirect")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-028: Throws RedirectDowngradeException on HTTPS to HTTP redirect")]
     public void BuildRedirectRequest_Throws_On_Https_To_Http_Downgrade()
     {
         var handler = new RedirectHandler(); // AllowHttpsToHttpDowngrade = false by default
@@ -451,7 +451,7 @@ public sealed class RedirectHandlerTests
             handler.BuildRedirectRequest(original, response));
     }
 
-    [Fact(DisplayName = "RH-029: Allows HTTPS to HTTP downgrade when policy permits")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-029: Allows HTTPS to HTTP downgrade when policy permits")]
     public void BuildRedirectRequest_Allows_Downgrade_When_Policy_Permits()
     {
         var handler = new RedirectHandler(new RedirectPolicy { AllowHttpsToHttpDowngrade = true });
@@ -463,7 +463,7 @@ public sealed class RedirectHandlerTests
         Assert.Equal("http://example.com/insecure", redirected.RequestUri?.AbsoluteUri);
     }
 
-    [Fact(DisplayName = "RH-030: Allows HTTP to HTTPS upgrade (no downgrade block)")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-030: Allows HTTP to HTTPS upgrade (no downgrade block)")]
     public void BuildRedirectRequest_Allows_Http_To_Https_Upgrade()
     {
         var handler = new RedirectHandler(); // only blocks downgrade, not upgrade
@@ -477,7 +477,7 @@ public sealed class RedirectHandlerTests
 
     // ── Reset ─────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "RH-031: Reset clears redirect count and history")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-031: Reset clears redirect count and history")]
     public void Reset_Clears_Redirect_Count_And_History()
     {
         var handler = new RedirectHandler(new RedirectPolicy { MaxRedirects = 2 });
@@ -496,7 +496,7 @@ public sealed class RedirectHandlerTests
         Assert.NotNull(redirected);
     }
 
-    [Fact(DisplayName = "RH-032: Reset allows previously visited URI to be visited again")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-032: Reset allows previously visited URI to be visited again")]
     public void Reset_Allows_Previously_Visited_Uri_After_Reset()
     {
         var handler = new RedirectHandler();
@@ -515,7 +515,7 @@ public sealed class RedirectHandlerTests
 
     // ── Custom headers preserved ──────────────────────────────────────────────
 
-    [Fact(DisplayName = "RH-033: Non-sensitive headers are copied on redirect")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-033: Non-sensitive headers are copied on redirect")]
     public void BuildRedirectRequest_Copies_Non_Sensitive_Headers()
     {
         var handler = new RedirectHandler();
@@ -532,7 +532,7 @@ public sealed class RedirectHandlerTests
         Assert.True(redirected.Headers.Contains("X-Request-Id"));
     }
 
-    [Fact(DisplayName = "RH-034: Host header is not blindly copied on redirect")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-034: Host header is not blindly copied on redirect")]
     public void BuildRedirectRequest_Does_Not_Copy_Host_Header()
     {
         var handler = new RedirectHandler();
@@ -548,13 +548,13 @@ public sealed class RedirectHandlerTests
 
     // ── Policy defaults ───────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "RH-035: Default policy has MaxRedirects = 10")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-035: Default policy has MaxRedirects = 10")]
     public void Default_Policy_Has_MaxRedirects_10()
     {
         Assert.Equal(10, RedirectPolicy.Default.MaxRedirects);
     }
 
-    [Fact(DisplayName = "RH-036: Default policy does not allow HTTPS to HTTP downgrade")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-036: Default policy does not allow HTTPS to HTTP downgrade")]
     public void Default_Policy_Does_Not_Allow_Downgrade()
     {
         Assert.False(RedirectPolicy.Default.AllowHttpsToHttpDowngrade);
@@ -562,14 +562,14 @@ public sealed class RedirectHandlerTests
 
     // ── Null guard ────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "RH-037: IsRedirect throws ArgumentNullException for null response")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-037: IsRedirect throws ArgumentNullException for null response")]
     public void IsRedirect_Throws_For_Null_Response()
     {
         Assert.Throws<ArgumentNullException>(() =>
             RedirectHandler.IsRedirect(null!));
     }
 
-    [Fact(DisplayName = "RH-038: BuildRedirectRequest throws ArgumentNullException for null original")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-038: BuildRedirectRequest throws ArgumentNullException for null original")]
     public void BuildRedirectRequest_Throws_For_Null_Original()
     {
         var handler = new RedirectHandler();
@@ -579,7 +579,7 @@ public sealed class RedirectHandlerTests
             handler.BuildRedirectRequest(null!, response));
     }
 
-    [Fact(DisplayName = "RH-039: BuildRedirectRequest throws ArgumentNullException for null response")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-039: BuildRedirectRequest throws ArgumentNullException for null response")]
     public void BuildRedirectRequest_Throws_For_Null_Response()
     {
         var handler = new RedirectHandler();
@@ -591,7 +591,7 @@ public sealed class RedirectHandlerTests
 
     // ── Cookie re-evaluation on redirect ─────────────────────────────────────
 
-    [Fact(DisplayName = "RH-040: Cookie header is stripped when building redirect request")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-040: Cookie header is stripped when building redirect request")]
     public void BuildRedirectRequest_Strips_Cookie_Header()
     {
         var handler = new RedirectHandler();
@@ -605,7 +605,7 @@ public sealed class RedirectHandlerTests
             "Cookie header must not be blindly forwarded — it must be re-evaluated per redirect URI");
     }
 
-    [Fact(DisplayName = "RH-041: With CookieJar, cookies re-applied for same-origin redirect")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-041: With CookieJar, cookies re-applied for same-origin redirect")]
     public void BuildRedirectRequest_WithJar_ReappliesCookies_SameOrigin()
     {
         var handler = new RedirectHandler();
@@ -626,7 +626,7 @@ public sealed class RedirectHandlerTests
         Assert.Contains("session=abc123", cookieHeader);
     }
 
-    [Fact(DisplayName = "RH-042: With CookieJar, cookies NOT re-applied for different domain")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-042: With CookieJar, cookies NOT re-applied for different domain")]
     public void BuildRedirectRequest_WithJar_DoesNotReapplyCookies_CrossOrigin()
     {
         var handler = new RedirectHandler();
@@ -645,7 +645,7 @@ public sealed class RedirectHandlerTests
             "Cookies set for example.com must not be forwarded to other.com");
     }
 
-    [Fact(DisplayName = "RH-043: With CookieJar, Set-Cookie from redirect response is processed")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-043: With CookieJar, Set-Cookie from redirect response is processed")]
     public void BuildRedirectRequest_WithJar_ProcessesSetCookieFromRedirectResponse()
     {
         var handler = new RedirectHandler();
@@ -662,7 +662,7 @@ public sealed class RedirectHandlerTests
         Assert.Equal(1, jar.Count);
     }
 
-    [Fact(DisplayName = "RH-044: With CookieJar, Set-Cookie from redirect applied to next hop")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-044: With CookieJar, Set-Cookie from redirect applied to next hop")]
     public void BuildRedirectRequest_WithJar_SetCookieAppliedToRedirectRequest()
     {
         var handler = new RedirectHandler();
@@ -681,7 +681,7 @@ public sealed class RedirectHandlerTests
         Assert.Contains("auth=token123", cookieHeader);
     }
 
-    [Fact(DisplayName = "RH-045: With CookieJar, Secure cookies only sent to HTTPS redirect")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-045: With CookieJar, Secure cookies only sent to HTTPS redirect")]
     public void BuildRedirectRequest_WithJar_SecureCookiesOnlySentToHttps()
     {
         var handler = new RedirectHandler();
@@ -704,7 +704,7 @@ public sealed class RedirectHandlerTests
             "Secure cookies must not be sent over HTTP");
     }
 
-    [Fact(DisplayName = "RH-046: With CookieJar, Secure cookies sent when redirect stays on HTTPS")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-046: With CookieJar, Secure cookies sent when redirect stays on HTTPS")]
     public void BuildRedirectRequest_WithJar_SecureCookiesSentOverHttps()
     {
         var handler = new RedirectHandler();
@@ -725,7 +725,7 @@ public sealed class RedirectHandlerTests
         Assert.Contains("secret=val", cookieHeader);
     }
 
-    [Fact(DisplayName = "RH-047: With CookieJar, path-restricted cookie not sent for non-matching path")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-047: With CookieJar, path-restricted cookie not sent for non-matching path")]
     public void BuildRedirectRequest_WithJar_PathRestrictedCookieNotSentForNonMatchingPath()
     {
         var handler = new RedirectHandler();
@@ -744,7 +744,7 @@ public sealed class RedirectHandlerTests
             "Cookie with path=/admin must not be sent to /public");
     }
 
-    [Fact(DisplayName = "RH-048: With CookieJar, path-restricted cookie sent for matching path")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-048: With CookieJar, path-restricted cookie sent for matching path")]
     public void BuildRedirectRequest_WithJar_PathRestrictedCookieSentForMatchingPath()
     {
         var handler = new RedirectHandler();
@@ -765,7 +765,7 @@ public sealed class RedirectHandlerTests
         Assert.Contains("admin=secret", cookieHeader);
     }
 
-    [Fact(DisplayName = "RH-049: BuildRedirectRequest(jar) throws ArgumentNullException for null jar")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-049: BuildRedirectRequest(jar) throws ArgumentNullException for null jar")]
     public void BuildRedirectRequest_WithJar_Throws_For_Null_CookieJar()
     {
         var handler = new RedirectHandler();
@@ -776,7 +776,7 @@ public sealed class RedirectHandlerTests
             handler.BuildRedirectRequest(original, response, null!));
     }
 
-    [Fact(DisplayName = "RH-050: With empty CookieJar, no Cookie header added to redirect")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-050: With empty CookieJar, no Cookie header added to redirect")]
     public void BuildRedirectRequest_WithEmptyJar_NosCookieHeader()
     {
         var handler = new RedirectHandler();
@@ -791,7 +791,7 @@ public sealed class RedirectHandlerTests
             "Empty jar should result in no Cookie header");
     }
 
-    [Fact(DisplayName = "RH-051: Domain cookie re-evaluated for subdomain redirect")]
+    [Fact(DisplayName = "RFC9110-15.4-RH-051: Domain cookie re-evaluated for subdomain redirect")]
     public void BuildRedirectRequest_WithJar_DomainCookieReappliedForSubdomainRedirect()
     {
         var handler = new RedirectHandler();

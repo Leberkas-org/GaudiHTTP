@@ -11,7 +11,7 @@ public sealed class RetryEvaluatorTests
 {
     // ── Idempotent method retry (network failure) ────────────────────────────
 
-    [Fact(DisplayName = "RE-001: Should_Retry_When_GET_And_NetworkFailure")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-001: Should_Retry_When_GET_And_NetworkFailure")]
     public void Should_Retry_When_GET_And_NetworkFailure()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -20,7 +20,7 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-002: Should_Retry_When_HEAD_And_NetworkFailure")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-002: Should_Retry_When_HEAD_And_NetworkFailure")]
     public void Should_Retry_When_HEAD_And_NetworkFailure()
     {
         var request = new HttpRequestMessage(HttpMethod.Head, "https://example.com/");
@@ -29,7 +29,7 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-003: Should_Retry_When_PUT_And_NetworkFailure")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-003: Should_Retry_When_PUT_And_NetworkFailure")]
     public void Should_Retry_When_PUT_And_NetworkFailure()
     {
         var request = new HttpRequestMessage(HttpMethod.Put, "https://example.com/resource");
@@ -38,7 +38,7 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-004: Should_Retry_When_DELETE_And_NetworkFailure")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-004: Should_Retry_When_DELETE_And_NetworkFailure")]
     public void Should_Retry_When_DELETE_And_NetworkFailure()
     {
         var request = new HttpRequestMessage(HttpMethod.Delete, "https://example.com/resource");
@@ -47,7 +47,7 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-005: Should_Retry_When_OPTIONS_And_NetworkFailure")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-005: Should_Retry_When_OPTIONS_And_NetworkFailure")]
     public void Should_Retry_When_OPTIONS_And_NetworkFailure()
     {
         var request = new HttpRequestMessage(HttpMethod.Options, "https://example.com/");
@@ -56,7 +56,7 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-006: Should_Retry_When_TRACE_And_NetworkFailure")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-006: Should_Retry_When_TRACE_And_NetworkFailure")]
     public void Should_Retry_When_TRACE_And_NetworkFailure()
     {
         var request = new HttpRequestMessage(HttpMethod.Trace, "https://example.com/");
@@ -67,7 +67,7 @@ public sealed class RetryEvaluatorTests
 
     // ── Non-idempotent methods MUST NOT be retried ───────────────────────────
 
-    [Fact(DisplayName = "RE-007: Should_NotRetry_When_POST_And_NetworkFailure")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-007: Should_NotRetry_When_POST_And_NetworkFailure")]
     public void Should_NotRetry_When_POST_And_NetworkFailure()
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/submit");
@@ -77,7 +77,7 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("not idempotent", decision.Reason);
     }
 
-    [Fact(DisplayName = "RE-008: Should_NotRetry_When_PATCH_And_NetworkFailure")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-008: Should_NotRetry_When_PATCH_And_NetworkFailure")]
     public void Should_NotRetry_When_PATCH_And_NetworkFailure()
     {
         var request = new HttpRequestMessage(HttpMethod.Patch, "https://example.com/resource");
@@ -87,7 +87,7 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("not idempotent", decision.Reason);
     }
 
-    [Fact(DisplayName = "RE-009: Should_NotRetry_When_POST_And_408Response")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-009: Should_NotRetry_When_POST_And_408Response")]
     public void Should_NotRetry_When_POST_And_408Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/submit");
@@ -98,7 +98,7 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("not idempotent", decision.Reason);
     }
 
-    [Fact(DisplayName = "RE-010: Should_NotRetry_When_POST_And_503Response")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-010: Should_NotRetry_When_POST_And_503Response")]
     public void Should_NotRetry_When_POST_And_503Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/submit");
@@ -111,7 +111,7 @@ public sealed class RetryEvaluatorTests
 
     // ── Retriable status codes: 408, 503 ─────────────────────────────────────
 
-    [Fact(DisplayName = "RE-011: Should_Retry_When_GET_And_408Response")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-011: Should_Retry_When_GET_And_408Response")]
     public void Should_Retry_When_GET_And_408Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -122,7 +122,7 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("408", decision.Reason);
     }
 
-    [Fact(DisplayName = "RE-012: Should_Retry_When_GET_And_503Response")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-012: Should_Retry_When_GET_And_503Response")]
     public void Should_Retry_When_GET_And_503Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -133,7 +133,7 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("503", decision.Reason);
     }
 
-    [Fact(DisplayName = "RE-013: Should_Retry_When_DELETE_And_408Response")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-013: Should_Retry_When_DELETE_And_408Response")]
     public void Should_Retry_When_DELETE_And_408Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Delete, "https://example.com/resource");
@@ -145,7 +145,7 @@ public sealed class RetryEvaluatorTests
 
     // ── Non-retriable status codes ────────────────────────────────────────────
 
-    [Fact(DisplayName = "RE-014: Should_NotRetry_When_GET_And_500Response")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-014: Should_NotRetry_When_GET_And_500Response")]
     public void Should_NotRetry_When_GET_And_500Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -156,7 +156,7 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("500", decision.Reason);
     }
 
-    [Fact(DisplayName = "RE-015: Should_NotRetry_When_GET_And_404Response")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-015: Should_NotRetry_When_GET_And_404Response")]
     public void Should_NotRetry_When_GET_And_404Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/missing");
@@ -166,7 +166,7 @@ public sealed class RetryEvaluatorTests
         Assert.False(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-016: Should_NotRetry_When_GET_And_429Response")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-016: Should_NotRetry_When_GET_And_429Response")]
     public void Should_NotRetry_When_GET_And_429Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -177,7 +177,7 @@ public sealed class RetryEvaluatorTests
         Assert.False(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-017: Should_NotRetry_When_GET_And_200Response")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-017: Should_NotRetry_When_GET_And_200Response")]
     public void Should_NotRetry_When_GET_And_200Response()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -189,7 +189,7 @@ public sealed class RetryEvaluatorTests
 
     // ── Partially-consumed body blocks all retries ────────────────────────────
 
-    [Fact(DisplayName = "RE-018: Should_NotRetry_When_BodyPartiallyConsumed_GET")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-018: Should_NotRetry_When_BodyPartiallyConsumed_GET")]
     public void Should_NotRetry_When_BodyPartiallyConsumed_GET()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -200,7 +200,7 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("partially consumed", decision.Reason);
     }
 
-    [Fact(DisplayName = "RE-019: Should_NotRetry_When_BodyPartiallyConsumed_PUT")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-019: Should_NotRetry_When_BodyPartiallyConsumed_PUT")]
     public void Should_NotRetry_When_BodyPartiallyConsumed_PUT()
     {
         var request = new HttpRequestMessage(HttpMethod.Put, "https://example.com/resource");
@@ -212,7 +212,7 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("partially consumed", decision.Reason);
     }
 
-    [Fact(DisplayName = "RE-020: Should_NotRetry_When_BodyPartiallyConsumed_DELETE")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-020: Should_NotRetry_When_BodyPartiallyConsumed_DELETE")]
     public void Should_NotRetry_When_BodyPartiallyConsumed_DELETE()
     {
         var request = new HttpRequestMessage(HttpMethod.Delete, "https://example.com/resource");
@@ -224,7 +224,7 @@ public sealed class RetryEvaluatorTests
 
     // ── Retry limit enforcement ───────────────────────────────────────────────
 
-    [Fact(DisplayName = "RE-021: Should_NotRetry_When_MaxRetries_Reached")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-021: Should_NotRetry_When_MaxRetries_Reached")]
     public void Should_NotRetry_When_MaxRetries_Reached()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -236,7 +236,7 @@ public sealed class RetryEvaluatorTests
         Assert.Contains("Retry limit", decision.Reason);
     }
 
-    [Fact(DisplayName = "RE-022: Should_Retry_When_AttemptCount_BelowLimit")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-022: Should_Retry_When_AttemptCount_BelowLimit")]
     public void Should_Retry_When_AttemptCount_BelowLimit()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -247,7 +247,7 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-023: Should_NotRetry_When_MaxRetries_Zero")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-023: Should_NotRetry_When_MaxRetries_Zero")]
     public void Should_NotRetry_When_MaxRetries_Zero()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -258,7 +258,7 @@ public sealed class RetryEvaluatorTests
         Assert.False(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-024: Should_NotRetry_When_AttemptCount_ExceedsLimit")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-024: Should_NotRetry_When_AttemptCount_ExceedsLimit")]
     public void Should_NotRetry_When_AttemptCount_ExceedsLimit()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -272,7 +272,7 @@ public sealed class RetryEvaluatorTests
 
     // ── Retry-After header parsing ────────────────────────────────────────────
 
-    [Fact(DisplayName = "RE-025: Should_IncludeRetryAfterDelay_When_503_With_Seconds")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-025: Should_IncludeRetryAfterDelay_When_503_With_Seconds")]
     public void Should_IncludeRetryAfterDelay_When_503_With_Seconds()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -285,7 +285,7 @@ public sealed class RetryEvaluatorTests
         Assert.Equal(TimeSpan.FromSeconds(120), decision.RetryAfterDelay);
     }
 
-    [Fact(DisplayName = "RE-026: Should_IncludeRetryAfterDelay_When_408_With_Seconds")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-026: Should_IncludeRetryAfterDelay_When_408_With_Seconds")]
     public void Should_IncludeRetryAfterDelay_When_408_With_Seconds()
     {
         var request = new HttpRequestMessage(HttpMethod.Put, "https://example.com/resource");
@@ -298,7 +298,7 @@ public sealed class RetryEvaluatorTests
         Assert.Equal(TimeSpan.FromSeconds(30), decision.RetryAfterDelay);
     }
 
-    [Fact(DisplayName = "RE-027: Should_RetryAfterDelay_Be_Null_When_No_Header")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-027: Should_RetryAfterDelay_Be_Null_When_No_Header")]
     public void Should_RetryAfterDelay_Be_Null_When_No_Header()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -311,7 +311,7 @@ public sealed class RetryEvaluatorTests
         Assert.Null(decision.RetryAfterDelay);
     }
 
-    [Fact(DisplayName = "RE-028: Should_RetryAfterDelay_Be_Null_When_RespectRetryAfter_False")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-028: Should_RetryAfterDelay_Be_Null_When_RespectRetryAfter_False")]
     public void Should_RetryAfterDelay_Be_Null_When_RespectRetryAfter_False()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -325,7 +325,7 @@ public sealed class RetryEvaluatorTests
         Assert.Null(decision.RetryAfterDelay);
     }
 
-    [Fact(DisplayName = "RE-029: Should_RetryAfterDelay_Be_Zero_When_Date_In_Past")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-029: Should_RetryAfterDelay_Be_Zero_When_Date_In_Past")]
     public void Should_RetryAfterDelay_Be_Zero_When_Date_In_Past()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -341,7 +341,7 @@ public sealed class RetryEvaluatorTests
         Assert.Equal(TimeSpan.Zero, decision.RetryAfterDelay);
     }
 
-    [Fact(DisplayName = "RE-030: Should_RetryAfterDelay_Be_Null_When_Header_Unparseable")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-030: Should_RetryAfterDelay_Be_Null_When_Header_Unparseable")]
     public void Should_RetryAfterDelay_Be_Null_When_Header_Unparseable()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -357,7 +357,7 @@ public sealed class RetryEvaluatorTests
 
     // ── Default policy and fallback behavior ──────────────────────────────────
 
-    [Fact(DisplayName = "RE-031: Should_UseDefaultPolicy_When_Policy_Null")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-031: Should_UseDefaultPolicy_When_Policy_Null")]
     public void Should_UseDefaultPolicy_When_Policy_Null()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -367,7 +367,7 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-032: Should_Retry_When_NoResponse_And_NoNetworkFailureFlag_GET")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-032: Should_Retry_When_NoResponse_And_NoNetworkFailureFlag_GET")]
     public void Should_Retry_When_NoResponse_And_NoNetworkFailureFlag_GET()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -377,7 +377,7 @@ public sealed class RetryEvaluatorTests
         Assert.True(decision.ShouldRetry);
     }
 
-    [Fact(DisplayName = "RE-033: Should_NotRetry_When_NoResponse_And_POST")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-033: Should_NotRetry_When_NoResponse_And_POST")]
     public void Should_NotRetry_When_NoResponse_And_POST()
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/submit");
@@ -388,7 +388,7 @@ public sealed class RetryEvaluatorTests
 
     // ── Decision includes non-empty reason ───────────────────────────────────
 
-    [Fact(DisplayName = "RE-034: Should_AlwaysHaveNonEmptyReason")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-034: Should_AlwaysHaveNonEmptyReason")]
     public void Should_AlwaysHaveNonEmptyReason()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -403,13 +403,13 @@ public sealed class RetryEvaluatorTests
 
     // ── RetryPolicy defaults ──────────────────────────────────────────────────
 
-    [Fact(DisplayName = "RE-035: RetryPolicy_Default_MaxRetries_Is_Three")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-035: RetryPolicy_Default_MaxRetries_Is_Three")]
     public void RetryPolicy_Default_MaxRetries_Is_Three()
     {
         Assert.Equal(3, RetryPolicy.Default.MaxRetries);
     }
 
-    [Fact(DisplayName = "RE-036: RetryPolicy_Default_RespectRetryAfter_Is_True")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-036: RetryPolicy_Default_RespectRetryAfter_Is_True")]
     public void RetryPolicy_Default_RespectRetryAfter_Is_True()
     {
         Assert.True(RetryPolicy.Default.RespectRetryAfter);
@@ -417,7 +417,7 @@ public sealed class RetryEvaluatorTests
 
     // ── RetryDecision factory methods ─────────────────────────────────────────
 
-    [Fact(DisplayName = "RE-037: RetryDecision_Retry_Sets_ShouldRetry_True")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-037: RetryDecision_Retry_Sets_ShouldRetry_True")]
     public void RetryDecision_Retry_Sets_ShouldRetry_True()
     {
         var decision = RetryDecision.Retry("test reason");
@@ -427,7 +427,7 @@ public sealed class RetryEvaluatorTests
         Assert.Null(decision.RetryAfterDelay);
     }
 
-    [Fact(DisplayName = "RE-038: RetryDecision_Retry_WithDelay_Sets_RetryAfterDelay")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-038: RetryDecision_Retry_WithDelay_Sets_RetryAfterDelay")]
     public void RetryDecision_Retry_WithDelay_Sets_RetryAfterDelay()
     {
         var delay = TimeSpan.FromSeconds(60);
@@ -437,7 +437,7 @@ public sealed class RetryEvaluatorTests
         Assert.Equal(delay, decision.RetryAfterDelay);
     }
 
-    [Fact(DisplayName = "RE-039: RetryDecision_NoRetry_Sets_ShouldRetry_False")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-039: RetryDecision_NoRetry_Sets_ShouldRetry_False")]
     public void RetryDecision_NoRetry_Sets_ShouldRetry_False()
     {
         var decision = RetryDecision.NoRetry("test reason");
@@ -449,7 +449,7 @@ public sealed class RetryEvaluatorTests
 
     // ── Retry-After with future HTTP-date ─────────────────────────────────────
 
-    [Fact(DisplayName = "RE-040: Should_RetryAfterDelay_Be_Positive_When_Date_In_Future")]
+    [Fact(DisplayName = "RFC9110-9.2-RE-040: Should_RetryAfterDelay_Be_Positive_When_Date_In_Future")]
     public void Should_RetryAfterDelay_Be_Positive_When_Date_In_Future()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");

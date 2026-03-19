@@ -73,7 +73,7 @@ public sealed class ContentEncodingIntegrationTests
 
     // ── Stacked Encoding Tests ───────────────────────────────────────────────
 
-    [Fact(DisplayName = "RFC9110-8.4-stacked-001: Should_DecompressStackedEncodings_GzipThenBr")]
+    [Fact(DisplayName = "RFC9110-8.4-SE-001: Should_DecompressStackedEncodings_GzipThenBr")]
     public async Task Should_DecompressStackedEncodings_GzipThenBr()
     {
         // "gzip, br" means: gzip applied first, br applied last (outermost).
@@ -90,7 +90,7 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Equal(original, body);
     }
 
-    [Fact(DisplayName = "RFC9110-8.4-stacked-002: Should_DecompressStackedEncodings_DeflateGzipBr")]
+    [Fact(DisplayName = "RFC9110-8.4-SE-002: Should_DecompressStackedEncodings_DeflateGzipBr")]
     public async Task Should_DecompressStackedEncodings_DeflateGzipBr()
     {
         // "deflate, gzip, br" means: deflate first, br last.
@@ -108,7 +108,7 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Equal(original, body);
     }
 
-    [Fact(DisplayName = "RFC9110-8.4-stacked-003: Should_DecompressStackedEncodings_RemoveAllHeaders")]
+    [Fact(DisplayName = "RFC9110-8.4-SE-003: Should_DecompressStackedEncodings_RemoveAllHeaders")]
     public void Should_DecompressStackedEncodings_RemoveAllHeaders()
     {
         var original = "test"u8.ToArray();
@@ -125,7 +125,7 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Empty(response.Content.Headers.ContentEncoding);
     }
 
-    [Fact(DisplayName = "RFC9110-8.4-stacked-004: Should_DecompressStackedEncodings_UpdateContentLength")]
+    [Fact(DisplayName = "RFC9110-8.4-SE-004: Should_DecompressStackedEncodings_UpdateContentLength")]
     public void Should_DecompressStackedEncodings_UpdateContentLength()
     {
         var original = "stacked test content"u8.ToArray();
@@ -143,7 +143,7 @@ public sealed class ContentEncodingIntegrationTests
 
     // ── Accept-Encoding Injection Tests ──────────────────────────────────────
 
-    [Fact(DisplayName = "RFC9110-8.4-accept-001: Should_AddAcceptEncoding_When_NotAlreadySet")]
+    [Fact(DisplayName = "RFC9110-8.4-AE-001: Should_AddAcceptEncoding_When_NotAlreadySet")]
     public void Should_AddAcceptEncoding_When_NotAlreadySet()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
@@ -156,7 +156,7 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Contains("Accept-Encoding: gzip, deflate, br", encoded);
     }
 
-    [Fact(DisplayName = "RFC9110-8.4-accept-002: Should_NotOverrideAcceptEncoding_When_AlreadySet")]
+    [Fact(DisplayName = "RFC9110-8.4-AE-002: Should_NotOverrideAcceptEncoding_When_AlreadySet")]
     public void Should_NotOverrideAcceptEncoding_When_AlreadySet()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
@@ -172,7 +172,7 @@ public sealed class ContentEncodingIntegrationTests
         Assert.DoesNotContain("Accept-Encoding: gzip, deflate, br", encoded);
     }
 
-    [Fact(DisplayName = "RFC9110-8.4-accept-003: Should_AddAcceptEncoding_For_Post_With_Body")]
+    [Fact(DisplayName = "RFC9110-8.4-AE-003: Should_AddAcceptEncoding_For_Post_With_Body")]
     public void Should_AddAcceptEncoding_For_Post_With_Body()
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
@@ -188,7 +188,7 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Contains("Accept-Encoding: gzip, deflate, br", encoded);
     }
 
-    [Fact(DisplayName = "RFC9110-8.4-accept-004: Should_AddAcceptEncoding_For_Put_Request")]
+    [Fact(DisplayName = "RFC9110-8.4-AE-004: Should_AddAcceptEncoding_For_Put_Request")]
     public void Should_AddAcceptEncoding_For_Put_Request()
     {
         var request = new HttpRequestMessage(HttpMethod.Put, "http://example.com/resource")
@@ -206,7 +206,7 @@ public sealed class ContentEncodingIntegrationTests
 
     // ── Content-Encoding + Accept-Encoding Round-Trip Tests ─────────────────
 
-    [Fact(DisplayName = "RFC9110-8.4-roundtrip-001: Should_HandleRequestResponseWithCompressionCycle")]
+    [Fact(DisplayName = "RFC9110-8.4-RT-001: Should_HandleRequestResponseWithCompressionCycle")]
     public async Task Should_HandleRequestResponseWithCompressionCycle()
     {
         // Request injection
@@ -232,7 +232,7 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Empty(responses[0].Content.Headers.ContentEncoding);
     }
 
-    [Fact(DisplayName = "RFC9110-8.4-roundtrip-002: Should_PreserveContentOnNoEncoding_WithAcceptEncodingHeader")]
+    [Fact(DisplayName = "RFC9110-8.4-RT-002: Should_PreserveContentOnNoEncoding_WithAcceptEncodingHeader")]
     public async Task Should_PreserveContentOnNoEncoding_WithAcceptEncodingHeader()
     {
         // Request with Accept-Encoding
@@ -252,7 +252,7 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Equal(responseBody, body);
     }
 
-    [Fact(DisplayName = "RFC9110-8.4-roundtrip-003: Should_SupportBrotliRoundTrip")]
+    [Fact(DisplayName = "RFC9110-8.4-RT-003: Should_SupportBrotliRoundTrip")]
     public async Task Should_SupportBrotliRoundTrip()
     {
         // Request with Accept-Encoding that includes brotli
@@ -278,7 +278,7 @@ public sealed class ContentEncodingIntegrationTests
 
     // ── HTTP Version Compatibility ───────────────────────────────────────────
 
-    [Fact(DisplayName = "RFC9110-8.4-compat-001: Should_DecodeStackedEncodingsConsistentlyAcrossVersions")]
+    [Fact(DisplayName = "RFC9110-8.4-CV-001: Should_DecodeStackedEncodingsConsistentlyAcrossVersions")]
     public async Task Should_DecodeStackedEncodingsConsistentlyAcrossVersions()
     {
         var original = "version compatibility test"u8.ToArray();
@@ -294,7 +294,7 @@ public sealed class ContentEncodingIntegrationTests
         Assert.Equal(original, http11Body);
     }
 
-    [Fact(DisplayName = "RFC9110-8.4-compat-002: Should_HandleEncodingMismatch_DeflateVsGzip")]
+    [Fact(DisplayName = "RFC9110-8.4-CV-002: Should_HandleEncodingMismatch_DeflateVsGzip")]
     public void Should_HandleEncodingMismatch_DeflateVsGzip()
     {
         // Create deflate-compressed data
