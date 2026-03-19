@@ -75,7 +75,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     // ── 2xx storage ────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-001: 2xx cacheable response → stored in cache")]
-    public async Task CSTR_001_CacheableResponse_StoredInCache()
+    public async Task Should_StoreInCache_When_ResponseIsCacheable2xx()
     {
         const string url = "http://example.com/resource";
         var store = new HttpCacheStore();
@@ -89,7 +89,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-002: 2xx cacheable response → passed through downstream unchanged")]
-    public async Task CSTR_002_CacheableResponse_PassedThroughDownstream()
+    public async Task Should_PassThroughDownstream_When_ResponseIsCacheable2xx()
     {
         const string url = "http://example.com/resource";
         var store = new HttpCacheStore();
@@ -102,7 +102,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-003: 2xx with no-store directive → not stored in cache")]
-    public async Task CSTR_003_NoStoreCacheControl_NotStored()
+    public async Task Should_NotStoreInCache_When_NoStoreCacheControlPresent()
     {
         const string url = "http://example.com/resource";
         var store = new HttpCacheStore();
@@ -114,7 +114,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-004: 2xx with body → body stored in cache entry")]
-    public async Task CSTR_004_CacheableResponseWithBody_BodyStoredInEntry()
+    public async Task Should_StoreBodyInCacheEntry_When_ResponseIsCacheableWith2xxBody()
     {
         const string url = "http://example.com/resource";
         var store = new HttpCacheStore();
@@ -131,7 +131,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     // ── 304 Not Modified ──────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-005: 304 Not Modified with cached entry → merged 200 pushed downstream")]
-    public async Task CSTR_005_NotModified_MergesWithCachedEntry_Pushes200()
+    public async Task Should_MergeCachedEntryAndPush200_When_304NotModifiedReceived()
     {
         const string url = "http://example.com/resource";
         var store = StoreWithEntry(url, etag: "\"v1\"");
@@ -150,7 +150,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-006: 304 Not Modified → merged response headers override cached headers")]
-    public async Task CSTR_006_NotModified_NewHeadersOverrideCached()
+    public async Task Should_OverrideCachedHeadersWithNew_When_304NotModifiedReceived()
     {
         const string url = "http://example.com/resource";
         var store = StoreWithEntry(url, etag: "\"v1\"");
@@ -171,7 +171,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-007: 304 Not Modified without cached entry → original 304 passed through")]
-    public async Task CSTR_007_NotModified_NoCachedEntry_PassesThrough()
+    public async Task Should_PassThrough304_When_NoCachedEntryExists()
     {
         const string url = "http://example.com/resource";
         var store = new HttpCacheStore();
@@ -191,7 +191,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     // ── unsafe method invalidation ────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-008: POST response → cached entry for URI invalidated")]
-    public async Task CSTR_008_PostResponse_InvalidatesCachedEntry()
+    public async Task Should_InvalidateCachedEntry_When_PostResponseReceived()
     {
         const string url = "http://example.com/resource";
         var store = StoreWithEntry(url);
@@ -204,7 +204,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-009: PUT response → cached entry for URI invalidated")]
-    public async Task CSTR_009_PutResponse_InvalidatesCachedEntry()
+    public async Task Should_InvalidateCachedEntry_When_PutResponseReceived()
     {
         const string url = "http://example.com/resource";
         var store = StoreWithEntry(url);
@@ -217,7 +217,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-010: DELETE response → cached entry for URI invalidated")]
-    public async Task CSTR_010_DeleteResponse_InvalidatesCachedEntry()
+    public async Task Should_InvalidateCachedEntry_When_DeleteResponseReceived()
     {
         const string url = "http://example.com/resource";
         var store = StoreWithEntry(url);
@@ -230,7 +230,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-011: PATCH response → cached entry for URI invalidated")]
-    public async Task CSTR_011_PatchResponse_InvalidatesCachedEntry()
+    public async Task Should_InvalidateCachedEntry_When_PatchResponseReceived()
     {
         const string url = "http://example.com/resource";
         var store = StoreWithEntry(url);
@@ -245,7 +245,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     // ── null request message ──────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-012: null RequestMessage → response passed through without exception")]
-    public async Task CSTR_012_NullRequestMessage_PassesThroughSafely()
+    public async Task Should_PassThroughSafely_When_RequestMessageIsNull()
     {
         var store = new HttpCacheStore();
         var response = new HttpResponseMessage(HttpStatusCode.OK)
@@ -263,7 +263,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     // ── sync fast-path (ByteArrayContent) ────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-013: sync fast-path — ByteArrayContent body stored correctly")]
-    public async Task CSTR_013_SyncFastPath_ByteArrayContent_BodyStoredCorrectly()
+    public async Task Should_StoreBodyCorrectly_When_SyncFastPathWithByteArrayContent()
     {
         const string url = "http://example.com/sync-body";
         var store = new HttpCacheStore();
@@ -279,7 +279,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-014: sync fast-path — response pushed downstream after body stored")]
-    public async Task CSTR_014_SyncFastPath_ResponsePushedAfterBodyStored()
+    public async Task Should_PushResponseAfterBodyStored_When_SyncFastPathUsed()
     {
         const string url = "http://example.com/sync-order";
         var store = new HttpCacheStore();
@@ -299,7 +299,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     // ── async path (StreamContent) ───────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-015: async path — StreamContent body stored correctly")]
-    public async Task CSTR_015_AsyncPath_StreamContent_BodyStoredCorrectly()
+    public async Task Should_StoreBodyCorrectly_When_AsyncPathWithStreamContent()
     {
         const string url = "http://example.com/async-body";
         var store = new HttpCacheStore();
@@ -323,7 +323,7 @@ public sealed class CacheStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-3-CSTR-016: async path — response pushed downstream after body read")]
-    public async Task CSTR_016_AsyncPath_ResponsePushedAfterBodyRead()
+    public async Task Should_PushResponseAfterBodyRead_When_AsyncPathUsed()
     {
         const string url = "http://example.com/async-order";
         var store = new HttpCacheStore();

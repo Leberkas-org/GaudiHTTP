@@ -17,7 +17,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
         => new(HttpMethod.Get, $"http://example.com{path}");
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-SID-001: First stream ID is 1")]
-    public async Task SID_001_First_Stream_Id_Is_1()
+    public async Task Should_AssignStreamId1_When_FirstRequestArrives()
     {
         var results = await RunAsync(MakeRequest());
 
@@ -26,7 +26,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-SID-002: Consecutive IDs are 1, 3, 5, 7")]
-    public async Task SID_002_Consecutive_Ids_Ascending_By_Two()
+    public async Task Should_AssignConsecutiveIdsAscendingByTwo_When_MultipleRequestsArrive()
     {
         var results = await RunAsync(
             MakeRequest("/a"), MakeRequest("/b"), MakeRequest("/c"), MakeRequest("/d"));
@@ -39,7 +39,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-SID-003: 10 requests produce 10 distinct monotonically increasing IDs")]
-    public async Task SID_003_Ten_Requests_Produce_Ten_Distinct_Ids()
+    public async Task Should_ProduceTenDistinctMonotonicallyIncreasingIds_When_TenRequestsArrive()
     {
         var requests = Enumerable.Range(0, 10).Select(i => MakeRequest($"/{i}")).ToArray();
 
@@ -55,7 +55,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-SID-004: Stream ID is always odd")]
-    public async Task SID_004_Stream_Id_Is_Always_Odd()
+    public async Task Should_AlwaysAssignOddStreamId_When_RequestArrives()
     {
         var requests = Enumerable.Range(0, 10).Select(i => MakeRequest($"/{i}")).ToArray();
 
@@ -72,7 +72,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
     [InlineData(5)]
     [InlineData(50)]
     [InlineData(100)]
-    public async Task SID_007_After_N_Requests_Next_Id_Is_2N_Plus_1(int n)
+    public async Task Should_AssignId2NPlus1_When_AfterNRequests(int n)
     {
         var requests = Enumerable.Range(0, n).Select(i => MakeRequest($"/{i}")).ToArray();
 
@@ -86,7 +86,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-SID-008: Overflow when max stream ID (2^31-1) is reached")]
-    public async Task SID_008_Overflow_At_Max_Stream_Id()
+    public async Task Should_OverflowToNegativeValue_When_MaxStreamIdReached()
     {
         // Start at int.MaxValue (2^31-1 = 2147483647), which is the last valid odd stream ID.
         // The stage should emit this ID, then the next allocation wraps to a negative value.
@@ -103,7 +103,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-SID-005: Request object passed through unchanged (reference equality)")]
-    public async Task SID_005_Request_Object_Reference_Equality()
+    public async Task Should_PassRequestObjectUnchanged_When_AllocatingStreamId()
     {
         var original = MakeRequest();
 
@@ -114,7 +114,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.1-SID-006: Stage terminates cleanly on UpstreamFinish")]
-    public async Task SID_006_Stage_Terminates_Cleanly_On_UpstreamFinish()
+    public async Task Should_TerminateCleanly_When_UpstreamFinishes()
     {
         var results = await RunAsync(MakeRequest());
 

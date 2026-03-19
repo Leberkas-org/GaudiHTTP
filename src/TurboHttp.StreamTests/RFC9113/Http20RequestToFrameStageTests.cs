@@ -37,7 +37,7 @@ public sealed class Http20RequestToFrameStageTests : StreamTestBase
         => new HpackDecoder().Decode(headerBlock.Span);
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-20RF-001: Emits HEADERS frame with :method pseudo-header")]
-    public async Task ST_20_REQ_001_Headers_Frame_Contains_Method_PseudoHeader()
+    public async Task Should_EmitHeadersFrameWithMethodPseudoHeader_When_RequestEncoded()
     {
         var encoder = new Http2RequestEncoder();
         var frames = await EncodeAsync(encoder, GetRequest());
@@ -49,7 +49,7 @@ public sealed class Http20RequestToFrameStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-20RF-002: Emits :path, :scheme, :authority pseudo-headers")]
-    public async Task ST_20_REQ_002_Headers_Frame_Contains_All_Four_Pseudo_Headers()
+    public async Task Should_EmitHeadersFrameWithAllFourPseudoHeaders_When_RequestEncoded()
     {
         var encoder = new Http2RequestEncoder();
         var frames = await EncodeAsync(encoder, GetRequest("http://example.com/resource?q=1"));
@@ -65,7 +65,7 @@ public sealed class Http20RequestToFrameStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20RF-003: Stream IDs are odd and strictly ascending (1, 3, 5…)")]
-    public async Task ST_20_REQ_003_StreamIds_Are_Odd_And_Ascending()
+    public async Task Should_AssignOddAscendingStreamIds_When_MultipleRequestsEncoded()
     {
         var encoder = new Http2RequestEncoder();
         var frames = await EncodeAsync(encoder, GetRequest(), GetRequest());
@@ -79,7 +79,7 @@ public sealed class Http20RequestToFrameStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20RF-004: POST request emits HEADERS then DATA frame")]
-    public async Task ST_20_REQ_004_Post_Request_Emits_Headers_Then_Data_Frame()
+    public async Task Should_EmitHeadersThenDataFrame_When_EncodingPostRequest()
     {
         var encoder = new Http2RequestEncoder();
         var frames = await EncodeAsync(encoder, PostRequest());
@@ -90,7 +90,7 @@ public sealed class Http20RequestToFrameStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-20RF-005: GET request has END_STREAM flag set on HEADERS frame")]
-    public async Task ST_20_REQ_005_Get_Request_Has_EndStream_On_Headers_Frame()
+    public async Task Should_SetEndStreamOnHeadersFrame_When_EncodingGetRequest()
     {
         var encoder = new Http2RequestEncoder();
         var frames = await EncodeAsync(encoder, GetRequest());

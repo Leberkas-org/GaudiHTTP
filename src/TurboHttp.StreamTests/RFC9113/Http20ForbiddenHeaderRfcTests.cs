@@ -36,7 +36,7 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
     // ─── H2FH-001: connection header stripped ─────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-001: connection header not present in wire format")]
-    public async Task H2FH_001_Connection_Header_Stripped()
+    public async Task Should_StripConnectionHeader_When_RequestEncoded()
     {
         var frames = await RunAsync(RequestWithHeader("connection", "keep-alive"));
 
@@ -47,7 +47,7 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
     // ─── H2FH-002: transfer-encoding header stripped ──────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-002: transfer-encoding header not present in wire format")]
-    public async Task H2FH_002_Transfer_Encoding_Header_Stripped()
+    public async Task Should_StripTransferEncodingHeader_When_RequestEncoded()
     {
         var frames = await RunAsync(RequestWithHeader("transfer-encoding", "chunked"));
 
@@ -58,7 +58,7 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
     // ─── H2FH-003: upgrade header stripped ────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-003: upgrade header not present in wire format")]
-    public async Task H2FH_003_Upgrade_Header_Stripped()
+    public async Task Should_StripUpgradeHeader_When_RequestEncoded()
     {
         var frames = await RunAsync(RequestWithHeader("upgrade", "h2c"));
 
@@ -69,7 +69,7 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
     // ─── H2FH-004: keep-alive header stripped ─────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-004: keep-alive header not present in wire format")]
-    public async Task H2FH_004_Keep_Alive_Header_Stripped()
+    public async Task Should_StripKeepAliveHeader_When_RequestEncoded()
     {
         var frames = await RunAsync(RequestWithHeader("keep-alive", "timeout=5"));
 
@@ -80,7 +80,7 @@ public sealed class Http20ForbiddenHeaderRfcTests : StreamTestBase
     // ─── H2FH-005: custom header preserved ────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.2.2-H2FH-005: custom header (x-custom) present in wire format")]
-    public async Task H2FH_005_Custom_Header_Preserved()
+    public async Task Should_PreserveCustomHeader_When_RequestEncoded()
     {
         var frames = await RunAsync(RequestWithHeader("x-custom", "my-value"));
 

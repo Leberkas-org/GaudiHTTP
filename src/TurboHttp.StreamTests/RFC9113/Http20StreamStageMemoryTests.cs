@@ -25,7 +25,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
     // ─── MEM-001: StreamState.Dispose() called after response emission ────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-001: StreamState.Dispose() called — HEADERS path: stream completes without DATA")]
-    public async Task StreamState_Disposed_After_Headers_Only_Response()
+    public async Task Should_DisposeStreamState_When_HeadersOnlyResponseEmitted()
     {
         // Verify that after a HEADERS+END_STREAM response is emitted, the stage continues
         // processing subsequent frames correctly. If Dispose were not called, leaking
@@ -52,7 +52,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-002: StreamState.Dispose() called — DATA path: stream completes on END_STREAM data")]
-    public async Task StreamState_Disposed_After_Data_EndStream_Response()
+    public async Task Should_DisposeStreamState_When_DataEndStreamResponseEmitted()
     {
         // Verify that after a DATA+END_STREAM response is emitted, state.Dispose() is called.
         // Stream 3 starts AFTER stream 1 is complete; if stream 1's pooled buffers corrupt
@@ -89,7 +89,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
     // ─── MEM-002: BodyBuffer grows correctly for large body ───────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-003: BodyBuffer Rent→Copy→Dispose: two growths produce correct body")]
-    public async Task BodyBuffer_Grows_Correctly_Across_Multiple_Data_Frames()
+    public async Task Should_GrowBodyBufferCorrectly_When_MultipleDataFramesAccumulated()
     {
         // The body arrives in three DATA frames. Each frame forces a buffer growth because
         // the cumulative required capacity exceeds the previously rented buffer.
@@ -126,7 +126,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-004: BodyBuffer handles very large body (16 KB) requiring multiple growths")]
-    public async Task BodyBuffer_Handles_Large_Body_With_Many_Growths()
+    public async Task Should_HandleLargeBodyWithManyGrowths_When_BodyExceeds16KB()
     {
         // Eight 2 KB chunks → each new chunk forces a growth since cumulative size doubles.
         // Total body: 16 KB.  Each growth must preserve all previously accumulated data.
@@ -159,7 +159,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
     // ─── MEM-003: HeaderBuffer grows correctly for CONTINUATION frames ────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-005: HeaderBuffer Rent→Copy→Dispose: growth via CONTINUATION frames")]
-    public async Task HeaderBuffer_Grows_Correctly_Across_Continuation_Frames()
+    public async Task Should_GrowHeaderBufferCorrectly_When_ContinuationFramesAccumulated()
     {
         // Encode a header block large enough to guarantee buffer growth when split
         // across multiple CONTINUATION frames.  Each CONTINUATION triggers AppendHeader
@@ -228,7 +228,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-006: HeaderBuffer handles many CONTINUATION frames requiring repeated growth")]
-    public async Task HeaderBuffer_Handles_Many_Continuation_Frames()
+    public async Task Should_HandleRepeatedHeaderBufferGrowth_When_ManyContinuationFrames()
     {
         // 30 CONTINUATION frames, each adding one header.
         // The stage must grow the header buffer multiple times.
@@ -291,7 +291,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
     // ─── MEM-004: Stream dictionary cleaned up after response emission ─────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-007: _streams.Remove called — stream ID reuse after HEADERS+END_STREAM completion")]
-    public async Task StreamDictionary_Cleaned_After_Headers_Only_Response_Allows_StreamId_Reuse()
+    public async Task Should_CleanStreamDictionaryAfterEmission_When_HeadersOnlyResponseCompletes()
     {
         // After stream 1 completes (HEADERS with END_STREAM), _streams.Remove(1) must be
         // called so that a subsequent HEADERS for stream 1 gets a fresh StreamState.
@@ -328,7 +328,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-008: _streams.Remove called — stream ID reuse after DATA+END_STREAM completion")]
-    public async Task StreamDictionary_Cleaned_After_Data_Response_Allows_StreamId_Reuse()
+    public async Task Should_CleanStreamDictionaryAfterEmission_When_DataEndStreamResponseCompletes()
     {
         // Same as above but the response completes via a DATA+END_STREAM frame.
         // If _streams.Remove is not called from HandleData, the second cycle's
@@ -367,7 +367,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-6.1-20DS-009: Multiple stream ID reuses across many cycles")]
-    public async Task StreamDictionary_Cleaned_Correctly_For_Multiple_Reuse_Cycles()
+    public async Task Should_CleanStreamDictionaryCorrectly_When_MultipleReusesCycles()
     {
         // Run stream 1 through 5 complete cycles.  Each cycle must produce the correct
         // status code, proving that _streams.Remove is called after every emission.

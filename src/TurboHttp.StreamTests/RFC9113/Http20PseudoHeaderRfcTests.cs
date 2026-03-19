@@ -39,7 +39,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     // ─── H2PH-001: :method = HTTP method (GET, POST, etc.) ─────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-001: :method pseudo-header equals GET for GET request")]
-    public async Task H2PH_001_Method_Get()
+    public async Task Should_SetMethodPseudoHeaderToGET_When_RequestIsGet()
     {
         var frames = await RunAsync(GetRequest());
 
@@ -49,7 +49,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-001: :method pseudo-header equals POST for POST request")]
-    public async Task H2PH_001_Method_Post()
+    public async Task Should_SetMethodPseudoHeaderToPOST_When_RequestIsPost()
     {
         var frames = await RunAsync(PostRequest());
 
@@ -64,7 +64,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     [InlineData("PATCH")]
     [InlineData("OPTIONS")]
     [InlineData("HEAD")]
-    public async Task H2PH_001_Method_Various(string method)
+    public async Task Should_SetMethodPseudoHeaderToHttpMethod_When_VariousMethodsUsed(string method)
     {
         var request = new HttpRequestMessage(new HttpMethod(method), "http://example.com/");
         if (method is "PUT" or "PATCH")
@@ -82,7 +82,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     // ─── H2PH-002: :path = absolute path + query ───────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-002: :path pseudo-header equals absolute path")]
-    public async Task H2PH_002_Path_Simple()
+    public async Task Should_SetPathPseudoHeaderToAbsolutePath_When_SimpleUriUsed()
     {
         var frames = await RunAsync(GetRequest("http://example.com/api/items"));
 
@@ -92,7 +92,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-002: :path pseudo-header includes query string")]
-    public async Task H2PH_002_Path_With_Query()
+    public async Task Should_IncludeQueryStringInPathPseudoHeader_When_UriHasQueryString()
     {
         var frames = await RunAsync(GetRequest("http://example.com/search?q=foo&page=2"));
 
@@ -102,7 +102,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-002: :path pseudo-header for root is /")]
-    public async Task H2PH_002_Path_Root()
+    public async Task Should_SetPathPseudoHeaderToSlash_When_UriIsRoot()
     {
         var frames = await RunAsync(GetRequest("http://example.com/"));
 
@@ -114,7 +114,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     // ─── H2PH-003: :scheme = URI scheme (http/https) ───────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-003: :scheme pseudo-header equals http for http URI")]
-    public async Task H2PH_003_Scheme_Http()
+    public async Task Should_SetSchemePseudoHeaderToHttp_When_UriSchemeIsHttp()
     {
         var frames = await RunAsync(GetRequest("http://example.com/"));
 
@@ -124,7 +124,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-003: :scheme pseudo-header equals https for https URI")]
-    public async Task H2PH_003_Scheme_Https()
+    public async Task Should_SetSchemePseudoHeaderToHttps_When_UriSchemeIsHttps()
     {
         var frames = await RunAsync(GetRequest("https://example.com/"));
 
@@ -136,7 +136,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     // ─── H2PH-004: :authority = host:port ───────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-004: :authority pseudo-header equals host")]
-    public async Task H2PH_004_Authority_Host()
+    public async Task Should_SetAuthorityPseudoHeaderToHost_When_UriHasNoPort()
     {
         var frames = await RunAsync(GetRequest("http://example.com/"));
 
@@ -146,7 +146,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-004: :authority pseudo-header includes port when non-default")]
-    public async Task H2PH_004_Authority_Host_With_Port()
+    public async Task Should_IncludePortInAuthorityPseudoHeader_When_UriHasNonDefaultPort()
     {
         var frames = await RunAsync(GetRequest("http://example.com:8080/api"));
 
@@ -158,7 +158,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     // ─── H2PH-005: Pseudo-headers appear BEFORE regular headers ─────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-005: All pseudo-headers appear before regular headers")]
-    public async Task H2PH_005_Pseudo_Headers_Before_Regular()
+    public async Task Should_PlacePseudoHeadersBeforeRegularHeaders_When_RequestHasBothTypes()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
         request.Headers.Add("x-custom", "value");
@@ -188,7 +188,7 @@ public sealed class Http20PseudoHeaderRfcTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.3.1-H2PH-005: All four required pseudo-headers are present")]
-    public async Task H2PH_005_All_Four_Pseudo_Headers_Present()
+    public async Task Should_IncludeAllFourRequiredPseudoHeaders_When_RequestEncoded()
     {
         var frames = await RunAsync(GetRequest("http://example.com/path"));
 

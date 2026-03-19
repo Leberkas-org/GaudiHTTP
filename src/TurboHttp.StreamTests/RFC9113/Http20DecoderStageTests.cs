@@ -20,7 +20,7 @@ public sealed class Http20DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1: Single complete frame decoded correctly")]
-    public async Task ST_20_FDEC_001_Single_Complete_Frame_Decoded()
+    public async Task Should_DecodeSingleCompleteFrame_When_FullFrameArrives()
     {
         var hpackBlock = new byte[] { 0x82, 0x84, 0x86, 0x41 };
         var rawBytes = new HeadersFrame(streamId: 1, headerBlock: hpackBlock, endStream: false, endHeaders: true)
@@ -35,7 +35,7 @@ public sealed class Http20DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1: Frame split across two TCP chunks reassembled")]
-    public async Task ST_20_FDEC_002_Frame_Split_Across_Two_Chunks_Reassembled()
+    public async Task Should_ReassembleFrame_When_SplitAcrossTwoTcpChunks()
     {
         var hpackBlock = new byte[] { 0x82, 0x84, 0x86, 0x41 };
         var rawBytes = new HeadersFrame(streamId: 3, headerBlock: hpackBlock, endHeaders: true).Serialize();
@@ -52,7 +52,7 @@ public sealed class Http20DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1: Two frames in one TCP chunk each decoded")]
-    public async Task ST_20_FDEC_003_Two_Frames_In_One_Chunk_Decoded()
+    public async Task Should_DecodeBothFrames_When_TwoFramesArriveInOneTcpChunk()
     {
         var settingsBytes = new SettingsFrame(new List<(SettingsParameter, uint)>(), isAck: true).Serialize();
         var headersBytes = new HeadersFrame(streamId: 1, headerBlock: new byte[] { 0x82 }, endHeaders: true)
@@ -70,7 +70,7 @@ public sealed class Http20DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1: SETTINGS frame (stream 0) decoded")]
-    public async Task ST_20_FDEC_004_Settings_Frame_Decoded()
+    public async Task Should_DecodeSettingsFrame_When_OnStream0()
     {
         var parameters = new List<(SettingsParameter, uint)>
         {
@@ -89,7 +89,7 @@ public sealed class Http20DecoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1: DATA frame decoded with correct stream ID and payload")]
-    public async Task ST_20_FDEC_005_Data_Frame_Decoded_With_StreamId_And_Payload()
+    public async Task Should_DecodeDataFrameWithStreamIdAndPayload_When_CompleteFrameArrives()
     {
         var body = new byte[] { 0x48, 0x65, 0x6C, 0x6C, 0x6F }; // "Hello"
         var rawBytes = new DataFrame(streamId: 5, data: body, endStream: true).Serialize();

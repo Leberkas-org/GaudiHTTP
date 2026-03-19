@@ -11,7 +11,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 public sealed class Http20BatchEncodingTests : StreamTestBase
 {
     [Fact(DisplayName = "BatchConsolidate: two DataItems are concatenated into single buffer")]
-    public void ST_20_BATCH_001_Two_DataItems_Concatenated()
+    public void Should_ConcatenateTwoDataItems_When_BatchConsolidateCalled()
     {
         var owner1 = MemoryPool<byte>.Shared.Rent(4);
         new byte[] { 0x01, 0x02, 0x03, 0x04 }.CopyTo(owner1.Memory);
@@ -30,7 +30,7 @@ public sealed class Http20BatchEncodingTests : StreamTestBase
     }
 
     [Fact(DisplayName = "BatchConsolidate: three DataItems chained produce correct concatenation")]
-    public void ST_20_BATCH_002_Three_DataItems_Chained()
+    public void Should_ConcatenateThreeDataItems_When_BatchConsolidateChained()
     {
         var items = new DataItem[3];
         for (var i = 0; i < 3; i++)
@@ -51,7 +51,7 @@ public sealed class Http20BatchEncodingTests : StreamTestBase
     }
 
     [Fact(DisplayName = "BatchConsolidate: Key is preserved from accumulated item")]
-    public void ST_20_BATCH_003_Key_Preserved_From_Accumulated()
+    public void Should_PreserveKeyFromAccumulatedItem_When_BatchConsolidateCalled()
     {
         var key = new RequestEndpoint
         {
@@ -76,7 +76,7 @@ public sealed class Http20BatchEncodingTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "BatchConsolidate: single frame passes through unchanged in stream")]
-    public async Task ST_20_BATCH_004_Single_Frame_PassThrough()
+    public async Task Should_PassThroughUnchanged_When_SingleFrameInStream()
     {
         var body = new byte[] { 0x01, 0x02, 0x03 };
         var frame = new DataFrame(streamId: 1, data: body, endStream: true);
@@ -101,13 +101,13 @@ public sealed class Http20BatchEncodingTests : StreamTestBase
     }
 
     [Fact(DisplayName = "BatchConsolidate: max weight 64KB is exposed as constant")]
-    public void ST_20_BATCH_005_MaxWeight_Is_64KB()
+    public void Should_ExposeMaxWeightAs64KB_When_CheckingConstant()
     {
         Assert.Equal(65_536L, Http20Engine.MaxBatchWeight);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "BatchConsolidate: multiple frames batched into fewer output items")]
-    public async Task ST_20_BATCH_006_Multiple_Frames_Batched()
+    public async Task Should_BatchMultipleFrames_When_StreamHasMultipleSmallFrames()
     {
         // Create several small frames that should be batched together
         var frames = Enumerable.Range(1, 5)
@@ -141,7 +141,7 @@ public sealed class Http20BatchEncodingTests : StreamTestBase
     }
 
     [Fact(DisplayName = "BatchConsolidate: source items disposed after consolidation")]
-    public void ST_20_BATCH_007_Source_Items_Disposed()
+    public void Should_DisposeSourceItems_When_BatchConsolidationComplete()
     {
         var owner1 = MemoryPool<byte>.Shared.Rent(4);
         new byte[] { 0x01, 0x02, 0x03, 0x04 }.CopyTo(owner1.Memory);

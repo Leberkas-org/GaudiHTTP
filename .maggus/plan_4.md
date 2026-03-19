@@ -253,8 +253,8 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 **Scope:** `src/TurboHttp.StreamTests/RFC9113/` — remaining files (`Http20Encoder*`, `Http20Decoder*`, `Http20Stream*`, `Http20Batch*`, `Http20Forbidden*`, `Http20Pseudo*`, `Http20StreamId*`, `Http20RequestToFrame*`)
 
 **Acceptance Criteria:**
-- [ ] All methods follow `Should_Action_When_Condition`
-- [ ] `dotnet test src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj --filter "FullyQualifiedName~RFC9113"` — all green
+- [x] All methods follow `Should_Action_When_Condition`
+- [x] `dotnet test src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj --filter "FullyQualifiedName~RFC9113"` — all green
 
 ---
 
@@ -267,8 +267,8 @@ Revised plan (replaces plan_4). Same goals, but broken into significantly smalle
 - `src/TurboHttp.StreamTests/RFC6265/` — 2 files, ~12 methods
 
 **Acceptance Criteria:**
-- [ ] All methods follow `Should_Action_When_Condition`
-- [ ] All affected tests green
+- [x] All methods follow `Should_Action_When_Condition`
+- [x] All affected tests green
 
 ---
 

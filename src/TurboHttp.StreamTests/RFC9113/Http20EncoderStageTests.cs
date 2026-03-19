@@ -42,7 +42,7 @@ public sealed class Http20EncoderStageTests : StreamTestBase
     // ─── Key propagation tests ──────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-005: DataItem Key is set from frame Endpoint")]
-    public async Task ST_20_FENC_005_DataItem_Key_Set_From_Frame_Endpoint()
+    public async Task Should_SetDataItemKeyFromEndpoint_When_FrameHasEndpoint()
     {
         var frame = new HeadersFrame(streamId: 1, headerBlock: new byte[] { 0x82 }, endStream: false)
         {
@@ -56,7 +56,7 @@ public sealed class Http20EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-006: Captured endpoint propagates to subsequent frames without Endpoint")]
-    public async Task ST_20_FENC_006_Captured_Endpoint_Propagates_To_Subsequent_Frames()
+    public async Task Should_PropagateCapturedEndpoint_When_SubsequentFramesLackEndpoint()
     {
         var headers = new HeadersFrame(streamId: 1, headerBlock: new byte[] { 0x82 }, endStream: false)
         {
@@ -73,7 +73,7 @@ public sealed class Http20EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-007: Multiple data frames all receive captured endpoint")]
-    public async Task ST_20_FENC_007_Multiple_Data_Frames_All_Receive_Captured_Endpoint()
+    public async Task Should_ApplyCapturedEndpointToAllDataFrames_When_MultipleFramesFollow()
     {
         var headers = new HeadersFrame(streamId: 1, headerBlock: new byte[] { 0x82 }, endStream: false)
         {
@@ -89,7 +89,7 @@ public sealed class Http20EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-001: HEADERS frame has 9-byte header + HPACK payload")]
-    public async Task ST_20_FENC_001_Headers_Frame_Has_9Byte_Header_And_Payload()
+    public async Task Should_Encode9ByteHeaderPlusHpackPayload_When_EncodingHeadersFrame()
     {
         var hpackBlock = new byte[] { 0x82, 0x84, 0x86, 0x41 };
         var frame = new HeadersFrame(streamId: 1, headerBlock: hpackBlock, endStream: true);
@@ -102,7 +102,7 @@ public sealed class Http20EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-002: DATA frame has 9-byte header + body payload")]
-    public async Task ST_20_FENC_002_Data_Frame_Has_9Byte_Header_And_Body()
+    public async Task Should_Encode9ByteHeaderPlusBody_When_EncodingDataFrame()
     {
         var body = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 };
         var frame = new DataFrame(streamId: 1, data: body, endStream: true);
@@ -115,7 +115,7 @@ public sealed class Http20EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.1-20EN-003: Stream ID field is encoded big-endian in bytes 5–8")]
-    public async Task ST_20_FENC_003_StreamId_Encoded_BigEndian_In_Bytes5To8()
+    public async Task Should_EncodeStreamIdBigEndian_When_WritingToBytes5To8()
     {
         var frame = new DataFrame(streamId: 1, data: new byte[] { 0xFF }, endStream: false);
 
@@ -128,7 +128,7 @@ public sealed class Http20EncoderStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-4.2-20EN-004: Payload length field matches actual payload size")]
-    public async Task ST_20_FENC_004_Payload_Length_Field_Matches_Actual_Payload_Size()
+    public async Task Should_SetPayloadLengthFieldToActualPayloadSize_When_EncodingDataFrame()
     {
         var body = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
         var frame = new DataFrame(streamId: 3, data: body, endStream: false);

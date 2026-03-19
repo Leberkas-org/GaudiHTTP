@@ -38,7 +38,7 @@ public sealed class Http20HpackStreamTests : StreamTestBase
     // ─── H2HP-001: Static table: :method GET transmitted as indexed ─────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-001: Static table :method GET transmitted as indexed byte 0x82")]
-    public async Task H2HP_001_Method_Get_Is_Static_Indexed()
+    public async Task Should_TransmitGetAsIndexedByte_When_UsingStaticTable()
     {
         var encoder = new Http2RequestEncoder();
         var frames = await RunAsync(encoder, GetRequest());
@@ -53,7 +53,7 @@ public sealed class Http20HpackStreamTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-001: Static table :method GET uses single-byte indexed representation")]
-    public async Task H2HP_001_Method_Get_Indexed_Is_Single_Byte()
+    public async Task Should_UseSingleByteEncoding_When_GetMethodHasStaticTableEntry()
     {
         var encoder = new Http2RequestEncoder();
         var frames = await RunAsync(encoder, GetRequest());
@@ -76,7 +76,7 @@ public sealed class Http20HpackStreamTests : StreamTestBase
     // ─── H2HP-002: Dynamic table: repeated custom headers → smaller on 2nd ──
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-002: Repeated custom header produces smaller block on 2nd request")]
-    public async Task H2HP_002_Dynamic_Table_Shrinks_Repeated_Custom_Header()
+    public async Task Should_ProduceSmallerBlock_When_CustomHeaderRepeatedAcrossRequests()
     {
         // Use the same encoder so the dynamic table persists across requests.
         var encoder = new Http2RequestEncoder();
@@ -103,7 +103,7 @@ public sealed class Http20HpackStreamTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-002: 2nd request custom header is indexed from dynamic table")]
-    public async Task H2HP_002_Dynamic_Table_Second_Request_Decoded_Correctly()
+    public async Task Should_DecodeCorrectly_When_CustomHeaderIndexedFromDynamicTable()
     {
         var encoder = new Http2RequestEncoder();
 
@@ -133,7 +133,7 @@ public sealed class Http20HpackStreamTests : StreamTestBase
     // ─── H2HP-003: 3 requests with same host → progressive compression ──────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-003: 3 requests with same host show progressive compression")]
-    public async Task H2HP_003_Progressive_Compression_Same_Host()
+    public async Task Should_ShowProgressiveCompression_When_ThreeRequestsUseSameHost()
     {
         var encoder = new Http2RequestEncoder();
 
@@ -167,7 +167,7 @@ public sealed class Http20HpackStreamTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-003: Progressive compression - all 3 responses decode correctly")]
-    public async Task H2HP_003_Progressive_Compression_All_Decode_Correctly()
+    public async Task Should_DecodeAllFramesCorrectly_When_ProgressiveCompressionApplied()
     {
         var encoder = new Http2RequestEncoder();
 
@@ -201,7 +201,7 @@ public sealed class Http20HpackStreamTests : StreamTestBase
     // ─── H2HP-004: Huffman encoding → smaller header block ──────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-004: Huffman encoding produces smaller header block than without")]
-    public async Task H2HP_004_Huffman_Encoding_Produces_Smaller_Block()
+    public async Task Should_ProduceSmallerHeaderBlock_When_HuffmanEncodingIsUsed()
     {
         // Encoder WITHOUT Huffman
         var encoderNoHuff = new Http2RequestEncoder(useHuffman: false);
@@ -225,7 +225,7 @@ public sealed class Http20HpackStreamTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC7541-2-H2HP-004: Huffman-encoded block decodes to same headers as non-Huffman")]
-    public async Task H2HP_004_Huffman_And_Raw_Decode_To_Same_Headers()
+    public async Task Should_DecodeToSameHeaders_When_HuffmanAndRawEncodingsCompared()
     {
         var encoderNoHuff = new Http2RequestEncoder(useHuffman: false);
         var encoderHuff = new Http2RequestEncoder(useHuffman: true);

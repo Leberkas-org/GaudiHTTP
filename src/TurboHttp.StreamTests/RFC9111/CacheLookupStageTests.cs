@@ -92,7 +92,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     // ── cache miss ─────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-001: cache miss → request forwarded to Out0 unchanged")]
-    public async Task CACHE_001_CacheMiss_ForwardsToOut0()
+    public async Task Should_ForwardToOut0_When_CacheMiss()
     {
         var store   = new HttpCacheStore();
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");
@@ -104,7 +104,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-002: POST request → cache miss → forwarded to Out0")]
-    public async Task CACHE_002_PostRequest_CacheMiss_ForwardsToOut0()
+    public async Task Should_ForwardToOut0_When_PostRequestHasCacheMiss()
     {
         var store   = new HttpCacheStore();
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/resource");
@@ -118,7 +118,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     // ── cache hit (fresh) ──────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-003: fresh cache entry → cached response emitted on Out1")]
-    public async Task CACHE_003_FreshEntry_EmitsOnOut1()
+    public async Task Should_EmitOnOut1_When_CacheEntryIsFresh()
     {
         var store   = StoreWithFreshEntry();
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");
@@ -131,7 +131,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-004: fresh cache entry → Out1 emits the exact stored response object")]
-    public async Task CACHE_004_FreshEntry_SameResponseObject()
+    public async Task Should_EmitExactStoredResponseObject_When_CacheEntryIsFresh()
     {
         const string url  = "http://example.com/resource";
         var req  = new HttpRequestMessage(HttpMethod.Get, url);
@@ -152,7 +152,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     // ── must-revalidate ────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-005: stale must-revalidate with ETag → If-None-Match added on Out0")]
-    public async Task CACHE_005_MustRevalidate_WithETag_AddsIfNoneMatch()
+    public async Task Should_AddIfNoneMatchHeader_When_StaleMustRevalidateWithETag()
     {
         var store   = StoreWithStaleEntry(etag: "\"v1\"");
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");
@@ -166,7 +166,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-006: stale must-revalidate with Last-Modified → If-Modified-Since on Out0")]
-    public async Task CACHE_006_MustRevalidate_WithLastModified_AddsIfModifiedSince()
+    public async Task Should_AddIfModifiedSinceHeader_When_StaleMustRevalidateWithLastModified()
     {
         var lastModified = DateTimeOffset.UtcNow.AddDays(-7);
         var store        = StoreWithStaleEntry(etag: null, lastModified: lastModified);
@@ -180,7 +180,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-007: stale must-revalidate with no validators → plain request forwarded to Out0")]
-    public async Task CACHE_007_MustRevalidate_NoValidators_PlainRequestOut0()
+    public async Task Should_ForwardPlainRequestToOut0_When_MustRevalidateHasNoValidators()
     {
         const string url = "http://example.com/resource";
         var req  = new HttpRequestMessage(HttpMethod.Get, url);
@@ -203,7 +203,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     // ── request Cache-Control directives ──────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-008: request no-cache → forces MustRevalidate even for fresh entry")]
-    public async Task CACHE_008_RequestNoCache_ForcesMustRevalidate()
+    public async Task Should_ForceMustRevalidate_When_RequestHasNoCache()
     {
         var store   = StoreWithFreshEntry();
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");
@@ -218,7 +218,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     // ── multiple requests ──────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-009: two sequential misses → both forwarded to Out0")]
-    public async Task CACHE_009_TwoMisses_BothToOut0()
+    public async Task Should_ForwardBothToOut0_When_TwoSequentialMisses()
     {
         var store = new HttpCacheStore();
         var req1  = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a");
@@ -232,7 +232,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-010: two sequential hits → both served on Out1")]
-    public async Task CACHE_010_TwoHits_BothToOut1()
+    public async Task Should_ServeBothFromOut1_When_TwoSequentialHits()
     {
         const string url1 = "http://example.com/a";
         const string url2 = "http://example.com/b";
@@ -261,7 +261,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-011: mixed miss then hit → miss on Out0, hit on Out1")]
-    public async Task CACHE_011_MixedMissAndHit_CorrectRouting()
+    public async Task Should_RouteMissToOut0AndHitToOut1_When_RequestsAreMixed()
     {
         const string urlMiss = "http://example.com/miss";
         const string urlHit  = "http://example.com/hit";
@@ -279,7 +279,7 @@ public sealed class CacheLookupStageTests : StreamTestBase
     // ── policy ────────────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9111-4-CLUP-012: null policy → defaults to CachePolicy.Default, fresh entries served from cache")]
-    public async Task CACHE_012_NullPolicy_UsesDefault()
+    public async Task Should_UseDefaultPolicyAndServeFreshEntriesFromCache_When_PolicyIsNull()
     {
         var store   = StoreWithFreshEntry();
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");

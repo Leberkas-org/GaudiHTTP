@@ -35,7 +35,7 @@ public sealed class CookieStorageStageTests : StreamTestBase
     // ── null jar (pass-through) ────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.3-CSTO-001: null CookieJar → response passes through unchanged")]
-    public async Task CSTO_001_NullJar_PassThrough()
+    public async Task Should_PassThroughUnchanged_When_CookieJarIsNull()
     {
         var stage = new CookieStorageStage(null);
         var response = MakeResponse("http://example.com/", "session=abc; Domain=example.com");
@@ -49,7 +49,7 @@ public sealed class CookieStorageStageTests : StreamTestBase
     // ── cookie storage ─────────────────────────────────────────────────────────
 
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.3-CSTO-002: Set-Cookie in response → stored in jar for next request")]
-    public async Task CSTO_002_SetCookie_StoredInJar()
+    public async Task Should_StoreCookieInJar_When_SetCookieHeaderPresent()
     {
         var jar = new CookieJar();
         var stage = new CookieStorageStage(jar);
@@ -65,7 +65,7 @@ public sealed class CookieStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.3-CSTO-003: response is NOT modified by the stage")]
-    public async Task CSTO_003_ResponseNotModified()
+    public async Task Should_NotModifyResponse_When_StoringCookies()
     {
         var jar = new CookieJar();
         var stage = new CookieStorageStage(jar);
@@ -80,7 +80,7 @@ public sealed class CookieStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.3-CSTO-004: no Set-Cookie header → jar remains empty")]
-    public async Task CSTO_004_NoSetCookie_JarEmpty()
+    public async Task Should_KeepJarEmpty_When_NoSetCookieHeader()
     {
         var jar = new CookieJar();
         var stage = new CookieStorageStage(jar);
@@ -94,7 +94,7 @@ public sealed class CookieStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.3-CSTO-005: response with null RequestMessage → passes through without throwing")]
-    public async Task CSTO_005_NullRequestMessage_PassThrough()
+    public async Task Should_PassThroughSafely_When_RequestMessageIsNull()
     {
         var jar = new CookieJar();
         var stage = new CookieStorageStage(jar);
@@ -110,7 +110,7 @@ public sealed class CookieStorageStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC6265-5.3-CSTO-006: multiple responses → cookies accumulated across all responses")]
-    public async Task CSTO_006_MultipleResponses_CookiesAccumulated()
+    public async Task Should_AccumulateCookies_When_MultipleResponsesProcessed()
     {
         var jar = new CookieJar();
         var stage = new CookieStorageStage(jar);
