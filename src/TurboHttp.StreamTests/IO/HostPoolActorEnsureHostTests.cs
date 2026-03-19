@@ -14,7 +14,7 @@ public sealed class HostPoolActorEnsureHostTests : IoActorTestBase
     // ── EH-001: Slot available → handle returned immediately, MarkBusy called ──
 
     [Fact(DisplayName = "EH-001: Slot available returns handle immediately and marks connection busy")]
-    public void EH_001_SlotAvailable_ReturnsHandleImmediately()
+    public void Should_ReturnHandleImmediatelyAndMarkBusy_WhenSlotAvailable()
     {
         var controlProbe = CreateTestProbe("control");
         var (pool, _, handle) = SetupReadyPool(controlProbe, Key11);
@@ -40,7 +40,7 @@ public sealed class HostPoolActorEnsureHostTests : IoActorTestBase
     // ── EH-002: All slots full + under limiter → requester queued, new connection spawned ──
 
     [Fact(DisplayName = "EH-002: All slots full spawns new connection when under limiter limit")]
-    public void EH_002_AllSlotsFull_SpawnsNewConnection()
+    public void Should_SpawnNewConnection_WhenAllSlotsFull()
     {
         var controlProbe = CreateTestProbe("control");
         // HTTP/1.0: MaxConcurrentStreams = 1 → fills with a single MarkBusy.
@@ -72,7 +72,7 @@ public sealed class HostPoolActorEnsureHostTests : IoActorTestBase
     // ── EH-003: All slots full + at limiter limit → requester queued, no spawn ──
 
     [Fact(DisplayName = "EH-003: At limiter limit queues requester without spawning")]
-    public void EH_003_AtLimiterLimit_QueuesOnly()
+    public void Should_QueueRequesterWithoutSpawning_WhenAtLimiterLimit()
     {
         var controlProbe = CreateTestProbe("control");
         // HTTP/1.0: MaxConcurrentStreams = 1 per connection. Limiter default = 6.

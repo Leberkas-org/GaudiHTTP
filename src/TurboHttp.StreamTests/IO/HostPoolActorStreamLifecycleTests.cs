@@ -16,7 +16,7 @@ public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
     // ── SLC-001: StreamCompleted frees slot, queued requester served ────────
 
     [Fact(DisplayName = "SLC-001: StreamCompleted frees slot and serves queued requester")]
-    public void SLC_001_StreamCompleted_FreesSlot_ServesQueuedRequester()
+    public void Should_FreeSlotAndServeQueuedRequester_WhenStreamCompleted()
     {
         var controlProbe = CreateTestProbe("control");
         // HTTP/1.0: MaxConcurrentStreams = 1 → fills with a single MarkBusy.
@@ -44,7 +44,7 @@ public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
     // ── SLC-002: StreamCompleted with no eligible connection → queue unchanged ──
 
     [Fact(DisplayName = "SLC-002: StreamCompleted with no eligible connection leaves queue unchanged")]
-    public void SLC_002_StreamCompleted_NoEligibleConnection_QueueUnchanged()
+    public void Should_LeaveQueueUnchanged_WhenStreamCompletedButNoEligibleConnection()
     {
         var controlProbe = CreateTestProbe("control");
         // HTTP/1.0: MaxConcurrentStreams = 1.
@@ -75,7 +75,7 @@ public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
     // ── SLC-003: Multiple queued requesters drained in FIFO order ──────────
 
     [Fact(DisplayName = "SLC-003: Multiple queued requesters drained in FIFO order")]
-    public void SLC_003_MultipleQueuedRequesters_DrainedFIFO()
+    public void Should_DrainQueuedRequestersFIFO_WhenMultipleSlotsFreed()
     {
         var controlProbe = CreateTestProbe("control");
         // HTTP/1.1: MaxConcurrentStreams = 6.
@@ -113,7 +113,7 @@ public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
     // ── SLC-004: UpdateMaxConcurrentStreams with increased limit serves queued ──
 
     [Fact(DisplayName = "SLC-004: UpdateMaxConcurrentStreams with increased limit serves queued requesters")]
-    public void SLC_004_UpdateMaxConcurrentStreams_IncreasedLimit_ServesQueued()
+    public void Should_ServeQueuedRequesters_WhenMaxConcurrentStreamsIncreased()
     {
         var controlProbe = CreateTestProbe("control");
         // HTTP/2: initial MaxConcurrentStreams = 100 (default from ConnectionHandle).
@@ -146,7 +146,7 @@ public sealed class HostPoolActorStreamLifecycleTests : IoActorTestBase
     // ── SLC-005: StreamAcquired marks connection busy ──────────────────────
 
     [Fact(DisplayName = "SLC-005: StreamAcquired marks connection busy, reducing available slots")]
-    public void SLC_005_StreamAcquired_MarksBusy()
+    public void Should_MarkConnectionBusy_WhenStreamAcquiredReceived()
     {
         var controlProbe = CreateTestProbe("control");
         // HTTP/1.0: MaxConcurrentStreams = 1.

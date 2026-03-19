@@ -81,7 +81,7 @@ public sealed class ConnectionActorTests : TestKit
     // ── CA-001: ConnectionFailed sent on ClientDisconnected ──────────────────
 
     [Fact(DisplayName = "CA-001: ConnectionFailed sent to parent when ClientDisconnected received")]
-    public void CA_001_ConnectionFailed_SentOnDisconnect()
+    public void Should_SendConnectionFailedToParent_WhenClientDisconnectedReceived()
     {
         var config = new TurboClientOptions
         {
@@ -100,7 +100,7 @@ public sealed class ConnectionActorTests : TestKit
     // ── CA-002: ConnectionFailed sent when watched runner terminates ──────────
 
     [Fact(DisplayName = "CA-002: ConnectionFailed sent to parent when watched runner actor terminates")]
-    public void CA_002_ConnectionFailed_SentOnTerminated()
+    public void Should_SendConnectionFailedToParent_WhenWatchedRunnerTerminates()
     {
         var config = new TurboClientOptions
         {
@@ -126,7 +126,7 @@ public sealed class ConnectionActorTests : TestKit
     // ── CA-003: Exponential backoff — second delay is larger than first ───────
 
     [Fact(DisplayName = "CA-003: Backoff delay increases exponentially between reconnect attempts")]
-    public void CA_003_BackoffDelay_Increases()
+    public void Should_IncreaseBackoffDelay_WhenReconnectingExponentially()
     {
         var config = new TurboClientOptions
         {
@@ -162,7 +162,7 @@ public sealed class ConnectionActorTests : TestKit
     // ── CA-004: Stops reconnecting after MaxReconnectAttempts ─────────────────
 
     [Fact(DisplayName = "CA-004: Stops reconnecting after MaxReconnectAttempts reached")]
-    public void CA_004_StopsAfterMaxAttempts()
+    public void Should_StopReconnecting_WhenMaxReconnectAttemptsReached()
     {
         var config = new TurboClientOptions
         {
@@ -191,7 +191,7 @@ public sealed class ConnectionActorTests : TestKit
     // ── CA-006: StreamCompleted forwarded to parent ────────────────────────────
 
     [Fact(DisplayName = "CA-006: StreamCompleted forwarded to parent")]
-    public void CA_006_StreamCompleted_ForwardedToParent()
+    public void Should_ForwardStreamCompletedToParent_WhenStreamCompletedReceived()
     {
         var config = new TurboClientOptions
         {
@@ -210,7 +210,7 @@ public sealed class ConnectionActorTests : TestKit
     // ── CA-007: StreamAcquired forwarded to parent ───────────────────────────
 
     [Fact(DisplayName = "CA-007: StreamAcquired forwarded to parent")]
-    public void CA_007_StreamAcquired_ForwardedToParent()
+    public void Should_ForwardStreamAcquiredToParent_WhenStreamAcquiredReceived()
     {
         var config = new TurboClientOptions
         {
@@ -229,7 +229,7 @@ public sealed class ConnectionActorTests : TestKit
     // ── CA-008: UpdateMaxConcurrentStreams forwarded to parent ────────────────
 
     [Fact(DisplayName = "CA-008: UpdateMaxConcurrentStreams forwarded to parent")]
-    public void CA_008_UpdateMaxConcurrentStreams_ForwardedToParent()
+    public void Should_ForwardUpdateMaxConcurrentStreamsToParent_WhenUpdateMaxConcurrentStreamsReceived()
     {
         var config = new TurboClientOptions
         {
@@ -249,7 +249,7 @@ public sealed class ConnectionActorTests : TestKit
     // ── CA-005: ConnectionReady sent after reconnect succeeds ─────────────────
 
     [Fact(DisplayName = "CA-005: ConnectionReady sent to parent after successful reconnect")]
-    public void CA_005_ConnectionReady_SentAfterReconnect()
+    public void Should_SendConnectionReadyToParent_WhenReconnectSucceeds()
     {
         var config = new TurboClientOptions
         {

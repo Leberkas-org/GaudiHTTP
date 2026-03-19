@@ -15,7 +15,7 @@ public sealed class HostPoolTests : IoActorTestBase
     // ── HPA-001: ConnectionFailed clears active handle ────────────────────────
 
     [Fact(DisplayName = "HPA-001: ConnectionFailed clears active handle; next EnsureHost is queued")]
-    public void HPA_001_ConnectionFailed_ClearsActiveHandleAndQueuesNextRequester()
+    public void Should_ClearActiveHandleAndQueueRequester_WhenConnectionFailed()
     {
         var controlProbe = CreateTestProbe("control");
         // Long reconnect interval so the scheduled Reconnect does not fire during the test.
@@ -38,7 +38,7 @@ public sealed class HostPoolTests : IoActorTestBase
     // ── HPA-002: Queued requester served when new ConnectionReady arrives ─────
 
     [Fact(DisplayName = "HPA-002: Queued EnsureHost requester is served when reconnected handle arrives")]
-    public void HPA_002_QueuedRequester_ServedAfterReconnect()
+    public void Should_ServeQueuedRequester_WhenReconnectedHandleArrives()
     {
         var controlProbe = CreateTestProbe("control");
         var (pool, fakeConn, _) = SetupReadyPool(controlProbe, Key11, TimeSpan.FromMilliseconds(200));

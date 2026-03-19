@@ -31,7 +31,7 @@ public sealed class ConnectionHandleTests : TestKit
     }
 
     [Fact(DisplayName = "MaxConcurrentStreams defaults to 100")]
-    public void MaxConcurrentStreams_DefaultsTo100()
+    public void Should_DefaultTo100_WhenConnectionHandleCreated()
     {
         var handle = CreateHandle();
 
@@ -39,7 +39,7 @@ public sealed class ConnectionHandleTests : TestKit
     }
 
     [Fact(DisplayName = "UpdateMaxConcurrentStreams sets new value")]
-    public void UpdateMaxConcurrentStreams_SetsNewValue()
+    public void Should_SetNewValue_WhenUpdateMaxConcurrentStreamsCalled()
     {
         var handle = CreateHandle();
 
@@ -49,7 +49,7 @@ public sealed class ConnectionHandleTests : TestKit
     }
 
     [Fact(DisplayName = "MaxConcurrentStreams is not part of record equality")]
-    public void MaxConcurrentStreams_DoesNotAffectEquality()
+    public void Should_NotAffectEquality_WhenMaxConcurrentStreamsUpdated()
     {
         var outbound = Channel.CreateUnbounded<(IMemoryOwner<byte> Buffer, int ReadableBytes)>();
         var inbound = Channel.CreateUnbounded<(IMemoryOwner<byte> Buffer, int ReadableBytes)>();
@@ -73,7 +73,7 @@ public sealed class ConnectionHandleTests : TestKit
     }
 
     [Fact(DisplayName = "Concurrent writes and reads do not throw; value is eventually consistent")]
-    public async Task ConcurrentWritesAndReads_DoNotThrow_ValueIsEventuallyConsistent()
+    public async Task Should_NotThrow_WhenConcurrentWritesAndReadsOccur()
     {
         var handle = CreateHandle();
         const int iterations = 10_000;

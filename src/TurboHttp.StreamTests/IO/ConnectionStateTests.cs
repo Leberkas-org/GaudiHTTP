@@ -36,7 +36,7 @@ public sealed class ConnectionStateTests : TestKit
     // ── Handle property ─────────────────────────────────────────────────────
 
     [Fact(DisplayName = "TASK-9-003-001: Handle is null by default")]
-    public void Handle_IsNull_ByDefault()
+    public void Should_BeNull_WhenHandleNotSet()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
 
@@ -44,7 +44,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-002: SetHandle stores handle and updates LastActivity")]
-    public void SetHandle_StoresHandle_UpdatesLastActivity()
+    public void Should_StoreHandleAndUpdateLastActivity_WhenSetHandleCalled()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         var before = state.LastActivity;
@@ -59,7 +59,7 @@ public sealed class ConnectionStateTests : TestKit
     // ── HttpVersion (computed) ──────────────────────────────────────────────
 
     [Fact(DisplayName = "TASK-9-003-003: HttpVersion defaults to 1.1 when no handle")]
-    public void HttpVersion_DefaultsTo11_WhenNoHandle()
+    public void Should_DefaultToHttp11_WhenNoHandleSet()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
 
@@ -70,7 +70,7 @@ public sealed class ConnectionStateTests : TestKit
     [InlineData(1, 0)]
     [InlineData(1, 1)]
     [InlineData(2, 0)]
-    public void HttpVersion_ReflectsHandle(int major, int minor)
+    public void Should_ReflectHandleVersion_WhenHandleSet(int major, int minor)
     {
         var version = new Version(major, minor);
         var state = new ConnectionState(ActorRefs.Nobody);
@@ -82,7 +82,7 @@ public sealed class ConnectionStateTests : TestKit
     // ── MaxConcurrentStreams (version-dependent) ────────────────────────────
 
     [Fact(DisplayName = "TASK-9-003-005: HTTP/1.0 MaxConcurrentStreams is 1")]
-    public void MaxConcurrentStreams_Http10_Is1()
+    public void Should_Be1_WhenHttp10ConnectionSet()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         state.SetHandle(CreateHandle(HttpVersion.Version10));
@@ -91,7 +91,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-006: HTTP/1.1 MaxConcurrentStreams is 6")]
-    public void MaxConcurrentStreams_Http11_Is6()
+    public void Should_Be6_WhenHttp11ConnectionSet()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         state.SetHandle(CreateHandle(HttpVersion.Version11));
@@ -100,7 +100,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-007: HTTP/2 MaxConcurrentStreams reads from handle (default 100)")]
-    public void MaxConcurrentStreams_Http20_DefaultIs100()
+    public void Should_Default100_WhenHttp20ConnectionSet()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         state.SetHandle(CreateHandle(HttpVersion.Version20));
@@ -109,7 +109,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-008: HTTP/2 MaxConcurrentStreams reflects handle update")]
-    public void MaxConcurrentStreams_Http20_ReflectsHandleUpdate()
+    public void Should_ReflectHandleUpdate_WhenHttp20MaxConcurrentStreamsUpdated()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         var handle = CreateHandle(HttpVersion.Version20);
@@ -121,7 +121,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-009: No handle defaults MaxConcurrentStreams to 100 (HTTP/2 fallback)")]
-    public void MaxConcurrentStreams_NoHandle_DefaultsVia11Path()
+    public void Should_Default6_WhenNoHandleSet()
     {
         // No handle → HttpVersion defaults to 1.1 → MaxConcurrentStreams = 6
         var state = new ConnectionState(ActorRefs.Nobody);
@@ -132,7 +132,7 @@ public sealed class ConnectionStateTests : TestKit
     // ── HasAvailableSlot ────────────────────────────────────────────────────
 
     [Fact(DisplayName = "TASK-9-003-010: HasAvailableSlot true for fresh connection")]
-    public void HasAvailableSlot_True_ForFreshConnection()
+    public void Should_BeTrue_WhenConnectionIsFresh()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         state.SetHandle(CreateHandle(HttpVersion.Version11));
@@ -141,7 +141,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-011: HasAvailableSlot false when dead")]
-    public void HasAvailableSlot_False_WhenDead()
+    public void Should_BeFalse_WhenConnectionIsDead()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         state.SetHandle(CreateHandle(HttpVersion.Version11));
@@ -151,7 +151,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-012: HasAvailableSlot false when not reusable")]
-    public void HasAvailableSlot_False_WhenNotReusable()
+    public void Should_BeFalse_WhenConnectionIsNotReusable()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         state.SetHandle(CreateHandle(HttpVersion.Version11));
@@ -161,7 +161,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-013: HasAvailableSlot false when at capacity (HTTP/1.0)")]
-    public void HasAvailableSlot_False_AtCapacity_Http10()
+    public void Should_BeFalse_WhenAtCapacityForHttp10()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         state.SetHandle(CreateHandle(HttpVersion.Version10));
@@ -173,7 +173,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-014: HasAvailableSlot true when under capacity (HTTP/2)")]
-    public void HasAvailableSlot_True_UnderCapacity_Http20()
+    public void Should_BeTrue_WhenUnderCapacityForHttp20()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         state.SetHandle(CreateHandle(HttpVersion.Version20));
@@ -187,7 +187,7 @@ public sealed class ConnectionStateTests : TestKit
     }
 
     [Fact(DisplayName = "TASK-9-003-015: HasAvailableSlot recovers after MarkIdle")]
-    public void HasAvailableSlot_Recovers_AfterMarkIdle()
+    public void Should_RecoverToTrue_WhenMarkIdleCalled()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
         state.SetHandle(CreateHandle(HttpVersion.Version10));
@@ -202,7 +202,7 @@ public sealed class ConnectionStateTests : TestKit
     // ── Existing methods still work ─────────────────────────────────────────
 
     [Fact(DisplayName = "TASK-9-003-016: Existing MarkBusy/MarkIdle/MarkDead/MarkNoReuse preserved")]
-    public void ExistingMethods_StillWork()
+    public void Should_TrackStateCorrectly_WhenBusyIdleDeadNoReuseMarked()
     {
         var state = new ConnectionState(ActorRefs.Nobody);
 

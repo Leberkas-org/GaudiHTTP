@@ -40,7 +40,7 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
     // ── SEL-001: Empty list → null ───────────────────────────────────────────
 
     [Fact(DisplayName = "SEL-001: Empty connection list returns null")]
-    public void SEL_001_EmptyList_ReturnsNull()
+    public void Should_ReturnNull_WhenConnectionListIsEmpty()
     {
         var connections = new List<ConnectionState>();
 
@@ -52,7 +52,7 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
     // ── SEL-002: All connections at capacity → null ──────────────────────────
 
     [Fact(DisplayName = "SEL-002: All connections at capacity returns null")]
-    public void SEL_002_AllAtCapacity_ReturnsNull()
+    public void Should_ReturnNull_WhenAllConnectionsAtCapacity()
     {
         // HTTP/1.0 has MaxConcurrentStreams = 1; mark busy to fill the slot
         var conn = CreateActiveConnection(HttpVersion.Version10);
@@ -67,7 +67,7 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
     // ── SEL-003: Single eligible connection → returns it ─────────────────────
 
     [Fact(DisplayName = "SEL-003: Single eligible connection is returned")]
-    public void SEL_003_SingleEligible_ReturnsIt()
+    public void Should_ReturnEligibleConnection_WhenOnlyOneExists()
     {
         var conn = CreateActiveConnection(HttpVersion.Version11);
         var connections = new List<ConnectionState> { conn };
@@ -80,7 +80,7 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
     // ── SEL-004: Multiple eligible → returns most recently active ────────────
 
     [Fact(DisplayName = "SEL-004: Multiple eligible connections returns most recently active")]
-    public void SEL_004_MultipleEligible_ReturnsMRU()
+    public void Should_ReturnMostRecentlyActiveConnection_WhenMultipleEligibleExist()
     {
         var older = CreateActiveConnection(HttpVersion.Version11);
         Thread.Sleep(15); // ensure distinct LastActivity timestamps
@@ -95,7 +95,7 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
     // ── SEL-005: Dead connections are skipped ────────────────────────────────
 
     [Fact(DisplayName = "SEL-005: Dead connections are skipped")]
-    public void SEL_005_DeadConnection_Skipped()
+    public void Should_SkipDeadConnections_WhenSelectingConnection()
     {
         var alive = CreateActiveConnection(HttpVersion.Version11);
         Thread.Sleep(15);
@@ -111,7 +111,7 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
     // ── SEL-006: Non-reusable connections are skipped ────────────────────────
 
     [Fact(DisplayName = "SEL-006: Non-reusable connections are skipped")]
-    public void SEL_006_NonReusableConnection_Skipped()
+    public void Should_SkipNonReusableConnections_WhenSelectingConnection()
     {
         var reusable = CreateActiveConnection(HttpVersion.Version11);
         Thread.Sleep(15);
@@ -127,7 +127,7 @@ public sealed class HostPoolActorSelectConnectionTests : IoActorTestBase
     // ── SEL-007: Mixed — dead, full, non-reusable, eligible ──────────────────
 
     [Fact(DisplayName = "SEL-007: Mixed state list returns correct MRU eligible connection")]
-    public void SEL_007_MixedStates_ReturnsCorrectMRU()
+    public void Should_ReturnCorrectMruEligible_WhenConnectionListHasMixedStates()
     {
         var dead = CreateActiveConnection(HttpVersion.Version11);
         dead.MarkDead();
