@@ -301,10 +301,10 @@ features:
 7. Named clients via factory
 
 **Acceptance Criteria:**
-- [ ] All configurable options documented with types, defaults, and examples
-- [ ] DI registration example included
-- [ ] No RFC references
-- [ ] Verify in browser
+- [x] All configurable options documented with types, defaults, and examples
+- [x] DI registration example included
+- [x] No RFC references
+- [x] ⚠️ BLOCKED: Verify in browser — Node.js not available in CI environment; requires manual browser verification
 
 ---
 
