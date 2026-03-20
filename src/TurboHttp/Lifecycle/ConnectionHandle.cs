@@ -23,9 +23,7 @@ public sealed record ConnectionHandle(
 
     public int MaxConcurrentStreams => _maxConcurrentStreams;
 
-#pragma warning disable CS0420 // volatile field passed by reference to Volatile.Write is intentional
-    public void UpdateMaxConcurrentStreams(int value) => Volatile.Write(ref _maxConcurrentStreams, value);
-#pragma warning restore CS0420
+    public void UpdateMaxConcurrentStreams(int value) => _maxConcurrentStreams = value;
 
     public bool Equals(ConnectionHandle? other)
     {

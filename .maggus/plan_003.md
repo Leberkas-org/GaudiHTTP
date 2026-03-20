@@ -714,9 +714,9 @@ finally
 **Required Change:** Use `volatile` keyword alone (sufficient for int), remove `Volatile.Write` and `#pragma`.
 
 **Acceptance Criteria:**
-- [ ] Consistent synchronization
-- [ ] `#pragma` removed
-- [ ] Build compiles with 0 errors
+- [x] Consistent synchronization
+- [x] `#pragma` removed
+- [x] Build compiles with 0 errors
 
 ---
 
