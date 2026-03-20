@@ -7,7 +7,7 @@ on:
 
 env:
   GLOBAL_JSON_PATH: './src/global.json'
-  PROJECT_PATH: './src/dotnet.library.sln'
+  PROJECT_PATH: './src/TurboHttp.sln'
   PACKAGE_OUTPUT_DIRECTORY: './packages'
   TEST_OUTPUT_DIRECTORY: './testresults'
 
