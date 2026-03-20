@@ -184,11 +184,11 @@ const props = defineProps<{
 - `description` in config: remove "full RFC compliance", replace with "HTTP/1.0, HTTP/1.1, and HTTP/2 with automatic retries, caching, cookies, and connection pooling."
 
 **Acceptance Criteria:**
-- [ ] RFC Coverage removed from nav and sidebar
-- [ ] New sidebar structure with feature pages
-- [ ] Description updated to feature-focused
-- [ ] `vitepress dev` renders new nav correctly
-- [ ] No dead links (ignoreDeadLinks handles temporarily)
+- [x] RFC Coverage removed from nav and sidebar
+- [x] New sidebar structure with feature pages
+- [x] Description updated to feature-focused
+- [x] `vitepress dev` renders new nav correctly
+- [x] No dead links (ignoreDeadLinks handles temporarily)
 
 ---
 

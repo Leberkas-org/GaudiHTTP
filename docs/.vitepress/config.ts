@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
     title: 'TurboHttp',
-    description: 'High-performance HTTP client library for .NET built on Akka.Streams — HTTP/1.0, HTTP/1.1, and HTTP/2 with full RFC compliance.',
+    description: 'High-performance HTTP client library for .NET built on Akka.Streams — HTTP/1.0, HTTP/1.1, and HTTP/2 with automatic retries, caching, cookies, and connection pooling.',
     base: '/TurboHttp/',
     ignoreDeadLinks: true,
     themeConfig: {
@@ -13,7 +13,7 @@ export default defineConfig({
             { text: 'Guide', link: '/guide/' },
             { text: 'Architecture', link: '/architecture/' },
             { text: 'API', link: '/api/' },
-            { text: 'RFC Coverage', link: '/rfc/' },
+            { text: 'Why TurboHttp?', link: '/why/' },
         ],
 
         sidebar: {
@@ -22,8 +22,15 @@ export default defineConfig({
                     text: 'Guide',
                     items: [
                         { text: 'Getting Started', link: '/guide/' },
-                        { text: 'Architecture Overview', link: '/guide/architecture' },
-                        { text: 'Protocol Support', link: '/guide/protocols' },
+                        { text: 'Configuration', link: '/guide/configuration' },
+                        { text: 'Automatic Retries', link: '/guide/retries' },
+                        { text: 'HTTP Caching', link: '/guide/caching' },
+                        { text: 'Cookie Management', link: '/guide/cookies' },
+                        { text: 'Redirects', link: '/guide/redirects' },
+                        { text: 'Content Encoding', link: '/guide/content-encoding' },
+                        { text: 'Connection Pooling', link: '/guide/connection-pooling' },
+                        { text: 'HTTP/2 & Multiplexing', link: '/guide/http2' },
+                        { text: 'Advanced Usage', link: '/guide/advanced' },
                     ],
                 },
             ],
@@ -33,9 +40,9 @@ export default defineConfig({
                     items: [
                         { text: 'Overview', link: '/architecture/' },
                         { text: 'Layers', link: '/architecture/layers' },
-                        { text: 'Engines', link: '/architecture/engines' },
-                        { text: 'Pipeline Flow', link: '/architecture/pipeline' },
-                        { text: 'Scenarios', link: '/architecture/scenarios' },
+                        { text: 'Protocol Engines', link: '/architecture/engines' },
+                        { text: 'Request Pipeline', link: '/architecture/pipeline' },
+                        { text: 'Request Scenarios', link: '/architecture/scenarios' },
                     ],
                 },
             ],
@@ -44,21 +51,6 @@ export default defineConfig({
                     text: 'API Reference',
                     items: [
                         { text: 'Overview', link: '/api/' },
-                    ],
-                },
-            ],
-            '/rfc/': [
-                {
-                    text: 'RFC Coverage',
-                    items: [
-                        { text: 'Overview', link: '/rfc/' },
-                        { text: 'RFC 1945 — HTTP/1.0', link: '/rfc/rfc1945' },
-                        { text: 'RFC 9112 — HTTP/1.1', link: '/rfc/rfc9112' },
-                        { text: 'RFC 9113 — HTTP/2', link: '/rfc/rfc9113' },
-                        { text: 'RFC 7541 — HPACK', link: '/rfc/rfc7541' },
-                        { text: 'RFC 9110 — HTTP Semantics', link: '/rfc/rfc9110' },
-                        { text: 'RFC 9111 — Caching', link: '/rfc/rfc9111' },
-                        { text: 'RFC 6265 — Cookies', link: '/rfc/rfc6265' },
                     ],
                 },
             ],
