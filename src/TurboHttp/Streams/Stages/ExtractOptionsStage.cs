@@ -12,9 +12,9 @@ namespace TurboHttp.Streams.Stages;
 internal sealed class ExtractOptionsStage : GraphStage<FanOutShape<HttpRequestMessage, HttpRequestMessage, IOutputItem>>
 {
     private readonly TurboClientOptions _clientOptions;
-    private readonly Inlet<HttpRequestMessage> _inletRequest = new("options.in.request");
-    private readonly Outlet<IOutputItem> _outletSignal = new("options.out.signal");
-    private readonly Outlet<HttpRequestMessage> _outletRequest = new("options.out.request");
+    private readonly Inlet<HttpRequestMessage> _in = new("ExtractOptions.In");
+    private readonly Outlet<IOutputItem> _outSignal = new("ExtractOptions.Out.Signal");
+    private readonly Outlet<HttpRequestMessage> _outRequest = new("ExtractOptions.Out.Request");
     public override FanOutShape<HttpRequestMessage, HttpRequestMessage, IOutputItem> Shape { get; }
 
 
@@ -22,7 +22,7 @@ internal sealed class ExtractOptionsStage : GraphStage<FanOutShape<HttpRequestMe
     {
         _clientOptions = clientOptions ?? new TurboClientOptions();
         Shape = new FanOutShape<HttpRequestMessage, HttpRequestMessage, IOutputItem>(
-            _inletRequest, _outletRequest, _outletSignal);
+            _in, _outRequest, _outSignal);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -35,47 +35,47 @@ internal sealed class ExtractOptionsStage : GraphStage<FanOutShape<HttpRequestMe
 
         public Logic(ExtractOptionsStage stage) : base(stage.Shape)
         {
-            SetHandler(stage._inletRequest,
+            SetHandler(stage._in,
                 onPush: () =>
                 {
-                    var request = Grab(stage._inletRequest);
+                    var request = Grab(stage._in);
 
                     if (!_initialSent)
                     {
                         var options = TcpOptionsFactory.Build(request.RequestUri!, stage._clientOptions);
                         _pending = request;
                         _initialSent = true;
-                        Push(stage._outletSignal, new ConnectItem(options) { Key = RequestEndpoint.FromRequest(request) });
-                        Complete(stage._outletSignal);
+                        Push(stage._outSignal, new ConnectItem(options) { Key = RequestEndpoint.FromRequest(request) });
+                        Complete(stage._outSignal);
                     }
                     else
                     {
-                        Push(stage._outletRequest, request);
+                        Push(stage._outRequest, request);
                     }
                 },
                 onUpstreamFinish: CompleteStage,
                 onUpstreamFailure: ex => Log.Warning("ExtractOptionsStage: Upstream failure absorbed: {0}", ex.Message));
 
-            SetHandler(stage._outletSignal,
+            SetHandler(stage._outSignal,
                 onPull: () =>
                 {
                     if (!_initialSent)
                     {
-                        Pull(stage._inletRequest);
+                        Pull(stage._in);
                     }
                 }, onDownstreamFinish: _ => { });
 
-            SetHandler(stage._outletRequest,
+            SetHandler(stage._outRequest,
                 onPull: () =>
                 {
                     if (_pending is not null)
                     {
-                        Push(stage._outletRequest, _pending);
+                        Push(stage._outRequest, _pending);
                         _pending = null;
                     }
                     else
                     {
-                        Pull(stage._inletRequest);
+                        Pull(stage._in);
                     }
                 }, onDownstreamFinish: _ => CompleteStage());
         }

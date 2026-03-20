@@ -347,9 +347,9 @@ Fields: `_inlet`/`_outlet` → `_in`/`_out`
 | Out Signal | `options.out.signal` | `ExtractOptions.Out.Signal` | `_outletSignal` | `_outSignal` |
 
 **Acceptance Criteria:**
-- [ ] String names and field names updated
-- [ ] All existing stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] String names and field names updated
+- [x] All existing stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
