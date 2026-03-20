@@ -346,10 +346,10 @@ Example:  01_Http10EncoderStageTests.cs
 5. `Http20ConnectionStageGoAwayTests.cs` → `08_Http20ConnectionStageGoAwayTests.cs`
 
 **Acceptance Criteria:**
-- [ ] Files renamed via `git mv`
-- [ ] Class names updated (`Http20DecoderStageRfcTests` → `Http20DecoderStageFrameParsingTests`)
-- [ ] Namespaces unchanged
-- [ ] `dotnet build` succeeds
+- [x] Files renamed via `git mv`
+- [x] Class names updated (`Http20DecoderStageRfcTests` → `Http20DecoderStageFrameParsingTests`)
+- [x] Namespaces unchanged
+- [x] `dotnet build` succeeds
 
 ---
 

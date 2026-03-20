@@ -14,7 +14,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Stage under test: <see cref="Http20DecoderStage"/>.
 /// RFC 9113 §4–§6: HTTP/2 frame format, frame types, and error detection.
 /// </remarks>
-public sealed class Http20DecoderStageRfcTests : StreamTestBase
+public sealed class Http20DecoderStageFrameParsingTests : StreamTestBase
 {
     private static IInputItem Chunk(byte[] data)
         => new DataItem(new SimpleMemoryOwner(data), data.Length) { Key = RequestEndpoint.Default };
