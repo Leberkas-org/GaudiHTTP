@@ -208,12 +208,12 @@ catch (Exception ex)
 ```
 
 **Acceptance Criteria:**
-- [ ] Stage never calls `FailStage`
-- [ ] Errors logged, request passed through (possibly unenriched)
-- [ ] Stream test verifies stream survives enrichment error
-- [ ] Existing tests asserting `FailStage` on enrichment errors → **deleted**
-- [ ] Remaining enricher tests pass
-- [ ] Build compiles with 0 errors
+- [x] Stage never calls `FailStage`
+- [x] Errors logged, request passed through (possibly unenriched)
+- [x] Stream test verifies stream survives enrichment error
+- [x] Existing tests asserting `FailStage` on enrichment errors → **deleted**
+- [x] Remaining enricher tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
