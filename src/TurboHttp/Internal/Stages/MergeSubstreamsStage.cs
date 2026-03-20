@@ -13,15 +13,15 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
 {
     private readonly int _maxConcurrent;
 
-    private readonly Inlet<Source<T, NotUsed>> _inlet = new("merge.substreams.in");
-    private readonly Outlet<T> _outlet = new("merge.substreams.out");
+    private readonly Inlet<Source<T, NotUsed>> _in = new("MergeSubstreams.In");
+    private readonly Outlet<T> _out = new("MergeSubstreams.Out");
     public override FlowShape<Source<T, NotUsed>, T> Shape { get; }
 
 
     public MergeSubstreamsStage(int maxConcurrent)
     {
         _maxConcurrent = maxConcurrent;
-        Shape = new FlowShape<Source<T, NotUsed>, T>(_inlet, _outlet);
+        Shape = new FlowShape<Source<T, NotUsed>, T>(_in, _out);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -43,10 +43,10 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
         {
             _stage = stage;
 
-            SetHandler(stage._inlet,
+            SetHandler(stage._in,
                 onPush: () =>
                 {
-                    var source = Grab(stage._inlet);
+                    var source = Grab(stage._in);
                     _active++;
 
                     source
@@ -64,9 +64,9 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                                 }
                             }, TaskContinuationOptions.ExecuteSynchronously);
 
-                    if (_active < _stage._maxConcurrent && !HasBeenPulled(stage._inlet))
+                    if (_active < _stage._maxConcurrent && !HasBeenPulled(stage._in))
                     {
-                        Pull(stage._inlet);
+                        Pull(stage._in);
                     }
                 },
                 onUpstreamFinish: () =>
@@ -80,16 +80,16 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                 },
                 onUpstreamFailure: ex => Log.Warning("MergeSubstreamsStage: Upstream failure absorbed: {0}", ex.Message));
 
-            SetHandler(stage._outlet,
+            SetHandler(stage._out,
                 onPull: () =>
                 {
                     if (_buffer.TryDequeue(out var elem))
                     {
-                        Push(stage._outlet, elem);
+                        Push(stage._out, elem);
                     }
-                    else if (!_upstreamDone && !HasBeenPulled(stage._inlet) && _active < _stage._maxConcurrent)
+                    else if (!_upstreamDone && !HasBeenPulled(stage._in) && _active < _stage._maxConcurrent)
                     {
-                        Pull(stage._inlet);
+                        Pull(stage._in);
                     }
                     // else: wait for next _onElement callback
                 });
@@ -99,9 +99,9 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
         {
             _onElement = GetAsyncCallback<T>(elem =>
             {
-                if (IsAvailable(_stage._outlet))
+                if (IsAvailable(_stage._out))
                 {
-                    Push(_stage._outlet, elem);
+                    Push(_stage._out, elem);
                 }
                 else
                 {
@@ -118,8 +118,8 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                     case true when _active == 0 && _buffer.Count == 0:
                         CompleteStage();
                         return;
-                    case false when !HasBeenPulled(_stage._inlet) && _active < _stage._maxConcurrent:
-                        Pull(_stage._inlet);
+                    case false when !HasBeenPulled(_stage._in) && _active < _stage._maxConcurrent:
+                        Pull(_stage._in);
                         break;
                 }
             });
@@ -135,13 +135,13 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                     return;
                 }
 
-                if (!_upstreamDone && !HasBeenPulled(_stage._inlet) && _active < _stage._maxConcurrent)
+                if (!_upstreamDone && !HasBeenPulled(_stage._in) && _active < _stage._maxConcurrent)
                 {
-                    Pull(_stage._inlet);
+                    Pull(_stage._in);
                 }
             });
 
-            Pull(_stage._inlet);
+            Pull(_stage._in);
         }
     }
 }
