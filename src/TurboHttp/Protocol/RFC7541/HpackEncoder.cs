@@ -5,10 +5,6 @@ using System.Text;
 
 namespace TurboHttp.Protocol.RFC7541;
 
-// ============================================================================
-// RFC 7541 – HPACK Encoder
-// ============================================================================
-
 /// <summary>
 /// Encoding strategy for a single header field.
 /// Controls how the encoder serializes a given header.

@@ -4,10 +4,6 @@ using System.Text;
 
 namespace TurboHttp.Protocol.RFC7541;
 
-// ============================================================================
-// RFC 7541 - HPACK: Header Compression for HTTP/2
-// ============================================================================
-
 /// <summary>
 /// Represents a decoded HPACK header field.
 /// NeverIndex = true means this header MUST NEVER be added to a dynamic table
@@ -134,7 +130,7 @@ public sealed class HpackDecoder
     // RFC 7541 §4.2: Maximum table size is negotiated via SETTINGS_HEADER_TABLE_SIZE
     private int _maxAllowedTableSize = 4096;
 
-    // RFC 7540 §6.5.2 / RFC 7541: MAX_HEADER_LIST_SIZE — maximum cumulative decoded header list size.
+    // RFC 9113 §6.5.2 / RFC 7541: MAX_HEADER_LIST_SIZE — maximum cumulative decoded header list size.
     // Size is computed as: sum of (name_bytes + value_bytes + 32) per entry.
     // Default: int.MaxValue (no limit enforced until SETTINGS is received).
     private int _maxHeaderListSize = int.MaxValue;
@@ -159,7 +155,7 @@ public sealed class HpackDecoder
     }
 
     /// <summary>
-    /// Sets the MAX_HEADER_LIST_SIZE limit (RFC 7540 §6.5.2).
+    /// Sets the MAX_HEADER_LIST_SIZE limit (RFC 9113 §6.5.2).
     /// When the cumulative decoded header list size (name + value + 32 per entry) exceeds
     /// this value, <see cref="HpackException"/> is thrown (COMPRESSION_ERROR — connection error).
     /// </summary>
@@ -198,7 +194,7 @@ public sealed class HpackDecoder
         var result = new List<HpackHeader>();
         var pos = 0;
 
-        // RFC 7540 §6.5.2: Track cumulative header list size for MAX_HEADER_LIST_SIZE enforcement.
+        // RFC 9113 §6.5.2: Track cumulative header list size for MAX_HEADER_LIST_SIZE enforcement.
         // Size per entry = name_bytes + value_bytes + 32 (RFC 7541 §4.1 overhead).
         long cumulativeHeaderListSize = 0;
 
@@ -275,7 +271,7 @@ public sealed class HpackDecoder
     /// <summary>
     /// Accumulates the entry's contribution to the header list size and throws
     /// <see cref="HpackException"/> if the cumulative total exceeds <see cref="_maxHeaderListSize"/>.
-    /// RFC 7540 §6.5.2: size = name_octets + value_octets + 32 per entry.
+    /// RFC 9113 §6.5.2: size = name_octets + value_octets + 32 per entry.
     /// </summary>
     private void CheckHeaderListSize(ref long cumulative, HpackHeader header)
     {
@@ -292,7 +288,7 @@ public sealed class HpackDecoder
         if (cumulative > _maxHeaderListSize)
         {
             throw new HpackException(
-                $"RFC 7540 §6.5.2 violation: Header list size {cumulative} exceeds " +
+                $"RFC 9113 §6.5.2 violation: Header list size {cumulative} exceeds " +
                 $"MAX_HEADER_LIST_SIZE ({_maxHeaderListSize}) — COMPRESSION_ERROR.");
         }
     }

@@ -50,11 +50,11 @@ The following RFC supersession rules apply:
 2. `src/TurboHttp/Protocol/RFC7541/HpackDecoder.cs`
 
 **Acceptance Criteria:**
-- [ ] Verify all RFC 7541 §-references — HPACK sections are correct (RFC 7541 remains current)
-- [ ] Update references to RFC 7540 (e.g. §6.5.2 MAX_HEADER_LIST_SIZE) to RFC 9113 §6.5.2
-- [ ] Verify comments accurately describe the current code state
-- [ ] Remove redundant comments
-- [ ] `dotnet build` succeeds
+- [x] Verify all RFC 7541 §-references — HPACK sections are correct (RFC 7541 remains current)
+- [x] Update references to RFC 7540 (e.g. §6.5.2 MAX_HEADER_LIST_SIZE) to RFC 9113 §6.5.2
+- [x] Verify comments accurately describe the current code state
+- [x] Remove redundant comments
+- [x] `dotnet build` succeeds
 
 ---
 
