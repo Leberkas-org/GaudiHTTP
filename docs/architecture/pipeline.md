@@ -30,10 +30,10 @@ After bytes return from TCP, the response passes through these stages:
 |---|-------|--------------|
 | 1 | *(version decoder)* | Parses raw bytes into `HttpResponseMessage`; correlates response with the originating request |
 | 2 | `DecompressionStage` | Decompresses `gzip`, `deflate`, or `br` content encodings transparently |
-| 3 | `CookieStorageStage` | Parses `Set-Cookie` response headers; stores cookies in `CookieJar` with full RFC 6265 attribute evaluation |
+| 3 | `CookieStorageStage` | Parses `Set-Cookie` response headers; stores cookies in `CookieJar` with full attribute evaluation |
 | 4 | `CacheStorageStage` | Stores cacheable responses in `HttpCacheStore`; respects `Cache-Control`, `Vary`, `Expires` directives |
 | 5 | `RetryStage` | On transient errors or `503`/`429` responses, re-queues idempotent requests; parses `Retry-After` header for delay |
-| 6 | `RedirectStage` | Follows `301`, `302`, `303`, `307`, `308` responses; rewrites method per RFC 9110 §15.4; detects redirect loops; blocks HTTPS→HTTP downgrade |
+| 6 | `RedirectStage` | Follows `301`, `302`, `303`, `307`, `308` responses; rewrites method correctly; detects redirect loops; blocks HTTPS→HTTP downgrade |
 
 ---
 
@@ -43,7 +43,7 @@ Three feedback paths create non-linear behaviour in the pipeline:
 
 ### 1. Cache Hit Short-Circuit (amber)
 
-`CacheLookupStage` checks the in-memory `HttpCacheStore` on every request. If the stored response is still fresh (per RFC 9111 §4.2 freshness calculation), it is returned immediately. The request never reaches the `Engine` or the network.
+`CacheLookupStage` checks the in-memory `HttpCacheStore` on every request. If the stored response is still fresh, it is returned immediately. The request never reaches the `Engine` or the network.
 
 If the cache entry is stale but has an `ETag` or `Last-Modified` validator, `CacheLookupStage` emits a conditional request (`If-None-Match` / `If-Modified-Since`). On a `304 Not Modified` response, `CacheStorageStage` merges the new headers into the cached entry and returns it.
 

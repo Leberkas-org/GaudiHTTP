@@ -14,7 +14,7 @@ The four containers are:
 |-----------|-------------|
 | **Client** | Public API surface — `ITurboHttpClient`, `SendAsync`, and the channel-based request/response interface |
 | **Streams** | Akka.Streams `GraphStage` pipeline — version demultiplexer, per-version protocol engines, request enrichment, and all middleware stages (cookies, caching, compression, redirect, retry) |
-| **Protocol** | Pure-logic RFC implementations — encoders, decoders, HPACK, `CookieJar`, `HttpCacheStore`, `RedirectHandler`, `RetryEvaluator` |
+| **Protocol** | Pure protocol logic — encoders, decoders, HPACK, `CookieJar`, `HttpCacheStore`, `RedirectHandler`, `RetryEvaluator` |
 | **I/O** | Hybrid lifecycle + data-path layer — actor hierarchy manages connection pooling; `System.Threading.Channels` carry bytes with zero actor hops |
 
 ---
@@ -54,8 +54,8 @@ The Streams layer is the heart of TurboHttp. It is a single composable Akka.Stre
 5. `DecompressionStage` — decompresses gzip/deflate/brotli response bodies
 6. `CookieStorageStage` — parses `Set-Cookie` headers and stores cookies in `CookieJar`
 7. `CacheStorageStage` — stores cacheable responses in `HttpCacheStore`
-8. `RetryStage` — retries idempotent requests on transient failures (RFC 9110 §9.2)
-9. `RedirectStage` — follows redirects (RFC 9110 §15.4) with method rewriting and loop detection
+8. `RetryStage` — retries idempotent requests on transient failures
+9. `RedirectStage` — follows redirects with method rewriting and loop detection
 
 **Key cross-cutting stages:**
 

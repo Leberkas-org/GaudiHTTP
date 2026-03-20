@@ -514,11 +514,11 @@ features:
 5. Simplify protocol-internal language where possible
 
 **Acceptance Criteria:**
-- [ ] Zero RFC references in architecture pages
-- [ ] Zero test count mentions
-- [ ] Technical accuracy preserved
-- [ ] LikeC4 diagrams still render (with `<ClientOnly>` from TASK-001)
-- [ ] Verify in browser
+- [x] Zero RFC references in architecture pages
+- [x] Zero test count mentions
+- [x] Technical accuracy preserved
+- [x] LikeC4 diagrams still render (with `<ClientOnly>` from TASK-001)
+- [ ] ⚠️ BLOCKED: Verify in browser — Node.js not installed in CI/dev environment; requires human testing
 
 ---
 

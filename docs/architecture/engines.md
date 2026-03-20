@@ -10,7 +10,7 @@ The `Engine` stage demultiplexes requests by HTTP version and routes each reques
   <LikeC4Diagram viewId="http10Engine" :height="440" />
 </ClientOnly>
 
-HTTP/1.0 (RFC 1945) uses a **close-then-respond** model. Each connection handles exactly one request, then closes.
+HTTP/1.0 uses a **close-then-respond** model. Each connection handles exactly one request, then closes.
 
 **Stage sequence:**
 
@@ -40,7 +40,7 @@ Http10EncoderStage → ConnectionStage → TCP → ConnectionStage → Http10Dec
   <LikeC4Diagram viewId="http11Engine" :height="480" />
 </ClientOnly>
 
-HTTP/1.1 (RFC 9112) adds **persistent connections** and **keep-alive control** via a feedback loop from the correlation stage back to `ConnectionStage`.
+HTTP/1.1 adds **persistent connections** and **keep-alive control** via a feedback loop from the correlation stage back to `ConnectionStage`.
 
 **Stage sequence:**
 
@@ -60,7 +60,7 @@ Http11EncoderStage → ConnectionStage → TCP → ConnectionStage
 | `ConnectionStage` | Manages a persistent TCP connection; accepts reuse/close signals |
 | `Http11DecoderStage` | Parses HTTP/1.1 responses; handles chunked transfer decoding |
 | `CorrelationHttp1XStage` | FIFO correlation; depth > 1 enables request pipelining |
-| `ConnectionReuseStage` | Evaluates `Connection: keep-alive` / `Connection: close` (RFC 9112 §9.3); emits a reuse or close signal |
+| `ConnectionReuseStage` | Evaluates `Connection: keep-alive` / `Connection: close`; emits a reuse or close signal |
 
 **Keep-alive feedback loop:**
 
@@ -78,7 +78,7 @@ If the decision is **reuse**, `ConnectionStage` keeps the TCP connection open fo
   <LikeC4Diagram viewId="http2Engine" :height="520" />
 </ClientOnly>
 
-HTTP/2 (RFC 9113) provides **stream multiplexing** — many logical requests share a single TCP connection, each assigned a unique stream ID.
+HTTP/2 provides **stream multiplexing** — many logical requests share a single TCP connection, each assigned a unique stream ID.
 
 **Stage sequence:**
 
@@ -90,7 +90,7 @@ TCP → ConnectionStage → Http20DecoderStage → Http20ConnectionStage → Htt
 
 | Stage | Role |
 |-------|------|
-| `StreamIdAllocatorStage` | Allocates client stream IDs (1, 3, 5, …) per the RFC 9113 §5.1 numbering rule |
+| `StreamIdAllocatorStage` | Allocates client stream IDs (1, 3, 5, …) — odd integers, client-initiated |
 | `Request2FrameStage` | HPACK-encodes request headers; emits `HEADERS` frame + `DATA` frame(s) |
 | `Http20ConnectionStage` | Bidirectional flow control; handles `SETTINGS`, `PING`, `WINDOW_UPDATE`, `GOAWAY` frames |
 | `Http20EncoderStage` | Serialises `Http2Frame` objects to wire bytes (9-byte frame header + payload) |
