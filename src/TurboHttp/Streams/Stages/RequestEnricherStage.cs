@@ -12,8 +12,8 @@ internal sealed class RequestEnricherStage : GraphStage<FlowShape<HttpRequestMes
 {
     private readonly Func<TurboRequestOptions> _optionsFactory;
 
-    private readonly Inlet<HttpRequestMessage> _inlet = new("enricher.in");
-    private readonly Outlet<HttpRequestMessage> _outlet = new("enricher.out");
+    private readonly Inlet<HttpRequestMessage> _in = new("RequestEnricher.In");
+    private readonly Outlet<HttpRequestMessage> _out = new("RequestEnricher.Out");
 
     public override FlowShape<HttpRequestMessage, HttpRequestMessage> Shape { get; }
 
@@ -21,7 +21,7 @@ internal sealed class RequestEnricherStage : GraphStage<FlowShape<HttpRequestMes
     public RequestEnricherStage(Func<TurboRequestOptions> optionsFactory)
     {
         _optionsFactory = optionsFactory;
-        Shape = new FlowShape<HttpRequestMessage, HttpRequestMessage>(_inlet, _outlet);
+        Shape = new FlowShape<HttpRequestMessage, HttpRequestMessage>(_in, _out);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -35,10 +35,10 @@ internal sealed class RequestEnricherStage : GraphStage<FlowShape<HttpRequestMes
         {
             _stage = stage;
 
-            SetHandler(stage._inlet,
+            SetHandler(stage._in,
                 onPush: () =>
                 {
-                    var request = Grab(stage._inlet);
+                    var request = Grab(stage._in);
 
                     try
                     {
@@ -50,13 +50,13 @@ internal sealed class RequestEnricherStage : GraphStage<FlowShape<HttpRequestMes
                             request.RequestUri, ex.Message);
                     }
 
-                    Push(stage._outlet, request);
+                    Push(stage._out, request);
                 },
                 onUpstreamFinish: CompleteStage,
                 onUpstreamFailure: ex => Log.Warning("RequestEnricherStage: Upstream failure absorbed: {0}", ex.Message));
 
-            SetHandler(stage._outlet,
-                onPull: () => Pull(stage._inlet),
+            SetHandler(stage._out,
+                onPull: () => Pull(stage._in),
                 onDownstreamFinish: _ => CompleteStage());
         }
 

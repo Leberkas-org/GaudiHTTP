@@ -17,15 +17,15 @@ namespace TurboHttp.Streams.Stages;
 /// </summary>
 internal sealed class DecompressionStage : GraphStage<FlowShape<HttpResponseMessage, HttpResponseMessage>>
 {
-    private readonly Inlet<HttpResponseMessage> _inlet = new("decompression.in");
-    private readonly Outlet<HttpResponseMessage> _outlet = new("decompression.out");
+    private readonly Inlet<HttpResponseMessage> _in = new("Decompression.In");
+    private readonly Outlet<HttpResponseMessage> _out = new("Decompression.Out");
 
     public override FlowShape<HttpResponseMessage, HttpResponseMessage> Shape { get; }
 
 
     public DecompressionStage()
     {
-        Shape = new FlowShape<HttpResponseMessage, HttpResponseMessage>(_inlet, _outlet);
+        Shape = new FlowShape<HttpResponseMessage, HttpResponseMessage>(_in, _out);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -35,17 +35,17 @@ internal sealed class DecompressionStage : GraphStage<FlowShape<HttpResponseMess
     {
         public Logic(DecompressionStage stage) : base(stage.Shape)
         {
-            SetHandler(stage._inlet,
+            SetHandler(stage._in,
                 onPush: () =>
                 {
-                    var response = Grab(stage._inlet);
-                    Push(stage._outlet, Decompress(response));
+                    var response = Grab(stage._in);
+                    Push(stage._out, Decompress(response));
                 },
                 onUpstreamFinish: CompleteStage,
                 onUpstreamFailure: ex => Log.Warning("DecompressionStage: Upstream failure absorbed: {0}", ex.Message));
 
-            SetHandler(stage._outlet,
-                onPull: () => Pull(stage._inlet),
+            SetHandler(stage._out,
+                onPull: () => Pull(stage._in),
                 onDownstreamFinish: _ => CompleteStage());
         }
 

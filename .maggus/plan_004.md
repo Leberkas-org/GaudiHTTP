@@ -250,10 +250,10 @@ Fields: `_inlet`/`_outlet` → `_in`/`_out` (StreamIdAllocatorStage already uses
 Fields: `_inlet`/`_outlet` → `_in`/`_out`
 
 **Acceptance Criteria:**
-- [ ] All 3 stages renamed
-- [ ] Field names unified
-- [ ] All existing stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] All 3 stages renamed
+- [x] Field names unified
+- [x] All existing stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 

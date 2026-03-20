@@ -16,8 +16,8 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
 {
     private IActorRef PoolRouter { get; }
 
-    private readonly Inlet<IOutputItem> _inlet = new("connection.in");
-    private readonly Outlet<IInputItem> _outlet = new("connection.out");
+    private readonly Inlet<IOutputItem> _in = new("Connection.In");
+    private readonly Outlet<IInputItem> _out = new("Connection.Out");
 
     public override FlowShape<IOutputItem, IInputItem> Shape { get; }
 
@@ -25,7 +25,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
     public ConnectionStage(IActorRef poolRouter)
     {
         PoolRouter = poolRouter;
-        Shape = new FlowShape<IOutputItem, IInputItem>(_inlet, _outlet);
+        Shape = new FlowShape<IOutputItem, IInputItem>(_in, _out);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -61,7 +61,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
         {
             _stage = stage;
 
-            SetHandler(stage._inlet,
+            SetHandler(stage._in,
                 onPush: HandlePush,
                 onUpstreamFinish: () =>
                 {
@@ -69,12 +69,12 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
                     CompleteStage();
                 });
 
-            SetHandler(stage._outlet,
+            SetHandler(stage._out,
                 onPull: () =>
                 {
                     if (_pendingReads.TryDequeue(out var item))
                     {
-                        Push(_stage._outlet, item);
+                        Push(_stage._out, item);
                     }
                 },
                 onDownstreamFinish: _ =>
@@ -88,9 +88,9 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
         {
             _onInboundData = GetAsyncCallback<IInputItem>(item =>
             {
-                if (IsAvailable(_stage._outlet))
+                if (IsAvailable(_stage._out))
                 {
-                    Push(_stage._outlet, item);
+                    Push(_stage._out, item);
                 }
                 else
                 {
@@ -100,9 +100,9 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
 
             _onOutboundWriteDone = GetAsyncCallback(() =>
             {
-                if (!IsClosed(_stage._inlet) && !HasBeenPulled(_stage._inlet))
+                if (!IsClosed(_stage._in) && !HasBeenPulled(_stage._in))
                 {
-                    Pull(_stage._inlet);
+                    Pull(_stage._in);
                 }
             });
 
@@ -113,9 +113,9 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
                 StartInboundPump();
 
                 // Now ready to process data items — pull next element.
-                if (!IsClosed(_stage._inlet) && !HasBeenPulled(_stage._inlet))
+                if (!IsClosed(_stage._in) && !HasBeenPulled(_stage._in))
                 {
-                    Pull(_stage._inlet);
+                    Pull(_stage._in);
                 }
             });
 
@@ -128,7 +128,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
             _stageActor = GetStageActor(OnMessage);
 
             // Ready to accept ConnectItem immediately — no GlobalRefs needed.
-            Pull(_stage._inlet);
+            Pull(_stage._in);
         }
 
         private void OnMessage((IActorRef sender, object msg) args)
@@ -141,7 +141,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
 
         private void HandlePush()
         {
-            var item = Grab(_stage._inlet);
+            var item = Grab(_stage._in);
             var handle = _handle;
 
             if (item is MaxConcurrentStreamsItem maxStreams)
@@ -204,9 +204,9 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
 
         private void TryPull()
         {
-            if (!IsClosed(_stage._inlet) && !HasBeenPulled(_stage._inlet))
+            if (!IsClosed(_stage._in) && !HasBeenPulled(_stage._in))
             {
-                Pull(_stage._inlet);
+                Pull(_stage._in);
             }
         }
 
