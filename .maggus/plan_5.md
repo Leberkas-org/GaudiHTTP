@@ -75,7 +75,7 @@ Transform TurboHttp from a working codebase into a polished, production-ready op
 **Description:** As a visitor, I want a comprehensive README so that I understand what TurboHttp is, how to install it, and how to use it.
 
 **Acceptance Criteria:**
-- [ ] README.md contains:
+- [x] README.md contains:
   - Project logo (from `docs/logo/`)
   - One-line description + badges (build status, NuGet version, license)
   - Feature highlights (HTTP/1.0, 1.1, 2, Akka.Streams, RFC compliance)
@@ -86,8 +86,8 @@ Transform TurboHttp from a working codebase into a polished, production-ready op
   - Link to full documentation site
   - Contributing section (brief)
   - License (MIT)
-- [ ] No broken links
-- [ ] Renders correctly on GitHub
+- [x] No broken links
+- [x] Renders correctly on GitHub
 
 ### TASK-007: Initialize VitePress Project
 **Description:** As a maintainer, I want a VitePress documentation site scaffolded in `docs/` so that it can host project documentation and architecture diagrams.
