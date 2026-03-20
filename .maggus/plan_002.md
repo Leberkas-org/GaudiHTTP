@@ -436,10 +436,10 @@ Example:  01_Http10EncoderStageTests.cs
 5. `EngineVersionRoutingTests.cs` → `10_EngineVersionRoutingTests.cs`
 
 **Acceptance Criteria:**
-- [ ] Files renamed via `git mv`
-- [ ] Class names unchanged
-- [ ] Namespaces unchanged
-- [ ] `dotnet build` succeeds
+- [x] Files renamed via `git mv`
+- [x] Class names unchanged
+- [x] Namespaces unchanged
+- [x] `dotnet build` succeeds
 
 ---
 
