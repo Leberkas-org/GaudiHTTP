@@ -11,7 +11,7 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Streams.Stages;
 
-// ── RFC 7540 §3.5 — prepend connection preface to the first outbound bytes ──
+// RFC 9113 §3.4 — prepend connection preface to the first outbound bytes
 public sealed class PrependPrefaceStage : GraphStage<FlowShape<IOutputItem, IOutputItem>>
 {
     private readonly Inlet<IOutputItem> _inlet = new("preface.in");
@@ -70,7 +70,7 @@ public sealed class PrependPrefaceStage : GraphStage<FlowShape<IOutputItem, IOut
                 onUpstreamFailure: FailStage);
         }
 
-        // ── RFC 7540 §3.5 — Build HTTP/2 connection preface with default SETTINGS ──
+        // RFC 9113 §3.4 — Build HTTP/2 connection preface with default SETTINGS
         private byte[] BuildHttp2ConnectionPreface()
         {
             const int frameHeaderSize = 9;

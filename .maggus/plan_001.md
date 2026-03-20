@@ -343,13 +343,13 @@ The following RFC supersession rules apply:
 5. `src/TurboHttp/Streams/Stages/Request2FrameStage.cs`
 
 **Acceptance Criteria:**
-- [ ] **PrependPrefaceStage**: RFC 7540 §3.5 → RFC 9113 §3.4 (Connection Preface)
-- [ ] **StreamIdAllocatorStage**: RFC 9113 §5.1.1 (Stream Identifiers) references are correct
-- [ ] **Http20StreamStage**: HPACK references (RFC 7541) remain, HTTP/2 references → RFC 9113
-- [ ] **Request2FrameStage**: Pseudo-header references RFC 9113 §8.3.1 are correct
-- [ ] Replace all remaining RFC 7540 references with RFC 9113
-- [ ] Remove redundant comments
-- [ ] `dotnet build` succeeds
+- [x] **PrependPrefaceStage**: RFC 7540 §3.5 → RFC 9113 §3.4 (Connection Preface)
+- [x] **StreamIdAllocatorStage**: RFC 9113 §5.1.1 (Stream Identifiers) references are correct
+- [x] **Http20StreamStage**: HPACK references (RFC 7541) remain, HTTP/2 references → RFC 9113
+- [x] **Request2FrameStage**: Pseudo-header references RFC 9113 §8.3.1 are correct
+- [x] Replace all remaining RFC 7540 references with RFC 9113
+- [x] Remove redundant comments
+- [x] `dotnet build` succeeds
 
 ---
 
