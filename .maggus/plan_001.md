@@ -264,11 +264,11 @@ The following RFC supersession rules apply:
 3. `src/TurboHttp/Protocol/RFC1945/Http10Decoder.cs`
 
 **Acceptance Criteria:**
-- [ ] RFC 9112 §9 references in ConnectionReuseStage are correct
-- [ ] RFC 1945 references in HTTP/1.0 encoder/decoder are correct (RFC 1945 remains current)
-- [ ] Comments accurately describe current behaviour
-- [ ] Remove redundant comments
-- [ ] `dotnet build` succeeds
+- [x] RFC 9112 §9 references in ConnectionReuseStage are correct
+- [x] RFC 1945 references in HTTP/1.0 encoder/decoder are correct (RFC 1945 remains current)
+- [x] Comments accurately describe current behaviour
+- [x] Remove redundant comments
+- [x] `dotnet build` succeeds
 
 ---
 
