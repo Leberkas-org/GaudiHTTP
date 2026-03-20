@@ -13,9 +13,12 @@ public sealed class HttpCacheStore
     private readonly CachePolicy _policy;
     private readonly object _lock = new();
 
-    // Linked list tracks LRU order; dictionary provides O(1) access
+    // Linked list tracks LRU order; _index provides O(1) node lookup by compound key
     private readonly LinkedList<(string key, CacheEntry entry)> _lruList = new();
     private readonly Dictionary<string, LinkedListNode<(string key, CacheEntry entry)>> _index = new();
+
+    // Secondary index: primary key → list of nodes; enables O(1) candidate lookup in Get/Invalidate
+    private readonly Dictionary<string, List<LinkedListNode<(string key, CacheEntry entry)>>> _primaryIndex = new();
 
     public HttpCacheStore(CachePolicy? policy = null)
     {
@@ -44,22 +47,21 @@ public sealed class HttpCacheStore
 
         lock (_lock)
         {
-            // Walk all nodes with the same primary key; pick the one whose Vary matches
-            var node = _lruList.First;
+            // O(1) lookup of all variants for this URI via secondary index
+            if (!_primaryIndex.TryGetValue(primaryKey, out var candidates))
+            {
+                return null;
+            }
+
             LinkedListNode<(string key, CacheEntry entry)>? match = null;
 
-            while (node != null)
+            foreach (var candidate in candidates)
             {
-                if (node.Value.key == primaryKey)
+                if (VaryMatches(candidate.Value.entry, request))
                 {
-                    if (VaryMatches(node.Value.entry, request))
-                    {
-                        match = node;
-                        break;
-                    }
+                    match = candidate;
+                    break;
                 }
-
-                node = node.Next;
             }
 
             if (match is null)
@@ -110,10 +112,19 @@ public sealed class HttpCacheStore
                 var last = _lruList.Last!;
                 _lruList.RemoveLast();
                 _index.Remove(last.Value.key + "|" + GetVaryKey(last.Value.entry));
+                RemoveFromPrimaryIndex(last.Value.key, last);
             }
 
             var node = _lruList.AddFirst((primaryKey, entry));
             _index[primaryKey + "|" + GetVaryKey(entry)] = node;
+
+            if (!_primaryIndex.TryGetValue(primaryKey, out var list))
+            {
+                list = new List<LinkedListNode<(string key, CacheEntry entry)>>();
+                _primaryIndex[primaryKey] = list;
+            }
+
+            list.Add(node);
         }
     }
 
@@ -127,19 +138,19 @@ public sealed class HttpCacheStore
 
         lock (_lock)
         {
-            var toRemove = _lruList
-                .Where(n => n.key == key)
-                .ToList();
-
-            foreach (var item in toRemove)
+            if (!_primaryIndex.TryGetValue(key, out var candidates))
             {
-                var node = _lruList.Find(item);
-                if (node != null)
-                {
-                    _lruList.Remove(node);
-                    _index.Remove(item.key + "|" + GetVaryKey(item.entry));
-                }
+                return;
             }
+
+            // Take a copy since we will mutate _primaryIndex inside the loop
+            foreach (var node in candidates.ToList())
+            {
+                _lruList.Remove(node);
+                _index.Remove(node.Value.key + "|" + GetVaryKey(node.Value.entry));
+            }
+
+            _primaryIndex.Remove(key);
         }
     }
 
@@ -214,6 +225,7 @@ public sealed class HttpCacheStore
         {
             _lruList.Clear();
             _index.Clear();
+            _primaryIndex.Clear();
         }
     }
 
@@ -333,36 +345,53 @@ public sealed class HttpCacheStore
 
     private void RemoveMatching(string primaryKey, IReadOnlyDictionary<string, string?> varyValues)
     {
-        var node = _lruList.First;
-        while (node != null)
+        if (!_primaryIndex.TryGetValue(primaryKey, out var candidates))
         {
-            var next = node.Next;
-            if (node.Value.key == primaryKey)
+            return;
+        }
+
+        for (var i = candidates.Count - 1; i >= 0; i--)
+        {
+            var node = candidates[i];
+            var entryVary = node.Value.entry.VaryRequestValues;
+            var same = true;
+
+            foreach (var kvp in varyValues)
             {
-                // Check if vary values match (same variant)
-                var entryVary = node.Value.entry.VaryRequestValues;
-                var same = true;
-
-                foreach (var kvp in varyValues)
+                var entryVal = entryVary.GetValueOrDefault(kvp.Key);
+                if (!string.Equals(entryVal, kvp.Value, StringComparison.Ordinal))
                 {
-                    var entryVal = entryVary.GetValueOrDefault(kvp.Key);
-                    if (string.Equals(entryVal, kvp.Value, StringComparison.Ordinal))
-                    {
-                        continue;
-                    }
-
                     same = false;
                     break;
                 }
-
-                if (same)
-                {
-                    _lruList.Remove(node);
-                    _index.Remove(primaryKey + "|" + GetVaryKey(node.Value.entry));
-                }
             }
 
-            node = next;
+            if (same)
+            {
+                _lruList.Remove(node);
+                _index.Remove(primaryKey + "|" + GetVaryKey(node.Value.entry));
+                candidates.RemoveAt(i);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            _primaryIndex.Remove(primaryKey);
+        }
+    }
+
+    private void RemoveFromPrimaryIndex(string primaryKey, LinkedListNode<(string key, CacheEntry entry)> node)
+    {
+        if (!_primaryIndex.TryGetValue(primaryKey, out var list))
+        {
+            return;
+        }
+
+        list.Remove(node);
+
+        if (list.Count == 0)
+        {
+            _primaryIndex.Remove(primaryKey);
         }
     }
 

@@ -619,10 +619,10 @@ finally
 **Required Change:** Add `Dictionary<string, List<LinkedListNode>>` index. Update Get/Set/Eviction.
 
 **Acceptance Criteria:**
-- [ ] Get uses index (no linear scan)
-- [ ] Set/Eviction maintain index consistency
-- [ ] All existing RFC9111 cache tests pass
-- [ ] Build compiles with 0 errors
+- [x] Get uses index (no linear scan)
+- [x] Set/Eviction maintain index consistency
+- [x] All existing RFC9111 cache tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
