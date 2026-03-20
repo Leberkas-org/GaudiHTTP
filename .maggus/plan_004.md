@@ -198,10 +198,10 @@ Fields: `_inlet`/`_outlet` → `_in`/`_out`
 Fields: `_inlet`/`_outlet` → `_in`/`_out`
 
 **Acceptance Criteria:**
-- [ ] String names unified to match Http10/Http11 pattern
-- [ ] Field names updated
-- [ ] All existing RFC9113 stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] String names unified to match Http10/Http11 pattern
+- [x] Field names updated
+- [x] All existing RFC9113 stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 

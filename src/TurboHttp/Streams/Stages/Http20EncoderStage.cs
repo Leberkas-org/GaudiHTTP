@@ -9,10 +9,10 @@ namespace TurboHttp.Streams.Stages;
 
 public sealed class Http20EncoderStage : GraphStage<FlowShape<Http2Frame, IOutputItem>>
 {
-    private readonly Inlet<Http2Frame> _inlet = new("frameEncoder.in");
-    private readonly Outlet<IOutputItem> _outlet = new("frameEncoder.out");
+    private readonly Inlet<Http2Frame> _in = new("Http20Encoder.In");
+    private readonly Outlet<IOutputItem> _out = new("Http20Encoder.Out");
 
-    public override FlowShape<Http2Frame, IOutputItem> Shape => new(_inlet, _outlet);
+    public override FlowShape<Http2Frame, IOutputItem> Shape => new(_in, _out);
 
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -24,9 +24,9 @@ public sealed class Http20EncoderStage : GraphStage<FlowShape<Http2Frame, IOutpu
 
         public Logic(Http20EncoderStage stage) : base(stage.Shape)
         {
-            SetHandler(stage._inlet, () =>
+            SetHandler(stage._in, () =>
             {
-                var frame = Grab(stage._inlet);
+                var frame = Grab(stage._in);
 
                 if (_endpoint == default && frame.Endpoint.HasValue)
                 {
@@ -38,13 +38,13 @@ public sealed class Http20EncoderStage : GraphStage<FlowShape<Http2Frame, IOutpu
 
                 frame.WriteTo(ref span);
 
-                Push(stage._outlet, new DataItem(owner, frame.SerializedSize)
+                Push(stage._out, new DataItem(owner, frame.SerializedSize)
                 {
                     Key = _endpoint
                 });
             });
 
-            SetHandler(stage._outlet, () => Pull(stage._inlet));
+            SetHandler(stage._out, () => Pull(stage._in));
         }
     }
 }

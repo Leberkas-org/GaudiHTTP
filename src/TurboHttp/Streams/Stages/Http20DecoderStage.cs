@@ -10,15 +10,15 @@ namespace TurboHttp.Streams.Stages;
 
 public sealed class Http20DecoderStage : GraphStage<FlowShape<IInputItem, Http2Frame>>
 {
-    private readonly Inlet<IInputItem> _inlet = new("http20.tcp.in");
-    private readonly Outlet<Http2Frame> _outlet = new("http20.frame.out");
+    private readonly Inlet<IInputItem> _in = new("Http20Decoder.In");
+    private readonly Outlet<Http2Frame> _out = new("Http20Decoder.Out");
 
     public override FlowShape<IInputItem, Http2Frame> Shape { get; }
 
 
     public Http20DecoderStage()
     {
-        Shape = new FlowShape<IInputItem, Http2Frame>(_inlet, _outlet);
+        Shape = new FlowShape<IInputItem, Http2Frame>(_in, _out);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -32,14 +32,14 @@ public sealed class Http20DecoderStage : GraphStage<FlowShape<IInputItem, Http2F
 
         public Logic(Http20DecoderStage stage) : base(stage.Shape)
         {
-            SetHandler(stage._inlet,
+            SetHandler(stage._in,
                 onPush: () =>
                 {
-                    var item = Grab(stage._inlet);
+                    var item = Grab(stage._in);
 
                     if (item is not DataItem dataItem)
                     {
-                        Pull(stage._inlet);
+                        Pull(stage._in);
                         return;
                     }
 
@@ -86,18 +86,18 @@ public sealed class Http20DecoderStage : GraphStage<FlowShape<IInputItem, Http2F
 
                     if (visible.Count > 0)
                     {
-                        EmitMultiple(stage._outlet, visible);
+                        EmitMultiple(stage._out, visible);
                     }
                     else
                     {
-                        Pull(stage._inlet);
+                        Pull(stage._in);
                     }
                 },
                 onUpstreamFinish: CompleteStage,
                 onUpstreamFailure: ex => Log.Warning("Http20DecoderStage: Upstream failure absorbed: {0}", ex.Message));
 
-            SetHandler(stage._outlet,
-                onPull: () => Pull(stage._inlet),
+            SetHandler(stage._out,
+                onPull: () => Pull(stage._in),
                 onDownstreamFinish: _ => CompleteStage());
         }
     }
