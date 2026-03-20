@@ -309,9 +309,9 @@ Fields: `_inlet`/`_outlet` → `_in`/`_out`
 | Out Hit | `cache.lookup.out1.hit` | `CacheLookup.Out.Hit` | `_outHit` ✓ | `_outHit` ✓ |
 
 **Acceptance Criteria:**
-- [ ] String names updated (fields already correct)
-- [ ] All existing RFC9111 stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] String names updated (fields already correct)
+- [x] All existing RFC9111 stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 

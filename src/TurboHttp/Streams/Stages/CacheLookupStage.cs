@@ -37,13 +37,13 @@ internal sealed class CacheLookupStage
     private readonly CachePolicy _policy;
 
     private readonly Inlet<HttpRequestMessage> _in
-        = new("cache.lookup.in");
+        = new("CacheLookup.In");
 
     private readonly Outlet<HttpRequestMessage> _outMiss
-        = new("cache.lookup.out0.miss");
+        = new("CacheLookup.Out.Miss");
 
     private readonly Outlet<HttpResponseMessage> _outHit
-        = new("cache.lookup.out1.hit");
+        = new("CacheLookup.Out.Hit");
 
     public override FanOutShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage> Shape { get; }
 
