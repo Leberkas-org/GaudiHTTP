@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Event;
 
@@ -64,9 +65,23 @@ public class ClientRunner : ReceiveActor
         _state = new ClientState(_maxFrameSize, msg.Stream, _inboundChannel, _outboundChannel);
         _handler.Tell(new ClientConnected(_clientProvider.RemoteEndPoint!, _state.InboundReader, _state.OutboundWriter));
 
-        _ = ClientByteMover.MoveStreamToPipe(_state, _selfClosure, _cts.Token);
-        _ = ClientByteMover.MovePipeToChannel(_state, _selfClosure, _cts.Token);
-        _ = ClientByteMover.MoveChannelToStream(_state, _selfClosure, _cts.Token);
+        var log = Context.GetLogger();
+        var self = _selfClosure;
+
+        var t1 = ClientByteMover.MoveStreamToPipe(_state, _selfClosure, _cts.Token);
+        _ = t1.ContinueWith(
+            t => { log.Error(t.Exception, "ClientRunner: MoveStreamToPipe faulted unexpectedly"); self.Tell(DoClose.Instance); },
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+
+        var t2 = ClientByteMover.MovePipeToChannel(_state, _selfClosure, _cts.Token);
+        _ = t2.ContinueWith(
+            t => { log.Error(t.Exception, "ClientRunner: MovePipeToChannel faulted unexpectedly"); self.Tell(DoClose.Instance); },
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+
+        var t3 = ClientByteMover.MoveChannelToStream(_state, _selfClosure, _cts.Token);
+        _ = t3.ContinueWith(
+            t => { log.Error(t.Exception, "ClientRunner: MoveChannelToStream faulted unexpectedly"); self.Tell(DoClose.Instance); },
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
     }
 
     private void OnStreamFailed(StreamFailed msg)
@@ -91,7 +106,7 @@ public class ClientRunner : ReceiveActor
 
         try
         {
-            _state.DisposeAsync().GetAwaiter().GetResult();
+            _state.Dispose();
             _clientProvider.Close();
             _cts.Dispose();
         }

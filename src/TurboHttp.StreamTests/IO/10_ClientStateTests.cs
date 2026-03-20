@@ -41,7 +41,7 @@ public sealed class ClientStateTests
         state.InboundWriter.TryWrite((owner2, 128));
 
         // Act
-        await state.DisposeAsync();
+        state.Dispose();
 
         // Assert: both inbound owners must have been disposed
         Assert.True(owner1.Disposed, "First inbound IMemoryOwner<byte> was not disposed");
@@ -62,7 +62,7 @@ public sealed class ClientStateTests
         state.OutboundWriter.TryWrite((owner, 256));
 
         // Act
-        await state.DisposeAsync();
+        state.Dispose();
 
         // Assert: outbound owner must have been disposed
         Assert.True(owner.Disposed, "Outbound IMemoryOwner<byte> was not disposed");

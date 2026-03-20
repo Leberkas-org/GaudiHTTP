@@ -587,9 +587,9 @@ finally
 **Required Change:** Store task reference, add `.ContinueWith(t => Log, OnlyOnFaulted)`.
 
 **Acceptance Criteria:**
-- [ ] All fire-and-forget tasks have exception continuations
-- [ ] Unit test verifies faulted task doesn't cause UnobservedTaskException
-- [ ] Build compiles with 0 errors
+- [x] All fire-and-forget tasks have exception continuations
+- [x] Unit test verifies faulted task doesn't cause UnobservedTaskException
+- [x] Build compiles with 0 errors
 
 ---
 

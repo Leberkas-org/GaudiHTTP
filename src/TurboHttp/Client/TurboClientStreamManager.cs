@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Akka.Actor;
+using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Servus.Akka;
@@ -86,8 +87,14 @@ internal sealed class TurboClientStreamManager
             }
         }, TaskContinuationOptions.ExecuteSynchronously);
 
-        // Pump requests from the channel reader into the Akka.Streams queue
-        _ = PumpRequestsAsync(requestReader, queue);
+        // Pump requests from the channel reader into the Akka.Streams queue.
+        // Attach a fault continuation so an unexpected exception in the pump
+        // is observed (preventing UnobservedTaskException) and logged.
+        var log = system.Log;
+        var pumpTask = PumpRequestsAsync(requestReader, queue);
+        _ = pumpTask.ContinueWith(
+            t => log.Error(t.Exception, "TurboClientStreamManager: request pump faulted unexpectedly"),
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
     }
 
     private static async Task PumpRequestsAsync(ChannelReader<HttpRequestMessage> reader,

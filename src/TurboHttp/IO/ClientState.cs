@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace TurboHttp.IO;
 
-internal sealed class ClientState : IAsyncDisposable
+internal sealed class ClientState : IDisposable
 {
     public int MaxFrameSize { get; }
     public Stream Stream { get; }
@@ -53,7 +53,7 @@ internal sealed class ClientState : IAsyncDisposable
         };
     }
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
         // Complete both writers so no new items can be enqueued
         _inboundChannel.Writer.TryComplete();
@@ -71,8 +71,8 @@ internal sealed class ClientState : IAsyncDisposable
             outboundItem.buffer.Dispose();
         }
 
-        await Pipe.Reader.CompleteAsync().ConfigureAwait(false);
-        await Pipe.Writer.CompleteAsync().ConfigureAwait(false);
-        await Stream.DisposeAsync().ConfigureAwait(false);
+        Pipe.Reader.Complete();
+        Pipe.Writer.Complete();
+        Stream.Dispose();
     }
 }
