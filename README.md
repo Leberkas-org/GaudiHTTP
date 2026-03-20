@@ -134,12 +134,7 @@ dotnet run --configuration Release ./src/TurboHttp.Benchmarks/TurboHttp.Benchmar
 
 ## Contributing
 
-Contributions are welcome. Please open an issue before submitting a pull request for significant changes.
-
-All pull requests must:
-- Pass the full test suite (`dotnet test ./src/TurboHttp.sln`)
-- Include tests for any new or changed behaviour
-- Follow the existing code style (Allman braces, 4-space indent, `_fieldName` prefix)
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming conventions, PR requirements, how to run tests locally, and recommended branch protection settings.
 
 ---
 

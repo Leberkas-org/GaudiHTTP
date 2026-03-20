@@ -187,7 +187,7 @@ Transform TurboHttp from a working codebase into a polished, production-ready op
 **Description:** As a maintainer, I want documented branch protection rules so that the repo enforces quality gates.
 
 **Acceptance Criteria:**
-- [ ] `CONTRIBUTING.md` created with:
+- [x] `CONTRIBUTING.md` created with:
   - Branch naming convention (feature/*, bugfix/*, etc.)
   - PR requirements: build must pass, tests must pass, Slopwatch clean
   - Recommended branch protection settings for `main`:
@@ -197,7 +197,7 @@ Transform TurboHttp from a working codebase into a polished, production-ready op
     - No force pushes
   - How to run tests locally
   - How to run docs site locally
-- [ ] Link from README.md to CONTRIBUTING.md
+- [x] Link from README.md to CONTRIBUTING.md
 
 ### TASK-014: Update .gitignore and Final Cleanup
 **Description:** As a maintainer, I want the repo cleaned up with proper ignores and consistent configuration.
