@@ -13,7 +13,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Stage under test: <see cref="StreamIdAllocatorStage"/>.
 /// RFC 9113 §5.1.1: HTTP/2 stream identifier rules, client-initiated odd IDs, and exhaustion handling.
 /// </remarks>
-public sealed class Http20StreamIdRfcTests : StreamTestBase
+public sealed class Http20StreamIdOddMonotonicTests : StreamTestBase
 {
     private static HttpRequestMessage GetRequest(string path = "/")
         => new(HttpMethod.Get, $"http://example.com{path}");

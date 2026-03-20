@@ -381,10 +381,10 @@ Example:  01_Http10EncoderStageTests.cs
 4. `Http20StreamIdRfcTests.cs` → `17_Http20StreamIdOddMonotonicTests.cs`
 
 **Acceptance Criteria:**
-- [ ] Files renamed via `git mv`
-- [ ] Class names updated (`Http20StreamIdRfcTests` → `Http20StreamIdOddMonotonicTests`)
-- [ ] Namespaces unchanged
-- [ ] `dotnet build` succeeds
+- [x] Files renamed via `git mv`
+- [x] Class names updated (`Http20StreamIdRfcTests` → `Http20StreamIdOddMonotonicTests`)
+- [x] Namespaces unchanged
+- [x] `dotnet build` succeeds
 
 ---
 
