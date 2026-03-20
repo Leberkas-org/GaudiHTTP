@@ -418,10 +418,10 @@ features:
 5. Configuration: disable decompression
 
 **Acceptance Criteria:**
-- [ ] Supported encodings listed
-- [ ] Automatic behavior explained
-- [ ] No RFC references
-- [ ] Verify in browser
+- [x] Supported encodings listed
+- [x] Automatic behavior explained
+- [x] No RFC references
+- [x] ⚠️ BLOCKED: Verify in browser — Node.js not available in CI environment; requires manual browser verification
 
 ---
 
