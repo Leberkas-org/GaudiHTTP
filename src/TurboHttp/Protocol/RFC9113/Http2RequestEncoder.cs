@@ -18,7 +18,7 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
 {
     private readonly HpackEncoder _hpack = new(useHuffman);
     private int _maxFrameSize = maxFrameSize;
-    private long _connectionSendWindow = 65535; // Tracks connection-level flow control (for RFC 7540 compliance)
+    private long _connectionSendWindow = 65535; // Tracks connection-level flow control (for RFC 9113 compliance)
     private readonly Dictionary<int, long> _streamSendWindows = new();
     private int _nextStreamId = 1; // Client stream IDs: odd numbers starting at 1
 
@@ -153,8 +153,6 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
         }
     }
 
-    // ── Header building (mirrors Http2RequestEncoder pseudo-header logic) ─────────────
-
     private static List<(string, string)> BuildHeaderList(HttpRequestMessage request)
     {
         var uri = request.RequestUri!;
@@ -180,10 +178,8 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
         return headers;
     }
 
-    // ── Pseudo-Header Validation (RFC 7540 §8.1.2.1) ──────────────────────────
-
     /// <summary>
-    /// Validates pseudo-headers per RFC 7540 §8.1.2.1:
+    /// Validates pseudo-headers per RFC 9113 §8.3.1:
     /// - All four required: :method, :path, :scheme, :authority
     /// - Must appear before regular headers
     /// - Must have exactly one of each (no duplicates)
@@ -211,7 +207,7 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
                     case ":method":
                         if (hasMethod)
                         {
-                            throw new Http2Exception("RFC 7540 §8.1.2.1: Duplicate :method pseudo-header");
+                            throw new Http2Exception("RFC 9113 §8.3.1: Duplicate :method pseudo-header");
                         }
 
                         hasMethod = true;
@@ -219,7 +215,7 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
                     case ":path":
                         if (hasPath)
                         {
-                            throw new Http2Exception("RFC 7540 §8.1.2.1: Duplicate :path pseudo-header");
+                            throw new Http2Exception("RFC 9113 §8.3.1: Duplicate :path pseudo-header");
                         }
 
                         hasPath = true;
@@ -227,7 +223,7 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
                     case ":scheme":
                         if (hasScheme)
                         {
-                            throw new Http2Exception("RFC 7540 §8.1.2.1: Duplicate :scheme pseudo-header");
+                            throw new Http2Exception("RFC 9113 §8.3.1: Duplicate :scheme pseudo-header");
                         }
 
                         hasScheme = true;
@@ -235,14 +231,14 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
                     case ":authority":
                         if (hasAuthority)
                         {
-                            throw new Http2Exception("RFC 7540 §8.1.2.1: Duplicate :authority pseudo-header");
+                            throw new Http2Exception("RFC 9113 §8.3.1: Duplicate :authority pseudo-header");
                         }
 
                         hasAuthority = true;
                         break;
                     default:
                     {
-                        throw new Http2Exception($"RFC 7540 §8.1.2.1: Unknown request pseudo-header '{name}'");
+                        throw new Http2Exception($"RFC 9113 §8.3.1: Unknown request pseudo-header '{name}'");
                     }
                 }
             }
@@ -258,7 +254,7 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
         if (lastPseudoIndex > firstRegularIndex)
         {
             throw new Http2Exception(
-                $"RFC 7540 §8.1.2.1: Pseudo-header at index {lastPseudoIndex} appears after regular header at index {firstRegularIndex}");
+                $"RFC 9113 §8.3.1: Pseudo-header at index {lastPseudoIndex} appears after regular header at index {firstRegularIndex}");
         }
 
         var missing = new System.Text.StringBuilder();
@@ -284,15 +280,13 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
 
         if (missing.Length > 0)
         {
-            throw new Http2Exception($"RFC 7540 §8.1.2.1: Missing required pseudo-headers: {missing}");
+            throw new Http2Exception($"RFC 9113 §8.3.1: Missing required pseudo-headers: {missing}");
         }
     }
 
-    // ── Flow Control Window Management ────────────────────────────────────────
-
     /// <summary>
     /// Updates the connection-level send window when server sends WINDOW_UPDATE on stream 0.
-    /// RFC 7540 §6.9: Sender increases window size via WINDOW_UPDATE.
+    /// RFC 9113 §6.9: Sender increases window size via WINDOW_UPDATE.
     /// </summary>
     public void UpdateConnectionWindow(int increment)
     {
@@ -306,7 +300,7 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
 
     /// <summary>
     /// Updates the stream-level send window when server sends WINDOW_UPDATE on a stream.
-    /// RFC 7540 §6.9: Sender increases stream window size via WINDOW_UPDATE.
+    /// RFC 9113 §6.9: Sender increases stream window size via WINDOW_UPDATE.
     /// </summary>
     public void UpdateStreamWindow(int streamId, int increment)
     {
@@ -321,7 +315,7 @@ public sealed class Http2RequestEncoder(bool useHuffman = false, int maxFrameSiz
 
     /// <summary>
     /// Applies server settings to the encoder (e.g., MAX_FRAME_SIZE).
-    /// RFC 7540 §6.5: Received SETTINGS ACK updates encoder state.
+    /// RFC 9113 §6.5: Received SETTINGS ACK updates encoder state.
     /// </summary>
     public void ApplyServerSettings(IEnumerable<(SettingsParameter Key, uint Value)> settings)
     {

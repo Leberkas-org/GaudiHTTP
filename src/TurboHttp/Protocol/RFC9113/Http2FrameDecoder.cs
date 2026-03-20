@@ -38,7 +38,7 @@ public sealed class Http2FrameDecoder
             var payload = working.Slice(9, payloadLen);
 
             var frame = CreateFrame(type, flags, streamId, payload);
-            // RFC 7540 §4.1 / RFC 9113 §5.5: Unknown frame types MUST be ignored.
+            // RFC 9113 §5.5: Unknown frame types MUST be ignored.
             if (frame != null)
             {
                 frames.Add(frame);
@@ -52,8 +52,6 @@ public sealed class Http2FrameDecoder
     }
 
     public void Reset() => _remainder = ReadOnlyMemory<byte>.Empty;
-
-    // ── Frame object creation — all 9 types ──────────────────────────────────
 
     private static Http2Frame? CreateFrame(FrameType type, byte flags, int streamId, ReadOnlyMemory<byte> payload)
     {
@@ -69,11 +67,11 @@ public sealed class Http2FrameDecoder
                 (flags & (byte)ContinuationFlags.EndHeaders) != 0),
 
             FrameType.Ping => streamId != 0
-                ? throw new Http2Exception("RFC 7540 §6.7: PING frame MUST be sent on stream 0.")
+                ? throw new Http2Exception("RFC 9113 §6.7: PING frame MUST be sent on stream 0.")
                 : CreatePing(flags, payload),
 
             FrameType.Settings => streamId != 0
-                ? throw new Http2Exception("RFC 7540 §6.5: SETTINGS frame MUST be sent on stream 0.")
+                ? throw new Http2Exception("RFC 9113 §6.5: SETTINGS frame MUST be sent on stream 0.")
                 : ParseSettings(payload, flags),
 
             FrameType.WindowUpdate => CreateWindowUpdateFrame(streamId, payload),
@@ -81,17 +79,17 @@ public sealed class Http2FrameDecoder
             FrameType.RstStream => payload.Length == 4
                 ? new RstStreamFrame(streamId, (Http2ErrorCode)BinaryPrimitives.ReadUInt32BigEndian(payload.Span))
                 : throw new Http2Exception(
-                    $"RFC 7540 §6.4: RST_STREAM frame must be exactly 4 bytes; got {payload.Length}.",
+                    $"RFC 9113 §6.4: RST_STREAM frame must be exactly 4 bytes; got {payload.Length}.",
                     Http2ErrorCode.FrameSizeError),
 
             FrameType.GoAway => streamId != 0
                 ? throw new Http2Exception(
-                    "RFC 7540 §6.8: GOAWAY frame MUST be sent on stream 0.")
+                    "RFC 9113 §6.8: GOAWAY frame MUST be sent on stream 0.")
                 : ParseGoAway(payload),
 
             FrameType.PushPromise => ParsePushPromise(streamId, flags, payload),
 
-            // RFC 7540 §4.1 / RFC 9113 §5.5: Unknown frame types MUST be ignored.
+            // RFC 9113 §5.5: Unknown frame types MUST be ignored.
             _ => null
         };
     }
@@ -169,19 +167,19 @@ public sealed class Http2FrameDecoder
     {
         var isAck = (flags & (byte)Settings.Ack) != 0;
 
-        // RFC 7540 §6.5: A SETTINGS frame with ACK flag MUST have an empty payload.
+        // RFC 9113 §6.5: A SETTINGS frame with ACK flag MUST have an empty payload.
         if (isAck && payload.Length > 0)
         {
             throw new Http2Exception(
-                "RFC 7540 §6.5: SETTINGS frame with ACK flag MUST have empty payload.",
+                "RFC 9113 §6.5: SETTINGS frame with ACK flag MUST have empty payload.",
                 Http2ErrorCode.FrameSizeError);
         }
 
-        // RFC 7540 §6.5: A SETTINGS payload length not a multiple of 6 octets is a FRAME_SIZE_ERROR.
+        // RFC 9113 §6.5: A SETTINGS payload length not a multiple of 6 octets is a FRAME_SIZE_ERROR.
         if (!isAck && payload.Length % 6 != 0)
         {
             throw new Http2Exception(
-                $"RFC 7540 §6.5: SETTINGS payload length {payload.Length} is not a multiple of 6.",
+                $"RFC 9113 §6.5: SETTINGS payload length {payload.Length} is not a multiple of 6.",
                 Http2ErrorCode.FrameSizeError);
         }
 
@@ -196,7 +194,7 @@ public sealed class Http2FrameDecoder
             if (key == SettingsParameter.MaxFrameSize && (value < 16384 || value > 16777215))
             {
                 throw new Http2Exception(
-                    $"RFC 7540 §6.5.2: SETTINGS_MAX_FRAME_SIZE {value} is outside the valid range [16384, 16777215].");
+                    $"RFC 9113 §6.5.2: SETTINGS_MAX_FRAME_SIZE {value} is outside the valid range [16384, 16777215].");
             }
 
             list.Add((key, value));
@@ -229,7 +227,7 @@ public sealed class Http2FrameDecoder
         if (payload.Length != 4)
         {
             throw new Http2Exception(
-                $"RFC 7540 §6.9: WINDOW_UPDATE payload must be exactly 4 bytes; got {payload.Length}.",
+                $"RFC 9113 §6.9: WINDOW_UPDATE payload must be exactly 4 bytes; got {payload.Length}.",
                 Http2ErrorCode.FrameSizeError);
         }
 
@@ -237,7 +235,7 @@ public sealed class Http2FrameDecoder
         if (increment == 0)
         {
             throw new Http2Exception(
-                "RFC 7540 §6.9: WINDOW_UPDATE increment of 0 is a PROTOCOL_ERROR.");
+                "RFC 9113 §6.9: WINDOW_UPDATE increment of 0 is a PROTOCOL_ERROR.");
         }
 
         return new WindowUpdateFrame(streamId, increment);

@@ -299,18 +299,18 @@ The following RFC supersession rules apply:
 2. `src/TurboHttp/Protocol/RFC9113/Http2FrameDecoder.cs`
 
 **Acceptance Criteria:**
-- [ ] **RFC 7540 → RFC 9113 mapping** for encoder:
+- [x] **RFC 7540 → RFC 9113 mapping** for encoder:
   - §8.1.2.1 (Pseudo-Header Fields) → RFC 9113 §8.3.1
   - §6.9 (WINDOW_UPDATE) → RFC 9113 §6.9
   - §5.2 (Flow Control) → RFC 9113 §5.2
-- [ ] **RFC 7540 → RFC 9113 mapping** for decoder:
+- [x] **RFC 7540 → RFC 9113 mapping** for decoder:
   - §4.2 (Frame Size) → RFC 9113 §4.2
   - §6.1-6.10 (Frame Types) → RFC 9113 §6.1-6.10
   - §6.5 (SETTINGS) → RFC 9113 §6.5
-- [ ] Replace all RFC 7540 references with RFC 9113
-- [ ] Validate §-numbers against RFC 9113 table of contents (some sections have shifted!)
-- [ ] Remove redundant comments
-- [ ] `dotnet build` succeeds
+- [x] Replace all RFC 7540 references with RFC 9113
+- [x] Validate §-numbers against RFC 9113 table of contents (some sections have shifted!)
+- [x] Remove redundant comments
+- [x] `dotnet build` succeeds
 
 ---
 
