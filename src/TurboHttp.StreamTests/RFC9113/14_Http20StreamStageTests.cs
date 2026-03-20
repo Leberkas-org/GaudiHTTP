@@ -373,4 +373,51 @@ public sealed class Http20StreamStageTests : StreamTestBase
         // Regular header should be present
         Assert.Equal("yes", responses[0].Headers.GetValues("x-visible").Single());
     }
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20S-008: DATA frame for unknown stream is dropped without exception")]
+    public async Task Should_DropDataFrame_When_StreamIdIsUnknown()
+    {
+        var headerBlock = EncodeHeaders(
+            (":status", "200")
+        );
+
+        // Stream 99 never received a HEADERS frame — its DATA frame must be dropped gracefully.
+        // Stream 1 is valid and must still produce a response.
+        var frames = new Http2Frame[]
+        {
+            new DataFrame(streamId: 99, data: "orphan"u8.ToArray(), endStream: true),
+            new HeadersFrame(streamId: 1, headerBlock: headerBlock, endStream: false, endHeaders: true),
+            new DataFrame(streamId: 1, data: "ok"u8.ToArray(), endStream: true)
+        };
+
+        var responses = await RunAsync(frames);
+
+        Assert.Single(responses);
+        Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
+        var body = await responses[0].Content!.ReadAsByteArrayAsync();
+        Assert.Equal("ok"u8.ToArray(), body);
+    }
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20S-008: CONTINUATION frame for unknown stream is dropped without exception")]
+    public async Task Should_DropContinuationFrame_When_StreamIdIsUnknown()
+    {
+        var fullBlock = EncodeHeaders(
+            (":status", "200"),
+            ("x-custom", "value")
+        );
+
+        // Stream 77 gets a CONTINUATION without a prior HEADERS — must be dropped gracefully.
+        // Stream 1 with a complete HEADERS + DATA must still produce a response.
+        var frames = new Http2Frame[]
+        {
+            new ContinuationFrame(streamId: 77, headerBlock: fullBlock, endHeaders: true),
+            new HeadersFrame(streamId: 1, headerBlock: fullBlock, endStream: false, endHeaders: true),
+            new DataFrame(streamId: 1, data: "body"u8.ToArray(), endStream: true)
+        };
+
+        var responses = await RunAsync(frames);
+
+        Assert.Single(responses);
+        Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
+    }
 }

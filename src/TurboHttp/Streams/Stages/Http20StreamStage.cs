@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHttp.Protocol;
@@ -127,7 +128,6 @@ public sealed class Http20StreamStage : GraphStage<FlowShape<Http2Frame, HttpRes
             SetHandler(stage._inlet, () =>
             {
                 var frame = Grab(stage._inlet);
-                _streams.TryAdd(frame.StreamId, new StreamState());
                 _responsePushed = false;
                 switch (frame)
                 {
@@ -159,7 +159,11 @@ public sealed class Http20StreamStage : GraphStage<FlowShape<Http2Frame, HttpRes
 
         private void HandleHeaders(HeadersFrame frame)
         {
-            var state = _streams[frame.StreamId];
+            if (!_streams.TryGetValue(frame.StreamId, out var state))
+            {
+                state = new StreamState();
+                _streams[frame.StreamId] = state;
+            }
 
             state.AppendHeader(frame.HeaderBlockFragment.Span);
 
@@ -173,7 +177,11 @@ public sealed class Http20StreamStage : GraphStage<FlowShape<Http2Frame, HttpRes
 
         private void HandleContinuation(ContinuationFrame frame)
         {
-            var state = _streams[frame.StreamId];
+            if (!_streams.TryGetValue(frame.StreamId, out var state))
+            {
+                Log.Warning("Http20StreamStage: Received CONTINUATION for unknown stream {0} — dropping.", frame.StreamId);
+                return;
+            }
 
             state.AppendHeader(frame.HeaderBlockFragment.Span);
 
@@ -185,7 +193,11 @@ public sealed class Http20StreamStage : GraphStage<FlowShape<Http2Frame, HttpRes
 
         private void HandleData(DataFrame frame)
         {
-            var state = _streams[frame.StreamId];
+            if (!_streams.TryGetValue(frame.StreamId, out var state))
+            {
+                Log.Warning("Http20StreamStage: Received DATA for unknown stream {0} — dropping.", frame.StreamId);
+                return;
+            }
 
             state.AppendBody(frame.Data.Span);
 
@@ -215,7 +227,11 @@ public sealed class Http20StreamStage : GraphStage<FlowShape<Http2Frame, HttpRes
 
         private void DecodeHeaders(int streamId, bool endStream)
         {
-            var state = _streams[streamId];
+            if (!_streams.TryGetValue(streamId, out var state))
+            {
+                Log.Warning("Http20StreamStage: DecodeHeaders called for unknown stream {0} — dropping.", streamId);
+                return;
+            }
 
             var headers = _hpack.Decode(state.HeaderBuffer[..state.HeaderLength].Span);
 

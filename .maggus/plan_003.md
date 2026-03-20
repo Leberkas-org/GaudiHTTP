@@ -726,10 +726,10 @@ finally
 **Required Change:** Replace `_streams[frame.StreamId]` with `TryGetValue`, log and drop on unknown stream.
 
 **Acceptance Criteria:**
-- [ ] All dict accesses use `TryGetValue`
-- [ ] Unknown streams handled gracefully (logged, not exception)
-- [ ] All existing tests pass
-- [ ] Build compiles with 0 errors
+- [x] All dict accesses use `TryGetValue`
+- [x] Unknown streams handled gracefully (logged, not exception)
+- [x] All existing tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
