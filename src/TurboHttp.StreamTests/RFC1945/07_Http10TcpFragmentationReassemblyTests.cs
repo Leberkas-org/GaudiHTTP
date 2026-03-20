@@ -15,7 +15,7 @@ namespace TurboHttp.StreamTests.RFC1945;
 /// Stage under test: <see cref="Http10DecoderStage"/>.
 /// RFC 1945 §6: HTTP/1.0 response message framing and parsing across partial TCP segments.
 /// </remarks>
-public sealed class Http10StageTcpFragmentationTests : StreamTestBase
+public sealed class Http10TcpFragmentationReassemblyTests : StreamTestBase
 {
     private static DataItem Chunk(byte[] data)
         => new(new SimpleMemoryOwner(data), data.Length) { Key = RequestEndpoint.Default };

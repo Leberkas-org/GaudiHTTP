@@ -14,7 +14,7 @@ namespace TurboHttp.StreamTests.RFC1945;
 /// Stage under test: <see cref="Http10DecoderStage"/>.
 /// RFC 1945 §6: HTTP/1.0 response message format, status lines, and header fields.
 /// </remarks>
-public sealed class Http10DecoderStageRfcTests : StreamTestBase
+public sealed class Http10DecoderStageResponseParsingTests : StreamTestBase
 {
     private static IInputItem Chunk(string ascii)
     {

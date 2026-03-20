@@ -14,7 +14,7 @@ namespace TurboHttp.StreamTests.RFC1945;
 /// Stage under test: <see cref="Http10EncoderStage"/>.
 /// RFC 1945 §5: HTTP/1.0 request message format, request-line, and header fields.
 /// </remarks>
-public sealed class Http10EncoderStageRfcTests : StreamTestBase
+public sealed class Http10EncoderStageWireFormatTests : StreamTestBase
 {
     private async Task<string> EncodeAsync(HttpRequestMessage request)
     {

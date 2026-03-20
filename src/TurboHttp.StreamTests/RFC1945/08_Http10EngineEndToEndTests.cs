@@ -12,7 +12,7 @@ namespace TurboHttp.StreamTests.RFC1945;
 /// Stage under test: <see cref="Http10Engine"/>.
 /// RFC 1945 §4.1: HTTP/1.0 full request/response message exchange.
 /// </remarks>
-public sealed class Http10EngineRfcRoundTripTests : EngineTestBase
+public sealed class Http10EngineEndToEndTests : EngineTestBase
 {
     private static Http10Engine Engine => new();
 

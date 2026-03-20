@@ -15,7 +15,7 @@ namespace TurboHttp.StreamTests.RFC1945;
 /// Stages under test: <see cref="Http10EncoderStage"/> and <see cref="Http10DecoderStage"/>.
 /// RFC 1945 §5–§6: HTTP/1.0 request and response message format, headers, and entity body.
 /// </remarks>
-public sealed class Http10StageRoundTripHeaderBodyTests : StreamTestBase
+public sealed class Http10RoundTripHeaderBodyPreservationTests : StreamTestBase
 {
     private async Task<string> EncodeAsync(HttpRequestMessage request)
     {
