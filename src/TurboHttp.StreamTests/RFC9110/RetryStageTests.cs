@@ -323,11 +323,6 @@ public sealed class RetryStageTests : StreamTestBase
     }
 
     /// <summary>
-    /// Materialises a <see cref="RetryStage"/> with a manual publisher probe on the inlet
-    /// so that responses can be pushed individually, enabling interleaved push/assert sequences.
-    /// Returns the publisher subscription (for SendNext/SendComplete) and subscriber probes.
-    /// </summary>
-    /// <summary>
     /// Holds actions for pushing to the source and subscriber probes for assertion.
     /// </summary>
     private sealed class ManualHarness

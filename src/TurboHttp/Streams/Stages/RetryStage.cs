@@ -8,7 +8,7 @@ using TurboHttp.Protocol.RFC9110;
 namespace TurboHttp.Streams.Stages;
 
 /// <summary>
-/// RFC 9110 §9.2 — Intercepts responses that should be retried (408/503 or network failure)
+/// RFC 9110 §9.2.2 — Intercepts responses that should be retried (408/503 or network failure)
 /// and emits the original request on <see cref="FanOutShape{TIn,TOut0,TOut1}.Out1"/> for
 /// re-injection into the HTTP engine, while forwarding final (non-retryable) responses
 /// on <see cref="FanOutShape{TIn,TOut0,TOut1}.Out0"/>.
