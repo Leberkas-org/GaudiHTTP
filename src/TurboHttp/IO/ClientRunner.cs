@@ -89,15 +89,9 @@ public class ClientRunner : ReceiveActor
             return;
         }
 
-        _state.InboundWriter.TryComplete();
-        _state.OutboundWriter.TryComplete();
-
         try
         {
-            _state.Pipe.Reader.Complete();
-            _state.Pipe.Writer.Complete();
-            _state.Stream.Close();
-            _state.Stream.Dispose();
+            _state.DisposeAsync().GetAwaiter().GetResult();
             _clientProvider.Close();
             _cts.Dispose();
         }

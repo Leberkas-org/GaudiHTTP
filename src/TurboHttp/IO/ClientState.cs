@@ -3,10 +3,11 @@ using System.Buffers;
 using System.IO;
 using System.IO.Pipelines;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 
 namespace TurboHttp.IO;
 
-internal sealed class ClientState
+internal sealed class ClientState : IAsyncDisposable
 {
     public int MaxFrameSize { get; }
     public Stream Stream { get; }
@@ -50,5 +51,28 @@ internal sealed class ClientState
             // if the max frame size is above 1mb, 2x it
             _ => MaxFrameSize * 2
         };
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        // Complete both writers so no new items can be enqueued
+        _inboundChannel.Writer.TryComplete();
+        _outboundChannel.Writer.TryComplete();
+
+        // Drain inbound channel and dispose all pending IMemoryOwner<byte> items
+        while (_inboundChannel.Reader.TryRead(out var inboundItem))
+        {
+            inboundItem.buffer.Dispose();
+        }
+
+        // Drain outbound channel and dispose all pending IMemoryOwner<byte> items
+        while (_outboundChannel.Reader.TryRead(out var outboundItem))
+        {
+            outboundItem.buffer.Dispose();
+        }
+
+        await Pipe.Reader.CompleteAsync().ConfigureAwait(false);
+        await Pipe.Writer.CompleteAsync().ConfigureAwait(false);
+        await Stream.DisposeAsync().ConfigureAwait(false);
     }
 }

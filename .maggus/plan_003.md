@@ -573,9 +573,9 @@ finally
 3. Update `ClientRunner.PostStop()` to use new disposal
 
 **Acceptance Criteria:**
-- [ ] All pending `IMemoryOwner<byte>` items are disposed during cleanup
-- [ ] Unit test verifies disposal
-- [ ] Build compiles with 0 errors
+- [x] All pending `IMemoryOwner<byte>` items are disposed during cleanup
+- [x] Unit test verifies disposal
+- [x] Build compiles with 0 errors
 
 ---
 
