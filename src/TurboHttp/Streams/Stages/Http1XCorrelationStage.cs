@@ -54,17 +54,17 @@ public sealed class Http1XCorrelationShape : Shape
 
 internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape>
 {
-    private readonly Inlet<HttpRequestMessage> _requestIn = new("correlation.request.in");
-    private readonly Inlet<HttpResponseMessage> _responseIn = new("correlation.response.in");
-    private readonly Outlet<HttpResponseMessage> _out = new("correlation.out");
-    private readonly Outlet<IControlItem> _outletSignal = new("correlation.signal.out");
+    private readonly Inlet<HttpRequestMessage> _inRequest = new("H1XCorrelation.In.Request");
+    private readonly Inlet<HttpResponseMessage> _inResponse = new("H1XCorrelation.In.Response");
+    private readonly Outlet<HttpResponseMessage> _out = new("H1XCorrelation.Out");
+    private readonly Outlet<IControlItem> _outSignal = new("H1XCorrelation.Out.Signal");
 
     public override Http1XCorrelationShape Shape { get; }
 
 
     public Http1XCorrelationStage()
     {
-        Shape = new Http1XCorrelationShape(_requestIn, _responseIn, _out, _outletSignal);
+        Shape = new Http1XCorrelationShape(_inRequest, _inResponse, _out, _outSignal);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -81,21 +81,21 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
 
         public Logic(Http1XCorrelationStage stage) : base(stage.Shape)
         {
-            SetHandler(stage._requestIn,
+            SetHandler(stage._inRequest,
                 onPush: () =>
                 {
                     if (_pending.Count == 0)
                     {
-                        var request = Grab(stage._requestIn);
+                        var request = Grab(stage._inRequest);
                         _pending.Enqueue(request);
                         var key = RequestEndpoint.FromRequest(request);
-                        Emit(stage._outletSignal, new StreamAcquireItem { Key = key });
+                        Emit(stage._outSignal, new StreamAcquireItem { Key = key });
                         TryCorrelateAndEmit(stage);
                     }
 
-                    if (!HasBeenPulled(stage._requestIn))
+                    if (!HasBeenPulled(stage._inRequest))
                     {
-                        Pull(stage._requestIn);
+                        Pull(stage._inRequest);
                     }
                 },
                 onUpstreamFinish: () =>
@@ -107,14 +107,14 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
                     }
                 });
 
-            SetHandler(stage._responseIn,
+            SetHandler(stage._inResponse,
                 onPush: () =>
                 {
-                    _waiting.Enqueue(Grab(stage._responseIn));
+                    _waiting.Enqueue(Grab(stage._inResponse));
                     TryCorrelateAndEmit(stage);
-                    if (!HasBeenPulled(stage._responseIn))
+                    if (!HasBeenPulled(stage._inResponse))
                     {
-                        Pull(stage._responseIn);
+                        Pull(stage._inResponse);
                     }
                 },
                 onUpstreamFinish: () =>
@@ -129,18 +129,18 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
             SetHandler(stage._out,
                 onPull: () =>
                 {
-                    if (!IsClosed(stage._responseIn) && !HasBeenPulled(stage._responseIn))
+                    if (!IsClosed(stage._inResponse) && !HasBeenPulled(stage._inResponse))
                     {
-                        Pull(stage._responseIn);
+                        Pull(stage._inResponse);
                     }
 
-                    if (!IsClosed(stage._requestIn) && !HasBeenPulled(stage._requestIn))
+                    if (!IsClosed(stage._inRequest) && !HasBeenPulled(stage._inRequest))
                     {
-                        Pull(stage._requestIn);
+                        Pull(stage._inRequest);
                     }
                 });
 
-            SetHandler(stage._outletSignal, onPull: () =>
+            SetHandler(stage._outSignal, onPull: () =>
             {
                 // Demand-driven by Emit; no action needed.
             });

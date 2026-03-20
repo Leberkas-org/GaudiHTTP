@@ -395,11 +395,11 @@ Fields: already `_in`/`_outFinal`/`_outRedirect` and `_outRetry` ✓ — no fiel
 Also update the custom `Http1XCorrelationShape` class if it references port names.
 
 **Acceptance Criteria:**
-- [ ] No name collision with Http20CorrelationStage
-- [ ] String names and field names updated
-- [ ] Custom shape class updated
-- [ ] All existing HTTP/1.x correlation stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] No name collision with Http20CorrelationStage
+- [x] String names and field names updated
+- [x] Custom shape class updated
+- [x] All existing HTTP/1.x correlation stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
