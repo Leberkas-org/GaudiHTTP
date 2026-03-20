@@ -11,7 +11,7 @@ namespace TurboHttp.StreamTests.RFC9112;
 /// Stage under test: <see cref="Http11DecoderStage"/>.
 /// RFC 9110 §15.1: HTTP status code classes and their required handling by clients.
 /// </remarks>
-public sealed class Http11StageStatusCodeTests : EngineTestBase
+public sealed class Http11StatusCodeParsingTests : EngineTestBase
 {
     private static Http11Engine Engine => new();
 

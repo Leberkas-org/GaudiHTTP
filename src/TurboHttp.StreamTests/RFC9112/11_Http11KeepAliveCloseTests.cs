@@ -11,7 +11,7 @@ namespace TurboHttp.StreamTests.RFC9112;
 /// Stage under test: <see cref="Http11DecoderStage"/> and connection management logic.
 /// RFC 9112 §9.6: HTTP/1.1 connection option handling and persistent connection negotiation.
 /// </remarks>
-public sealed class Http11StageConnectionMgmtTests : EngineTestBase
+public sealed class Http11KeepAliveCloseTests : EngineTestBase
 {
     private static Http11Engine Engine => new();
 

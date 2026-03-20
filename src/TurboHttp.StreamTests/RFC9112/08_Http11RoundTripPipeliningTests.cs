@@ -11,7 +11,7 @@ namespace TurboHttp.StreamTests.RFC9112;
 /// Stages under test: <see cref="Http11EncoderStage"/> and <see cref="Http11DecoderStage"/>.
 /// RFC 9112 §9.3: HTTP/1.1 pipeline request ordering and response correlation.
 /// </remarks>
-public sealed class Http11StageRoundTripPipelineTests : EngineTestBase
+public sealed class Http11RoundTripPipeliningTests : EngineTestBase
 {
     private static readonly Func<byte[]> Ok200 =
         () => "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();

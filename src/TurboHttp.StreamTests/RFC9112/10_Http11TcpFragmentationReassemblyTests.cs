@@ -15,7 +15,7 @@ namespace TurboHttp.StreamTests.RFC9112;
 /// Stage under test: <see cref="Http11DecoderStage"/>.
 /// RFC 9112 §2.2: HTTP/1.1 message parsing robustness across partial TCP segments.
 /// </remarks>
-public sealed class Http11StageFragmentationTests : StreamTestBase
+public sealed class Http11TcpFragmentationReassemblyTests : StreamTestBase
 {
     private static IInputItem Chunk(byte[] data)
         => new DataItem(new SimpleMemoryOwner(data), data.Length) { Key = RequestEndpoint.Default };

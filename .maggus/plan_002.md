@@ -310,10 +310,10 @@ Example:  01_Http10EncoderStageTests.cs
 5. `Http11ConnectionReuseStageTests.cs` → `12_Http11ConnectionReuseStageTests.cs`
 
 **Acceptance Criteria:**
-- [ ] Files renamed via `git mv`
-- [ ] Class names updated (drop `Stage` prefix from round-trip/status/fragmentation/connection names)
-- [ ] Namespaces unchanged
-- [ ] `dotnet build` succeeds
+- [x] Files renamed via `git mv`
+- [x] Class names updated (drop `Stage` prefix from round-trip/status/fragmentation/connection names)
+- [x] Namespaces unchanged
+- [x] `dotnet build` succeeds
 
 ---
 
