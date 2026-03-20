@@ -11,6 +11,40 @@ namespace TurboHttp.Protocol.RFC9113;
 /// </summary>
 public sealed class Http2FrameDecoder
 {
+    // RFC 9113 §4.1: all frames begin with a fixed 9-octet header.
+    private const int FrameHeaderSize = 9;
+
+    // RFC 9113 §4.1: the reserved R bit must be ignored; mask it out of the stream identifier.
+    private const uint StreamIdMask = 0x7FFFFFFFu;
+
+    // RFC 9113 §6.3 / §6.4: PRIORITY and RST_STREAM payloads are exactly 4 bytes.
+    private const int PriorityFieldSize = 5;  // stream dependency (4) + weight (1)
+    private const int RstStreamPayloadSize = 4;
+
+    // RFC 9113 §6.5: each SETTINGS parameter is a 6-byte identifier+value pair.
+    private const int SettingsEntrySize = 6;
+    private const int SettingsValueOffset = 2;  // value is at bytes [2..6) within the entry
+
+    // RFC 9113 §6.5.2: SETTINGS_MAX_FRAME_SIZE must be in [2^14, 2^24−1].
+    private const uint MinMaxFrameSize = 16_384;
+    private const uint MaxMaxFrameSize = 16_777_215;
+
+    // RFC 9113 §6.7: PING payload is exactly 8 bytes.
+    private const int PingPayloadSize = 8;
+
+    // RFC 9113 §6.8: GOAWAY has a fixed 8-byte header (last-stream-id + error-code).
+    private const int GoAwayMinPayloadSize = 8;
+    private const int GoAwayErrorCodeOffset = 4;
+
+    // RFC 9113 §6.6: PUSH_PROMISE promised stream ID is 4 bytes; header block follows.
+    private const int PushPromiseHeaderBlockOffset = 4;
+
+    // RFC 9113 §6.9: WINDOW_UPDATE payload is exactly 4 bytes.
+    private const int WindowUpdatePayloadSize = 4;
+
+    // RFC 9113 §6.1 / §6.2: one-byte Pad Length field precedes padded data.
+    private const int PadLengthFieldSize = 1;
+
     private ReadOnlyMemory<byte> _remainder = ReadOnlyMemory<byte>.Empty;
 
     /// <summary>
@@ -22,20 +56,20 @@ public sealed class Http2FrameDecoder
         var working = _remainder.IsEmpty ? incoming : Combine(_remainder, incoming);
         var frames = new List<Http2Frame>();
 
-        while (working.Length >= 9)
+        while (working.Length >= FrameHeaderSize)
         {
             var span = working.Span;
             var payloadLen = (span[0] << 16) | (span[1] << 8) | span[2];
 
-            if (working.Length < 9 + payloadLen)
+            if (working.Length < FrameHeaderSize + payloadLen)
             {
                 break;
             }
 
             var type = (FrameType)span[3];
             var flags = span[4];
-            var streamId = (int)(BinaryPrimitives.ReadUInt32BigEndian(span[5..]) & 0x7FFFFFFFu);
-            var payload = working.Slice(9, payloadLen);
+            var streamId = (int)(BinaryPrimitives.ReadUInt32BigEndian(span[5..]) & StreamIdMask);
+            var payload = working.Slice(FrameHeaderSize, payloadLen);
 
             var frame = CreateFrame(type, flags, streamId, payload);
             // RFC 9113 §5.5: Unknown frame types MUST be ignored.
@@ -44,7 +78,7 @@ public sealed class Http2FrameDecoder
                 frames.Add(frame);
             }
 
-            working = working[(9 + payloadLen)..];
+            working = working[(FrameHeaderSize + payloadLen)..];
         }
 
         _remainder = working.IsEmpty ? ReadOnlyMemory<byte>.Empty : working.ToArray();
@@ -76,10 +110,10 @@ public sealed class Http2FrameDecoder
 
             FrameType.WindowUpdate => CreateWindowUpdateFrame(streamId, payload),
 
-            FrameType.RstStream => payload.Length == 4
+            FrameType.RstStream => payload.Length == RstStreamPayloadSize
                 ? new RstStreamFrame(streamId, (Http2ErrorCode)BinaryPrimitives.ReadUInt32BigEndian(payload.Span))
                 : throw new Http2Exception(
-                    $"RFC 9113 §6.4: RST_STREAM frame must be exactly 4 bytes; got {payload.Length}.",
+                    $"RFC 9113 §6.4: RST_STREAM frame must be exactly {RstStreamPayloadSize} bytes; got {payload.Length}.",
                     Http2ErrorCode.FrameSizeError),
 
             FrameType.GoAway => streamId != 0
@@ -108,13 +142,13 @@ public sealed class Http2FrameDecoder
             }
 
             var padLen = data.Span[0];
-            if (1 + padLen > data.Length)
+            if (PadLengthFieldSize + padLen > data.Length)
             {
                 throw new Http2Exception("DATA PADDED frame: pad_length exceeds payload size",
                     Http2ErrorCode.ProtocolError);
             }
 
-            data = data.Slice(1, data.Length - 1 - padLen);
+            data = data.Slice(PadLengthFieldSize, data.Length - PadLengthFieldSize - padLen);
         }
 
         return new DataFrame(streamId, data, endStream);
@@ -126,7 +160,7 @@ public sealed class Http2FrameDecoder
         var endHeaders = (flags & (byte)Headers.EndHeaders) != 0;
         var data = payload;
 
-        if ((flags & 0x08) != 0) // PADDED
+        if ((flags & (byte)Headers.Padded) != 0)
         {
             if (data.IsEmpty)
             {
@@ -135,18 +169,18 @@ public sealed class Http2FrameDecoder
             }
 
             var padLen = data.Span[0];
-            if (1 + padLen > data.Length)
+            if (PadLengthFieldSize + padLen > data.Length)
             {
                 throw new Http2Exception("HEADERS PADDED frame: pad_length exceeds payload size",
                     Http2ErrorCode.ProtocolError);
             }
 
-            data = data.Slice(1, data.Length - 1 - padLen);
+            data = data.Slice(PadLengthFieldSize, data.Length - PadLengthFieldSize - padLen);
         }
 
-        if ((flags & 0x20) != 0) // PRIORITY — consume 4-byte stream dep + 1-byte weight
+        if ((flags & (byte)Headers.Priority) != 0) // PRIORITY — consume 4-byte stream dep + 1-byte weight
         {
-            data = data.Length >= 5 ? data[5..] : ReadOnlyMemory<byte>.Empty;
+            data = data.Length >= PriorityFieldSize ? data[PriorityFieldSize..] : ReadOnlyMemory<byte>.Empty;
         }
 
         return new HeadersFrame(streamId, data, endStream, endHeaders);
@@ -154,9 +188,9 @@ public sealed class Http2FrameDecoder
 
     private static PingFrame CreatePing(byte flags, ReadOnlyMemory<byte> payload)
     {
-        if (payload.Length != 8)
+        if (payload.Length != PingPayloadSize)
         {
-            throw new Http2Exception($"PING frame must be exactly 8 bytes, got {payload.Length}",
+            throw new Http2Exception($"PING frame must be exactly {PingPayloadSize} bytes, got {payload.Length}",
                 Http2ErrorCode.FrameSizeError);
         }
 
@@ -176,25 +210,25 @@ public sealed class Http2FrameDecoder
         }
 
         // RFC 9113 §6.5: A SETTINGS payload length not a multiple of 6 octets is a FRAME_SIZE_ERROR.
-        if (!isAck && payload.Length % 6 != 0)
+        if (!isAck && payload.Length % SettingsEntrySize != 0)
         {
             throw new Http2Exception(
-                $"RFC 9113 §6.5: SETTINGS payload length {payload.Length} is not a multiple of 6.",
+                $"RFC 9113 §6.5: SETTINGS payload length {payload.Length} is not a multiple of {SettingsEntrySize}.",
                 Http2ErrorCode.FrameSizeError);
         }
 
         var list = new List<(SettingsParameter, uint)>();
         var span = payload.Span;
 
-        for (var i = 0; i + 6 <= span.Length; i += 6)
+        for (var i = 0; i + SettingsEntrySize <= span.Length; i += SettingsEntrySize)
         {
             var key = (SettingsParameter)BinaryPrimitives.ReadUInt16BigEndian(span[i..]);
-            var value = BinaryPrimitives.ReadUInt32BigEndian(span[(i + 2)..]);
+            var value = BinaryPrimitives.ReadUInt32BigEndian(span[(i + SettingsValueOffset)..]);
 
-            if (key == SettingsParameter.MaxFrameSize && (value < 16384 || value > 16777215))
+            if (key == SettingsParameter.MaxFrameSize && (value < MinMaxFrameSize || value > MaxMaxFrameSize))
             {
                 throw new Http2Exception(
-                    $"RFC 9113 §6.5.2: SETTINGS_MAX_FRAME_SIZE {value} is outside the valid range [16384, 16777215].");
+                    $"RFC 9113 §6.5.2: SETTINGS_MAX_FRAME_SIZE {value} is outside the valid range [{MinMaxFrameSize}, {MaxMaxFrameSize}].");
             }
 
             list.Add((key, value));
@@ -206,9 +240,9 @@ public sealed class Http2FrameDecoder
     private static GoAwayFrame ParseGoAway(ReadOnlyMemory<byte> payload)
     {
         var span = payload.Span;
-        var lastStream = (int)(BinaryPrimitives.ReadUInt32BigEndian(span) & 0x7FFFFFFFu);
-        var errorCode = (Http2ErrorCode)BinaryPrimitives.ReadUInt32BigEndian(span[4..]);
-        var debugData = span.Length > 8 ? payload[8..] : ReadOnlyMemory<byte>.Empty;
+        var lastStream = (int)(BinaryPrimitives.ReadUInt32BigEndian(span) & StreamIdMask);
+        var errorCode = (Http2ErrorCode)BinaryPrimitives.ReadUInt32BigEndian(span[GoAwayErrorCodeOffset..]);
+        var debugData = span.Length > GoAwayMinPayloadSize ? payload[GoAwayMinPayloadSize..] : ReadOnlyMemory<byte>.Empty;
         return new GoAwayFrame(lastStream, errorCode, debugData);
     }
 
@@ -216,21 +250,21 @@ public sealed class Http2FrameDecoder
         int streamId, byte flags, ReadOnlyMemory<byte> payload)
     {
         var span = payload.Span;
-        var promised = (int)(BinaryPrimitives.ReadUInt32BigEndian(span) & 0x7FFFFFFFu);
+        var promised = (int)(BinaryPrimitives.ReadUInt32BigEndian(span) & StreamIdMask);
         var endHeaders = (flags & (byte)Headers.EndHeaders) != 0;
-        return new PushPromiseFrame(streamId, promised, payload[4..], endHeaders);
+        return new PushPromiseFrame(streamId, promised, payload[PushPromiseHeaderBlockOffset..], endHeaders);
     }
 
     private static WindowUpdateFrame CreateWindowUpdateFrame(int streamId, ReadOnlyMemory<byte> payload)
     {
-        if (payload.Length != 4)
+        if (payload.Length != WindowUpdatePayloadSize)
         {
             throw new Http2Exception(
-                $"RFC 9113 §6.9: WINDOW_UPDATE payload must be exactly 4 bytes; got {payload.Length}.",
+                $"RFC 9113 §6.9: WINDOW_UPDATE payload must be exactly {WindowUpdatePayloadSize} bytes; got {payload.Length}.",
                 Http2ErrorCode.FrameSizeError);
         }
 
-        var increment = (int)(BinaryPrimitives.ReadUInt32BigEndian(payload.Span) & 0x7FFFFFFFu);
+        var increment = (int)(BinaryPrimitives.ReadUInt32BigEndian(payload.Span) & StreamIdMask);
         if (increment == 0)
         {
             throw new Http2Exception(

@@ -666,9 +666,9 @@ finally
 **Required Change:** Add `const int FrameHeaderSize = 9;` etc., use flag enums for `0x08`/`0x20`.
 
 **Acceptance Criteria:**
-- [ ] No magic numbers in frame parsing
-- [ ] All existing tests pass
-- [ ] Build compiles with 0 errors
+- [x] No magic numbers in frame parsing
+- [x] All existing tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
