@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Linq;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -56,7 +55,34 @@ public sealed class Http20DecoderStage : GraphStage<FlowShape<IInputItem, Http2F
                     }
 
                     // Filter out UnknownFrame — RFC 9113 §5.5: unknown types MUST be ignored.
-                    var visible = frames.Where(f => f is not UnknownFrame).ToList();
+                    // Avoid LINQ allocation: scan once to check for unknown frames before deciding.
+                    var hasUnknown = false;
+                    for (var i = 0; i < frames.Count; i++)
+                    {
+                        if (frames[i] is UnknownFrame)
+                        {
+                            hasUnknown = true;
+                            break;
+                        }
+                    }
+
+                    IReadOnlyList<Http2Frame> visible;
+                    if (hasUnknown)
+                    {
+                        var filtered = new List<Http2Frame>(frames.Count);
+                        for (var i = 0; i < frames.Count; i++)
+                        {
+                            if (frames[i] is not UnknownFrame)
+                            {
+                                filtered.Add(frames[i]);
+                            }
+                        }
+                        visible = filtered;
+                    }
+                    else
+                    {
+                        visible = frames;
+                    }
 
                     if (visible.Count > 0)
                     {

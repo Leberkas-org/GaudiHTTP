@@ -763,9 +763,9 @@ finally
 **Required Change:** Replace `.Where().ToList()` with manual loop.
 
 **Acceptance Criteria:**
-- [ ] No LINQ in decode path
-- [ ] All existing tests pass
-- [ ] Build compiles with 0 errors
+- [x] No LINQ in decode path
+- [x] All existing tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
