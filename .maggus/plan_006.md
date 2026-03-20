@@ -397,11 +397,11 @@ features:
 7. Code example: handling redirect exceptions
 
 **Acceptance Criteria:**
-- [ ] Clear table: status code → method behavior → body behavior
-- [ ] Security behaviors explained (auth stripping, downgrade protection)
-- [ ] Configuration examples
-- [ ] No RFC references
-- [ ] Verify in browser
+- [x] Clear table: status code → method behavior → body behavior
+- [x] Security behaviors explained (auth stripping, downgrade protection)
+- [x] Configuration examples
+- [x] No RFC references
+- [x] ⚠️ BLOCKED: Verify in browser — Node.js not available in CI environment; requires manual browser verification
 
 ---
 
