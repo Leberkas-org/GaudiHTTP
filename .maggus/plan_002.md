@@ -219,11 +219,11 @@ Example:  01_Http10EncoderStageTests.cs
 3. `Http10EngineRfcRoundTripTests.cs` → `08_Http10EngineEndToEndTests.cs`
 
 **Acceptance Criteria:**
-- [ ] Files renamed via `git mv`
-- [ ] Class names updated to match new file names
-- [ ] Namespaces unchanged
-- [ ] `dotnet build` succeeds
-- [ ] `dotnet test --filter "FullyQualifiedName~StreamTests.RFC1945"` passes
+- [x] Files renamed via `git mv`
+- [x] Class names updated to match new file names
+- [x] Namespaces unchanged
+- [x] `dotnet build` succeeds
+- [x] `dotnet test --filter "FullyQualifiedName~StreamTests.RFC1945"` passes
 
 ---
 
