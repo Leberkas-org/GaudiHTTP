@@ -7,8 +7,19 @@ using TurboHttp.Client;
 
 namespace TurboHttp.Hosting;
 
+/// <summary>
+/// Extension methods for registering TurboHttp services with <see cref="IServiceCollection"/>.
+/// </summary>
 public static class TurboClientServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers <see cref="ITurboHttpClientFactory"/> as a singleton in the DI container.
+    /// If an <see cref="ActorSystem"/> is already registered it will be reused;
+    /// otherwise a new actor system named <c>turbohttp</c> is created automatically.
+    /// </summary>
+    /// <param name="services">The service collection to add to.</param>
+    /// <param name="configure">Delegate to configure <see cref="TurboClientOptions"/>.</param>
+    /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
     public static IServiceCollection AddTurboHttpClientFactory(this IServiceCollection services,
         Action<TurboClientOptions> configure)
     {
@@ -19,7 +30,7 @@ public static class TurboClientServiceCollectionExtensions
             if (system is null)
             {
                 // start our own local ActorSystem
-                system = ActorSystem.Create("turbomqtt");
+                system = ActorSystem.Create("turbohttp");
                 system.Log.Info("Created new Akka.NET ActorSystem {0} - none found in IServiceCollection", system.Name);
             }
 

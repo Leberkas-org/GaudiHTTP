@@ -4,8 +4,17 @@ using System.Net.Http;
 
 namespace TurboHttp.Internal;
 
+/// <summary>
+/// Identifies a connection target by scheme, host, port, and HTTP version.
+/// Used as the grouping key for per-host connection pools.
+/// </summary>
 public readonly record struct RequestEndpoint
 {
+    /// <summary>
+    /// Creates a <see cref="RequestEndpoint"/> from the URI and version of <paramref name="request"/>.
+    /// </summary>
+    /// <param name="request">The outbound request to extract endpoint information from.</param>
+    /// <returns>A <see cref="RequestEndpoint"/> matching the request's target.</returns>
     public static RequestEndpoint FromRequest(HttpRequestMessage request)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -20,6 +29,9 @@ public readonly record struct RequestEndpoint
         };
     }
 
+    /// <summary>
+    /// Returns a <see cref="RequestEndpoint"/> with all fields set to empty or default values.
+    /// </summary>
     public static RequestEndpoint Default => new()
     {
         Host = string.Empty,

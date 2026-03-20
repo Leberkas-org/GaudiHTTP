@@ -460,10 +460,10 @@ The following RFC supersession rules apply:
 5. `src/TurboHttp/IO/IClientProvider.cs`
 
 **Acceptance Criteria:**
-- [ ] Factory pattern comments are correct
-- [ ] DI/hosting comments are up to date
-- [ ] Remove redundant comments
-- [ ] `dotnet build` succeeds
+- [x] Factory pattern comments are correct
+- [x] DI/hosting comments are up to date
+- [x] Remove redundant comments
+- [x] `dotnet build` succeeds
 
 ---
 

@@ -8,13 +8,25 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace TurboHttp.IO;
 
+/// <summary>
+/// Abstracts a raw TCP or TLS connection so that <see cref="ClientState"/> is independent
+/// of the underlying transport.
+/// </summary>
 public interface IClientProvider
 {
+    /// <summary>Gets the remote endpoint the socket is connected to, or <see langword="null"/> if not yet connected.</summary>
     EndPoint? RemoteEndPoint { get; }
+
+    /// <summary>Opens a connection to the configured host and returns the network stream.</summary>
     Stream GetStream();
+
+    /// <summary>Closes the connection and releases all transport resources.</summary>
     void Close();
 }
 
+/// <summary>
+/// Plain TCP implementation of <see cref="IClientProvider"/>.
+/// </summary>
 public class TcpClientProvider(TcpOptions options) : IClientProvider
 {
     private Socket? _socket;
@@ -87,6 +99,10 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
     }
 }
 
+/// <summary>
+/// TLS-wrapped implementation of <see cref="IClientProvider"/>. Establishes a plain TCP connection
+/// first and then performs TLS handshake using <see cref="SslStream"/>.
+/// </summary>
 public class TlsClientProvider(TlsOptions options) : IClientProvider
 {
     private readonly TcpClientProvider _tcpClientProvider = new(options);
@@ -138,6 +154,9 @@ public class TlsClientProvider(TlsOptions options) : IClientProvider
     }
 }
 
+/// <summary>
+/// TLS connection options, extending <see cref="TcpOptions"/> with certificate and protocol settings.
+/// </summary>
 public record TlsOptions : TcpOptions
 {
     public string? TargetHost { get; init; }
@@ -146,6 +165,9 @@ public record TlsOptions : TcpOptions
     public SslProtocols EnabledSslProtocols { get; init; } = SslProtocols.None;
 }
 
+/// <summary>
+/// Configuration options for a plain TCP connection.
+/// </summary>
 public record TcpOptions
 {
     public required string Host { get; init; }
