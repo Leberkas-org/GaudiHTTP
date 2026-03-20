@@ -62,16 +62,33 @@ public sealed class TurboHttpClient : ITurboHttpClient
 
     private async Task DrainResponsesAsync(ChannelReader<HttpResponseMessage> reader, CancellationToken ct)
     {
-        await foreach (var response in reader.ReadAllAsync(ct)
-                           .Where(x => x.RequestMessage is not null)
-                           .WithCancellation(ct))
+        try
         {
-            var request = response.RequestMessage!;
-            if (request.Options.TryGetValue(_key, out var requestId) &&
-                _pending.TryRemove(requestId, out var tcs))
+            await foreach (var response in reader.ReadAllAsync(ct)
+                               .Where(x => x.RequestMessage is not null)
+                               .WithCancellation(ct))
             {
-                tcs.TrySetResult(response);
+                var request = response.RequestMessage!;
+                if (request.Options.TryGetValue(_key, out var requestId) &&
+                    _pending.TryRemove(requestId, out var tcs))
+                {
+                    tcs.TrySetResult(response);
+                }
             }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Normal shutdown path — CancellationToken cancelled (e.g. Dispose). Do not fail pending requests.
+        }
+        catch (Exception ex)
+        {
+            // Response channel closed with an error — fail every pending request so callers are not stuck.
+            foreach (var (_, tcs) in _pending)
+            {
+                tcs.TrySetException(ex);
+            }
+
+            _pending.Clear();
         }
     }
 

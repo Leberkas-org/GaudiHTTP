@@ -556,9 +556,9 @@ finally
 3. Log the error
 
 **Acceptance Criteria:**
-- [ ] Channel read errors propagated to all pending TCS instances
-- [ ] Unit test: simulate channel closure with exception, verify pending requests fail
-- [ ] Build compiles with 0 errors
+- [x] Channel read errors propagated to all pending TCS instances
+- [x] Unit test: simulate channel closure with exception, verify pending requests fail
+- [x] Build compiles with 0 errors
 
 ---
 

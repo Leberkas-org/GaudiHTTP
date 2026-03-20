@@ -99,6 +99,44 @@ public sealed class TurboHttpClientPendingTests
         }
     }
 
+    [Fact(DisplayName = "RFC-pending-004: pending requests fail when response channel closes with error")]
+    public async Task Should_FailPendingRequests_When_ResponseChannelClosesWithError()
+    {
+        var system = CreateSystem("test-pending-channel-error");
+        try
+        {
+            var client = new TurboHttpClient(new TurboClientOptions(), system);
+            client.Timeout = TimeSpan.FromSeconds(5);
+            var pending = GetPending(client);
+            var manager = GetManager(client);
+            var key = GetKey(client);
+
+            // Register two pending TCS entries as SendAsync would
+            var id1 = Guid.NewGuid();
+            var id2 = Guid.NewGuid();
+            var tcs1 = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs2 = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            pending.TryAdd(id1, tcs1);
+            pending.TryAdd(id2, tcs2);
+
+            // Close the response channel with an error to simulate stream failure
+            var channelError = new InvalidOperationException("simulated stream failure");
+            manager.ResponseWriter.Complete(channelError);
+
+            // Both pending TCS instances must be faulted with the channel error
+            await Assert.ThrowsAsync<InvalidOperationException>(() => tcs1.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => tcs2.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+
+            // Give DrainResponsesAsync a moment to clear the dictionary
+            await Task.Delay(10);
+            Assert.Empty(pending);
+        }
+        finally
+        {
+            await system.Terminate();
+        }
+    }
+
     [Fact(DisplayName = "RFC-pending-003: _pending is empty after success")]
     public async Task Should_EmptyPending_After_Success()
     {
