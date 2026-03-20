@@ -538,10 +538,10 @@ finally
 3. Update all callers
 
 **Acceptance Criteria:**
-- [ ] No synchronous `Connect()` or `AuthenticateAsClient()` calls remain
-- [ ] All callers updated to async
-- [ ] All existing IO/stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] No synchronous `Connect()` or `AuthenticateAsClient()` calls remain
+- [x] All callers updated to async
+- [x] All existing IO/stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 

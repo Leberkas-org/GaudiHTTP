@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.IO;
 using System.Net;
 using System.Threading;
 using System.Threading.Channels;
@@ -10,11 +11,17 @@ namespace TurboHttp.IO;
 
 public class ClientRunner : ReceiveActor
 {
+    private sealed record StreamReady(Stream Stream);
+    private sealed record StreamFailed(Exception Exception);
+
     private readonly IClientProvider _clientProvider;
     private readonly CancellationTokenSource _cts = new();
     private readonly IActorRef _selfClosure;
     private readonly IActorRef _handler;
-    private readonly ClientState _state;
+    private readonly int _maxFrameSize;
+    private readonly Channel<(IMemoryOwner<byte> buffer, int readableBytes)>? _inboundChannel;
+    private readonly Channel<(IMemoryOwner<byte> buffer, int readableBytes)>? _outboundChannel;
+    private ClientState? _state;
 
     public record ClientConnected(
         EndPoint RemoteEndPoint,
@@ -30,36 +37,60 @@ public class ClientRunner : ReceiveActor
         _clientProvider = clientProvider;
         _handler = handler;
         _selfClosure = Context.Self;
-        var stream = _clientProvider.GetStream();
-        _state = new ClientState(maxFrameSize, stream, inboundChannel, outboundChannel);
+        _maxFrameSize = maxFrameSize;
+        _inboundChannel = inboundChannel;
+        _outboundChannel = outboundChannel;
 
+        Receive<StreamReady>(OnStreamReady);
+        Receive<StreamFailed>(OnStreamFailed);
         Receive<DoClose>(_ =>
         {
             _cts.Cancel();
-            _handler.Tell(new ClientDisconnected(_clientProvider.RemoteEndPoint!));
+            _handler.Tell(new ClientDisconnected(_clientProvider.RemoteEndPoint ?? new IPEndPoint(IPAddress.None, 0)));
             Context.Self.Tell(PoisonPill.Instance);
         });
     }
 
     protected override void PreStart()
     {
-        _handler.Tell(new ClientConnected(_clientProvider.RemoteEndPoint!, _state.InboundReader,
-            _state.OutboundWriter));
+        _clientProvider.GetStreamAsync(_cts.Token)
+            .PipeTo(Self,
+                success: stream => new StreamReady(stream),
+                failure: ex => new StreamFailed(ex));
+    }
+
+    private void OnStreamReady(StreamReady msg)
+    {
+        _state = new ClientState(_maxFrameSize, msg.Stream, _inboundChannel, _outboundChannel);
+        _handler.Tell(new ClientConnected(_clientProvider.RemoteEndPoint!, _state.InboundReader, _state.OutboundWriter));
 
         _ = ClientByteMover.MoveStreamToPipe(_state, _selfClosure, _cts.Token);
         _ = ClientByteMover.MovePipeToChannel(_state, _selfClosure, _cts.Token);
         _ = ClientByteMover.MoveChannelToStream(_state, _selfClosure, _cts.Token);
     }
 
+    private void OnStreamFailed(StreamFailed msg)
+    {
+        Context.GetLogger().Error(msg.Exception, "ClientRunner: Failed to establish connection");
+        _handler.Tell(new ClientDisconnected(_clientProvider.RemoteEndPoint ?? new IPEndPoint(IPAddress.None, 0)));
+        Context.Self.Tell(PoisonPill.Instance);
+    }
+
     protected override void PostStop()
     {
-        _state.InboundWriter.TryComplete();
-        _state.OutboundWriter.TryComplete();
-
         if (!_cts.IsCancellationRequested)
         {
             _cts.Cancel();
         }
+
+        if (_state is null)
+        {
+            _cts.Dispose();
+            return;
+        }
+
+        _state.InboundWriter.TryComplete();
+        _state.OutboundWriter.TryComplete();
 
         try
         {

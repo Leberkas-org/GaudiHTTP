@@ -5,6 +5,8 @@ using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace TurboHttp.IO;
 
@@ -17,8 +19,8 @@ public interface IClientProvider
     /// <summary>Gets the remote endpoint the socket is connected to, or <see langword="null"/> if not yet connected.</summary>
     EndPoint? RemoteEndPoint { get; }
 
-    /// <summary>Opens a connection to the configured host and returns the network stream.</summary>
-    Stream GetStream();
+    /// <summary>Opens a connection to the configured host asynchronously and returns the network stream.</summary>
+    Task<Stream> GetStreamAsync(CancellationToken ct = default);
 
     /// <summary>Closes the connection and releases all transport resources.</summary>
     void Close();
@@ -33,19 +35,19 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
 
     public EndPoint? RemoteEndPoint => _socket?.RemoteEndPoint;
 
-    public Stream GetStream()
+    public async Task<Stream> GetStreamAsync(CancellationToken ct = default)
     {
         var host = options.Host;
         var port = options.Port;
 
         _socket = CreateSocket();
-        var addresses = Dns.GetHostAddresses(host);
+        var addresses = await Dns.GetHostAddressesAsync(host, ct).ConfigureAwait(false);
         if (addresses.Length == 0)
         {
             throw new InvalidOperationException($"Could not resolve any IP addresses for host '{host}'.");
         }
 
-        _socket.Connect(addresses, port);
+        await _socket.ConnectAsync(addresses, port, ct).ConfigureAwait(false);
         return new NetworkStream(_socket, ownsSocket: false);
     }
 
@@ -110,9 +112,9 @@ public class TlsClientProvider(TlsOptions options) : IClientProvider
 
     public EndPoint? RemoteEndPoint => _tcpClientProvider.RemoteEndPoint;
 
-    public Stream GetStream()
+    public async Task<Stream> GetStreamAsync(CancellationToken ct = default)
     {
-        var networkStream = _tcpClientProvider.GetStream();
+        var networkStream = await _tcpClientProvider.GetStreamAsync(ct).ConfigureAwait(false);
         _sslStream = new SslStream(
             networkStream,
             leaveInnerStreamOpen: false,
@@ -127,8 +129,8 @@ public class TlsClientProvider(TlsOptions options) : IClientProvider
             ClientCertificates = options.ClientCertificates,
         };
 
-        _sslStream.AuthenticateAsClient(authOptions);
-        return _sslStream!;
+        await _sslStream.AuthenticateAsClientAsync(authOptions, ct).ConfigureAwait(false);
+        return _sslStream;
     }
 
     public void Close()
