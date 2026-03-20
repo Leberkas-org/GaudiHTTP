@@ -54,6 +54,14 @@ export default defineConfig({
                     ],
                 },
             ],
+            '/why/': [
+                {
+                    text: 'Why TurboHttp?',
+                    items: [
+                        { text: 'Comparison', link: '/why/' },
+                    ],
+                },
+            ],
         },
 
         socialLinks: [

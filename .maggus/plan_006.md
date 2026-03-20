@@ -575,10 +575,10 @@ features:
 4. **When NOT to use TurboHttp:** simple one-off requests, need Polly integration, need typed client interfaces (Refit)
 
 **Acceptance Criteria:**
-- [ ] Honest comparison — acknowledge where others are better (Refit for typed APIs, etc.)
-- [ ] Feature table is accurate and up-to-date
-- [ ] No RFC references
-- [ ] Verify in browser
+- [x] Honest comparison — acknowledge where others are better (Refit for typed APIs, etc.)
+- [x] Feature table is accurate and up-to-date
+- [x] No RFC references
+- [x] ⚠️ BLOCKED: Verify in browser — Node.js not available in CI environment; requires manual browser verification
 
 ---
 
