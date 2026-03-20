@@ -11,15 +11,15 @@ namespace TurboHttp.Streams.Stages;
 
 public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpResponseMessage>>
 {
-    private readonly Inlet<IInputItem> _inlet = new("http10.decoder.in");
-    private readonly Outlet<HttpResponseMessage> _outlet = new("http10.decoder.out");
+    private readonly Inlet<IInputItem> _in = new("Http10Decoder.In");
+    private readonly Outlet<HttpResponseMessage> _out = new("Http10Decoder.Out");
 
     public override FlowShape<IInputItem, HttpResponseMessage> Shape { get; }
 
 
     public Http10DecoderStage()
     {
-        Shape = new FlowShape<IInputItem, HttpResponseMessage>(_inlet, _outlet);
+        Shape = new FlowShape<IInputItem, HttpResponseMessage>(_in, _out);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -31,14 +31,14 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
 
         public Logic(Http10DecoderStage stage) : base(stage.Shape)
         {
-            SetHandler(stage._inlet,
+            SetHandler(stage._in,
                 onPush: () =>
                 {
-                    var item = Grab(stage._inlet);
+                    var item = Grab(stage._in);
 
                     if (item is not DataItem dataItem)
                     {
-                        Pull(stage._inlet);
+                        Pull(stage._in);
                         return;
                     }
 
@@ -49,13 +49,13 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
                         if (_decoder.TryDecode(data, out var response) && response is not null)
                         {
                             dataItem.Memory.Dispose();
-                            Push(stage._outlet, response);
+                            Push(stage._out, response);
                         }
                         else
                         {
                             // Not enough data yet – return the buffer and wait for more
                             dataItem.Memory.Dispose();
-                            Pull(stage._inlet);
+                            Pull(stage._in);
                         }
                     }
                     catch (Exception ex)
@@ -63,9 +63,9 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
                         dataItem.Memory.Dispose();
                         Log.Warning("Http10DecoderStage: Failed to decode response: {0}", ex.Message);
                         _decoder.Reset();
-                        if (!HasBeenPulled(stage._inlet))
+                        if (!HasBeenPulled(stage._in))
                         {
-                            Pull(stage._inlet);
+                            Pull(stage._in);
                         }
                     }
                 },
@@ -74,7 +74,7 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
                     // Flush any partial response buffered in the decoder
                     if (_decoder.TryDecodeEof(out var response) && response is not null)
                     {
-                        Emit(stage._outlet, response, CompleteStage);
+                        Emit(stage._out, response, CompleteStage);
                     }
                     else
                     {
@@ -84,7 +84,7 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
                 },
                 onUpstreamFailure: ex => Log.Warning("Http10DecoderStage: Upstream failure absorbed: {0}", ex.Message));
 
-            SetHandler(stage._outlet, onPull: () => Pull(stage._inlet), onDownstreamFinish: _ => CompleteStage());
+            SetHandler(stage._out, onPull: () => Pull(stage._in), onDownstreamFinish: _ => CompleteStage());
         }
     }
 }

@@ -151,11 +151,11 @@ TurboHttp has 26 GraphStage implementations with 6 different naming patterns for
 Fields: `_inlet`/`_outlet` → `_in`/`_out`
 
 **Acceptance Criteria:**
-- [ ] String names updated to PascalCase convention
-- [ ] Field names `_inlet`/`_outlet` → `_in`/`_out`
-- [ ] All references in Logic class updated
-- [ ] All existing RFC1945 stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] String names updated to PascalCase convention
+- [x] Field names `_inlet`/`_outlet` → `_in`/`_out`
+- [x] All references in Logic class updated
+- [x] All existing RFC1945 stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
