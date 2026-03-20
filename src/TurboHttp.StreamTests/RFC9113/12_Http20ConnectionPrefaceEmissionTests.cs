@@ -16,7 +16,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Stage under test: <see cref="PrependPrefaceStage"/>.
 /// RFC 9113 §3.4: HTTP/2 client connection preface format and one-time emission requirement.
 /// </remarks>
-public sealed class Http20ConnectionPrefaceRfcTests : StreamTestBase
+public sealed class Http20ConnectionPrefaceEmissionTests : StreamTestBase
 {
     private static readonly byte[] Http2Magic = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
 
