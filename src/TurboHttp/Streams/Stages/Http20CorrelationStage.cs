@@ -9,9 +9,9 @@ internal sealed class
     Http20CorrelationStage :
     GraphStage<FanInShape<(HttpRequestMessage, int), (HttpResponseMessage, int), HttpResponseMessage>>
 {
-    private readonly Inlet<(HttpRequestMessage, int)> _requestIn = new("correlation.request.in");
-    private readonly Inlet<(HttpResponseMessage, int)> _responseIn = new("correlation.response.in");
-    private readonly Outlet<HttpResponseMessage> _out = new("correlation.out");
+    private readonly Inlet<(HttpRequestMessage, int)> _inRequest = new("H2Correlation.In.Request");
+    private readonly Inlet<(HttpResponseMessage, int)> _inResponse = new("H2Correlation.In.Response");
+    private readonly Outlet<HttpResponseMessage> _out = new("H2Correlation.Out");
 
     public override FanInShape<(HttpRequestMessage, int), (HttpResponseMessage, int), HttpResponseMessage> Shape
     {
@@ -22,7 +22,7 @@ internal sealed class
     public Http20CorrelationStage()
     {
         Shape = new FanInShape<(HttpRequestMessage, int), (HttpResponseMessage, int), HttpResponseMessage>(
-            _out, _requestIn, _responseIn);
+            _out, _inRequest, _inResponse);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -38,17 +38,17 @@ internal sealed class
 
         public Logic(Http20CorrelationStage stage) : base(stage.Shape)
         {
-            SetHandler(stage._requestIn,
+            SetHandler(stage._inRequest,
                 onPush: () =>
                 {
-                    var (request, streamId) = Grab(stage._requestIn);
+                    var (request, streamId) = Grab(stage._inRequest);
 
                     _pending[streamId] = request;
                     TryCorrelateAndEmit(stage);
 
-                    if (!HasBeenPulled(stage._requestIn))
+                    if (!HasBeenPulled(stage._inRequest))
                     {
-                        Pull(stage._requestIn);
+                        Pull(stage._inRequest);
                     }
                 },
                 onUpstreamFinish: () =>
@@ -57,17 +57,17 @@ internal sealed class
                     TryComplete();
                 });
 
-            SetHandler(stage._responseIn,
+            SetHandler(stage._inResponse,
                 onPush: () =>
                 {
-                    var (response, streamId) = Grab(stage._responseIn);
+                    var (response, streamId) = Grab(stage._inResponse);
 
                     _waiting[streamId] = response;
                     TryCorrelateAndEmit(stage);
 
-                    if (!HasBeenPulled(stage._responseIn))
+                    if (!HasBeenPulled(stage._inResponse))
                     {
-                        Pull(stage._responseIn);
+                        Pull(stage._inResponse);
                     }
                 },
                 onUpstreamFinish: () =>
@@ -81,14 +81,14 @@ internal sealed class
                 {
                     TryCorrelateAndEmit(stage);
 
-                    if (!HasBeenPulled(stage._requestIn))
+                    if (!HasBeenPulled(stage._inRequest))
                     {
-                        Pull(stage._requestIn);
+                        Pull(stage._inRequest);
                     }
 
-                    if (!HasBeenPulled(stage._responseIn))
+                    if (!HasBeenPulled(stage._inResponse))
                     {
-                        Pull(stage._responseIn);
+                        Pull(stage._inResponse);
                     }
                 });
         }

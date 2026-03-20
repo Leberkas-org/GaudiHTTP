@@ -416,10 +416,10 @@ Also update the custom `Http1XCorrelationShape` class if it references port name
 | Out | `correlation.out` | `H2Correlation.Out` | `_out` ✓ | `_out` ✓ |
 
 **Acceptance Criteria:**
-- [ ] No name collision with Http1XCorrelationStage
-- [ ] String names and field names updated
-- [ ] All existing HTTP/2 correlation stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] No name collision with Http1XCorrelationStage
+- [x] String names and field names updated
+- [x] All existing HTTP/2 correlation stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
