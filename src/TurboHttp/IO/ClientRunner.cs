@@ -10,7 +10,7 @@ using Akka.Event;
 
 namespace TurboHttp.IO;
 
-public class ClientRunner : ReceiveActor
+internal sealed class ClientRunner : ReceiveActor
 {
     private sealed record StreamReady(Stream Stream);
     private sealed record StreamFailed(Exception Exception);

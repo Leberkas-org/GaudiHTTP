@@ -739,9 +739,9 @@ finally
 **Required Change:** `internal sealed class`. Check other IO types. Add `[InternalsVisibleTo]` if needed.
 
 **Acceptance Criteria:**
-- [ ] `ClientRunner` is `internal sealed`
-- [ ] All existing tests pass
-- [ ] Build compiles with 0 errors
+- [x] `ClientRunner` is `internal sealed`
+- [x] All existing tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
