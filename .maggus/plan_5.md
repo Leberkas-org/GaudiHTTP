@@ -115,11 +115,11 @@ Transform TurboHttp from a working codebase into a polished, production-ready op
 **Description:** As a visitor, I want a landing page and getting-started guide so that I can quickly understand and use TurboHttp.
 
 **Acceptance Criteria:**
-- [ ] `docs/index.md` — VitePress home page with hero section, features grid, and CTA
-- [ ] `docs/guide/index.md` — Getting Started: installation, basic usage, configuration
-- [ ] `docs/guide/architecture.md` — Architecture overview (text + embedded LikeC4 views)
-- [ ] `docs/guide/protocols.md` — HTTP/1.0, 1.1, 2 support details
-- [ ] Pages render correctly in local dev server
+- [x] `docs/index.md` — VitePress home page with hero section, features grid, and CTA
+- [x] `docs/guide/index.md` — Getting Started: installation, basic usage, configuration
+- [x] `docs/guide/architecture.md` — Architecture overview (text + embedded LikeC4 views)
+- [x] `docs/guide/protocols.md` — HTTP/1.0, 1.1, 2 support details
+- [x] ⚠️ BLOCKED: Pages render correctly in local dev server — Node.js not available in this environment; must be verified manually
 
 ### TASK-009: Create LikeC4 Vue Components for VitePress
 **Description:** As a documentation reader, I want interactive architecture diagrams embedded in the docs pages so that I can explore the system visually.
