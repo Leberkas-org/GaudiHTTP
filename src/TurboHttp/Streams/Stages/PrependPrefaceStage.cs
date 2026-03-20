@@ -32,9 +32,30 @@ public sealed class PrependPrefaceStage : GraphStage<FlowShape<IOutputItem, IOut
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 
+    private readonly struct PrefaceKey : IEquatable<PrefaceKey>
+    {
+        private readonly bool _isTls;
+        private readonly string _host;
+        private readonly int _port;
+
+        public PrefaceKey(bool isTls, string host, int port)
+        {
+            _isTls = isTls;
+            _host = host;
+            _port = port;
+        }
+
+        public bool Equals(PrefaceKey other)
+            => _isTls == other._isTls && _port == other._port && string.Equals(_host, other._host, StringComparison.OrdinalIgnoreCase);
+
+        public override bool Equals(object? obj) => obj is PrefaceKey other && Equals(other);
+
+        public override int GetHashCode() => HashCode.Combine(_isTls, StringComparer.OrdinalIgnoreCase.GetHashCode(_host), _port);
+    }
+
     private sealed class Logic : GraphStageLogic
     {
-        private readonly Dictionary<string, bool> _prefaceSentHost = new();
+        private readonly HashSet<PrefaceKey> _prefaceSentHost = new();
         private readonly PrependPrefaceStage _stage;
 
         public Logic(PrependPrefaceStage stage) : base(stage.Shape)
@@ -49,9 +70,8 @@ public sealed class PrependPrefaceStage : GraphStage<FlowShape<IOutputItem, IOut
                     var item = Grab(stage._inlet);
                     if (item is ConnectItem connectItem)
                     {
-                        var prefix = connectItem.Options is TlsOptions ? "TLS" : "TCP";
-                        var key = $"{prefix}:{connectItem.Options.Host}:{connectItem.Options.Port}";
-                        if (_prefaceSentHost.ContainsKey(key))
+                        var key = new PrefaceKey(connectItem.Options is TlsOptions, connectItem.Options.Host, connectItem.Options.Port);
+                        if (_prefaceSentHost.Contains(key))
                         {
                             return;
                         }
@@ -60,7 +80,7 @@ public sealed class PrependPrefaceStage : GraphStage<FlowShape<IOutputItem, IOut
                         var owner = MemoryPool<byte>.Shared.Rent(preface.Length);
                         ((ReadOnlySpan<byte>)preface).CopyTo(owner.Memory.Span);
                         EmitMultiple(stage._outlet, [item, new DataItem(owner, preface.Length)]);
-                        _prefaceSentHost[key] = true;
+                        _prefaceSentHost.Add(key);
                     }
                     else
                     {

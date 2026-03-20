@@ -775,9 +775,9 @@ finally
 **Required Change:** Use tuple key `(Host, Port, isTls)`.
 
 **Acceptance Criteria:**
-- [ ] No string interpolation for key
-- [ ] All existing tests pass
-- [ ] Build compiles with 0 errors
+- [x] No string interpolation for key
+- [x] All existing tests pass
+- [x] Build compiles with 0 errors
 
 ---
 
