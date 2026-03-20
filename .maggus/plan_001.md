@@ -323,12 +323,12 @@ The following RFC supersession rules apply:
 3. `src/TurboHttp/Streams/Stages/Http20ConnectionStage.cs`
 
 **Acceptance Criteria:**
-- [ ] Replace all RFC 7540 references with RFC 9113
-- [ ] SETTINGS/PING/GOAWAY comments verified against RFC 9113 §6.5/§6.7/§6.8
-- [ ] Flow control comments verified against RFC 9113 §5.2
-- [ ] Stage descriptions match current behaviour
-- [ ] Remove redundant comments
-- [ ] `dotnet build` succeeds
+- [x] Replace all RFC 7540 references with RFC 9113
+- [x] SETTINGS/PING/GOAWAY comments verified against RFC 9113 §6.5/§6.7/§6.8
+- [x] Flow control comments verified against RFC 9113 §5.2
+- [x] Stage descriptions match current behaviour
+- [x] Remove redundant comments
+- [x] `dotnet build` succeeds
 
 ---
 
