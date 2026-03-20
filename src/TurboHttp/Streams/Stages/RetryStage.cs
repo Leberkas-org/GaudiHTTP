@@ -29,13 +29,13 @@ internal sealed class RetryStage : GraphStage<FanOutShape<HttpResponseMessage, H
     private readonly RetryPolicy _policy;
 
     private readonly Inlet<HttpResponseMessage> _in
-        = new("retry.in");
+        = new("Retry.In");
 
     private readonly Outlet<HttpResponseMessage> _outFinal
-        = new("retry.out0.final");
+        = new("Retry.Out0.Final");
 
     private readonly Outlet<HttpRequestMessage> _outRetry
-        = new("retry.out1.retry");
+        = new("Retry.Out1.Retry");
 
     /// <summary>
     /// Maximum number of pending retries (ready + waiting) before the stage stops pulling

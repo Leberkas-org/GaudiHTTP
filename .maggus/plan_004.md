@@ -373,9 +373,9 @@ Fields: `_inlet`/`_outlet` → `_in`/`_out`
 Fields: already `_in`/`_outFinal`/`_outRedirect` and `_outRetry` ✓ — no field changes needed.
 
 **Acceptance Criteria:**
-- [ ] String names updated to PascalCase
-- [ ] All existing RFC9110 stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] String names updated to PascalCase
+- [x] All existing RFC9110 stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 

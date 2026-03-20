@@ -31,13 +31,13 @@ internal sealed class
     internal readonly RedirectPolicy _policy;
 
     private readonly Inlet<HttpResponseMessage> _in
-        = new("redirect.in");
+        = new("Redirect.In");
 
     private readonly Outlet<HttpResponseMessage> _outFinal
-        = new("redirect.out0.final");
+        = new("Redirect.Out0.Final");
 
     private readonly Outlet<HttpRequestMessage> _outRedirect
-        = new("redirect.out1.redirect");
+        = new("Redirect.Out1.Redirect");
 
     public override FanOutShape<HttpResponseMessage, HttpResponseMessage, HttpRequestMessage> Shape { get; }
 
