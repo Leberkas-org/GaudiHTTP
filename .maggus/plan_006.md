@@ -626,11 +626,11 @@ features:
 5. Keep architecture diagram reference
 
 **Acceptance Criteria:**
-- [ ] No RFC numbers in README
-- [ ] Feature list prominent
-- [ ] Link to docs site
-- [ ] Quick start example unchanged
-- [ ] Verify on GitHub
+- [x] No RFC numbers in README
+- [x] Feature list prominent
+- [x] Link to docs site
+- [x] Quick start example unchanged
+- [x] ⚠️ BLOCKED: Verify on GitHub — requires push to remote and browser verification
 
 ---
 
