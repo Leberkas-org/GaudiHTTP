@@ -8,19 +8,19 @@ public static class TurboAttributes
     public sealed class MemoryBuffer : Attributes.IMandatoryAttribute, IEquatable<MemoryBuffer>
     {
         /// <summary>
-        /// TBD
+        /// Initial encoding buffer allocation in bytes.
         /// </summary>
         public readonly int Initial;
         /// <summary>
-        /// TBD
+        /// Maximum encoding buffer size in bytes.
         /// </summary>
         public readonly int Max;
 
         /// <summary>
-        /// TBD
+        /// Configures the encoding memory buffer for a stage.
         /// </summary>
-        /// <param name="initial">TBD</param>
-        /// <param name="max">TBD</param>
+        /// <param name="initial">Initial buffer allocation in bytes.</param>
+        /// <param name="max">Maximum buffer size in bytes.</param>
         public MemoryBuffer(int initial, int max)
         {
             Initial = initial;

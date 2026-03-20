@@ -478,11 +478,11 @@ The following RFC supersession rules apply:
 5. `src/TurboHttp/Streams/Stages/TurboAttributes.cs`
 
 **Acceptance Criteria:**
-- [ ] Stage comments accurately describe current partitioning/merging behaviour
-- [ ] TurboAttributes comments are up to date
-- [ ] No outdated architecture comments
-- [ ] Remove redundant comments
-- [ ] `dotnet build` succeeds
+- [x] Stage comments accurately describe current partitioning/merging behaviour
+- [x] TurboAttributes comments are up to date
+- [x] No outdated architecture comments
+- [x] Remove redundant comments
+- [x] `dotnet build` succeeds
 
 ---
 
