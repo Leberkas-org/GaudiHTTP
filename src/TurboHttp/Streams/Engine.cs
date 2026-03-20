@@ -352,9 +352,9 @@ public class Engine
             var bidi = b.Add(new TEngine().CreateFlow());
             var transportFlow = b.Add(transport);
 
-            // ExtractOptionsStage: first request → ConnectItem (Out0) + all requests (Out1)
+            // ExtractOptionsStage: first request → ConnectItem (Out1) + all requests (Out0)
             // Replaces Broadcast + Buffer + Take(1).Select pattern.
-            // The stage internally buffers the first request and delivers it via Out1 on demand,
+            // The stage internally buffers the first request and delivers it via Out0 on demand,
             // eliminating the deadlock that required the explicit Buffer(1) decoupling.
             var extract = b.Add(new ExtractOptionsStage(clientOptions));
 
@@ -372,7 +372,7 @@ public class Engine
             b.From(extract.Out0).To(bidi.Inlet1);
             b.From(extract.Out1).To(concat.In(0));
 
-            // Transport path: BidiFlow encoded output + ConnectItem → merge → transport → BidiFlow decode
+            // Transport path: ConnectItem + BidiFlow encoded output → concat → merge → transport → BidiFlow decode
             b.From(bidi.Outlet1).To(concat.In(1));
             b.From(concat.Out).To(transportMerge.In(0));
             b.From(transportMerge.Out).To(transportFlow.Inlet);

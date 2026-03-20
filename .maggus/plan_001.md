@@ -383,11 +383,11 @@ The following RFC supersession rules apply:
 5. `src/TurboHttp/Streams/Http30Engine.cs`
 
 **Acceptance Criteria:**
-- [ ] Engine comments accurately describe current pipeline composition
-- [ ] Http30Engine TODO comment reviewed — is the stub still current?
-- [ ] No outdated RFC references in engine files
-- [ ] Remove redundant comments
-- [ ] `dotnet build` succeeds
+- [x] Engine comments accurately describe current pipeline composition
+- [x] Http30Engine TODO comment reviewed — is the stub still current?
+- [x] No outdated RFC references in engine files
+- [x] Remove redundant comments
+- [x] `dotnet build` succeeds
 
 ---
 

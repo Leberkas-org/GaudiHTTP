@@ -13,7 +13,7 @@ public class Http30Engine : IHttpProtocolEngine
         NotUsed> CreateFlow()
     {
         // TODO: HTTP/3 not yet implemented. This stub provides a valid BidiFlow
-        // that accepts input but never produces output, allowing the Engine's
+        // that throws NotSupportedException on any message, allowing the Engine's
         // 4-port partition graph to materialize without errors.
         return BidiFlow.FromFlows(
             Flow.Create<HttpRequestMessage>()
