@@ -461,11 +461,11 @@ features:
 7. Configuration: force HTTP/2, fallback behavior
 
 **Acceptance Criteria:**
-- [ ] Practical guidance on when HTTP/2 helps
-- [ ] Multiplexing explained without protocol internals
-- [ ] Configuration examples
-- [ ] No RFC references (say "header compression" not "HPACK RFC 7541")
-- [ ] Verify in browser
+- [x] Practical guidance on when HTTP/2 helps
+- [x] Multiplexing explained without protocol internals
+- [x] Configuration examples
+- [x] No RFC references (say "header compression" not "HPACK RFC 7541")
+- [x] ⚠️ BLOCKED: Verify in browser — Node.js not available in CI environment; requires manual browser verification
 
 ---
 
