@@ -118,12 +118,12 @@ The following RFC supersession rules apply:
 3. `src/TurboHttp/Protocol/RFC9110/RetryPolicy.cs`
 
 **Acceptance Criteria:**
-- [ ] RFC 9110 §9.2 (Idempotent Methods) references are correct
-- [ ] RFC 9110 §10.2.3 (Retry-After) references verified
-- [ ] No references to RFC 7231 remain
-- [ ] Comments accurately describe current retry behaviour
-- [ ] Remove redundant comments
-- [ ] `dotnet build` succeeds
+- [x] RFC 9110 §9.2 (Idempotent Methods) references are correct
+- [x] RFC 9110 §10.2.3 (Retry-After) references verified
+- [x] No references to RFC 7231 remain
+- [x] Comments accurately describe current retry behaviour
+- [x] Remove redundant comments
+- [x] `dotnet build` succeeds
 
 ---
 

@@ -107,8 +107,6 @@ public static class RetryEvaluator
         return RetryDecision.NoRetry($"Status {statusCode} is not a retriable error code (not 408 or 503).");
     }
 
-    // ── Private Helpers ──────────────────────────────────────────────────────────
-
     /// <summary>
     /// Returns true if the HTTP method is idempotent per RFC 9110 §9.2.2.
     /// Idempotent methods: GET, HEAD, PUT, DELETE, OPTIONS, TRACE.
