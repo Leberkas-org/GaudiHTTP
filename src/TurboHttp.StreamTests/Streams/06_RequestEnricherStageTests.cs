@@ -101,8 +101,9 @@ public sealed class RequestEnricherStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "ENR-004: Null URI, null BaseAddress → stage fails with InvalidOperationException")]
-    public async Task Should_ThrowInvalidOperationException_When_UriAndBaseAddressAreNull()
+        DisplayName =
+            "ENR-004: Null URI + null BaseAddress → logs warning, request passes through unenriched, stream survives")]
+    public async Task Should_LogWarningAndPassThrough_When_UriAndBaseAddressAreNull()
     {
         var (holder, defaultHeaders) = CreateDefaultHeaders();
         using var _ = holder;
@@ -117,22 +118,33 @@ public sealed class RequestEnricherStageTests : StreamTestBase
             TimeSpan.MaxValue,
             long.MaxValue));
 
-        var ex = await Assert.ThrowsAnyAsync<Exception>(async () =>
-            await RunAsync(stage, request));
+        // Subscribe directly to the event bus so we can verify the warning is published.
+        var probe = CreateTestProbe();
+        Sys.EventStream.Subscribe(probe.Ref, typeof(Akka.Event.Warning));
 
-        // Akka may wrap in AggregateException; unwrap to find InvalidOperationException
-        var inner = ex is AggregateException agg ? agg.InnerException : ex;
-        Assert.IsType<InvalidOperationException>(inner);
+        var results = await RunAsync(stage, request);
+
+        // The stage must NOT fail — one result is passed through (unenriched, null URI).
+        var result = Assert.Single(results);
+        Assert.Null(result.RequestUri);
+
+        // A Warning must have been published to the event bus with stage name in the message.
+        var warning = probe.ExpectMsg<Akka.Event.Warning>(TimeSpan.FromSeconds(5));
+        Assert.Contains("RequestEnricherStage", warning.ToString());
+
+        Sys.EventStream.Unsubscribe(probe.Ref, typeof(Akka.Event.Warning));
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "ENR-005: Relative URI, null BaseAddress → stage fails with InvalidOperationException")]
-    public async Task Should_ThrowInvalidOperationException_When_RelativeUriAndBaseAddressIsNull()
+        DisplayName =
+            "ENR-005: Relative URI + null BaseAddress → logs warning, request passes through unenriched, stream survives")]
+    public async Task Should_LogWarningAndPassThrough_When_RelativeUriAndBaseAddressIsNull()
     {
         var (holder, defaultHeaders) = CreateDefaultHeaders();
         using var _ = holder;
 
-        var request = new HttpRequestMessage(HttpMethod.Get, new Uri("/ping", UriKind.Relative));
+        var relativeUri = new Uri("/ping", UriKind.Relative);
+        var request = new HttpRequestMessage(HttpMethod.Get, relativeUri);
 
         var stage = new RequestEnricherStage(() => new TurboRequestOptions(
             null,
@@ -142,11 +154,18 @@ public sealed class RequestEnricherStageTests : StreamTestBase
             TimeSpan.MaxValue,
             long.MaxValue));
 
-        var ex = await Assert.ThrowsAnyAsync<Exception>(async () =>
-            await RunAsync(stage, request));
+        var probe = CreateTestProbe();
+        Sys.EventStream.Subscribe(probe.Ref, typeof(Akka.Event.Warning));
 
-        var inner = ex is AggregateException agg ? agg.InnerException : ex;
-        Assert.IsType<InvalidOperationException>(inner);
+        var results = await RunAsync(stage, request);
+
+        var result = Assert.Single(results);
+        Assert.Equal(relativeUri, result.RequestUri);
+
+        var warning = probe.ExpectMsg<Akka.Event.Warning>(TimeSpan.FromSeconds(5));
+        Assert.Contains("RequestEnricherStage", warning.ToString());
+
+        Sys.EventStream.Unsubscribe(probe.Ref, typeof(Akka.Event.Warning));
     }
 
     [Fact(Timeout = 10_000,

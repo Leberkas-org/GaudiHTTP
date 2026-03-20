@@ -115,11 +115,11 @@ These tests are replaced by the new **"Stream Survives Error"** tests (TASK-010)
 3. Ensure log output includes stage name and request context (e.g., URL) where available
 
 **Acceptance Criteria:**
-- [ ] Logging pattern established and documented
-- [ ] At least one stage (e.g. `RequestEnricherStage`) migrated as reference implementation
-- [ ] Log output includes stage name and error details
-- [ ] Unit test verifies log output on error
-- [ ] Build compiles with 0 errors
+- [x] Logging pattern established and documented
+- [x] At least one stage (e.g. `RequestEnricherStage`) migrated as reference implementation
+- [x] Log output includes stage name and error details
+- [x] Unit test verifies log output on error
+- [x] Build compiles with 0 errors
 
 ---
 
@@ -152,14 +152,14 @@ catch (Exception ex)
 Also change `onUpstreamFailure: FailStage` → `onUpstreamFailure: ex => Log.Error(ex, "...")`
 
 **Acceptance Criteria:**
-- [ ] `Http10EncoderStage` and `Http11EncoderStage` no longer call `FailStage`
-- [ ] Encoding errors are logged with request context
-- [ ] Stage continues processing after error
-- [ ] `onUpstreamFailure` logs instead of failing
-- [ ] Stream test: send a malformed request, verify stream stays alive for next request
-- [ ] Existing tests asserting `FailStage`/`CompleteStage` on encode errors → **deleted**
-- [ ] Remaining encoder stream tests pass
-- [ ] Build compiles with 0 errors
+- [x] `Http10EncoderStage` and `Http11EncoderStage` no longer call `FailStage`
+- [x] Encoding errors are logged with request context
+- [x] Stage continues processing after error
+- [x] `onUpstreamFailure` logs instead of failing
+- [x] Stream test: send a malformed request, verify stream stays alive for next request
+- [x] Existing tests asserting `FailStage`/`CompleteStage` on encode errors → **deleted**
+- [x] Remaining encoder stream tests pass
+- [x] Build compiles with 0 errors
 
 ---
 

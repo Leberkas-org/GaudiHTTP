@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHttp.Client;
@@ -45,14 +46,14 @@ internal sealed class RequestEnricherStage : GraphStage<FlowShape<HttpRequestMes
                     }
                     catch (Exception ex)
                     {
-                        FailStage(ex);
-                        return;
+                        Log.Warning("RequestEnricherStage: Enrichment failed for [{0}]: {1}",
+                            request.RequestUri, ex.Message);
                     }
 
                     Push(stage._outlet, request);
                 },
                 onUpstreamFinish: CompleteStage,
-                onUpstreamFailure: FailStage);
+                onUpstreamFailure: ex => Log.Warning("RequestEnricherStage: Upstream failure absorbed: {0}", ex.Message));
 
             SetHandler(stage._outlet,
                 onPull: () => Pull(stage._inlet),

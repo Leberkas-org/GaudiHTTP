@@ -107,4 +107,33 @@ public sealed class Http11EncoderStageTests : StreamTestBase
 
         Assert.Contains("X-Custom: value\r\n", raw);
     }
+
+    [Fact(Timeout = 10_000,
+        DisplayName = "RFC9112-3-11ES-006: Malformed request (null URI) → logged and dropped, stream encodes next request")]
+    public async Task Should_DropMalformedRequestAndEncodeNextRequest_When_NullUriReceived()
+    {
+        // A request with null RequestUri causes RequestEndpoint.FromRequest to throw.
+        var malformed = new HttpRequestMessage { Method = HttpMethod.Get };
+        var valid = new HttpRequestMessage(HttpMethod.Get, "http://example.com/ok")
+        {
+            Version = System.Net.HttpVersion.Version11
+        };
+
+        var items = await Source.From(new[] { malformed, valid })
+            .Via(Flow.FromGraph(new Http11EncoderStage()))
+            .RunWith(Sink.Seq<IOutputItem>(), Materializer);
+
+        // Malformed request is dropped; only the valid request produces output.
+        var item = Assert.Single(items);
+        var data = (DataItem)item;
+        try
+        {
+            var raw = System.Text.Encoding.Latin1.GetString(data.Memory.Memory.Span[..data.Length]);
+            Assert.StartsWith("GET /ok HTTP/1.1\r\n", raw);
+        }
+        finally
+        {
+            data.Memory.Dispose();
+        }
+    }
 }

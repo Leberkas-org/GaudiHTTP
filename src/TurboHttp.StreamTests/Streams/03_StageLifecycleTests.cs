@@ -99,32 +99,6 @@ public sealed class StageLifecycleTests : StreamTestBase
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "LIFE-003: Exception in encoder → stage fails with meaningful error message")]
-    public async Task Should_FailWithMeaningfulMessage_When_EncoderStageReceivesInvalidRequest()
-    {
-        // A request with null RequestUri causes Http11Encoder to throw ArgumentNullException.
-        // The encoder stage catches the exception, calls FailStage(), and the stream fails.
-        // The exception must have a non-empty message (meaningful error).
-        var badRequest = new HttpRequestMessage
-        {
-            Method = HttpMethod.Get,
-            RequestUri = null // ← null URI triggers ArgumentNullException in the encoder
-        };
-
-        var ex = await Assert.ThrowsAnyAsync<Exception>(async () =>
-            await Source.Single(badRequest)
-                .Via(Flow.FromGraph(new Http11EncoderStage()))
-                .RunWith(Sink.Seq<IOutputItem>(), Materializer));
-
-        var inner = Unwrap(ex);
-
-        // The stage must propagate a real exception (not a generic one)
-        Assert.NotNull(inner);
-        Assert.False(string.IsNullOrWhiteSpace(inner.Message),
-            "Exception must carry a meaningful, non-empty error message");
-    }
-
-    [Fact(Timeout = 10_000,
         DisplayName = "LIFE-004: Exception in decoder → stage fails with HttpDecoderException")]
     public async Task Should_FailWithHttpDecoderException_When_DecoderStageReceivesMalformedData()
     {
