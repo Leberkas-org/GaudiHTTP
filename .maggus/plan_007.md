@@ -120,12 +120,12 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a developer, I want request middleware stages wired after `RequestEnricherStage` and before `redirectMerge.In(0)` so that initial requests are transformed before entering the feedback loop.
 
 **Acceptance Criteria:**
-- [ ] For each `TurboMiddleware` in `descriptor.Middlewares`: `builder.Add(new MiddlewareRequestStage(mw))`
-- [ ] Stages chained **after** `enricher.Outlet` and **before** `redirectMerge.In(0)`
-- [ ] Order: FIFO — first registered middleware runs first
-- [ ] When `descriptor.Middlewares` is empty → no stage added; `requestTip` goes directly from enricher to redirectMerge
-- [ ] Redirect feedback (`redirectMerge.Preferred`) correctly bypasses the request middleware stages (redirect requests are not re-transformed)
-- [ ] Typecheck/lint passes
+- [x] For each `TurboMiddleware` in `descriptor.Middlewares`: `builder.Add(new MiddlewareRequestStage(mw))`
+- [x] Stages chained **after** `enricher.Outlet` and **before** `redirectMerge.In(0)`
+- [x] Order: FIFO — first registered middleware runs first
+- [x] When `descriptor.Middlewares` is empty → no stage added; `requestTip` goes directly from enricher to redirectMerge
+- [x] Redirect feedback (`redirectMerge.Preferred`) correctly bypasses the request middleware stages (redirect requests are not re-transformed)
+- [x] Typecheck/lint passes
 
 ---
 
