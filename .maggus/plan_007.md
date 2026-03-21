@@ -279,11 +279,11 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a developer, I want stream tests for `MiddlewareResponseStage` so that I can verify async response transformation and access to the original request works.
 
 **Acceptance Criteria:**
-- [ ] New file `src/TurboHttp.StreamTests/Streams/MiddlewareResponseStageTests.cs`
-- [ ] Test: stage adds a custom header to the response
-- [ ] Test: stage reads `original.RequestUri` via `response.RequestMessage`
-- [ ] Test: chained stages — pipeline order is correct
-- [ ] Unit tests are written and successful
+- [x] New file `src/TurboHttp.StreamTests/Streams/MiddlewareResponseStageTests.cs`
+- [x] Test: stage adds a custom header to the response
+- [x] Test: stage reads `original.RequestUri` via `response.RequestMessage`
+- [x] Test: chained stages — pipeline order is correct
+- [x] Unit tests are written and successful
 
 ---
 
