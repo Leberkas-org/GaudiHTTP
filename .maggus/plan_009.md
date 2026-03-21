@@ -125,20 +125,20 @@ on the response path, re-injecting retry requests on the request output without 
 feedback loop.
 
 **Acceptance Criteria:**
-- [ ] `RetryBidiStage` is a `GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>`
-- [ ] Request direction (In1→Out1): forward request, buffer for potential retry
-- [ ] Response direction (In2): evaluate retry via `RetryEvaluator`
+- [x] `RetryBidiStage` is a `GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>`
+- [x] Request direction (In1→Out1): forward request, buffer for potential retry
+- [x] Response direction (In2): evaluate retry via `RetryEvaluator`
   - Not retryable: push final response on Out2
   - Retryable (immediate): dispose response, push retry request on Out1 (priority over new requests from In1)
   - Retryable (Retry-After): schedule timer, push retry request on Out1 when timer fires
-- [ ] Internal state machine: IDLE → AWAITING_RESPONSE → (RETRYING | TIMER_WAITING | IDLE)
-- [ ] Attempt count tracked via `HttpRequestMessage.Options`
-- [ ] Respects `MaxPendingRetries` and `RetryPolicy.MaxAttempts`
-- [ ] Pass-through when `RetryPolicy` is null (forward In1→Out1, In2→Out2 directly)
-- [ ] Reuses `RetryEvaluator` from Protocol layer
-- [ ] Port names: `"Retry.In.Request"`, `"Retry.Out.Request"`, `"Retry.In.Response"`, `"Retry.Out.Response"`
-- [ ] Typecheck/lint passes
-- [ ] Unit tests are written and successful
+- [x] Internal state machine: IDLE → AWAITING_RESPONSE → (RETRYING | TIMER_WAITING | IDLE)
+- [x] Attempt count tracked via `HttpRequestMessage.Options`
+- [x] Respects `MaxPendingRetries` and `RetryPolicy.MaxAttempts`
+- [x] Pass-through when `RetryPolicy` is null (forward In1→Out1, In2→Out2 directly)
+- [x] Reuses `RetryEvaluator` from Protocol layer
+- [x] Port names: `"Retry.In.Request"`, `"Retry.Out.Request"`, `"Retry.In.Response"`, `"Retry.Out.Response"`
+- [x] Typecheck/lint passes
+- [x] Unit tests are written and successful
 
 ### TASK-006: Create RedirectBidiStage
 **Description:** As a developer, I want a `RedirectBidiStage` that evaluates redirects
