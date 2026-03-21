@@ -269,12 +269,12 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 - New file: `src/TurboHttp/Protocol/RFC9110/PartialContentValidator.cs`
 
 **Acceptance Criteria:**
-- [ ] 206 response with Content-Range bytes is valid
-- [ ] 206 response without Content-Range is flagged invalid
-- [ ] 206 multipart/byteranges detected
-- [ ] Non-206 responses skip validation
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] 206 response with Content-Range bytes is valid
+- [x] 206 response without Content-Range is flagged invalid
+- [x] 206 multipart/byteranges detected
+- [x] Non-206 responses skip validation
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (new file: `src/TurboHttp.Tests/RFC9110/07_PartialContentTests.cs`):
 
