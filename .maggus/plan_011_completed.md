@@ -627,11 +627,11 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 - File: `src/TurboHttp/Streams/Http10Engine.cs` — verify DecompressionBidiStage is in pipeline
 
 **Acceptance Criteria:**
-- [ ] Http10Engine decompresses gzip Content-Encoding responses
-- [ ] Http10Engine decompresses x-gzip Content-Encoding responses
-- [ ] Http10Engine passes identity encoding unchanged
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] Http10Engine decompresses gzip Content-Encoding responses
+- [x] Http10Engine decompresses x-gzip Content-Encoding responses
+- [x] Http10Engine passes identity encoding unchanged
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (new file: `src/TurboHttp.StreamTests/RFC1945/09_Http10DecompressionPipelineTests.cs`):
 
