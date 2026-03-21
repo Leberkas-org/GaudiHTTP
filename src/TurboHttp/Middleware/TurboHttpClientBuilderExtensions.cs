@@ -1,7 +1,5 @@
 using System;
 using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHttp.Protocol.RFC6265;
 using TurboHttp.Protocol.RFC9110;
@@ -58,10 +56,10 @@ public static class TurboHttpClientBuilderExtensions
     }
 
     /// <summary>
-    /// Registers <typeparamref name="T"/> as a Transient service and appends it to the middleware pipeline.
+    /// Registers <typeparamref name="T"/> as a Transient service and appends it to the handler pipeline.
     /// Registration order is preserved (FIFO).
     /// </summary>
-    public static ITurboHttpClientBuilder AddMiddleware<T>(this ITurboHttpClientBuilder builder)
+    public static ITurboHttpClientBuilder AddHandler<T>(this ITurboHttpClientBuilder builder)
         where T : TurboHandler
     {
         builder.Services.AddTransient<T>();
@@ -74,54 +72,54 @@ public static class TurboHttpClientBuilderExtensions
     }
 
     /// <summary>
-    /// Wraps a request transform delegate in an anonymous <see cref="TurboMiddleware"/> and appends it
-    /// to the middleware pipeline. Registration order is preserved (FIFO).
+    /// Wraps a request transform delegate in an anonymous <see cref="TurboHandler"/> and appends it
+    /// to the handler pipeline. Registration order is preserved (FIFO).
     /// </summary>
     public static ITurboHttpClientBuilder UseRequest(
         this ITurboHttpClientBuilder builder,
-        Func<HttpRequestMessage, CancellationToken, ValueTask<HttpRequestMessage>> transform)
+        Func<HttpRequestMessage, HttpRequestMessage> transform)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
         {
-            d.HandlerFactories.Add(_ => new DelegateRequestMiddleware(transform));
+            d.HandlerFactories.Add(_ => new DelegateRequestHandler(transform));
         });
         return builder;
     }
 
     /// <summary>
-    /// Wraps a response transform delegate in an anonymous <see cref="TurboMiddleware"/> and appends it
-    /// to the middleware pipeline. Registration order is preserved (FIFO).
+    /// Wraps a response transform delegate in an anonymous <see cref="TurboHandler"/> and appends it
+    /// to the handler pipeline. Registration order is preserved (FIFO).
     /// </summary>
     public static ITurboHttpClientBuilder UseResponse(
         this ITurboHttpClientBuilder builder,
-        Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, ValueTask<HttpResponseMessage>> transform)
+        Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> transform)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
         {
-            d.HandlerFactories.Add(_ => new DelegateResponseMiddleware(transform));
+            d.HandlerFactories.Add(_ => new DelegateResponseHandler(transform));
         });
         return builder;
     }
 
-    private sealed class DelegateRequestMiddleware : TurboHandler
+    private sealed class DelegateRequestHandler : TurboHandler
     {
-        private readonly Func<HttpRequestMessage, CancellationToken, ValueTask<HttpRequestMessage>> _transform;
+        private readonly Func<HttpRequestMessage, HttpRequestMessage> _transform;
 
-        public DelegateRequestMiddleware(Func<HttpRequestMessage, CancellationToken, ValueTask<HttpRequestMessage>> transform)
+        public DelegateRequestHandler(Func<HttpRequestMessage, HttpRequestMessage> transform)
             => _transform = transform;
 
         public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
-            => _transform(request, CancellationToken.None).Result;
+            => _transform(request);
     }
 
-    private sealed class DelegateResponseMiddleware : TurboHandler
+    private sealed class DelegateResponseHandler : TurboHandler
     {
-        private readonly Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, ValueTask<HttpResponseMessage>> _transform;
+        private readonly Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> _transform;
 
-        public DelegateResponseMiddleware(Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, ValueTask<HttpResponseMessage>> transform)
+        public DelegateResponseHandler(Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> transform)
             => _transform = transform;
 
         public override HttpResponseMessage ProcessResponse(HttpRequestMessage original, HttpResponseMessage response)
-            => _transform(original, response, CancellationToken.None).Result;
+            => _transform(original, response);
     }
 }

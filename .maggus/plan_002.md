@@ -85,14 +85,14 @@ Renaming to `TurboHandler` aligns with .NET's `HttpMessageHandler` / `Delegating
 **Description:** As a developer, I want the builder API renamed and converted to sync delegates.
 
 **Acceptance Criteria:**
-- [ ] `src/TurboHttp/Middleware/TurboHttpClientBuilderExtensions.cs`: `AddMiddleware<T>()` → `AddHandler<T>()` with `where T : TurboHandler`
-- [ ] `UseRequest` delegate: `Func<HttpRequestMessage, HttpRequestMessage>` (no CancellationToken, no ValueTask)
-- [ ] `UseResponse` delegate: `Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>` (no CancellationToken, no ValueTask)
-- [ ] `DelegateRequestMiddleware` → `DelegateRequestHandler` extending `TurboHandler`, overriding `ProcessRequest`
-- [ ] `DelegateResponseMiddleware` → `DelegateResponseHandler` extending `TurboHandler`, overriding `ProcessResponse`
-- [ ] Internal references: `d.MiddlewareTypes` → `d.HandlerTypes`, `d.MiddlewareFactories` → `d.HandlerFactories`
-- [ ] XML doc `<see cref="…"/>` references updated
-- [ ] Typecheck passes
+- [x] `src/TurboHttp/Middleware/TurboHttpClientBuilderExtensions.cs`: `AddMiddleware<T>()` → `AddHandler<T>()` with `where T : TurboHandler`
+- [x] `UseRequest` delegate: `Func<HttpRequestMessage, HttpRequestMessage>` (no CancellationToken, no ValueTask)
+- [x] `UseResponse` delegate: `Func<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>` (no CancellationToken, no ValueTask)
+- [x] `DelegateRequestMiddleware` → `DelegateRequestHandler` extending `TurboHandler`, overriding `ProcessRequest`
+- [x] `DelegateResponseMiddleware` → `DelegateResponseHandler` extending `TurboHandler`, overriding `ProcessResponse`
+- [x] Internal references: `d.MiddlewareTypes` → `d.HandlerTypes`, `d.MiddlewareFactories` → `d.HandlerFactories`
+- [x] XML doc `<see cref="…"/>` references updated
+- [x] Typecheck passes
 
 ### TASK-006: Update TurboHttpClientFactory
 **Description:** As a developer, I want the factory to use the new handler field names.

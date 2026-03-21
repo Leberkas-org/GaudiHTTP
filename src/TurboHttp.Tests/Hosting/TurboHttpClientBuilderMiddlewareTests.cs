@@ -1,7 +1,5 @@
 using System;
 using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -30,25 +28,25 @@ public sealed class TurboHttpClientBuilderMiddlewareTests
     }
 
     // ---------------------------------------------------------------------------
-    // AddMiddleware<T> — type registration
+    // AddHandler<T> — type registration
     // ---------------------------------------------------------------------------
 
-    [Fact(DisplayName = "AddMiddleware<T>() adds typeof(T) to HandlerTypes")]
-    public void AddMiddleware_AddsTypeToHandlerTypes()
+    [Fact(DisplayName = "AddHandler<T>() adds typeof(T) to HandlerTypes")]
+    public void AddHandler_AddsTypeToHandlerTypes()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").AddMiddleware<TestMiddleware>();
+        services.AddTurboHttpClient("test").AddHandler<TestMiddleware>();
 
         var descriptor = GetDescriptor(services, "test");
 
         Assert.Contains(typeof(TestMiddleware), descriptor.HandlerTypes);
     }
 
-    [Fact(DisplayName = "AddMiddleware<T>() also appends one factory to HandlerFactories")]
-    public void AddMiddleware_AddsFactoryToHandlerFactories()
+    [Fact(DisplayName = "AddHandler<T>() also appends one factory to HandlerFactories")]
+    public void AddHandler_AddsFactoryToHandlerFactories()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").AddMiddleware<TestMiddleware>();
+        services.AddTurboHttpClient("test").AddHandler<TestMiddleware>();
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -56,14 +54,14 @@ public sealed class TurboHttpClientBuilderMiddlewareTests
     }
 
     // ---------------------------------------------------------------------------
-    // AddMiddleware<T> — DI registration lifetime
+    // AddHandler<T> — DI registration lifetime
     // ---------------------------------------------------------------------------
 
-    [Fact(DisplayName = "AddMiddleware<T>() registers T as Transient in the service collection")]
-    public void AddMiddleware_RegistersTransientService()
+    [Fact(DisplayName = "AddHandler<T>() registers T as Transient in the service collection")]
+    public void AddHandler_RegistersTransientService()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").AddMiddleware<TestMiddleware>();
+        services.AddTurboHttpClient("test").AddHandler<TestMiddleware>();
 
         Assert.Contains(services, sd =>
             sd.ServiceType == typeof(TestMiddleware) &&
@@ -78,8 +76,7 @@ public sealed class TurboHttpClientBuilderMiddlewareTests
     public void UseRequest_AddsOneFactoryWithNoTypeEntry()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").UseRequest(
-            (req, ct) => ValueTask.FromResult(req));
+        services.AddTurboHttpClient("test").UseRequest(req => req);
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -91,13 +88,13 @@ public sealed class TurboHttpClientBuilderMiddlewareTests
     // FIFO ordering
     // ---------------------------------------------------------------------------
 
-    [Fact(DisplayName = "Multiple AddMiddleware<T>() calls preserve FIFO order in HandlerTypes")]
-    public void AddMiddleware_PreservesFifoOrderInTypes()
+    [Fact(DisplayName = "Multiple AddHandler<T>() calls preserve FIFO order in HandlerTypes")]
+    public void AddHandler_PreservesFifoOrderInTypes()
     {
         var services = new ServiceCollection();
         services.AddTurboHttpClient("test")
-            .AddMiddleware<AlphaMiddleware>()
-            .AddMiddleware<BetaMiddleware>();
+            .AddHandler<AlphaMiddleware>()
+            .AddHandler<BetaMiddleware>();
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -105,13 +102,13 @@ public sealed class TurboHttpClientBuilderMiddlewareTests
         Assert.Equal(typeof(BetaMiddleware), descriptor.HandlerTypes[1]);
     }
 
-    [Fact(DisplayName = "Multiple AddMiddleware<T>() calls preserve FIFO order in HandlerFactories")]
-    public void AddMiddleware_PreservesFifoOrderInFactories()
+    [Fact(DisplayName = "Multiple AddHandler<T>() calls preserve FIFO order in HandlerFactories")]
+    public void AddHandler_PreservesFifoOrderInFactories()
     {
         var services = new ServiceCollection();
         services.AddTurboHttpClient("test")
-            .AddMiddleware<AlphaMiddleware>()
-            .AddMiddleware<BetaMiddleware>();
+            .AddHandler<AlphaMiddleware>()
+            .AddHandler<BetaMiddleware>();
 
         var sp = services.BuildServiceProvider();
         var descriptor = sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>().Get("test");
@@ -125,11 +122,11 @@ public sealed class TurboHttpClientBuilderMiddlewareTests
     // Factory DI resolution
     // ---------------------------------------------------------------------------
 
-    [Fact(DisplayName = "AddMiddleware<T>() factory resolves T from a real IServiceProvider")]
-    public void AddMiddleware_FactoryResolvesFromServiceProvider()
+    [Fact(DisplayName = "AddHandler<T>() factory resolves T from a real IServiceProvider")]
+    public void AddHandler_FactoryResolvesFromServiceProvider()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").AddMiddleware<TestMiddleware>();
+        services.AddTurboHttpClient("test").AddHandler<TestMiddleware>();
 
         var sp = services.BuildServiceProvider();
         var descriptor = sp.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>().Get("test");
