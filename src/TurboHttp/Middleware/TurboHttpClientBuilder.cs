@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace TurboHttp.Middleware;
+namespace TurboHttp;
 
 internal sealed class TurboHttpClientBuilder(string name, IServiceCollection services) : ITurboHttpClientBuilder
 {

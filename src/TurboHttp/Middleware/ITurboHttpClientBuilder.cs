@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
-namespace TurboHttp.Middleware;
+namespace TurboHttp;
 
 public interface ITurboHttpClientBuilder
 {

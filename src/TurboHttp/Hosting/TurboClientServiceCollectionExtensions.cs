@@ -5,9 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using TurboHttp.Client;
-using TurboHttp.Middleware;
-
-namespace TurboHttp.Hosting;
+namespace TurboHttp;
 
 /// <summary>
 /// Extension methods for registering TurboHttp services with <see cref="IServiceCollection"/>.

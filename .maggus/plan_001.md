@@ -167,11 +167,11 @@ Hosting/TurboClientServiceCollectionExtensions.cs → namespace TurboHttp
 changes to `TurboHttp`.
 
 **Acceptance Criteria:**
-- [ ] All 6 files declare `namespace TurboHttp`
-- [ ] All `using TurboHttp.Middleware;` and `using TurboHttp.Hosting;` replaced across the solution (including test projects)
-- [ ] `TurboHttp.Client.*` namespaces remain fully unchanged
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
-- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
+- [x] All 6 files declare `namespace TurboHttp`
+- [x] All `using TurboHttp.Middleware;` and `using TurboHttp.Hosting;` replaced across the solution (including test projects)
+- [x] `TurboHttp.Client.*` namespaces remain fully unchanged
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] `dotnet test src/TurboHttp.sln` → all tests pass
 
 ---
 

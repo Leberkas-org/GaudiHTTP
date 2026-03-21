@@ -7,7 +7,7 @@ using TurboHttp.Protocol.RFC6265;
 using TurboHttp.Protocol.RFC9110;
 using TurboHttp.Protocol.RFC9111;
 
-namespace TurboHttp.Middleware;
+namespace TurboHttp;
 
 public static class TurboHttpClientBuilderExtensions
 {

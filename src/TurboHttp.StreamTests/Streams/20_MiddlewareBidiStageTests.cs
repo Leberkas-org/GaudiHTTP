@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHttp.Middleware;
 using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.StreamTests.Streams;
