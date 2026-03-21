@@ -180,11 +180,11 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 - Verify default .NET validation uses DNS-ID/IP-ID (not CN-ID)
 
 **Acceptance Criteria:**
-- [ ] Default options enable certificate validation
-- [ ] `DangerousAcceptAnyServerCertificate` property added (default: false)
-- [ ] Custom `ServerCertificateValidationCallback` is invoked during TLS handshake
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] Default options enable certificate validation
+- [x] `DangerousAcceptAnyServerCertificate` property added (default: false)
+- [x] Custom `ServerCertificateValidationCallback` is invoked during TLS handshake
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (new file: `src/TurboHttp.Tests/RFC9110/04_CertificateValidationTests.cs`):
 

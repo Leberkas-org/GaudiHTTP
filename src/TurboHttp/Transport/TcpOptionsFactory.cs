@@ -36,7 +36,7 @@ internal static class TcpOptionsFactory
                 Port = port,
                 AddressFamily = af,
                 TargetHost = host,
-                ServerCertificateValidationCallback = clientOptions.ServerCertificateValidationCallback,
+                ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
                 ClientCertificates = clientOptions.ClientCertificates,
                 EnabledSslProtocols = clientOptions.EnabledSslProtocols,
                 ConnectTimeout = clientOptions.ConnectTimeout,

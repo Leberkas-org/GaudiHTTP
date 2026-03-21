@@ -32,12 +32,28 @@ public record TurboClientOptions
     public int MaxFrameSize { get; init; } = 128 * 1024;
 
     /// <summary>
+    /// When <see langword="true"/>, all server certificates are accepted regardless of validation
+    /// errors. This overrides <see cref="ServerCertificateValidationCallback"/> and is intended
+    /// only for development or testing scenarios. Default is <see langword="false"/>.
+    /// </summary>
+    public bool DangerousAcceptAnyServerCertificate { get; init; }
+
+    /// <summary>
     /// Callback invoked to validate the server's TLS certificate. Defaults to accepting only
     /// connections with no TLS policy errors (<see cref="SslPolicyErrors.None"/>).
-    /// Set to <see langword="null"/> to accept any certificate (not recommended for production).
+    /// Ignored when <see cref="DangerousAcceptAnyServerCertificate"/> is <see langword="true"/>.
     /// </summary>
     public RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; init; } =
         static (_, _, _, sslPolicyErrors) => sslPolicyErrors is SslPolicyErrors.None;
+
+    /// <summary>
+    /// Returns the effective certificate validation callback, taking
+    /// <see cref="DangerousAcceptAnyServerCertificate"/> into account.
+    /// </summary>
+    internal RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback
+        => DangerousAcceptAnyServerCertificate
+            ? static (_, _, _, _) => true
+            : ServerCertificateValidationCallback;
 
     /// <summary>Client certificates presented during TLS handshake. <see langword="null"/> means no client certificate.</summary>
     public X509CertificateCollection? ClientCertificates { get; init; }
