@@ -54,8 +54,6 @@ public enum Http3RequestStreamState
 /// </summary>
 public sealed class Http3RequestStream
 {
-    private Http3RequestStreamState _state = Http3RequestStreamState.Open;
-
     /// <summary>
     /// The QUIC stream ID for this request stream.
     /// Client-initiated bidirectional streams use IDs 0, 4, 8, … (4n).
@@ -63,7 +61,7 @@ public sealed class Http3RequestStream
     public long StreamId { get; }
 
     /// <summary>Current lifecycle state of this stream.</summary>
-    public Http3RequestStreamState State => _state;
+    public Http3RequestStreamState State { get; private set; } = Http3RequestStreamState.Open;
 
     /// <summary>
     /// Creates a new request stream tracker for the given stream ID.
@@ -101,13 +99,13 @@ public sealed class Http3RequestStream
     /// </exception>
     public void OnHeadersSent()
     {
-        if (_state != Http3RequestStreamState.Open)
+        if (State != Http3RequestStreamState.Open)
         {
             throw new InvalidOperationException(
-                $"Cannot send headers in state {_state}; expected {Http3RequestStreamState.Open}.");
+                $"Cannot send headers in state {State}; expected {Http3RequestStreamState.Open}.");
         }
 
-        _state = Http3RequestStreamState.HeadersSent;
+        State = Http3RequestStreamState.HeadersSent;
     }
 
     /// <summary>
@@ -120,13 +118,13 @@ public sealed class Http3RequestStream
     /// </exception>
     public void OnRequestComplete()
     {
-        if (_state != Http3RequestStreamState.HeadersSent)
+        if (State != Http3RequestStreamState.HeadersSent)
         {
             throw new InvalidOperationException(
-                $"Cannot complete request in state {_state}; expected {Http3RequestStreamState.HeadersSent}.");
+                $"Cannot complete request in state {State}; expected {Http3RequestStreamState.HeadersSent}.");
         }
 
-        _state = Http3RequestStreamState.HalfClosedLocal;
+        State = Http3RequestStreamState.HalfClosedLocal;
     }
 
     /// <summary>
@@ -137,13 +135,13 @@ public sealed class Http3RequestStream
     /// </exception>
     public void OnResponseHeadersReceived()
     {
-        if (_state != Http3RequestStreamState.HalfClosedLocal)
+        if (State != Http3RequestStreamState.HalfClosedLocal)
         {
             throw new InvalidOperationException(
-                $"Cannot receive response headers in state {_state}; expected {Http3RequestStreamState.HalfClosedLocal}.");
+                $"Cannot receive response headers in state {State}; expected {Http3RequestStreamState.HalfClosedLocal}.");
         }
 
-        _state = Http3RequestStreamState.ResponseHeadersReceived;
+        State = Http3RequestStreamState.ResponseHeadersReceived;
     }
 
     /// <summary>
@@ -155,13 +153,13 @@ public sealed class Http3RequestStream
     /// </exception>
     public void OnResponseComplete()
     {
-        if (_state != Http3RequestStreamState.ResponseHeadersReceived)
+        if (State != Http3RequestStreamState.ResponseHeadersReceived)
         {
             throw new InvalidOperationException(
-                $"Cannot complete response in state {_state}; expected {Http3RequestStreamState.ResponseHeadersReceived}.");
+                $"Cannot complete response in state {State}; expected {Http3RequestStreamState.ResponseHeadersReceived}.");
         }
 
-        _state = Http3RequestStreamState.Closed;
+        State = Http3RequestStreamState.Closed;
     }
 
     /// <summary>
@@ -173,24 +171,24 @@ public sealed class Http3RequestStream
     /// </exception>
     public void OnReset(Http3ErrorCode errorCode)
     {
-        if (_state == Http3RequestStreamState.Closed || _state == Http3RequestStreamState.Reset)
+        if (State == Http3RequestStreamState.Closed || State == Http3RequestStreamState.Reset)
         {
             throw new InvalidOperationException(
-                $"Cannot reset stream in state {_state}.");
+                $"Cannot reset stream in state {State}.");
         }
 
-        _state = Http3RequestStreamState.Reset;
+        State = Http3RequestStreamState.Reset;
     }
 
     /// <summary>Whether the stream has completed its full lifecycle.</summary>
-    public bool IsClosed => _state == Http3RequestStreamState.Closed;
+    public bool IsClosed => State == Http3RequestStreamState.Closed;
 
     /// <summary>Whether the stream was reset due to an error.</summary>
-    public bool IsReset => _state == Http3RequestStreamState.Reset;
+    public bool IsReset => State == Http3RequestStreamState.Reset;
 
     /// <summary>Whether the stream is still active (not closed or reset).</summary>
-    public bool IsActive => _state != Http3RequestStreamState.Closed
-                         && _state != Http3RequestStreamState.Reset;
+    public bool IsActive => State != Http3RequestStreamState.Closed
+                            && State != Http3RequestStreamState.Reset;
 }
 
 /// <summary>
@@ -200,10 +198,8 @@ public sealed class Http3RequestStream
 /// </summary>
 public sealed class Http3StreamIdAllocator
 {
-    private long _nextStreamId;
-
     /// <summary>The next stream ID that will be allocated.</summary>
-    public long NextStreamId => _nextStreamId;
+    public long NextStreamId { get; private set; }
 
     /// <summary>
     /// Allocates the next client-initiated bidirectional stream ID.
@@ -211,8 +207,8 @@ public sealed class Http3StreamIdAllocator
     /// <returns>A stream ID divisible by 4.</returns>
     public long Allocate()
     {
-        var id = _nextStreamId;
-        _nextStreamId += 4;
+        var id = NextStreamId;
+        NextStreamId += 4;
         return id;
     }
 

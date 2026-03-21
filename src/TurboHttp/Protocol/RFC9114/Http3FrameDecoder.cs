@@ -24,7 +24,7 @@ public enum Http3DecodeStatus
 /// </summary>
 public sealed class Http3FrameDecoder
 {
-    private byte[] _remainder = Array.Empty<byte>();
+    private byte[] _remainder = [];
 
     /// <summary>
     /// Attempts to decode one HTTP/3 frame from <paramref name="input"/>.
@@ -49,7 +49,7 @@ public sealed class Http3FrameDecoder
             _remainder.CopyTo(combined, 0);
             input.CopyTo(combined.AsSpan(_remainder.Length));
             data = combined;
-            _remainder = Array.Empty<byte>();
+            _remainder = [];
         }
         else
         {
@@ -123,7 +123,7 @@ public sealed class Http3FrameDecoder
     /// </summary>
     public void Reset()
     {
-        _remainder = Array.Empty<byte>();
+        _remainder = [];
     }
 
     /// <summary>

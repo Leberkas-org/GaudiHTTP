@@ -8,11 +8,11 @@ namespace TurboHttp.Protocol.RFC9114;
 //
 // HTTP/3 Frame Format (RFC 9114 §7.1):
 //   +-----------------------------------------------+
-//   |            Type (variable-length i)            |
+//   |            Type (variable-length i)           |
 //   +-----------------------------------------------+
-//   |           Length (variable-length i)           |
+//   |           Length (variable-length i)          |
 //   +-----------------------------------------------+
-//   |          Frame Payload (Length bytes)           |
+//   |          Frame Payload (Length bytes)         |
 //   +-----------------------------------------------+
 //
 // Unlike HTTP/2, HTTP/3 frames have no stream identifier in the

@@ -36,14 +36,11 @@ public enum ControlStreamState
 /// </summary>
 public sealed class Http3ControlStream
 {
-    private ControlStreamState _localState = ControlStreamState.NotOpened;
-    private ControlStreamState _remoteState = ControlStreamState.NotOpened;
-
     /// <summary>Current state of the local (client-initiated) control stream.</summary>
-    public ControlStreamState LocalState => _localState;
+    public ControlStreamState LocalState { get; private set; } = ControlStreamState.NotOpened;
 
     /// <summary>Current state of the remote (server-initiated) control stream.</summary>
-    public ControlStreamState RemoteState => _remoteState;
+    public ControlStreamState RemoteState { get; private set; } = ControlStreamState.NotOpened;
 
     /// <summary>
     /// The SETTINGS received from the server on the remote control stream,
@@ -63,29 +60,29 @@ public sealed class Http3ControlStream
     /// </exception>
     public byte[] OpenLocalStream(Http3Settings? localSettings = null)
     {
-        if (_localState != ControlStreamState.NotOpened)
+        if (LocalState != ControlStreamState.NotOpened)
         {
             throw new Http3ConnectionException(
                 Http3ErrorCode.StreamCreationError,
                 "Client MUST NOT open more than one control stream per connection (RFC 9114 §6.2.1).");
         }
 
-        _localState = ControlStreamState.AwaitingSettings;
+        LocalState = ControlStreamState.AwaitingSettings;
 
         var settings = localSettings ?? new Http3Settings();
         var settingsFrame = settings.ToFrame();
 
         // Stream type prefix (0x00 for control) + SETTINGS frame
-        var streamTypeSize = Protocol.RFC9000.QuicVarInt.EncodedLength((long)Http3StreamType.Control);
+        var streamTypeSize = RFC9000.QuicVarInt.EncodedLength((long)Http3StreamType.Control);
         var frameSize = settingsFrame.SerializedSize;
         var buf = new byte[streamTypeSize + frameSize];
         var span = buf.AsSpan();
 
-        var written = Protocol.RFC9000.QuicVarInt.Encode((long)Http3StreamType.Control, span);
+        var written = RFC9000.QuicVarInt.Encode((long)Http3StreamType.Control, span);
         span = span[written..];
         settingsFrame.WriteTo(ref span);
 
-        _localState = ControlStreamState.Active;
+        LocalState = ControlStreamState.Active;
         return buf;
     }
 
@@ -100,14 +97,14 @@ public sealed class Http3ControlStream
     /// </exception>
     public void OnRemoteControlStreamOpened()
     {
-        if (_remoteState != ControlStreamState.NotOpened)
+        if (RemoteState != ControlStreamState.NotOpened)
         {
             throw new Http3ConnectionException(
                 Http3ErrorCode.StreamCreationError,
                 "Receiving a second control stream from the server is a connection error (RFC 9114 §6.2.1).");
         }
 
-        _remoteState = ControlStreamState.AwaitingSettings;
+        RemoteState = ControlStreamState.AwaitingSettings;
     }
 
     /// <summary>
@@ -126,21 +123,21 @@ public sealed class Http3ControlStream
     /// </exception>
     public void OnRemoteFrame(Http3Frame frame)
     {
-        if (_remoteState == ControlStreamState.NotOpened)
+        if (RemoteState == ControlStreamState.NotOpened)
         {
             throw new Http3ConnectionException(
                 Http3ErrorCode.ClosedCriticalStream,
                 "Received frame on control stream before it was opened.");
         }
 
-        if (_remoteState == ControlStreamState.Closed)
+        if (RemoteState == ControlStreamState.Closed)
         {
             throw new Http3ConnectionException(
                 Http3ErrorCode.ClosedCriticalStream,
                 "Received frame on closed control stream.");
         }
 
-        if (_remoteState == ControlStreamState.AwaitingSettings)
+        if (RemoteState == ControlStreamState.AwaitingSettings)
         {
             if (frame is not Http3SettingsFrame settingsFrame)
             {
@@ -157,7 +154,7 @@ public sealed class Http3ControlStream
             }
 
             RemoteSettings = settings;
-            _remoteState = ControlStreamState.Active;
+            RemoteState = ControlStreamState.Active;
             return;
         }
 
@@ -195,7 +192,7 @@ public sealed class Http3ControlStream
     /// </exception>
     public void OnRemoteControlStreamClosed()
     {
-        _remoteState = ControlStreamState.Closed;
+        RemoteState = ControlStreamState.Closed;
         throw new Http3ConnectionException(
             Http3ErrorCode.ClosedCriticalStream,
             "Closure of the control stream MUST be treated as a connection error of type H3_CLOSED_CRITICAL_STREAM (RFC 9114 §6.2.1).");
@@ -210,7 +207,7 @@ public sealed class Http3ControlStream
     /// </exception>
     public void OnLocalControlStreamClosed()
     {
-        _localState = ControlStreamState.Closed;
+        LocalState = ControlStreamState.Closed;
         throw new Http3ConnectionException(
             Http3ErrorCode.ClosedCriticalStream,
             "Closure of the control stream MUST be treated as a connection error of type H3_CLOSED_CRITICAL_STREAM (RFC 9114 §6.2.1).");

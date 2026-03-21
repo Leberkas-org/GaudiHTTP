@@ -44,18 +44,14 @@ public enum UniStreamRouting
 /// </summary>
 public sealed class Http3UniStream
 {
-    private bool _controlStreamReceived;
-    private bool _qpackEncoderStreamReceived;
-    private bool _qpackDecoderStreamReceived;
-
     /// <summary>Whether a server control stream has been received.</summary>
-    public bool ControlStreamReceived => _controlStreamReceived;
+    public bool ControlStreamReceived { get; private set; }
 
     /// <summary>Whether a server QPACK encoder stream has been received.</summary>
-    public bool QpackEncoderStreamReceived => _qpackEncoderStreamReceived;
+    public bool QpackEncoderStreamReceived { get; private set; }
 
     /// <summary>Whether a server QPACK decoder stream has been received.</summary>
-    public bool QpackDecoderStreamReceived => _qpackDecoderStreamReceived;
+    public bool QpackDecoderStreamReceived { get; private set; }
 
     /// <summary>
     /// Attempts to identify the stream type from the initial bytes of
@@ -99,14 +95,14 @@ public sealed class Http3UniStream
 
         if (typeValue == (long)Http3StreamType.Control)
         {
-            if (_controlStreamReceived)
+            if (ControlStreamReceived)
             {
                 throw new Http3ConnectionException(
                     Http3ErrorCode.StreamCreationError,
                     "Receiving a second control stream is a connection error (RFC 9114 §6.2.1).");
             }
 
-            _controlStreamReceived = true;
+            ControlStreamReceived = true;
             routing = UniStreamRouting.Control;
             return true;
         }
@@ -119,28 +115,28 @@ public sealed class Http3UniStream
 
         if (typeValue == (long)Http3StreamType.QpackEncoder)
         {
-            if (_qpackEncoderStreamReceived)
+            if (QpackEncoderStreamReceived)
             {
                 throw new Http3ConnectionException(
                     Http3ErrorCode.StreamCreationError,
                     "Receiving a second QPACK encoder stream is a connection error (RFC 9114 §6.2.1).");
             }
 
-            _qpackEncoderStreamReceived = true;
+            QpackEncoderStreamReceived = true;
             routing = UniStreamRouting.QpackEncoder;
             return true;
         }
 
         if (typeValue == (long)Http3StreamType.QpackDecoder)
         {
-            if (_qpackDecoderStreamReceived)
+            if (QpackDecoderStreamReceived)
             {
                 throw new Http3ConnectionException(
                     Http3ErrorCode.StreamCreationError,
                     "Receiving a second QPACK decoder stream is a connection error (RFC 9114 §6.2.1).");
             }
 
-            _qpackDecoderStreamReceived = true;
+            QpackDecoderStreamReceived = true;
             routing = UniStreamRouting.QpackDecoder;
             return true;
         }
