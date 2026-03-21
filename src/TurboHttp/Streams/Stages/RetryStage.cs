@@ -26,7 +26,7 @@ namespace TurboHttp.Streams.Stages;
 /// </summary>
 internal sealed class RetryStage : GraphStage<FanOutShape<HttpResponseMessage, HttpResponseMessage, HttpRequestMessage>>
 {
-    private readonly RetryPolicy _policy;
+    private readonly RetryPolicy? _policy;
 
     private readonly Inlet<HttpResponseMessage> _in
         = new("Retry.In");
@@ -48,10 +48,10 @@ internal sealed class RetryStage : GraphStage<FanOutShape<HttpResponseMessage, H
     /// <summary>
     /// Creates a new <see cref="RetryStage"/> with the given retry policy.
     /// </summary>
-    /// <param name="policy">Retry policy. Defaults to <see cref="RetryPolicy.Default"/> when null.</param>
+    /// <param name="policy">Retry policy. When null, the stage is a pass-through (no retries).</param>
     public RetryStage(RetryPolicy? policy = null)
     {
-        _policy = policy ?? RetryPolicy.Default;
+        _policy = policy;
         Shape = new FanOutShape<HttpResponseMessage, HttpResponseMessage, HttpRequestMessage>(
             _in, _outFinal, _outRetry);
     }
@@ -78,6 +78,16 @@ internal sealed class RetryStage : GraphStage<FanOutShape<HttpResponseMessage, H
                 onPush: () =>
                 {
                     var response = Grab(stage._in);
+
+                    // Null policy → pass-through: no retry evaluation
+                    if (_stage._policy is null)
+                    {
+                        _finalDemand = false;
+                        Push(stage._outFinal, response);
+                        TryPullInlet();
+                        return;
+                    }
+
                     var original = response.RequestMessage;
 
                     // Without the original request context the evaluator cannot determine
@@ -98,7 +108,7 @@ internal sealed class RetryStage : GraphStage<FanOutShape<HttpResponseMessage, H
                         networkFailure: false,
                         bodyPartiallyConsumed: false,
                         attemptCount: attemptCount,
-                        policy: _stage._policy);
+                        policy: _stage._policy!);
 
                     if (!decision.ShouldRetry)
                     {

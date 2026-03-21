@@ -32,7 +32,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
             RequestMessage = request
         };
 
-        var (_, retry) = RunRetry(new RetryStage(), 1, response);
+        var (_, retry) = RunRetry(new RetryStage(new RetryPolicy()), 1, response);
 
         var retryRequest = retry.ExpectNext();
         Assert.True(retryRequest.Options.TryGetValue(
@@ -130,7 +130,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         };
         response1.Headers.TryAddWithoutValidation("Location", "http://example.com/b");
 
-        var (_, redirect) = RunRedirect(new RedirectStage(), 2, response1);
+        var (_, redirect) = RunRedirect(new RedirectStage(new RedirectPolicy()), 2, response1);
 
         var newReq1 = await redirect.ExpectNextAsync();
 
@@ -146,7 +146,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         response2.Headers.TryAddWithoutValidation("Location", "http://example.com/c");
 
         // Feed response2 through a new stage (simulating pipeline re-entry)
-        var (_, redirect2) = RunRedirect(new RedirectStage(), 1, response2);
+        var (_, redirect2) = RunRedirect(new RedirectStage(new RedirectPolicy()), 1, response2);
         var newReq2 = await redirect2.ExpectNextAsync();
 
         Assert.True(newReq2.Options.TryGetValue(RedirectStage.RedirectHandlerKey, out var handler2));
@@ -594,7 +594,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         {
             var retry = b.Add(new RetryStage());
             var merge = b.Add(new Merge<HttpResponseMessage>(2));
-            var redirect = b.Add(new RedirectStage());
+            var redirect = b.Add(new RedirectStage(new RedirectPolicy()));
             var src = b.Add(Source.Single(response).Concat(Source.Never<HttpResponseMessage>()));
             var empty = b.Add(Source.Never<HttpResponseMessage>());
 

@@ -109,7 +109,7 @@ public sealed class RedirectStageTests : StreamTestBase
     public async Task Should_EmitRedirectOnOut1_When_ResponseIs301()
     {
         var response = BuildRedirect(HttpStatusCode.MovedPermanently, "http://example.com/new");
-        var (_, redirect) = Run(new RedirectStage(), 1, response);
+        var (_, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal("http://example.com/new", newRequest.RequestUri?.AbsoluteUri);
@@ -120,7 +120,7 @@ public sealed class RedirectStageTests : StreamTestBase
     public async Task Should_EmitRedirectOnOut1_When_ResponseIs302()
     {
         var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/new");
-        var (_, redirect) = Run(new RedirectStage(), 1, response);
+        var (_, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         await redirect.ExpectNextAsync();
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
@@ -135,7 +135,7 @@ public sealed class RedirectStageTests : StreamTestBase
         };
         response.Headers.TryAddWithoutValidation("Location", "http://example.com/result");
 
-        var (final, redirect) = Run(new RedirectStage(), 1, response);
+        var (final, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal(HttpMethod.Get, newRequest.Method);
@@ -151,7 +151,7 @@ public sealed class RedirectStageTests : StreamTestBase
         };
         response.Headers.TryAddWithoutValidation("Location", "http://example.com/api/v2");
 
-        var (final, redirect) = Run(new RedirectStage(), 1, response);
+        var (final, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal(HttpMethod.Post, newRequest.Method);
@@ -167,7 +167,7 @@ public sealed class RedirectStageTests : StreamTestBase
         };
         response.Headers.TryAddWithoutValidation("Location", "http://example.com/resource/v2");
 
-        var (final, redirect) = Run(new RedirectStage(), 1, response);
+        var (final, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal(HttpMethod.Put, newRequest.Method);
@@ -269,18 +269,17 @@ public sealed class RedirectStageTests : StreamTestBase
         await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-013: null policy → uses default RedirectPolicy")]
-    public async Task Should_UseDefaultRedirectPolicy_When_PolicyIsNull()
+    [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-013: null policy → pass-through (all responses forwarded as final)")]
+    public async Task Should_ForwardAllAsFinal_When_PolicyIsNull()
     {
-        // Using default constructor (no policy)
-        var stage = new RedirectStage();
+        // Null policy means no redirect evaluation — response forwarded directly as final.
+        var stage = new RedirectStage(null);
         var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/new");
 
         var (final, redirect) = Run(stage, 1, response);
 
-        var newRequest = await redirect.ExpectNextAsync();
-        Assert.Equal("http://example.com/new", newRequest.RequestUri?.AbsoluteUri);
-        await final.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
+        Assert.Same(response, await final.ExpectNextAsync());
+        await redirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9110-15.4-RDIR-014: redirect request on Out1 targets the Location URI")]
@@ -289,7 +288,7 @@ public sealed class RedirectStageTests : StreamTestBase
         const string target = "http://other.com/new-location";
         var response = BuildRedirect(HttpStatusCode.MovedPermanently, target);
 
-        var (_, redirect) = Run(new RedirectStage(), 1, response);
+        var (_, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal(target, newRequest.RequestUri?.AbsoluteUri);
@@ -307,7 +306,7 @@ public sealed class RedirectStageTests : StreamTestBase
         };
         response.Headers.TryAddWithoutValidation("Location", "http://other.com/api");
 
-        var (_, redirect) = Run(new RedirectStage(), 1, response);
+        var (_, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.False(newRequest.Headers.Contains("Authorization"),
@@ -360,7 +359,7 @@ public sealed class RedirectStageTests : StreamTestBase
         var responseB = BuildRedirect(HttpStatusCode.Found, "http://example.com/shared",
             "http://example.com/b");
 
-        var (final, redirect) = Run(new RedirectStage(), 5, responseA, responseB);
+        var (final, redirect) = Run(new RedirectStage(new RedirectPolicy()), 5, responseA, responseB);
 
         // Both should produce redirect requests (no false loop detection)
         var newRequestA = await redirect.ExpectNextAsync();
@@ -386,7 +385,7 @@ public sealed class RedirectStageTests : StreamTestBase
         };
         response.Headers.TryAddWithoutValidation("Location", "http://example.com/new");
 
-        var (_, redirect) = Run(new RedirectStage(), 1, response);
+        var (_, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal(new Version(2, 0), newRequest.Version);
@@ -406,7 +405,7 @@ public sealed class RedirectStageTests : StreamTestBase
         };
         response.Headers.TryAddWithoutValidation("Location", "http://example.com/new");
 
-        var (_, redirect) = Run(new RedirectStage(), 1, response);
+        var (_, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal(new Version(1, 0), newRequest.Version);
@@ -426,7 +425,7 @@ public sealed class RedirectStageTests : StreamTestBase
         };
         response.Headers.TryAddWithoutValidation("Location", "http://other.com/api");
 
-        var (_, redirect) = Run(new RedirectStage(), 1, response);
+        var (_, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.Equal(new Version(2, 0), newRequest.Version);
@@ -438,7 +437,7 @@ public sealed class RedirectStageTests : StreamTestBase
     {
         var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/new");
 
-        var (_, redirect) = Run(new RedirectStage(), 1, response);
+        var (_, redirect) = Run(new RedirectStage(new RedirectPolicy()), 1, response);
 
         var newRequest = await redirect.ExpectNextAsync();
         Assert.True(newRequest.Options.TryGetValue(RedirectStage.RedirectHandlerKey, out var handler));

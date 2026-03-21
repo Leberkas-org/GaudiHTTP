@@ -210,7 +210,7 @@ public sealed class StageOrderingTests : EngineTestBase
 
         RunnableGraph.FromGraph(GraphDsl.Create(b =>
         {
-            var retry = b.Add(new RetryStage());
+            var retry = b.Add(new RetryStage(new RetryPolicy()));
             var src = b.Add(Source.Single(response).Concat(Source.Never<HttpResponseMessage>()));
 
             b.From(src).To(retry.In);

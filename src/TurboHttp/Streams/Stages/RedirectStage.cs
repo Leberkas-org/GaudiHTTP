@@ -28,7 +28,7 @@ internal sealed class
     internal static readonly HttpRequestOptionsKey<RedirectHandler> RedirectHandlerKey
         = new("TurboHttp.RedirectHandler");
 
-    internal readonly RedirectPolicy _policy;
+    internal readonly RedirectPolicy? _policy;
 
     private readonly Inlet<HttpResponseMessage> _in
         = new("Redirect.In");
@@ -45,10 +45,10 @@ internal sealed class
     /// <summary>
     /// Creates a new <see cref="RedirectStage"/> with the given policy.
     /// </summary>
-    /// <param name="policy">Redirect policy configuration. Defaults to <see cref="RedirectPolicy.Default"/>.</param>
+    /// <param name="policy">Redirect policy configuration. When null, the stage is a pass-through (no redirects).</param>
     public RedirectStage(RedirectPolicy? policy = null)
     {
-        _policy = policy ?? RedirectPolicy.Default;
+        _policy = policy;
         Shape = new FanOutShape<HttpResponseMessage, HttpResponseMessage, HttpRequestMessage>(
             _in, _outFinal, _outRedirect);
     }
@@ -70,6 +70,14 @@ internal sealed class
                 onPush: () =>
                 {
                     var response = Grab(stage._in);
+
+                    // Null policy → pass-through: no redirect evaluation
+                    if (_stage._policy is null)
+                    {
+                        _finalHasDemand = false;
+                        Push(stage._outFinal, response);
+                        return;
+                    }
 
                     if (!RedirectHandler.IsRedirect(response))
                     {
@@ -93,7 +101,7 @@ internal sealed class
                         // Get or create a per-request-chain RedirectHandler via Options
                         if (!original.Options.TryGetValue(RedirectHandlerKey, out var handler))
                         {
-                            handler = new RedirectHandler(_stage._policy);
+                            handler = new RedirectHandler(_stage._policy!);
                         }
 
                         var newRequest = handler.BuildRedirectRequest(original, response);

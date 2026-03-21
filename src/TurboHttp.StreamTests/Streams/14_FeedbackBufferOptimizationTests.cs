@@ -1,8 +1,6 @@
-#pragma warning disable CS0618 // TurboClientOptions.RedirectPolicy/RetryPolicy/CachePolicy obsolete — backward-compat test
 using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
-using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Protocol.RFC9110;
 using TurboHttp.Streams;
@@ -19,20 +17,6 @@ namespace TurboHttp.StreamTests.Streams;
 /// </remarks>
 public sealed class FeedbackBufferOptimizationTests : EngineTestBase
 {
-    /// <summary>
-    /// Creates an EngineFakeConnectionStage that cycles through responses in order.
-    /// Each call to the response factory returns the next response in the sequence.
-    /// </summary>
-    private static EngineFakeConnectionStage SequentialFake(params byte[][] responses)
-    {
-        var index = 0;
-        return new EngineFakeConnectionStage(() =>
-        {
-            var i = Interlocked.Increment(ref index) - 1;
-            return i < responses.Length ? responses[i] : responses[^1];
-        });
-    }
-
     private static Flow<IOutputItem, IInputItem, NotUsed> SequentialFlow(params byte[][] responses)
     {
         var index = 0;
@@ -58,10 +42,6 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         System.Text.Encoding.Latin1.GetBytes(
             "HTTP/1.1 408 Request Timeout\r\nContent-Length: 0\r\n\r\n");
 
-    private static byte[] Retry503() =>
-        System.Text.Encoding.Latin1.GetBytes(
-            "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n");
-
     private static byte[] Ok200() =>
         System.Text.Encoding.Latin1.GetBytes(
             "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK");
@@ -81,15 +61,20 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         DisplayName = "FBUF-001: Single 301 redirect completes via feedback buffer")]
     public async Task Should_CompleteViaFeedbackBuffer_When_Single301RedirectOccurs()
     {
-        var options = new TurboClientOptions();
-        var engine = new Engine();
+        var descriptor = new PipelineDescriptor(
+            RedirectPolicy: new RedirectPolicy(),
+            RetryPolicy: null,
+            CookieJar: null,
+            CacheStore: null,
+            Middlewares: []);
 
+        var engine = new Engine();
         var flow = engine.CreateFlow(
             () => SequentialFlow(Ok200()),
             () => SequentialFlow(Redirect301("http://example.com/target"), Ok200()),
             NoOpH2Flow,
             NoOpH2Flow,
-            options);
+            descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/origin")
         {
@@ -105,12 +90,14 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         DisplayName = "FBUF-002: Three chained 301 redirects complete without deadlock")]
     public async Task Should_CompleteWithoutDeadlock_When_ThreeChainedRedirectsOccur()
     {
-        var options = new TurboClientOptions
-        {
-            RedirectPolicy = new RedirectPolicy { MaxRedirects = 10 }
-        };
-        var engine = new Engine();
+        var descriptor = new PipelineDescriptor(
+            RedirectPolicy: new RedirectPolicy { MaxRedirects = 10 },
+            RetryPolicy: null,
+            CookieJar: null,
+            CacheStore: null,
+            Middlewares: []);
 
+        var engine = new Engine();
         var flow = engine.CreateFlow(
             () => SequentialFlow(Ok200()),
             () => SequentialFlow(
@@ -120,7 +107,7 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
                 Ok200()),
             NoOpH2Flow,
             NoOpH2Flow,
-            options);
+            descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/step1")
         {
@@ -136,18 +123,20 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         DisplayName = "FBUF-003: Single 408 retry completes via feedback buffer")]
     public async Task Should_CompleteViaFeedbackBuffer_When_Single408RetryOccurs()
     {
-        var options = new TurboClientOptions
-        {
-            RetryPolicy = new RetryPolicy { MaxRetries = 3, RespectRetryAfter = false }
-        };
-        var engine = new Engine();
+        var descriptor = new PipelineDescriptor(
+            RedirectPolicy: null,
+            RetryPolicy: new RetryPolicy { MaxRetries = 3, RespectRetryAfter = false },
+            CookieJar: null,
+            CacheStore: null,
+            Middlewares: []);
 
+        var engine = new Engine();
         var flow = engine.CreateFlow(
             () => SequentialFlow(Ok200()),
             () => SequentialFlow(Retry408(), Ok200()),
             NoOpH2Flow,
             NoOpH2Flow,
-            options);
+            descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -163,18 +152,20 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         DisplayName = "FBUF-004: Two 408 retries then 200 OK completes")]
     public async Task Should_CompleteSuccessfully_When_TwoRetriesThenOkReceived()
     {
-        var options = new TurboClientOptions
-        {
-            RetryPolicy = new RetryPolicy { MaxRetries = 3, RespectRetryAfter = false }
-        };
-        var engine = new Engine();
+        var descriptor = new PipelineDescriptor(
+            RedirectPolicy: null,
+            RetryPolicy: new RetryPolicy { MaxRetries = 3, RespectRetryAfter = false },
+            CookieJar: null,
+            CacheStore: null,
+            Middlewares: []);
 
+        var engine = new Engine();
         var flow = engine.CreateFlow(
             () => SequentialFlow(Ok200()),
             () => SequentialFlow(Retry408(), Retry408(), Ok200()),
             NoOpH2Flow,
             NoOpH2Flow,
-            options);
+            descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -190,15 +181,20 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         DisplayName = "FBUF-005: 307 redirect preserves original HTTP method")]
     public async Task Should_PreserveOriginalMethod_When_307RedirectViaFeedbackLoop()
     {
-        var options = new TurboClientOptions();
-        var engine = new Engine();
+        var descriptor = new PipelineDescriptor(
+            RedirectPolicy: new RedirectPolicy(),
+            RetryPolicy: null,
+            CookieJar: null,
+            CacheStore: null,
+            Middlewares: []);
 
+        var engine = new Engine();
         var flow = engine.CreateFlow(
             () => SequentialFlow(Ok200()),
             () => SequentialFlow(Redirect307("http://example.com/target"), Ok200()),
             NoOpH2Flow,
             NoOpH2Flow,
-            options);
+            descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/origin")
         {
@@ -214,15 +210,13 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         DisplayName = "FBUF-006: 200 OK passes through without entering feedback loop")]
     public async Task Should_PassThroughDirectly_When_ResponseIsNonRetryable()
     {
-        var options = new TurboClientOptions();
         var engine = new Engine();
-
         var flow = engine.CreateFlow(
             () => SequentialFlow(Ok200()),
             () => SequentialFlow(Ok200()),
             NoOpH2Flow,
             NoOpH2Flow,
-            options);
+            PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {

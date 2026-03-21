@@ -105,7 +105,7 @@ public sealed class RetryStageTests : StreamTestBase
     public void Should_EmitRetryOnOut1_When_GetReturns408()
     {
         var response = BuildResponse(HttpStatusCode.RequestTimeout, HttpMethod.Get);
-        var (final, retry) = Run(new RetryStage(), 1, response);
+        var (final, retry) = Run(new RetryStage(new RetryPolicy()), 1, response);
 
         var retryRequest = retry.ExpectNext();
         Assert.Equal(HttpMethod.Get, retryRequest.Method);
@@ -116,7 +116,7 @@ public sealed class RetryStageTests : StreamTestBase
     public void Should_EmitRetryOnOut1_When_GetReturns503()
     {
         var response = BuildResponse(HttpStatusCode.ServiceUnavailable, HttpMethod.Get);
-        var (final, retry) = Run(new RetryStage(), 1, response);
+        var (final, retry) = Run(new RetryStage(new RetryPolicy()), 1, response);
 
         var retryRequest = retry.ExpectNext();
         Assert.Equal(HttpMethod.Get, retryRequest.Method);
@@ -177,7 +177,7 @@ public sealed class RetryStageTests : StreamTestBase
             RequestMessage = original
         };
 
-        var (final, retry) = Run(new RetryStage(), 1, response);
+        var (final, retry) = Run(new RetryStage(new RetryPolicy()), 1, response);
 
         var retryRequest = retry.ExpectNext();
         Assert.Same(original, retryRequest);
@@ -190,25 +190,24 @@ public sealed class RetryStageTests : StreamTestBase
         var response = BuildResponse(HttpStatusCode.ServiceUnavailable, HttpMethod.Get,
             retryAfterSeconds: "0");
 
-        var (final, retry) = Run(new RetryStage(), 1, response);
+        var (final, retry) = Run(new RetryStage(new RetryPolicy()), 1, response);
 
         var retryRequest = retry.ExpectNext();
         Assert.Equal(HttpMethod.Get, retryRequest.Method);
         final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
 
-    [Fact(DisplayName = "RFC9110-9.2.2-RTRY-012: null policy constructor → uses RetryPolicy.Default")]
-    public void Should_UseDefaultRetryPolicy_When_PolicyIsNull()
+    [Fact(DisplayName = "RFC9110-9.2.2-RTRY-012: null policy → pass-through (all responses forwarded as final)")]
+    public void Should_ForwardAllAsFinal_When_PolicyIsNull()
     {
         var stage = new RetryStage(null);
         var response = BuildResponse(HttpStatusCode.RequestTimeout, HttpMethod.Delete);
 
         var (final, retry) = Run(stage, 1, response);
 
-        // Default policy allows retries for idempotent methods.
-        var retryRequest = retry.ExpectNext();
-        Assert.Equal(HttpMethod.Delete, retryRequest.Method);
-        final.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        // Null policy means no retry evaluation — response forwarded directly as final.
+        Assert.Same(response, final.ExpectNext());
+        retry.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
     }
 
     [Theory(DisplayName = "RFC9110-9.2.2-RTRY-013: idempotent methods retry on 408")]
@@ -221,7 +220,7 @@ public sealed class RetryStageTests : StreamTestBase
         var method = new HttpMethod(methodName);
         var response = BuildResponse(HttpStatusCode.RequestTimeout, method);
 
-        var (final, retry) = Run(new RetryStage(), 1, response);
+        var (final, retry) = Run(new RetryStage(new RetryPolicy()), 1, response);
 
         var retryRequest = retry.ExpectNext();
         Assert.Equal(method, retryRequest.Method);
@@ -389,7 +388,7 @@ public sealed class RetryStageTests : StreamTestBase
     {
         // Request A gets 503 with Retry-After: 10 (long delay).
         // Request B gets 200 OK — should pass through on Out0 immediately.
-        var stage = new RetryStage();
+        var stage = new RetryStage(new RetryPolicy { RespectRetryAfter = true });
         var h = RunManual(stage, finalDemand: 5, retryDemand: 5);
 
         // Push a 503 with a long Retry-After for Request A.
@@ -415,7 +414,7 @@ public sealed class RetryStageTests : StreamTestBase
     [Fact(DisplayName = "RFC9110-9.2.2-RTRY-018: Multiple immediate retries drain sequentially on demand")]
     public void Should_DrainRetries_When_MultipleImmediateRetries()
     {
-        var stage = new RetryStage();
+        var stage = new RetryStage(new RetryPolicy());
         var h = RunManual(stage, finalDemand: 5, retryDemand: 5);
 
         // Push three 503 responses without Retry-After — all go to ready queue.
@@ -448,7 +447,7 @@ public sealed class RetryStageTests : StreamTestBase
         "RFC9110-9.2.2-RTRY-019: Stage completes after upstream finish and all pending retries drained")]
     public void Should_CompleteAfterDrain_When_UpstreamFinishes()
     {
-        var stage = new RetryStage();
+        var stage = new RetryStage(new RetryPolicy());
         var h = RunManual(stage, finalDemand: 5, retryDemand: 5);
 
         // Push a 503 immediate retry, then complete upstream.
@@ -471,7 +470,7 @@ public sealed class RetryStageTests : StreamTestBase
     [Fact(DisplayName = "RFC9110-9.2.2-RTRY-020: Mixed final and retry responses interleave correctly")]
     public void Should_RouteCorrectly_When_FinalAndRetryResponsesAreInterleaved()
     {
-        var stage = new RetryStage();
+        var stage = new RetryStage(new RetryPolicy());
         var h = RunManual(stage, finalDemand: 5, retryDemand: 5);
 
         // 503 GET → retry
@@ -538,7 +537,7 @@ public sealed class RetryStageTests : StreamTestBase
     public void Should_FireIndependently_When_ParallelRetryAfterTimersSet()
     {
         // Two requests with short Retry-After delays — both should fire their timers independently.
-        var stage = new RetryStage();
+        var stage = new RetryStage(new RetryPolicy { RespectRetryAfter = true });
         var h = RunManual(stage, finalDemand: 5, retryDemand: 5);
 
         // Request A: 503 with Retry-After: 1 second

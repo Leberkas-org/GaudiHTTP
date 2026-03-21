@@ -378,15 +378,15 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Background:** The old file tests that features are active based on `TurboClientOptions` flags. After the refactor, features come exclusively via `PipelineDescriptor` — the old file is obsolete.
 
 **Acceptance Criteria:**
-- [ ] `11_EnginePipelineWiringTests.cs` is deleted
-- [ ] New `11_EnginePipelineDescriptorTests.cs` contains:
+- [x] `11_EnginePipelineWiringTests.cs` is deleted
+- [x] New `11_EnginePipelineDescriptorTests.cs` contains:
   - Test: engine with empty `PipelineDescriptor` → no cookie stage active (request passes through unchanged)
   - Test: engine with `PipelineDescriptor { CookieJar = new CookieJar() }` → cookies injected correctly
   - Test: engine with empty `PipelineDescriptor` → no retry stage active (503 passed through directly)
   - Test: engine with `PipelineDescriptor { RetryPolicy = new RetryPolicy() }` → 503 is retried correctly
   - Test: engine with empty `PipelineDescriptor` → no redirect stage active (301 passed through directly)
   - Test: engine with `PipelineDescriptor { RedirectPolicy = new RedirectPolicy() }` → 301 redirected correctly
-- [ ] Unit tests are written and successful
+- [x] Unit tests are written and successful
 
 ---
 
