@@ -72,6 +72,12 @@ internal sealed class RedirectBidiStage
         /// <summary>Whether Out2 (response output) has downstream demand.</summary>
         private bool _responseDemand;
 
+        /// <summary>
+        /// Number of requests emitted on Out1 for which no response has been received on In2 yet.
+        /// Prevents premature completion of Out1 when upstream finishes before in-flight responses arrive.
+        /// </summary>
+        private int _inFlightCount;
+
         public Logic(RedirectBidiStage stage) : base(stage.Shape)
         {
             _stage = stage;
@@ -108,15 +114,13 @@ internal sealed class RedirectBidiStage
                 {
                     var request = Grab(stage._inRequest);
                     _requestDemand = false;
+                    _inFlightCount++;
                     Push(stage._outRequest, request);
                 },
                 onUpstreamFinish: () =>
                 {
-                    // Don't complete Out1 yet if there are pending redirects
-                    if (_readyRedirects.Count == 0)
-                    {
-                        Complete(stage._outRequest);
-                    }
+                    // Don't complete Out1 yet if there are pending redirects or in-flight requests
+                    TryCompleteIfDone();
                 },
                 onUpstreamFailure: ex => Log.Warning("RedirectBidiStage: Request upstream failure absorbed: {0}", ex.Message));
 
@@ -139,12 +143,14 @@ internal sealed class RedirectBidiStage
                 {
                     var response = Grab(stage._inResponse);
                     var original = response.RequestMessage;
+                    _inFlightCount--;
 
                     // Without the original request context, cannot evaluate redirect — pass through.
                     if (original is null || !RedirectHandler.IsRedirect(response))
                     {
                         _responseDemand = false;
                         Push(stage._outResponse, response);
+                        TryCompleteIfDone();
                         TryPullResponse();
                         return;
                     }
@@ -176,6 +182,7 @@ internal sealed class RedirectBidiStage
                         // HTTPS→HTTP downgrade blocked — forward as final response
                         _responseDemand = false;
                         Push(stage._outResponse, response);
+                        TryCompleteIfDone();
                         TryPullResponse();
                     }
                     catch (RedirectException)
@@ -183,10 +190,15 @@ internal sealed class RedirectBidiStage
                         // Max redirects exceeded or loop detected — forward as final response
                         _responseDemand = false;
                         Push(stage._outResponse, response);
+                        TryCompleteIfDone();
                         TryPullResponse();
                     }
                 },
-                onUpstreamFinish: () => Complete(stage._outResponse),
+                onUpstreamFinish: () =>
+                {
+                    Complete(stage._outResponse);
+                    TryCompleteIfDone();
+                },
                 onUpstreamFailure: ex => Log.Warning("RedirectBidiStage: Response upstream failure absorbed: {0}", ex.Message));
 
             SetHandler(stage._outResponse,
@@ -212,6 +224,7 @@ internal sealed class RedirectBidiStage
             {
                 var request = _readyRedirects.Dequeue();
                 _requestDemand = false;
+                _inFlightCount++;
                 Push(_stage._outRequest, request);
                 TryCompleteIfDone();
                 return true;
@@ -249,11 +262,15 @@ internal sealed class RedirectBidiStage
         }
 
         /// <summary>
-        /// Completes Out1 when upstream is finished and all pending redirects have been drained.
+        /// Completes Out1 when upstream (In1) is finished, all pending redirects have been drained,
+        /// and either all in-flight requests have been resolved or the response upstream (In2) has
+        /// closed (no more responses will arrive, so in-flight requests are orphaned).
         /// </summary>
         private void TryCompleteIfDone()
         {
-            if (IsClosed(_stage._inRequest) && _readyRedirects.Count == 0)
+            if (IsClosed(_stage._inRequest) && _readyRedirects.Count == 0
+                && (_inFlightCount == 0 || IsClosed(_stage._inResponse))
+                && !IsClosed(_stage._outRequest))
             {
                 Complete(_stage._outRequest);
             }

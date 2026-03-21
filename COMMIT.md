@@ -1,20 +1,18 @@
-TASK-007: Validation gate — zero obsolete warnings, all tests green
+TASK-007: Refactor Engine to BidiFlow Atop chain with conditional inclusion
 
-Fix 7 pre-existing test failures in RFC9113 tests by adding CONTINUATION
-state tracking and stream-0 validation to Http2FrameDecoder:
+Replace the three-island pipeline (PreProcessingGraphBuilder + ProtocolCoreGraphBuilder +
+PostProcessingGraphBuilder) with a composable BidiFlow.Atop() chain. Each feature
+(Redirect, Cookie, Retry, Cache, Decompression) is conditionally included only when
+its policy is non-null, eliminating all external MergePreferred feedback loops,
+Buffer(4) cycle-breakers, and the Merge(cacheHit) node.
 
-- Add DATA frame stream-0 rejection (RFC 9113 §6.1)
-- Add CONTINUATION frame stream-0 rejection (RFC 9113 §6.10)
-- Add CONTINUATION ordering enforcement: decoder now tracks whether it is
-  awaiting a CONTINUATION frame after HEADERS/PUSH_PROMISE without
-  END_HEADERS, rejecting interleaved or orphan frames per RFC 9113 §6.10
-- Update 17 tests across 4 files to align with the new decoder-level
-  validation (previously expected validation at session layer)
-- Fix pseudo-header index assertion in 20_EncoderPseudoHeaderTests.cs
-- Fix oversized DATA frame test to document stateless MAX_FRAME_SIZE
-
-Validation results:
-- dotnet build: 0 warnings, 0 errors
-- dotnet test: 2451 passed (1818 unit + 633 stream), 0 failed
-- grep CS0618: no pragma suppressions in src/
-- grep [Obsolete]: no obsolete attributes in production code
+Key changes:
+- Engine.BuildExtendedPipeline: conditional BidiFlow.Atop stacking
+  (outermost→innermost: Redirect → Cookie → Retry → Cache → Decompression)
+- Remove PreProcessingGraphBuilder, PostProcessingGraphBuilder, PreProcessShape, PostProcessShape
+- Remove DecompressionStage from ProtocolCoreGraphBuilder (handled by DecompressionBidiStage)
+- Fix RedirectBidiStage/RetryBidiStage: track in-flight request count to prevent
+  premature Out1 completion when upstream finishes before responses arrive
+- Middleware stages remain as Flows prepended/appended outside the BidiFlow chain
+- 11 new tests in 16_EngineBidiFlowCompositionTests.cs
+- All 2,560 tests green (1,827 unit + 733 stream)

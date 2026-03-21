@@ -13,14 +13,14 @@ using TurboHttp.Streams.Stages;
 namespace TurboHttp.Streams;
 
 /// <summary>
-/// Builds island 2 of the pipeline: protocol engine core + decompression.
+/// Builds island 2 of the pipeline: protocol engine core (encode/decode + version demux).
 /// <para><b>Stage ordering (invariants verified in StageOrderingTests):</b></para>
 /// <list type="number">
 ///   <item><description>Partition → per-version BuildProtocolFlow → Merge — version-specific encode/decode.
 ///         ConnectionReuseStage runs inside each substream (INV-1).</description></item>
-///   <item><description>DecompressionStage — RFC 9110 §8.4. Runs after decode so cached entries
-///         store decompressed bodies (INV-6).</description></item>
 /// </list>
+/// <para>Decompression is handled externally by <see cref="Stages.DecompressionBidiStage"/>
+/// in the feature BidiFlow chain (see <see cref="Engine"/>).</para>
 /// </summary>
 internal static class ProtocolCoreGraphBuilder
 {
@@ -59,10 +59,7 @@ internal static class ProtocolCoreGraphBuilder
             builder.From(partition.Out(2)).Via(http20).To(hub);
             builder.From(partition.Out(3)).Via(http30).To(hub);
 
-            var decomp = builder.Add(new DecompressionStage());
-            builder.From(hub.Out).To(decomp.Inlet);
-
-            return new FlowShape<HttpRequestMessage, HttpResponseMessage>(partition.In, decomp.Outlet);
+            return new FlowShape<HttpRequestMessage, HttpResponseMessage>(partition.In, hub.Out);
         });
     }
 

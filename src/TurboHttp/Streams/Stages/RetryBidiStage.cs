@@ -76,6 +76,12 @@ internal sealed class RetryBidiStage
         /// <summary>Whether Out2 (response output) has downstream demand.</summary>
         private bool _responseDemand;
 
+        /// <summary>
+        /// Number of requests emitted on Out1 for which no response has been received on In2 yet.
+        /// Prevents premature completion of Out1 when upstream finishes before in-flight responses arrive.
+        /// </summary>
+        private int _inFlightCount;
+
         public Logic(RetryBidiStage stage) : base(stage.Shape)
         {
             _stage = stage;
@@ -112,15 +118,13 @@ internal sealed class RetryBidiStage
                 {
                     var request = Grab(stage._inRequest);
                     _requestDemand = false;
+                    _inFlightCount++;
                     Push(stage._outRequest, request);
                 },
                 onUpstreamFinish: () =>
                 {
-                    // Don't complete Out1 yet if there are pending retries
-                    if (_readyRetries.Count == 0 && _waitingRetries.Count == 0)
-                    {
-                        Complete(stage._outRequest);
-                    }
+                    // Don't complete Out1 yet if there are pending retries or in-flight requests
+                    TryCompleteIfDone();
                 },
                 onUpstreamFailure: ex => Log.Warning("RetryBidiStage: Request upstream failure absorbed: {0}", ex.Message));
 
@@ -143,12 +147,14 @@ internal sealed class RetryBidiStage
                 {
                     var response = Grab(stage._inResponse);
                     var original = response.RequestMessage;
+                    _inFlightCount--;
 
                     // Without the original request, cannot determine idempotency — pass through.
                     if (original is null)
                     {
                         _responseDemand = false;
                         Push(stage._outResponse, response);
+                        TryCompleteIfDone();
                         TryPullResponse();
                         return;
                     }
@@ -167,6 +173,7 @@ internal sealed class RetryBidiStage
                     {
                         _responseDemand = false;
                         Push(stage._outResponse, response);
+                        TryCompleteIfDone();
                         TryPullResponse();
                         return;
                     }
@@ -189,7 +196,11 @@ internal sealed class RetryBidiStage
 
                     TryPullResponse();
                 },
-                onUpstreamFinish: () => Complete(stage._outResponse),
+                onUpstreamFinish: () =>
+                {
+                    Complete(stage._outResponse);
+                    TryCompleteIfDone();
+                },
                 onUpstreamFailure: ex => Log.Warning("RetryBidiStage: Response upstream failure absorbed: {0}", ex.Message));
 
             SetHandler(stage._outResponse,
@@ -227,6 +238,7 @@ internal sealed class RetryBidiStage
             {
                 var request = _readyRetries.Dequeue();
                 _requestDemand = false;
+                _inFlightCount++;
                 Push(_stage._outRequest, request);
                 TryCompleteIfDone();
                 return true;
@@ -265,11 +277,16 @@ internal sealed class RetryBidiStage
         }
 
         /// <summary>
-        /// Completes Out1 when upstream is finished and all pending retries have been drained.
+        /// Completes Out1 when upstream (In1) is finished, all pending retries have been drained,
+        /// and either all in-flight requests have been resolved or the response upstream (In2) has
+        /// closed (no more responses will arrive, so in-flight requests are orphaned).
         /// </summary>
         private void TryCompleteIfDone()
         {
-            if (IsClosed(_stage._inRequest) && _readyRetries.Count == 0 && _waitingRetries.Count == 0)
+            if (IsClosed(_stage._inRequest) && _readyRetries.Count == 0
+                && _waitingRetries.Count == 0
+                && (_inFlightCount == 0 || IsClosed(_stage._inResponse))
+                && !IsClosed(_stage._outRequest))
             {
                 Complete(_stage._outRequest);
             }

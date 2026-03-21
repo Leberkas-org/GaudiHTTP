@@ -7,6 +7,7 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.Client;
 using TurboHttp.Internal;
+using TurboHttp.Streams.Stages;
 
 namespace TurboHttp.Streams;
 
@@ -58,12 +59,22 @@ internal sealed class Engine
     }
 
     /// <summary>
-    /// Orchestrates the three-island pipeline that processes HTTP requests end-to-end.
-    /// Delegates construction of each island to its dedicated builder and wires their
-    /// outputs together with async boundaries and feedback loops.
-    /// <para><b>Island 1 (pre-processing):</b> <see cref="PreProcessingGraphBuilder"/></para>
-    /// <para><b>Island 2 (protocol engine):</b> <see cref="ProtocolCoreGraphBuilder"/></para>
-    /// <para><b>Island 3 (post-processing):</b> <see cref="PostProcessingGraphBuilder"/></para>
+    /// Composes the pipeline by stacking feature BidiFlows via <c>Atop</c> around
+    /// the protocol engine core, with <see cref="RequestEnricherStage"/> and middleware
+    /// Flows prepended/appended outside the BidiFlow chain.
+    /// <para><b>Stacking order (outermost → innermost):</b></para>
+    /// <list type="number">
+    ///   <item><description>RedirectBidiStage — RFC 9110 §15.4, internal feedback loop</description></item>
+    ///   <item><description>CookieBidiStage — RFC 6265 §5.3–§5.4</description></item>
+    ///   <item><description>RetryBidiStage — RFC 9110 §9.2, internal feedback loop</description></item>
+    ///   <item><description>CacheBidiStage — RFC 9111, internal short-circuit</description></item>
+    ///   <item><description>DecompressionBidiStage — RFC 9110 §8.4</description></item>
+    /// </list>
+    /// <para>Request direction: Redirect → Cookie → Retry → Cache → Decomp → Engine</para>
+    /// <para>Response direction: Engine → Decomp → Cache → Retry → Cookie → Redirect</para>
+    /// <para>Only BidiFlows for non-null policies are included. When all policies are null
+    /// and <see cref="PipelineDescriptor.AutomaticDecompression"/> is true, the graph is:
+    /// Enricher → DecompressionBidi(Engine) → Output.</para>
     /// </summary>
     private static Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> BuildExtendedPipeline(
         IActorRef poolRouter,
@@ -74,48 +85,70 @@ internal sealed class Engine
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? http11Factory = null,
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? http20Factory = null)
     {
-        return Flow.FromGraph(GraphDsl.Create(builder =>
+        // Protocol engine core (version demux + encode/decode) with async boundary.
+        var engineFlow = Flow.FromGraph(
+                ProtocolCoreGraphBuilder.Build(poolRouter, options,
+                    http10Factory, http11Factory, http20Factory))
+            .WithAttributes(Attributes.CreateAsyncBoundary());
+
+        // Build feature BidiFlow chain via conditional Atop stacking.
+        // Build from innermost to outermost so that each new layer wraps the previous.
+        BidiFlow<HttpRequestMessage, HttpRequestMessage,
+            HttpResponseMessage, HttpResponseMessage, NotUsed>? features = null;
+
+        if (descriptor.AutomaticDecompression)
         {
-            // ---- PRE-PROCESSING ISLAND (fused island 1: lightweight request stages) ----
-            var preProcess = builder.Add(
-                PreProcessingGraphBuilder.Build(descriptor, requestOptionsFactory));
+            features = BidiFlow.FromGraph(new DecompressionBidiStage());
+        }
 
-            // ---- PROTOCOL ENGINE ISLAND (fused island 2: CPU-intensive encode/decode + decompression) ----
-            // Async boundary separates this from the lightweight pre/post-processing stages,
-            // allowing protocol work to run in parallel on a separate thread.
-            var engineCore = builder.Add(
-                Flow.FromGraph(
-                        ProtocolCoreGraphBuilder.Build(poolRouter, options,
-                            http10Factory, http11Factory, http20Factory))
-                    .WithAttributes(Attributes.CreateAsyncBoundary()));
+        if (descriptor.CacheStore is not null)
+        {
+            var cache = BidiFlow.FromGraph(new CacheBidiStage(descriptor.CacheStore, descriptor.CachePolicy));
+            features = features is not null ? cache.Atop(features) : cache;
+        }
 
-            builder.From(preProcess.CacheMissOut).To(engineCore.Inlet);
+        if (descriptor.RetryPolicy is not null)
+        {
+            var retry = BidiFlow.FromGraph(new RetryBidiStage(descriptor.RetryPolicy));
+            features = features is not null ? retry.Atop(features) : retry;
+        }
 
-            // ---- POST-PROCESSING ISLAND (fused island 3: response evaluation stages) ----
-            // Async boundary separates this from the protocol engine island.
-            var postProcess = builder.Add(
-                PostProcessingGraphBuilder.Build(descriptor)
-                    .Async());
+        if (descriptor.CookieJar is not null)
+        {
+            var cookie = BidiFlow.FromGraph(new CookieBidiStage(descriptor.CookieJar));
+            features = features is not null ? cookie.Atop(features) : cookie;
+        }
 
-            builder.From(engineCore.Outlet).To(postProcess.ResponseIn);
-            builder.From(preProcess.CacheHitOut).To(postProcess.CacheHitIn);
+        if (descriptor.RedirectPolicy is not null)
+        {
+            var redirect = BidiFlow.FromGraph(new RedirectBidiStage(descriptor.RedirectPolicy));
+            features = features is not null ? redirect.Atop(features) : redirect;
+        }
 
-            // Feedback loops: cross from post-processing island back to pre-processing island.
-            // Buffer(4) breaks the cycle and allows multiple in-flight redirects/retries
-            // without back-pressuring the main pipeline. MergePreferred ensures feedback
-            // items are always processed before new requests from the source.
-            builder.From(postProcess.RetryFeedbackOut)
-                .Via(Flow.Create<HttpRequestMessage>().Buffer(4, OverflowStrategy.Backpressure))
-                .To(preProcess.RetryFeedbackIn);
+        // Join features with engine, or use engine directly if no features.
+        var pipelineFlow = features is not null
+            ? features.Join(engineFlow)
+            : engineFlow;
 
-            builder.From(postProcess.RedirectFeedbackOut)
-                .Via(Flow.Create<HttpRequestMessage>().Buffer(4, OverflowStrategy.Backpressure))
-                .To(preProcess.RedirectFeedbackIn);
+        // Prepend enricher + request middlewares (FIFO, initial requests only —
+        // redirects/retries are handled internally by their BidiStages and bypass these).
+        var requestPrep = Flow.Create<HttpRequestMessage>()
+            .Via(Flow.FromGraph(new RequestEnricherStage(requestOptionsFactory)));
 
-            return new FlowShape<HttpRequestMessage, HttpResponseMessage>(
-                preProcess.RequestIn,
-                postProcess.ResponseOut
-            );
-        }));
+        foreach (var mw in descriptor.Middlewares)
+        {
+            requestPrep = requestPrep.Via(Flow.FromGraph(new MiddlewareRequestStage(mw)));
+        }
+
+        // Full pipeline: enricher → request middlewares → feature BidiFlows(engine) → response middlewares
+        var pipeline = requestPrep.Via(pipelineFlow);
+
+        // Append response middlewares (FIFO, final responses only — after redirect resolution).
+        foreach (var mw in descriptor.Middlewares)
+        {
+            pipeline = pipeline.Via(Flow.FromGraph(new MiddlewareResponseStage(mw)));
+        }
+
+        return pipeline;
     }
 }

@@ -166,18 +166,18 @@ BidiFlows via conditional `Atop` stacking, replacing all manual wiring, MergePre
 feedback loops, and PostProcessShape.
 
 **Acceptance Criteria:**
-- [ ] `BuildExtendedPipeline` uses conditional `BidiFlow.Atop()` to compose feature layers
-- [ ] Only BidiFlows for non-null policies are included in the Atop chain
-- [ ] `PipelineDescriptor.Empty` produces minimal graph: Enricher → Engine → Output
-- [ ] `BuildPostProcessGraph` and `PostProcessShape` are removed
-- [ ] No more `MergePreferred` for redirect/retry feedback
-- [ ] No more external `Buffer(4)` for feedback loops
-- [ ] No more `Merge(cacheHit)` for cache hit merging
-- [ ] `RequestEnricherStage` remains as a Flow prepended before the BidiFlow chain
-- [ ] `MiddlewareRequestStage` / `MiddlewareResponseStage` composed as a MiddlewareBidiFlow or remain as Flows
-- [ ] Engine async boundary preserved on the protocol engine
-- [ ] Typecheck/lint passes
-- [ ] Unit tests are written and successful
+- [x] `BuildExtendedPipeline` uses conditional `BidiFlow.Atop()` to compose feature layers
+- [x] Only BidiFlows for non-null policies are included in the Atop chain
+- [x] `PipelineDescriptor.Empty` produces minimal graph: Enricher → Engine → Output
+- [x] `BuildPostProcessGraph` and `PostProcessShape` are removed
+- [x] No more `MergePreferred` for redirect/retry feedback
+- [x] No more external `Buffer(4)` for feedback loops
+- [x] No more `Merge(cacheHit)` for cache hit merging
+- [x] `RequestEnricherStage` remains as a Flow prepended before the BidiFlow chain
+- [x] `MiddlewareRequestStage` / `MiddlewareResponseStage` composed as a MiddlewareBidiFlow or remain as Flows
+- [x] Engine async boundary preserved on the protocol engine
+- [x] Typecheck/lint passes
+- [x] Unit tests are written and successful
 
 ### TASK-008: Adapt and extend tests
 **Description:** As a developer, I want all existing tests updated and new tests added
