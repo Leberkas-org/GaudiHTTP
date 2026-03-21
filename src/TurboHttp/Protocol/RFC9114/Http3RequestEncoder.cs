@@ -68,6 +68,7 @@ public sealed class Http3RequestEncoder
 
         var headers = BuildHeaderList(request);
         ValidatePseudoHeaders(headers);
+        Http3FieldValidator.Validate(headers);
 
         var headerBlock = _qpack.Encode(headers);
         var frames = new List<Http3Frame>();
@@ -102,6 +103,7 @@ public sealed class Http3RequestEncoder
 
         var headers = BuildHeaderList(request);
         ValidatePseudoHeaders(headers);
+        Http3FieldValidator.Validate(headers);
         return _qpack.Encode(headers);
     }
 
@@ -231,13 +233,14 @@ public sealed class Http3RequestEncoder
     }
 
     /// <summary>
-    /// Connection-specific headers forbidden in HTTP/3 per RFC 9114 §4.2.
+    /// Connection-specific headers silently stripped during header list construction per RFC 9114 §4.2.
+    /// Note: TE is NOT stripped here — it is allowed with value "trailers" and validated
+    /// by <see cref="Http3FieldValidator"/> after construction.
     /// </summary>
     private static bool IsForbidden(string name) =>
         string.Equals(name, "connection", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(name, "transfer-encoding", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(name, "upgrade", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(name, "proxy-connection", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(name, "keep-alive", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(name, "te", StringComparison.OrdinalIgnoreCase);
+        string.Equals(name, "keep-alive", StringComparison.OrdinalIgnoreCase);
 }

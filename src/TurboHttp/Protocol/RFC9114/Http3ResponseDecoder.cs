@@ -85,8 +85,9 @@ public sealed class Http3ResponseDecoder
         // Decode headers via QPACK
         var headers = _qpack.Decode(headersFrame.HeaderBlock.Span, streamId);
 
-        // Validate and extract :status pseudo-header
+        // Validate pseudo-headers and field names/values
         ValidateResponsePseudoHeaders(headers);
+        Http3FieldValidator.Validate(headers);
         var statusCode = ExtractStatusCode(headers);
 
         var response = new HttpResponseMessage((HttpStatusCode)statusCode);
