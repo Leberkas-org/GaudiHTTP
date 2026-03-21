@@ -277,6 +277,73 @@ public sealed class CacheStoreTests
         Assert.Equal("xyz789", entry.Response.TrailingHeaders.GetValues("Signature").Single());
     }
 
+    [Fact(DisplayName = "RFC9111-3.1-CS-037: Connection header not stored in cache")]
+    public void Should_NotStore_When_ConnectionHeader()
+    {
+        var store = new HttpCacheStore();
+        var request = GetRequest();
+        var response = OkResponse();
+        response.Headers.TryAddWithoutValidation("Connection", "keep-alive");
+        response.Headers.TryAddWithoutValidation("Keep-Alive", "timeout=5");
+
+        store.Put(request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
+
+        var entry = store.Get(GetRequest());
+        Assert.NotNull(entry);
+        Assert.False(entry.Response.Headers.Contains("Connection"),
+            "Connection header must not be stored in cache");
+        Assert.False(entry.Response.Headers.Contains("Keep-Alive"),
+            "Keep-Alive header must not be stored in cache");
+    }
+
+    [Theory(DisplayName = "RFC9111-3.1-CS-038: connection-specific headers not stored in cache")]
+    [InlineData("Keep-Alive")]
+    [InlineData("Proxy-Authenticate")]
+    [InlineData("Proxy-Authorization")]
+    [InlineData("TE")]
+    [InlineData("Trailer")]
+    [InlineData("Transfer-Encoding")]
+    [InlineData("Upgrade")]
+    public void Should_NotStore_When_ConnectionSpecificHeader(string headerName)
+    {
+        var store = new HttpCacheStore();
+        var request = GetRequest();
+        var response = OkResponse();
+        response.Headers.TryAddWithoutValidation(headerName, "some-value");
+
+        store.Put(request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
+
+        var entry = store.Get(GetRequest());
+        Assert.NotNull(entry);
+        Assert.False(entry.Response.Headers.Contains(headerName),
+            $"{headerName} header must not be stored in cache");
+    }
+
+    [Fact(DisplayName = "RFC9111-3.1-CS-039: Custom headers preserved in cache")]
+    public void Should_Store_When_CustomHeaders()
+    {
+        var store = new HttpCacheStore();
+        var request = GetRequest();
+        var response = OkResponse();
+        response.Headers.TryAddWithoutValidation("X-Custom-Header", "my-value");
+        response.Headers.TryAddWithoutValidation("X-Request-Id", "abc-123");
+        // Also add a connection-specific header to ensure it's stripped while custom headers survive
+        response.Headers.TryAddWithoutValidation("Keep-Alive", "timeout=5");
+
+        store.Put(request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
+
+        var entry = store.Get(GetRequest());
+        Assert.NotNull(entry);
+        Assert.True(entry.Response.Headers.Contains("X-Custom-Header"),
+            "Custom header X-Custom-Header must be preserved in cache");
+        Assert.Equal("my-value", entry.Response.Headers.GetValues("X-Custom-Header").Single());
+        Assert.True(entry.Response.Headers.Contains("X-Request-Id"),
+            "Custom header X-Request-Id must be preserved in cache");
+        Assert.Equal("abc-123", entry.Response.Headers.GetValues("X-Request-Id").Single());
+        Assert.False(entry.Response.Headers.Contains("Keep-Alive"),
+            "Keep-Alive header must not be stored in cache");
+    }
+
     [Fact(DisplayName = "RFC9111-3-CS-014: LRU eviction when MaxEntries exceeded")]
     public void Should_EvictEntries_When_MaxEntriesExceeded()
     {

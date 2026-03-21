@@ -53,9 +53,9 @@ RFC 9111 has 96 client-side MUSTs. After plan_011 (TASK-014-021), 95 are covered
 - List: `Connection`, `Keep-Alive`, `Proxy-Authenticate`, `Proxy-Authorization`, `TE`, `Trailer`, `Transfer-Encoding`, `Upgrade`
 
 **Acceptance Criteria:**
-- [ ] Connection-specific headers removed before cache storage
-- [ ] Other headers preserved
-- [ ] Unit tests written and passing
+- [x] Connection-specific headers removed before cache storage
+- [x] Other headers preserved
+- [x] Unit tests written and passing
 
 **Tests** (extends `src/TurboHttp.Tests/RFC9111/04_CacheStoreTests.cs`):
 

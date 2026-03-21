@@ -109,6 +109,9 @@ public sealed class HttpCacheStore
             StripPrivateFields(response);
         }
 
+        // RFC 9111 §3.1 — connection-specific headers must not be stored in cache
+        StripConnectionHeaders(response);
+
         if (body.Length > _policy.MaxBodyBytes)
         {
             return;
@@ -468,6 +471,40 @@ public sealed class HttpCacheStore
             response.Headers.Remove(field);
             response.Content?.Headers.Remove(field);
         }
+    }
+
+    /// <summary>
+    /// RFC 9111 §3.1 — Removes connection-specific header fields from the response
+    /// before storing in cache. These are hop-by-hop headers that have no meaning
+    /// beyond the immediate connection.
+    /// </summary>
+    private static void StripConnectionHeaders(HttpResponseMessage response)
+    {
+        // Also strip any headers listed in the Connection header itself
+        if (response.Headers.TryGetValues("Connection", out var connectionValues))
+        {
+            foreach (var value in connectionValues)
+            {
+                foreach (var field in value.Split(','))
+                {
+                    var trimmed = field.Trim();
+                    if (trimmed.Length > 0)
+                    {
+                        response.Headers.Remove(trimmed);
+                        response.Content?.Headers.Remove(trimmed);
+                    }
+                }
+            }
+        }
+
+        response.Headers.Remove("Connection");
+        response.Headers.Remove("Keep-Alive");
+        response.Headers.Remove("Proxy-Authenticate");
+        response.Headers.Remove("Proxy-Authorization");
+        response.Headers.Remove("TE");
+        response.Headers.Remove("Trailer");
+        response.Headers.Remove("Transfer-Encoding");
+        response.Headers.Remove("Upgrade");
     }
 
     private static string GetVaryKey(CacheEntry entry)
