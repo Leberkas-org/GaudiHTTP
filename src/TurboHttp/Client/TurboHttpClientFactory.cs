@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Akka.Actor;
 using Microsoft.Extensions.Options;
 using TurboHttp.Middleware;
@@ -21,11 +22,6 @@ internal sealed class TurboHttpClientFactory(
     ActorSystem system)
     : ITurboHttpClientFactory
 {
-    /// <summary>
-    /// Root service provider used to resolve per-client middleware instances (TASK-019).
-    /// </summary>
-    internal readonly IServiceProvider Provider = provider;
-
     public ITurboHttpClient CreateClient(string name)
     {
         var clientOptions = options.Get(name);
@@ -39,12 +35,16 @@ internal sealed class TurboHttpClientFactory(
             ? new HttpCacheStore(descriptor.CachePolicy)
             : null;
 
+        IReadOnlyList<TurboMiddleware> middlewares = descriptor.MiddlewareFactories.Count == 0
+            ? []
+            : descriptor.MiddlewareFactories.Select(f => f(provider)).ToList();
+
         var pipeline = new PipelineDescriptor(
             RedirectPolicy: descriptor.RedirectPolicy,
             RetryPolicy: descriptor.RetryPolicy,
             CookieJar: cookieJar,
             CacheStore: cacheStore,
-            Middlewares: []);
+            Middlewares: middlewares);
 
         return new TurboHttpClient(clientOptions, system, pipeline);
     }

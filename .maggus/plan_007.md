@@ -254,11 +254,11 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a developer, I want the factory to resolve all registered middleware types from DI and include them in the `PipelineDescriptor` so that each middleware instance gets its injected dependencies.
 
 **Acceptance Criteria:**
-- [ ] `CreateClient(name)` iterates `descriptor.MiddlewareTypes` and calls `provider.GetRequiredService(type)`
-- [ ] Resolved instances passed as `IReadOnlyList<TurboMiddleware>` to `PipelineDescriptor`
-- [ ] When `MiddlewareTypes` is empty → empty list, no DI calls made
-- [ ] Completed `PipelineDescriptor` passed to `TurboClientStreamManager` (new constructor from TASK-010)
-- [ ] Typecheck/lint passes
+- [x] `CreateClient(name)` iterates `descriptor.MiddlewareTypes` and calls `provider.GetRequiredService(type)`
+- [x] Resolved instances passed as `IReadOnlyList<TurboMiddleware>` to `PipelineDescriptor`
+- [x] When `MiddlewareTypes` is empty → empty list, no DI calls made
+- [x] Completed `PipelineDescriptor` passed to `TurboClientStreamManager` (new constructor from TASK-010)
+- [x] Typecheck/lint passes
 
 ---
 

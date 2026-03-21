@@ -364,7 +364,7 @@ public sealed class HpackHeaderListSizeTests
         var block = LiteralNoIndex("x", "y");
         var ex = Assert.Throws<HpackException>(() => decoder.Decode(block));
 
-        Assert.Contains("RFC 7540", ex.Message);
+        Assert.Contains("RFC 9113 §6.5.2", ex.Message);
         Assert.Contains("6.5.2", ex.Message);
     }
 
