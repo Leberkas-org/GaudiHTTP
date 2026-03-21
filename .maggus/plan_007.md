@@ -76,13 +76,13 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a developer, I want a FlowShape stage that calls `TurboMiddleware.ProcessRequestAsync` per element so that request transformation happens inside the Akka graph without blocking.
 
 **Acceptance Criteria:**
-- [ ] `internal sealed class MiddlewareRequestStage : GraphStage<FlowShape<HttpRequestMessage, HttpRequestMessage>>` in `src/TurboHttp/Streams/Stages/MiddlewareRequestStage.cs`
-- [ ] Constructor: `MiddlewareRequestStage(TurboMiddleware middleware)`
-- [ ] Port names: `"MiddlewareRequest.In"` / `"MiddlewareRequest.Out"`
-- [ ] Async invocation via `GetAsyncCallback<HttpRequestMessage>` in StageLogic — no `.Result`, no `Task.Run`
-- [ ] `onPush`: starts async task; in callback: `Push(_out, result)`
-- [ ] `onPull`: `Pull(_in)`
-- [ ] Typecheck/lint passes
+- [x] `internal sealed class MiddlewareRequestStage : GraphStage<FlowShape<HttpRequestMessage, HttpRequestMessage>>` in `src/TurboHttp/Streams/Stages/MiddlewareRequestStage.cs`
+- [x] Constructor: `MiddlewareRequestStage(TurboMiddleware middleware)`
+- [x] Port names: `"MiddlewareRequest.In"` / `"MiddlewareRequest.Out"`
+- [x] Async invocation via `GetAsyncCallback<HttpRequestMessage>` in StageLogic — no `.Result`, no `Task.Run`
+- [x] `onPush`: starts async task; in callback: `Push(_out, result)`
+- [x] `onPull`: `Pull(_in)`
+- [x] Typecheck/lint passes
 
 ---
 
