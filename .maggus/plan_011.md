@@ -43,8 +43,8 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 - Class: `public sealed class UserinfoStrippingTests`
 
 **Acceptance Criteria:**
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 | DisplayName | Method | Description |
 |-------------|--------|-------------|
