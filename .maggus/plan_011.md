@@ -513,11 +513,11 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 - File: `src/TurboHttp/Protocol/RFC9111/HttpCacheStore.cs` — reject unknown status codes
 
 **Acceptance Criteria:**
-- [ ] `must-understand` + known status code (200) allows cache storage
-- [ ] `must-understand` + unknown status code (299) prevents cache storage
-- [ ] Absent `must-understand` allows any cacheable status
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] `must-understand` + known status code (200) allows cache storage
+- [x] `must-understand` + unknown status code (299) prevents cache storage
+- [x] Absent `must-understand` allows any cacheable status
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (extends `src/TurboHttp.Tests/RFC9111/04_CacheStoreTests.cs`):
 

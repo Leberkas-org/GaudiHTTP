@@ -106,7 +106,7 @@ These methods only register their configuration in `IServiceCollection` (as `IOp
 Instead of `DelegatingHandler`, TurboHttp provides its own stream-compatible middleware abstraction. The interface is intentionally simple — no Akka knowledge required:
 
 ```csharp
-public abstract class TurboMiddleware
+public abstract class TurboHandler
 {
     // Optional: request transform — default is pass-through
     public virtual ValueTask<HttpRequestMessage> ProcessRequestAsync(
@@ -125,38 +125,38 @@ Registration via DI and `ITurboHttpClientBuilder`:
 
 ```csharp
 // Class — resolved via DI (can inject dependencies)
-// AddMiddleware<T>() automatically registers T as Transient in IServiceCollection
+// AddHandler<T>() automatically registers T as Transient in IServiceCollection
 services.AddTurboHttpClient("myapi", options => { ... })
-    .AddMiddleware<AuthMiddleware>()
-    .AddMiddleware<LoggingMiddleware>()
-    .AddMiddleware<CorrelationIdMiddleware>();
+    .AddHandler<AuthHandler>()
+    .AddHandler<LoggingHandler>()
+    .AddHandler<CorrelationIdHandler>();
 
 // Inline delegate for simple cases
 services.AddTurboHttpClient("myapi", options => { ... })
-    .UseRequest((req, ct) =>
+    .UseRequest(async (req, ct) =>
     {
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        return ValueTask.FromResult(req);
+        return req;
     })
-    .UseResponse((req, resp, ct) =>
+    .UseResponse(async (original, resp, ct) =>
     {
-        metrics.Record(req.RequestUri!, resp.StatusCode);
-        return ValueTask.FromResult(resp);
+        metrics.Record(original.RequestUri!, resp.StatusCode);
+        return resp;
     });
 ```
 
-`AddMiddleware<T>()` registers `T` as `Transient` in `IServiceCollection` and records the order. `UseRequest`/`UseResponse` wrap the delegate directly — no separate DI entry needed. During materialization, one stage per registered middleware is inserted into the Akka pipeline.
+`AddHandler<T>()` registers `T` as `Transient` in `IServiceCollection` and records the order. `UseRequest`/`UseResponse` wrap the delegate directly — no separate DI entry needed. During materialization, one stage per registered handler is inserted into the Akka pipeline.
 
 ---
 
-## Where User Middleware Runs in the Pipeline
+## Where User Handlers Run in the Pipeline
 
 ```
 [RequestEnricher]          ← BaseAddress, DefaultHeaders, Version
       ↓
-[User-Middleware Request]  ← ProcessRequestAsync — Auth, Correlation-ID, Custom-Headers
+[User-Handler Request]     ← ProcessRequestAsync — Auth, Correlation-ID, Custom-Headers
       ↓                       (initial requests only; redirect feedback enters the pipeline
-      |                        AFTER this point and bypasses the middleware)
+      |                        AFTER this point and bypasses the handler)
 [CookieBidiStage]          ← .WithCookies()
       ↓                       (retry feedback enters AFTER this point)
 [CacheBidiStage]           ← .WithCache()
@@ -173,13 +173,13 @@ services.AddTurboHttpClient("myapi", options => { ... })
 [RetryBidiStage]           ← .WithRetry()   → retry feedback (back to CacheBidiStage)
 [RedirectBidiStage]        ← .WithRedirect() → redirect feedback (back to CookieBidiStage)
       ↓
-[User-Middleware Response] ← ProcessResponseAsync — Logging, Metrics, Tracing
+[User-Handler Response]    ← ProcessResponseAsync — Logging, Metrics, Tracing
       ↓                       (final responses only — after redirect and retry are resolved)
 [Client]
 ```
 
-User middleware intentionally runs **outside** the feedback loops:
-- `ProcessRequestAsync` sees each enriched initial request. Redirect requests (sent back by `RedirectBidiStage`) go directly into the `redirectMerge` and bypass the middleware.
+User handlers intentionally run **outside** the feedback loops:
+- `ProcessRequestAsync` sees each enriched initial request. Redirect requests (sent back by `RedirectBidiStage`) go directly into the `redirectMerge` and bypass the handler.
 - `ProcessResponseAsync` sees only **final** responses — after redirect and retry have been resolved. No intermediate results, no internal noise.
 
 ---
@@ -197,8 +197,8 @@ services.AddTurboHttpClient("payments", options =>
     })
     .WithRedirect()
     .WithRetry(new RetryPolicy(MaxRetries: 2))
-    .AddMiddleware<AuthMiddleware>()          // registers AuthMiddleware as Transient
-    .AddMiddleware<ObservabilityMiddleware>(); // registers ObservabilityMiddleware as Transient
+    .AddHandler<AuthHandler>()          // registers AuthHandler as Transient
+    .AddHandler<ObservabilityHandler>(); // registers ObservabilityHandler as Transient
 
 // Somewhere in application code:
 public class PaymentService(ITurboHttpClientFactory factory)
@@ -208,8 +208,8 @@ public class PaymentService(ITurboHttpClientFactory factory)
 ```
 
 ```csharp
-// Custom middleware
-public sealed class AuthMiddleware(ITokenProvider tokens) : TurboMiddleware
+// Custom handler
+public sealed class AuthHandler(ITokenProvider tokens) : TurboHandler
 {
     public override async ValueTask<HttpRequestMessage> ProcessRequestAsync(
         HttpRequestMessage request,
@@ -226,13 +226,13 @@ public sealed class AuthMiddleware(ITokenProvider tokens) : TurboMiddleware
 
 ## Difference from `TurboClientOptions`
 
-`TurboClientOptions` remains as **transport configuration** (timeouts, TLS, reconnect intervals). Middleware configuration (cookies, cache, retry, redirect, user middleware) moves entirely into the `ITurboHttpClientBuilder` extensions.
+`TurboClientOptions` remains as **transport configuration** (timeouts, TLS, reconnect intervals). Handler configuration (cookies, cache, retry, redirect, user handlers) moves entirely into the `ITurboHttpClientBuilder` extensions.
 
 | Configuration Type | Where |
 |---|---|
 | Connection parameters (timeouts, TLS, HTTP/2 frame size) | `TurboClientOptions` via `AddTurboHttpClient(name, options => ...)` |
 | Redirect / Retry / Cookie / Cache | `ITurboHttpClientBuilder` extensions (`.WithRedirect()` etc.) |
-| User middleware | `ITurboHttpClientBuilder` (`.AddMiddleware<T>()`) |
+| User handlers | `ITurboHttpClientBuilder` (`.AddHandler<T>()`) |
 | DefaultRequestHeaders / BaseAddress / Version | `TurboClientOptions` |
 
 ---
@@ -252,13 +252,13 @@ internal sealed class TurboClientDescriptor
     public CookieJar? CustomCookieJar { get; set; }
     public CachePolicy? CachePolicy { get; set; }
 
-    // Type-based middleware (AddMiddleware<T>) — for DI lookup by type
-    public List<Type> MiddlewareTypes { get; } = [];
+    // Type-based handlers (AddHandler<T>) — for DI lookup by type
+    public List<Type> HandlerTypes { get; } = [];
 
-    // Unified FIFO factory list: covers both type-based (AddMiddleware<T>) AND
-    // delegate-based (UseRequest/UseResponse) middleware.
-    // AddMiddleware<T> registers into BOTH lists; UseRequest/UseResponse only here.
-    public List<Func<IServiceProvider, TurboMiddleware>> MiddlewareFactories { get; } = [];
+    // Unified FIFO factory list: covers both type-based (AddHandler<T>) AND
+    // delegate-based (UseRequest/UseResponse) handlers.
+    // AddHandler<T> registers into BOTH lists; UseRequest/UseResponse only here.
+    public List<Func<IServiceProvider, TurboHandler>> HandlerFactories { get; } = [];
 }
 ```
 
@@ -272,14 +272,14 @@ internal sealed record PipelineDescriptor(
     RetryPolicy?     RetryPolicy,
     CookieJar?       CookieJar,
     HttpCacheStore?  CacheStore,
-    IReadOnlyList<TurboMiddleware> Middlewares)
+    IReadOnlyList<TurboHandler> Handlers)
 {
     public static readonly PipelineDescriptor Empty = new(
         RedirectPolicy: null,
         RetryPolicy: null,
         CookieJar: null,
         CacheStore: null,
-        Middlewares: []);
+        Handlers: []);
 }
 ```
 
@@ -292,11 +292,11 @@ internal sealed record PipelineDescriptor(
 | Aspect | HttpClient | TurboHttp |
 |---|---|---|
 | Registration | `services.AddHttpClient("name", ...)` | `services.AddTurboHttpClient("name", ...)` |
-| Middleware | `.AddHttpMessageHandler<T>()` | `.AddMiddleware<T>()` |
+| Handlers | `.AddHttpMessageHandler<T>()` | `.AddHandler<T>()` |
 | Redirect | on by default | off — opt-in via `.WithRedirect()` |
 | Retry | off — Polly via `.AddStandardResilienceHandler()` | off — opt-in via `.WithRetry(policy)` |
 | Cache | not available | off — opt-in via `.WithCache(policy)` |
 | Cookies | off (SocketsHttpHandler) | off — opt-in via `.WithCookies()` |
-| Middleware base | `DelegatingHandler` (sync/async, per request) | `TurboMiddleware` (async, stream-compatible) |
+| Handler base | `DelegatingHandler` (sync/async, per request) | `TurboHandler` (async, stream-compatible) |
 | Factory | `IHttpClientFactory` | `ITurboHttpClientFactory` |
 | Typed Clients | `AddHttpClient<TClient>()` | `AddTurboHttpClient<TClient>()` |

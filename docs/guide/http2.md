@@ -93,11 +93,14 @@ var options = new TurboClientOptions
 Set `AllowHttp2Multiplexing = false` if you want HTTP/2 connections to be subject to the same per-host connection limit as HTTP/1.1:
 
 ```csharp
-ConnectionPolicy = new ConnectionPolicy
+var options = new TurboClientOptions
 {
-    AllowHttp2Multiplexing = false,
-    MaxConnectionsPerHost = 4,
-}
+    ConnectionPolicy = new ConnectionPolicy
+    {
+        AllowHttp2Multiplexing = false,
+        MaxConnectionsPerHost = 4,
+    }
+};
 ```
 
 This is rarely needed but may be useful when a server limits concurrent streams per connection and you want to spread load across multiple connections instead.

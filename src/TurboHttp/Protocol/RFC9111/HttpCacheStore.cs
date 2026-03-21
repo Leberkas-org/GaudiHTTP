@@ -228,10 +228,25 @@ public sealed class HttpCacheStore
             {
                 return false;
             }
+
+            // RFC 9111 §5.2.2.3 — must-understand: only store if the cache understands
+            // the status code's caching requirements (i.e., it is a cacheable-by-default code)
+            if (resCc?.MustUnderstand == true && !IsUnderstoodStatusCode(response))
+            {
+                return false;
+            }
         }
 
         return true;
     }
+
+    /// <summary>
+    /// RFC 9111 §5.2.2.3 — Returns true if the cache understands the caching requirements
+    /// for this response's status code. Used with the must-understand directive.
+    /// Understood codes are the cacheable-by-default status codes from RFC 9111 §3.
+    /// </summary>
+    private static bool IsUnderstoodStatusCode(HttpResponseMessage response)
+        => IsCacheable(response);
 
     /// <summary>Clears all entries from the store.</summary>
     public void Clear()

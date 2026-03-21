@@ -179,6 +179,40 @@ public sealed class CacheStoreTests
     }
 
 
+    [Fact(DisplayName = "RFC9111-5.2.2.3-CS-030: must-understand + 200 allows storage")]
+    public void Should_Store_When_MustUnderstandAnd200()
+    {
+        var request = GetRequest();
+        var response = new HttpResponseMessage(HttpStatusCode.OK);
+        response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=60, must-understand");
+        response.Headers.Date = _baseTime;
+
+        Assert.True(HttpCacheStore.ShouldStore(request, response));
+    }
+
+    [Fact(DisplayName = "RFC9111-5.2.2.3-CS-031: must-understand + 299 prevents storage")]
+    public void Should_NotStore_When_MustUnderstandAndUnknownStatus()
+    {
+        var request = GetRequest();
+        var response = new HttpResponseMessage((HttpStatusCode)299);
+        response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=60, must-understand");
+        response.Headers.Date = _baseTime;
+
+        Assert.False(HttpCacheStore.ShouldStore(request, response));
+    }
+
+    [Fact(DisplayName = "RFC9111-5.2.2.3-CS-032: must-understand absent allows any cacheable status")]
+    public void Should_Store_When_NoMustUnderstand()
+    {
+        var request = GetRequest();
+        // 200 is cacheable-by-default; without must-understand, any cacheable status is fine
+        var response = new HttpResponseMessage(HttpStatusCode.OK);
+        response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=60");
+        response.Headers.Date = _baseTime;
+
+        Assert.True(HttpCacheStore.ShouldStore(request, response));
+    }
+
     [Fact(DisplayName = "RFC9111-3-CS-014: LRU eviction when MaxEntries exceeded")]
     public void Should_EvictEntries_When_MaxEntriesExceeded()
     {

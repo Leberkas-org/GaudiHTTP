@@ -69,140 +69,18 @@ The channel has a bounded capacity. If the connection cannot keep up with your p
 
 ## Extension Points
 
-TurboHttp's built-in policies — retry, redirect, cookie, cache — are all replaceable. Pass a custom implementation to `TurboClientOptions`.
+TurboHttp's built-in policies — retry, redirect, cookie, cache — are configured via the builder API. See the configuration guides for custom policy examples:
 
-### Custom Retry Evaluator
+- **Custom retry logic**: Configure via `.WithRetry()` builder extension — see [Automatic Retries guide](./retries)
+- **Custom redirect logic**: Configure via `.WithRedirect()` builder extension — see [Redirects guide](./redirects)
+- **Custom cookie storage**: Provide a custom `CookieJar` instance via `.WithCookies()` — see [Cookie Management guide](./cookies)
+- **Custom cache store**: Provide a custom `HttpCacheStore` instance or implement the cache interface — see [HTTP Caching guide](./caching)
 
-The retry evaluator decides whether a failed request should be retried. Implement `IRetryEvaluator`:
-
-```csharp
-public sealed class AggressiveRetryEvaluator : IRetryEvaluator
-{
-    public bool ShouldRetry(HttpRequestMessage request, HttpResponseMessage? response, Exception? exception, int attempt)
-    {
-        if (attempt >= 5)
-        {
-            return false;
-        }
-
-        // Retry any server error, not just 503
-        if (response is not null)
-        {
-            return (int)response.StatusCode >= 500;
-        }
-
-        // Retry network-level failures
-        return exception is HttpRequestException or SocketException;
-    }
-
-    public TimeSpan GetDelay(HttpResponseMessage? response, int attempt)
-    {
-        // Exponential backoff: 100 ms, 200 ms, 400 ms, …
-        return TimeSpan.FromMilliseconds(100 * Math.Pow(2, attempt - 1));
-    }
-}
-
-var options = new TurboClientOptions
-{
-    RetryEvaluator = new AggressiveRetryEvaluator(),
-};
-```
-
-### Custom Redirect Handler
-
-Implement `IRedirectHandler` to take full control of redirect decisions:
-
-```csharp
-public sealed class NoRedirectHandler : IRedirectHandler
-{
-    // Never follow redirects — caller handles them
-    public RedirectDecision Evaluate(HttpRequestMessage original, HttpResponseMessage response)
-        => RedirectDecision.Stop;
-}
-
-var options = new TurboClientOptions
-{
-    RedirectHandler = new NoRedirectHandler(),
-};
-```
-
-A redirect handler receives the original request and the redirect response and returns one of:
-- `RedirectDecision.Follow(newRequest)` — follow the redirect with `newRequest`
-- `RedirectDecision.Stop` — return the redirect response to the caller as-is
-
-### Custom Cookie Jar
-
-Implement `ICookieJar` to store cookies in a custom backend (database, distributed cache, etc.):
-
-```csharp
-public sealed class RedisCookieJar : ICookieJar
-{
-    private readonly IDatabase _db;
-
-    public RedisCookieJar(IDatabase db) => _db = db;
-
-    public void Store(Uri uri, IEnumerable<string> setCookieHeaders)
-    {
-        foreach (var header in setCookieHeaders)
-        {
-            // Persist to Redis using URI as namespace
-            _db.StringSet($"cookies:{uri.Host}:{Guid.NewGuid()}", header);
-        }
-    }
-
-    public IEnumerable<string> Get(Uri uri)
-    {
-        // Retrieve matching cookies for this URI
-        return _db.StringGet($"cookies:{uri.Host}:*")
-                  .Where(v => v.HasValue)
-                  .Select(v => (string)v!);
-    }
-}
-
-var options = new TurboClientOptions
-{
-    CookieJar = new RedisCookieJar(redisDatabase),
-};
-```
-
-Pass `null` to disable cookie management entirely:
-
-```csharp
-var options = new TurboClientOptions
-{
-    CookieJar = null,   // no cookies stored or sent
-};
-```
-
-### Custom Cache Store
-
-Implement `IHttpCacheStore` to replace the built-in in-memory LRU cache:
-
-```csharp
-public sealed class NullCacheStore : IHttpCacheStore
-{
-    // Disable caching entirely
-    public bool TryGet(HttpRequestMessage request, out CacheEntry? entry)
-    {
-        entry = null;
-        return false;
-    }
-
-    public void Store(HttpRequestMessage request, CacheEntry entry) { }
-    public void Invalidate(HttpRequestMessage request) { }
-}
-
-var options = new TurboClientOptions
-{
-    CacheStore = new NullCacheStore(),
-};
-```
-
-A distributed cache store (Redis, SQL) follows the same pattern — `TryGet` queries the store and `Store` writes an entry.
+The builder pattern eliminates boilerplate and ensures proper integration with the Akka.Streams pipeline.
 
 ## Extending the Pipeline with Akka.Streams
 
-TurboHttp's request pipeline is built on [Akka.Streams](https://getakka.net/articles/streams/introduction.html). If you need to add custom stages — request signing, telemetry, protocol translation — you can insert Akka graph stages directly into the pipeline.
+For advanced scenarios requiring low-level stream manipulation, TurboHttp's request pipeline is built on [Akka.Streams](https://getakka.net/articles/streams/introduction.html). You can insert custom Akka graph stages directly into the pipeline for request signing, telemetry, protocol translation, and other transformations.
 
 A graph stage is a small, composable unit that transforms the stream:
 
@@ -243,16 +121,6 @@ public sealed class RequestSigningStage : GraphStage<FlowShape<HttpRequestMessag
 }
 ```
 
-Register the stage when building the client:
-
-```csharp
-var options = new TurboClientOptions
-{
-    BaseAddress = new Uri("https://api.example.com"),
-    PipelineStages = builder => builder.AddStage(new RequestSigningStage("my-secret-key")),
-};
-```
-
 Custom stages run inside the existing pipeline — they see every request before it is encoded and every response after it is decoded. This makes them suitable for:
 
 - **Request signing** (HMAC, OAuth signatures)
@@ -261,3 +129,5 @@ Custom stages run inside the existing pipeline — they see every request before
 - **Observability** (latency histograms, request logging)
 
 Akka.Streams guarantees backpressure through the entire stage chain — your custom stage will never be pushed faster than it can process.
+
+For most use cases, the `TurboHandler` middleware API (see above) is simpler and sufficient. Use direct stage insertion only when you need access to the underlying stream topology.

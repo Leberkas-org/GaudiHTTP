@@ -51,17 +51,15 @@ For HTTP/2 hosts, the limit is effectively 1 (one multiplexed connection per hos
 
 ## Configuration
 
-Connection pool behaviour is controlled via `ConnectionPoolOptions` on `TurboClientOptions`:
+Connection pool behaviour is controlled via `ConnectionPolicy` on `TurboClientOptions`:
 
 ```csharp
 var options = new TurboClientOptions
 {
     BaseAddress = new Uri("https://api.example.com"),
-    ConnectionPool = new ConnectionPoolOptions
+    ConnectionPolicy = new ConnectionPolicy
     {
-        MaxConnectionsPerHost = 10,         // max simultaneous connections (default: 4)
-        IdleConnectionTimeout = TimeSpan.FromSeconds(90), // close idle connections after 90 s (default: 60 s)
-        MaxReconnectAttempts = 5,           // give up reconnecting after 5 failed tries (default: unlimited)
+        MaxConnectionsPerHost = 10,         // max simultaneous connections (default: 6)
     }
 };
 ```
@@ -69,37 +67,40 @@ var options = new TurboClientOptions
 With DI:
 
 ```csharp
-services.AddTurboHttpClientFactory();
+services.AddTurboHttpClient("my-api", opts =>
+{
+    opts = opts with
+    {
+        BaseAddress = new Uri("https://api.example.com"),
+    };
+});
 
 var client = factory.CreateClient(opts => opts with
 {
-    ConnectionPool = new ConnectionPoolOptions
+    ConnectionPolicy = new ConnectionPolicy
     {
         MaxConnectionsPerHost = 20,
-        IdleConnectionTimeout = TimeSpan.FromMinutes(2),
     }
 });
 ```
 
 ### Common Tuning Scenarios
 
-**High-throughput API client** — increase connections per host and extend the idle timeout so connections stay warm:
+**High-throughput API client** — increase connections per host:
 
 ```csharp
-ConnectionPool = new ConnectionPoolOptions
+ConnectionPolicy = new ConnectionPolicy
 {
     MaxConnectionsPerHost = 20,
-    IdleConnectionTimeout = TimeSpan.FromMinutes(5),
 }
 ```
 
-**Low-traffic background service** — reduce connections and shorten idle timeout to release sockets promptly:
+**Low-traffic background service** — reduce connections to release sockets promptly:
 
 ```csharp
-ConnectionPool = new ConnectionPoolOptions
+ConnectionPolicy = new ConnectionPolicy
 {
     MaxConnectionsPerHost = 2,
-    IdleConnectionTimeout = TimeSpan.FromSeconds(30),
 }
 ```
 
@@ -109,7 +110,7 @@ ConnectionPool = new ConnectionPoolOptions
 var options = new TurboClientOptions
 {
     DefaultRequestVersion = HttpVersion.Version20,
-    ConnectionPool = new ConnectionPoolOptions
+    ConnectionPolicy = new ConnectionPolicy
     {
         MaxConnectionsPerHost = 1,
     }

@@ -340,13 +340,14 @@ See [Connection Pooling guide](/guide/connection-pooling) for per-host pool deta
 
 ## Extension Points
 
-These types are part of the public API and can be replaced via `TurboClientOptions`:
+These types are part of the public API and can be customized via the builder extensions:
 
 | Type | Purpose | Guide |
 |---|---|---|
-| `CookieJar` | Cookie storage and injection — always active, one per client | [Cookies](/guide/cookies) |
-| `IHttpCacheStore` | Pluggable cache backend (default: in-memory LRU) | [Caching](/guide/caching) |
-| `IRetryEvaluator` | Custom retry eligibility logic | [Retries](/guide/retries) |
-| `IRedirectHandler` | Custom redirect chain handling | [Redirects](/guide/redirects) |
+| `CookieJar` | Cookie storage and injection — provided via `.WithCookies()` | [Cookies](/guide/cookies) |
+| `HttpCacheStore` | In-memory LRU cache backend — provided via `.WithCache()` | [Caching](/guide/caching) |
+| `RedirectHandler` | Built-in HTTP redirect handling — controlled via `.WithRedirect()` | [Redirects](/guide/redirects) |
+| `RetryEvaluator` | Built-in idempotent method retry — controlled via `.WithRetry()` | [Retries](/guide/retries) |
+| `TurboHandler` | Custom request/response middleware — registered via `.AddHandler<T>()` | [Advanced Usage](/guide/advanced) |
 
-See [Advanced Usage guide](/guide/advanced) for extension point examples.
+See the [Configuration guide](/guide/configuration) and [Advanced Usage guide](/guide/advanced) for integration patterns.

@@ -169,51 +169,28 @@ request.Headers.CacheControl = new CacheControlHeaderValue
 
 ## Custom Cache Store
 
-The default cache is an in-memory LRU store scoped to the client instance. To use a different backing store — for example, a distributed cache or a persistent store — implement `IHttpCacheStore`:
+The default cache is an in-memory LRU store (`HttpCacheStore`) scoped to the client instance. To use a different backing store — for example, a distributed cache or a persistent store — you can extend or replace it:
 
 ```csharp
-public sealed class RedisHttpCacheStore : IHttpCacheStore
+// Example: custom cache store extending HttpCacheStore for specialized backends
+public sealed class RedisHttpCacheStore : HttpCacheStore
 {
     private readonly IDatabase _db;
 
     public RedisHttpCacheStore(IDatabase db) => _db = db;
 
-    public ValueTask<CacheLookupResult> TryGetAsync(
-        HttpRequestMessage request,
-        CancellationToken ct)
-    {
-        // look up by cache key derived from method + URL + Vary headers
-        var key = BuildKey(request);
-        var entry = /* fetch from Redis */ ...;
-        return entry is null
-            ? new ValueTask<CacheLookupResult>(CacheLookupResult.Miss)
-            : new ValueTask<CacheLookupResult>(CacheLookupResult.Hit(entry));
-    }
-
-    public ValueTask StoreAsync(
-        HttpRequestMessage request,
-        CacheEntry entry,
-        CancellationToken ct)
-    {
-        var key = BuildKey(request);
-        // store in Redis with TTL from entry.FreshnessLifetime
-        return ValueTask.CompletedTask;
-    }
-
-    private static string BuildKey(HttpRequestMessage request) =>
-        $"{request.Method}:{request.RequestUri}";
+    // Override methods to persist to Redis
 }
 ```
 
-Register the custom store:
+Register the custom store via the builder:
 
 ```csharp
-builder.Services.AddTurboHttpClientFactory(options =>
+builder.Services.AddTurboHttpClient("my-api", options =>
 {
-    options = options with
-    {
-        CachePolicy = CachePolicy.Default,
-        CacheStore = new RedisHttpCacheStore(redisDb),
-    };
-});
+    options = options with { CachePolicy = CachePolicy.Default };
+})
+.WithCache(customCacheStore: new RedisHttpCacheStore(redisDb));
 ```
+
+See the [Configuration guide](./configuration) for more details on integrating custom stores.

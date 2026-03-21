@@ -12,19 +12,19 @@ Yes. Both can coexist in the same application. Use `IHttpClientFactory` for your
 
 ### Is TurboHttp thread-safe?
 
-Yes. `ITurboHttpClient` is fully thread-safe. Multiple threads can call `SendAsync` concurrently. The channel-based API (`RequestWriter` / `ResponseReader`) supports concurrent producers and consumers.
+Yes. `ITurboHttpClient` is fully thread-safe. Multiple threads can call `SendAsync` concurrently. The channel-based API (`Requests` / `Responses`) supports concurrent producers and consumers.
 
 ### How do I disable a feature?
 
 Set the corresponding policy to `null`:
 
 ```csharp
-var client = TurboHttpClientFactory.Create(options =>
+var client = new TurboHttpClient(new TurboClientOptions
 {
-    options.RetryPolicy = null;      // no retries
-    options.CachePolicy = null;      // no caching
-    options.RedirectPolicy = null;   // no redirect following
-});
+    RetryPolicy = null,      // no retries
+    CachePolicy = null,      // no caching
+    RedirectPolicy = null,   // no redirect following
+}, actorSystem);
 ```
 
 ### Does TurboHttp support HTTPS?
@@ -76,7 +76,10 @@ options.RedirectPolicy = RedirectPolicy.Default with { MaxRedirects = 20 };
 To debug, disable redirects and inspect the responses manually:
 
 ```csharp
-options.RedirectPolicy = null; // handle redirects yourself
+var client = factory.CreateClient(opts => opts with
+{
+    RedirectPolicy = null // handle redirects yourself
+});
 ```
 
 ### HTTPS to HTTP Downgrade Blocked
@@ -95,19 +98,17 @@ options.RedirectPolicy = RedirectPolicy.Default with { AllowHttpsToHttpDowngrade
 
 **By design.** POST is not idempotent — retrying it could create duplicate resources. Only idempotent methods (GET, HEAD, PUT, DELETE, OPTIONS, TRACE) are retried automatically.
 
-If you need to retry POST, implement a custom `IRetryEvaluator`:
+If you need to retry POST, configure a custom retry policy via the builder:
 
 ```csharp
-public sealed class RetryAllEvaluator : IRetryEvaluator
+builder.Services.AddTurboHttpClient("my-client", options =>
 {
-    public bool ShouldRetry(HttpRequestMessage request, HttpResponseMessage? response,
-        Exception? exception, int attempt)
-        => attempt < 3 && (exception is not null || (int)(response?.StatusCode ?? 0) >= 500);
-
-    public TimeSpan GetDelay(HttpResponseMessage? response, int attempt)
-        => TimeSpan.FromSeconds(Math.Pow(2, attempt));
-}
+    options.BaseAddress = new Uri("https://api.example.com");
+})
+.WithRetry(new RetryPolicy { MaxRetries = 3 });
 ```
+
+The built-in `RetryPolicy` handles idempotent method detection and backoff automatically.
 
 ### High Memory Usage
 
@@ -146,15 +147,12 @@ options.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower; // grace
 **Cause:** The outbound channel is full — the connection cannot send requests as fast as you produce them. This is **correct behaviour** (backpressure).
 
 **Fixes:**
-1. Increase channel capacity:
-   ```csharp
-   options.ChannelCapacity = 256; // default: 64
-   ```
-2. Use HTTP/2 for multiplexing (concurrent streams over one connection)
-3. Increase `MaxConnectionsPerHost` for HTTP/1.1:
+1. Use HTTP/2 for multiplexing (concurrent streams over one connection)
+2. Increase `MaxConnectionsPerHost` for HTTP/1.1:
    ```csharp
    options.ConnectionPolicy = ConnectionPolicy.Default with { MaxConnectionsPerHost = 16 };
    ```
+3. Ensure consumer task is actively reading responses to unblock the producer
 
 ### Stale Cache Responses
 

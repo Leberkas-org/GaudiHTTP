@@ -26,6 +26,7 @@ public static class CacheControlParser
         var noStore = false;
         var noTransform = false;
         var mustRevalidate = false;
+        var mustUnderstand = false;
         var proxyRevalidate = false;
         var isPublic = false;
         var isPrivate = false;
@@ -97,6 +98,10 @@ public static class CacheControlParser
             {
                 mustRevalidate = true;
             }
+            else if (name.Equals("must-understand", StringComparison.OrdinalIgnoreCase))
+            {
+                mustUnderstand = true;
+            }
             else if (name.Equals("proxy-revalidate", StringComparison.OrdinalIgnoreCase))
             {
                 proxyRevalidate = true;
@@ -149,6 +154,7 @@ public static class CacheControlParser
             OnlyIfCached = onlyIfCached,
             SMaxAge = sMaxAge,
             MustRevalidate = mustRevalidate,
+            MustUnderstand = mustUnderstand,
             ProxyRevalidate = proxyRevalidate,
             Public = isPublic,
             Private = isPrivate,

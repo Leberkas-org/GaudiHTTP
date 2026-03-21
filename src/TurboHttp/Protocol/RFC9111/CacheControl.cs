@@ -48,6 +48,9 @@ public sealed record CacheControl
     /// <summary>RFC 8246 — immutable directive (response only).</summary>
     public bool Immutable { get; init; }
 
+    /// <summary>RFC 9111 §5.2.2.3 — must-understand directive (response only).</summary>
+    public bool MustUnderstand { get; init; }
+
     /// <summary>
     /// RFC 9111 §5.2.2.3 — field names listed in no-cache="field1, field2".
     /// When non-null, only those fields must be revalidated; others may be served from cache.

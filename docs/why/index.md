@@ -105,8 +105,8 @@ For scenarios where you're dispatching hundreds of requests to the same host, Tu
 
 ```csharp
 // Produce requests at full speed; TurboHttp handles pacing
-var writer = client.RequestWriter;
-var reader = client.ResponseReader;
+var writer = client.Requests;
+var reader = client.Responses;
 
 await Parallel.ForEachAsync(requests, async (req, ct) =>
 {
