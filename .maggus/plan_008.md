@@ -113,11 +113,11 @@ overload (currently lines 76–95) are **kept unchanged**. Only the backward-com
 `TurboClientOptions` so that the class no longer contains deprecated API surface.
 
 **Acceptance Criteria:**
-- [ ] `RedirectPolicy? RedirectPolicy` (with its `[Obsolete]` attribute and XML doc comment) is deleted.
-- [ ] `RetryPolicy? RetryPolicy` (with its `[Obsolete]` attribute and XML doc comment) is deleted.
-- [ ] `CachePolicy? CachePolicy` (with its `[Obsolete]` attribute and XML doc comment) is deleted.
-- [ ] All other `TurboClientOptions` members are untouched.
-- [ ] `dotnet build` passes with no new errors.
+- [x] `RedirectPolicy? RedirectPolicy` (with its `[Obsolete]` attribute and XML doc comment) is deleted.
+- [x] `RetryPolicy? RetryPolicy` (with its `[Obsolete]` attribute and XML doc comment) is deleted.
+- [x] `CachePolicy? CachePolicy` (with its `[Obsolete]` attribute and XML doc comment) is deleted.
+- [x] All other `TurboClientOptions` members are untouched.
+- [x] `dotnet build` passes with no new errors.
 
 ---
 
