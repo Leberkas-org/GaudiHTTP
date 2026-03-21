@@ -182,11 +182,11 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a library user, I want `.AddMiddleware<T>()` and inline delegates `.UseRequest()`/`.UseResponse()` so that I can add custom middleware in different ways.
 
 **Acceptance Criteria:**
-- [ ] `.AddMiddleware<T>() where T : TurboMiddleware` — registers `T` as Transient in `builder.Services`, appends `typeof(T)` to `TurboClientDescriptor.MiddlewareTypes`
-- [ ] `.UseRequest(Func<HttpRequestMessage, CancellationToken, ValueTask<HttpRequestMessage>> transform)` — wraps delegate in an anonymous `TurboMiddleware` subclass, calls `.AddMiddleware<>()` internally
-- [ ] `.UseResponse(Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, ValueTask<HttpResponseMessage>> transform)` — same pattern
-- [ ] Registration order is preserved (FIFO in `MiddlewareTypes` list)
-- [ ] Typecheck/lint passes
+- [x] `.AddMiddleware<T>() where T : TurboMiddleware` — registers `T` as Transient in `builder.Services`, appends `typeof(T)` to `TurboClientDescriptor.MiddlewareTypes`
+- [x] `.UseRequest(Func<HttpRequestMessage, CancellationToken, ValueTask<HttpRequestMessage>> transform)` — wraps delegate in an anonymous `TurboMiddleware` subclass, calls `.AddMiddleware<>()` internally
+- [x] `.UseResponse(Func<HttpRequestMessage, HttpResponseMessage, CancellationToken, ValueTask<HttpResponseMessage>> transform)` — same pattern
+- [x] Registration order is preserved (FIFO in `MiddlewareTypes` list)
+- [x] Typecheck/lint passes
 
 ---
 
