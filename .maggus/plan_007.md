@@ -208,11 +208,11 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a library user, I want `services.AddTurboHttpClient<TClient>()` so that I can inject typed HTTP clients directly via constructor injection.
 
 **Acceptance Criteria:**
-- [ ] `AddTurboHttpClient<TClient>(this IServiceCollection services, Action<TurboClientOptions>? configure = null) where TClient : class` — name = `typeof(TClient).Name`
-- [ ] `AddTurboHttpClient<TClient, TImpl>(...) where TClient : class where TImpl : class, TClient` — separate implementation class variant
-- [ ] `TClient` registered as Transient: `services.AddTransient<TClient>(sp => (TClient)sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(typeof(TClient).Name))`
-- [ ] Both methods return `ITurboHttpClientBuilder`
-- [ ] Typecheck/lint passes
+- [x] `AddTurboHttpClient<TClient>(this IServiceCollection services, Action<TurboClientOptions>? configure = null) where TClient : class` — name = `typeof(TClient).Name`
+- [x] `AddTurboHttpClient<TClient, TImpl>(...) where TClient : class where TImpl : class, TClient` — separate implementation class variant
+- [x] `TClient` registered as Transient: `services.AddTransient<TClient>(sp => (TClient)sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(typeof(TClient).Name))`
+- [x] Both methods return `ITurboHttpClientBuilder`
+- [x] Typecheck/lint passes
 
 ---
 
