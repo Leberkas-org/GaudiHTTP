@@ -220,10 +220,10 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a developer, I want the old registration method to emit a deprecation warning so that users migrate to the new API without a breaking change.
 
 **Acceptance Criteria:**
-- [ ] `[Obsolete("Use AddTurboHttpClient(services, configure) instead. AddTurboHttpClientFactory will be removed in a future version.")]` on `AddTurboHttpClientFactory`
-- [ ] Method remains functional — no breaking change
-- [ ] Existing tests that use `AddTurboHttpClientFactory` compile with warning, not error
-- [ ] Typecheck/lint passes
+- [x] `[Obsolete("Use AddTurboHttpClient(services, configure) instead. AddTurboHttpClientFactory will be removed in a future version.")]` on `AddTurboHttpClientFactory`
+- [x] Method remains functional — no breaking change
+- [x] Existing tests that use `AddTurboHttpClientFactory` compile with warning, not error
+- [x] Typecheck/lint passes
 
 ---
 

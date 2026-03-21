@@ -16,7 +16,9 @@ public sealed class TurboClientServiceCollectionExtensionsTests
     {
         // Arrange
         var services = new ServiceCollection();
+#pragma warning disable CS0618 // AddTurboHttpClientFactory is intentionally tested for backwards-compat
         services.AddTurboHttpClientFactory(_ => { });
+#pragma warning restore CS0618
 
         // Act
         await using var provider = services.BuildServiceProvider();
@@ -43,7 +45,9 @@ public sealed class TurboClientServiceCollectionExtensionsTests
         {
             var services = new ServiceCollection();
             services.AddSingleton(existingSystem);
+#pragma warning disable CS0618 // AddTurboHttpClientFactory is intentionally tested for backwards-compat
             services.AddTurboHttpClientFactory(_ => { });
+#pragma warning restore CS0618
 
             // Act
             await using var provider = services.BuildServiceProvider();

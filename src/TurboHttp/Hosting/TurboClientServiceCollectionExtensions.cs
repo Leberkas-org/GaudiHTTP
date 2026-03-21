@@ -22,6 +22,7 @@ public static class TurboClientServiceCollectionExtensions
     /// <param name="services">The service collection to add to.</param>
     /// <param name="configure">Delegate to configure <see cref="TurboClientOptions"/>.</param>
     /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
+    [Obsolete("Use AddTurboHttpClient(services, configure) instead. AddTurboHttpClientFactory will be removed in a future version.")]
     public static IServiceCollection AddTurboHttpClientFactory(this IServiceCollection services,
         Action<TurboClientOptions> configure)
     {

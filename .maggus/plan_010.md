@@ -2,50 +2,49 @@
 
 ## Introduction
 
-Das TurboHttp-Projekt ist auf 98 Produktionsdateien in 18 Namespaces gewachsen.
-Einige Namespace-Namen sind irreführend (`Middleware`, `Lifecycle`), andere zu dünn
-(`IO.Stages` mit 1 Datei, `Hosting` mit 1 Datei), und `Streams.Stages` ist mit
-22 Dateien völlig flach. Ziel ist eine saubere, konsistente Namespace-Hierarchie,
-die dem tatsächlichen Zweck der Komponenten entspricht — ohne die öffentliche
-`TurboHttp.Client.*`-API zu verändern.
+The TurboHttp project has grown to 98 production files across 18 namespaces.
+Some namespace names are misleading (`Middleware`, `Lifecycle`), others are too thin
+(`IO.Stages` with 1 file, `Hosting` with 1 file), and `Streams.Stages` is completely
+flat with 22 files. The goal is a clean, consistent namespace hierarchy that reflects
+the actual purpose of each component — without changing the public `TurboHttp.Client.*` API.
 
-**Entscheidungen:**
-- `TurboHttp.Client.*` bleibt unberührt (breaking change ausgeschlossen)
+**Decisions:**
+- `TurboHttp.Client.*` remains untouched (breaking changes excluded)
 - `TurboHttp.IO` → `TurboHttp.Transport`, `TurboHttp.Lifecycle` → `TurboHttp.Pooling`
-- `TurboHttp.Middleware` + `TurboHttp.Hosting` → Root-Namespace `TurboHttp` (BCL-Stil)
-- `TurboHttp.Streams.Stages` wird nach Funktion aufgeteilt: `Encoding`, `Decoding`, `Routing`, `Features`
-- `TurboHttp.Internal.Stages` wird in `TurboHttp.Streams.Stages.Routing` aufgelöst
+- `TurboHttp.Middleware` + `TurboHttp.Hosting` → root namespace `TurboHttp` (BCL-style)
+- `TurboHttp.Streams.Stages` split by function: `Encoding`, `Decoding`, `Routing`, `Features`
+- `TurboHttp.Internal.Stages` dissolved into `TurboHttp.Streams.Stages.Routing`
 
 ---
 
-## Zielstruktur (Vorher → Nachher)
+## Target Structure (Before → After)
 
 ```
-VORHER                              NACHHER
+BEFORE                              AFTER
 ──────────────────────────────────────────────────────────────────
-TurboHttp.Client.*                  TurboHttp.Client.*          (unverändert)
+TurboHttp.Client.*                  TurboHttp.Client.*          (unchanged)
 TurboHttp.Hosting                   TurboHttp                   (root namespace)
 TurboHttp.Middleware                TurboHttp                   (root namespace)
 TurboHttp.IO                        TurboHttp.Transport
-TurboHttp.IO.Stages                 TurboHttp.Transport         (absorbiert)
+TurboHttp.IO.Stages                 TurboHttp.Transport         (absorbed)
 TurboHttp.Lifecycle                 TurboHttp.Pooling
-TurboHttp.Internal                  TurboHttp.Internal          (unverändert)
-TurboHttp.Internal.Stages           TurboHttp.Streams.Stages.Routing (absorbiert)
-TurboHttp.Protocol.*                TurboHttp.Protocol.*        (unverändert)
-TurboHttp.Streams                   TurboHttp.Streams           (unverändert)
-TurboHttp.Streams.Stages            aufgeteilt (s.u.)
-  ├── Encoder-Stages                TurboHttp.Streams.Stages.Encoding
-  ├── Decoder-Stages                TurboHttp.Streams.Stages.Decoding
-  ├── Routing-Stages                TurboHttp.Streams.Stages.Routing
-  └── Feature-Stages                TurboHttp.Streams.Stages.Features
+TurboHttp.Internal                  TurboHttp.Internal          (unchanged)
+TurboHttp.Internal.Stages           TurboHttp.Streams.Stages.Routing (absorbed)
+TurboHttp.Protocol.*                TurboHttp.Protocol.*        (unchanged)
+TurboHttp.Streams                   TurboHttp.Streams           (unchanged)
+TurboHttp.Streams.Stages            split (see below)
+  ├── Encoder stages                TurboHttp.Streams.Stages.Encoding
+  ├── Decoder stages                TurboHttp.Streams.Stages.Decoding
+  ├── Routing stages                TurboHttp.Streams.Stages.Routing
+  └── Feature stages                TurboHttp.Streams.Stages.Features
 ```
 
 ---
 
-## Zuweisung: Streams.Stages Dateien
+## File Assignment: Streams.Stages
 
-| Datei | Neuer Sub-Namespace |
-|-------|---------------------|
+| File | New Sub-Namespace |
+|------|-------------------|
 | Http10EncoderStage.cs | Encoding |
 | Http11EncoderStage.cs | Encoding |
 | Http20EncoderStage.cs | Encoding |
@@ -60,10 +59,10 @@ TurboHttp.Streams.Stages            aufgeteilt (s.u.)
 | Http20CorrelationStage.cs | Routing |
 | StreamIdAllocatorStage.cs | Routing |
 | RequestEnricherStage.cs | Routing |
-| GroupByHostKeyStage.cs | Routing (von Internal.Stages) |
-| HostKeyGroupByExtensions.cs | Routing (von Internal.Stages) |
-| HostKeyMergeBack.cs | Routing (von Internal.Stages) |
-| MergeSubstreamsStage.cs | Routing (von Internal.Stages) |
+| GroupByHostKeyStage.cs | Routing (from Internal.Stages) |
+| HostKeyGroupByExtensions.cs | Routing (from Internal.Stages) |
+| HostKeyMergeBack.cs | Routing (from Internal.Stages) |
+| MergeSubstreamsStage.cs | Routing (from Internal.Stages) |
 | CacheLookupStage.cs | Features |
 | CacheStorageStage.cs | Features |
 | ConnectionReuseStage.cs | Features |
@@ -75,30 +74,30 @@ TurboHttp.Streams.Stages            aufgeteilt (s.u.)
 | MiddlewareResponseStage.cs | Features |
 | RedirectStage.cs | Features |
 | RetryStage.cs | Features |
-| TurboAttributes.cs | Streams.Stages (Root, bleibt) |
+| TurboAttributes.cs | Streams.Stages (root, stays) |
 
 ---
 
 ## Goals
 
-- Alle irreführenden Namespace-Namen beseitigen (`Middleware`, `Lifecycle`, `IO.Stages`)
-- `Streams.Stages` in 4 kohärente Funktions-Namespaces aufteilen (Encoding/Decoding/Routing/Features)
-- `TurboHttp.Client.*` bleibt vollständig unverändert — keine Breaking Changes für Nutzer der Public API
-- Alle Test-Projekte aktualisieren (`TurboHttp.Tests`, `TurboHttp.StreamTests`, `TurboHttp.IntegrationTests`)
-- Build nach jeder Aufgabe: 0 Errors, alle Tests grün
+- Eliminate all misleading namespace names (`Middleware`, `Lifecycle`, `IO.Stages`)
+- Split `Streams.Stages` into 4 cohesive functional namespaces (Encoding/Decoding/Routing/Features)
+- Keep `TurboHttp.Client.*` fully unchanged — no breaking changes for public API consumers
+- Update all test projects (`TurboHttp.Tests`, `TurboHttp.StreamTests`, `TurboHttp.IntegrationTests`)
+- Build after every task: 0 errors, all tests green
 
 ---
 
 ## User Stories
 
-### TASK-001: IO → Transport (Ordner umbenennen + IO.Stages absorbieren)
+### TASK-001: IO → Transport (rename folder + absorb IO.Stages)
 
-**Description:** Als Entwickler möchte ich, dass das `TurboHttp.IO`-Namespace in
-`TurboHttp.Transport` umbenannt wird, damit der Name den Zweck (TCP-Transport,
-Byte-Moving) klar kommuniziert. `IO.Stages/ConnectionStage.cs` wird in `Transport`
-absorbiert (kein separater Sub-Namespace für 1 Datei).
+**Description:** As a developer, I want the `TurboHttp.IO` namespace renamed to
+`TurboHttp.Transport` so that the name clearly communicates its purpose (TCP transport,
+byte-moving). `IO.Stages/ConnectionStage.cs` is absorbed into `Transport` (no separate
+sub-namespace for a single file).
 
-**Betroffene Dateien (Production):**
+**Affected files (production):**
 ```
 IO/ClientByteMover.cs          → namespace TurboHttp.Transport
 IO/ClientManager.cs            → namespace TurboHttp.Transport
@@ -106,25 +105,24 @@ IO/ClientRunner.cs             → namespace TurboHttp.Transport
 IO/ClientState.cs              → namespace TurboHttp.Transport
 IO/IClientProvider.cs          → namespace TurboHttp.Transport
 IO/TcpOptionsFactory.cs        → namespace TurboHttp.Transport
-IO/Stages/ConnectionStage.cs   → namespace TurboHttp.Transport (Datei in Transport/ verschieben)
+IO/Stages/ConnectionStage.cs   → namespace TurboHttp.Transport (move file into Transport/)
 ```
 
 **Acceptance Criteria:**
-- [ ] Ordner `TurboHttp/IO/Stages/` wird geleert und gelöscht
-- [ ] Alle 7 Dateien deklarieren `namespace TurboHttp.Transport`
-- [ ] Alle `using TurboHttp.IO;` und `using TurboHttp.IO.Stages;` im gesamten Solution ersetzt
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 Errors
-- [ ] `dotnet test src/TurboHttp.sln` → alle Tests bestehen
+- [ ] Folder `TurboHttp/IO/Stages/` emptied and deleted
+- [ ] All 7 files declare `namespace TurboHttp.Transport`
+- [ ] All `using TurboHttp.IO;` and `using TurboHttp.IO.Stages;` replaced across the solution
+- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
 
 ---
 
-### TASK-002: Lifecycle → Pooling (Ordner umbenennen)
+### TASK-002: Lifecycle → Pooling (rename folder)
 
-**Description:** Als Entwickler möchte ich, dass das `TurboHttp.Lifecycle`-Namespace
-in `TurboHttp.Pooling` umbenannt wird, damit klar ist, dass es sich um
-Connection-Pool-Management per Actor-Hierarchie handelt.
+**Description:** As a developer, I want the `TurboHttp.Lifecycle` namespace renamed
+to `TurboHttp.Pooling` to make it clear this is actor-based connection pool management.
 
-**Betroffene Dateien (Production):**
+**Affected files (production):**
 ```
 Lifecycle/ConnectionActor.cs   → namespace TurboHttp.Pooling
 Lifecycle/ConnectionHandle.cs  → namespace TurboHttp.Pooling
@@ -134,49 +132,49 @@ Lifecycle/PoolRouter.cs        → namespace TurboHttp.Pooling
 ```
 
 **Acceptance Criteria:**
-- [ ] Ordner `TurboHttp/Lifecycle/` umbenannt zu `TurboHttp/Pooling/`
-- [ ] Alle 5 Dateien deklarieren `namespace TurboHttp.Pooling`
-- [ ] Alle `using TurboHttp.Lifecycle;` im gesamten Solution ersetzt
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 Errors
-- [ ] `dotnet test src/TurboHttp.sln` → alle Tests bestehen
+- [ ] Folder `TurboHttp/Lifecycle/` renamed to `TurboHttp/Pooling/`
+- [ ] All 5 files declare `namespace TurboHttp.Pooling`
+- [ ] All `using TurboHttp.Lifecycle;` replaced across the solution
+- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
 
 ---
 
-### TASK-003: Middleware + Hosting → TurboHttp (Root Namespace)
+### TASK-003: Middleware + Hosting → TurboHttp (root namespace)
 
-**Description:** Als Nutzer der Bibliothek möchte ich Builder und DI-Extensions
-direkt unter `TurboHttp` nutzen (wie `HttpClient` in `System.Net.Http`), ohne
-tiefe Sub-Namespace-Imports.
+**Description:** As a library consumer, I want to use builder and DI extensions
+directly under `TurboHttp` (like `HttpClient` in `System.Net.Http`), without
+importing deep sub-namespaces.
 
-**Betroffene Dateien (Production):**
+**Affected files (production):**
 ```
-Middleware/ITurboHttpClientBuilder.cs       → namespace TurboHttp
-Middleware/TurboClientDescriptor.cs         → namespace TurboHttp
-Middleware/TurboHttpClientBuilder.cs        → namespace TurboHttp
+Middleware/ITurboHttpClientBuilder.cs          → namespace TurboHttp
+Middleware/TurboClientDescriptor.cs            → namespace TurboHttp
+Middleware/TurboHttpClientBuilder.cs           → namespace TurboHttp
 Middleware/TurboHttpClientBuilderExtensions.cs → namespace TurboHttp
-Middleware/TurboMiddleware.cs               → namespace TurboHttp
+Middleware/TurboMiddleware.cs                  → namespace TurboHttp
 Hosting/TurboClientServiceCollectionExtensions.cs → namespace TurboHttp
 ```
 
-**Hinweis zu Ordnerstruktur:** Dateien bleiben physisch in ihren Unterordnern
-(`Middleware/`, `Hosting/`) zur Übersichtlichkeit — nur die `namespace`-Deklaration
-ändert sich auf `TurboHttp`.
+**Note on folder structure:** Files remain physically in their subfolders
+(`Middleware/`, `Hosting/`) for organization — only the `namespace` declaration
+changes to `TurboHttp`.
 
 **Acceptance Criteria:**
-- [ ] Alle 6 Dateien deklarieren `namespace TurboHttp`
-- [ ] Alle `using TurboHttp.Middleware;` und `using TurboHttp.Hosting;` im gesamten Solution ersetzt (inkl. Test-Projekte)
-- [ ] `TurboHttp.Client.*`-Namespaces bleiben vollständig unverändert
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 Errors
-- [ ] `dotnet test src/TurboHttp.sln` → alle Tests bestehen
+- [ ] All 6 files declare `namespace TurboHttp`
+- [ ] All `using TurboHttp.Middleware;` and `using TurboHttp.Hosting;` replaced across the solution (including test projects)
+- [ ] `TurboHttp.Client.*` namespaces remain fully unchanged
+- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
 
 ---
 
-### TASK-004: Streams.Stages.Encoding — Encoder-Stages auslagern
+### TASK-004: Streams.Stages.Encoding — extract encoder stages
 
-**Description:** Als Entwickler möchte ich alle Encoding-Stages (Request→Bytes)
-in einem eigenen Sub-Namespace `TurboHttp.Streams.Stages.Encoding` bündeln.
+**Description:** As a developer, I want all encoding stages (Request→Bytes) grouped
+in their own sub-namespace `TurboHttp.Streams.Stages.Encoding`.
 
-**Betroffene Dateien:**
+**Affected files:**
 ```
 Streams/Stages/Http10EncoderStage.cs   → Streams/Stages/Encoding/
 Streams/Stages/Http11EncoderStage.cs   → Streams/Stages/Encoding/
@@ -184,84 +182,84 @@ Streams/Stages/Http20EncoderStage.cs   → Streams/Stages/Encoding/
 Streams/Stages/PrependPrefaceStage.cs  → Streams/Stages/Encoding/
 Streams/Stages/Request2FrameStage.cs   → Streams/Stages/Encoding/
 ```
-Neuer Namespace: `TurboHttp.Streams.Stages.Encoding`
+New namespace: `TurboHttp.Streams.Stages.Encoding`
 
 **Acceptance Criteria:**
-- [ ] Ordner `TurboHttp/Streams/Stages/Encoding/` erstellt mit den 5 Dateien
-- [ ] Alle 5 Dateien deklarieren `namespace TurboHttp.Streams.Stages.Encoding`
-- [ ] Alle Engines (`Http10Engine`, `Http11Engine`, `Http20Engine`) aktualisiert
-- [ ] Alle referenzierenden Test-Dateien aktualisiert
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 Errors
-- [ ] `dotnet test src/TurboHttp.sln` → alle Tests bestehen
+- [ ] Folder `TurboHttp/Streams/Stages/Encoding/` created with the 5 files
+- [ ] All 5 files declare `namespace TurboHttp.Streams.Stages.Encoding`
+- [ ] All engines (`Http10Engine`, `Http11Engine`, `Http20Engine`) updated
+- [ ] All referencing test files updated
+- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
 
 ---
 
-### TASK-005: Streams.Stages.Decoding — Decoder-Stages auslagern
+### TASK-005: Streams.Stages.Decoding — extract decoder stages
 
-**Description:** Als Entwickler möchte ich alle Decoding-Stages (Bytes→Response)
-in `TurboHttp.Streams.Stages.Decoding` bündeln.
+**Description:** As a developer, I want all decoding stages (Bytes→Response) grouped
+in `TurboHttp.Streams.Stages.Decoding`.
 
-**Betroffene Dateien:**
+**Affected files:**
 ```
 Streams/Stages/Http10DecoderStage.cs   → Streams/Stages/Decoding/
 Streams/Stages/Http11DecoderStage.cs   → Streams/Stages/Decoding/
 Streams/Stages/Http20DecoderStage.cs   → Streams/Stages/Decoding/
 Streams/Stages/Http20StreamStage.cs    → Streams/Stages/Decoding/
 ```
-Neuer Namespace: `TurboHttp.Streams.Stages.Decoding`
+New namespace: `TurboHttp.Streams.Stages.Decoding`
 
 **Acceptance Criteria:**
-- [ ] Ordner `TurboHttp/Streams/Stages/Decoding/` erstellt mit den 4 Dateien
-- [ ] Alle 4 Dateien deklarieren `namespace TurboHttp.Streams.Stages.Decoding`
-- [ ] Alle Engines und referenzierenden Streams-Dateien aktualisiert
-- [ ] Alle referenzierenden Test-Dateien aktualisiert
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 Errors
-- [ ] `dotnet test src/TurboHttp.sln` → alle Tests bestehen
+- [ ] Folder `TurboHttp/Streams/Stages/Decoding/` created with the 4 files
+- [ ] All 4 files declare `namespace TurboHttp.Streams.Stages.Decoding`
+- [ ] All engines and referencing streams files updated
+- [ ] All referencing test files updated
+- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
 
 ---
 
-### TASK-006: Streams.Stages.Routing — Routing-Stages + Internal.Stages absorbieren
+### TASK-006: Streams.Stages.Routing — routing stages + absorb Internal.Stages
 
-**Description:** Als Entwickler möchte ich alle Flow-Control- und Correlation-Stages
-(inkl. bisher in `Internal.Stages` versteckter Host-Routing-Stages) in
-`TurboHttp.Streams.Stages.Routing` vereinen.
+**Description:** As a developer, I want all flow-control and correlation stages
+(including the host-routing stages previously hidden in `Internal.Stages`) unified
+in `TurboHttp.Streams.Stages.Routing`.
 
-**Betroffene Dateien:**
+**Affected files:**
 ```
-Aus Streams/Stages/:
+From Streams/Stages/:
   ExtractOptionsStage.cs          → Streams/Stages/Routing/
   Http1XCorrelationStage.cs       → Streams/Stages/Routing/
   Http20CorrelationStage.cs       → Streams/Stages/Routing/
   StreamIdAllocatorStage.cs       → Streams/Stages/Routing/
   RequestEnricherStage.cs         → Streams/Stages/Routing/
 
-Aus Internal/Stages/ (Namespace-Migration!):
+From Internal/Stages/ (namespace migration!):
   GroupByHostKeyStage.cs          → Streams/Stages/Routing/
   HostKeyGroupByExtensions.cs     → Streams/Stages/Routing/
   HostKeyMergeBack.cs             → Streams/Stages/Routing/
   MergeSubstreamsStage.cs         → Streams/Stages/Routing/
 ```
-Neuer Namespace: `TurboHttp.Streams.Stages.Routing`
+New namespace: `TurboHttp.Streams.Stages.Routing`
 
 **Acceptance Criteria:**
-- [ ] Ordner `TurboHttp/Streams/Stages/Routing/` erstellt mit allen 9 Dateien
-- [ ] Alle 9 Dateien deklarieren `namespace TurboHttp.Streams.Stages.Routing`
-- [ ] `TurboHttp/Internal/Stages/` Ordner leer und gelöscht
-- [ ] Alle `using TurboHttp.Internal.Stages;` im gesamten Solution ersetzt
-- [ ] Alle Engines, `Engine.cs`, und referenzierende Dateien aktualisiert
-- [ ] Alle referenzierenden Test-Dateien aktualisiert
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 Errors
-- [ ] `dotnet test src/TurboHttp.sln` → alle Tests bestehen
+- [ ] Folder `TurboHttp/Streams/Stages/Routing/` created with all 9 files
+- [ ] All 9 files declare `namespace TurboHttp.Streams.Stages.Routing`
+- [ ] `TurboHttp/Internal/Stages/` folder emptied and deleted
+- [ ] All `using TurboHttp.Internal.Stages;` replaced across the solution
+- [ ] All engines, `Engine.cs`, and referencing files updated
+- [ ] All referencing test files updated
+- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
 
 ---
 
-### TASK-007: Streams.Stages.Features — Feature-Stages auslagern
+### TASK-007: Streams.Stages.Features — extract feature stages
 
-**Description:** Als Entwickler möchte ich alle höherwertigen HTTP-Semantik-Stages
-(Cache, Cookies, Decompression, Redirect, Retry, Middleware-Pipeline, HTTP/2 Connection)
-in `TurboHttp.Streams.Stages.Features` bündeln.
+**Description:** As a developer, I want all higher-level HTTP semantics stages
+(cache, cookies, decompression, redirect, retry, middleware pipeline, HTTP/2 connection)
+grouped in `TurboHttp.Streams.Stages.Features`.
 
-**Betroffene Dateien:**
+**Affected files:**
 ```
 Streams/Stages/CacheLookupStage.cs        → Streams/Stages/Features/
 Streams/Stages/CacheStorageStage.cs       → Streams/Stages/Features/
@@ -275,79 +273,79 @@ Streams/Stages/MiddlewareResponseStage.cs → Streams/Stages/Features/
 Streams/Stages/RedirectStage.cs           → Streams/Stages/Features/
 Streams/Stages/RetryStage.cs              → Streams/Stages/Features/
 ```
-Neuer Namespace: `TurboHttp.Streams.Stages.Features`
+New namespace: `TurboHttp.Streams.Stages.Features`
 
 **Acceptance Criteria:**
-- [ ] Ordner `TurboHttp/Streams/Stages/Features/` erstellt mit allen 11 Dateien
-- [ ] Alle 11 Dateien deklarieren `namespace TurboHttp.Streams.Stages.Features`
-- [ ] Alle Engines und referenzierende Streams-Dateien aktualisiert
-- [ ] Alle referenzierenden Test-Dateien aktualisiert
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 Errors
-- [ ] `dotnet test src/TurboHttp.sln` → alle Tests bestehen
+- [ ] Folder `TurboHttp/Streams/Stages/Features/` created with all 11 files
+- [ ] All 11 files declare `namespace TurboHttp.Streams.Stages.Features`
+- [ ] All engines and referencing streams files updated
+- [ ] All referencing test files updated
+- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
 
 ---
 
 ### TASK-008: Cleanup & Final Validation
 
-**Description:** Als Entwickler möchte ich sicherstellen, dass nach allen Umbenennungen
-keine alten Namespace-Referenzen mehr existieren, leere Ordner gelöscht sind
-und Build + alle Tests sauber durchlaufen.
+**Description:** As a developer, I want to verify that after all renames no old
+namespace references remain, empty folders are deleted, and the full build and
+test suite runs clean.
 
 **Acceptance Criteria:**
-- [ ] Keine `using TurboHttp.IO;`, `using TurboHttp.IO.Stages;` mehr im Solution
-- [ ] Keine `using TurboHttp.Lifecycle;` mehr im Solution
-- [ ] Keine `using TurboHttp.Middleware;` und `using TurboHttp.Hosting;` mehr im Solution
-- [ ] Keine `using TurboHttp.Internal.Stages;` mehr im Solution
-- [ ] Keine `using TurboHttp.Streams.Stages;` (unqualifiziert) für Dateien, die jetzt in Sub-Namespaces sind
-- [ ] Leere Ordner `IO/Stages/`, `Internal/Stages/` gelöscht
-- [ ] `Streams/Stages/` Root enthält nur noch `TurboAttributes.cs`
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 Errors, 0 Warnings (Namespace-bezogen)
-- [ ] `dotnet test src/TurboHttp.sln` → alle Tests bestehen
-- [ ] Grep über Solution nach alten Namespace-Strings → kein Treffer
+- [ ] No `using TurboHttp.IO;` or `using TurboHttp.IO.Stages;` anywhere in the solution
+- [ ] No `using TurboHttp.Lifecycle;` anywhere in the solution
+- [ ] No `using TurboHttp.Middleware;` or `using TurboHttp.Hosting;` anywhere in the solution
+- [ ] No `using TurboHttp.Internal.Stages;` anywhere in the solution
+- [ ] No unqualified `using TurboHttp.Streams.Stages;` for files now in sub-namespaces
+- [ ] Empty folders `IO/Stages/` and `Internal/Stages/` deleted
+- [ ] `Streams/Stages/` root contains only `TurboAttributes.cs`
+- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors, 0 namespace-related warnings
+- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
+- [ ] Grep across solution for old namespace strings → no matches
 
 ---
 
 ## Functional Requirements
 
-- FR-1: `TurboHttp.Client.*` (7 Dateien, öffentliche API) darf nicht verändert werden — kein einziger using, kein Namespace
-- FR-2: Jede Aufgabe (TASK-001 bis TASK-008) muss unabhängig build- und testbar sein
-- FR-3: Namespace-Deklaration muss exakt dem Ordnerpfad entsprechen (Konvention)
-- FR-4: Keine Compatibility Shims, keine `[Obsolete]`-Weiterleitungen — sauberer Cut
-- FR-5: Alle drei Test-Projekte (`TurboHttp.Tests`, `TurboHttp.StreamTests`, `TurboHttp.IntegrationTests`) müssen nach jeder Aufgabe grün sein
-- FR-6: `TurboAttributes.cs` bleibt in `TurboHttp.Streams.Stages` (Root), nicht in einem Sub-Namespace
+- FR-1: `TurboHttp.Client.*` (7 files, public API) must not be touched — no using changes, no namespace changes
+- FR-2: Each task (TASK-001 through TASK-008) must be independently buildable and testable
+- FR-3: Namespace declarations must exactly match the folder path (convention)
+- FR-4: No compatibility shims, no `[Obsolete]` forwarding — clean cut
+- FR-5: All three test projects (`TurboHttp.Tests`, `TurboHttp.StreamTests`, `TurboHttp.IntegrationTests`) must be green after every task
+- FR-6: `TurboAttributes.cs` stays in `TurboHttp.Streams.Stages` (root), not in a sub-namespace
 
 ---
 
 ## Non-Goals
 
-- Keine Umbenennung von Klassen oder Interfaces (nur Namespaces)
-- Keine Änderungen an `TurboHttp.Protocol.*` (RFC-Struktur bleibt unverändert)
-- Keine Änderungen an `TurboHttp.Streams` (Engine-Ebene, nicht Stages)
-- Kein Zusammenführen von Protokoll-Stages mit Protocol-Layer
-- Keine neuen Features oder Bugfixes im Rahmen dieser Aufgabe
+- No renaming of classes or interfaces (namespaces only)
+- No changes to `TurboHttp.Protocol.*` (RFC folder structure stays unchanged)
+- No changes to `TurboHttp.Streams` (engine level, not stages)
+- No merging of protocol stages with the Protocol layer
+- No new features or bug fixes within this task
 
 ---
 
 ## Technical Considerations
 
-- **Reihenfolge ist wichtig**: TASK-001 und TASK-002 zuerst (isoliert, geringes Risiko), dann TASK-003, dann TASK-004 bis TASK-007 (können parallel bearbeitet werden, aber je eines bauen+testen), zuletzt TASK-008
-- **Test-Projekte**: `TurboHttp.StreamTests` hat die meisten Stage-Referenzen — dort ist der größte using-Update-Aufwand
-- **Engine-Dateien**: `Http10Engine.cs`, `Http11Engine.cs`, `Http20Engine.cs`, `Engine.cs` importieren viele Stages und müssen bei TASK-004 bis TASK-007 aktualisiert werden
-- **`HostKeyGroupByExtensions.cs`**: Extension-Methoden-Datei — prüfen ob sie internal ist; wenn ja, kein Breaking Change durch Namespace-Wechsel
-- **Keine globalen using-Direktiven**: Projekt verwendet kein `GlobalUsings.cs` für diese Namespaces — einzelne Dateien manuell aktualisieren
+- **Order matters**: TASK-001 and TASK-002 first (isolated, low risk), then TASK-003, then TASK-004 through TASK-007 (can be worked on in parallel but build+test each one), finally TASK-008
+- **Test projects**: `TurboHttp.StreamTests` has the most stage references — largest using-update effort
+- **Engine files**: `Http10Engine.cs`, `Http11Engine.cs`, `Http20Engine.cs`, `Engine.cs` import many stages and must be updated during TASK-004 through TASK-007
+- **`HostKeyGroupByExtensions.cs`**: extension methods file — verify if it is `internal`; if so, the namespace change is not a breaking change for consumers
+- **No global using directives**: the project does not use `GlobalUsings.cs` for these namespaces — update individual files manually
 
 ---
 
 ## Success Metrics
 
-- 18 Namespaces → 14 Namespaces (4 eliminiert: `IO`, `IO.Stages`, `Lifecycle`, `Internal.Stages`)
-- `Streams.Stages` von 22 flachen Dateien auf max. 1 (`TurboAttributes.cs`) reduziert
-- `Middleware` und `Hosting` verschwinden als sichtbare Namespaces für Bibliotheksnutzer
-- Grep nach `TurboHttp.IO`, `TurboHttp.Lifecycle`, `TurboHttp.Middleware`, `TurboHttp.Hosting`, `TurboHttp.Internal.Stages` → 0 Treffer nach TASK-008
+- 18 namespaces → 14 namespaces (4 eliminated: `IO`, `IO.Stages`, `Lifecycle`, `Internal.Stages`)
+- `Streams.Stages` reduced from 22 flat files to at most 1 (`TurboAttributes.cs`)
+- `Middleware` and `Hosting` no longer visible as namespaces to library consumers
+- Grep for `TurboHttp.IO`, `TurboHttp.Lifecycle`, `TurboHttp.Middleware`, `TurboHttp.Hosting`, `TurboHttp.Internal.Stages` → 0 matches after TASK-008
 
 ---
 
 ## Open Questions
 
-- Soll `TurboHttp.Internal` langfristig auch aufgelöst werden? `Messages.cs` und `RequestEndpoint.cs` könnten in Root oder `Pooling` — ist nicht Teil dieses Plans, aber ein logischer nächster Schritt.
-- Soll `Middleware/` Ordner nach TASK-003 in `Builder/` umbenannt werden, um die physische Struktur klarer zu machen? (Low-Priority, optionale Schönheitskorrektur)
+- Should `TurboHttp.Internal` be dissolved long-term? `Messages.cs` and `RequestEndpoint.cs` could move to root or `Pooling` — not in scope here but a logical next step.
+- Should the `Middleware/` folder be renamed to `Builder/` after TASK-003 to clarify the physical structure? (Low priority, optional cosmetic improvement.)
