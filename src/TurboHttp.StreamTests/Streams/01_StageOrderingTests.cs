@@ -3,7 +3,6 @@ using System.Net;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using Akka.Streams.TestKit;
 using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Protocol.RFC6265;
@@ -15,12 +14,13 @@ using TurboHttp.Streams.Stages;
 namespace TurboHttp.StreamTests.Streams;
 
 /// <summary>
-/// Tests that the engine stage ordering preserves RFC-compliant request and response semantics.
-/// Verifies that cookie injection, cache lookup, retry, redirect, and decompression stages execute in the correct sequence.
+/// Tests that the BidiFlow Atop composition preserves RFC-compliant request and response semantics.
+/// Verifies that cookie injection, cache lookup, retry, redirect, and decompression BidiStages
+/// execute in the correct sequence when composed via <c>BidiFlow.Atop()</c>.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="Engine"/>.
-/// Validates the execution order of all middleware stages within the engine pipeline.
+/// Stage under test: BidiFlow composition (Redirect → Cookie → Retry → Cache → Decompression → Engine).
+/// Validates execution order of all feature BidiStages within the engine pipeline.
 /// </remarks>
 public sealed class StageOrderingTests : EngineTestBase
 {
@@ -89,21 +89,6 @@ public sealed class StageOrderingTests : EngineTestBase
         return output.ToArray();
     }
 
-    private static HttpResponseMessage MakeGzipResponse(string url, byte[] plainBody)
-    {
-        var compressed = GzipCompress(plainBody);
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            RequestMessage = new HttpRequestMessage(HttpMethod.Get, url),
-            Content = new ByteArrayContent(compressed)
-        };
-        response.Content.Headers.TryAddWithoutValidation("Content-Encoding", "gzip");
-        response.Content.Headers.ContentLength = compressed.Length;
-        response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=3600");
-        response.Headers.Date = DateTimeOffset.UtcNow;
-        return response;
-    }
-
     private static Flow<IOutputItem, IInputItem, NotUsed> Http11Flow(Func<byte[]> responseFactory)
         => Flow.FromGraph(new EngineFakeConnectionStage(responseFactory));
 
@@ -122,114 +107,117 @@ public sealed class StageOrderingTests : EngineTestBase
     {
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
+            .Concat(Source.Never<HttpRequestMessage>())
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(r => tcs.TrySetResult(r)), Materializer);
         return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
+    // ============================
+    // BidiFlow composition ordering tests (SORD-001 through SORD-010)
+    // ============================
+
     [Fact(Timeout = 10_000,
-        DisplayName = "SORD-001: INV-2 CookieInjection before CacheLookup — request has cookies when reaching cache")]
-    public async Task Should_HaveCookieHeaderWhenReachingCacheLookup_When_CookieInjectionRunsBeforeCacheLookup()
+        DisplayName = "SORD-001: INV-2 CookieBidi before CacheBidi — request has cookies when reaching engine")]
+    public async Task Should_HaveCookieHeaderWhenReachingEngine_When_CookieBidiIsOuterToCacheBidi()
     {
-        // Setup: cookie jar has a cookie for example.com, cache is empty.
-        // If CookieInjection runs before CacheLookup, the miss request will have the Cookie header.
+        // CookieBidi.Atop(CacheBidi): request path is Cookie → Cache → Engine.
+        // The echo engine returns the request as RequestMessage, proving cookies were injected first.
         var jar = JarWithCookie("session", "abc123", "example.com");
         var store = new HttpCacheStore();
 
-        var probeMiss = this.CreateManualSubscriberProbe<HttpRequestMessage>();
-        var probeHit = this.CreateManualSubscriberProbe<HttpResponseMessage>();
+        var bidi = BidiFlow.FromGraph(new CookieBidiStage(jar))
+            .Atop(BidiFlow.FromGraph(new CacheBidiStage(store, null)));
 
+        var echo = Flow.Create<HttpRequestMessage>()
+            .Select(req => new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = req });
+
+        var flow = bidi.Join(echo);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page");
+        var response = await RunSingleAsync(flow, request);
 
-        RunnableGraph.FromGraph(GraphDsl.Create(b =>
-        {
-            var cookieInject = b.Add(new CookieInjectionStage(jar));
-            var cacheLookup = b.Add(new CacheLookupStage(store, null));
-            var src = b.Add(Source.Single(request).Concat(Source.Never<HttpRequestMessage>()));
-
-            b.From(src).To(cookieInject.Inlet);
-            b.From(cookieInject.Outlet).To(cacheLookup.In);
-            b.From(cacheLookup.Out0).To(Sink.FromSubscriber(probeMiss));
-            b.From(cacheLookup.Out1).To(Sink.FromSubscriber(probeHit));
-
-            return ClosedShape.Instance;
-        })).Run(Materializer);
-
-        var subMiss = await probeMiss.ExpectSubscriptionAsync();
-        var subHit = await probeHit.ExpectSubscriptionAsync();
-        subMiss.Request(1);
-        subHit.Request(1);
-
-        // Cache miss (empty store), but the request should have the Cookie header from injection
-        var missRequest = await probeMiss.ExpectNextAsync(CancellationToken.None);
-        Assert.True(missRequest.Headers.Contains("Cookie"),
-            "CookieInjection must run before CacheLookup: Cookie header should be present on miss request");
-        var cookieValue = string.Join("; ", missRequest.Headers.GetValues("Cookie"));
+        Assert.True(response.RequestMessage!.Headers.Contains("Cookie"),
+            "CookieBidi must run before CacheBidi: Cookie header should be present on the request reaching the engine");
+        var cookieValue = string.Join("; ", response.RequestMessage.Headers.GetValues("Cookie"));
         Assert.Contains("session=abc123", cookieValue);
     }
 
-    [Fact(Timeout = 10_000,
+    [Fact(Timeout = 15_000,
         DisplayName = "SORD-002: INV-7 Redirected request gets fresh cookies for new domain")]
-    public async Task Should_InjectFreshCookies_When_RedirectRequestEntersPipelineBeforeCookieInjection()
+    public async Task Should_InjectFreshCookies_When_RedirectBidiIsOuterToCookieBidi()
     {
-        // Simulate: a redirect request to new-domain.com passes through CookieInjection.
-        // Cookies for new-domain.com should be injected (proving the redirect enters before CookieInjection).
+        // RedirectBidi.Atop(CookieBidi): redirect request flows through CookieBidi on the way to the engine.
+        // RedirectBidi is outermost → redirect request enters CookieBidi → cookies injected for new domain.
         var jar = JarWithCookie("auth", "token456", "new-domain.com");
-        var stage = new CookieInjectionStage(jar);
+        var callCount = 0;
 
-        // The redirect request targets new-domain.com
-        var redirectRequest = new HttpRequestMessage(HttpMethod.Get, "http://new-domain.com/target");
+        var bidi = BidiFlow.FromGraph(new RedirectBidiStage(new RedirectPolicy()))
+            .Atop(BidiFlow.FromGraph(new CookieBidiStage(jar)));
 
-        var results = await Source.Single(redirectRequest)
-            .Via(Flow.FromGraph(stage))
-            .RunWith(Sink.Seq<HttpRequestMessage>(), Materializer);
+        var engine = Flow.Create<HttpRequestMessage>()
+            .Select(req =>
+            {
+                if (Interlocked.Increment(ref callCount) == 1)
+                {
+                    var resp = new HttpResponseMessage(HttpStatusCode.MovedPermanently) { RequestMessage = req };
+                    resp.Headers.TryAddWithoutValidation("Location", "http://new-domain.com/target");
+                    return resp;
+                }
 
-        var result = Assert.Single(results);
-        Assert.True(result.Headers.Contains("Cookie"),
-            "Redirect feedback enters before CookieInjection: fresh cookies must be injected for new domain");
-        var cookieValue = string.Join("; ", result.Headers.GetValues("Cookie"));
+                return new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = req };
+            });
+
+        var flow = bidi.Join(engine);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/old");
+        var response = await RunSingleAsync(flow, request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, callCount);
+        Assert.True(response.RequestMessage!.Headers.Contains("Cookie"),
+            "Redirect enters before CookieBidi: fresh cookies must be injected for new domain");
+        var cookieValue = string.Join("; ", response.RequestMessage.Headers.GetValues("Cookie"));
         Assert.Contains("auth=token456", cookieValue);
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "SORD-003: INV-8 Retried request preserves original cookies (retry merge after CookieInjection)")]
-    public async Task Should_PreserveOriginalCookies_When_RetryFeedbackIsAfterCookieInjection()
+        DisplayName = "SORD-003: INV-8 Retried request preserves original cookies (retry is inner to cookie)")]
+    public async Task Should_PreserveOriginalCookies_When_RetryBidiIsInnerToCookieBidi()
     {
-        // RetryStage emits the original request on Out1. Since retry merge is AFTER CookieInjection,
-        // the retried request already has cookies from the first pass. Verify RetryStage preserves them.
-        var originalRequest = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");
-        originalRequest.Headers.TryAddWithoutValidation("Cookie", "session=abc123");
+        // CookieBidi.Atop(RetryBidi): retry feedback stays inside RetryBidi, bypassing CookieBidi.
+        // Cookies injected on first pass are preserved because RetryBidi reuses the original request.
+        var jar = JarWithCookie("session", "abc123", "example.com");
+        var callCount = 0;
+        HttpRequestMessage? retriedRequest = null;
 
-        var response = new HttpResponseMessage(HttpStatusCode.RequestTimeout)
-        {
-            RequestMessage = originalRequest
-        };
+        var bidi = BidiFlow.FromGraph(new CookieBidiStage(jar))
+            .Atop(BidiFlow.FromGraph(new RetryBidiStage(new RetryPolicy())));
 
-        var probeFinal = this.CreateManualSubscriberProbe<HttpResponseMessage>();
-        var probeRetry = this.CreateManualSubscriberProbe<HttpRequestMessage>();
+        var engine = Flow.Create<HttpRequestMessage>()
+            .Select(req =>
+            {
+                var count = Interlocked.Increment(ref callCount);
+                if (count == 2)
+                {
+                    retriedRequest = req;
+                }
 
-        RunnableGraph.FromGraph(GraphDsl.Create(b =>
-        {
-            var retry = b.Add(new RetryStage(new RetryPolicy()));
-            var src = b.Add(Source.Single(response).Concat(Source.Never<HttpResponseMessage>()));
+                if (count == 1)
+                {
+                    return new HttpResponseMessage(HttpStatusCode.RequestTimeout) { RequestMessage = req };
+                }
 
-            b.From(src).To(retry.In);
-            b.From(retry.Out0).To(Sink.FromSubscriber(probeFinal));
-            b.From(retry.Out1).To(Sink.FromSubscriber(probeRetry));
+                return new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = req };
+            });
 
-            return ClosedShape.Instance;
-        })).Run(Materializer);
+        var flow = bidi.Join(engine);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");
+        var response = await RunSingleAsync(flow, request);
 
-        var subFinal = await probeFinal.ExpectSubscriptionAsync();
-        var subRetry = await probeRetry.ExpectSubscriptionAsync();
-        subFinal.Request(1);
-        subRetry.Request(1);
-
-        // Retry emits on Out1; the original Cookie header must be preserved
-        var retryRequest = await probeRetry.ExpectNextAsync(CancellationToken.None);
-        Assert.True(retryRequest.Headers.Contains("Cookie"),
-            "Retry feedback preserves original cookies since retry merge is after CookieInjection");
-        var cookieValue = string.Join("; ", retryRequest.Headers.GetValues("Cookie"));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, callCount);
+        Assert.True(retriedRequest!.Headers.Contains("Cookie"),
+            "Retry feedback is inner to CookieBidi: cookies are preserved from the first pass");
+        var cookieValue = string.Join("; ", retriedRequest.Headers.GetValues("Cookie"));
         Assert.Contains("session=abc123", cookieValue);
     }
 
@@ -267,248 +255,197 @@ public sealed class StageOrderingTests : EngineTestBase
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "SORD-005: INV-3 CookieStorage before CacheStorage — cookies stored before response cached")]
-    public async Task Should_StoreCookiesBeforeCachingResponse_When_CookieStorageRunsBeforeCacheStorage()
+        DisplayName = "SORD-005: INV-3 CookieBidi and CacheBidi both store on response path")]
+    public async Task Should_StoreCookiesAndCacheResponse_When_CookieBidiAndCacheBidiComposed()
     {
-        // Wire: CookieStorage → CacheStorage. Send response with Set-Cookie + Cache-Control.
-        // After pipeline completes: jar has cookie AND cache has response.
+        // CookieBidi.Atop(CacheBidi): response path is Engine → CacheBidi(store) → CookieBidi(store Set-Cookie).
+        // Both storage operations happen; order is reversed from old architecture but functionally equivalent.
         var jar = new CookieJar();
         var store = new HttpCacheStore();
 
-        var response = MakeCacheableResponse(
-            "http://example.com/page",
-            cacheControl: "max-age=3600",
-            body: "hello"u8.ToArray(),
-            setCookie: "token=xyz; Domain=example.com; Path=/");
+        var bidi = BidiFlow.FromGraph(new CookieBidiStage(jar))
+            .Atop(BidiFlow.FromGraph(new CacheBidiStage(store, null)));
 
-        var results = await Source.Single(response)
-            .Via(new CookieStorageStage(jar))
-            .Via(new CacheStorageStage(store))
-            .RunWith(Sink.Seq<HttpResponseMessage>(), Materializer);
+        var engine = Flow.Create<HttpRequestMessage>()
+            .Select(req =>
+            {
+                var resp = MakeCacheableResponse(
+                    "http://example.com/page",
+                    cacheControl: "max-age=3600",
+                    body: "hello"u8.ToArray(),
+                    setCookie: "token=xyz; Domain=example.com; Path=/");
+                resp.RequestMessage = req;
+                return resp;
+            });
 
-        Assert.Single(results);
+        var flow = bidi.Join(engine);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page");
+        await RunSingleAsync(flow, request);
 
-        // Verify cookie was stored (CookieStorage ran)
+        // Verify cookie was stored (CookieBidi response direction)
         var nextRequest = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page");
         jar.AddCookiesToRequest(new Uri("http://example.com/page"), ref nextRequest);
-        Assert.True(nextRequest.Headers.Contains("Cookie"), "CookieStorage must store Set-Cookie before CacheStorage");
+        Assert.True(nextRequest.Headers.Contains("Cookie"), "CookieBidi must store Set-Cookie from response");
 
-        // Verify response was cached (CacheStorage ran after CookieStorage)
+        // Verify response was cached (CacheBidi response direction)
         var cacheResult = store.Get(new HttpRequestMessage(HttpMethod.Get, "http://example.com/page"));
         Assert.NotNull(cacheResult);
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "SORD-006: INV-4 CacheStorage before RetryStage — 200 cached and passed through as final")]
-    public async Task Should_CacheResponseBeforeRetryEvaluation_When_CacheStorageRunsBeforeRetryStage()
+        DisplayName = "SORD-006: INV-4 CacheBidi stores before RetryBidi evaluates — 200 cached and passed through")]
+    public async Task Should_CacheResponseBeforeRetryEvaluation_When_CacheBidiIsInnerToRetryBidi()
     {
-        // Wire: CacheStorage → RetryStage. Send cacheable 200 OK.
-        // Verify: response cached AND passed through on Out0 (not retried).
+        // RetryBidi.Atop(CacheBidi): response path is Engine → CacheBidi(store) → RetryBidi(evaluate: 200=pass).
         var store = new HttpCacheStore();
 
-        var response = MakeCacheableResponse(
-            "http://example.com/data",
-            cacheControl: "max-age=3600",
-            body: "data"u8.ToArray());
+        var bidi = BidiFlow.FromGraph(new RetryBidiStage(new RetryPolicy()))
+            .Atop(BidiFlow.FromGraph(new CacheBidiStage(store, null)));
 
-        var probeFinal = this.CreateManualSubscriberProbe<HttpResponseMessage>();
-        var probeRetry = this.CreateManualSubscriberProbe<HttpRequestMessage>();
+        var engine = Flow.Create<HttpRequestMessage>()
+            .Select(req =>
+            {
+                var resp = MakeCacheableResponse("http://example.com/data", body: "data"u8.ToArray());
+                resp.RequestMessage = req;
+                return resp;
+            });
 
-        RunnableGraph.FromGraph(GraphDsl.Create(b =>
-        {
-            var cache = b.Add(Flow.FromGraph(new CacheStorageStage(store)));
-            var retry = b.Add(new RetryStage());
-            var src = b.Add(Source.Single(response).Concat(Source.Never<HttpResponseMessage>()));
+        var flow = bidi.Join(engine);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/data");
+        var response = await RunSingleAsync(flow, request);
 
-            b.From(src).Via(cache).To(retry.In);
-            b.From(retry.Out0).To(Sink.FromSubscriber(probeFinal));
-            b.From(retry.Out1).To(Sink.FromSubscriber(probeRetry));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-            return ClosedShape.Instance;
-        })).Run(Materializer);
-
-        var subFinal = await probeFinal.ExpectSubscriptionAsync();
-        var subRetry = await probeRetry.ExpectSubscriptionAsync();
-        subFinal.Request(1);
-        subRetry.Request(1);
-
-        // 200 OK is not retryable → passes to Out0
-        var finalResponse = await probeFinal.ExpectNextAsync(CancellationToken.None);
-        Assert.Equal(HttpStatusCode.OK, finalResponse.StatusCode);
-        await probeRetry.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
-
-        // Verify response was cached (CacheStorage ran before RetryStage)
+        // Verify response was cached (CacheBidi processes first on response path)
         var cacheResult = store.Get(new HttpRequestMessage(HttpMethod.Get, "http://example.com/data"));
         Assert.NotNull(cacheResult);
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "SORD-007: INV-5 RetryStage before RedirectStage — 200 passes through both as final")]
-    public async Task Should_PassThrough200Ok_When_RetryStageRunsBeforeRedirectStage()
+        DisplayName = "SORD-007: INV-5 RetryBidi before RedirectBidi — 200 passes through both as final")]
+    public async Task Should_PassThrough200Ok_When_RetryBidiAndRedirectBidiComposed()
     {
-        // Wire: RetryStage → Merge → RedirectStage.
-        // Send 200 OK. Verify: passes through both stages to RedirectStage.Out0.
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            RequestMessage = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource")
-        };
+        // RedirectBidi.Atop(RetryBidi): response path is Engine → RetryBidi(200=pass) → RedirectBidi(200=pass).
+        var bidi = BidiFlow.FromGraph(new RedirectBidiStage(new RedirectPolicy()))
+            .Atop(BidiFlow.FromGraph(new RetryBidiStage(new RetryPolicy())));
 
-        var probeFinal = this.CreateManualSubscriberProbe<HttpResponseMessage>();
-        var probeRedirect = this.CreateManualSubscriberProbe<HttpRequestMessage>();
+        var echo = Flow.Create<HttpRequestMessage>()
+            .Select(req => new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = req });
 
-        RunnableGraph.FromGraph(GraphDsl.Create(b =>
-        {
-            var retry = b.Add(new RetryStage());
-            var merge = b.Add(new Merge<HttpResponseMessage>(2));
-            var redirect = b.Add(new RedirectStage());
-            var src = b.Add(Source.Single(response).Concat(Source.Never<HttpResponseMessage>()));
-            var empty = b.Add(Source.Never<HttpResponseMessage>());
+        var flow = bidi.Join(echo);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");
+        var response = await RunSingleAsync(flow, request);
 
-            // Source → Retry → Merge(0) → Redirect
-            b.From(src).To(retry.In);
-            b.From(retry.Out0).To(merge.In(0));
-            b.From(empty).To(merge.In(1)); // cache-hit path (empty for this test)
-            b.From(merge.Out).To(redirect.In);
-            b.From(redirect.Out0).To(Sink.FromSubscriber(probeFinal));
-            b.From(redirect.Out1).To(Sink.FromSubscriber(probeRedirect));
-            // Retry Out1 (retry feedback) — drain to avoid deadlock
-            b.From(retry.Out1).To(Sink.Ignore<HttpRequestMessage>().MapMaterializedValue(_ => NotUsed.Instance));
-
-            return ClosedShape.Instance;
-        })).Run(Materializer);
-
-        var subFinal = await probeFinal.ExpectSubscriptionAsync();
-        var subRedirect = await probeRedirect.ExpectSubscriptionAsync();
-        subFinal.Request(1);
-        subRedirect.Request(1);
-
-        // 200 is neither retryable nor a redirect → final output
-        var finalResponse = await probeFinal.ExpectNextAsync(CancellationToken.None);
-        Assert.Equal(HttpStatusCode.OK, finalResponse.StatusCode);
-        await probeRedirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "SORD-008: INV-10 Cache hits bypass RetryStage — merge after retry, before redirect")]
-    public async Task Should_BypassRetryStage_When_ResponseIsCacheHit()
+        DisplayName = "SORD-008: INV-10 Cache hit bypasses engine — CacheBidi short-circuits internally")]
+    public async Task Should_BypassEngine_When_CacheHitOccurs()
     {
-        // Wire: RetryStage → Merge(0) + CacheHitSource → Merge(1) → RedirectStage.
-        // Send a cache hit (200) on Merge(1). It should bypass retry and reach RedirectStage.Out0.
-        var cachedResponse = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            RequestMessage = new HttpRequestMessage(HttpMethod.Get, "http://example.com/cached")
-        };
+        // RetryBidi.Atop(CacheBidi): cache hit produces response on CacheBidi.Out2 → RetryBidi.In2 → Out2.
+        // Engine is never called because CacheBidi does not push request on Out1.
+        var store = StoreWithFreshEntry("http://example.com/cached");
+        var engineCallCount = 0;
 
-        var probeFinal = this.CreateManualSubscriberProbe<HttpResponseMessage>();
-        var probeRedirect = this.CreateManualSubscriberProbe<HttpRequestMessage>();
+        var bidi = BidiFlow.FromGraph(new RetryBidiStage(new RetryPolicy()))
+            .Atop(BidiFlow.FromGraph(new CacheBidiStage(store, null)));
 
-        RunnableGraph.FromGraph(GraphDsl.Create(b =>
-        {
-            var retry = b.Add(new RetryStage());
-            var merge = b.Add(new Merge<HttpResponseMessage>(2));
-            var redirect = b.Add(new RedirectStage());
-            var retrySource = b.Add(Source.Never<HttpResponseMessage>()); // no responses to retry path
-            var cacheHitSource = b.Add(Source.Single(cachedResponse)
-                .Concat(Source.Never<HttpResponseMessage>()));
+        var engine = Flow.Create<HttpRequestMessage>()
+            .Select(req =>
+            {
+                Interlocked.Increment(ref engineCallCount);
+                return new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = req };
+            });
 
-            // Retry gets nothing; cache hit goes to Merge(1)
-            b.From(retrySource).To(retry.In);
-            b.From(retry.Out0).To(merge.In(0));
-            b.From(cacheHitSource).To(merge.In(1)); // cache-hit path
-            b.From(merge.Out).To(redirect.In);
-            b.From(redirect.Out0).To(Sink.FromSubscriber(probeFinal));
-            b.From(redirect.Out1).To(Sink.FromSubscriber(probeRedirect));
-            b.From(retry.Out1).To(Sink.Ignore<HttpRequestMessage>().MapMaterializedValue(_ => NotUsed.Instance));
+        var flow = bidi.Join(engine);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/cached");
+        var response = await RunSingleAsync(flow, request);
 
-            return ClosedShape.Instance;
-        })).Run(Materializer);
-
-        var subFinal = await probeFinal.ExpectSubscriptionAsync();
-        var subRedirect = await probeRedirect.ExpectSubscriptionAsync();
-        subFinal.Request(1);
-        subRedirect.Request(1);
-
-        // Cache hit should reach final output, having bypassed RetryStage entirely
-        var finalResponse = await probeFinal.ExpectNextAsync(CancellationToken.None);
-        Assert.Same(cachedResponse, finalResponse);
-        await probeRedirect.ExpectNoMsgAsync(TimeSpan.FromMilliseconds(100));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(0, engineCallCount);
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "SORD-009: INV-1 ConnectionReuse signals before post-processing — response flows through both")]
-    public async Task Should_SignalConnectionReuseBeforePostProcessing_When_ResponseFlowsThrough()
+        DisplayName = "SORD-009: INV-1 Engine (incl. ConnectionReuse) processes before BidiFlow response chain")]
+    public async Task Should_StoreResponseInJarAndCache_When_EngineProcessesBeforeBidiFlowChain()
     {
-        // Compose: ConnectionReuseStage → CookieStorageStage → CacheStorageStage.
-        // This mirrors the cross-island boundary: engine island emits response (with reuse signal),
-        // then the response enters post-processing. Both signals and response must be produced.
+        // Engine-level test: ConnectionReuseStage is inside the engine; CookieBidi/CacheBidi are outside.
+        // The response flows: Engine(ConnectionReuse) → BidiFlow(CacheBidi → CookieBidi) → Client.
         var jar = new CookieJar();
         var store = new HttpCacheStore();
 
-        var response = MakeCacheableResponse(
-            "http://example.com/resource",
-            body: "body"u8.ToArray(),
-            setCookie: "k=v; Domain=example.com; Path=/");
-        response.Version = HttpVersion.Version11;
-        response.RequestMessage!.Version = HttpVersion.Version11;
+        byte[] ResponseWithCookieAndCache() =>
+            "HTTP/1.1 200 OK\r\nSet-Cookie: k=v; Domain=example.com; Path=/\r\nCache-Control: max-age=3600\r\nDate: Thu, 21 Mar 2026 10:00:00 GMT\r\nContent-Length: 4\r\n\r\nbody"u8
+                .ToArray();
 
-        var probeResponse = this.CreateManualSubscriberProbe<HttpResponseMessage>();
-        var probeSignal = this.CreateManualSubscriberProbe<IOutputItem>();
+        var descriptor = new PipelineDescriptor(
+            RedirectPolicy: null,
+            RetryPolicy: null,
+            CookieJar: jar,
+            CacheStore: store,
+            CachePolicy: null,
+            Middlewares: []);
 
-        RunnableGraph.FromGraph(GraphDsl.Create(b =>
+        var engine = new Engine();
+        var flow = engine.CreateFlow(
+            () => Http10Flow(ResponseWithCookieAndCache),
+            () => Http11Flow(ResponseWithCookieAndCache),
+            NoOpH2Flow,
+            NoOpH2Flow,
+            descriptor);
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource")
         {
-            var reuse = b.Add(new ConnectionReuseStage());
-            var cookieStore = b.Add(Flow.FromGraph(new CookieStorageStage(jar)));
-            var cacheStore = b.Add(Flow.FromGraph(new CacheStorageStage(store)));
-            var src = b.Add(Source.Single(response).Concat(Source.Never<HttpResponseMessage>()));
+            Version = HttpVersion.Version11
+        };
 
-            // ConnectionReuse.Out0 → CookieStorage → CacheStorage → Sink
-            b.From(src).To(reuse.In);
-            b.From(reuse.Out0).Via(cookieStore).Via(cacheStore).To(Sink.FromSubscriber(probeResponse));
-            b.From(reuse.Out1).To(Sink.FromSubscriber(probeSignal));
+        var response = await RunSingleAsync(flow, request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-            return ClosedShape.Instance;
-        })).Run(Materializer);
-
-        var subResp = probeResponse.ExpectSubscription();
-        var subSig = probeSignal.ExpectSubscription();
-        subResp.Request(1);
-        subSig.Request(1);
-
-        // ConnectionReuseItem is signalled (engine island)
-        var signal = await probeSignal.ExpectNextAsync(CancellationToken.None);
-        Assert.IsType<ConnectionReuseItem>(signal);
-
-        // Response flows through post-processing stages
-        var result = await probeResponse.ExpectNextAsync(CancellationToken.None);
-        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
-
-        // Verify both cookie and cache storage happened (post-processing completed)
+        // Verify both post-processing stages ran (after engine including ConnectionReuse)
         var nextReq = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");
         jar.AddCookiesToRequest(new Uri("http://example.com/resource"), ref nextReq);
         Assert.True(nextReq.Headers.Contains("Cookie"));
+
+        var cacheResult = store.Get(new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource"));
+        Assert.NotNull(cacheResult);
     }
 
     [Fact(Timeout = 10_000,
-        DisplayName = "SORD-010: INV-6 Decompression before CacheStorage — cached body is decompressed")]
-    public async Task Should_CacheDecompressedBody_When_DecompressionRunsBeforeCacheStorage()
+        DisplayName = "SORD-010: INV-6 DecompressionBidi before CacheBidi — cached body is decompressed")]
+    public async Task Should_CacheDecompressedBody_When_DecompressionBidiIsInnerToCacheBidi()
     {
-        // Wire: DecompressionStage → CacheStorageStage.
-        // Send gzip-compressed response with Cache-Control.
-        // Verify: cached body is the decompressed plaintext.
+        // CacheBidi.Atop(DecompressionBidi): response path is Engine → Decomp(decompress) → Cache(store).
+        // Cached body is the decompressed version.
         var store = new HttpCacheStore();
         var plainBody = "Hello, decompressed world!"u8.ToArray();
 
-        var response = MakeGzipResponse("http://example.com/compressed", plainBody);
+        var bidi = BidiFlow.FromGraph(new CacheBidiStage(store, null))
+            .Atop(BidiFlow.FromGraph(new DecompressionBidiStage()));
 
-        var results = await Source.Single(response)
-            .Via(new DecompressionStage())
-            .Via(new CacheStorageStage(store))
-            .RunWith(Sink.Seq<HttpResponseMessage>(), Materializer);
+        var engine = Flow.Create<HttpRequestMessage>()
+            .Select(req =>
+            {
+                var compressed = GzipCompress(plainBody);
+                var resp = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    RequestMessage = req,
+                    Content = new ByteArrayContent(compressed)
+                };
+                resp.Content.Headers.TryAddWithoutValidation("Content-Encoding", "gzip");
+                resp.Content.Headers.ContentLength = compressed.Length;
+                resp.Headers.TryAddWithoutValidation("Cache-Control", "max-age=3600");
+                resp.Headers.Date = DateTimeOffset.UtcNow;
+                return resp;
+            });
 
-        Assert.Single(results);
+        var flow = bidi.Join(engine);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/compressed");
+        var response = await RunSingleAsync(flow, request);
 
         // Verify the output response body is decompressed
-        var outputBody = await results[0].Content.ReadAsByteArrayAsync();
+        var outputBody = await response.Content.ReadAsByteArrayAsync();
         Assert.Equal(plainBody, outputBody);
 
         // Verify the cached entry stores the decompressed body
@@ -518,14 +455,17 @@ public sealed class StageOrderingTests : EngineTestBase
         Assert.Equal(plainBody, cacheResult.Body);
     }
 
+    // ============================
+    // Engine integration tests (SORD-011 through SORD-015)
+    // ============================
+
     [Fact(Timeout = 10_000,
         DisplayName = "SORD-011: INTG-1 Full pipeline: cookie injection occurs before cache lookup")]
     public async Task Should_CompleteRequest_When_FullPipelineWithCookieInjectionBeforeCacheLookup()
     {
         // Full engine pipeline: send a GET request to a domain with cookies in jar.
         // The response should arrive successfully, proving the pipeline wired correctly
-        // with CookieInjection before CacheLookup (empty cache → miss → engine → response).
-        // Explicitly activates only CookieJar — no redirect/retry/cache needed for this assertion.
+        // with CookieBidi handling injection before CacheBidi handles lookup.
         var descriptor = new PipelineDescriptor(
             RedirectPolicy: null,
             RetryPolicy: null,
@@ -554,10 +494,8 @@ public sealed class StageOrderingTests : EngineTestBase
         DisplayName = "SORD-012: INTG-2 Full pipeline: response reaches post-processing after engine island")]
     public async Task Should_ReachPostProcessing_When_FullPipelineResponseFromEngineIsland()
     {
-        // Verify that the full pipeline successfully processes a response through
-        // all three islands: pre-processing → engine → post-processing.
-        // ConnectionReuse (engine island) processes before CookieStorage/CacheStorage (post-processing).
-        // No features needed — empty descriptor proves the bare pipeline wires correctly.
+        // Verify that the full pipeline successfully processes a response through the engine
+        // and BidiFlow chain. No features needed — empty descriptor proves the bare pipeline wires correctly.
         var engine = new Engine();
         var flow = engine.CreateFlow(
             () => Http10Flow(Ok11Response),
@@ -573,7 +511,7 @@ public sealed class StageOrderingTests : EngineTestBase
 
         var response = await RunSingleAsync(flow, request);
 
-        // Response successfully traversed all three islands
+        // Response successfully traversed engine and BidiFlow chain
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
@@ -581,9 +519,8 @@ public sealed class StageOrderingTests : EngineTestBase
         DisplayName = "SORD-013: INTG-3 Full pipeline: gzip response decompressed before reaching client")]
     public async Task Should_DeliverDecompressedBodyToClient_When_FullPipelineWithGzipResponse()
     {
-        // Full engine pipeline with gzip response: DecompressionStage (engine island)
-        // decompresses before the response enters post-processing.
-        // Decompression is always-on (not feature-gated) — empty descriptor is correct.
+        // Full engine pipeline with gzip response: DecompressionBidiStage decompresses
+        // before the response enters the outer BidiFlow layers.
         const string originalText = "Decompressed by engine island!";
         var compressedBody = GzipCompress(System.Text.Encoding.UTF8.GetBytes(originalText));
         var header = $"HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: {compressedBody.Length}\r\n\r\n";
@@ -611,7 +548,7 @@ public sealed class StageOrderingTests : EngineTestBase
         var body = await response.Content.ReadAsStringAsync();
         Assert.Equal(originalText, body);
         Assert.False(response.Content.Headers.ContentEncoding.Contains("gzip"),
-            "Content-Encoding: gzip should be removed after decompression (before post-processing)");
+            "Content-Encoding: gzip should be removed after decompression");
     }
 
     [Fact(Timeout = 15_000,
@@ -619,8 +556,7 @@ public sealed class StageOrderingTests : EngineTestBase
     public async Task Should_ProduceNewRequestAfterRedirect_When_FullPipelineWith301Response()
     {
         // First request → 301 redirect, second request (from redirect) → 200 OK.
-        // This proves the redirect feedback loop works: redirect → redirectMerge → CookieInjection → pipeline.
-        // Explicitly activates RedirectPolicy — only this feature is required for this test.
+        // This proves the redirect internal feedback loop works through the BidiFlow chain.
         var callCount = 0;
 
         byte[] ResponseFactory()
@@ -663,10 +599,8 @@ public sealed class StageOrderingTests : EngineTestBase
         DisplayName = "SORD-015: INTG-5 Full pipeline: non-retryable response passes through entire pipeline")]
     public async Task Should_PassThroughFullPostProcessingChain_When_ResponseIsNonRetryable()
     {
-        // A 200 OK response is not retryable (not 408/503) and not a redirect (not 3xx).
-        // It should pass through RetryStage → Merge → RedirectStage to the final output.
-        // This verifies the full post-processing chain: CookieStorage → CacheStorage → Retry → Merge → Redirect.
-        // No features needed — empty descriptor proves a 200 OK traverses all stages unmodified.
+        // A 200 OK response is not retryable and not a redirect.
+        // It passes through all BidiStages in the response direction to the final output.
         var engine = new Engine();
         var flow = engine.CreateFlow(
             () => Http10Flow(Ok11Response),
@@ -683,7 +617,5 @@ public sealed class StageOrderingTests : EngineTestBase
         var response = await RunSingleAsync(flow, request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        // Response successfully traversed the full post-processing chain
-        // (CookieStorage → CacheStorage → Retry.Out0 → Merge → Redirect.Out0 → client)
     }
 }

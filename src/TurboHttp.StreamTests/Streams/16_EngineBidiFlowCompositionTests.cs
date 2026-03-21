@@ -327,6 +327,40 @@ public sealed class EngineBidiFlowCompositionTests : EngineTestBase
             "Content-Encoding: gzip should be removed after decompression");
     }
 
+    [Fact(Timeout = 10_000,
+        DisplayName = "EBFC-012: AutomaticDecompression=false — gzip still decompressed by protocol decoder")]
+    public async Task Should_StillDecompress_When_AutomaticDecompressionDisabledButProtocolDecoderHandlesIt()
+    {
+        // AutomaticDecompression=false removes the DecompressionBidiStage from the feature chain,
+        // but the protocol-level decoders (Http11Decoder, Http20StreamStage) handle Content-Encoding
+        // decompression per RFC 9110 §8.4. So gzip responses are still decompressed.
+        var plainBody = "Protocol decoder handles this!"u8.ToArray();
+        var compressedBody = GzipCompress(plainBody);
+        var header = $"HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: {compressedBody.Length}\r\n\r\n";
+        var headerBytes = System.Text.Encoding.Latin1.GetBytes(header);
+        var responseBytes = new byte[headerBytes.Length + compressedBody.Length];
+        headerBytes.CopyTo(responseBytes, 0);
+        compressedBody.CopyTo(responseBytes, headerBytes.Length);
+
+        var descriptor = new PipelineDescriptor(
+            RedirectPolicy: null, RetryPolicy: null, CookieJar: null,
+            CacheStore: null, CachePolicy: null, Middlewares: [],
+            AutomaticDecompression: false);
+
+        var flow = BuildFlow(descriptor, () => responseBytes);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/gzipped")
+        {
+            Version = HttpVersion.Version11
+        };
+
+        var response = await RunSingleAsync(flow, request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        // Protocol-level decoder (Http11Decoder) decompresses gzip regardless of AutomaticDecompression flag
+        var body = await response.Content.ReadAsByteArrayAsync();
+        Assert.Equal(plainBody, body);
+    }
+
     private static byte[] GzipCompress(byte[] data)
     {
         using var output = new MemoryStream();

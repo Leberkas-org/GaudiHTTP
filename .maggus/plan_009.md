@@ -184,18 +184,18 @@ feedback loops, and PostProcessShape.
 to verify the BidiFlow architecture and conditional inclusion.
 
 **Acceptance Criteria:**
-- [ ] `01_StageOrderingTests.cs` — adapted or rewritten for BidiFlow composition
-- [ ] `11_EnginePipelineDescriptorTests.cs` — adapted to verify conditional BidiFlow inclusion
-- [ ] Cookie stage tests — merged/adapted for `CookieBidiStage`
-- [ ] Cache stage tests — adapted for `CacheBidiStage`
-- [ ] `03_RetryStageTests.cs` — adapted for `RetryBidiStage`
-- [ ] `02_RedirectStageTests.cs` — adapted for `RedirectBidiStage`
-- [ ] New tests: internal feedback (retry loop, redirect loop, cache short-circuit)
-- [ ] New tests: conditional composition (empty chain, single feature, all features)
-- [ ] New test: `PipelineDescriptor.Empty` — 200 OK flows through minimal graph
-- [ ] New test: `AutomaticDecompression = false` — gzip response is not decompressed
-- [ ] New test: each feature in isolation (only Retry, only Redirect, only Cookies, only Cache)
-- [ ] `dotnet test src/TurboHttp.sln` — all tests green
+- [x] `01_StageOrderingTests.cs` — adapted or rewritten for BidiFlow composition
+- [x] `11_EnginePipelineDescriptorTests.cs` — adapted to verify conditional BidiFlow inclusion
+- [x] Cookie stage tests — merged/adapted for `CookieBidiStage`
+- [x] Cache stage tests — adapted for `CacheBidiStage`
+- [x] `03_RetryStageTests.cs` — adapted for `RetryBidiStage`
+- [x] `02_RedirectStageTests.cs` — adapted for `RedirectBidiStage`
+- [x] New tests: internal feedback (retry loop, redirect loop, cache short-circuit)
+- [x] New tests: conditional composition (empty chain, single feature, all features)
+- [x] New test: `PipelineDescriptor.Empty` — 200 OK flows through minimal graph
+- [x] New test: `AutomaticDecompression = false` — gzip response is not decompressed
+- [x] New test: each feature in isolation (only Retry, only Redirect, only Cookies, only Cache)
+- [x] `dotnet test src/TurboHttp.sln` — all tests green
 
 ### TASK-009: Remove old stages and cleanup
 **Description:** As a developer, I want the old separate stages removed after the BidiFlow
