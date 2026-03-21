@@ -54,10 +54,10 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a developer, I want an internal mutable class that captures everything registered via `ITurboHttpClientBuilder` so that the factory can read it at `CreateClient()` time.
 
 **Acceptance Criteria:**
-- [ ] `internal sealed class TurboClientDescriptor` in `src/TurboHttp/Middleware/TurboClientDescriptor.cs` (mutable class, not record — `IConfigureNamedOptions` mutates it in-place)
-- [ ] Fields: `RedirectPolicy? RedirectPolicy`, `RetryPolicy? RetryPolicy`, `bool EnableCookies`, `CookieJar? CustomCookieJar`, `CachePolicy? CachePolicy`, `List<Type> MiddlewareTypes` (empty by default)
-- [ ] Namespace: `TurboHttp.Middleware`
-- [ ] Typecheck/lint passes
+- [x] `internal sealed class TurboClientDescriptor` in `src/TurboHttp/Middleware/TurboClientDescriptor.cs` (mutable class, not record — `IConfigureNamedOptions` mutates it in-place)
+- [x] Fields: `RedirectPolicy? RedirectPolicy`, `RetryPolicy? RetryPolicy`, `bool EnableCookies`, `CookieJar? CustomCookieJar`, `CachePolicy? CachePolicy`, `List<Type> MiddlewareTypes` (empty by default)
+- [x] Namespace: `TurboHttp.Middleware`
+- [x] Typecheck/lint passes
 
 ---
 
@@ -65,10 +65,10 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a developer, I want an immutable record passed from the factory to the engine so that the engine no longer instantiates CookieJar/CacheStore itself.
 
 **Acceptance Criteria:**
-- [ ] `internal sealed record PipelineDescriptor(RedirectPolicy?, RetryPolicy?, CookieJar?, HttpCacheStore?, IReadOnlyList<TurboMiddleware>)` in `src/TurboHttp/Streams/PipelineDescriptor.cs`
-- [ ] `static readonly PipelineDescriptor Empty` — all null, empty list; used by backward-compat code paths
-- [ ] Namespace: `TurboHttp.Streams`
-- [ ] Typecheck/lint passes
+- [x] `internal sealed record PipelineDescriptor(RedirectPolicy?, RetryPolicy?, CookieJar?, HttpCacheStore?, IReadOnlyList<TurboMiddleware>)` in `src/TurboHttp/Streams/PipelineDescriptor.cs`
+- [x] `static readonly PipelineDescriptor Empty` — all null, empty list; used by backward-compat code paths
+- [x] Namespace: `TurboHttp.Streams`
+- [x] Typecheck/lint passes
 
 ---
 

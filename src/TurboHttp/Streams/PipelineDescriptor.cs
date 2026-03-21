@@ -1,0 +1,22 @@
+using System.Collections.Generic;
+using TurboHttp.Middleware;
+using TurboHttp.Protocol.RFC6265;
+using TurboHttp.Protocol.RFC9110;
+using TurboHttp.Protocol.RFC9111;
+
+namespace TurboHttp.Streams;
+
+internal sealed record PipelineDescriptor(
+    RedirectPolicy? RedirectPolicy,
+    RetryPolicy? RetryPolicy,
+    CookieJar? CookieJar,
+    HttpCacheStore? CacheStore,
+    IReadOnlyList<TurboMiddleware> Middlewares)
+{
+    public static readonly PipelineDescriptor Empty = new(
+        RedirectPolicy: null,
+        RetryPolicy: null,
+        CookieJar: null,
+        CacheStore: null,
+        Middlewares: []);
+}
