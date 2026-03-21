@@ -92,13 +92,13 @@ path and Set-Cookie storage on the response path.
 response bodies while passing requests through unchanged.
 
 **Acceptance Criteria:**
-- [ ] `DecompressionBidiStage` is a `GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>`
-- [ ] Request direction (In1→Out1): pass-through (forward unchanged)
-- [ ] Response direction (In2→Out2): decompresses gzip/deflate/brotli, removes Content-Encoding header
-- [ ] Reuses existing `ContentEncodingDecoder` logic from current `DecompressionStage`
-- [ ] Port names: `"Decompression.In.Request"`, `"Decompression.Out.Request"`, `"Decompression.In.Response"`, `"Decompression.Out.Response"`
-- [ ] Typecheck/lint passes
-- [ ] Unit tests are written and successful
+- [x] `DecompressionBidiStage` is a `GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>`
+- [x] Request direction (In1→Out1): pass-through (forward unchanged)
+- [x] Response direction (In2→Out2): decompresses gzip/deflate/brotli, removes Content-Encoding header
+- [x] Reuses existing `ContentEncodingDecoder` logic from current `DecompressionStage`
+- [x] Port names: `"Decompression.In.Request"`, `"Decompression.Out.Request"`, `"Decompression.In.Response"`, `"Decompression.Out.Response"`
+- [x] Typecheck/lint passes
+- [x] Unit tests are written and successful
 
 ### TASK-004: Create CacheBidiStage
 **Description:** As a developer, I want a `CacheBidiStage` that handles cache lookup on

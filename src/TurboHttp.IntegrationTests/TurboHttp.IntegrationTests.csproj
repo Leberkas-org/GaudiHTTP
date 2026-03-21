@@ -28,10 +28,5 @@
     <ItemGroup>
         <ProjectReference Include="..\TurboHttp\TurboHttp.csproj"/>
     </ItemGroup>
-    <ItemGroup>
-      <Folder Include="Http10\" />
-      <Folder Include="Http11\" />
-      <Folder Include="Http20\" />
-    </ItemGroup>
 
 </Project>
