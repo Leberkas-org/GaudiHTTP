@@ -7,7 +7,7 @@ using Akka.TestKit.Xunit2;
 using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
-using TurboHttp.Lifecycle;
+using TurboHttp.Pooling;
 
 namespace TurboHttp.StreamTests.IO;
 

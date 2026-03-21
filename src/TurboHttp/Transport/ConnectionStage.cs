@@ -8,7 +8,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHttp.Internal;
-using TurboHttp.Lifecycle;
+using TurboHttp.Pooling;
 
 namespace TurboHttp.Transport;
 

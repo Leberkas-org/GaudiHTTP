@@ -8,7 +8,7 @@ using TurboHttp.Internal;
 using TurboHttp.Transport;
 using TurboHttp.Protocol.RFC9112;
 
-namespace TurboHttp.Lifecycle;
+namespace TurboHttp.Pooling;
 
 public sealed class HostPool : ReceiveActor
 {

@@ -2,7 +2,7 @@ using System.Buffers;
 using System.Net;
 using System.Threading.Channels;
 using TurboHttp.Internal;
-using TurboHttp.Lifecycle;
+using TurboHttp.Pooling;
 
 namespace TurboHttp.StreamTests.IO;
 

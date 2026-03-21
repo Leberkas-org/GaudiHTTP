@@ -2,7 +2,7 @@ using System;
 using Akka.Actor;
 using TurboHttp.Internal;
 
-namespace TurboHttp.Lifecycle;
+namespace TurboHttp.Pooling;
 
 internal sealed class ConnectionState
 {

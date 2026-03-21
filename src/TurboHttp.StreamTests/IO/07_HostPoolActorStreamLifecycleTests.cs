@@ -1,6 +1,6 @@
 using Akka.Actor;
 using Akka.TestKit;
-using TurboHttp.Lifecycle;
+using TurboHttp.Pooling;
 
 namespace TurboHttp.StreamTests.IO;
 

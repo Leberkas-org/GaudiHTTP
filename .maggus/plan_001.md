@@ -138,11 +138,11 @@ Lifecycle/PoolRouter.cs        → namespace TurboHttp.Pooling
 **Reference counts:** ~11 files contain `using TurboHttp.Lifecycle;`
 
 **Acceptance Criteria:**
-- [ ] Folder `TurboHttp/Lifecycle/` renamed to `TurboHttp/Pooling/`
-- [ ] All 5 files declare `namespace TurboHttp.Pooling`
-- [ ] All `using TurboHttp.Lifecycle;` replaced across the solution
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
-- [ ] `dotnet test src/TurboHttp.sln` → all tests pass
+- [x] Folder `TurboHttp/Lifecycle/` renamed to `TurboHttp/Pooling/`
+- [x] All 5 files declare `namespace TurboHttp.Pooling`
+- [x] All `using TurboHttp.Lifecycle;` replaced across the solution
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] `dotnet test src/TurboHttp.sln` → all tests pass
 
 ---
 

@@ -7,7 +7,7 @@ using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
 
-namespace TurboHttp.Lifecycle;
+namespace TurboHttp.Pooling;
 
 public sealed class ConnectionActor : ReceiveActor
 {
