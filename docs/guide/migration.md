@@ -162,18 +162,17 @@ builder.Services.AddHttpClient("my-api")
 ```csharp
 public sealed class LoggingHandler : TurboHandler
 {
-    public override ValueTask<HttpRequestMessage> ProcessRequestAsync(
-        HttpRequestMessage request, CancellationToken ct)
+    public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
     {
         Console.WriteLine($"→ {request.Method} {request.RequestUri}");
-        return ValueTask.FromResult(request);
+        return request;
     }
 
-    public override ValueTask<HttpResponseMessage> ProcessResponseAsync(
-        HttpRequestMessage original, HttpResponseMessage response, CancellationToken ct)
+    public override HttpResponseMessage ProcessResponse(
+        HttpRequestMessage original, HttpResponseMessage response)
     {
         Console.WriteLine($"← {(int)response.StatusCode}");
-        return ValueTask.FromResult(response);
+        return response;
     }
 }
 
@@ -185,8 +184,8 @@ builder.Services.AddTurboHttpClient("my-api", options =>
 ```
 
 ::: info
-`TurboHandler.ProcessRequestAsync` sees initial requests only (not retries or redirects).
-`TurboHandler.ProcessResponseAsync` sees final responses only (after all retries and redirects).
+`TurboHandler.ProcessRequest` sees initial requests only (not retries or redirects).
+`TurboHandler.ProcessResponse` sees final responses only (after all retries and redirects).
 :::
 
 ## HTTP/2

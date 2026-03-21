@@ -7,7 +7,7 @@ TurboHttp is configured through `TurboClientOptions` — a record that covers ev
 Register TurboHttp with your ASP.NET Core or generic host application:
 
 ```csharp
-builder.Services.AddTurboHttpClientFactory(options =>
+builder.Services.AddTurboHttpClient(options =>
 {
     options = options with
     {
@@ -256,7 +256,7 @@ See [Connection Pooling guide](./connection-pooling) for pool lifecycle and evic
 ## Complete Example
 
 ```csharp
-builder.Services.AddTurboHttpClientFactory(options =>
+builder.Services.AddTurboHttpClient(options =>
 {
     options = options with
     {

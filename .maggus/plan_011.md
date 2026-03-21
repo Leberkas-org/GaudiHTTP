@@ -599,11 +599,11 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 - File: `src/TurboHttp/Streams/Stages/Features/CacheBidiStage.cs` — HEAD 304 → freshen stored GET
 
 **Acceptance Criteria:**
-- [ ] HEAD validation request built correctly for stale cache entry
-- [ ] HEAD 304 with matching ETag freshens stored GET response
-- [ ] HEAD with mismatched ETag does not freshen
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] HEAD validation request built correctly for stale cache entry
+- [x] HEAD 304 with matching ETag freshens stored GET response
+- [x] HEAD with mismatched ETag does not freshen
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (extends `src/TurboHttp.Tests/RFC9111/03_ConditionalRequestTests.cs`):
 

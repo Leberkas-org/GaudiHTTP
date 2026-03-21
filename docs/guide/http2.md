@@ -62,7 +62,7 @@ var client = new TurboHttpClient(new TurboClientOptions
 With DI:
 
 ```csharp
-services.AddTurboHttpClientFactory();
+services.AddTurboHttpClient();
 
 // ...
 

@@ -164,4 +164,48 @@ public sealed class ConditionalRequestTests
 
         Assert.Equal(new Version(2, 0), merged.Version);
     }
+
+
+    [Fact(DisplayName = "RFC9111-4.3.5-CR-020: HEAD validation request built correctly")]
+    public void Should_BuildHeadRequest_When_StaleEntry()
+    {
+        var entry = MakeEntry(etag: "\"v1\"", lastModified: _baseTime);
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource");
+
+        var head = CacheValidationRequestBuilder.BuildHeadValidationRequest(original, entry);
+
+        Assert.Equal(HttpMethod.Head, head.Method);
+        Assert.Equal(original.RequestUri, head.RequestUri);
+        Assert.True(head.Headers.Contains("If-None-Match"));
+        var etag = string.Join("", head.Headers.GetValues("If-None-Match"));
+        Assert.Equal("\"v1\"", etag);
+        Assert.NotNull(head.Headers.IfModifiedSince);
+        Assert.Equal(_baseTime, head.Headers.IfModifiedSince!.Value);
+    }
+
+    [Fact(DisplayName = "RFC9111-4.3.5-CR-021: HEAD 304 freshens stored GET")]
+    public void Should_Freshen_When_Head304WithMatchingETag()
+    {
+        var entry = MakeEntry(etag: "\"v1\"");
+        var head304 = new HttpResponseMessage(HttpStatusCode.NotModified);
+        head304.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"v1\"");
+        head304.Headers.TryAddWithoutValidation("X-Cache-Refreshed", "true");
+
+        var freshened = CacheValidationRequestBuilder.TryFreshenFromHead(head304, entry);
+
+        Assert.True(freshened);
+        Assert.True(entry.Response.Headers.Contains("X-Cache-Refreshed"));
+    }
+
+    [Fact(DisplayName = "RFC9111-4.3.5-CR-022: HEAD with mismatched ETag does not freshen")]
+    public void Should_NotFreshen_When_ETagMismatch()
+    {
+        var entry = MakeEntry(etag: "\"v1\"");
+        var head304 = new HttpResponseMessage(HttpStatusCode.NotModified);
+        head304.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"v2\"");
+
+        var freshened = CacheValidationRequestBuilder.TryFreshenFromHead(head304, entry);
+
+        Assert.False(freshened);
+    }
 }

@@ -117,7 +117,7 @@ var options = new TurboClientOptions
     CachePolicy = new CachePolicy
     {
         MaxEntries = 500,            // maximum number of cached responses (default: 1000)
-        MaxBodySize = 1024 * 512,    // maximum body size to cache, in bytes (default: 1 MB)
+        MaxBodyBytes = 1024 * 512,    // maximum body size to cache, in bytes (default: 1 MB)
     }
 };
 ```
@@ -134,7 +134,7 @@ var options = new TurboClientOptions
 With DI:
 
 ```csharp
-builder.Services.AddTurboHttpClientFactory(options =>
+builder.Services.AddTurboHttpClient(options =>
 {
     options = options with
     {

@@ -67,7 +67,7 @@ services.AddTurboHttpClient<IGitHubClient, GitHubClient>(options =>
 
 The return value is `ITurboHttpClientBuilder` — all further options are registered as extension methods on it. The graph is not materialized here, but on the first `CreateClient(name)` call of the factory.
 
-> **Deprecated API:** `AddTurboHttpClientFactory(services, configure)` is marked `[Obsolete]`
+> **Deprecated API:** `AddTurboHttpClient(services, configure)` is marked `[Obsolete]`
 > and will be removed in a future version. Use `services.AddTurboHttpClient(name, configure)` instead.
 
 ---
@@ -109,15 +109,13 @@ Instead of `DelegatingHandler`, TurboHttp provides its own stream-compatible mid
 public abstract class TurboHandler
 {
     // Optional: request transform — default is pass-through
-    public virtual ValueTask<HttpRequestMessage> ProcessRequestAsync(
-        HttpRequestMessage request,
-        CancellationToken ct) => ValueTask.FromResult(request);
+    public virtual HttpRequestMessage ProcessRequest(
+        HttpRequestMessage request) => request;
 
     // Optional: response transform — default is pass-through
-    public virtual ValueTask<HttpResponseMessage> ProcessResponseAsync(
+    public virtual HttpResponseMessage ProcessResponse(
         HttpRequestMessage original,
-        HttpResponseMessage response,
-        CancellationToken ct) => ValueTask.FromResult(response);
+        HttpResponseMessage response) => response;
 }
 ```
 
@@ -154,7 +152,7 @@ services.AddTurboHttpClient("myapi", options => { ... })
 ```
 [RequestEnricher]          ← BaseAddress, DefaultHeaders, Version
       ↓
-[User-Handler Request]     ← ProcessRequestAsync — Auth, Correlation-ID, Custom-Headers
+[User-Handler Request]     ← ProcessRequest — Auth, Correlation-ID, Custom-Headers
       ↓                       (initial requests only; redirect feedback enters the pipeline
       |                        AFTER this point and bypasses the handler)
 [CookieBidiStage]          ← .WithCookies()
@@ -173,14 +171,14 @@ services.AddTurboHttpClient("myapi", options => { ... })
 [RetryBidiStage]           ← .WithRetry()   → retry feedback (back to CacheBidiStage)
 [RedirectBidiStage]        ← .WithRedirect() → redirect feedback (back to CookieBidiStage)
       ↓
-[User-Handler Response]    ← ProcessResponseAsync — Logging, Metrics, Tracing
+[User-Handler Response]    ← ProcessResponse — Logging, Metrics, Tracing
       ↓                       (final responses only — after redirect and retry are resolved)
 [Client]
 ```
 
 User handlers intentionally run **outside** the feedback loops:
-- `ProcessRequestAsync` sees each enriched initial request. Redirect requests (sent back by `RedirectBidiStage`) go directly into the `redirectMerge` and bypass the handler.
-- `ProcessResponseAsync` sees only **final** responses — after redirect and retry have been resolved. No intermediate results, no internal noise.
+- `ProcessRequest` sees each enriched initial request. Redirect requests (sent back by `RedirectBidiStage`) go directly into the `redirectMerge` and bypass the handler.
+- `ProcessResponse` sees only **final** responses — after redirect and retry have been resolved. No intermediate results, no internal noise.
 
 ---
 
@@ -211,12 +209,9 @@ public class PaymentService(ITurboHttpClientFactory factory)
 // Custom handler
 public sealed class AuthHandler(ITokenProvider tokens) : TurboHandler
 {
-    public override async ValueTask<HttpRequestMessage> ProcessRequestAsync(
-        HttpRequestMessage request,
-        CancellationToken ct)
+    public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
     {
-        var token = await tokens.GetTokenAsync(ct);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", tokens.GetToken());
         return request;
     }
 }

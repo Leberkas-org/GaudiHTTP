@@ -77,7 +77,7 @@ var options = new TurboClientOptions
 With DI:
 
 ```csharp
-services.AddTurboHttpClientFactory();
+services.AddTurboHttpClient();
 
 // Then use via factory
 var client = factory.CreateClient(opts => opts with
