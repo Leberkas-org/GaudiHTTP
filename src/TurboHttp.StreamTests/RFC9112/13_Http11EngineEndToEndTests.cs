@@ -148,7 +148,8 @@ public sealed class Http11EngineEndToEndTests : EngineTestBase
             request,
             Ok200Empty);
 
-        Assert.DoesNotContain("TE:", rawRequest);
+        // TE with non-chunked values is preserved per RFC 9112 §7.4 (listed in Connection)
+        Assert.Contains("TE: trailers", rawRequest);
         Assert.DoesNotContain("Keep-Alive:", rawRequest);
         Assert.DoesNotContain("Proxy-Connection:", rawRequest);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

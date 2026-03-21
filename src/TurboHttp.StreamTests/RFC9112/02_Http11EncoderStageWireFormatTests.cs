@@ -127,7 +127,8 @@ public sealed class Http11EncoderStageWireFormatTests : StreamTestBase
 
         var raw = await EncodeAsync(request);
 
-        Assert.DoesNotContain("TE:", raw);
+        // TE with non-chunked values is preserved per RFC 9112 §7.4 (listed in Connection)
+        Assert.Contains("TE: trailers", raw);
         Assert.DoesNotContain("Keep-Alive:", raw);
         Assert.DoesNotContain("Proxy-Connection:", raw);
     }

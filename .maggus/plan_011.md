@@ -296,11 +296,11 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 **RFC**: 9112 §7.4
 
 **Acceptance Criteria:**
-- [ ] TE header presence auto-adds "TE" to Connection header
-- [ ] No duplicate when Connection already lists "TE"
-- [ ] "chunked" excluded from TE field value
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] TE header presence auto-adds "TE" to Connection header
+- [x] No duplicate when Connection already lists "TE"
+- [x] "chunked" excluded from TE field value
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (extends `src/TurboHttp.Tests/RFC9112/04_EncoderConnectionTests.cs`):
 

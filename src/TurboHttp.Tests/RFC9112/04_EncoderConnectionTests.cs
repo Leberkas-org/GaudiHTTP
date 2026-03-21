@@ -47,11 +47,9 @@ public sealed class Http11EncoderConnectionTests
     public void Should_StripConnectionSpecificHeaders_When_Present()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
-        request.Headers.TryAddWithoutValidation("TE", "trailers");
         request.Headers.TryAddWithoutValidation("Keep-Alive", "timeout=5");
         request.Headers.TryAddWithoutValidation("Upgrade", "websocket");
         var result = Encode(request);
-        Assert.DoesNotContain("TE:", result);
         Assert.DoesNotContain("Keep-Alive:", result);
         Assert.DoesNotContain("Upgrade:", result);
     }
@@ -74,6 +72,62 @@ public sealed class Http11EncoderConnectionTests
         var result = Encode(request);
         Assert.Contains("Connection: close\r\n", result);
         Assert.DoesNotContain("Connection: keep-alive", result);
+    }
+
+    // ── RFC 9112 §7.4: TE + Connection Header Auto-Addition ──────────────────
+
+    [Fact(DisplayName = "RFC9112-7.4-TE-001: TE header auto-adds TE to Connection")]
+    public void Should_AddTEToConnection_When_TEHeaderPresent()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
+        request.Headers.TryAddWithoutValidation("TE", "trailers");
+        var result = Encode(request);
+
+        // TE header should be written (not stripped)
+        Assert.Contains("TE: trailers\r\n", result);
+        // "TE" must appear in Connection tokens
+        Assert.Contains("TE, keep-alive\r\n", result);
+    }
+
+    [Fact(DisplayName = "RFC9112-7.4-TE-002: Connection already has TE — no duplicate")]
+    public void Should_NotDuplicate_When_ConnectionAlreadyHasTE()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
+        request.Headers.TryAddWithoutValidation("TE", "trailers");
+        request.Headers.Connection.Add("TE");
+        var result = Encode(request);
+
+        // TE header should be written
+        Assert.Contains("TE: trailers\r\n", result);
+        // Connection should have TE exactly once (plus keep-alive)
+        Assert.Contains("Connection: TE, keep-alive\r\n", result);
+    }
+
+    [Fact(DisplayName = "RFC9112-7.4-TE-003: Chunked excluded from TE field")]
+    public void Should_ExcludeChunked_When_TEContainsChunked()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
+        request.Headers.TryAddWithoutValidation("TE", "trailers, chunked");
+        var result = Encode(request);
+
+        // TE header should be written without "chunked"
+        Assert.Contains("TE: trailers\r\n", result);
+        Assert.DoesNotContain("chunked", result.Replace("Transfer-Encoding", ""));
+        // "TE" should be in Connection since "trailers" remains
+        Assert.Contains("TE, keep-alive\r\n", result);
+    }
+
+    [Fact(DisplayName = "RFC9112-7.4-TE-004: TE with only chunked is omitted entirely")]
+    public void Should_OmitTeHeader_When_OnlyChunked()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
+        request.Headers.TryAddWithoutValidation("TE", "chunked");
+        var result = Encode(request);
+
+        // TE header should not be written (all values filtered)
+        Assert.DoesNotContain("TE:", result);
+        // No "TE" in Connection since no TE values remain
+        Assert.Contains("Connection: keep-alive\r\n", result);
     }
 
     private static string Encode(HttpRequestMessage request)

@@ -190,17 +190,54 @@ public static class Http11Encoder
                 continue;
             }
 
+            // RFC 9112 §7.4: TE MUST NOT include "chunked" — filter it out
+            if (header.Key.Equals("TE", StringComparison.OrdinalIgnoreCase))
+            {
+                bytesWritten += WriteTeHeader(ref buffer, header.Value);
+                continue;
+            }
+
             bytesWritten += WriteHeader(ref buffer, header.Key, header.Value);
         }
 
         return bytesWritten;
     }
 
+    /// <summary>
+    /// Writes the TE header with "chunked" excluded per RFC 9112 §7.4.
+    /// Returns 0 if no valid TE values remain after filtering.
+    /// </summary>
+    private static int WriteTeHeader(ref Span<byte> buffer, IEnumerable<string> values)
+    {
+        var filteredValues = new List<string>();
+        foreach (var value in values)
+        {
+            // Each value may be comma-separated (e.g. "trailers, chunked")
+            foreach (var token in value.Split(','))
+            {
+                var trimmed = token.Trim();
+                if (trimmed.Length > 0 &&
+                    !trimmed.Equals("chunked", StringComparison.OrdinalIgnoreCase))
+                {
+                    filteredValues.Add(trimmed);
+                }
+            }
+        }
+
+        if (filteredValues.Count == 0)
+        {
+            return 0;
+        }
+
+        return WriteHeader(ref buffer, "TE", filteredValues);
+    }
+
     private static bool IsConnectionSpecificHeader(string headerName)
     {
         // Connection-specific headers that must not be sent per RFC 9112
-        return headerName.Equals("TE", StringComparison.OrdinalIgnoreCase) ||
-               headerName.Equals("Trailers", StringComparison.OrdinalIgnoreCase) ||
+        // Note: TE is handled separately — it IS a hop-by-hop header but is valid to send
+        // per RFC 9112 §7.4 (with "chunked" excluded and "TE" listed in Connection).
+        return headerName.Equals("Trailers", StringComparison.OrdinalIgnoreCase) ||
                headerName.Equals("Keep-Alive", StringComparison.OrdinalIgnoreCase) ||
                headerName.Equals("Upgrade", StringComparison.OrdinalIgnoreCase) ||
                headerName.Equals("Proxy-Connection", StringComparison.OrdinalIgnoreCase);
@@ -265,10 +302,22 @@ public static class Http11Encoder
     {
         var bytesWritten = 0;
 
+        // RFC 9112 §7.4: Detect if TE header has non-chunked values that need listing
+        var hasTeValues = HasNonChunkedTeValues(headers);
+
         // Check if Connection header is already set
         if (headers.Connection.Any(value => value.Equals("close", StringComparison.OrdinalIgnoreCase)))
         {
-            bytesWritten += WriteBytes(ref buffer, "Connection: close\r\n"u8);
+            // Even with "close", we must list TE if present (RFC 9112 §7.4)
+            if (hasTeValues && !headers.Connection.Any(v => v.Equals("TE", StringComparison.OrdinalIgnoreCase)))
+            {
+                bytesWritten += WriteBytes(ref buffer, "Connection: close, TE\r\n"u8);
+            }
+            else
+            {
+                bytesWritten += WriteBytes(ref buffer, "Connection: close\r\n"u8);
+            }
+
             return bytesWritten;
         }
 
@@ -276,6 +325,8 @@ public static class Http11Encoder
         bytesWritten += WriteBytes(ref buffer, "Connection: "u8);
 
         var first = true;
+        var alreadyHasTe = false;
+
         foreach (var value in headers.Connection)
         {
             if (!first)
@@ -284,6 +335,23 @@ public static class Http11Encoder
             }
 
             bytesWritten += WriteAscii(ref buffer, value);
+            first = false;
+
+            if (value.Equals("TE", StringComparison.OrdinalIgnoreCase))
+            {
+                alreadyHasTe = true;
+            }
+        }
+
+        // RFC 9112 §7.4: auto-add "TE" to Connection if TE header is present and not already listed
+        if (hasTeValues && !alreadyHasTe)
+        {
+            if (!first)
+            {
+                bytesWritten += WriteBytes(ref buffer, WellKnownHeaders.CommaSpace);
+            }
+
+            bytesWritten += WriteBytes(ref buffer, "TE"u8);
             first = false;
         }
 
@@ -296,6 +364,32 @@ public static class Http11Encoder
         bytesWritten += WriteCrlf(ref buffer);
 
         return bytesWritten;
+    }
+
+    /// <summary>
+    /// Returns true if the request has a TE header with at least one non-chunked value.
+    /// </summary>
+    private static bool HasNonChunkedTeValues(HttpRequestHeaders headers)
+    {
+        if (!headers.TryGetValues("TE", out var teValues))
+        {
+            return false;
+        }
+
+        foreach (var value in teValues)
+        {
+            foreach (var token in value.Split(','))
+            {
+                var trimmed = token.Trim();
+                if (trimmed.Length > 0 &&
+                    !trimmed.Equals("chunked", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     // ── Body ────────────────────────────────────────────────────────────────────
