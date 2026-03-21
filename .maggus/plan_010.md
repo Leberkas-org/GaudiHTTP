@@ -48,10 +48,10 @@ This creates an inconsistency: built-in features are BidiFlows, user middlewares
 **Description:** As a developer, I want to remove the now-redundant `MiddlewareRequestStage` and `MiddlewareResponseStage` so that there is no dead code.
 
 **Acceptance Criteria:**
-- [ ] Delete `src/TurboHttp/Streams/Stages/MiddlewareRequestStage.cs`
-- [ ] Delete `src/TurboHttp/Streams/Stages/MiddlewareResponseStage.cs`
-- [ ] No remaining references to either class in the codebase
-- [ ] Typecheck passes
+- [x] Delete `src/TurboHttp/Streams/Stages/MiddlewareRequestStage.cs`
+- [x] Delete `src/TurboHttp/Streams/Stages/MiddlewareResponseStage.cs`
+- [x] No remaining references to either class in the codebase
+- [x] Typecheck passes
 
 ### TASK-004: Create BidiStage Test File
 **Description:** As a developer, I want comprehensive tests for `MiddlewareBidiStage` covering both directions, async, chaining, and completion.
@@ -71,8 +71,8 @@ This creates an inconsistency: built-in features are BidiFlows, user middlewares
 **Description:** As a developer, I want to remove the old middleware test files since they test deleted stages.
 
 **Acceptance Criteria:**
-- [ ] Delete `src/TurboHttp.StreamTests/Streams/18_MiddlewareRequestStageTests.cs`
-- [ ] Delete `src/TurboHttp.StreamTests/Streams/19_MiddlewareResponseStageTests.cs`
+- [x] Delete `src/TurboHttp.StreamTests/Streams/18_MiddlewareRequestStageTests.cs`
+- [x] Delete `src/TurboHttp.StreamTests/Streams/19_MiddlewareResponseStageTests.cs`
 - [ ] All remaining tests pass (`dotnet test`)
 
 ### TASK-006: Validate Port Naming
