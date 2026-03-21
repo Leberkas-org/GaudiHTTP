@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
 using Akka.Actor;
 using Microsoft.Extensions.Options;
 using TurboHttp.Middleware;
+using TurboHttp.Protocol.RFC6265;
+using TurboHttp.Protocol.RFC9111;
+using TurboHttp.Streams;
 
 namespace TurboHttp.Client;
 
@@ -26,6 +30,22 @@ internal sealed class TurboHttpClientFactory(
     {
         var clientOptions = options.Get(name);
         var descriptor = descriptors.Get(name);
-        return new TurboHttpClient(clientOptions, system);
+
+        var cookieJar = descriptor.EnableCookies
+            ? descriptor.CustomCookieJar ?? new CookieJar()
+            : null;
+
+        var cacheStore = descriptor.CachePolicy is not null
+            ? new HttpCacheStore(descriptor.CachePolicy)
+            : null;
+
+        var pipeline = new PipelineDescriptor(
+            RedirectPolicy: descriptor.RedirectPolicy,
+            RetryPolicy: descriptor.RetryPolicy,
+            CookieJar: cookieJar,
+            CacheStore: cacheStore,
+            Middlewares: []);
+
+        return new TurboHttpClient(clientOptions, system, pipeline);
     }
 }

@@ -242,11 +242,11 @@ The goal is to port the well-known `IHttpClientFactory` pattern from `Microsoft.
 **Description:** As a developer, I want the factory to build a `PipelineDescriptor` from the named `TurboClientDescriptor` so that each client gets the correct CookieJar and CacheStore.
 
 **Acceptance Criteria:**
-- [ ] `CreateClient(name)` creates `CookieJar` when `descriptor.EnableCookies` (or forwards `descriptor.CustomCookieJar` if set)
-- [ ] `CreateClient(name)` creates `HttpCacheStore(descriptor.CachePolicy)` when `descriptor.CachePolicy != null`, otherwise `null`
-- [ ] `CreateClient(name)` reads `descriptor.RedirectPolicy` and `descriptor.RetryPolicy`
-- [ ] `PipelineDescriptor` instance assembled (middlewares added in TASK-019)
-- [ ] Typecheck/lint passes
+- [x] `CreateClient(name)` creates `CookieJar` when `descriptor.EnableCookies` (or forwards `descriptor.CustomCookieJar` if set)
+- [x] `CreateClient(name)` creates `HttpCacheStore(descriptor.CachePolicy)` when `descriptor.CachePolicy != null`, otherwise `null`
+- [x] `CreateClient(name)` reads `descriptor.RedirectPolicy` and `descriptor.RetryPolicy`
+- [x] `PipelineDescriptor` instance assembled (middlewares added in TASK-019)
+- [x] Typecheck/lint passes
 
 ---
 

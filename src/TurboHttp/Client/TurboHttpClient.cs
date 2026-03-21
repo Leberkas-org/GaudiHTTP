@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Akka.Actor;
+using TurboHttp.Streams;
 
 namespace TurboHttp.Client;
 
@@ -46,8 +47,13 @@ public sealed class TurboHttpClient : ITurboHttpClient
     internal TurboClientStreamManager Manager => _manager;
 
     public TurboHttpClient(TurboClientOptions clientOptions, ActorSystem system)
+        : this(clientOptions, system, PipelineDescriptor.Empty)
     {
-        _manager = new TurboClientStreamManager(clientOptions, OptionsFactory, system);
+    }
+
+    internal TurboHttpClient(TurboClientOptions clientOptions, ActorSystem system, PipelineDescriptor pipeline)
+    {
+        _manager = new TurboClientStreamManager(clientOptions, OptionsFactory, system, pipeline);
         _ = DrainResponsesAsync(_manager.Responses, _cts.Token);
         return;
 
