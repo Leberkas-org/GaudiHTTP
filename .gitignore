@@ -348,8 +348,6 @@ coverage-results/
 .maggus/RELEASE_NOTES.md
 .maggus/locks/
 .maggus-work/
-.maggus/usage.csv
-
-.maggus/usage_v2.csv
-
-docs/color-preview.html
+.maggus/usage*.csv
+.maggus/usage_*.jsonl
+.maggus/bugs

@@ -1,5 +1,5 @@
 agent: claude
-model: ""
+model: haiku
 include: []
 worktree: false
 notifications:
@@ -7,3 +7,10 @@ notifications:
     on_task_complete: null
     on_run_complete: null
     on_error: null
+git:
+    auto_branch: false
+    protected_branches:
+        - main
+        - master
+        - dev
+    check_sync: false

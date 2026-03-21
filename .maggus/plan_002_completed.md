@@ -144,9 +144,9 @@ Renaming to `TurboHandler` aligns with .NET's `HttpMessageHandler` / `Delegating
 **Description:** As a developer, I want to verify zero regressions across the entire solution.
 
 **Acceptance Criteria:**
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` — zero errors, zero warnings from renamed types
-- [ ] `dotnet test src/TurboHttp.sln` — all tests pass
-- [ ] No remaining references to `TurboMiddleware`, `MiddlewareBidiStage`, `AddMiddleware`, `MiddlewareTypes`, `MiddlewareFactories`, `ProcessRequestAsync`, `ProcessResponseAsync` in production or test code (verified via grep)
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` — zero errors, zero warnings from renamed types
+- [x] `dotnet test src/TurboHttp.sln` — all tests pass
+- [x] No remaining references to `TurboMiddleware`, `MiddlewareBidiStage`, `AddMiddleware`, `MiddlewareTypes`, `MiddlewareFactories`, `ProcessRequestAsync`, `ProcessResponseAsync` in production or test code (verified via grep)
 
 ## Functional Requirements
 
