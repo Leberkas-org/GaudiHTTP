@@ -4,6 +4,8 @@ using Akka.Streams.Dsl;
 using TurboHttp.Internal;
 using TurboHttp.Protocol.RFC7541;
 using TurboHttp.Protocol.RFC9113;
+using TurboHttp.Protocol.RFC9114;
+using TurboHttp.Protocol.RFC9204;
 using TurboHttp.Client;
 using TurboHttp.Streams;
 
@@ -102,6 +104,37 @@ public sealed class EngineVersionRoutingTests : EngineTestBase
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
             Version = HttpVersion.Version20
+        };
+
+        var response = await RunEngineAsync(flow, request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact(Timeout = 10_000, DisplayName = "EROUTE-005: HTTP/3.0 request routed through Http30Engine")]
+    public async Task Should_RouteRequestThroughHttp30Engine_When_VersionIs30()
+    {
+        var http10Response = "HTTP/1.0 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
+        var http11Response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
+        var h2Frames = new[] { new SettingsFrame([]).Serialize() };
+
+        var qpack = new QpackEncoder(maxTableCapacity: 0);
+        var settingsFrame = new Http3SettingsFrame([]).Serialize();
+        var headersFrame = new Http3HeadersFrame(
+            qpack.Encode([(":status", "200")])).Serialize();
+        var h3Frames = new[] { settingsFrame, headersFrame };
+
+        var engine = new Engine();
+        var flow = engine.CreateFlow(
+            () => Flow.FromGraph(new EngineFakeConnectionStage(() => http10Response)),
+            () => Flow.FromGraph(new EngineFakeConnectionStage(() => http11Response)),
+            () => Flow.FromGraph(new H2EngineFakeConnectionStage(h2Frames)),
+            () => Flow.FromGraph(new H3EngineFakeConnectionStage(h3Frames)),
+            PipelineDescriptor.Empty);
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
+        {
+            Version = HttpVersion.Version30
         };
 
         var response = await RunEngineAsync(flow, request);

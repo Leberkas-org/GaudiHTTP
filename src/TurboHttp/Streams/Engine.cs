@@ -44,7 +44,7 @@ internal sealed class Engine
 
         return BuildExtendedPipeline(ActorRefs.Nobody, new TurboClientOptions(), () => defaultOptions,
             descriptor,
-            http10Factory, http11Factory, http20Factory);
+            http10Factory, http11Factory, http20Factory, http30Factory);
     }
 
     private static TurboRequestOptions BuildRequestOptions(TurboClientOptions options)
@@ -86,12 +86,13 @@ internal sealed class Engine
         PipelineDescriptor descriptor,
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? http10Factory = null,
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? http11Factory = null,
-        Func<Flow<IOutputItem, IInputItem, NotUsed>>? http20Factory = null)
+        Func<Flow<IOutputItem, IInputItem, NotUsed>>? http20Factory = null,
+        Func<Flow<IOutputItem, IInputItem, NotUsed>>? http30Factory = null)
     {
         // Protocol engine core (version demux + encode/decode) with async boundary.
         var engineFlow = Flow.FromGraph(
                 ProtocolCoreGraphBuilder.Build(poolRouter, options,
-                    http10Factory, http11Factory, http20Factory))
+                    http10Factory, http11Factory, http20Factory, http30Factory))
             .WithAttributes(Attributes.CreateAsyncBoundary());
 
         // Build feature BidiFlow chain via conditional Atop stacking.
