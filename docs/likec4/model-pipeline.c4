@@ -3,24 +3,24 @@
 // that represent BuildExtendedPipeline's data paths and control loops.
 //
 // REQUEST CHAIN  (user → TCP)
-//   enricher → [redirect feedback merge] → cookie inject → [retry feedback merge]
-//   → cache lookup → engine → [version engines → TCP]
+//   enricher → [redirect feedback merge] → cookie bidi → [retry feedback merge]
+//   → cache bidi → engine → [version engines → TCP]
 //
 // RESPONSE CHAIN  (TCP → user)
-//   engine → decompress → cookie store → cache store → retry
-//   → [cache hit merge] → redirect → user
+//   engine → decompression bidi → cookie bidi → cache bidi → retry bidi
+//   → [cache hit merge] → redirect bidi → user
 //
 // FEEDBACK LOOPS
-//   retry out1  ─── retryable request ──▶ cookie inject (preferred inlet)
-//   redirect out1 ─ redirect request ───▶ request enricher (preferred inlet)
-//   cache hit   ─── cached response ────▶ redirect (skip engine entirely)
+//   retry bidi    ─── retryable request ──▶ cookie bidi (preferred inlet)
+//   redirect bidi ─── redirect request ───▶ request enricher (preferred inlet)
+//   cache hit     ─── cached response ────▶ redirect bidi (skip engine entirely)
 
 model {
   // Request chain — inbound
   turbohttp.client.ITurboHttpClient -[flows]-> turbohttp.streams.RequestEnricherStage 'HttpRequestMessage'
-  turbohttp.streams.RequestEnricherStage -[flows]-> turbohttp.streams.CookieInjectionStage 'HttpRequestMessage (after redirect merge)'
-  turbohttp.streams.CookieInjectionStage -[flows]-> turbohttp.streams.CacheLookupStage 'HttpRequestMessage (after retry merge)'
-  turbohttp.streams.CacheLookupStage -[flows]-> turbohttp.streams.Engine 'HttpRequestMessage (cache miss → Out0)'
+  turbohttp.streams.RequestEnricherStage -[flows]-> turbohttp.streams.CookieBidiStage 'HttpRequestMessage (after redirect merge)'
+  turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.CacheBidiStage 'HttpRequestMessage (after retry merge)'
+  turbohttp.streams.CacheBidiStage -[flows]-> turbohttp.streams.Engine 'HttpRequestMessage (cache miss)'
 
   // Engine routes to version-specific sub-pipeline
   turbohttp.streams.Engine -[flows]-> turbohttp.streams.ExtractOptionsStage 'HttpRequestMessage (per-host substream)'
@@ -35,7 +35,7 @@ model {
   // HTTP/1.0 response path (TCP → decode)
   turbohttp.streams.ConnectionStage -[flows]-> turbohttp.streams.Http10DecoderStage 'IInputItem (raw bytes)'
   turbohttp.streams.Http10DecoderStage -[flows]-> turbohttp.streams.Http1XCorrelationStage 'HttpResponseMessage'
-  turbohttp.streams.Http1XCorrelationStage -[flows]-> turbohttp.streams.DecompressionStage 'HttpResponseMessage (correlated)'
+  turbohttp.streams.Http1XCorrelationStage -[flows]-> turbohttp.streams.DecompressionBidiStage 'HttpResponseMessage (correlated)'
 
   // HTTP/1.1 request path (encode → TCP)
   turbohttp.streams.Http11Engine -[flows]-> turbohttp.streams.Http11EncoderStage 'HttpRequestMessage'
@@ -60,12 +60,12 @@ model {
   turbohttp.streams.ConnectionStage -[flows]-> turbohttp.streams.Http20DecoderStage 'IInputItem (raw bytes)'
   turbohttp.streams.Http20DecoderStage -[flows]-> turbohttp.streams.Http20ConnectionStage 'Http2Frame (ServerIn)'
   turbohttp.streams.Http20ConnectionStage -[flows]-> turbohttp.streams.Http20StreamStage 'Http2Frame (AppOut)'
-  turbohttp.streams.Http20StreamStage -[flows]-> turbohttp.streams.DecompressionStage 'HttpResponseMessage'
+  turbohttp.streams.Http20StreamStage -[flows]-> turbohttp.streams.DecompressionBidiStage 'HttpResponseMessage'
 
   // ConnectionStage → I/O actor pool (lifecycle, not data)
-  turbohttp.streams.ConnectionStage -[flows]-> turbohttp.io.PoolRouterActor 'EnsureHost (actor msg on ConnectItem)'
-  turbohttp.io.PoolRouterActor -[flows]-> turbohttp.io.HostPoolActor 'EnsureHost (forward, preserve sender)'
-  turbohttp.io.HostPoolActor -[flows]-> turbohttp.io.ConnectionActor 'SpawnConnection / SelectConnection'
+  turbohttp.streams.ConnectionStage -[flows]-> turbohttp.io.PoolRouter 'EnsureHost (actor msg on ConnectItem)'
+  turbohttp.io.PoolRouter -[flows]-> turbohttp.io.HostPool 'EnsureHost (forward, preserve sender)'
+  turbohttp.io.HostPool -[flows]-> turbohttp.io.ConnectionActor 'SpawnConnection / SelectConnection'
   turbohttp.io.ConnectionActor -[flows]-> turbohttp.io.ClientManager 'CreateRunnerWithChannels'
   turbohttp.io.ClientManager -[flows]-> turbohttp.io.ClientRunner 'Resolve child runner'
   turbohttp.io.ClientRunner -[flows]-> turbohttp.io.ClientByteMover 'Spawn 3 pump tasks after TCP connect'
@@ -77,16 +77,16 @@ model {
   turbohttp.io.ClientByteMover -[flows]-> turbohttp.streams.ConnectionStage 'InboundReader (Channel) → IInputItem'
 
   // Response chain — shared across all versions
-  turbohttp.streams.DecompressionStage -[flows]-> turbohttp.streams.CookieStorageStage 'HttpResponseMessage'
-  turbohttp.streams.CookieStorageStage -[flows]-> turbohttp.streams.CacheStorageStage 'HttpResponseMessage'
-  turbohttp.streams.CacheStorageStage -[flows]-> turbohttp.streams.RetryStage 'HttpResponseMessage'
-  turbohttp.streams.RetryStage -[flows]-> turbohttp.streams.RedirectStage 'HttpResponseMessage (Out0 — final / no retry)'
-  turbohttp.streams.RedirectStage -[flows]-> turbohttp.client.ITurboHttpClient 'HttpResponseMessage (Out0 — final)'
+  turbohttp.streams.DecompressionBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'HttpResponseMessage (response direction)'
+  turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.CacheBidiStage 'HttpResponseMessage (response direction)'
+  turbohttp.streams.CacheBidiStage -[flows]-> turbohttp.streams.RetryBidiStage 'HttpResponseMessage'
+  turbohttp.streams.RetryBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'HttpResponseMessage (final / no retry)'
+  turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.client.ITurboHttpClient 'HttpResponseMessage (final)'
 
   // Cache hit shortcut (bypasses engine entirely)
-  turbohttp.streams.CacheLookupStage -[feedback]-> turbohttp.streams.RetryStage 'HttpResponseMessage (Out1 — cache hit, merge with engine output)'
+  turbohttp.streams.CacheBidiStage -[feedback]-> turbohttp.streams.RetryBidiStage 'HttpResponseMessage (cache hit, merge with engine output)'
 
   // Feedback loops
-  turbohttp.streams.RetryStage -[feedback]-> turbohttp.streams.CookieInjectionStage 'HttpRequestMessage (Out1 — retryable, Buffer(1) → MergePreferred.Preferred)'
-  turbohttp.streams.RedirectStage -[feedback]-> turbohttp.streams.RequestEnricherStage 'HttpRequestMessage (Out1 — redirect, Buffer(1) → MergePreferred.Preferred)'
+  turbohttp.streams.RetryBidiStage -[feedback]-> turbohttp.streams.CookieBidiStage 'HttpRequestMessage (retryable, Buffer(1) → MergePreferred.Preferred)'
+  turbohttp.streams.RedirectBidiStage -[feedback]-> turbohttp.streams.RequestEnricherStage 'HttpRequestMessage (redirect, Buffer(1) → MergePreferred.Preferred)'
 }

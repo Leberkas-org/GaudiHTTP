@@ -8,6 +8,7 @@ using TurboHttp.Protocol.RFC6265;
 using TurboHttp.Protocol.RFC9110;
 using TurboHttp.Protocol.RFC9111;
 using TurboHttp.Protocol.RFC9113;
+using TurboHttp.Streams.Stages.Decoding;
 using TurboHttp.Streams.Stages.Features;
 using TurboHttp.Streams.Stages.Encoding;
 

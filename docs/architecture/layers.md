@@ -45,25 +45,25 @@ The Streams layer is the heart of TurboHttp. It is a single composable Akka.Stre
 **Request chain:**
 
 1. `RequestEnricherStage` — applies `BaseAddress`, `DefaultRequestVersion`, `DefaultRequestHeaders`
-2. `CookieInjectionStage` — injects matching cookies from `CookieJar` into the `Cookie` header
-3. `CacheLookupStage` — checks `HttpCacheStore`; returns a cached response immediately on hit, bypassing the network
+2. `CookieBidiStage` — injects matching cookies from `CookieJar` into the `Cookie` header
+3. `CacheBidiStage` — checks `HttpCacheStore`; returns a cached response immediately on hit, bypassing the network
 4. `Engine` — demultiplexes by HTTP version and routes to `Http10Engine`, `Http11Engine`, or `Http20Engine`
 
 **Response chain (after the network):**
 
-5. `DecompressionStage` — decompresses gzip/deflate/brotli response bodies
-6. `CookieStorageStage` — parses `Set-Cookie` headers and stores cookies in `CookieJar`
-7. `CacheStorageStage` — stores cacheable responses in `HttpCacheStore`
-8. `RetryStage` — retries idempotent requests on transient failures
-9. `RedirectStage` — follows redirects with method rewriting and loop detection
+5. `DecompressionBidiStage` — decompresses gzip/deflate/brotli response bodies
+6. `CookieBidiStage` — parses `Set-Cookie` headers and stores cookies in `CookieJar`
+7. `CacheBidiStage` — stores cacheable responses in `HttpCacheStore`
+8. `RetryBidiStage` — retries idempotent requests on transient failures
+9. `RedirectBidiStage` — follows redirects with method rewriting and loop detection
 
 **Key cross-cutting stages:**
 
 | Stage | Purpose |
 |-------|---------|
 | `ConnectionStage` | TCP connection wrapper; communicates with the I/O actor pool via `ConnectionHandle` |
-| `CorrelationHttp1XStage` | FIFO request-response matching for HTTP/1.x pipelined connections |
-| `CorrelationHttp20Stage` | Stream-ID-based matching for HTTP/2 multiplexed streams |
+| `Http1XCorrelationStage` | FIFO request-response matching for HTTP/1.x pipelined connections |
+| `Http20CorrelationStage` | Stream-ID-based matching for HTTP/2 multiplexed streams |
 
 ---
 
@@ -78,15 +78,15 @@ The I/O layer uses a **hybrid pattern** — actors manage connection lifecycle w
 ### Actor Hierarchy (lifecycle only)
 
 ```
-PoolRouterActor
-  └── HostPoolActor  (one per host:port)
+PoolRouter
+  └── HostPool  (one per host:port)
         └── ConnectionActor  (one per TCP connection)
               └── ClientRunner → ClientByteMover
 ```
 
-- **`PoolRouterActor`** — receives `EnsureHost` messages; routes to the correct `HostPoolActor`, creating one if needed
-- **`HostPoolActor`** — maintains the pool of connections for a single host; enforces `PerHostConnectionLimiter`; handles reconnect scheduling and idle eviction
-- **`ConnectionActor`** — owns a single TCP socket; creates `Channel<(IMemoryOwner<byte>, int)>` pairs; spawns `ClientRunner` on connect; sends `ConnectionReady(ConnectionHandle)` back to `HostPoolActor`
+- **`PoolRouter`** — receives `EnsureHost` messages; routes to the correct `HostPool`, creating one if needed
+- **`HostPool`** — maintains the pool of connections for a single host; enforces `PerHostConnectionLimiter`; handles reconnect scheduling and idle eviction
+- **`ConnectionActor`** — owns a single TCP socket; creates `Channel<(IMemoryOwner<byte>, int)>` pairs; spawns `ClientRunner` on connect; sends `ConnectionReady(ConnectionHandle)` back to `HostPool`
 - **`ClientRunner`** — per-connection actor that starts `ClientByteMover` tasks and signals lifecycle events (connected, disconnected, error)
 - **`ClientByteMover`** — three static async tasks per connection: TCP→Pipe, Pipe→InboundChannel, OutboundChannel→TCP
 

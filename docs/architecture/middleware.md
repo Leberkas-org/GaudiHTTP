@@ -157,9 +157,9 @@ services.AddTurboHttpClient("myapi", options => { ... })
 [User-Middleware Request]  ← ProcessRequestAsync — Auth, Correlation-ID, Custom-Headers
       ↓                       (initial requests only; redirect feedback enters the pipeline
       |                        AFTER this point and bypasses the middleware)
-[CookieInjection]          ← .WithCookies()
+[CookieBidiStage]          ← .WithCookies()
       ↓                       (retry feedback enters AFTER this point)
-[CacheLookup]              ← .WithCache()
+[CacheBidiStage]           ← .WithCache()
       ↓
 ── ASYNC BOUNDARY ──
       ↓
@@ -168,10 +168,10 @@ services.AddTurboHttpClient("myapi", options => { ... })
       ↓
 ── ASYNC BOUNDARY ──
       ↓
-[CookieStorage]            ← .WithCookies()
-[CacheStorage]             ← .WithCache()
-[RetryStage]               ← .WithRetry()   → retry feedback (back to CacheLookup)
-[RedirectStage]            ← .WithRedirect() → redirect feedback (back to CookieInjection)
+[CookieBidiStage]          ← .WithCookies()
+[CacheBidiStage]           ← .WithCache()
+[RetryBidiStage]           ← .WithRetry()   → retry feedback (back to CacheBidiStage)
+[RedirectBidiStage]        ← .WithRedirect() → redirect feedback (back to CookieBidiStage)
       ↓
 [User-Middleware Response] ← ProcessResponseAsync — Logging, Metrics, Tracing
       ↓                       (final responses only — after redirect and retry are resolved)
@@ -179,7 +179,7 @@ services.AddTurboHttpClient("myapi", options => { ... })
 ```
 
 User middleware intentionally runs **outside** the feedback loops:
-- `ProcessRequestAsync` sees each enriched initial request. Redirect requests (sent back by `RedirectStage`) go directly into the `redirectMerge` and bypass the middleware.
+- `ProcessRequestAsync` sees each enriched initial request. Redirect requests (sent back by `RedirectBidiStage`) go directly into the `redirectMerge` and bypass the middleware.
 - `ProcessResponseAsync` sees only **final** responses — after redirect and retry have been resolved. No intermediate results, no internal noise.
 
 ---

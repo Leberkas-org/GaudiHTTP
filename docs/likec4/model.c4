@@ -80,7 +80,7 @@ model {
       ConnectionStage = component 'ConnectionStage' {
         #graphstage
         technology 'GraphStage'
-        description 'TCP bridge: sends EnsureHost to PoolRouterActor, writes outbound bytes to ConnectionHandle.OutboundWriter, reads inbound bytes from ConnectionHandle.InboundReader'
+        description 'TCP bridge: sends EnsureHost to PoolRouter, writes outbound bytes to ConnectionHandle.OutboundWriter, reads inbound bytes from ConnectionHandle.InboundReader'
       }
 
       ConnectionReuseStage = component 'ConnectionReuseStage' {
@@ -160,56 +160,44 @@ model {
       PrependPrefaceStage = component 'PrependPrefaceStage' {
         #graphstage #http2
         technology 'GraphStage'
-        description 'Injects HTTP/2 connection preface (PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n) on first connect — implemented, not yet wired'
+        description 'Injects HTTP/2 connection preface on first connect'
       }
 
       Http20CorrelationStage = component 'Http20CorrelationStage' {
         #graphstage #http2
         technology 'GraphStage'
-        description 'Stream-ID-based request-response correlation — implemented, not yet wired'
+        description 'Stream-ID-based request-response correlation'
       }
 
-      // Response pipeline stages
-      DecompressionStage = component 'DecompressionStage' {
+      // Feature BidiStages — each handles both request and response direction
+      DecompressionBidiStage = component 'DecompressionBidiStage' {
         #graphstage
-        technology 'GraphStage'
-        description 'RFC 9110 §8.4: gzip / deflate / brotli response decompression'
+        technology 'BidiStage'
+        description 'RFC 9110 §8.4: request side injects Accept-Encoding; response side decompresses gzip / deflate / brotli'
       }
 
-      CacheLookupStage = component 'CacheLookupStage' {
+      CacheBidiStage = component 'CacheBidiStage' {
         #graphstage #cache
-        technology 'GraphStage'
-        description 'RFC 9111 §4: cache hit → Out1 (bypass engine), cache miss → Out0 (forward to engine)'
+        technology 'BidiStage'
+        description 'RFC 9111: request side checks cache (hit → bypass engine); response side stores cacheable responses and merges 304'
       }
 
-      CacheStorageStage = component 'CacheStorageStage' {
-        #graphstage #cache
-        technology 'GraphStage'
-        description 'RFC 9111 §3 / §4.3.4: stores cacheable responses; merges 304 with stored entry'
-      }
-
-      CookieInjectionStage = component 'CookieInjectionStage' {
+      CookieBidiStage = component 'CookieBidiStage' {
         #graphstage #cookie
-        technology 'GraphStage'
-        description 'RFC 6265: injects matching Cookie headers from CookieJar into outbound requests'
+        technology 'BidiStage'
+        description 'RFC 6265: request side injects matching Cookie headers; response side stores Set-Cookie headers in CookieJar'
       }
 
-      CookieStorageStage = component 'CookieStorageStage' {
-        #graphstage #cookie
-        technology 'GraphStage'
-        description 'RFC 6265 §5.3: extracts Set-Cookie headers from responses into CookieJar'
-      }
-
-      RedirectStage = component 'RedirectStage' {
+      RedirectBidiStage = component 'RedirectBidiStage' {
         #graphstage
-        technology 'GraphStage'
-        description 'RFC 9110 §15.4: Out0 = final response, Out1 = rewritten redirect request (feedback loop)'
+        technology 'BidiStage'
+        description 'RFC 9110 §15.4: passes final responses through; feeds redirect requests back into pipeline'
       }
 
-      RetryStage = component 'RetryStage' {
+      RetryBidiStage = component 'RetryBidiStage' {
         #graphstage
-        technology 'GraphStage'
-        description 'RFC 9110 §9.2: Out0 = final response, Out1 = retryable request (feedback loop)'
+        technology 'BidiStage'
+        description 'RFC 9110 §9.2: passes final responses through; feeds retryable requests back into pipeline'
       }
     }
 
@@ -222,7 +210,7 @@ model {
       Http10Encoder = component 'Http10Encoder' {
         #staticClass #protocol
         technology 'Static class'
-        description 'Encodes HTTP/1.0 request-line + headers to bytes using ref Span<byte>'
+        description 'Encodes HTTP/1.0 request-line + headers to bytes using ref Memory<byte>'
       }
 
       Http11Encoder = component 'Http11Encoder' {
@@ -310,7 +298,7 @@ model {
       // Content encoding (RFC 9110 §8.4)
       ContentEncodingDecoder = component 'ContentEncodingDecoder' {
         #staticClass #protocol
-        technology 'Static class'
+        technology 'Internal static class'
         description 'RFC 9110 §8.4: gzip / deflate / brotli decompression; delegates to System.IO.Compression'
       }
 
@@ -346,12 +334,12 @@ model {
       technology 'Akka.NET Actors / System.Threading.Channels'
 
       // Actor hierarchy (lifecycle)
-      PoolRouterActor = actor 'PoolRouterActor' {
+      PoolRouter = actor 'PoolRouter' {
         technology 'Akka Actor'
-        description 'Entry point for EnsureHost messages; creates HostPoolActor on first request per host; routes by HostKey'
+        description 'Entry point for EnsureHost messages; creates HostPool on first request per host; routes by HostKey'
       }
 
-      HostPoolActor = actor 'HostPoolActor' {
+      HostPool = actor 'HostPool' {
         technology 'Akka Actor'
         description 'Per-host connection pool: MRU selection, idle eviction, PerHostConnectionLimiter enforcement, queued requester delivery'
       }
@@ -390,7 +378,7 @@ model {
 
       ConnectionState = component 'ConnectionState' {
         technology 'Class'
-        description 'Per-connection metadata tracked by HostPoolActor: Active/Idle/Reusable state, HttpVersion, concurrent stream capacity'
+        description 'Per-connection metadata tracked by HostPool: Active/Idle/Reusable state, HttpVersion, concurrent stream capacity'
       }
 
       PerHostConnectionLimiter = component 'PerHostConnectionLimiter' {
@@ -422,15 +410,13 @@ model {
   turbohttp.streams.Engine -> turbohttp.streams.Http11Engine 'Routes HTTP/1.1 requests'
   turbohttp.streams.Engine -> turbohttp.streams.Http20Engine 'Routes HTTP/2 requests'
 
-  // Pipeline middleware (applied around engine core)
+  // Pipeline BidiStages (applied around engine core)
   turbohttp.streams.Engine -> turbohttp.streams.RequestEnricherStage 'Applies defaults before routing'
-  turbohttp.streams.Engine -> turbohttp.streams.CookieInjectionStage 'Injects cookies into outbound requests'
-  turbohttp.streams.Engine -> turbohttp.streams.CacheLookupStage 'Checks cache; bypasses engine on hit'
-  turbohttp.streams.Engine -> turbohttp.streams.DecompressionStage 'Decompresses response bodies'
-  turbohttp.streams.Engine -> turbohttp.streams.CookieStorageStage 'Stores Set-Cookie headers'
-  turbohttp.streams.Engine -> turbohttp.streams.CacheStorageStage 'Caches responses per RFC 9111'
-  turbohttp.streams.Engine -> turbohttp.streams.RetryStage 'Feeds retry loop'
-  turbohttp.streams.Engine -> turbohttp.streams.RedirectStage 'Feeds redirect loop'
+  turbohttp.streams.Engine -> turbohttp.streams.CookieBidiStage 'Injects/stores cookies'
+  turbohttp.streams.Engine -> turbohttp.streams.CacheBidiStage 'Checks/stores cache'
+  turbohttp.streams.Engine -> turbohttp.streams.DecompressionBidiStage 'Decompresses response bodies'
+  turbohttp.streams.Engine -> turbohttp.streams.RetryBidiStage 'Feeds retry loop'
+  turbohttp.streams.Engine -> turbohttp.streams.RedirectBidiStage 'Feeds redirect loop'
   turbohttp.streams.Engine -> turbohttp.streams.ConnectionReuseStage 'Signals keep-alive / close'
 
   // HTTP/1.0 engine internals
@@ -455,7 +441,7 @@ model {
   turbohttp.streams.Http20Engine -> turbohttp.streams.ConnectionStage 'Reads/writes bytes via transport'
 
   // ConnectionStage → I/O
-  turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouterActor 'EnsureHost (actor message)'
+  turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouter 'EnsureHost (actor message)'
   turbohttp.streams.ConnectionStage -> turbohttp.io.ConnectionHandle 'Reads/writes bytes via channels (zero actor hops)'
 
   // Stages → Protocol codecs
@@ -474,31 +460,28 @@ model {
   turbohttp.protocol.HpackEncoder -> turbohttp.protocol.HuffmanCodec 'Huffman-encodes string literals'
   turbohttp.protocol.HpackDecoder -> turbohttp.protocol.HuffmanCodec 'Huffman-decodes string literals'
 
-  // Stages → Protocol business rules
-  turbohttp.streams.RedirectStage -> turbohttp.protocol.RedirectHandler 'Evaluates redirect rules'
-  turbohttp.streams.RetryStage -> turbohttp.protocol.RetryEvaluator 'Evaluates retry eligibility'
-  turbohttp.streams.CookieInjectionStage -> turbohttp.protocol.CookieJar 'Reads matching cookies'
-  turbohttp.streams.CookieStorageStage -> turbohttp.protocol.CookieJar 'Stores Set-Cookie headers'
+  // BidiStages → Protocol business rules
+  turbohttp.streams.RedirectBidiStage -> turbohttp.protocol.RedirectHandler 'Evaluates redirect rules'
+  turbohttp.streams.RetryBidiStage -> turbohttp.protocol.RetryEvaluator 'Evaluates retry eligibility'
+  turbohttp.streams.CookieBidiStage -> turbohttp.protocol.CookieJar 'Reads/stores cookies'
   turbohttp.streams.ConnectionReuseStage -> turbohttp.protocol.ConnectionReuseEvaluator 'Evaluates keep-alive / close'
-  turbohttp.streams.DecompressionStage -> turbohttp.protocol.ContentEncodingDecoder 'Decompresses content'
+  turbohttp.streams.DecompressionBidiStage -> turbohttp.protocol.ContentEncodingDecoder 'Decompresses content'
 
-  // Stages → Caching subsystem
-  turbohttp.streams.CacheLookupStage -> turbohttp.protocol.HttpCacheStore 'Looks up cached responses'
-  turbohttp.streams.CacheStorageStage -> turbohttp.protocol.HttpCacheStore 'Stores cacheable responses'
-  turbohttp.streams.CacheLookupStage -> turbohttp.protocol.CacheFreshnessEvaluator 'Checks freshness lifetime'
-  turbohttp.streams.CacheLookupStage -> turbohttp.protocol.CacheControlParser 'Parses Cache-Control directives'
-  turbohttp.streams.CacheStorageStage -> turbohttp.protocol.CacheControlParser 'Parses Cache-Control directives'
-  turbohttp.streams.CacheLookupStage -> turbohttp.protocol.CacheValidationRequestBuilder 'Builds conditional revalidation requests'
+  // BidiStages → Caching subsystem
+  turbohttp.streams.CacheBidiStage -> turbohttp.protocol.HttpCacheStore 'Looks up and stores cached responses'
+  turbohttp.streams.CacheBidiStage -> turbohttp.protocol.CacheFreshnessEvaluator 'Checks freshness lifetime'
+  turbohttp.streams.CacheBidiStage -> turbohttp.protocol.CacheControlParser 'Parses Cache-Control directives'
+  turbohttp.streams.CacheBidiStage -> turbohttp.protocol.CacheValidationRequestBuilder 'Builds conditional revalidation requests'
 
   // I/O Layer internals
-  turbohttp.io.PoolRouterActor -> turbohttp.io.HostPoolActor 'Creates and routes to per-host pool'
-  turbohttp.io.HostPoolActor -> turbohttp.io.ConnectionActor 'Creates and supervises connections'
-  turbohttp.io.HostPoolActor -> turbohttp.io.ConnectionState 'Tracks per-connection metadata'
-  turbohttp.io.HostPoolActor -> turbohttp.io.PerHostConnectionLimiter 'Enforces concurrent connection limits'
+  turbohttp.io.PoolRouter -> turbohttp.io.HostPool 'Creates and routes to per-host pool'
+  turbohttp.io.HostPool -> turbohttp.io.ConnectionActor 'Creates and supervises connections'
+  turbohttp.io.HostPool -> turbohttp.io.ConnectionState 'Tracks per-connection metadata'
+  turbohttp.io.HostPool -> turbohttp.io.PerHostConnectionLimiter 'Enforces concurrent connection limits'
   turbohttp.io.ConnectionActor -> turbohttp.io.ClientManager 'Requests ClientRunner spawn'
   turbohttp.io.ClientManager -> turbohttp.io.ClientRunner 'Resolves and supervises per-connection runner'
   turbohttp.io.ClientRunner -> turbohttp.io.ClientByteMover 'Spawns three async pump tasks after TCP connect'
-  turbohttp.io.ConnectionActor -> turbohttp.io.ConnectionHandle 'Delivers handle to HostPoolActor on connect'
+  turbohttp.io.ConnectionActor -> turbohttp.io.ConnectionHandle 'Delivers handle to HostPool on connect'
   turbohttp.io.ClientByteMover -> turbohttp.io.ClientState 'Reads/writes TCP stream, Pipe, and channels'
 
   // I/O → TCP

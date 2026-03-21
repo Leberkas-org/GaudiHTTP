@@ -351,10 +351,27 @@ public sealed class Http11Decoder : IDisposable
         var headersData = headerSection[(statusLineEnd + 2)..];
         var headers = ParseHeaders(headersData);
 
+        // RFC 9112 §7.1: Chunked encoding MUST be terminated by a zero-length chunk.
+        // If the connection closes before the zero-chunk, the response is incomplete.
+        if (GetSingleHeader(headers, WellKnownHeaders.Names.TransferEncoding) is not null)
+        {
+            ClearRemainder();
+            return false;
+        }
+
         var bodyStart = headerEnd + 4;
         var bodyBytes = bodyStart < _remainderLength
             ? working[bodyStart..].ToArray()
             : [];
+
+        // RFC 9112 §6.2: If Content-Length is present, the body MUST be exactly that many bytes.
+        // A connection close before the full body is received means a truncated (incomplete) response.
+        var contentLength = GetContentLengthHeader(headers);
+        if (contentLength.HasValue && bodyBytes.Length < contentLength.Value)
+        {
+            ClearRemainder();
+            return false;
+        }
 
         // Build response
         response = new HttpResponseMessage

@@ -34,7 +34,7 @@ views {
     description 'All Akka.Streams GraphStages: request enrichment, protocol engines, response pipeline'
     include turbohttp.client.ITurboHttpClient
     include turbohttp.streams.*
-    include turbohttp.io.PoolRouterActor
+    include turbohttp.io.PoolRouter
   }
 
   view ioLayer of turbohttp.io {

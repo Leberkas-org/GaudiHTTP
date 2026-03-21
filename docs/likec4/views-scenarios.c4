@@ -1,9 +1,5 @@
 // TurboHttp — Scenario Dynamic Views
 // Three playable end-to-end request sequences (HTTP/1.0, HTTP/1.1, HTTP/2).
-//
-// scenarioHttp10 — no keep-alive; connection closes after each response
-// scenarioHttp11 — persistent connections with keep-alive feedback signal
-// scenarioHttp2  — multiplexed streams with HPACK header compression
 
 views {
   // ── Scenario: HTTP/1.0 End-to-End ─────────────────────────────────────
@@ -14,17 +10,17 @@ views {
     // ── Request ────────────────────────────────────────────────────────
     user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricherStage 'apply BaseAddress + default headers'
-    turbohttp.streams.RequestEnricherStage -> turbohttp.streams.CookieInjectionStage 'inject Cookie header'
-    turbohttp.streams.CookieInjectionStage -> turbohttp.streams.CacheLookupStage 'check cache'
-    turbohttp.streams.CacheLookupStage -> turbohttp.streams.Engine 'cache miss'
+    turbohttp.streams.RequestEnricherStage -> turbohttp.streams.CookieBidiStage 'inject Cookie header'
+    turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'check cache'
+    turbohttp.streams.CacheBidiStage -> turbohttp.streams.Engine 'cache miss'
     turbohttp.streams.Engine -> turbohttp.streams.Http10Engine 'route to HTTP/1.0'
     turbohttp.streams.Http10Engine -> turbohttp.streams.Http10EncoderStage 'serialize to bytes'
     turbohttp.streams.Http10EncoderStage -> turbohttp.streams.ConnectionStage 'request bytes'
 
     // ── Connection setup ───────────────────────────────────────────────
-    turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouterActor 'EnsureHost'
-    turbohttp.io.PoolRouterActor -> turbohttp.io.HostPoolActor 'EnsureHost (forward)'
-    turbohttp.io.HostPoolActor -> turbohttp.io.ConnectionActor 'SpawnConnection'
+    turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouter 'EnsureHost'
+    turbohttp.io.PoolRouter -> turbohttp.io.HostPool 'EnsureHost (forward)'
+    turbohttp.io.HostPool -> turbohttp.io.ConnectionActor 'SpawnConnection'
     turbohttp.io.ConnectionActor -> turbohttp.io.ClientManager 'CreateRunner'
     turbohttp.io.ClientManager -> turbohttp.io.ClientRunner 'Spawn runner'
     turbohttp.io.ConnectionActor -> turbohttp.streams.ConnectionStage 'ConnectionReady'
@@ -36,12 +32,12 @@ views {
     // ── Response ───────────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.streams.Http10DecoderStage 'raw bytes'
     turbohttp.streams.Http10DecoderStage -> turbohttp.streams.Http1XCorrelationStage 'HttpResponseMessage'
-    turbohttp.streams.Http1XCorrelationStage -> turbohttp.streams.DecompressionStage 'correlated response'
-    turbohttp.streams.DecompressionStage -> turbohttp.streams.CookieStorageStage 'decompress body'
-    turbohttp.streams.CookieStorageStage -> turbohttp.streams.CacheStorageStage 'store Set-Cookie'
-    turbohttp.streams.CacheStorageStage -> turbohttp.streams.RetryStage 'store cacheable response'
-    turbohttp.streams.RetryStage -> turbohttp.streams.RedirectStage 'no retry needed'
-    turbohttp.streams.RedirectStage -> turbohttp.client.ITurboHttpClient 'final response'
+    turbohttp.streams.Http1XCorrelationStage -> turbohttp.streams.DecompressionBidiStage 'correlated response'
+    turbohttp.streams.DecompressionBidiStage -> turbohttp.streams.CookieBidiStage 'decompress body'
+    turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'store Set-Cookie'
+    turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'store cacheable response'
+    turbohttp.streams.RetryBidiStage -> turbohttp.streams.RedirectBidiStage 'no retry needed'
+    turbohttp.streams.RedirectBidiStage -> turbohttp.client.ITurboHttpClient 'final response'
     turbohttp.client.ITurboHttpClient -> user 'HttpResponseMessage'
   }
 
@@ -53,17 +49,17 @@ views {
     // ── Request ────────────────────────────────────────────────────────
     user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricherStage 'apply BaseAddress + default headers'
-    turbohttp.streams.RequestEnricherStage -> turbohttp.streams.CookieInjectionStage 'inject Cookie header'
-    turbohttp.streams.CookieInjectionStage -> turbohttp.streams.CacheLookupStage 'check cache'
-    turbohttp.streams.CacheLookupStage -> turbohttp.streams.Engine 'cache miss'
+    turbohttp.streams.RequestEnricherStage -> turbohttp.streams.CookieBidiStage 'inject Cookie header'
+    turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'check cache'
+    turbohttp.streams.CacheBidiStage -> turbohttp.streams.Engine 'cache miss'
     turbohttp.streams.Engine -> turbohttp.streams.Http11Engine 'route to HTTP/1.1'
     turbohttp.streams.Http11Engine -> turbohttp.streams.Http11EncoderStage 'serialize + chunked TE + Host header'
     turbohttp.streams.Http11EncoderStage -> turbohttp.streams.ConnectionStage 'request bytes'
 
     // ── Connection setup ───────────────────────────────────────────────
-    turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouterActor 'EnsureHost'
-    turbohttp.io.PoolRouterActor -> turbohttp.io.HostPoolActor 'EnsureHost (forward)'
-    turbohttp.io.HostPoolActor -> turbohttp.io.ConnectionActor 'SpawnConnection'
+    turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouter 'EnsureHost'
+    turbohttp.io.PoolRouter -> turbohttp.io.HostPool 'EnsureHost (forward)'
+    turbohttp.io.HostPool -> turbohttp.io.ConnectionActor 'SpawnConnection'
     turbohttp.io.ConnectionActor -> turbohttp.io.ClientManager 'CreateRunner'
     turbohttp.io.ClientManager -> turbohttp.io.ClientRunner 'Spawn runner'
     turbohttp.io.ConnectionActor -> turbohttp.streams.ConnectionStage 'ConnectionReady'
@@ -79,16 +75,16 @@ views {
     // Keep-alive signal and response in parallel
     parallel {
       turbohttp.streams.Http1XCorrelationStage -> turbohttp.streams.ConnectionReuseStage 'keep-alive / close signal'
-      turbohttp.streams.Http1XCorrelationStage -> turbohttp.streams.DecompressionStage 'correlated response'
+      turbohttp.streams.Http1XCorrelationStage -> turbohttp.streams.DecompressionBidiStage 'correlated response'
     }
     turbohttp.streams.ConnectionReuseStage -> turbohttp.streams.ConnectionStage 'reuse or close decision'
 
     // ── Response ───────────────────────────────────────────────────────
-    turbohttp.streams.DecompressionStage -> turbohttp.streams.CookieStorageStage 'decompress body'
-    turbohttp.streams.CookieStorageStage -> turbohttp.streams.CacheStorageStage 'store Set-Cookie'
-    turbohttp.streams.CacheStorageStage -> turbohttp.streams.RetryStage 'store cacheable response'
-    turbohttp.streams.RetryStage -> turbohttp.streams.RedirectStage 'no retry needed'
-    turbohttp.streams.RedirectStage -> turbohttp.client.ITurboHttpClient 'final response'
+    turbohttp.streams.DecompressionBidiStage -> turbohttp.streams.CookieBidiStage 'decompress body'
+    turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'store Set-Cookie'
+    turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'store cacheable response'
+    turbohttp.streams.RetryBidiStage -> turbohttp.streams.RedirectBidiStage 'no retry needed'
+    turbohttp.streams.RedirectBidiStage -> turbohttp.client.ITurboHttpClient 'final response'
     turbohttp.client.ITurboHttpClient -> user 'HttpResponseMessage'
   }
 
@@ -100,9 +96,9 @@ views {
     // ── Request ────────────────────────────────────────────────────────
     user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricherStage 'apply BaseAddress + default headers'
-    turbohttp.streams.RequestEnricherStage -> turbohttp.streams.CookieInjectionStage 'inject Cookie header'
-    turbohttp.streams.CookieInjectionStage -> turbohttp.streams.CacheLookupStage 'check cache'
-    turbohttp.streams.CacheLookupStage -> turbohttp.streams.Engine 'cache miss'
+    turbohttp.streams.RequestEnricherStage -> turbohttp.streams.CookieBidiStage 'inject Cookie header'
+    turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'check cache'
+    turbohttp.streams.CacheBidiStage -> turbohttp.streams.Engine 'cache miss'
     turbohttp.streams.Engine -> turbohttp.streams.Http20Engine 'route to HTTP/2'
     turbohttp.streams.Http20Engine -> turbohttp.streams.StreamIdAllocatorStage 'assign stream ID (1, 3, 5, …)'
     turbohttp.streams.StreamIdAllocatorStage -> turbohttp.streams.Request2FrameStage 'HPACK-encode headers → HEADERS + DATA frames'
@@ -112,9 +108,9 @@ views {
     turbohttp.streams.PrependPrefaceStage -> turbohttp.streams.ConnectionStage 'IOutputItem (preface injected on first ConnectItem)'
 
     // ── Connection setup ───────────────────────────────────────────────
-    turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouterActor 'EnsureHost'
-    turbohttp.io.PoolRouterActor -> turbohttp.io.HostPoolActor 'EnsureHost (forward)'
-    turbohttp.io.HostPoolActor -> turbohttp.io.ConnectionActor 'SpawnConnection'
+    turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouter 'EnsureHost'
+    turbohttp.io.PoolRouter -> turbohttp.io.HostPool 'EnsureHost (forward)'
+    turbohttp.io.HostPool -> turbohttp.io.ConnectionActor 'SpawnConnection'
     turbohttp.io.ConnectionActor -> turbohttp.io.ClientManager 'CreateRunner'
     turbohttp.io.ClientManager -> turbohttp.io.ClientRunner 'Spawn runner'
     turbohttp.io.ConnectionActor -> turbohttp.streams.ConnectionStage 'ConnectionReady'
@@ -127,12 +123,12 @@ views {
     turbohttp.streams.ConnectionStage -> turbohttp.streams.Http20DecoderStage 'raw bytes'
     turbohttp.streams.Http20DecoderStage -> turbohttp.streams.Http20ConnectionStage 'Http2Frame (SETTINGS / PING / DATA / HEADERS)'
     turbohttp.streams.Http20ConnectionStage -> turbohttp.streams.Http20StreamStage 'per-stream HEADERS + DATA'
-    turbohttp.streams.Http20StreamStage -> turbohttp.streams.DecompressionStage 'HPACK-decode headers → HttpResponseMessage'
-    turbohttp.streams.DecompressionStage -> turbohttp.streams.CookieStorageStage 'decompress body'
-    turbohttp.streams.CookieStorageStage -> turbohttp.streams.CacheStorageStage 'store Set-Cookie'
-    turbohttp.streams.CacheStorageStage -> turbohttp.streams.RetryStage 'store cacheable response'
-    turbohttp.streams.RetryStage -> turbohttp.streams.RedirectStage 'no retry needed'
-    turbohttp.streams.RedirectStage -> turbohttp.client.ITurboHttpClient 'final response'
+    turbohttp.streams.Http20StreamStage -> turbohttp.streams.DecompressionBidiStage 'HPACK-decode headers → HttpResponseMessage'
+    turbohttp.streams.DecompressionBidiStage -> turbohttp.streams.CookieBidiStage 'decompress body'
+    turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'store Set-Cookie'
+    turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'store cacheable response'
+    turbohttp.streams.RetryBidiStage -> turbohttp.streams.RedirectBidiStage 'no retry needed'
+    turbohttp.streams.RedirectBidiStage -> turbohttp.client.ITurboHttpClient 'final response'
     turbohttp.client.ITurboHttpClient -> user 'HttpResponseMessage'
   }
 }

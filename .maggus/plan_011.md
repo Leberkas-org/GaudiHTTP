@@ -366,17 +366,17 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 
 ---
 
-### TASK-013: Incomplete Close Recovery Tests
+### TASK-013: Incomplete Close Recovery Tests ✅
 
 **RFC**: 9112 §8 + §9.8
 
 **Acceptance Criteria:**
-- [ ] Chunked response without zero-chunk is marked incomplete
-- [ ] Content-Length body truncated is marked incomplete
-- [ ] No Content-Length + clean close is marked complete
-- [ ] Engine retries idempotent requests after incomplete close
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] Chunked response without zero-chunk is marked incomplete
+- [x] Content-Length body truncated is marked incomplete
+- [x] No Content-Length + clean close is marked complete
+- [x] Engine retries idempotent requests after incomplete close
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (new file: `src/TurboHttp.StreamTests/RFC9112/16_IncompleteCloseRecoveryTests.cs`):
 

@@ -23,7 +23,7 @@ Http10EncoderStage → ConnectionStage → TCP → ConnectionStage → Http10Dec
 | `Http10EncoderStage` | Serialises `HttpRequestMessage` to wire bytes; sets `Connection: close` |
 | `ConnectionStage` | Opens a new TCP connection per request; closes it after the response |
 | `Http10DecoderStage` | Parses the HTTP/1.0 response from raw bytes; handles EOF-delimited bodies |
-| `CorrelationHttp1XStage` | FIFO correlation; since HTTP/1.0 is strictly sequential the queue depth is always 1 |
+| `Http1XCorrelationStage` | FIFO correlation; since HTTP/1.0 is strictly sequential the queue depth is always 1 |
 
 **Notable behaviours:**
 
@@ -59,12 +59,12 @@ Http11EncoderStage → ConnectionStage → TCP → ConnectionStage
 | `Http11EncoderStage` | Serialises request; adds `Host`, `Connection`, `Transfer-Encoding: chunked` as needed |
 | `ConnectionStage` | Manages a persistent TCP connection; accepts reuse/close signals |
 | `Http11DecoderStage` | Parses HTTP/1.1 responses; handles chunked transfer decoding |
-| `CorrelationHttp1XStage` | FIFO correlation; depth > 1 enables request pipelining |
+| `Http1XCorrelationStage` | FIFO correlation; depth > 1 enables request pipelining |
 | `ConnectionReuseStage` | Evaluates `Connection: keep-alive` / `Connection: close`; emits a reuse or close signal |
 
 **Keep-alive feedback loop:**
 
-After decoding each response, `CorrelationHttp1XStage` emits two signals in parallel (via `MergePreferred`):
+After decoding each response, `Http1XCorrelationStage` emits two signals in parallel (via `MergePreferred`):
 1. The decoded `HttpResponseMessage` continues downstream toward the response chain
 2. A keep-alive / close decision is fed back to `ConnectionStage` via `ConnectionReuseStage`
 
@@ -98,7 +98,7 @@ TCP → ConnectionStage → Http20DecoderStage → Http20ConnectionStage → Htt
 | `ConnectionStage` | TCP transport; shared with HTTP/1.x via the `Engine` demultiplexer |
 | `Http20DecoderStage` | Stateful parser; reassembles frames from TCP byte stream, handles partial frame delivery |
 | `Http20StreamStage` | Assembles per-stream `HEADERS` + `DATA` frames into `HttpResponseMessage`; HPACK-decodes headers |
-| `CorrelationHttp20Stage` | Maps stream IDs back to pending requests; supports concurrent in-flight streams |
+| `Http20CorrelationStage` | Maps stream IDs back to pending requests; supports concurrent in-flight streams |
 
 **HPACK header compression:**
 
