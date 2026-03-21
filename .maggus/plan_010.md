@@ -35,14 +35,14 @@ This creates an inconsistency: built-in features are BidiFlows, user middlewares
 **Description:** As a developer, I want `Engine.BuildExtendedPipeline()` to compose user middleware BidiFlows via `Atop` so that the pipeline is uniform.
 
 **Acceptance Criteria:**
-- [ ] Remove the `foreach` loop that creates `MiddlewareRequestStage` instances (lines ~138-141)
-- [ ] Remove the `foreach` loop that creates `MiddlewareResponseStage` instances (lines ~147-150)
-- [ ] Build middleware BidiFlows and stack them outermost via `Atop` (after Redirect, which is currently outermost)
-- [ ] FIFO order preserved: `Middlewares[0]` is outermost (sees initial request first, final response last)
-- [ ] Implementation: iterate middlewares in reverse, `Atop` each onto `features`
-- [ ] When all features are null and no middlewares exist, engine flow is used directly (no regression)
-- [ ] Update docstring to include middleware in the stacking order list
-- [ ] Typecheck passes
+- [x] Remove the `foreach` loop that creates `MiddlewareRequestStage` instances (lines ~138-141)
+- [x] Remove the `foreach` loop that creates `MiddlewareResponseStage` instances (lines ~147-150)
+- [x] Build middleware BidiFlows and stack them outermost via `Atop` (after Redirect, which is currently outermost)
+- [x] FIFO order preserved: `Middlewares[0]` is outermost (sees initial request first, final response last)
+- [x] Implementation: iterate middlewares in reverse, `Atop` each onto `features`
+- [x] When all features are null and no middlewares exist, engine flow is used directly (no regression)
+- [x] Update docstring to include middleware in the stacking order list
+- [x] Typecheck passes
 
 ### TASK-003: Delete Old Middleware Stages
 **Description:** As a developer, I want to remove the now-redundant `MiddlewareRequestStage` and `MiddlewareResponseStage` so that there is no dead code.
