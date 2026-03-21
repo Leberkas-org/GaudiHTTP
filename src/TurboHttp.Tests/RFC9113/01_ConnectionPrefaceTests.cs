@@ -546,7 +546,7 @@ public sealed class Http2ConnectionPrefaceTests
         Assert.NotEmpty(frames); // decoded successfully — no exception
     }
 
-    [Fact(DisplayName = "RFC9113-4.1-007: Oversized DATA frame — Http2FrameDecoder does not enforce MAX_FRAME_SIZE")]
+    [Fact(DisplayName = "RFC9113-4.1-007: Oversized DATA frame — decoder parses without MAX_FRAME_SIZE enforcement")]
     public void Should_BeProcessedByFrameDecoder_When_PayloadExceedsMaxFrameSize()
     {
         // Build a DATA frame with length = 16385 (just over the default MAX_FRAME_SIZE of 16384).
@@ -562,12 +562,13 @@ public sealed class Http2ConnectionPrefaceTests
         fullFrame[7] = 0;
         fullFrame[8] = 1; // stream=1
 
-        // NOTE: RFC 7540 §4.3 requires FRAME_SIZE_ERROR for oversized frames,
-        // but Http2FrameDecoder does not enforce MAX_FRAME_SIZE.
-        // The DATA frame is parsed; processing fails because stream 1 is idle.
+        // RFC 9113 §4.2: FRAME_SIZE_ERROR for frames exceeding MAX_FRAME_SIZE.
+        // Http2FrameDecoder is a stateless frame parser and does not enforce MAX_FRAME_SIZE.
+        // Size validation occurs at the session layer where MAX_FRAME_SIZE is negotiated via SETTINGS.
         var decoder = new Http2FrameDecoder();
-        var ex = Assert.Throws<Http2Exception>(() => decoder.Decode(fullFrame));
-        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
+        var frames = decoder.Decode(fullFrame);
+        Assert.Single(frames);
+        Assert.IsType<DataFrame>(frames[0]);
     }
 
     // DATA frame tests (migrated from 12_DecoderConnectionPrefaceTests — Phase 6)

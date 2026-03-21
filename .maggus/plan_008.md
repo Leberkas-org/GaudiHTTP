@@ -138,10 +138,10 @@ method so that the hosting API no longer exposes a deprecated registration path.
 build and test suite are fully clean.
 
 **Acceptance Criteria:**
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` exits 0 with **zero CS0618 warnings**.
-- [ ] `dotnet test src/TurboHttp.sln` exits 0 with all tests passing.
-- [ ] No `#pragma warning disable CS0618` lines remain anywhere in `src/`.
-- [ ] No `[Obsolete]` attributes remain on any production member in `TurboHttp/` (non-test) code.
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` exits 0 with **zero CS0618 warnings**.
+- [x] `dotnet test src/TurboHttp.sln` exits 0 with all tests passing.
+- [x] No `#pragma warning disable CS0618` lines remain anywhere in `src/`.
+- [x] No `[Obsolete]` attributes remain on any production member in `TurboHttp/` (non-test) code.
 
 ---
 

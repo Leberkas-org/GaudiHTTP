@@ -47,6 +47,10 @@ public sealed class Http2FrameDecoder
 
     private ReadOnlyMemory<byte> _remainder = ReadOnlyMemory<byte>.Empty;
 
+    // RFC 9113 §6.10: tracks whether we are awaiting a CONTINUATION frame.
+    // When non-zero, only CONTINUATION on this stream ID is allowed.
+    private int _awaitingContinuationStreamId;
+
     /// <summary>
     /// Feeds bytes and returns all complete frames decoded so far.
     /// Incomplete trailing bytes are buffered for the next call.
@@ -75,6 +79,8 @@ public sealed class Http2FrameDecoder
             // RFC 9113 §5.5: Unknown frame types MUST be ignored.
             if (frame != null)
             {
+                ValidateContinuationState(type, streamId);
+                UpdateContinuationState(frame);
                 frames.Add(frame);
             }
 
@@ -85,7 +91,11 @@ public sealed class Http2FrameDecoder
         return frames;
     }
 
-    public void Reset() => _remainder = ReadOnlyMemory<byte>.Empty;
+    public void Reset()
+    {
+        _remainder = ReadOnlyMemory<byte>.Empty;
+        _awaitingContinuationStreamId = 0;
+    }
 
     private static Http2Frame? CreateFrame(FrameType type, byte flags, int streamId, ReadOnlyMemory<byte> payload)
     {
@@ -95,10 +105,14 @@ public sealed class Http2FrameDecoder
 
             FrameType.Headers => ParseHeadersFrame(flags, streamId, payload),
 
-            FrameType.Continuation => new ContinuationFrame(
-                streamId,
-                payload,
-                (flags & (byte)ContinuationFlags.EndHeaders) != 0),
+            FrameType.Continuation => streamId == 0
+                ? throw new Http2Exception(
+                    "RFC 9113 §6.10: CONTINUATION frame MUST be associated with a stream; stream 0 is invalid.",
+                    Http2ErrorCode.ProtocolError)
+                : new ContinuationFrame(
+                    streamId,
+                    payload,
+                    (flags & (byte)ContinuationFlags.EndHeaders) != 0),
 
             FrameType.Ping => streamId != 0
                 ? throw new Http2Exception("RFC 9113 §6.7: PING frame MUST be sent on stream 0.")
@@ -130,6 +144,13 @@ public sealed class Http2FrameDecoder
 
     private static DataFrame ParseDataFrame(byte flags, int streamId, ReadOnlyMemory<byte> payload)
     {
+        if (streamId == 0)
+        {
+            throw new Http2Exception(
+                "RFC 9113 §6.1: DATA frame MUST be associated with a stream; stream 0 is invalid.",
+                Http2ErrorCode.ProtocolError);
+        }
+
         var endStream = (flags & (byte)DataFlags.EndStream) != 0;
         var data = payload;
 
@@ -272,6 +293,64 @@ public sealed class Http2FrameDecoder
         }
 
         return new WindowUpdateFrame(streamId, increment);
+    }
+
+    /// <summary>
+    /// RFC 9113 §6.10: validates that CONTINUATION state constraints are met.
+    /// When awaiting CONTINUATION, only CONTINUATION on the same stream is allowed.
+    /// When not awaiting CONTINUATION, a bare CONTINUATION is invalid.
+    /// </summary>
+    private void ValidateContinuationState(FrameType type, int streamId)
+    {
+        if (_awaitingContinuationStreamId != 0)
+        {
+            if (type != FrameType.Continuation)
+            {
+                throw new Http2Exception(
+                    $"RFC 9113 §6.10: Expected CONTINUATION frame on stream {_awaitingContinuationStreamId}, but received {type}.",
+                    Http2ErrorCode.ProtocolError);
+            }
+
+            if (streamId != _awaitingContinuationStreamId)
+            {
+                throw new Http2Exception(
+                    $"RFC 9113 §6.10: Expected CONTINUATION on stream {_awaitingContinuationStreamId}, but received on stream {streamId}.",
+                    Http2ErrorCode.ProtocolError);
+            }
+        }
+        else if (type == FrameType.Continuation)
+        {
+            throw new Http2Exception(
+                "RFC 9113 §6.10: CONTINUATION frame received without preceding HEADERS or PUSH_PROMISE.",
+                Http2ErrorCode.ProtocolError);
+        }
+    }
+
+    /// <summary>
+    /// Tracks whether the decoder is awaiting a CONTINUATION frame.
+    /// HEADERS/PUSH_PROMISE without END_HEADERS sets the expectation;
+    /// CONTINUATION with END_HEADERS clears it.
+    /// </summary>
+    private void UpdateContinuationState(Http2Frame frame)
+    {
+        switch (frame)
+        {
+            case HeadersFrame h when !h.EndHeaders:
+                _awaitingContinuationStreamId = h.StreamId;
+                break;
+            case HeadersFrame:
+                _awaitingContinuationStreamId = 0;
+                break;
+            case PushPromiseFrame pp when !pp.EndHeaders:
+                _awaitingContinuationStreamId = pp.StreamId;
+                break;
+            case PushPromiseFrame:
+                _awaitingContinuationStreamId = 0;
+                break;
+            case ContinuationFrame c when c.EndHeaders:
+                _awaitingContinuationStreamId = 0;
+                break;
+        }
     }
 
     private static ReadOnlyMemory<byte> Combine(ReadOnlyMemory<byte> a, ReadOnlyMemory<byte> b)

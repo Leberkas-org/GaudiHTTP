@@ -68,33 +68,36 @@ public sealed class Http2HeaderBlockDecoderTests
 
 
     /// RFC 9113 §8.2 — CONTINUATION frame with END_HEADERS is decoded with EndHeaders=true
-    [Fact(DisplayName = "RFC9113-8.2-HBD-003: CONTINUATION with END_HEADERS flag decoded with EndHeaders=true")]
+    [Fact(DisplayName = "RFC9113-8.2-HBD-003: CONTINUATION with END_HEADERS after HEADERS decoded with EndHeaders=true")]
     public void Should_SetEndHeadersTrue_WhenContinuationEndHeadersFlagSet()
     {
         var block = MakeBlock((":status", "200"));
-        var contBytes = new ContinuationFrame(1, block.AsMemory(), endHeaders: true).Serialize();
+        var split = block.Length / 2;
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..split], endStream: true, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
 
         var decoder = new Http2FrameDecoder();
-        var frames = decoder.Decode(contBytes);
+        var frames = decoder.Decode(Concat(headersBytes, contBytes));
 
-        Assert.Single(frames);
-        var cf = Assert.IsType<ContinuationFrame>(frames[0]);
+        Assert.Equal(2, frames.Count);
+        var cf = Assert.IsType<ContinuationFrame>(frames[1]);
         Assert.True(cf.EndHeaders);
     }
 
 
     /// RFC 9113 §8.2 — CONTINUATION frame without END_HEADERS is decoded with EndHeaders=false
-    [Fact(DisplayName = "RFC9113-8.2-HBD-004: CONTINUATION without END_HEADERS flag decoded with EndHeaders=false")]
+    [Fact(DisplayName = "RFC9113-8.2-HBD-004: CONTINUATION without END_HEADERS after HEADERS decoded with EndHeaders=false")]
     public void Should_SetEndHeadersFalse_WhenContinuationEndHeadersFlagNotSet()
     {
         var block = MakeBlock((":status", "200"));
-        var contBytes = new ContinuationFrame(1, block.AsMemory()[..1], endHeaders: false).Serialize();
+        var headersBytes = new HeadersFrame(1, block.AsMemory()[..1], endStream: true, endHeaders: false).Serialize();
+        var contBytes = new ContinuationFrame(1, block.AsMemory()[1..], endHeaders: false).Serialize();
 
         var decoder = new Http2FrameDecoder();
-        var frames = decoder.Decode(contBytes);
+        var frames = decoder.Decode(Concat(headersBytes, contBytes));
 
-        Assert.Single(frames);
-        var cf = Assert.IsType<ContinuationFrame>(frames[0]);
+        Assert.Equal(2, frames.Count);
+        var cf = Assert.IsType<ContinuationFrame>(frames[1]);
         Assert.False(cf.EndHeaders);
     }
 

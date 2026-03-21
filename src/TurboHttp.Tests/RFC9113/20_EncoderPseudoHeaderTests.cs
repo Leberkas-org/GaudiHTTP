@@ -121,8 +121,8 @@ public sealed class Http2EncoderPseudoHeaderTests
             (":authority", "example.com"),
         };
         var ex = Assert.Throws<Http2Exception>(() => Http2RequestEncoder.ValidatePseudoHeaders(headers));
-        // Message should mention both the pseudo index and the regular header index
-        Assert.Contains("2", ex.Message);
+        // Message includes the last pseudo-header index (4) and the first regular header index (1)
+        Assert.Contains("4", ex.Message);
         Assert.Contains("1", ex.Message);
     }
 

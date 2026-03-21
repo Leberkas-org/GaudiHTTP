@@ -522,13 +522,11 @@ public sealed class Http2FrameParsingCoreTests
     // Invalid Frame in Stream State (RFC 7540 §5.1)
 
     /// RFC 7540 §5.1 — CONTINUATION frame decoded as ContinuationFrame (ordering validation at stream stage level)
-    [Fact(DisplayName = "RFC9113-5.1-FP-031: Standalone CONTINUATION frame decoded as ContinuationFrame")]
-    public void Should_DecodeCorrectly_When_StandaloneContinuationFrame()
+    [Fact(DisplayName = "RFC9113-5.1-FP-031: Standalone CONTINUATION frame is PROTOCOL_ERROR")]
+    public void Should_ThrowProtocolError_When_StandaloneContinuationFrame()
     {
-        // The decoder itself does not validate ordering constraints (i.e., that CONTINUATION
-        // must follow a HEADERS without END_HEADERS). That validation is performed at the
-        // stream stage level. This test verifies the decoder correctly deserializes a
-        // CONTINUATION frame as a building block.
+        // RFC 9113 §6.10: CONTINUATION must be preceded by HEADERS or PUSH_PROMISE
+        // without END_HEADERS. Http2FrameDecoder enforces this ordering constraint.
         var frame = new byte[]
         {
             0x00, 0x00, 0x01, // length = 1
@@ -538,20 +536,17 @@ public sealed class Http2FrameParsingCoreTests
             0x88 // HPACK :status 200
         };
         var decoder = new Http2FrameDecoder();
-        var frames = decoder.Decode(frame);
-        var cont = Assert.IsType<ContinuationFrame>(Assert.Single(frames));
-        Assert.Equal(1, cont.StreamId);
-        Assert.True(cont.EndHeaders);
+        var ex = Assert.Throws<Http2Exception>(() => decoder.Decode(frame));
+        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
     }
 
     /// RFC 9113 §5.1 — HEADERS without END_HEADERS followed by PING both decoded correctly
     [Fact(DisplayName =
-        "RFC9113-5.1-FP-032: HEADERS without END_HEADERS followed by PING both frames decoded correctly")]
-    public void Should_DecodeBothFrames_When_HeadersWithoutEndHeadersFollowedByPing()
+        "RFC9113-5.1-FP-032: HEADERS without END_HEADERS followed by PING is PROTOCOL_ERROR")]
+    public void Should_ThrowProtocolError_When_HeadersWithoutEndHeadersFollowedByPing()
     {
-        // The decoder itself does not validate that PING cannot follow HEADERS without END_HEADERS.
-        // That validation is performed at the stream stage level. This test verifies that both
-        // frames are correctly deserialized as building blocks.
+        // RFC 9113 §6.10: After HEADERS without END_HEADERS, the next frame MUST be
+        // CONTINUATION. Http2FrameDecoder enforces this ordering constraint.
         var hpack = new HpackEncoder(useHuffman: false);
         var headerBlock = hpack.Encode([(":status", "200")]);
         var headersFrame = new HeadersFrame(1, headerBlock, endStream: false, endHeaders: false).Serialize();
@@ -562,9 +557,7 @@ public sealed class Http2FrameParsingCoreTests
         pingFrame.CopyTo(combined, headersFrame.Length);
 
         var decoder = new Http2FrameDecoder();
-        var frames = decoder.Decode(combined);
-        Assert.Equal(2, frames.Count);
-        Assert.IsType<HeadersFrame>(frames[0]);
-        Assert.IsType<PingFrame>(frames[1]);
+        var ex = Assert.Throws<Http2Exception>(() => decoder.Decode(combined));
+        Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
     }
 }

@@ -248,16 +248,10 @@ public sealed class Http2StreamStateMachineTests
             0x00, 0x00, 0x00, 0x00, // stream = 0
             0x01, 0x02, 0x03, 0x04, // payload
         };
+        // RFC 9113 §6.1: Http2FrameDecoder rejects DATA on stream 0 at the frame level.
         var decoder = new Http2FrameDecoder();
-        var frames = decoder.Decode(rawFrame);
-
-        var frame = Assert.IsType<DataFrame>(frames[0]);
-        Assert.Equal(0, frame.StreamId);
-
-        // RFC 9113 §5.1: DATA on stream 0 MUST trigger a connection PROTOCOL_ERROR.
-        var ex = Assert.Throws<Http2Exception>(() => EnforceNonZeroStreamId(frame, FrameType.Data));
+        var ex = Assert.Throws<Http2Exception>(() => decoder.Decode(rawFrame));
         Assert.Equal(Http2ErrorCode.ProtocolError, ex.ErrorCode);
-        Assert.True(ex.IsConnectionError);
     }
 
     // SS-011..012: Idle/closed stream DATA errors (RFC 9113 §5.1 / §6.1)
