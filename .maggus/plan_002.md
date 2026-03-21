@@ -98,10 +98,10 @@ Renaming to `TurboHandler` aligns with .NET's `HttpMessageHandler` / `Delegating
 **Description:** As a developer, I want the factory to use the new handler field names.
 
 **Acceptance Criteria:**
-- [ ] `src/TurboHttp/Client/TurboHttpClientFactory.cs`: `descriptor.MiddlewareFactories` → `descriptor.HandlerFactories`
-- [ ] `IReadOnlyList<TurboMiddleware>` → `IReadOnlyList<TurboHandler>`
-- [ ] `Middlewares:` → `Handlers:` in PipelineDescriptor construction
-- [ ] Typecheck passes
+- [x] `src/TurboHttp/Client/TurboHttpClientFactory.cs`: `descriptor.MiddlewareFactories` → `descriptor.HandlerFactories`
+- [x] `IReadOnlyList<TurboMiddleware>` → `IReadOnlyList<TurboHandler>`
+- [x] `Middlewares:` → `Handlers:` in PipelineDescriptor construction
+- [x] Typecheck passes
 
 ### TASK-007: Update Engine.cs
 **Description:** As a developer, I want Engine pipeline composition to reference the renamed types.
