@@ -107,11 +107,11 @@ Renaming to `TurboHandler` aligns with .NET's `HttpMessageHandler` / `Delegating
 **Description:** As a developer, I want Engine pipeline composition to reference the renamed types.
 
 **Acceptance Criteria:**
-- [ ] `src/TurboHttp/Streams/Engine.cs`: `MiddlewareBidiStage` → `HandlerBidiStage`
-- [ ] `descriptor.Middlewares` → `descriptor.Handlers`
-- [ ] Comments updated: "User Middlewares — MiddlewareBidiStage per TurboMiddleware" → "User Handlers — HandlerBidiStage per TurboHandler"
-- [ ] All XML doc / inline comments referencing old names updated
-- [ ] Typecheck passes
+- [x] `src/TurboHttp/Streams/Engine.cs`: `MiddlewareBidiStage` → `HandlerBidiStage`
+- [x] `descriptor.Middlewares` → `descriptor.Handlers`
+- [x] Comments updated: "User Middlewares — MiddlewareBidiStage per TurboMiddleware" → "User Handlers — HandlerBidiStage per TurboHandler"
+- [x] All XML doc / inline comments referencing old names updated
+- [x] Typecheck passes
 
 ### TASK-008: Update Stream Tests
 **Description:** As a developer, I want the BidiStage test file updated to the new sync API and renamed.

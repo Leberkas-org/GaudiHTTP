@@ -60,22 +60,22 @@ internal sealed class Engine
     }
 
     /// <summary>
-    /// Composes the pipeline by stacking feature and middleware BidiFlows via <c>Atop</c>
+    /// Composes the pipeline by stacking feature and handler BidiFlows via <c>Atop</c>
     /// around the protocol engine core, with <see cref="RequestEnricherStage"/> prepended
     /// outside the BidiFlow chain.
     /// <para><b>Stacking order (outermost → innermost):</b></para>
     /// <list type="number">
-    ///   <item><description>User Middlewares — MiddlewareBidiStage per TurboMiddleware (FIFO: [0] outermost)</description></item>
+    ///   <item><description>User Handlers — HandlerBidiStage per TurboHandler (FIFO: [0] outermost)</description></item>
     ///   <item><description>RedirectBidiStage — RFC 9110 §15.4, internal feedback loop</description></item>
     ///   <item><description>CookieBidiStage — RFC 6265 §5.3–§5.4</description></item>
     ///   <item><description>RetryBidiStage — RFC 9110 §9.2, internal feedback loop</description></item>
     ///   <item><description>CacheBidiStage — RFC 9111, internal short-circuit</description></item>
     ///   <item><description>DecompressionBidiStage — RFC 9110 §8.4</description></item>
     /// </list>
-    /// <para>Request direction: Middleware[0] → … → Middleware[N] → Redirect → Cookie → Retry → Cache → Decomp → Engine</para>
-    /// <para>Response direction: Engine → Decomp → Cache → Retry → Cookie → Redirect → Middleware[N] → … → Middleware[0]</para>
+    /// <para>Request direction: Handler[0] → … → Handler[N] → Redirect → Cookie → Retry → Cache → Decomp → Engine</para>
+    /// <para>Response direction: Engine → Decomp → Cache → Retry → Cookie → Redirect → Handler[N] → … → Handler[0]</para>
     /// <para>Only BidiFlows for non-null policies are included. When all policies are null,
-    /// no middlewares exist, and <see cref="PipelineDescriptor.AutomaticDecompression"/> is true,
+    /// no handlers exist, and <see cref="PipelineDescriptor.AutomaticDecompression"/> is true,
     /// the graph is: Enricher → DecompressionBidi(Engine) → Output.</para>
     /// </summary>
     private static Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> BuildExtendedPipeline(
@@ -127,8 +127,8 @@ internal sealed class Engine
             features = features is not null ? redirect.Atop(features) : redirect;
         }
 
-        // Stack user middlewares outermost via Atop. Iterate in reverse so that
-        // Middlewares[0] ends up outermost (sees initial request first, final response last).
+        // Stack user handlers outermost via Atop. Iterate in reverse so that
+        // Handlers[0] ends up outermost (sees initial request first, final response last).
         for (var i = descriptor.Handlers.Count - 1; i >= 0; i--)
         {
             var mw = BidiFlow.FromGraph(new HandlerBidiStage(descriptor.Handlers[i], i));
