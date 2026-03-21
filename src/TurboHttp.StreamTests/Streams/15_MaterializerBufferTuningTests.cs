@@ -68,7 +68,8 @@ public sealed class MaterializerBufferTuningTests : TestKit
             () => Http10Flow(Ok10Response),
             () => Http11Flow(Ok11Response),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(new SettingsFrame([]).Serialize())),
-            NoOpH2Flow);
+            NoOpH2Flow,
+            PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -93,7 +94,8 @@ public sealed class MaterializerBufferTuningTests : TestKit
             () => Http10Flow(Ok10Response),
             () => Http11Flow(Ok11Response),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(new SettingsFrame([]).Serialize())),
-            NoOpH2Flow);
+            NoOpH2Flow,
+            PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -119,7 +121,8 @@ public sealed class MaterializerBufferTuningTests : TestKit
             () => Http10Flow(Ok10Response),
             () => Http11Flow(Ok11Response),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(new SettingsFrame([]).Serialize())),
-            NoOpH2Flow);
+            NoOpH2Flow,
+            PipelineDescriptor.Empty);
 
         // Send multiple requests to exercise buffering
         for (var i = 0; i < 5; i++)
@@ -143,14 +146,13 @@ public sealed class MaterializerBufferTuningTests : TestKit
             .WithInputBuffer(initialSize: 4, maxSize: 16);
         var materializer = Sys.Materializer(settings: settings);
 
-        var options = new TurboClientOptions();
         var engine = new Engine();
         var flow = engine.CreateFlow(
             () => Http10Flow(Ok10Response),
             () => Http11Flow(Ok11Response),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(new SettingsFrame([]).Serialize())),
             NoOpH2Flow,
-            options);
+            PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/cookie-test")
         {
@@ -177,7 +179,8 @@ public sealed class MaterializerBufferTuningTests : TestKit
             () => Http10Flow(Ok10Response),
             () => Http11Flow(Ok11Response),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(new SettingsFrame([]).Serialize())),
-            NoOpH2Flow);
+            NoOpH2Flow,
+            PipelineDescriptor.Empty);
 
         // GET request through the protocol flow with tuned buffer attributes
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/buffer-test")
@@ -202,7 +205,8 @@ public sealed class MaterializerBufferTuningTests : TestKit
             () => Http10Flow(Ok10Response),
             () => Http11Flow(Ok11Response),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(new SettingsFrame([]).Serialize())),
-            NoOpH2Flow);
+            NoOpH2Flow,
+            PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {

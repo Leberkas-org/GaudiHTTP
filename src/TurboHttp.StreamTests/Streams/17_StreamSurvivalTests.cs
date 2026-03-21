@@ -7,6 +7,7 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
+using TurboHttp.Client;
 using TurboHttp.IO.Stages;
 using TurboHttp.Protocol.RFC9113;
 using TurboHttp.Streams;
@@ -67,7 +68,7 @@ public sealed class StreamSurvivalTests : EngineTestBase
             http11Factory: () => Flow.FromGraph(new EngineFakeConnectionStage(responseFactory)),
             http20Factory: () => Flow.FromGraph(new EngineFakeConnectionStage(responseFactory)),
             http30Factory: () => Flow.FromGraph(new EngineFakeConnectionStage(responseFactory)),
-            options: null);
+            descriptor: PipelineDescriptor.Empty);
 
         var (queue, pipelineTask) = Source.Queue<HttpRequestMessage>(256, OverflowStrategy.Backpressure)
             .Via(flow)

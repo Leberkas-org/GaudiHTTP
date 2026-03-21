@@ -2,6 +2,7 @@ using System.Net;
 using System.Threading.Channels;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHttp.Client;
 using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
@@ -29,7 +30,7 @@ public sealed class LoopbackBenchmarkStageTests : EngineTestBase
             http11Factory: () => Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse)),
             http20Factory: () => Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse)),
             http30Factory: () => Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse)),
-            options: null);
+            descriptor: PipelineDescriptor.Empty);
 
         var (queue, _) = Source.Queue<HttpRequestMessage>(16, OverflowStrategy.Backpressure)
             .Via(flow)

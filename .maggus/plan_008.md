@@ -84,11 +84,11 @@ API no longer exposes a `TurboClientOptions`-based entry point and no internal o
 `TurboClientOptions?` as a pipeline descriptor.
 
 **Acceptance Criteria:**
-- [ ] The public 3-argument overload `CreateFlow(IActorRef, TurboClientOptions?, Func<TurboRequestOptions>?)`
+- [x] The public 3-argument overload `CreateFlow(IActorRef, TurboClientOptions?, Func<TurboRequestOptions>?)`
       (currently lines 21–39) is deleted in full, including its `#pragma warning` block.
-- [ ] The internal 5-argument overload `CreateFlow(http10, http11, http20, http30, TurboClientOptions? options = null)`
+- [x] The internal 5-argument overload `CreateFlow(http10, http11, http20, http30, TurboClientOptions? options = null)`
       (currently lines 53–74) is deleted in full.
-- [ ] In `BuildExtendedPipeline`, the `CacheLookupStage` construction (line ≈176):
+- [x] In `BuildExtendedPipeline`, the `CacheLookupStage` construction (line ≈176):
       ```csharp
       // BEFORE
       #pragma warning disable CS0618
@@ -98,9 +98,9 @@ API no longer exposes a `TurboClientOptions`-based entry point and no internal o
       var cacheLookup = builder.Add(new CacheLookupStage(descriptor.CacheStore));
       ```
       The two `#pragma warning` lines are removed along with the `options.CachePolicy` argument.
-- [ ] Zero `#pragma warning disable CS0618` suppressions remain in `Engine.cs`.
-- [ ] The remaining overloads and the rest of `BuildExtendedPipeline` are not modified.
-- [ ] `dotnet build` passes with no new errors.
+- [x] Zero `#pragma warning disable CS0618` suppressions remain in `Engine.cs`.
+- [x] The remaining overloads and the rest of `BuildExtendedPipeline` are not modified.
+- [x] `dotnet build` passes with no new errors.
 
 **Important:** The internal `CreateFlow(poolRouter, options, requestOptionsFactory, PipelineDescriptor)`
 overload (currently lines 41–51) and the internal `CreateFlow(http10, http11, http20, http30, PipelineDescriptor)`

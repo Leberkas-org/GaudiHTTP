@@ -7,34 +7,11 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.Client;
 using TurboHttp.Internal;
-using TurboHttp.Protocol.RFC6265;
-using TurboHttp.Protocol.RFC9111;
 
 namespace TurboHttp.Streams;
 
 internal sealed class Engine
 {
-    public Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> CreateFlow(IActorRef poolRouter,
-        TurboClientOptions? options,
-        Func<TurboRequestOptions>? requestOptionsFactory)
-    {
-        options ??= new TurboClientOptions();
-        var requestOptions = BuildRequestOptions(options);
-        requestOptionsFactory ??= () => requestOptions;
-
-#pragma warning disable CS0618 // TurboClientOptions.RedirectPolicy/RetryPolicy/CachePolicy obsolete — backward-compat read
-        var descriptor = new PipelineDescriptor(
-            options.RedirectPolicy,
-            options.RetryPolicy,
-            new CookieJar(),
-            new HttpCacheStore(options.CachePolicy),
-            options.CachePolicy,
-            []);
-#pragma warning restore CS0618
-
-        return BuildExtendedPipeline(poolRouter, options, requestOptionsFactory, descriptor);
-    }
-
     internal Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> CreateFlow(IActorRef poolRouter,
         TurboClientOptions? options,
         Func<TurboRequestOptions>? requestOptionsFactory,
@@ -45,29 +22,6 @@ internal sealed class Engine
         requestOptionsFactory ??= () => requestOptions;
 
         return BuildExtendedPipeline(poolRouter, options, requestOptionsFactory, descriptor);
-    }
-
-    internal Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> CreateFlow(
-        Func<Flow<IOutputItem, IInputItem, NotUsed>> http10Factory,
-        Func<Flow<IOutputItem, IInputItem, NotUsed>> http11Factory,
-        Func<Flow<IOutputItem, IInputItem, NotUsed>> http20Factory,
-        Func<Flow<IOutputItem, IInputItem, NotUsed>> http30Factory,
-        TurboClientOptions? options = null)
-    {
-        options ??= new TurboClientOptions();
-
-        var holder = new HttpRequestMessage();
-        var defaultOptions = new TurboRequestOptions(
-            BaseAddress: null,
-            DefaultRequestHeaders: holder.Headers,
-            DefaultRequestVersion: HttpVersion.Version11,
-            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrHigher,
-            Timeout: TimeSpan.FromSeconds(30),
-            MaxResponseContentBufferSize: 1024 * 1024);
-
-        return BuildExtendedPipeline(ActorRefs.Nobody, options, () => defaultOptions,
-            PipelineDescriptor.Empty,
-            http10Factory, http11Factory, http20Factory);
     }
 
     internal Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> CreateFlow(

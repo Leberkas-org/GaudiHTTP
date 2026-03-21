@@ -4,6 +4,7 @@ using Akka.Streams.Dsl;
 using TurboHttp.Internal;
 using TurboHttp.Protocol.RFC7541;
 using TurboHttp.Protocol.RFC9113;
+using TurboHttp.Client;
 using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;
@@ -35,7 +36,8 @@ public sealed class EngineVersionRoutingTests : EngineTestBase
             () => Flow.FromGraph(new EngineFakeConnectionStage(() => http10Response)),
             () => Flow.FromGraph(new EngineFakeConnectionStage(() => http11Response)),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(h2Frames)),
-            NoOpTransportFlow);
+            NoOpTransportFlow,
+            PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -60,7 +62,8 @@ public sealed class EngineVersionRoutingTests : EngineTestBase
             () => Flow.FromGraph(new EngineFakeConnectionStage(() => http10Response)),
             () => Flow.FromGraph(new EngineFakeConnectionStage(() => http11Response)),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(h2Frames)),
-            NoOpTransportFlow);
+            NoOpTransportFlow,
+            PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -93,7 +96,8 @@ public sealed class EngineVersionRoutingTests : EngineTestBase
             () => Flow.FromGraph(new EngineFakeConnectionStage(() => http10Response)),
             () => Flow.FromGraph(new EngineFakeConnectionStage(() => http11Response)),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(h2Frames)),
-            NoOpTransportFlow);
+            NoOpTransportFlow,
+            PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
         {
@@ -117,7 +121,8 @@ public sealed class EngineVersionRoutingTests : EngineTestBase
             () => Flow.FromGraph(new EngineFakeConnectionStage(() => http10Response)),
             () => Flow.FromGraph(new EngineFakeConnectionStage(() => http11Response)),
             () => Flow.FromGraph(new H2EngineFakeConnectionStage(h2Frames)),
-            NoOpTransportFlow);
+            NoOpTransportFlow,
+            PipelineDescriptor.Empty);
 
         var request10 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/1")
         {
