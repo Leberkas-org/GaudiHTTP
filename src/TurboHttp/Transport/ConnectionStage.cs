@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Event;
@@ -49,7 +50,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
         private Action<ConnectionHandle>? _onHandleReceived;
 
         /// <summary>Callback invoked when the inbound channel completes (connection closed).</summary>
-        private Action? _onInboundComplete;
+        private Action<TlsCloseKind>? _onInboundComplete;
 
         private StageActor? _stageActor;
         private CancellationTokenSource? _pumpCts;
@@ -119,8 +120,19 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
                 }
             });
 
-            _onInboundComplete = GetAsyncCallback(() =>
+            _onInboundComplete = GetAsyncCallback<TlsCloseKind>(closeKind =>
             {
+                // Emit close signal to downstream decoder stages before clearing the handle.
+                var signal = new CloseSignalItem(closeKind) { Key = _currentKey };
+                if (IsAvailable(_stage._out))
+                {
+                    Push(_stage._out, signal);
+                }
+                else
+                {
+                    _pendingReads.Enqueue(signal);
+                }
+
                 // Connection closed — clear the handle so next ConnectItem re-acquires.
                 _handle = null;
             });
@@ -233,6 +245,7 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
 
             _ = Task.Run(async () =>
             {
+                var closeKind = TlsCloseKind.CleanClose;
                 try
                 {
                     while (await reader.WaitToReadAsync(ct).ConfigureAwait(false))
@@ -246,10 +259,15 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
                 }
                 catch (OperationCanceledException)
                 {
-                    // Expected on stage shutdown.
+                    // Expected on stage shutdown — do not emit close signal.
+                    return;
+                }
+                catch (ChannelClosedException ex) when (ex.InnerException is AbruptCloseException)
+                {
+                    closeKind = TlsCloseKind.AbruptClose;
                 }
 
-                onComplete();
+                onComplete(closeKind);
             }, ct);
         }
 

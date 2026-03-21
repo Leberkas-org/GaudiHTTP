@@ -350,10 +350,10 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 - Change: Distinguish clean TLS close from abrupt TCP close
 
 **Acceptance Criteria:**
-- [ ] Clean TLS close completes response without Content-Length
-- [ ] Abrupt TCP close marks response as incomplete
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] Clean TLS close completes response without Content-Length
+- [x] Abrupt TCP close marks response as incomplete
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (new file: `src/TurboHttp.StreamTests/RFC9112/15_TlsClosureTests.cs`):
 

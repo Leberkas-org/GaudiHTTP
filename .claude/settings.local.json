@@ -38,7 +38,9 @@
       "Bash(/tmp/extract_requirements.txt:*)",
       "Bash(du -sh /d/GIT/Akka.Streams.Http/RFC9111*.*)",
       "Bash(du -sh /d/GIT/Akka.Streams.Http/RFC1945_*.md)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(npx vitepress:*)",
+      "Bash(xargs -I {} basename {})"
     ]
   },
   "enabledPlugins": {}

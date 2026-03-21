@@ -3,6 +3,7 @@ using System.Buffers;
 using System.IO;
 using System.IO.Pipelines;
 using System.Threading.Channels;
+using TurboHttp.Internal;
 
 namespace TurboHttp.Transport;
 
@@ -10,6 +11,12 @@ internal sealed class ClientState : IDisposable
 {
     public int MaxFrameSize { get; }
     public Stream Stream { get; }
+
+    /// <summary>
+    /// Indicates how the transport connection was closed.
+    /// Set by <see cref="ClientByteMover"/> when the read loop exits.
+    /// </summary>
+    public TlsCloseKind? CloseKind { get; set; }
 
     private readonly Channel<(IMemoryOwner<byte> buffer, int readableBytes)> _inboundChannel;
     private readonly Channel<(IMemoryOwner<byte> buffer, int readableBytes)> _outboundChannel;

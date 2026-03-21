@@ -89,5 +89,4 @@ TurboHttp works out of the box — no middleware to wire up, no Polly policies t
 
 **Deep dive:**
 
-- [Architecture Overview](/architecture/) — four-layer design, data flow
-- [Internals](/internals/) — protocol implementation, memory management, HPACK, testing
+- [Architecture Overview](/architecture/) — four-layer design, data flow, protocol engines, end-to-end scenarios

@@ -18,10 +18,20 @@ public sealed record ConnectionHandle(
     IActorRef ConnectionActor)
 {
     private volatile int _maxConcurrentStreams = 100;
+    private volatile TlsCloseKind _closeKind;
 
     public int MaxConcurrentStreams => _maxConcurrentStreams;
 
     public void UpdateMaxConcurrentStreams(int value) => _maxConcurrentStreams = value;
+
+    /// <summary>
+    /// Indicates how the transport connection was closed.
+    /// Set by <see cref="TurboHttp.Transport.ClientByteMover"/> via <see cref="TurboHttp.Transport.ClientState"/>
+    /// and read by <see cref="TurboHttp.Transport.ConnectionStage"/> when the inbound pump completes.
+    /// </summary>
+    public TlsCloseKind CloseKind => _closeKind;
+
+    public void SetCloseKind(TlsCloseKind value) => _closeKind = value;
 
     public bool Equals(ConnectionHandle? other)
     {

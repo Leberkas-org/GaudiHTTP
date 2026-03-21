@@ -1,15 +1,27 @@
 using System;
 using System.Buffers;
+using System.Net.Security;
 using System.Threading;
 using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Event;
+using TurboHttp.Internal;
 
 namespace TurboHttp.Transport;
 
 public sealed record DoClose
 {
     public static readonly DoClose Instance = new();
+}
+
+/// <summary>
+/// Signals that the transport connection was closed abruptly (no TLS close_notify, TCP RST, or I/O error).
+/// Used to complete the inbound channel so that <see cref="ConnectionStage"/> can distinguish
+/// clean TLS closure from abrupt disconnection.
+/// </summary>
+public sealed class AbruptCloseException : Exception
+{
+    public AbruptCloseException() : base("Connection closed abruptly without TLS close_notify") { }
 }
 
 internal static class ClientByteMover
@@ -26,6 +38,10 @@ internal static class ClientByteMover
                     var bytesRead = await state.Stream.ReadAsync(state.GetWriteMemory(), ct).ConfigureAwait(false);
                     if (bytesRead == 0)
                     {
+                        // ReadAsync returning 0 means:
+                        // - SslStream: close_notify was received (clean TLS closure)
+                        // - NetworkStream: TCP FIN was received (clean TCP close)
+                        state.CloseKind = TlsCloseKind.CleanClose;
                         runner.Tell(DoClose.Instance);
                         return;
                     }
@@ -41,6 +57,9 @@ internal static class ClientByteMover
                 {
                     log.Warning(ex, "ClientByteMover.MoveStreamToPipe: stream read faulted");
                     pipeError = ex;
+                    // IOException from SslStream without close_notify, or socket error:
+                    // treat as abrupt close — partially received data is unreliable.
+                    state.CloseKind = TlsCloseKind.AbruptClose;
                     runner.Tell(DoClose.Instance);
                     return;
                 }
@@ -66,56 +85,73 @@ internal static class ClientByteMover
 
     internal static async Task MovePipeToChannel(ClientState state, IActorRef runner, ILoggingAdapter log, CancellationToken ct)
     {
-        while (!ct.IsCancellationRequested)
+        try
         {
-            try
+            while (!ct.IsCancellationRequested)
             {
-                var result = await state.Pipe.Reader.ReadAsync(ct);
-                if (result.IsCanceled)
+                try
                 {
-                    // PipeReader.ReadAsync can return with IsCanceled=true when the token is
-                    // cancelled rather than throwing OperationCanceledException. In that case
-                    // the buffer is empty and we must not write a zero-length entry into
-                    // _readsFromTransport. Advance past the empty buffer and exit cleanly.
-                    state.Pipe.Reader.AdvanceTo(result.Buffer.Start);
+                    var result = await state.Pipe.Reader.ReadAsync(ct);
+                    if (result.IsCanceled)
+                    {
+                        // PipeReader.ReadAsync can return with IsCanceled=true when the token is
+                        // cancelled rather than throwing OperationCanceledException. In that case
+                        // the buffer is empty and we must not write a zero-length entry into
+                        // _readsFromTransport. Advance past the empty buffer and exit cleanly.
+                        state.Pipe.Reader.AdvanceTo(result.Buffer.Start);
+                        runner.Tell(DoClose.Instance);
+                        return;
+                    }
+
+                    // consume this entire sequence by copying it into a pooled buffer
+                    var buffer = result.Buffer;
+                    var length = (int)buffer.Length;
+                    if (length > 0)
+                    {
+                        var pooled = MemoryPool<byte>.Shared.Rent(length);
+                        buffer.CopyTo(pooled.Memory.Span);
+                        if (!state.InboundWriter.TryWrite((pooled, length)))
+                        {
+                            pooled.Dispose();
+                        }
+                    }
+
+                    // tell the pipe we're done with this data
+                    state.Pipe.Reader.AdvanceTo(buffer.End);
+
+                    if (!result.IsCompleted) continue;
                     runner.Tell(DoClose.Instance);
                     return;
                 }
-
-                // consume this entire sequence by copying it into a pooled buffer
-                var buffer = result.Buffer;
-                var length = (int)buffer.Length;
-                if (length > 0)
+                catch (OperationCanceledException)
                 {
-                    var pooled = MemoryPool<byte>.Shared.Rent(length);
-                    buffer.CopyTo(pooled.Memory.Span);
-                    if (!state.InboundWriter.TryWrite((pooled, length)))
-                    {
-                        pooled.Dispose();
-                    }
+                    runner.Tell(DoClose.Instance);
+                    return;
                 }
-
-                // tell the pipe we're done with this data
-                state.Pipe.Reader.AdvanceTo(buffer.End);
-
-                if (!result.IsCompleted) continue;
-                runner.Tell(DoClose.Instance);
-                return;
+                catch (Exception ex)
+                {
+                    // PipeWriter was completed with an exception (e.g. socket IOException propagated
+                    // through DoWriteToPipeAsync). The faulted pipe surfaces as an exception here
+                    // rather than as result.IsCompleted, so we must handle it explicitly to ensure
+                    // ReadFinished is always self-told and BackgroundTasksCompleted can fire.
+                    log.Warning(ex, "ClientByteMover.MovePipeToChannel: pipe read faulted");
+                    state.CloseKind ??= TlsCloseKind.AbruptClose;
+                    runner.Tell(DoClose.Instance);
+                    return;
+                }
             }
-            catch (OperationCanceledException)
+        }
+        finally
+        {
+            // Complete the inbound channel so ConnectionStage's pump loop exits.
+            // For abrupt close, complete with an exception so the pump can distinguish it.
+            if (state.CloseKind == TlsCloseKind.AbruptClose)
             {
-                runner.Tell(DoClose.Instance);
-                return;
+                state.InboundWriter.TryComplete(new AbruptCloseException());
             }
-            catch (Exception ex)
+            else
             {
-                // PipeWriter was completed with an exception (e.g. socket IOException propagated
-                // through DoWriteToPipeAsync). The faulted pipe surfaces as an exception here
-                // rather than as result.IsCompleted, so we must handle it explicitly to ensure
-                // ReadFinished is always self-told and BackgroundTasksCompleted can fire.
-                log.Warning(ex, "ClientByteMover.MovePipeToChannel: pipe read faulted");
-                runner.Tell(DoClose.Instance);
-                return;
+                state.InboundWriter.TryComplete();
             }
         }
     }

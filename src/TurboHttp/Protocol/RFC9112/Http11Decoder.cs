@@ -301,6 +301,115 @@ public sealed class Http11Decoder : IDisposable
     }
 
     /// <summary>
+    /// Attempts to complete a partially buffered response when the connection has closed cleanly.
+    /// Called when a TLS close_notify or TCP FIN is received and the server used
+    /// connection-close framing (no Content-Length, no Transfer-Encoding).
+    /// </summary>
+    /// <remarks>
+    /// RFC 9112 §9.8: A server MAY close the connection at the end of a response when
+    /// the response does not include Content-Length or Transfer-Encoding.
+    /// The entire remainder after the header section is treated as the message body.
+    /// </remarks>
+    /// <param name="response">The completed response, or null if no valid header section was buffered.</param>
+    /// <returns>True if a complete response was assembled from the remainder buffer.</returns>
+    public bool TryDecodeEof(out HttpResponseMessage? response)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        response = null;
+        if (_remainderLength == 0)
+        {
+            return false;
+        }
+
+        var working = _remainderBuffer.AsSpan(0, _remainderLength);
+
+        // Find header/body boundary (CRLF CRLF)
+        var headerEnd = FindCrlfCrlf(working);
+        if (headerEnd < 0)
+        {
+            return false;
+        }
+
+        // Include the CRLF that terminates the last header
+        var headerSection = working[..(headerEnd + 2)];
+
+        // Parse status line
+        var statusLineEnd = FindCrlf(headerSection, 0);
+        if (statusLineEnd < 0)
+        {
+            return false;
+        }
+
+        var statusLine = headerSection[..statusLineEnd];
+        if (!TryParseStatusLine(statusLine, out var statusCode, out var reasonPhrase))
+        {
+            return false;
+        }
+
+        // Parse headers
+        var headersData = headerSection[(statusLineEnd + 2)..];
+        var headers = ParseHeaders(headersData);
+
+        var bodyStart = headerEnd + 4;
+        var bodyBytes = bodyStart < _remainderLength
+            ? working[bodyStart..].ToArray()
+            : [];
+
+        // Build response
+        response = new HttpResponseMessage
+        {
+            StatusCode = (HttpStatusCode)statusCode,
+            ReasonPhrase = reasonPhrase,
+            Version = new Version(1, 1)
+        };
+
+        foreach (var (name, values) in headers)
+        {
+            foreach (var value in values)
+            {
+                response.Headers.TryAddWithoutValidation(name, value);
+            }
+        }
+
+        var content = new ByteArrayContent(bodyBytes);
+        foreach (var (name, values) in headers)
+        {
+            if (!IsContentHeader(name))
+            {
+                continue;
+            }
+
+            foreach (var value in values)
+            {
+                content.Headers.TryAddWithoutValidation(name, value);
+            }
+        }
+
+        response.Content = content;
+        ClearRemainder();
+        return true;
+    }
+
+    /// <summary>
+    /// Returns any buffered remainder bytes and clears the remainder.
+    /// Used by <see cref="TurboHttp.Streams.Stages.Decoding.Http11DecoderStage"/> to extract
+    /// body data that was in the same chunk as headers for connection-close-delimited responses.
+    /// </summary>
+    public byte[] FlushRemainder()
+    {
+        if (_remainderLength == 0)
+        {
+            return [];
+        }
+
+        var result = new byte[_remainderLength];
+        Array.Copy(_remainderBuffer!, result, _remainderLength);
+        ClearRemainder();
+        return result;
+    }
+
+    /// <summary>
     /// Resets decoder state for reuse on a new connection.
     /// </summary>
     public void Reset()

@@ -17,13 +17,7 @@ export default defineConfig({
         nav: [
             { text: 'Home', link: '/' },
             { text: 'Guide', link: '/guide/' },
-            {
-                text: 'Architecture',
-                items: [
-                    { text: 'Overview', link: '/architecture/' },
-                    { text: 'Internals', link: '/internals/' },
-                ],
-            },
+            { text: 'Architecture', link: '/architecture/' },
             { text: 'API', link: '/api/' },
             { text: 'Why TurboHttp?', link: '/why/' },
         ],
@@ -69,26 +63,6 @@ export default defineConfig({
                         { text: 'Protocol Engines', link: '/architecture/engines' },
                         { text: 'Request Pipeline', link: '/architecture/pipeline' },
                         { text: 'End-to-End Scenarios', link: '/architecture/scenarios' },
-                    ],
-                },
-            ],
-            '/internals/': [
-                {
-                    text: 'Internals',
-                    items: [
-                        { text: 'Overview', link: '/internals/' },
-                        { text: 'Protocol Layer', link: '/internals/protocol-layer' },
-                        { text: 'Memory Management', link: '/internals/memory-management' },
-                        { text: 'HPACK Compression', link: '/internals/hpack' },
-                        { text: 'Testing Architecture', link: '/internals/testing' },
-                        { text: 'RFC Compliance', link: '/internals/rfc-compliance' },
-                    ],
-                },
-                {
-                    text: 'See Also',
-                    items: [
-                        { text: 'Architecture Overview', link: '/architecture/' },
-                        { text: 'Performance', link: '/performance/release-1.0' },
                     ],
                 },
             ],

@@ -16,9 +16,6 @@ hero:
       text: Architecture
       link: /architecture/
     - theme: alt
-      text: Internals
-      link: /internals/
-    - theme: alt
       text: GitHub
       link: https://github.com/st0o0/TurboHttp
 

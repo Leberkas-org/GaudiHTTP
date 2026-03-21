@@ -61,3 +61,34 @@ public record StreamAcquireItem : IControlItem
 {
     public RequestEndpoint Key { get; init; }
 }
+
+/// <summary>
+/// Indicates how a transport connection was closed.
+/// Used to distinguish clean TLS closure (close_notify received) from abrupt TCP disconnection.
+/// </summary>
+public enum TlsCloseKind
+{
+    /// <summary>
+    /// The peer sent a TLS close_notify alert before closing the connection,
+    /// or a plain TCP connection received a FIN. The response body (if any)
+    /// that was buffered before the close is considered complete (RFC 9112 §9.8).
+    /// </summary>
+    CleanClose,
+
+    /// <summary>
+    /// The connection was closed abruptly (TCP RST, I/O error, or TLS error
+    /// without close_notify). Any partially received response must be treated
+    /// as incomplete and should not be delivered to the application.
+    /// </summary>
+    AbruptClose
+}
+
+/// <summary>
+/// Signals that the transport connection has closed, carrying the <see cref="TlsCloseKind"/>
+/// so that decoder stages can decide whether a partially buffered response is complete.
+/// Emitted by <see cref="TurboHttp.Transport.ConnectionStage"/> when the inbound data channel completes.
+/// </summary>
+public record CloseSignalItem(TlsCloseKind CloseKind) : IInputItem
+{
+    public RequestEndpoint Key { get; init; }
+}
