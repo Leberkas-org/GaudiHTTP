@@ -241,12 +241,12 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 - Change: When method == CONNECT and status 2xx → body length = 0
 
 **Acceptance Criteria:**
-- [ ] CONNECT 200 response ignores Content-Length (body length = 0)
-- [ ] CONNECT 200 response ignores Transfer-Encoding
-- [ ] CONNECT 407 response processes body normally
-- [ ] Non-CONNECT 200 responses respect Content-Length
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] CONNECT 200 response ignores Content-Length (body length = 0)
+- [x] CONNECT 200 response ignores Transfer-Encoding
+- [x] CONNECT 407 response processes body normally
+- [x] Non-CONNECT 200 responses respect Content-Length
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (new file: `src/TurboHttp.Tests/RFC9110/06_ConnectResponseTests.cs`):
 

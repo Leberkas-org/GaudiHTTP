@@ -209,6 +209,98 @@ public sealed class Http11Decoder : IDisposable
     }
 
     /// <summary>
+    /// Attempts to decode HTTP/1.1 responses from incoming data where the original
+    /// request was a CONNECT request. A successful (2xx) CONNECT response has no body
+    /// (the connection transitions to a tunnel), regardless of any Content-Length or
+    /// Transfer-Encoding headers. Non-2xx responses are decoded with normal body handling.
+    /// </summary>
+    /// <remarks>
+    /// RFC 9110 §9.3.6: A server MUST NOT send Content-Length or Transfer-Encoding
+    /// in a 2xx (Successful) response to CONNECT. A client MUST ignore any such
+    /// header fields received in a successful CONNECT response.
+    /// </remarks>
+    public bool TryDecodeConnect(ReadOnlyMemory<byte> incomingData, out ImmutableList<HttpResponseMessage> responses)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        var builder = ImmutableList.CreateBuilder<HttpResponseMessage>();
+        responses = ImmutableList<HttpResponseMessage>.Empty;
+
+        ReadOnlySpan<byte> working;
+        byte[]? combinedBuffer = null;
+
+        if (_remainderLength > 0)
+        {
+            var combinedLength = _remainderLength + incomingData.Length;
+            combinedBuffer = ArrayPool<byte>.Shared.Rent(combinedLength);
+
+            _remainderBuffer.AsSpan(0, _remainderLength).CopyTo(combinedBuffer);
+            incomingData.Span.CopyTo(combinedBuffer.AsSpan(_remainderLength));
+
+            working = combinedBuffer.AsSpan(0, combinedLength);
+            ClearRemainder();
+        }
+        else
+        {
+            working = incomingData.Span;
+        }
+
+        try
+        {
+            var consumed = 0;
+
+            while (consumed < working.Length)
+            {
+                // Peek at status code to decide parsing strategy
+                var slice = working[consumed..];
+                var statusCode = PeekStatusCode(slice);
+
+                // 2xx → no body (tunnel begins); non-2xx → normal body handling
+                var result = statusCode.HasValue && statusCode.Value is >= 200 and < 300
+                    ? TryParseOneNoBody(slice, out var response, out var bytesConsumed)
+                    : TryParseOne(slice, out response, out bytesConsumed);
+
+                if (result.Success)
+                {
+                    consumed += bytesConsumed;
+
+                    if ((int)response!.StatusCode >= 100 && (int)response.StatusCode < 200)
+                    {
+                        continue;
+                    }
+
+                    builder.Add(response);
+                    continue;
+                }
+
+                if (result.Error == HttpDecoderError.NeedMoreData)
+                {
+                    StoreRemainder(working[consumed..]);
+                    break;
+                }
+
+                ClearRemainder();
+                throw new HttpDecoderException(result.Error!.Value);
+            }
+        }
+        finally
+        {
+            if (combinedBuffer != null)
+            {
+                ArrayPool<byte>.Shared.Return(combinedBuffer);
+            }
+        }
+
+        if (builder.Count <= 0)
+        {
+            return false;
+        }
+
+        responses = builder.ToImmutable();
+        return true;
+    }
+
+    /// <summary>
     /// Resets decoder state for reuse on a new connection.
     /// </summary>
     public void Reset()
@@ -767,6 +859,36 @@ public sealed class Http11Decoder : IDisposable
 
     private static bool IsNoBodyResponse(int statusCode) =>
         statusCode is >= 100 and < 200 or 204 or 304;
+
+    /// <summary>
+    /// Peeks at the status code from a raw HTTP response without fully parsing it.
+    /// Returns null if the status line is not yet complete.
+    /// </summary>
+    private static int? PeekStatusCode(ReadOnlySpan<byte> buffer)
+    {
+        // Status line format: HTTP/1.1 200 OK\r\n
+        // Minimum: "HTTP/1.1 NNN" = 12 bytes
+        if (buffer.Length < 12)
+        {
+            return null;
+        }
+
+        // Find the space after version (position 8 for "HTTP/1.1 ")
+        var spaceIdx = buffer.IndexOf((byte)' ');
+        if (spaceIdx < 0 || spaceIdx + 4 > buffer.Length)
+        {
+            return null;
+        }
+
+        var codeSlice = buffer.Slice(spaceIdx + 1, 3);
+        if (codeSlice[0] < (byte)'1' || codeSlice[0] > (byte)'5')
+        {
+            return null;
+        }
+
+        var code = (codeSlice[0] - '0') * 100 + (codeSlice[1] - '0') * 10 + (codeSlice[2] - '0');
+        return code;
+    }
 
     private static bool IsContentHeader(string name) =>
         name.StartsWith("content-", StringComparison.OrdinalIgnoreCase) ||

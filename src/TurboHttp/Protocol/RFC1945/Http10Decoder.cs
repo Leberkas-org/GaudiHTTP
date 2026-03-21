@@ -94,6 +94,74 @@ public sealed class Http10Decoder
         return true;
     }
 
+    /// <summary>
+    /// Attempts to decode an HTTP/1.0 response to a CONNECT request.
+    /// A successful (2xx) CONNECT response has no body (tunnel begins),
+    /// regardless of Content-Length. Non-2xx responses are decoded normally.
+    /// </summary>
+    /// <remarks>
+    /// RFC 9110 §9.3.6: A server MUST NOT send Content-Length or Transfer-Encoding
+    /// in a 2xx (Successful) response to CONNECT. A client MUST ignore any such
+    /// header fields received in a successful CONNECT response.
+    /// </remarks>
+    public bool TryDecodeConnect(ReadOnlyMemory<byte> incomingData, out HttpResponseMessage? response)
+    {
+        response = null;
+        var working = Combine(_remainder, incomingData);
+        _remainder = ReadOnlyMemory<byte>.Empty;
+
+        var headerEnd = FindHeaderEnd(working.Span);
+        if (headerEnd < 0)
+        {
+            _remainder = working;
+            return false;
+        }
+
+        var headerBytes = working[..headerEnd].ToArray();
+        var lines = SplitHeaderLines(headerBytes);
+        if (lines.Length == 0)
+        {
+            return false;
+        }
+
+        ValidateStatusLine(lines[0]);
+        var headers = ParseHeaders(lines[1..]);
+        var bodyStart = headerEnd + GetHeaderDelimiterLength(working.Span, headerEnd);
+        var bodyData = working[bodyStart..];
+
+        var statusCode = ParseStatusCode(lines[0]);
+
+        // CONNECT 2xx: body length = 0 (tunnel begins)
+        if (statusCode is >= 200 and < 300)
+        {
+            response = BuildResponse(lines[0], headers, []);
+            return true;
+        }
+
+        // Non-2xx: normal body handling (same as TryDecode)
+        if (statusCode is 204 or 304)
+        {
+            response = BuildResponse(lines[0], headers, []);
+            return true;
+        }
+
+        var contentLength = GetContentLength(headers);
+        if (contentLength.HasValue)
+        {
+            if (bodyData.Length < contentLength.Value)
+            {
+                _remainder = working;
+                return false;
+            }
+
+            response = BuildResponse(lines[0], headers, bodyData.Span[..contentLength.Value].ToArray());
+            return true;
+        }
+
+        response = BuildResponse(lines[0], headers, bodyData.ToArray());
+        return true;
+    }
+
     public void Reset() => _remainder = ReadOnlyMemory<byte>.Empty;
 
     private static void ValidateStatusLine(string statusLine)
