@@ -126,10 +126,10 @@ overload (currently lines 76–95) are **kept unchanged**. Only the backward-com
 method so that the hosting API no longer exposes a deprecated registration path.
 
 **Acceptance Criteria:**
-- [ ] The entire `AddTurboHttpClientFactory` method (its `[Obsolete]` attribute, XML doc, and body)
+- [x] The entire `AddTurboHttpClientFactory` method (its `[Obsolete]` attribute, XML doc, and body)
       is deleted.
-- [ ] All other extension methods in `TurboClientServiceCollectionExtensions.cs` are untouched.
-- [ ] `dotnet build` passes with no new errors.
+- [x] All other extension methods in `TurboClientServiceCollectionExtensions.cs` are untouched.
+- [x] `dotnet build` passes with no new errors.
 
 ---
 

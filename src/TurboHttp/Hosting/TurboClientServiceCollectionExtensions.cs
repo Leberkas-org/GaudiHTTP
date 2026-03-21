@@ -15,37 +15,6 @@ namespace TurboHttp.Hosting;
 public static class TurboClientServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="ITurboHttpClientFactory"/> as a singleton in the DI container.
-    /// If an <see cref="ActorSystem"/> is already registered it will be reused;
-    /// otherwise a new actor system named <c>turbohttp</c> is created automatically.
-    /// </summary>
-    /// <param name="services">The service collection to add to.</param>
-    /// <param name="configure">Delegate to configure <see cref="TurboClientOptions"/>.</param>
-    /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
-    [Obsolete("Use AddTurboHttpClient(services, configure) instead. AddTurboHttpClientFactory will be removed in a future version.")]
-    public static IServiceCollection AddTurboHttpClientFactory(this IServiceCollection services,
-        Action<TurboClientOptions> configure)
-    {
-        services.Configure(configure);
-        services.AddSingleton<ITurboHttpClientFactory>(provider =>
-        {
-            var system = provider.GetService<ActorSystem>();
-            if (system is null)
-            {
-                // start our own local ActorSystem
-                system = ActorSystem.Create("turbohttp");
-                system.Log.Info("Created new Akka.NET ActorSystem {0} - none found in IServiceCollection", system.Name);
-            }
-
-            var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
-            var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
-            return new TurboHttpClientFactory(options, descriptors, provider, system);
-        });
-
-        return services;
-    }
-
-    /// <summary>
     /// Registers a named TurboHttp client and returns an <see cref="ITurboHttpClientBuilder"/>
     /// for further configuration. <see cref="ITurboHttpClientFactory"/> is registered as a
     /// singleton the first time this method is called — subsequent calls are idempotent.
