@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using TurboHttp.Protocol.RFC9110;
 
 namespace TurboHttp.Protocol.RFC1945;
 
@@ -85,7 +86,7 @@ public static class Http10Encoder
     {
         if (absoluteForm)
         {
-            return uri.GetLeftPart(UriPartial.Query);
+            return UriSanitizer.FormatAbsoluteWithoutUserInfo(uri);
         }
 
         var pathAndQuery = uri.GetComponents(
