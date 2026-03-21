@@ -68,10 +68,10 @@ Full-sweep MUST/MUST NOT extraction across RFC 1945, 9110, 9111, 9112, and 9114 
 - Change: In `WriteRequestLine()` with `absoluteForm`: rebuild URI without userinfo
 
 **Acceptance Criteria:**
-- [ ] `Http11Encoder.WriteRequestLine()` with `absoluteForm=true` strips userinfo from URI
-- [ ] Origin-form requests are unaffected
-- [ ] Unit tests written and passing
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
+- [x] `Http11Encoder.WriteRequestLine()` with `absoluteForm=true` strips userinfo from URI
+- [x] Origin-form requests are unaffected
+- [x] Unit tests written and passing
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → 0 errors
 
 **Tests** (extends `src/TurboHttp.Tests/RFC9110/03_UserinfoStrippingTests.cs`):
 

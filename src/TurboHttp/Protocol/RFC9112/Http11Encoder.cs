@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
+using TurboHttp.Protocol.RFC9110;
 
 namespace TurboHttp.Protocol.RFC9112;
 
@@ -114,10 +115,10 @@ public static class Http11Encoder
         {
             bytesWritten += WriteBytes(ref buffer, "*"u8);
         }
-        // Absolute-form for proxy requests
+        // Absolute-form for proxy requests (RFC 9110 §4.2.4: strip userinfo)
         else if (absoluteForm)
         {
-            var absoluteUri = uri.GetLeftPart(UriPartial.Query); // Excludes fragment
+            var absoluteUri = UriSanitizer.FormatAbsoluteWithoutUserInfo(uri);
             bytesWritten += WriteAscii(ref buffer, absoluteUri);
         }
         // Origin-form (normal case) - path and query without fragment

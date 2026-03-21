@@ -1,6 +1,9 @@
+using System.Buffers;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
 using TurboHttp.Protocol.RFC7541;
+using TurboHttp.Protocol.RFC9112;
 using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Tests.RFC9110;
@@ -65,5 +68,51 @@ public sealed class UserinfoStrippingTests
         var authority = headers.First(h => h.Name == ":authority").Value;
         // Port 443 is default for https — should be omitted
         Assert.Equal("example.com", authority);
+    }
+
+    // ── HTTP/1.1 Userinfo Stripping ────────────────────────────────────────────
+
+    [Fact(DisplayName = "RFC9110-4.2.4-UI-005: H11 absolute-form strips userinfo")]
+    public void H11_Should_StripUserinfo_When_AbsoluteForm()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://user:pass@example.com:8080/path?q=1");
+        var result = EncodeHttp11Absolute(request);
+
+        Assert.Contains("GET http://example.com:8080/path?q=1 HTTP/1.1\r\n", result);
+        Assert.DoesNotContain("user", result);
+        Assert.DoesNotContain("pass", result);
+        Assert.DoesNotContain("@", result);
+    }
+
+    [Fact(DisplayName = "RFC9110-4.2.4-UI-006: H11 origin-form unaffected by userinfo")]
+    public void H11_Should_NotContainUserinfo_When_OriginForm()
+    {
+        // Origin-form only emits path+query, so userinfo in the URI never appears
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://user:pass@example.com/path?q=1");
+        var result = EncodeHttp11Origin(request);
+
+        Assert.Contains("GET /path?q=1 HTTP/1.1\r\n", result);
+        Assert.DoesNotContain("user", result);
+        Assert.DoesNotContain("@", result);
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    private static string EncodeHttp11Absolute(HttpRequestMessage request)
+    {
+        using var owner = MemoryPool<byte>.Shared.Rent(4096);
+        var buffer = owner.Memory;
+        var span = buffer.Span;
+        var written = Http11Encoder.Encode(request, ref span, absoluteForm: true);
+        return Encoding.ASCII.GetString(buffer.Span[..written]);
+    }
+
+    private static string EncodeHttp11Origin(HttpRequestMessage request)
+    {
+        using var owner = MemoryPool<byte>.Shared.Rent(4096);
+        var buffer = owner.Memory;
+        var span = buffer.Span;
+        var written = Http11Encoder.Encode(request, ref span, absoluteForm: false);
+        return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 }
