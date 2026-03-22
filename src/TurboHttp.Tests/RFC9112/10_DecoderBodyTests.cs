@@ -16,7 +16,7 @@ public sealed class Http11DecoderBodyTests
 {
     private readonly Http11Decoder _decoder = new();
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-6-BD-009: Incomplete header returns false for more data")]
     public async Task Should_ReturnFalse_When_IncompleteHeaderNeedsMoreData()
     {
         const string body = "complete body";
@@ -35,7 +35,7 @@ public sealed class Http11DecoderBodyTests
         Assert.Equal(body, result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-6-BD-010: Incomplete body completed by second chunk")]
     public async Task Should_ReturnTrue_When_IncompleteBodyCompletedBySecondChunk()
     {
         const string body = "complete";
@@ -163,7 +163,7 @@ public sealed class Http11DecoderBodyTests
         Assert.Equal(binaryBody, result);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-6-BD-011: Transfer-Encoding + Content-Length conflict rejected")]
     public void Should_Reject_When_ConflictingTeAndClHeaders()
     {
         // RFC 9112 §6.3 / Security: Both Transfer-Encoding and Content-Length present
@@ -177,7 +177,7 @@ public sealed class Http11DecoderBodyTests
         Assert.Equal(HttpDecoderError.ChunkedWithContentLength, ex.DecodeError);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-6-BD-012: Multiple Content-Length values rejected")]
     public void Should_Throw_When_MultipleContentLengthDifferentValues()
     {
         // RFC 9112 §6.3: Multiple Content-Length headers with differing values
@@ -188,7 +188,7 @@ public sealed class Http11DecoderBodyTests
         Assert.Equal(HttpDecoderError.MultipleContentLengthValues, ex.DecodeError);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-6-BD-013: Negative Content-Length treated as empty body")]
     public void Should_HandleGracefully_When_NegativeContentLengthDecoded()
     {
         // RFC 7230 §3.3: A negative Content-Length is invalid. The decoder should
@@ -203,7 +203,7 @@ public sealed class Http11DecoderBodyTests
         Assert.Equal(0, responses[0].Content.Headers.ContentLength);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-6-BD-014: No body framing produces empty body")]
     public void Should_ProduceEmptyBody_When_NoBodyIndicatorDecoded()
     {
         // RFC 7230 §3.3-007: Response with neither Content-Length nor

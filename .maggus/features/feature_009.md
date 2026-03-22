@@ -84,10 +84,10 @@
 | `10_DecoderBodyTests.cs` | 5–6 | BD | RFC9112-6-BD-009..014 |
 
 **Acceptance Criteria:**
-- [ ] 14–17 tests get RFC-tagged DisplayName attributes
-- [ ] Numbers continue from existing sequences
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors
-- [ ] `dotnet test src/TurboHttp.Tests/TurboHttp.Tests.csproj --filter "FullyQualifiedName~RFC9112"` passes
+- [x] 14–17 tests get RFC-tagged DisplayName attributes
+- [x] Numbers continue from existing sequences
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors
+- [x] `dotnet test src/TurboHttp.Tests/TurboHttp.Tests.csproj --filter "FullyQualifiedName~RFC9112"` passes
 
 ---
 

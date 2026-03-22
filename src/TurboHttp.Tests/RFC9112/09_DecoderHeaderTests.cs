@@ -16,7 +16,7 @@ public sealed class Http11DecoderHeaderTests
 {
     private readonly Http11Decoder _decoder = new();
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-5-HD-011: Custom headers preserved in response")]
     public void Should_PreserveHeaders_When_CustomHeadersPresent()
     {
         var raw = BuildResponse(200, "OK", "data",
@@ -32,7 +32,7 @@ public sealed class Http11DecoderHeaderTests
         Assert.Equal("no-store", cache.Single());
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-5-HD-012: Header without colon rejected")]
     public void Should_ThrowHttpDecoderException_When_HeaderWithoutColon()
     {
         // RFC 9112 §5.1 / RFC 7230 §3.2: every header field MUST contain a colon separator.
@@ -158,7 +158,7 @@ public sealed class Http11DecoderHeaderTests
         Assert.Equal("utf-8", responses[0].Content.Headers.ContentType?.CharSet);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-5-HD-013: OWS trimmed from decoded header value")]
     public void Should_TrimOWS_When_HeaderDecoded()
     {
         // RFC 7230 §3.2: OWS (optional whitespace) around header field value MUST be trimmed.
@@ -171,7 +171,7 @@ public sealed class Http11DecoderHeaderTests
         Assert.Equal("bar", values.Single());
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-5-HD-014: Empty header value accepted")]
     public void Should_AcceptEmptyValue_When_HeaderDecoded()
     {
         // RFC 7230 §3.2: A header field with an empty value is valid.
@@ -184,7 +184,7 @@ public sealed class Http11DecoderHeaderTests
         Assert.Equal("", values.Single());
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-5-HD-015: Header name case-insensitive lookup")]
     public void Should_MatchCaseInsensitively_When_HeaderNameDecoded()
     {
         // RFC 7230 §3.2: Header field names are case-insensitive.
@@ -198,7 +198,7 @@ public sealed class Http11DecoderHeaderTests
         Assert.Equal("example.com", values.Single());
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-5-HD-016: Multiple same-name header values preserved")]
     public void Should_PreserveMultipleValues_When_SameHeaderName()
     {
         // RFC 7230 §3.2.2: Multiple header fields with the same name are valid;
@@ -215,7 +215,7 @@ public sealed class Http11DecoderHeaderTests
         Assert.Contains("application/json", list);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-5-HD-017: Obs-fold in HTTP/1.1 header rejected")]
     public void Should_RejectObsFold_When_Http11Header()
     {
         // RFC 9112 §5.2: A server MUST NOT send obs-fold in HTTP/1.1 responses.

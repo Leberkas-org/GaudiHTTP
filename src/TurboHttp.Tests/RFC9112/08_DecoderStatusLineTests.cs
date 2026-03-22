@@ -17,7 +17,7 @@ public sealed class Http11DecoderStatusLineTests
 {
     private readonly Http11Decoder _decoder = new();
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-4-SL-012: Simple 200 OK with Content-Length decoded")]
     public async Task Should_Decode_When_SimpleOkWithContentLength()
     {
         const string body = "Hello, World!";
@@ -32,7 +32,7 @@ public sealed class Http11DecoderStatusLineTests
         Assert.Equal("Hello, World!", result);
     }
 
-    [Theory]
+    [Theory(DisplayName = "RFC9112-4-SL-013: Known status code {code} parsed correctly")]
     [InlineData(200, "OK", HttpStatusCode.OK)]
     [InlineData(201, "Created", HttpStatusCode.Created)]
     [InlineData(301, "Moved Permanently", HttpStatusCode.MovedPermanently)]
@@ -231,7 +231,7 @@ public sealed class Http11DecoderStatusLineTests
         Assert.True(string.IsNullOrWhiteSpace(responses[0].ReasonPhrase));
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-4-SL-014: 204 No Content has empty body")]
     public void Should_HaveNoBody_When_Response204NoContent()
     {
         var raw = BuildResponse(204, "No Content", "", ("Content-Length", "0"));
@@ -243,7 +243,7 @@ public sealed class Http11DecoderStatusLineTests
         Assert.Equal(0, responses[0].Content.Headers.ContentLength);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-4-SL-015: 100 Continue skipped before final response")]
     public void Should_Skip_When_100Continue()
     {
         var raw100 = "HTTP/1.1 100 Continue\r\n\r\n"u8.ToArray();
@@ -260,7 +260,7 @@ public sealed class Http11DecoderStatusLineTests
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-4-SL-016: 304 Not Modified has no body")]
     public void Should_ParseCorrectly_When_Response304NoBody()
     {
         var raw = "HTTP/1.1 304 Not Modified\r\nETag: \"abc\"\r\n\r\n"u8.ToArray();
