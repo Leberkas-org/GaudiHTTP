@@ -1,5 +1,3 @@
-using System;
-
 namespace TurboHttp.Protocol.RFC9113;
 
 /// <summary>
@@ -26,7 +24,7 @@ public sealed class Http2Exception(
     Http2ErrorCode errorCode = Http2ErrorCode.ProtocolError,
     Http2ErrorScope scope = Http2ErrorScope.Connection,
     int streamId = 0)
-    : Exception(message)
+    : TurboProtocolException(message)
 {
     public Http2ErrorCode ErrorCode { get; } = errorCode;
 

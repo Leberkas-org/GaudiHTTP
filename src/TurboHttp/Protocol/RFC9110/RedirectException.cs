@@ -23,7 +23,7 @@ public enum RedirectError
 /// <summary>
 /// Thrown when an RFC 9110 §15.4 redirect constraint is violated.
 /// </summary>
-public sealed class RedirectException : Exception
+public sealed class RedirectException : TurboHttpException
 {
     /// <summary>The specific redirect error that occurred.</summary>
     public RedirectError Error { get; }
@@ -46,7 +46,7 @@ public sealed class RedirectException : Exception
 /// <summary>
 /// Thrown when a redirect would downgrade from HTTPS to HTTP and the policy forbids it.
 /// </summary>
-public sealed class RedirectDowngradeException : Exception
+public sealed class RedirectDowngradeException : TurboHttpException
 {
     /// <inheritdoc />
     public RedirectDowngradeException(string message) : base(message) { }

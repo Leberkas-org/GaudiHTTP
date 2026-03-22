@@ -5,7 +5,7 @@ namespace TurboHttp.Protocol.RFC7541;
 /// <summary>
 /// HPACK-specific exception for RFC 7541 protocol violations.
 /// </summary>
-public sealed class HpackException : Exception
+public sealed class HpackException : TurboProtocolException
 {
     public HpackException(string message) : base(message)
     {

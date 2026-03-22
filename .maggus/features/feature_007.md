@@ -90,14 +90,14 @@ TurboHttpException (abstract)
 **Parallel:** yes — can run alongside TASK-007-002 and TASK-007-004
 
 **Acceptance Criteria:**
-- [ ] `HttpDecoderException` : `Exception` → `: TurboProtocolException`
-- [ ] `HpackException` : `Exception` → `: TurboProtocolException`
-- [ ] `QpackException` : `Exception` → `: TurboProtocolException`
-- [ ] `Http2Exception` : `Exception` → `: TurboProtocolException`
-- [ ] `Http3ConnectionException` : `Exception` → `: TurboProtocolException`
-- [ ] `AbruptCloseException` : `Exception` → `: TurboTransportException`
-- [ ] `RedirectException` : `Exception` → `: TurboHttpException`
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors
+- [x] `HttpDecoderException` : `Exception` → `: TurboProtocolException`
+- [x] `HpackException` : `Exception` → `: TurboProtocolException`
+- [x] `QpackException` : `Exception` → `: TurboProtocolException`
+- [x] `Http2Exception` : `Exception` → `: TurboProtocolException`
+- [x] `Http3ConnectionException` : `Exception` → `: TurboProtocolException`
+- [x] `AbruptCloseException` : `Exception` → `: TurboTransportException`
+- [x] `RedirectException` : `Exception` → `: TurboHttpException`
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors
 
 ### TASK-007-004: Merge Http3SettingsException and RedirectDowngradeException
 **Description:** As a developer, I want to eliminate redundant exception types so the API is more consistent.
