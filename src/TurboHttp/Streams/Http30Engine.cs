@@ -36,15 +36,10 @@ public sealed class Http30Engine : IHttpProtocolEngine
             // ── Request path: broadcast to encoder and FIFO correlation ──
             var broadcast = b.Add(new Broadcast<HttpRequestMessage>(2));
             var requestToFrame = b.Add(new Http30Request2FrameStage(requestEncoder));
-            var zip = b.Add(ZipWith.Apply<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>(
-                (request, response) =>
-                {
-                    response.RequestMessage = request;
-                    return response;
-                }));
+            var correlation = b.Add(new Http30CorrelationStage());
 
             b.From(broadcast.Out(0)).To(requestToFrame.In);
-            b.From(broadcast.Out(1)).To(zip.In0);
+            b.From(broadcast.Out(1)).To(correlation.In0);
 
             // ── Connection stage ──
             var connection = b.Add(new Http30ConnectionStage());
@@ -97,7 +92,7 @@ public sealed class Http30Engine : IHttpProtocolEngine
             b.From(frameDecoder.Outlet).To(connection.InServer);
             b.From(connection.OutApp).To(streamDecoder.Inlet);
 
-            b.From(streamDecoder.Outlet).To(zip.In1);
+            b.From(streamDecoder.Outlet).To(correlation.In1);
 
             return new BidiShape<
                 HttpRequestMessage,
@@ -107,7 +102,7 @@ public sealed class Http30Engine : IHttpProtocolEngine
                 broadcast.In,
                 demuxMerge.Out,
                 partition.In,
-                zip.Out);
+                correlation.Out);
         }));
     }
 

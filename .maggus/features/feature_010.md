@@ -58,12 +58,12 @@ After removing `Http30StreamIdAllocatorStage` from `Http30Engine`, three issues 
 **Parallel:** no — requires simplified correlation stage
 
 **Acceptance Criteria:**
-- [ ] `ZipWith.Apply<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>(...)` replaced with `Http30CorrelationStage`
-- [ ] `Broadcast<HttpRequestMessage>(2)` output 0 → `requestToFrame.In`, output 1 → `correlation._inRequest`
-- [ ] `streamDecoder.Outlet` → `correlation._inResponse`
-- [ ] `correlation._out` → BidiShape output (replacing `zip.Out`)
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors, 0 warnings
-- [ ] `dotnet test src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj --filter "FullyQualifiedName~RFC9114"` — all pass
+- [x] `ZipWith.Apply<HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>(...)` replaced with `Http30CorrelationStage`
+- [x] `Broadcast<HttpRequestMessage>(2)` output 0 → `requestToFrame.In`, output 1 → `correlation._inRequest`
+- [x] `streamDecoder.Outlet` → `correlation._inResponse`
+- [x] `correlation._out` → BidiShape output (replacing `zip.Out`)
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors, 0 warnings
+- [x] `dotnet test src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj --filter "FullyQualifiedName~RFC9114"` — all pass
 
 ### TASK-010-003: Fix Http30ControlStreamPrefaceStage to Eagerly Emit SETTINGS
 **Description:** As a developer, I want `Http30ControlStreamPrefaceStage` to emit the control stream preface eagerly (on `PreStart`) so that the SETTINGS frame is always sent before any request stream frames, satisfying RFC 9114 §6.2.1.
