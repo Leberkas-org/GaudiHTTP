@@ -255,4 +255,107 @@ public sealed class Http30StreamStageTests : StreamTestBase
             Assert.Empty(body);
         }
     }
+
+    // --- RFC 9114 §4.2 Field Validation Integration Tests ---
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.2-30S-001: Uppercase header name rejected")]
+    public async Task Should_FailStage_When_UppercaseHeaderNamePresent()
+    {
+        var headerBlock = EncodeHeaders(
+            (":status", "200"),
+            ("Content-Type", "text/plain")
+        );
+
+        var ex = await Assert.ThrowsAsync<Http3ConnectionException>(() => RunAsync(
+            new Http3HeadersFrame(headerBlock)
+        ));
+
+        Assert.Contains("uppercase", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory(Timeout = 10_000, DisplayName = "RFC9114-4.2-30S-002: Connection-specific headers rejected")]
+    [InlineData("connection", "close")]
+    [InlineData("transfer-encoding", "chunked")]
+    [InlineData("upgrade", "websocket")]
+    [InlineData("keep-alive", "timeout=5")]
+    public async Task Should_FailStage_When_ConnectionSpecificHeaderPresent(string name, string value)
+    {
+        var headerBlock = EncodeHeaders(
+            (":status", "200"),
+            (name, value)
+        );
+
+        var ex = await Assert.ThrowsAsync<Http3ConnectionException>(() => RunAsync(
+            new Http3HeadersFrame(headerBlock)
+        ));
+
+        Assert.Contains("forbidden", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.2-30S-003: TE header allowed with value trailers")]
+    public async Task Should_AllowTeTrailers_When_TeHeaderHasValueTrailers()
+    {
+        var headerBlock = EncodeHeaders(
+            (":status", "200"),
+            ("te", "trailers")
+        );
+
+        var responses = await RunAsync(
+            new Http3HeadersFrame(headerBlock)
+        );
+
+        Assert.Single(responses);
+        Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
+    }
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.2-30S-004: TE header rejected with non-trailers value")]
+    public async Task Should_FailStage_When_TeHeaderHasNonTrailersValue()
+    {
+        var headerBlock = EncodeHeaders(
+            (":status", "200"),
+            ("te", "gzip")
+        );
+
+        var ex = await Assert.ThrowsAsync<Http3ConnectionException>(() => RunAsync(
+            new Http3HeadersFrame(headerBlock)
+        ));
+
+        Assert.Contains("TE", ex.Message);
+    }
+
+    [Theory(Timeout = 10_000, DisplayName = "RFC9114-4.2-30S-005: NUL, CR, LF in header values rejected")]
+    [InlineData("x-bad", "val\0ue", "NUL")]
+    [InlineData("x-bad", "val\rue", "CR")]
+    [InlineData("x-bad", "val\nue", "LF")]
+    public async Task Should_FailStage_When_HeaderValueContainsForbiddenCharacter(string name, string value, string charName)
+    {
+        var headerBlock = EncodeHeaders(
+            (":status", "200"),
+            (name, value)
+        );
+
+        var ex = await Assert.ThrowsAsync<Http3ConnectionException>(() => RunAsync(
+            new Http3HeadersFrame(headerBlock)
+        ));
+
+        Assert.Contains(charName, ex.Message);
+    }
+
+    [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.2-30S-006: Valid lowercase headers pass validation")]
+    public async Task Should_PassValidation_When_AllHeadersAreLowercaseAndValid()
+    {
+        var headerBlock = EncodeHeaders(
+            (":status", "200"),
+            ("content-type", "text/plain"),
+            ("x-request-id", "abc-123"),
+            ("cache-control", "no-cache")
+        );
+
+        var responses = await RunAsync(
+            new Http3HeadersFrame(headerBlock)
+        );
+
+        Assert.Single(responses);
+        Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
+    }
 }

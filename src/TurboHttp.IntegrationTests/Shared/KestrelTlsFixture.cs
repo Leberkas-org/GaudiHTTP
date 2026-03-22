@@ -475,7 +475,7 @@ public sealed class KestrelTlsFixture : IAsyncLifetime
         {
             ctx.Response.ContentType = "text/plain";
             await ctx.Response.StartAsync();
-            var single = new byte[] { (byte)'x' };
+            var single = new[] { (byte)'x' };
             for (var i = 0; i < count; i++)
             {
                 await ctx.Response.Body.WriteAsync(single);

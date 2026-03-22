@@ -94,6 +94,9 @@ public sealed class Http30StreamStage : GraphStage<FlowShape<Http3Frame, HttpRes
 
             var headers = _qpack.Decode(frame.HeaderBlock.Span);
 
+            // RFC 9114 §4.2 — validate field names/values before building response
+            Http3FieldValidator.Validate(headers);
+
             _response = new HttpResponseMessage();
 
             foreach (var h in headers)
