@@ -184,16 +184,16 @@ This feature wires all handlers into their respective stages, removes redundant 
 **Parallel:** no — needs all integrations complete
 
 **Acceptance Criteria:**
-- [ ] `TurboHttp.StreamTests/RFC9114/07_Http30FieldValidationStageTests.cs` — test that uppercase headers cause stage failure
-- [ ] `TurboHttp.StreamTests/RFC9114/08_Http30OriginValidationStageTests.cs` — test that userinfo/empty-scheme URIs cause stage failure
-- [ ] `TurboHttp.StreamTests/RFC9114/09_Http30CertificateValidationTests.cs` — test cert hostname mismatch causes connection failure
-- [ ] `TurboHttp.StreamTests/RFC9114/10_Http30IdleTimeoutStageTests.cs` — test that idle timeout triggers GOAWAY + stage completion
-- [ ] `TurboHttp.StreamTests/RFC9114/11_Http30ConnectionReuseTests.cs` — test version-dispatch routes HTTP/3 to correct evaluator
-- [ ] `TurboHttp.StreamTests/RFC9114/12_Http30PushRejectionStageTests.cs` — test that PUSH_PROMISE with MAX_PUSH_ID=0 causes ExcessiveLoad error
-- [ ] All tests follow `StreamTestBase` conventions (extend TestKit, use IMaterializer)
-- [ ] RFC-tagged `DisplayName` attributes (e.g. `"RFC-9114-4.2-001: reject uppercase field names in stream stage"`)
-- [ ] All existing tests still pass
-- [ ] Build succeeds with zero errors
+- [x] `TurboHttp.StreamTests/RFC9114/07_Http30FieldValidationStageTests.cs` — test that uppercase headers cause stage failure
+- [x] `TurboHttp.StreamTests/RFC9114/08_Http30OriginValidationStageTests.cs` — test that userinfo/empty-scheme URIs cause stage failure
+- [x] `TurboHttp.StreamTests/RFC9114/09_Http30CertificateValidationTests.cs` — test cert hostname mismatch causes connection failure
+- [x] `TurboHttp.StreamTests/RFC9114/10_Http30IdleTimeoutStageTests.cs` — test that idle timeout triggers GOAWAY + stage completion
+- [x] `TurboHttp.StreamTests/RFC9114/11_Http30ConnectionReuseTests.cs` — test version-dispatch routes HTTP/3 to correct evaluator
+- [x] `TurboHttp.StreamTests/RFC9114/12_Http30PushRejectionStageTests.cs` — test that PUSH_PROMISE with MAX_PUSH_ID=0 causes ExcessiveLoad error
+- [x] All tests follow `StreamTestBase` conventions (extend TestKit, use IMaterializer)
+- [x] RFC-tagged `DisplayName` attributes (e.g. `"RFC-9114-4.2-001: reject uppercase field names in stream stage"`)
+- [x] All existing tests still pass
+- [x] Build succeeds with zero errors
 
 ---
 

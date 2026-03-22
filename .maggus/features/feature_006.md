@@ -1,200 +1,170 @@
-# Feature 006: Integration Tests — Protocol Edge Cases & Error Handling
+# Feature 006: Integration Tests — Cookies, Caching & Content Encoding
 
 ## Introduction
 
-The final integration test feature covers advanced protocol-specific scenarios, error handling, and cross-protocol consistency. This includes HTTP/2 multiplexing, GOAWAY, and stream abort; HTTP/3 QUIC-specific behavior; TLS certificate handling; timeouts; connection abort mid-response; large headers; and a cross-protocol test suite that verifies identical behavior across all HTTP versions.
+Building on Feature 002 infrastructure, this feature tests three middleware features that are enabled via the client builder: cookie persistence (RFC 6265), HTTP caching (RFC 9111), and automatic content decompression (RFC 9110 §8.4). These features are implemented as BidiStages in the pipeline and activated via `.WithCookies()`, `.WithCache()`, and `.WithDecompression()`.
 
 ### Architecture Context
 
 - **Components involved:**
-  - `Http20ConnectionStage` — SETTINGS/PING/GOAWAY handling, flow control, stream lifecycle
-  - `Http20StreamStage` — response assembly, HPACK decode
-  - `Http30ConnectionStage` — control stream, SETTINGS, GOAWAY
-  - `Http30StreamStage` — QPACK decode, response assembly
-  - `ConnectionStage` — TCP connection wrapper, error propagation
-  - `HostPoolActor` — connection pool lifecycle, reconnect logic
-  - `QuicClientProvider` — QUIC connection, ALPN negotiation
-  - `TurboClientOptions.DangerousAcceptAnyServerCertificate` — cert bypass
-  - `ITurboHttpClient.Timeout` — per-request timeout enforcement
-- **Existing routes used:** `/delay/{ms}`, `/edge/*`, `/h2/*`, `/h3/*`, `/status/*`, all basic routes
+  - `CookieBidiStage` — RFC 6265 §5.3–5.4 cookie injection/storage
+  - `CookieJar` — domain/path matching, Secure/HttpOnly/SameSite, Max-Age/Expires
+  - `CacheBidiStage` — RFC 9111 cache lookup/storage with short-circuit on hits
+  - `HttpCacheStore` — thread-safe in-memory LRU cache with Vary support
+  - `CacheFreshnessEvaluator` — freshness lifetime, current age
+  - `CacheValidationRequestBuilder` — conditional requests (If-None-Match, If-Modified-Since)
+  - `DecompressionBidiStage` — gzip/deflate/brotli automatic decompression
+  - `ContentEncodingDecoder` — handles stacked encodings
+  - Pipeline stacking: Handler → Redirect → **Cookie** → Retry → Expect100 → **Cache** → **Decomp** → Engine
+- **Existing routes used:** `/cookie/*`, `/cache/*`, `/compress/*`, `/edge/unknown-encoding`
 - **Depends on:** Feature 002 (ClientHelper, Collections)
 
 ## Goals
 
-- Verify HTTP/2 multiplexing (concurrent requests on single connection)
-- Test HTTP/2 stream abort (RST_STREAM) detection
-- Test HTTP/2 large headers (HPACK compression)
-- Verify HTTP/3 protocol identification and QUIC transport
-- Test request timeout enforcement
-- Verify connection abort mid-response detection and recovery
-- Test large response headers
-- Test unknown/edge-case responses (empty body, unknown encoding)
-- Cross-protocol consistency: identical behavior across HTTP/1.1, 2.0, 3.0
-- Verify TLS certificate handling (self-signed cert bypass)
+- Verify cookie set/get roundtrip across multiple requests
+- Test cookie attributes (Secure, HttpOnly, SameSite, Domain, Path, Max-Age)
+- Verify cookie persistence across redirects
+- Test Cache-Control directives (max-age, no-cache, no-store, must-revalidate, s-maxage)
+- Verify ETag/If-None-Match and Last-Modified/If-Modified-Since validation (304 handling)
+- Test Vary header cache splitting
+- Verify automatic gzip/deflate/brotli decompression
+- Test unknown encoding passthrough
 
 ## Tasks
 
-### TASK-006-001: HTTP/1.1 Error Handling & Edge Cases
-**Description:** As a developer, I want error handling and edge case tests for HTTP/1.1, so that timeout enforcement, connection abort detection, and unusual responses are verified.
-
-**Token Estimate:** ~60k tokens
-**Predecessors:** Feature 002 (TASK-002-001)
-**Successors:** none
-**Parallel:** yes — can run alongside TASK-006-002, TASK-006-003, TASK-006-004
-
-**Acceptance Criteria:**
-- [ ] `Http1ErrorTests.cs` with `[Collection("Http1Integration")]` (~12 tests):
-  - GET /delay/100 → succeeds after ~100ms
-  - GET /delay/5000 with client Timeout=1s → TimeoutException or TaskCanceledException
-  - GET /edge/close-mid-response → connection reset detected, exception thrown
-  - GET /edge/large-header/10 → 10 KB header value processed correctly
-  - GET /edge/large-header/50 → 50 KB header value
-  - GET /edge/empty-body → 200 without Content-Length, empty body
-  - GET /edge/unknown-encoding → Content-Encoding: x-custom, body preserved raw
-  - GET /status/500 → 500 status propagated, no exception
-  - GET /status/204 → no body, no Content-Length
-  - Two requests after a connection error → recovery works, second request succeeds
-  - Sequential requests with alternating success/failure → client stays healthy
-- [ ] All tests green: `dotnet test src/TurboHttp.IntegrationTests/ --filter "Http1ErrorTests"`
-
-### TASK-006-002: HTTP/2 Advanced & Multiplexing Tests
-**Description:** As a developer, I want HTTP/2 advanced tests covering multiplexing, stream abort, large headers, and concurrent request handling.
-
-**Token Estimate:** ~80k tokens
-**Predecessors:** Feature 002 (TASK-002-001)
-**Successors:** none
-**Parallel:** yes — can run alongside TASK-006-001, TASK-006-003, TASK-006-004
-
-**Acceptance Criteria:**
-- [ ] `Http2AdvancedTests.cs` with `[Collection("Http2Integration")]` (~16 tests):
-  - 5 concurrent GET /hello → all succeed, multiplexed on single connection
-  - 10 concurrent GET /delay/50 → all complete, responses matched to correct requests
-  - Responses can arrive out of order → correct correlation (stream ID matching)
-  - GET /h2/abort → RST_STREAM detected, appropriate exception
-  - GET /h2/delay/100 → succeeds after ~100ms
-  - GET /h2/delay/5000 with Timeout=1s → timeout
-  - GET /h2/large-headers/20 → 20 KB headers decoded via HPACK
-  - GET /h2/many-headers → 20 custom headers all decoded
-  - GET /h2/settings → server SETTINGS frame exchanged
-  - Mix of sequential and concurrent requests → all succeed
-  - POST /h2/echo-binary + 5 concurrent GET /hello → all multiplexed
-  - Large body + concurrent small requests → no starvation
-  - GET /h2/settings/max-concurrent → stream limit info available
-  - Error recovery: after stream abort, new requests still work
-- [ ] All tests green: `dotnet test src/TurboHttp.IntegrationTests/ --filter "Http2AdvancedTests"`
-
-### TASK-006-003: HTTP/3 Advanced & TLS Security Tests
-**Description:** As a developer, I want HTTP/3 advanced tests and TLS security tests covering QUIC behavior, protocol identification, and certificate handling.
+### TASK-005-001: Cookie Tests
+**Description:** As a developer, I want cookie persistence tests for HTTP/1.1, so that RFC 6265 cookie set/get, attributes, expiration, and redirect persistence are verified end-to-end.
 
 **Token Estimate:** ~70k tokens
 **Predecessors:** Feature 002 (TASK-002-001)
 **Successors:** none
-**Parallel:** yes — can run alongside TASK-006-001, TASK-006-002, TASK-006-004
+**Parallel:** yes — can run alongside TASK-005-002 and TASK-005-003
 
 **Acceptance Criteria:**
-- [ ] `Http3AdvancedTests.cs` with `[Collection("Http3Integration")]` + `[Trait("Category", "Http3")]` (~10 tests):
-  - GET /h3/protocol → body contains "HTTP/3"
-  - 5 concurrent GET /hello → multiplexed QUIC streams
-  - GET /h3/delay/100 → succeeds
-  - GET /h3/delay/5000 with Timeout=1s → timeout
-  - GET /h3/many-headers → 20 custom headers via QPACK
-  - POST /h3/echo-binary + concurrent GETs → all succeed
-  - GET /h3/stream/500 → streaming response over QUIC
-  - Error recovery after stream failure
-- [ ] `TlsSecurityTests.cs` with `[Collection("TlsIntegration")]` (~10 tests):
-  - GET /hello via HTTPS → succeeds with DangerousAcceptAnyServerCertificate=true
-  - POST /echo via HTTPS with body → echo works
-  - GET /headers/echo via HTTPS → headers preserved
-  - GET /large/50 via HTTPS → 50 KB over TLS
-  - Self-signed certificate requires DangerousAcceptAnyServerCertificate
-  - Multiple sequential HTTPS requests → connection reused
-  - GET /delay/100 via HTTPS → succeeds
-  - GET /status/500 via HTTPS → error propagated correctly
-- [ ] All tests green: `dotnet test src/TurboHttp.IntegrationTests/ --filter "Http3AdvancedTests|TlsSecurityTests"`
+- [ ] `Http1CookieTests.cs` with `[Collection("Http1Integration")]` (~16 tests):
+  - GET /cookie/set/name/value → next GET /cookie/echo includes cookie in JSON response
+  - GET /cookie/set-multiple → 3 cookies (alpha, beta, gamma) all persist
+  - GET /cookie/set-secure/s/v → Secure flag set (only sent over HTTPS, verified via /cookie/echo)
+  - GET /cookie/set-httponly/h/v → HttpOnly flag set, cookie still sent in Cookie header
+  - `[Theory]` GET /cookie/set-samesite/n/v/{policy} for Strict, Lax, None
+  - GET /cookie/set-expires/n/v/1 → wait 2s → GET /cookie/echo → cookie absent (expired)
+  - GET /cookie/set-path/n/v/api → GET /api/... includes cookie, GET /other/... does not
+  - GET /cookie/set-domain/n/v/localhost → domain matching applied
+  - GET /cookie/delete/name → next GET /cookie/echo → cookie absent
+  - GET /cookie/set-and-redirect → 302 to /cookie/echo → cookie survives redirect
+  - Multiple cookies set in sequence → all present in subsequent request
+- [ ] Client configured with `.WithCookies()` for all cookie tests
+- [ ] All tests green: `dotnet test src/TurboHttp.IntegrationTests/ --filter "CookieTests"`
 
-### TASK-006-004: Cross-Protocol Consistency Tests
-**Description:** As a developer, I want cross-protocol tests that verify identical behavior across HTTP/1.1, HTTP/2, and HTTP/3 for core scenarios, ensuring protocol transparency.
+### TASK-005-002: Cache Tests
+**Description:** As a developer, I want HTTP caching tests for HTTP/1.1, so that Cache-Control directives, ETag/Last-Modified validation, and Vary header behavior are verified end-to-end.
 
 **Token Estimate:** ~80k tokens
 **Predecessors:** Feature 002 (TASK-002-001)
 **Successors:** none
-**Parallel:** yes — can run alongside TASK-006-001, TASK-006-002, TASK-006-003
+**Parallel:** yes — can run alongside TASK-005-001 and TASK-005-003
 
 **Acceptance Criteria:**
-- [ ] `CrossProtocolTests.cs` (uses all fixtures, multiple collections or custom setup) (~16 tests):
-  - `[Theory]` parameterized by HTTP version (1.1, 2.0, 3.0):
-    - GET /hello → 200 "Hello World"
-    - POST /echo with text body → echo matches
-    - POST /echo with 100 KB body → large body echo
-    - GET /large/50 → 50 KB received
-    - GET /headers/echo with X-Custom → header echo
-    - GET /status/404 → correct status code
-    - `[Theory]` GET /status/{code} for 200, 204, 400, 500 → consistent across versions
-  - `[Theory]` parameterized by version, with features enabled:
-    - GET /compress/gzip/10 with `.WithDecompression()` → decompressed body matches
-    - GET /redirect/302/hello with `.WithRedirect()` → redirect followed
-    - Cookie roundtrip with `.WithCookies()` → cookie persists
-  - 5 concurrent requests per version → all succeed
-  - Large headers per version → all decoded
-- [ ] HTTP/3 tests marked with `[Trait("Category", "Http3")]`
-- [ ] All tests green: `dotnet test src/TurboHttp.IntegrationTests/ --filter "CrossProtocolTests"`
+- [ ] `Http1CacheTests.cs` with `[Collection("Http1Integration")]` (~16 tests):
+  - GET /cache/max-age/3600 → second identical request returns cached response (no network)
+  - GET /cache/no-cache → revalidation required on every request
+  - GET /cache/no-store → response never cached, second request hits server
+  - GET /cache/must-revalidate (max-age=0) → always revalidates with server
+  - GET /cache/etag/1 → ETag set; second request sends If-None-Match → 304 Not Modified
+  - GET /cache/etag/1 with mismatched If-None-Match → 200 with fresh body
+  - GET /cache/last-modified/1 → Last-Modified set; second request sends If-Modified-Since → 304
+  - GET /cache/vary/Accept with Accept: application/json → cached per Accept value
+  - GET /cache/vary/Accept with different Accept → cache miss, separate entry
+  - GET /cache/s-maxage/60 → s-maxage used for shared cache freshness
+  - GET /cache/expires → absolute expiration time respected
+  - GET /cache/private → marked private, still cacheable for this client
+  - Two requests to same cacheable URL → second is faster (cache hit)
+- [ ] `Http2CacheTests.cs` with `[Collection("Http2Integration")]` (~6 tests):
+  - Cache behavior over HTTP/2 connection
+  - Cache hit avoids network round-trip (same multiplexed connection)
+  - ETag validation over HTTP/2
+- [ ] Client configured with `.WithCache(new CachePolicy())` for all cache tests
+- [ ] All tests green: `dotnet test src/TurboHttp.IntegrationTests/ --filter "CacheTests"`
+
+### TASK-005-003: Content Encoding / Decompression Tests
+**Description:** As a developer, I want decompression tests for HTTP/1.1 and HTTP/2, so that automatic gzip/deflate/brotli decompression and unknown encoding passthrough are verified.
+
+**Token Estimate:** ~60k tokens
+**Predecessors:** Feature 002 (TASK-002-001)
+**Successors:** none
+**Parallel:** yes — can run alongside TASK-005-001 and TASK-005-002
+
+**Acceptance Criteria:**
+- [ ] `Http1CompressionTests.cs` with `[Collection("Http1Integration")]` (~12 tests):
+  - GET /compress/gzip/10 → auto-decompressed, body is 10240 bytes of 'A'
+  - GET /compress/deflate/10 → auto-decompressed
+  - GET /compress/br/10 → auto-decompressed (brotli)
+  - GET /compress/identity/10 → no encoding, raw body
+  - GET /compress/negotiate with Accept-Encoding: br → server sends brotli, auto-decompressed
+  - GET /compress/negotiate without Accept-Encoding → identity response
+  - GET /edge/unknown-encoding → Content-Encoding: x-custom, body preserved as-is
+  - `[Theory]` GET /compress/gzip/{kb} for 10, 100, 500 → large payloads decompressed correctly
+  - Decompressed body matches expected size and content
+- [ ] `Http2CompressionTests.cs` with `[Collection("Http2Integration")]` (~6 tests):
+  - GET /compress/gzip/10 over HTTP/2 → decompressed
+  - GET /compress/br/10 over HTTP/2 → decompressed
+  - Large compressed payload over HTTP/2
+- [ ] `Http3CompressionTests.cs` with `[Collection("Http3Integration")]` + `[Trait("Category", "Http3")]` (~4 tests):
+  - GET /compress/gzip/10 over HTTP/3 → decompressed
+  - GET /compress/br/10 over HTTP/3 → decompressed
+- [ ] Client configured with `.WithDecompression(true)` (default) for compression tests
+- [ ] All tests green: `dotnet test src/TurboHttp.IntegrationTests/ --filter "CompressionTests"`
 
 ## Task Dependency Graph
 
 ```
-              ┌──→ TASK-006-001
-              ├──→ TASK-006-002
-Feature 002 ──┼──→ TASK-006-003
-              └──→ TASK-006-004
+              ┌──→ TASK-005-001
+Feature 002 ──┼──→ TASK-005-002
+              └──→ TASK-005-003
 ```
 
 | Task | Estimate | Predecessors | Parallel | Model |
 |------|----------|--------------|----------|-------|
-| TASK-006-001 | ~60k | Feature 002 | yes (with 002, 003, 004) | — |
-| TASK-006-002 | ~80k | Feature 002 | yes (with 001, 003, 004) | — |
-| TASK-006-003 | ~70k | Feature 002 | yes (with 001, 002, 004) | — |
-| TASK-006-004 | ~80k | Feature 002 | yes (with 001, 002, 003) | — |
+| TASK-005-001 | ~70k | Feature 002 | yes (with 002, 003) | — |
+| TASK-005-002 | ~80k | Feature 002 | yes (with 001, 003) | — |
+| TASK-005-003 | ~60k | Feature 002 | yes (with 001, 002) | — |
 
-**Total estimated tokens:** ~290k
+**Total estimated tokens:** ~210k
 
 ## Functional Requirements
 
-- FR-1: Request timeout must be enforced reliably (±500ms tolerance)
-- FR-2: Connection abort mid-response must raise an exception, not hang
-- FR-3: After a connection error, subsequent requests must succeed (recovery)
-- FR-4: HTTP/2 multiplexing must correctly correlate responses to requests via stream IDs
-- FR-5: HTTP/2 RST_STREAM must propagate as a recognizable exception
-- FR-6: HTTP/3 protocol must be identifiable from response metadata
-- FR-7: Self-signed TLS certificates must work with DangerousAcceptAnyServerCertificate=true
-- FR-8: Cross-protocol tests must produce identical results regardless of HTTP version
-- FR-9: Large response headers (50+ KB) must be processed without truncation
-- FR-10: Concurrent requests must not cause data corruption or response mixing
+- FR-1: Cookies set via Set-Cookie must be sent in subsequent requests to matching domain/path
+- FR-2: Cookie expiration (Max-Age=0 or expired) must remove cookie from jar
+- FR-3: Cookie SameSite policy must be enforced for cross-site requests
+- FR-4: Cached responses must be returned without network round-trip when fresh
+- FR-5: Stale cached responses must trigger revalidation (If-None-Match or If-Modified-Since)
+- FR-6: 304 Not Modified must merge cached response with new headers
+- FR-7: Vary header must create separate cache entries per header value
+- FR-8: Automatic decompression must be transparent (Content-Encoding removed from final response)
+- FR-9: Unknown Content-Encoding must preserve raw body without error
 
 ## Non-Goals
 
-- No HTTP/2 server push testing (client-only, no push initiation route)
-- No HTTP/2 priority/weight testing (deprecated in RFC 9113)
-- No QUIC connection migration testing (not controllable from test)
-- No mTLS / client certificate testing
-- No HTTP/2 GOAWAY-initiated graceful shutdown testing (requires server-side control)
+- No Secure cookie enforcement over HTTP (would need cross-fixture test with TLS)
+- No cache size limits or eviction testing (internal implementation detail)
+- No stacked content encodings (e.g., gzip+br)
+- No request body compression
 
 ## Technical Considerations
 
-- Timeout tests: Use `/delay/{ms}` route with client `Timeout` set shorter than delay
-- Connection abort: `/edge/close-mid-response` starts writing then aborts — test must handle partial response
-- HTTP/2 multiplexing: Use `Task.WhenAll` with multiple `SendAsync` calls to verify concurrent handling
-- Cross-protocol tests: Need access to all 3 fixtures — may need custom xUnit setup or 3 separate test classes with shared test logic via helper methods
-- HTTP/3 tests may flake on CI without QUIC support — `[Trait("Category", "Http3")]` enables filtering
-- Large header tests: KestrelH2Fixture has MaxRequestHeadersTotalSize=512KB, but KestrelFixture uses defaults — test accordingly
+- Cookie tests need a fresh `CookieJar` per test to avoid cross-test state leakage
+- Cache tests need a fresh `HttpCacheStore` per test for isolation
+- `/cache/etag/{id}` returns stable ETag per ID — use different IDs per test for isolation
+- `/cache/last-modified/{id}` returns fixed date based on hash — deterministic
+- Decompression happens in `DecompressionBidiStage` — verify body length matches uncompressed size
+- `/compress/negotiate` requires Accept-Encoding header from client
 
 ## Success Metrics
 
-- All 64 tests green on Windows 11 (including HTTP/3)
-- All ~54 tests (excluding HTTP/3) green on systems without QUIC
-- HTTP/2 multiplexing tests handle 10+ concurrent requests without timeout
-- Cross-protocol tests produce bit-identical results across versions
-- No flaky timeout or concurrency tests after 10 repeated runs
-- Recovery tests prove client stays healthy after errors
+- All 60 tests green
+- Cache hit tests measurably faster than cache miss (at least 2x)
+- Cookie state properly isolated between tests (no leakage)
+- No flaky timing-dependent tests
 
 ## Open Questions
 

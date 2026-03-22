@@ -1,134 +1,165 @@
-# Feature 003: Integration Tests — Body Handling & Transfer Encoding
+# Feature 003: Integration Tests — Foundation & Basic Request/Response
 
 ## Introduction
 
-Aufbauend auf der Infrastruktur aus Feature 002 testet dieses Feature das Request/Response-Body-Handling über alle HTTP-Versionen: Text, JSON, Binärdaten, Chunked Transfer Encoding (HTTP/1.1), Frame-basierte Übertragung (HTTP/2), QUIC-Streams (HTTP/3) und Streaming-Responses.
+The integration test infrastructure (4 Kestrel fixtures, 93 routes, TestKit base) exists, but there are **zero test classes**. This feature builds the shared test infrastructure and verifies basic request/response functionality for all 4 HTTP versions (1.0/1.1, 2.0, 3.0) plus TLS.
 
 ### Architecture Context
 
 - **Components involved:**
-  - `Http10Encoder/Decoder` — Content-Length-basierte Bodies
-  - `Http11Encoder/Decoder` — Chunked Transfer-Encoding, Trailers
-  - `Http20EncoderStage/Http20StreamStage` — Frame-basierte DATA-Frames
-  - `Http30EncoderStage/Http30StreamStage` — QUIC-Stream-basierte Bodies
-  - Pipeline: `DecompressionBidiStage` (hier noch ohne Decompression — das ist Feature 005)
-- **Existing routes used:** `/echo`, `/echo/chunked`, `/chunked/{kb}`, `/chunked/exact/{count}/{bytes}`, `/chunked/trailer`, `/chunked/md5`, `/large/{kb}`, `/slow/{count}`, `/h2/echo-binary`, `/h2/large-headers/{kb}`, `/h2/priority/{kb}`, `/h3/echo-binary`, `/h3/stream/{count}`
-- **Depends on:** Feature 002 (ClientHelper, Collections)
+  - `src/TurboHttp.IntegrationTests/Shared/` — Fixtures (KestrelFixture, KestrelH2Fixture, KestrelH3Fixture, KestrelTlsFixture), TestKit, Routes
+  - `src/TurboHttp/Client/ITurboHttpClient.cs` — SendAsync API
+  - `src/TurboHttp/Hosting/TurboClientServiceCollectionExtensions.cs` — DI registration
+  - `src/TurboHttp/Middleware/TurboHttpClientBuilderExtensions.cs` — Builder pattern
+- **New patterns:** xUnit Collection Definitions for fixture sharing, DI-based `ClientHelper` for consistent client setup
+- **No architecture changes required**
 
 ## Goals
 
-- Request-Body-Echo für alle Content-Types (text, JSON, binary) verifizieren
-- Chunked Transfer-Encoding (HTTP/1.1) korrekt dekodiert
-- Chunked-Trailers empfangen und zugänglich
-- Große Payloads (bis 512 KB) über alle Versionen
-- Streaming-Responses (inkrementell empfangen)
-- Zero-Length-Bodies korrekt behandelt
-- Frame-basierte Body-Übertragung in HTTP/2 und HTTP/3
+- Create xUnit Collection Definitions for all 4 fixtures
+- Implement a DI-based `ClientHelper` (mirrors how end users consume the client)
+- Basic GET/POST/PUT/DELETE/PATCH/HEAD tests for HTTP/1.x, HTTP/2, HTTP/3, and HTTPS
+- Verify status codes, header echo, content types, empty bodies
+- Make HTTP/3 tests filterable with `[Trait("Category", "Http3")]`
 
 ## Tasks
 
-### TASK-003-001: HTTP/1.x Body & Chunked Tests
-**Description:** Als Entwickler möchte ich Body-Handling und Chunked-Encoding Tests für HTTP/1.x, damit Text-, JSON-, Binär-Bodies und Chunked-Responses verifiziert sind.
+### TASK-002-001: Shared Test Infrastructure
+**Description:** As a developer, I want reusable test infrastructure (Collections, ClientHelper), so that all subsequent integration tests have a consistent foundation.
 
 **Token Estimate:** ~75k tokens
-**Predecessors:** Feature 002 (TASK-002-001)
-**Successors:** none
-**Parallel:** yes — kann parallel zu TASK-003-002 laufen
+**Predecessors:** none
+**Successors:** TASK-002-002, TASK-002-003
+**Parallel:** no — all subsequent tasks depend on this
 
 **Acceptance Criteria:**
-- [ ] `Http1BodyTests.cs` mit `[Collection("Http1Integration")]` (~18 Tests):
-  - POST /echo mit "Hello World" (text/plain) → exakter Body-Echo
-  - POST /echo mit JSON `{"key":"value"}` (application/json) → Echo + Content-Type erhalten
-  - PUT /echo mit Binärdaten (256 Bytes random) → byte-für-byte identisch
-  - PATCH /echo mit Text → Echo
-  - POST /echo mit leerem Body → leere Response
-  - `[Theory]` POST /echo mit 1 KB, 100 KB, 512 KB Body → exakter Echo
-  - GET /chunked/10 → 10240 Bytes, chunked dekodiert
-  - `[Theory]` GET /chunked/exact/{count}/{bytes} für (3,1024), (10,256), (1,65536)
-  - POST /echo/chunked → Request-Body als Chunked-Response
-  - GET /chunked/trailer → Response enthält Trailer X-Checksum: abc123
-  - GET /chunked/md5 → Content-MD5 Header korrekt
-  - GET /large/100 → 102400 Bytes
-- [ ] `Http1StreamingTests.cs` mit `[Collection("Http1Integration")]` (~8 Tests):
-  - GET /slow/100 → 100 Bytes empfangen
-  - GET /slow/1000 → kompletter Stream
-  - `[Theory]` GET /large/{kb} für 1, 10, 50, 100, 500
-  - GET /delay/100 → erfolgreich nach ~100ms
-- [ ] Alle Tests grün: `dotnet test src/TurboHttp.IntegrationTests/ --filter "Http1BodyTests|Http1StreamingTests"`
+- [ ] `Shared/Collections.cs` with 4 Collection Definitions:
+  - `[CollectionDefinition("Http1Integration")] public sealed class Http1IntegrationCollection : ICollectionFixture<KestrelFixture>`
+  - `[CollectionDefinition("Http2Integration")] public sealed class Http2IntegrationCollection : ICollectionFixture<KestrelH2Fixture>`
+  - `[CollectionDefinition("Http3Integration")] public sealed class Http3IntegrationCollection : ICollectionFixture<KestrelH3Fixture>`
+  - `[CollectionDefinition("TlsIntegration")] public sealed class TlsIntegrationCollection : ICollectionFixture<KestrelTlsFixture>`
+- [ ] `Shared/ClientHelper.cs` with static factory method:
+  - `CreateClient(int port, Version version, Action<ITurboHttpClientBuilder>? configure = null)` → `ITurboHttpClient`
+  - Internally: `ServiceCollection` + `AddTurboHttpClient` + `TurboClientOptions` with `DangerousAcceptAnyServerCertificate = true`
+  - Creates its own `ActorSystem` per client (or shared per test class)
+  - Implements `IAsyncDisposable` for cleanup (ActorSystem shutdown)
+- [ ] Solution builds without errors: `dotnet build src/TurboHttp.IntegrationTests/`
+- [ ] At least 1 smoke test (GET /hello via HTTP/1.1) proves the infrastructure works
 
-### TASK-003-002: HTTP/2, HTTP/3 & TLS Body Tests
-**Description:** Als Entwickler möchte ich Body-Handling Tests für HTTP/2 (Frame-basiert), HTTP/3 (QUIC) und HTTPS, damit protokollspezifische Übertragung verifiziert ist.
+### TASK-002-002: Basic Tests for HTTP/1.x and TLS
+**Description:** As a developer, I want basic request/response tests for HTTP/1.0, HTTP/1.1, and HTTPS, so that baseline functionality per HTTP version is verified.
 
-**Token Estimate:** ~75k tokens
-**Predecessors:** Feature 002 (TASK-002-001)
+**Token Estimate:** ~80k tokens
+**Predecessors:** TASK-002-001
 **Successors:** none
-**Parallel:** yes — kann parallel zu TASK-003-001 laufen
+**Parallel:** yes — can run alongside TASK-002-003
 
 **Acceptance Criteria:**
-- [ ] `Http2BodyTests.cs` mit `[Collection("Http2Integration")]` (~12 Tests):
-  - POST /h2/echo-binary mit 256 Bytes → exakt zurück
-  - `[Theory]` POST /h2/echo-binary mit 1 KB, 100 KB, 512 KB
-  - POST /echo mit JSON über HTTP/2 → Content-Type erhalten
-  - POST /echo mit leerem Body über HTTP/2
-  - GET /large/100 über HTTP/2 → 102400 Bytes
-  - GET /h2/large-headers/5 → Header + Body kombiniert
-  - GET /h2/priority/10 → 10 KB Body
-- [ ] `Http3BodyTests.cs` mit `[Collection("Http3Integration")]` + `[Trait("Category", "Http3")]` (~8 Tests):
-  - POST /h3/echo-binary mit 256 Bytes → exakt zurück
-  - `[Theory]` POST /h3/echo-binary mit 1 KB, 100 KB, 512 KB
-  - GET /h3/stream/500 → Streaming über QUIC
-  - GET /large/50 über HTTP/3
-  - POST /echo mit JSON über HTTP/3
-- [ ] `TlsBodyTests.cs` mit `[Collection("TlsIntegration")]` (~6 Tests):
-  - POST /echo mit Text über HTTPS → Echo
-  - POST /echo mit 100 KB über HTTPS
-  - GET /large/50 über HTTPS
-  - GET /chunked/10 über HTTPS
-- [ ] Alle Tests grün: `dotnet test src/TurboHttp.IntegrationTests/ --filter "Http2BodyTests|Http3BodyTests|TlsBodyTests"`
+- [ ] `Http1BasicTests.cs` with `[Collection("Http1Integration")]` (~16 tests):
+  - GET /hello → 200 "Hello World"
+  - HEAD /hello → 200, empty body
+  - GET /ping → 200 "pong"
+  - `[Theory]` GET /status/{code} for 200, 201, 204, 301, 400, 404, 500, 503
+  - GET /headers/echo with X-Custom-Header → echo back
+  - GET /headers/set?X-Foo=bar → response header set
+  - GET /multiheader → two X-Value headers (alpha, beta)
+  - GET /empty-cl → Content-Length: 0, empty body
+  - GET /edge/empty-body → 200 without Content-Length
+  - GET /unknown-headers → X-Unknown-Foo/Bar present
+  - POST /echo "Hello" → body echo
+  - PUT /echo "World" → body echo
+  - PATCH /echo "!" → body echo
+  - GET /large/10 → 10240 bytes received correctly
+  - `[Theory]` /any with GET, POST, PUT, DELETE, PATCH → method echo
+- [ ] `TlsBasicTests.cs` with `[Collection("TlsIntegration")]` (~10 tests):
+  - GET /hello via HTTPS → 200
+  - POST /echo via HTTPS → body echo
+  - HEAD /hello via HTTPS → 200, no body
+  - `[Theory]` GET /status/{code} for 200, 400, 500 via HTTPS
+  - GET /headers/echo via HTTPS
+  - GET /large/10 via HTTPS
+- [ ] All tests green: `dotnet test src/TurboHttp.IntegrationTests/ --filter "Http1BasicTests|TlsBasicTests"`
+
+### TASK-002-003: Basic Tests for HTTP/2 and HTTP/3
+**Description:** As a developer, I want basic request/response tests for HTTP/2 (h2c) and HTTP/3 (QUIC), so that multiplexing protocols are verified end-to-end.
+
+**Token Estimate:** ~80k tokens
+**Predecessors:** TASK-002-001
+**Successors:** none
+**Parallel:** yes — can run alongside TASK-002-002
+
+**Acceptance Criteria:**
+- [ ] `Http2BasicTests.cs` with `[Collection("Http2Integration")]` (~14 tests):
+  - GET /hello → 200 "Hello World"
+  - HEAD /hello → 200, no body
+  - `[Theory]` GET /status/{code} for 200, 201, 204, 400, 500
+  - POST /echo → body echo
+  - GET /headers/echo with X-Custom → echo
+  - GET /multiheader → two header values
+  - GET /empty-cl → empty body
+  - GET /large/10 → 10 KB
+  - GET /h2/settings → "h2-ok"
+  - GET /h2/many-headers → 20 custom headers decoded
+  - POST /h2/echo-binary → binary data returned exactly
+  - GET /h2/echo-path → :path pseudo-header in body
+- [ ] `Http3BasicTests.cs` with `[Collection("Http3Integration")]` + `[Trait("Category", "Http3")]` (~12 tests):
+  - GET /hello → 200 "Hello World"
+  - POST /echo → body echo
+  - `[Theory]` GET /status/{code} for 200, 400, 500
+  - GET /headers/echo
+  - GET /large/10
+  - GET /h3/protocol → "HTTP/3" in body
+  - GET /h3/settings → "h3-ok" + X-Protocol header
+  - POST /h3/echo-binary → binary data over QUIC
+  - GET /h3/many-headers → 20 custom headers
+- [ ] All tests green: `dotnet test src/TurboHttp.IntegrationTests/ --filter "Http2BasicTests|Http3BasicTests"`
 
 ## Task Dependency Graph
 
 ```
-Feature 002 ──→ TASK-003-001
-            └──→ TASK-003-002
+TASK-002-001 ──→ TASK-002-002
+             └──→ TASK-002-003
 ```
 
 | Task | Estimate | Predecessors | Parallel | Model |
 |------|----------|--------------|----------|-------|
-| TASK-003-001 | ~75k | Feature 002 | yes (with 002) | — |
-| TASK-003-002 | ~75k | Feature 002 | yes (with 001) | — |
+| TASK-002-001 | ~75k | none | no | — |
+| TASK-002-002 | ~80k | 001 | yes (with 003) | — |
+| TASK-002-003 | ~80k | 001 | yes (with 002) | — |
 
-**Total estimated tokens:** ~150k
+**Total estimated tokens:** ~235k
 
 ## Functional Requirements
 
-- FR-1: Body-Echo muss byte-für-byte identisch sein (kein Encoding-Verlust)
-- FR-2: Content-Type Header muss bei Echo-Requests erhalten bleiben
-- FR-3: Chunked-Responses müssen transparent dekodiert werden (kein Raw-Chunk-Format sichtbar)
-- FR-4: Chunked-Trailers müssen über `HttpResponseMessage.TrailingHeaders` zugänglich sein
-- FR-5: Große Bodies (512 KB) dürfen keinen OutOfMemoryError verursachen
-- FR-6: Streaming-Responses müssen komplett empfangen werden (kein vorzeitiger Abbruch)
+- FR-1: Each test class must share a fixture via xUnit Collection (no server restart per test)
+- FR-2: Client creation must use DI (`AddTurboHttpClient` + `ITurboHttpClientFactory`)
+- FR-3: HTTP/3 tests must carry `[Trait("Category", "Http3")]` for filtering on non-QUIC systems
+- FR-4: Every test must use `CancellationToken` with timeout (no hanging)
+- FR-5: Client cleanup (ActorSystem shutdown) must happen in `IAsyncLifetime.DisposeAsync()`
+- FR-6: Tests must be excludable via `dotnet test --filter "Category!=Http3"` for HTTP/3
 
 ## Non-Goals
 
-- Keine Content-Encoding/Decompression (→ Feature 005)
-- Keine Multipart-Form-Data Tests (Route existiert, aber out of scope)
-- Keine Upload-Streaming (nur Download-Streaming getestet)
+- No body handling tests (→ Feature 003)
+- No redirect/retry tests (→ Feature 004)
+- No cookie/cache tests (→ Feature 005)
+- No edge case tests (→ Feature 006)
+- No performance benchmarks
 
 ## Technical Considerations
 
-- HTTP/1.0 hat kein Chunked-Encoding — nur Content-Length-Bodies
-- HTTP/2 nutzt DATA-Frames statt Chunked — Chunked-Tests nur für HTTP/1.1
-- `GET /slow/{count}` schreibt 1 Byte pro 1ms — Tests brauchen ausreichend Timeout
-- Binärdaten-Vergleich: `ReadOnlySpan<byte>.SequenceEqual()` für exakten Vergleich
-- `[Theory]` mit großen Bodies: Tests können 1-2 Sekunden dauern
+- `KestrelFixture` uses `PortFinder.FindFreeLocalPort()` — tests need no fixed ports
+- `KestrelH3Fixture` requires Windows 11+ or Linux with libmsquic — hence `[Trait]` for filtering
+- `DangerousAcceptAnyServerCertificate = true` for TLS/QUIC fixtures (self-signed certs)
+- xUnit parallelizeTestCollections=false in `xunit.runner.json` — tests run serially
 
 ## Success Metrics
 
-- Alle 52 Body-Tests grün
-- Keine Memory-Leaks bei großen Payloads (kein GC-Druck in Tests)
-- Streaming-Tests stabil (kein Timeout bei /slow/1000)
+- All 52 tests green on Windows 11 (including HTTP/3)
+- All ~40 tests (excluding HTTP/3) green on systems without QUIC
+- Client setup + teardown under 5 seconds per test class
+- No flaky tests after 10 repeated runs
 
 ## Open Questions
 
-_Keine — alle Fragen geklärt._
+_None — all questions resolved._
