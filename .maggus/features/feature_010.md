@@ -96,10 +96,10 @@ After removing `Http30StreamIdAllocatorStage` from `Http30Engine`, three issues 
 **Model:** haiku — simple file deletion
 
 **Acceptance Criteria:**
-- [ ] `src/TurboHttp/Streams/Stages/Routing/Http30StreamIdAllocatorStage.cs` deleted
-- [ ] `src/TurboHttp.StreamTests/RFC9114/06_Http30StreamIdAllocatorStageTests.cs` deleted
-- [ ] No remaining references to `Http30StreamIdAllocatorStage` in any `.cs` file
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors, 0 warnings
+- [x] `src/TurboHttp/Streams/Stages/Routing/Http30StreamIdAllocatorStage.cs` deleted
+- [x] `src/TurboHttp.StreamTests/RFC9114/06_Http30StreamIdAllocatorStageTests.cs` deleted
+- [x] No remaining references to `Http30StreamIdAllocatorStage` in any `.cs` file
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors, 0 warnings
 
 **Files to delete (2 files, ~160 lines total):**
 | File | Lines | Tests |
