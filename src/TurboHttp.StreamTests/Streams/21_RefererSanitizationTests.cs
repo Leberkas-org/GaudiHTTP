@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using Akka.Streams.Dsl;
 using TurboHttp.Client;

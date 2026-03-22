@@ -8,7 +8,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Verifies that client-initiated streams are assigned odd, monotonically increasing IDs starting from 1.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="StreamIdAllocatorStage"/>.
+/// Stage under test: <see cref="Http20StreamIdAllocatorStage"/>.
 /// RFC 9113 §5.1.1: HTTP/2 stream identifier allocation rules for client-initiated streams.
 /// </remarks>
 public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
@@ -17,7 +17,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
         params HttpRequestMessage[] requests)
     {
         return await Source.From(requests)
-            .Via(Flow.FromGraph(new StreamIdAllocatorStage()))
+            .Via(Flow.FromGraph(new Http20StreamIdAllocatorStage()))
             .RunWith(Sink.Seq<(HttpRequestMessage, int)>(), Materializer);
     }
 
@@ -98,7 +98,7 @@ public sealed class Http20StreamIdAllocatorStageTests : StreamTestBase
     {
         // Start at int.MaxValue (2^31-1 = 2147483647), which is the last valid odd stream ID.
         // The stage should emit this ID, then the next allocation wraps to a negative value.
-        var stage = new StreamIdAllocatorStage(startStreamId: int.MaxValue);
+        var stage = new Http20StreamIdAllocatorStage(startStreamId: int.MaxValue);
 
         var results = await Source.From([MakeRequest("/last"), MakeRequest("/overflow")])
             .Via(Flow.FromGraph(stage))

@@ -12,7 +12,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Verifies that the 24-byte client preface magic is emitted correctly at connection start and not repeated.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="PrependPrefaceStage"/>.
+/// Stage under test: <see cref="Http20PrependPrefaceStage"/>.
 /// RFC 9113 §3.4: HTTP/2 client connection preface format and one-time emission requirement.
 /// </remarks>
 public sealed class Http20ConnectionPrefaceEmissionTests : StreamTestBase
@@ -41,7 +41,7 @@ public sealed class Http20ConnectionPrefaceEmissionTests : StreamTestBase
     private async Task<IReadOnlyList<IOutputItem>> RunAsync(params IOutputItem[] items)
     {
         return await Source.From(items)
-            .Via(Flow.FromGraph(new PrependPrefaceStage()))
+            .Via(Flow.FromGraph(new Http20PrependPrefaceStage()))
             .RunWith(Sink.Seq<IOutputItem>(), Materializer);
     }
 

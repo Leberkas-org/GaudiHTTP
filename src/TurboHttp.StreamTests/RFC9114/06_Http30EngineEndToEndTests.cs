@@ -1,8 +1,6 @@
 using System.IO.Compression;
 using System.Net;
 using System.Text;
-using Akka.Streams.Dsl;
-using TurboHttp.Internal;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Protocol.RFC9204;
 using TurboHttp.Streams;

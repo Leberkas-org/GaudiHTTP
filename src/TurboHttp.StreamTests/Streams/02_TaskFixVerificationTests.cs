@@ -461,7 +461,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
     public async Task Should_SetEndpointOnFirstFrameOnly_When_Request2FrameStageProcessesRequest()
     {
         var encoder = new Http2RequestEncoder();
-        var stage = new Request2FrameStage(encoder);
+        var stage = new Http20Request2FrameStage(encoder);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path")
         {

@@ -12,14 +12,14 @@ namespace TurboHttp.Streams.Stages.Encoding;
 // RFC 9113 §3.4 — prepend connection preface to the first outbound bytes.
 // Each GroupByHostKey substream has its own PrependPrefaceStage instance,
 // so a simple boolean suffices — no per-host tracking needed.
-public sealed class PrependPrefaceStage : GraphStage<FlowShape<IOutputItem, IOutputItem>>
+public sealed class Http20PrependPrefaceStage : GraphStage<FlowShape<IOutputItem, IOutputItem>>
 {
     private readonly Inlet<IOutputItem> _in = new("PrependPreface.In");
     private readonly Outlet<IOutputItem> _out = new("PrependPreface.Out");
 
     private readonly int _initialWindowSize;
 
-    public PrependPrefaceStage(int initialWindowSize = 65535)
+    public Http20PrependPrefaceStage(int initialWindowSize = 65535)
     {
         _initialWindowSize = initialWindowSize;
     }
@@ -32,10 +32,10 @@ public sealed class PrependPrefaceStage : GraphStage<FlowShape<IOutputItem, IOut
 
     private sealed class Logic : GraphStageLogic
     {
-        private readonly PrependPrefaceStage _stage;
+        private readonly Http20PrependPrefaceStage _stage;
         private bool _prefaceSent;
 
-        public Logic(PrependPrefaceStage stage) : base(stage.Shape)
+        public Logic(Http20PrependPrefaceStage stage) : base(stage.Shape)
         {
             _stage = stage;
 

@@ -1,6 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TurboHttp.Client;
 using TurboHttp.Protocol.RFC6265;
 
 namespace TurboHttp.Tests.Hosting;

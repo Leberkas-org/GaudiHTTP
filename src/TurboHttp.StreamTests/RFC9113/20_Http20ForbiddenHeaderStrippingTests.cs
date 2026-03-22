@@ -11,7 +11,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Verifies that connection-specific headers prohibited by HTTP/2 are excluded from HEADERS frames.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="Request2FrameStage"/>.
+/// Stage under test: <see cref="Http20Request2FrameStage"/>.
 /// RFC 9113 §8.2.2: HTTP/2 forbidden header fields that must not appear in HTTP/2 requests.
 /// </remarks>
 public sealed class Http20ForbiddenHeaderStrippingTests : StreamTestBase
@@ -24,8 +24,8 @@ public sealed class Http20ForbiddenHeaderStrippingTests : StreamTestBase
         var encoder = new Http2RequestEncoder();
 
         return await Source.From(requests)
-            .Via(Flow.FromGraph(new StreamIdAllocatorStage()))
-            .Via(Flow.FromGraph(new Request2FrameStage(encoder)))
+            .Via(Flow.FromGraph(new Http20StreamIdAllocatorStage()))
+            .Via(Flow.FromGraph(new Http20Request2FrameStage(encoder)))
             .RunWith(Sink.Seq<Http2Frame>(), Materializer);
     }
 

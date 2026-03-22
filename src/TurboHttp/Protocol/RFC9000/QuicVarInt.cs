@@ -113,8 +113,8 @@ public static class QuicVarInt
             return false;
         }
 
-        int prefix = source[0] >> 6;
-        int length = 1 << prefix; // 1, 2, 4, or 8
+        var prefix = source[0] >> 6;
+        var length = 1 << prefix; // 1, 2, 4, or 8
 
         if (source.Length < length)
         {

@@ -1,7 +1,4 @@
-using System;
 using System.Buffers;
-using System.Linq;
-using System.Net.Http;
 using System.Text;
 using TurboHttp.Protocol.RFC1945;
 using TurboHttp.Protocol.RFC7541;

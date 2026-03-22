@@ -1,6 +1,4 @@
 using System.Collections.Immutable;
-using System.Net.Http;
-using System.Threading.Tasks;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;

@@ -11,7 +11,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Verifies that the client connection preface magic bytes are prepended exactly once at the start of a connection.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="PrependPrefaceStage"/>.
+/// Stage under test: <see cref="Http20PrependPrefaceStage"/>.
 /// RFC 9113 §3.4: HTTP/2 client connection preface requirement and format.
 /// </remarks>
 public sealed class Http20PrependPrefaceStageTests : StreamTestBase
@@ -44,7 +44,7 @@ public sealed class Http20PrependPrefaceStageTests : StreamTestBase
         var source = Source.From(items);
 
         var chunks = await source
-            .Via(Flow.FromGraph(new PrependPrefaceStage()))
+            .Via(Flow.FromGraph(new Http20PrependPrefaceStage()))
             .RunWith(Sink.Seq<IOutputItem>(), Materializer);
 
         return chunks.OfType<DataItem>().Select(c =>

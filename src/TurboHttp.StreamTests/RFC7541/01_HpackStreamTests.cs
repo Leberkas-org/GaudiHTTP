@@ -11,7 +11,7 @@ namespace TurboHttp.StreamTests.RFC7541;
 /// Verifies dynamic table indexing, Huffman encoding, and header eviction across sequential requests.
 /// </summary>
 /// <remarks>
-/// Stages under test: <see cref="HpackEncoder"/> and <see cref="HpackDecoder"/> via <see cref="Request2FrameStage"/>.
+/// Stages under test: <see cref="HpackEncoder"/> and <see cref="HpackDecoder"/> via <see cref="Http20Request2FrameStage"/>.
 /// RFC 7541 §2–§6: HPACK header compression, dynamic table management, and Huffman encoding.
 /// </remarks>
 public sealed class HpackStreamTests : StreamTestBase
@@ -24,8 +24,8 @@ public sealed class HpackStreamTests : StreamTestBase
         params HttpRequestMessage[] requests)
     {
         return await Source.From(requests)
-            .Via(Flow.FromGraph(new StreamIdAllocatorStage()))
-            .Via(Flow.FromGraph(new Request2FrameStage(encoder)))
+            .Via(Flow.FromGraph(new Http20StreamIdAllocatorStage()))
+            .Via(Flow.FromGraph(new Http20Request2FrameStage(encoder)))
             .RunWith(Sink.Seq<Http2Frame>(), Materializer);
     }
 

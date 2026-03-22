@@ -8,13 +8,13 @@ using TurboHttp.Protocol.RFC9113;
 
 namespace TurboHttp.Streams.Stages.Encoding;
 
-public sealed class Request2FrameStage : GraphStage<FlowShape<(HttpRequestMessage, int), Http2Frame>>
+public sealed class Http20Request2FrameStage : GraphStage<FlowShape<(HttpRequestMessage, int), Http2Frame>>
 {
     private readonly Inlet<(HttpRequestMessage, int)> _in = new("Request2Frame.In");
     private readonly Outlet<Http2Frame> _out = new("Request2Frame.Out");
     private readonly Http2RequestEncoder _encoder;
 
-    public Request2FrameStage(Http2RequestEncoder encoder)
+    public Http20Request2FrameStage(Http2RequestEncoder encoder)
     {
         _encoder = encoder;
     }
@@ -29,7 +29,7 @@ public sealed class Request2FrameStage : GraphStage<FlowShape<(HttpRequestMessag
         private readonly Queue<Http2Frame> _pending = new();
         private bool _upstreamFinished;
 
-        public Logic(Request2FrameStage stage) : base(stage.Shape)
+        public Logic(Http20Request2FrameStage stage) : base(stage.Shape)
         {
             SetHandler(stage._in, onPush: () =>
             {
@@ -67,7 +67,7 @@ public sealed class Request2FrameStage : GraphStage<FlowShape<(HttpRequestMessag
             SetHandler(stage._out, onPull: () => Drain(stage));
         }
 
-        private void Drain(Request2FrameStage stage)
+        private void Drain(Http20Request2FrameStage stage)
         {
             while (_pending.Count > 0 && IsAvailable(stage._out))
             {

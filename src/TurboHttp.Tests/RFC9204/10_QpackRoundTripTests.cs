@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using TurboHttp.Protocol.RFC9204;
 
 namespace TurboHttp.Tests.RFC9204;

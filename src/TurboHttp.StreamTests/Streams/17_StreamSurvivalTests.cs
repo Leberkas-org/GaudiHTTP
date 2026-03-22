@@ -7,11 +7,9 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
-using TurboHttp.Client;
 using TurboHttp.Transport;
 using TurboHttp.Protocol.RFC9113;
 using TurboHttp.Streams;
-using TurboHttp.Streams.Stages.Features;
 using TurboHttp.Streams.Stages.Decoding;
 using TurboHttp.Streams.Stages.Encoding;
 

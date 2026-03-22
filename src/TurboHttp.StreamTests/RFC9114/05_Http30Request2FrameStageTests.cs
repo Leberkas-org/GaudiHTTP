@@ -1,5 +1,3 @@
-using System;
-using System.Net.Http;
 using System.Text;
 using Akka.Streams;
 using Akka.Streams.Dsl;

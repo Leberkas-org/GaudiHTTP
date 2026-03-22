@@ -97,7 +97,7 @@ public static class AuthorizationBuilder
 
         foreach (var c in value)
         {
-            if (c == '"' || c == '\\')
+            if (c is '"' or '\\')
             {
                 sb.Append('\\');
             }

@@ -69,7 +69,7 @@ internal static class RangeParser
 
         // Parse complete length
         long? length = null;
-        if (!lengthPart.SequenceEqual("*"))
+        if (lengthPart is not "*")
         {
             if (!long.TryParse(lengthPart, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var parsedLength) || parsedLength < 0)
             {
@@ -80,7 +80,7 @@ internal static class RangeParser
         }
 
         // Unsatisfied range: "*/length"
-        if (rangePart.SequenceEqual("*"))
+        if (rangePart is "*")
         {
             return new ContentRangeValue(unit, null, null, length);
         }

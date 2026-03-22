@@ -5,7 +5,7 @@ using Akka.Streams.Stage;
 
 namespace TurboHttp.Streams.Stages.Routing;
 
-public sealed class StreamIdAllocatorStage : GraphStage<FlowShape<HttpRequestMessage, (HttpRequestMessage, int)>>
+public sealed class Http20StreamIdAllocatorStage : GraphStage<FlowShape<HttpRequestMessage, (HttpRequestMessage, int)>>
 {
     private readonly Inlet<HttpRequestMessage> _in = new("StreamIdAllocator.In");
     private readonly Outlet<(HttpRequestMessage, int)> _out = new("StreamIdAllocator.Out");
@@ -14,7 +14,7 @@ public sealed class StreamIdAllocatorStage : GraphStage<FlowShape<HttpRequestMes
     public override FlowShape<HttpRequestMessage, (HttpRequestMessage, int)> Shape { get; }
 
 
-    public StreamIdAllocatorStage(int startStreamId = 1)
+    public Http20StreamIdAllocatorStage(int startStreamId = 1)
     {
         _startStreamId = startStreamId;
         Shape = new FlowShape<HttpRequestMessage, (HttpRequestMessage, int)>(_in, _out);
@@ -27,7 +27,7 @@ public sealed class StreamIdAllocatorStage : GraphStage<FlowShape<HttpRequestMes
     {
         private int _nextStreamId;
 
-        public Logic(StreamIdAllocatorStage stage) : base(stage.Shape)
+        public Logic(Http20StreamIdAllocatorStage stage) : base(stage.Shape)
         {
             _nextStreamId = stage._startStreamId;
             SetHandler(stage._in,

@@ -12,7 +12,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Verifies that :method, :scheme, :path, and :authority pseudo-headers are correctly populated in HEADERS frames.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="Request2FrameStage"/>.
+/// Stage under test: <see cref="Http20Request2FrameStage"/>.
 /// RFC 9113 §8.3: HTTP/2 pseudo-header fields, their required presence, and correct values.
 /// </remarks>
 public sealed class Http20PseudoHeaderGenerationTests : StreamTestBase
@@ -34,8 +34,8 @@ public sealed class Http20PseudoHeaderGenerationTests : StreamTestBase
         var encoder = new Http2RequestEncoder();
 
         return await Source.From(requests)
-            .Via(Flow.FromGraph(new StreamIdAllocatorStage()))
-            .Via(Flow.FromGraph(new Request2FrameStage(encoder)))
+            .Via(Flow.FromGraph(new Http20StreamIdAllocatorStage()))
+            .Via(Flow.FromGraph(new Http20Request2FrameStage(encoder)))
             .RunWith(Sink.Seq<Http2Frame>(), Materializer);
     }
 

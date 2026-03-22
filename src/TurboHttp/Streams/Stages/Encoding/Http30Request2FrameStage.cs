@@ -54,7 +54,7 @@ public sealed class Http30Request2FrameShape : Shape
 /// RFC 9114 §4.1 — Converts an <see cref="HttpRequestMessage"/> into a sequence of
 /// <see cref="Http3Frame"/> objects (HEADERS + DATA) using QPACK header compression.
 ///
-/// Unlike the HTTP/2 <see cref="Request2FrameStage"/>, no stream identifier is needed
+/// Unlike the HTTP/2 <see cref="Http20Request2FrameStage"/>, no stream identifier is needed
 /// because QUIC provides stream multiplexing at the transport layer.
 ///
 /// Emits QPACK encoder instructions (pre-serialised bytes) on a second outlet

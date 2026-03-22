@@ -1,8 +1,6 @@
-using System;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using TurboHttp.Protocol.RFC9114;
-using Xunit;
 
 namespace TurboHttp.Tests.RFC9114;
 

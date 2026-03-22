@@ -1,5 +1,4 @@
 using TurboHttp.Protocol.RFC9114;
-using Xunit;
 
 namespace TurboHttp.Tests.RFC9114;
 

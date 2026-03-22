@@ -11,7 +11,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Verifies that stream IDs are odd, monotonically increasing, and that stream ID exhaustion is handled.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="StreamIdAllocatorStage"/>.
+/// Stage under test: <see cref="Http20StreamIdAllocatorStage"/>.
 /// RFC 9113 §5.1.1: HTTP/2 stream identifier rules, client-initiated odd IDs, and exhaustion handling.
 /// </remarks>
 public sealed class Http20StreamIdOddMonotonicTests : StreamTestBase
@@ -33,8 +33,8 @@ public sealed class Http20StreamIdOddMonotonicTests : StreamTestBase
         var encoder = new Http2RequestEncoder();
 
         return await Source.From(requests)
-            .Via(Flow.FromGraph(new StreamIdAllocatorStage()))
-            .Via(Flow.FromGraph(new Request2FrameStage(encoder)))
+            .Via(Flow.FromGraph(new Http20StreamIdAllocatorStage()))
+            .Via(Flow.FromGraph(new Http20Request2FrameStage(encoder)))
             .RunWith(Sink.Seq<Http2Frame>(), Materializer);
     }
 

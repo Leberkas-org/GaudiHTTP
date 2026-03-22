@@ -1,4 +1,3 @@
-using System;
 using System.Net.Security;
 using TurboHttp.Client;
 using TurboHttp.Transport;

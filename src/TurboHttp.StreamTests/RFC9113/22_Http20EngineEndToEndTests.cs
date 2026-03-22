@@ -9,7 +9,6 @@ using TurboHttp.Transport;
 using TurboHttp.Protocol.RFC7541;
 using TurboHttp.Protocol.RFC9113;
 using TurboHttp.Streams;
-using TurboHttp.Streams.Stages.Decoding;
 using TurboHttp.Streams.Stages.Encoding;
 
 namespace TurboHttp.StreamTests.RFC9113;
@@ -300,7 +299,7 @@ public sealed class Http20EngineEndToEndTests : EngineTestBase
         {
             var merge = b.Add(new MergePreferred<IOutputItem>(1));
             var connectSrc = b.Add(Source.Single<IOutputItem>(connectItem));
-            var preface = b.Add(new PrependPrefaceStage());
+            var preface = b.Add(new Http20PrependPrefaceStage());
             var capture = b.Add(Flow.Create<IOutputItem>()
                 .Select(item =>
                 {
@@ -346,7 +345,7 @@ public sealed class Http20EngineEndToEndTests : EngineTestBase
         // Feed two DataItems through PrependPrefaceStage.
         // The stage emits the preface on first pull, then passes upstream items through.
         var items = await Source.From(new IOutputItem[] { dummyData, dummyData2 })
-            .Via(new PrependPrefaceStage())
+            .Via(new Http20PrependPrefaceStage())
             .RunWith(Sink.Seq<IOutputItem>(), Materializer);
 
         // Expect: DataItem(preface) + dummyData + dummyData2

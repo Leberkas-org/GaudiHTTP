@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Net;
 using TurboHttp.Protocol.RFC9111;
 

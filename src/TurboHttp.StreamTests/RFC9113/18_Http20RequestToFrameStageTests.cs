@@ -10,7 +10,7 @@ namespace TurboHttp.StreamTests.RFC9113;
 /// Verifies that HttpRequestMessage objects are correctly converted to HEADERS and DATA frames with HPACK encoding.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="Request2FrameStage"/>.
+/// Stage under test: <see cref="Http20Request2FrameStage"/>.
 /// RFC 9113 §8.1: HTTP/2 request message mapping to HEADERS frames and pseudo-header fields.
 /// </remarks>
 public sealed class Http20RequestToFrameStageTests : StreamTestBase
@@ -37,7 +37,7 @@ public sealed class Http20RequestToFrameStageTests : StreamTestBase
             return (x, t);
         }));
         return await source
-            .Via(Flow.FromGraph(new Request2FrameStage(encoder)))
+            .Via(Flow.FromGraph(new Http20Request2FrameStage(encoder)))
             .RunWith(Sink.Seq<Http2Frame>(), Materializer);
     }
 

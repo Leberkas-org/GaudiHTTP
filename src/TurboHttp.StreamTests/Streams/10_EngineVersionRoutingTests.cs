@@ -6,7 +6,6 @@ using TurboHttp.Protocol.RFC7541;
 using TurboHttp.Protocol.RFC9113;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Protocol.RFC9204;
-using TurboHttp.Client;
 using TurboHttp.Streams;
 
 namespace TurboHttp.StreamTests.Streams;

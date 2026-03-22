@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Net.Http;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Protocol.RFC9204;
-using Xunit;
 
 namespace TurboHttp.Tests.RFC9114;
 

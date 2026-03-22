@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -23,8 +22,6 @@ namespace TurboHttp.Protocol.RFC9114;
 /// </summary>
 public sealed class Http3RequestEncoder
 {
-    private readonly QpackEncoder _qpack;
-
     /// <summary>
     /// Creates a new HTTP/3 request encoder.
     /// </summary>
@@ -34,20 +31,20 @@ public sealed class Http3RequestEncoder
     /// </param>
     public Http3RequestEncoder(int maxTableCapacity = 4096)
     {
-        _qpack = new QpackEncoder(maxTableCapacity);
+        QpackEncoder = new QpackEncoder(maxTableCapacity);
     }
 
     /// <summary>
     /// The underlying QPACK encoder (for inspection and testing).
     /// </summary>
-    public QpackEncoder QpackEncoder => _qpack;
+    public QpackEncoder QpackEncoder { get; }
 
     /// <summary>
     /// Encoder instructions emitted during the most recent <see cref="Encode"/> call.
     /// These must be sent on the QPACK encoder instruction stream (unidirectional stream
     /// type 0x02) before the HEADERS frame is transmitted on the request stream.
     /// </summary>
-    public ReadOnlyMemory<byte> EncoderInstructions => _qpack.EncoderInstructions;
+    public ReadOnlyMemory<byte> EncoderInstructions => QpackEncoder.EncoderInstructions;
 
     /// <summary>
     /// Encodes an HTTP request message into a list of HTTP/3 frames.
@@ -74,7 +71,7 @@ public sealed class Http3RequestEncoder
         ValidatePseudoHeaders(headers);
         Http3FieldValidator.Validate(headers);
 
-        var headerBlock = _qpack.Encode(headers);
+        var headerBlock = QpackEncoder.Encode(headers);
         var frames = new List<Http3Frame>();
 
         // HEADERS frame carries the compressed header block
@@ -111,7 +108,7 @@ public sealed class Http3RequestEncoder
         var headers = BuildHeaderList(request);
         ValidatePseudoHeaders(headers);
         Http3FieldValidator.Validate(headers);
-        return _qpack.Encode(headers);
+        return QpackEncoder.Encode(headers);
     }
 
     /// <summary>

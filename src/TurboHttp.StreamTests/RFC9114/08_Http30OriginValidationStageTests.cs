@@ -1,5 +1,3 @@
-using System;
-using System.Net.Http;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.Protocol.RFC9114;

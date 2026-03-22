@@ -1,11 +1,10 @@
-using System.Buffers;
+﻿using System.Buffers;
 using System.Net.Http;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
 using TurboHttp.Protocol.RFC9113;
-using TurboHttp.Streams.Stages.Features;
 using TurboHttp.Streams.Stages.Decoding;
 using TurboHttp.Streams.Stages.Encoding;
 using TurboHttp.Streams.Stages.Routing;
@@ -34,14 +33,14 @@ public class Http20Engine : IHttpProtocolEngine
 
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var streamIdAllocator = b.Add(new StreamIdAllocatorStage());
+            var streamIdAllocator = b.Add(new Http20StreamIdAllocatorStage());
             var broadcast = b.Add(new Broadcast<(HttpRequestMessage, int)>(2));
-            var requestToFrame = b.Add(new Request2FrameStage(requestEncoder));
+            var requestToFrame = b.Add(new Http20Request2FrameStage(requestEncoder));
             var frameEncoder = b.Add(new Http20EncoderStage());
             var frameDecoder = b.Add(new Http20DecoderStage());
             var streamDecoder = b.Add(new Http20StreamStage());
             var correlation = b.Add(new Http20CorrelationStage());
-            var prependPreface = b.Add(new PrependPrefaceStage());
+            var prependPreface = b.Add(new Http20PrependPrefaceStage());
             var connection = b.Add(new Http20ConnectionStage(windowSize));
             var signalMerge = b.Add(new MergePreferred<IOutputItem>(1));
 
