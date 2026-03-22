@@ -112,7 +112,12 @@ public sealed class Http3FrameDecoder
             }
 
             bytesConsumed += consumed;
-            frames.Add(frame!);
+
+            // Skip null frames (unknown frame types silently ignored per RFC 9114 §7.2.8)
+            if (frame is not null)
+            {
+                frames.Add(frame);
+            }
         }
 
         return frames;
