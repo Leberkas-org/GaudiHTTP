@@ -129,12 +129,12 @@ This feature makes HTTP/3 production-ready by:
 - Key decision: `Http30Request2FrameStage` gets a second outlet for encoder instructions, OR a separate tapping mechanism
 
 **Acceptance Criteria:**
-- [ ] QPACK encoder instructions flow from request encoding to a dedicated output
-- [ ] Output is tagged for routing to QUIC unidirectional stream type 0x02
-- [ ] Stream type prefix (VarInt 0x02) is prepended on first emission
-- [ ] Encoder instructions are serialized via existing `QpackEncoderStreamStage`
-- [ ] Unit test verifies encoder instructions are emitted when dynamic table is active
-- [ ] Build passes with zero warnings
+- [x] QPACK encoder instructions flow from request encoding to a dedicated output
+- [x] Output is tagged for routing to QUIC unidirectional stream type 0x02
+- [x] Stream type prefix (VarInt 0x02) is prepended on first emission
+- [x] Encoder instructions are serialized via existing `QpackEncoderStreamStage`
+- [x] Unit test verifies encoder instructions are emitted when dynamic table is active
+- [x] Build passes with zero warnings
 
 ### TASK-005-005: Wire QPACK Decoder Instruction Stream Input
 **Description:** As a developer, I want QPACK decoder instructions (Section Acknowledgment, Insert Count Increment) received from the server's decoder stream so that the encoder can update its dynamic table state.

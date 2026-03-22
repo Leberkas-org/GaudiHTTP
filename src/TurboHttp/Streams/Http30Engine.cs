@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using System.Net.Http;
 using Akka;
@@ -16,9 +17,7 @@ public sealed class Http30Engine : IHttpProtocolEngine
 
     public BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> CreateFlow()
     {
-        // Disable QPACK dynamic table — no QPACK encoder instruction stream is wired yet,
-        // so all headers must use static table + literal encoding only.
-        var requestEncoder = new Http3RequestEncoder(maxTableCapacity: 0);
+        var requestEncoder = new Http3RequestEncoder(maxTableCapacity: 4096);
 
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
@@ -27,15 +26,21 @@ public sealed class Http30Engine : IHttpProtocolEngine
             var frameDecoder = b.Add(new Http30DecoderStage());
             var streamDecoder = b.Add(new Http30StreamStage());
             var connection = b.Add(new Http30ConnectionStage());
+            var encoderPreface = b.Add(new Http30QpackEncoderPrefaceStage());
+            var merge = b.Add(new Merge<IOutputItem>(2));
 
             // Request path: HttpRequestMessage → frames → connection
-            b.From(requestToFrame.Outlet).To(connection.InApp);
+            b.From(requestToFrame.OutFrame).To(connection.InApp);
+
+            // QPACK encoder instruction path: instructions → preface → merge
+            b.From(requestToFrame.OutEncoder).To(encoderPreface.Inlet);
+            b.From(encoderPreface.Outlet).To(merge.In(1));
 
             // Server path: bytes → frames → connection → stream assembly
             b.From(frameDecoder.Outlet).To(connection.InServer);
             b.From(connection.OutApp).To(streamDecoder.Inlet);
 
-            // Outbound path: connection → frame encoder → batch → network
+            // Outbound path: connection → frame encoder → batch → merge → network
             var batchFlow = b.Add(
                 Flow.Create<IOutputItem>()
                     .BatchWeighted(
@@ -45,15 +50,15 @@ public sealed class Http30Engine : IHttpProtocolEngine
                         BatchConsolidate));
 
             b.From(connection.OutServer).To(frameEncoder.Inlet);
-            b.From(frameEncoder.Outlet).Via(batchFlow);
+            b.From(frameEncoder.Outlet).Via(batchFlow).To(merge.In(0));
 
             return new BidiShape<
                 HttpRequestMessage,
                 IOutputItem,
                 IInputItem,
                 HttpResponseMessage>(
-                requestToFrame.Inlet,
-                batchFlow.Outlet,
+                requestToFrame.In,
+                merge.Out,
                 frameDecoder.Inlet,
                 streamDecoder.Outlet);
         }));

@@ -1,5 +1,7 @@
+using System;
 using System.Net.Http;
 using System.Text;
+using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Streams.Stages.Encoding;
@@ -15,18 +17,44 @@ namespace TurboHttp.StreamTests.RFC9114;
 /// Stage under test: <see cref="Http30Request2FrameStage"/>.
 /// Unlike HTTP/2, HTTP/3 frames carry no stream identifier (QUIC handles that)
 /// and header blocks are never split across CONTINUATION frames.
+/// The stage has a FanOut shape: frames on <c>OutFrame</c>, encoder instructions on <c>OutEncoder</c>.
 /// </remarks>
 public sealed class Http30Request2FrameStageTests : StreamTestBase
 {
     private readonly Http3RequestEncoder _encoder = new();
 
+    private async Task<(List<Http3Frame> Frames, List<ReadOnlyMemory<byte>> Instructions)> RunStageAsync(
+        params HttpRequestMessage[] requests)
+    {
+        var frameSink = Sink.Seq<Http3Frame>();
+        var encoderSink = Sink.Seq<ReadOnlyMemory<byte>>();
+
+        var graph = RunnableGraph.FromGraph(
+            GraphDsl.Create(frameSink, encoderSink,
+                (m1, m2) => (m1, m2),
+                (b, fSink, eSink) =>
+                {
+                    var source = b.Add(Source.From(requests));
+                    var stage = b.Add(new Http30Request2FrameStage(_encoder));
+
+                    b.From(source).To(stage.In);
+                    b.From(stage.OutFrame).To(fSink);
+                    b.From(stage.OutEncoder).To(eSink);
+
+                    return ClosedShape.Instance;
+                }));
+
+        var (framesTask, instructionsTask) = graph.Run(Materializer);
+        var frames = await framesTask;
+        var instructions = await instructionsTask;
+
+        return (frames.ToList(), instructions.ToList());
+    }
+
     private async Task<List<Http3Frame>> EncodeRequestAsync(HttpRequestMessage request)
     {
-        var frames = await Source.Single(request)
-            .Via(Flow.FromGraph(new Http30Request2FrameStage(_encoder)))
-            .RunWith(Sink.Seq<Http3Frame>(), Materializer);
-
-        return frames.ToList();
+        var (frames, _) = await RunStageAsync(request);
+        return frames;
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.1-30R2F-001: GET request produces single HEADERS frame")]
@@ -103,13 +131,10 @@ public sealed class Http30Request2FrameStageTests : StreamTestBase
         var request1 = new HttpRequestMessage(HttpMethod.Get, "https://example.com/first");
         var request2 = new HttpRequestMessage(HttpMethod.Get, "https://example.com/second");
 
-        var frames = await Source.From(new[] { request1, request2 })
-            .Via(Flow.FromGraph(new Http30Request2FrameStage(_encoder)))
-            .RunWith(Sink.Seq<Http3Frame>(), Materializer);
+        var (frames, _) = await RunStageAsync(request1, request2);
 
-        var frameList = frames.ToList();
-        Assert.Equal(2, frameList.Count);
-        Assert.All(frameList, f => Assert.IsType<Http3HeadersFrame>(f));
+        Assert.Equal(2, frames.Count);
+        Assert.All(frames, f => Assert.IsType<Http3HeadersFrame>(f));
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.1-30R2F-007: HEADERS frame for QPACK block matches direct encoder output")]
@@ -121,9 +146,26 @@ public sealed class Http30Request2FrameStageTests : StreamTestBase
         var directFrames = encoder.Encode(request);
         var directHeaders = Assert.IsType<Http3HeadersFrame>(directFrames[0]);
 
-        var stageFrames = await Source.Single(request)
-            .Via(Flow.FromGraph(new Http30Request2FrameStage(encoder)))
-            .RunWith(Sink.Seq<Http3Frame>(), Materializer);
+        var frameSink = Sink.Seq<Http3Frame>();
+        var encoderSink = Sink.Seq<ReadOnlyMemory<byte>>();
+
+        var graph = RunnableGraph.FromGraph(
+            GraphDsl.Create(frameSink, encoderSink,
+                (m1, m2) => (m1, m2),
+                (b, fSink, eSink) =>
+                {
+                    var source = b.Add(Source.Single(request));
+                    var stage = b.Add(new Http30Request2FrameStage(encoder));
+
+                    b.From(source).To(stage.In);
+                    b.From(stage.OutFrame).To(fSink);
+                    b.From(stage.OutEncoder).To(eSink);
+
+                    return ClosedShape.Instance;
+                }));
+
+        var (framesTask, _) = graph.Run(Materializer);
+        var stageFrames = await framesTask;
 
         var stageHeaders = Assert.IsType<Http3HeadersFrame>(stageFrames.First());
         Assert.Equal(directHeaders.HeaderBlock.ToArray(), stageHeaders.HeaderBlock.ToArray());
@@ -150,9 +192,7 @@ public sealed class Http30Request2FrameStageTests : StreamTestBase
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/done");
 
-        var frames = await Source.Single(request)
-            .Via(Flow.FromGraph(new Http30Request2FrameStage(_encoder)))
-            .RunWith(Sink.Seq<Http3Frame>(), Materializer);
+        var frames = await EncodeRequestAsync(request);
 
         Assert.NotEmpty(frames);
     }

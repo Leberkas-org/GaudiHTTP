@@ -1,4 +1,6 @@
+using System;
 using System.Net.Http;
+using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Streams.Stages.Encoding;
@@ -21,9 +23,26 @@ public sealed class Http30OriginValidationStageTests : StreamTestBase
 
     private async Task<List<Http3Frame>> EncodeRequestAsync(HttpRequestMessage request)
     {
-        var frames = await Source.Single(request)
-            .Via(Flow.FromGraph(new Http30Request2FrameStage(_encoder)))
-            .RunWith(Sink.Seq<Http3Frame>(), Materializer);
+        var frameSink = Sink.Seq<Http3Frame>();
+        var encoderSink = Sink.Seq<ReadOnlyMemory<byte>>();
+
+        var graph = RunnableGraph.FromGraph(
+            GraphDsl.Create(frameSink, encoderSink,
+                (m1, m2) => (m1, m2),
+                (b, fSink, eSink) =>
+                {
+                    var source = b.Add(Source.Single(request));
+                    var stage = b.Add(new Http30Request2FrameStage(_encoder));
+
+                    b.From(source).To(stage.In);
+                    b.From(stage.OutFrame).To(fSink);
+                    b.From(stage.OutEncoder).To(eSink);
+
+                    return ClosedShape.Instance;
+                }));
+
+        var (framesTask, _) = graph.Run(Materializer);
+        var frames = await framesTask;
 
         return frames.ToList();
     }
