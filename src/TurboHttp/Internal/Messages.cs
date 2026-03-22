@@ -92,3 +92,28 @@ public record CloseSignalItem(TlsCloseKind CloseKind) : IInputItem
 {
     public RequestEndpoint Key { get; init; }
 }
+
+/// <summary>
+/// Identifies the QUIC stream that an HTTP/3 output item should be routed to.
+/// Used by <c>Http30StreamDemuxStage</c> to route tagged items to the correct QUIC stream.
+/// </summary>
+public enum OutputStreamType
+{
+    /// <summary>Bidirectional request stream (default for request/response data).</summary>
+    Request,
+
+    /// <summary>Unidirectional control stream (type 0x00) — carries SETTINGS and GOAWAY frames.</summary>
+    Control,
+
+    /// <summary>Unidirectional QPACK encoder instruction stream (type 0x02).</summary>
+    QpackEncoder,
+}
+
+/// <summary>
+/// Wraps an <see cref="IOutputItem"/> with an <see cref="OutputStreamType"/> tag
+/// so the demux stage can route it to the correct QUIC stream.
+/// </summary>
+public record Http3TaggedItem(IOutputItem Inner, OutputStreamType StreamType) : IOutputItem
+{
+    public RequestEndpoint Key => Inner.Key;
+}

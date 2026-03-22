@@ -101,13 +101,13 @@ This feature makes HTTP/3 production-ready by:
 - Requires defining an `OutputStreamType` enum or tagging mechanism on `IOutputItem` for the demux stage to route
 
 **Acceptance Criteria:**
-- [ ] Emits control stream bytes (stream type VarInt + SETTINGS) on first pull
-- [ ] Subsequent items pass through unchanged
-- [ ] Control stream bytes are tagged so the demux stage (TASK-005-006) can route them
-- [ ] Uses existing `Http3ControlStream.OpenLocalStream()` — no duplication
-- [ ] Port names follow convention
-- [ ] Unit test verifies preface is emitted exactly once, before any request data
-- [ ] Build passes with zero warnings
+- [x] Emits control stream bytes (stream type VarInt + SETTINGS) on first pull
+- [x] Subsequent items pass through unchanged
+- [x] Control stream bytes are tagged so the demux stage (TASK-005-006) can route them
+- [x] Uses existing `Http3ControlStream.OpenLocalStream()` — no duplication
+- [x] Port names follow convention
+- [x] Unit test verifies preface is emitted exactly once, before any request data
+- [x] Build passes with zero warnings
 
 ### TASK-005-004: Wire QPACK Encoder Instruction Stream into Http30Engine
 **Description:** As a developer, I want QPACK encoder instructions emitted as a tagged side-channel output so that the QPACK dynamic table can be used for header compression.
