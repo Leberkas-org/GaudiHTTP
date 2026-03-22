@@ -140,13 +140,13 @@ Analysis of the TurboHttp client transport layer revealed three bugs that will s
 - `HasAvailableSlot` logic remains the same (PendingRequests < MaxConcurrentStreams)
 
 **Acceptance Criteria:**
-- [ ] HTTP/1.x and HTTP/2 pooling behavior is unchanged (regression test)
-- [ ] HTTP/3: first request spawns ConnectionActor + QUIC connection + stream
-- [ ] HTTP/3: subsequent requests reuse ConnectionActor, open new QUIC stream
-- [ ] HTTP/3: `PerHostConnectionLimiter` does not limit QUIC connections
-- [ ] HTTP/3: when stream limit is reached, new ConnectionActor is spawned as fallback
-- [ ] HostPool unit tests for version-aware stream selection
-- [ ] ConnectionActor unit tests for `OpenNewStream` message handling
+- [x] HTTP/1.x and HTTP/2 pooling behavior is unchanged (regression test)
+- [x] HTTP/3: first request spawns ConnectionActor + QUIC connection + stream
+- [x] HTTP/3: subsequent requests reuse ConnectionActor, open new QUIC stream
+- [x] HTTP/3: `PerHostConnectionLimiter` does not limit QUIC connections
+- [x] HTTP/3: when stream limit is reached, new ConnectionActor is spawned as fallback
+- [x] HostPool unit tests for version-aware stream selection
+- [x] ConnectionActor unit tests for `OpenNewStream` message handling
 
 ---
 

@@ -107,7 +107,14 @@ internal sealed class ClientRunner : ReceiveActor
         try
         {
             _state.Dispose();
-            _clientProvider.DisposeAsync().AsTask().GetAwaiter().GetResult();
+
+            // For shared providers (QUIC), disposal is handled by the owning ConnectionActor,
+            // not by individual stream runners.
+            if (!_clientProvider.SupportsMultipleStreams)
+            {
+                _clientProvider.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            }
+
             _cts.Dispose();
         }
         catch (Exception ex)

@@ -215,4 +215,47 @@ public sealed class ConnectionStateTests : TestKit
         state.MarkDead();
         Assert.False(state.Active);
     }
+
+    [Theory(DisplayName = "TASK-9-003-017: SupportsMultipleStreams false for HTTP/1.x and HTTP/2")]
+    [InlineData(1, 0)]
+    [InlineData(1, 1)]
+    [InlineData(2, 0)]
+    public void Should_ReturnFalse_WhenNotHttp3(int major, int minor)
+    {
+        var state = new ConnectionState(ActorRefs.Nobody);
+        state.SetHandle(CreateHandle(new Version(major, minor)));
+
+        Assert.False(state.SupportsMultipleStreams);
+    }
+
+    [Fact(DisplayName = "TASK-9-003-018: SupportsMultipleStreams true for HTTP/3")]
+    public void Should_ReturnTrue_WhenHttp3()
+    {
+        var state = new ConnectionState(ActorRefs.Nobody);
+        state.SetHandle(CreateHandle(new Version(3, 0)));
+
+        Assert.True(state.SupportsMultipleStreams);
+    }
+
+    [Fact(DisplayName = "TASK-9-003-019: HTTP/3 MaxConcurrentStreams defaults to 100")]
+    public void Should_Default100_WhenHttp30ConnectionSet()
+    {
+        var state = new ConnectionState(ActorRefs.Nobody);
+        state.SetHandle(CreateHandle(new Version(3, 0)));
+
+        Assert.Equal(100, state.MaxConcurrentStreams);
+    }
+
+    [Fact(DisplayName = "TASK-9-003-020: HTTP/3 HasAvailableSlot true when under capacity")]
+    public void Should_BeTrue_WhenUnderCapacityForHttp30()
+    {
+        var state = new ConnectionState(ActorRefs.Nobody);
+        state.SetHandle(CreateHandle(new Version(3, 0)));
+
+        state.MarkBusy();
+        state.MarkBusy();
+        state.MarkBusy();
+
+        Assert.True(state.HasAvailableSlot);
+    }
 }

@@ -51,6 +51,9 @@ public sealed class HostPool : ReceiveActor
     /// <summary>Host identifier used for the per-host connection limiter.</summary>
     private string HostIdentifier => string.IsNullOrEmpty(_key.Host) ? "default" : $"{_key.Host}:{_key.Port}";
 
+    /// <summary>Whether this pool manages QUIC/HTTP3 connections that support multiple streams.</summary>
+    private bool IsQuic => _key.Version is { Major: 3 };
+
     public HostPool(HostPoolConfig config)
     {
         _options = config.Options;
@@ -101,13 +104,21 @@ public sealed class HostPool : ReceiveActor
 
         conn.SetHandle(msg.Handle);
 
-        // Flush all pending requesters
-        foreach (var requester in _pendingHandleRequesters)
+        if (IsQuic)
         {
-            requester.Tell(msg.Handle);
+            // QUIC: serve via version-aware path (one stream per requester)
+            ServeQueuedRequesters();
         }
+        else
+        {
+            // Non-QUIC: flush all pending requesters with the shared handle
+            foreach (var requester in _pendingHandleRequesters)
+            {
+                requester.Tell(msg.Handle);
+            }
 
-        _pendingHandleRequesters.Clear();
+            _pendingHandleRequesters.Clear();
+        }
     }
 
     private void HandleEnsureHost(PoolRouter.EnsureHost msg)
@@ -117,6 +128,15 @@ public sealed class HostPool : ReceiveActor
 
         if (conn?.Handle is not null)
         {
+            if (IsQuic)
+            {
+                // QUIC: request a new stream on the existing connection.
+                // Each requester gets its own channel pair via OpenNewStream.
+                conn.MarkBusy();
+                conn.Actor.Tell(new ConnectionActor.OpenNewStream(Sender));
+                return;
+            }
+
             conn.MarkBusy();
             Sender.Tell(conn.Handle);
             return;
@@ -126,13 +146,21 @@ public sealed class HostPool : ReceiveActor
         // where ConnectionReady arrives before the requester is enqueued.
         _pendingHandleRequesters.Add(Sender);
 
+        // For QUIC, don't spawn extra connections while one is still connecting.
+        // Only spawn when all existing connections are at capacity (have handles but no free slots).
+        if (IsQuic && _connections.Exists(c => c.Handle is null && c.Active))
+        {
+            return;
+        }
+
         // Attempt to open a new connection (noop if limiter refuses)
         SpawnConnection();
     }
 
     private ConnectionState? SpawnConnection()
     {
-        if (!_limiter.TryAcquire(HostIdentifier))
+        // QUIC/HTTP3: one connection per host is optimal — skip the per-host limiter.
+        if (!IsQuic && !_limiter.TryAcquire(HostIdentifier))
         {
             _log.Debug("Per-host connection limit ({0}) reached for {1}, request queued", 6, HostIdentifier);
             return null;
@@ -180,7 +208,10 @@ public sealed class HostPool : ReceiveActor
         // Remove stale connection state immediately.
         _connections.Remove(conn);
 
-        _limiter.Release(HostIdentifier);
+        if (!IsQuic)
+        {
+            _limiter.Release(HostIdentifier);
+        }
 
         Context.System.Scheduler.ScheduleTellOnceCancelable(
             _config.ReconnectInterval,
@@ -215,7 +246,11 @@ public sealed class HostPool : ReceiveActor
             Context.Unwatch(conn.Actor);
             conn.Actor.Tell(PoisonPill.Instance);
             _connections.Remove(conn);
-            _limiter.Release(HostIdentifier);
+
+            if (!IsQuic)
+            {
+                _limiter.Release(HostIdentifier);
+            }
         }
 
         ServeQueuedRequesters();
@@ -271,7 +306,16 @@ public sealed class HostPool : ReceiveActor
             var requester = _pendingHandleRequesters[0];
             _pendingHandleRequesters.RemoveAt(0);
             conn.MarkBusy();
-            requester.Tell(conn.Handle);
+
+            if (IsQuic)
+            {
+                // QUIC: each requester needs its own stream (own channel pair)
+                conn.Actor.Tell(new ConnectionActor.OpenNewStream(requester));
+            }
+            else
+            {
+                requester.Tell(conn.Handle);
+            }
         }
     }
 

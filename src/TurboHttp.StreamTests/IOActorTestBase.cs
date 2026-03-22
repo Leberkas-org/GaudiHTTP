@@ -37,9 +37,16 @@ public abstract class IOActorTestBase : TestKit
         Host = "localhost", Port = 8080, Scheme = "http", Version = HttpVersion.Version20
     };
 
+    protected static readonly RequestEndpoint Key30 = new()
+    {
+        Host = "localhost", Port = 8443, Scheme = "https", Version = new Version(3, 0)
+    };
+
+    protected static readonly QuicOptions TestQuicOptions = new() { Host = "localhost", Port = 8443 };
+
     /// <summary>
     /// Minimal fake connection actor: reports its <see cref="IActorRef"/> to a control
-    /// probe on startup, then stays idle (no reconnect logic).
+    /// probe on startup, then forwards all received messages to the control probe.
     /// </summary>
     protected sealed class FakeConnectionActor : ReceiveActor
     {
@@ -48,6 +55,7 @@ public abstract class IOActorTestBase : TestKit
         public FakeConnectionActor(IActorRef controlProbe)
         {
             _controlProbe = controlProbe;
+            ReceiveAny(msg => _controlProbe.Tell(msg));
         }
 
         protected override void PreStart()
@@ -59,6 +67,10 @@ public abstract class IOActorTestBase : TestKit
     /// <summary>Creates a <see cref="HostPool"/> whose children are fakes controlled via
     /// <paramref name="controlProbe"/>. Each new child sends its ref to the probe.</summary>
     protected IActorRef CreatePool(TestProbe controlProbe, RequestEndpoint key, TimeSpan? reconnectInterval = null)
+        => CreatePool(controlProbe, key, TestOptions, reconnectInterval);
+
+    /// <summary>Creates a <see cref="HostPool"/> with explicit <see cref="TcpOptions"/>.</summary>
+    protected IActorRef CreatePool(TestProbe controlProbe, RequestEndpoint key, TcpOptions options, TimeSpan? reconnectInterval = null)
     {
         var config = new TurboClientOptions
         {
@@ -68,7 +80,7 @@ public abstract class IOActorTestBase : TestKit
         };
 
         var hostConfig = new HostPool.HostPoolConfig(
-            TestOptions,
+            options,
             config,
             key,
             ConnectionFactory: () => Props.Create(() => new FakeConnectionActor(controlProbe.Ref)));
@@ -90,8 +102,12 @@ public abstract class IOActorTestBase : TestKit
     /// </summary>
     protected (IActorRef Pool, IActorRef FakeConn, ConnectionHandle Handle) SetupReadyPool(
         TestProbe controlProbe, RequestEndpoint key, TimeSpan? reconnectInterval = null)
+        => SetupReadyPool(controlProbe, key, TestOptions, reconnectInterval);
+
+    protected (IActorRef Pool, IActorRef FakeConn, ConnectionHandle Handle) SetupReadyPool(
+        TestProbe controlProbe, RequestEndpoint key, TcpOptions options, TimeSpan? reconnectInterval = null)
     {
-        var pool = CreatePool(controlProbe, key, reconnectInterval);
+        var pool = CreatePool(controlProbe, key, options, reconnectInterval);
         var fakeConn = controlProbe.ExpectMsg<IActorRef>(TimeSpan.FromSeconds(5));
         var handle = CreateHandle(fakeConn, key);
         pool.Tell(new ConnectionActor.ConnectionReady(handle), fakeConn);
