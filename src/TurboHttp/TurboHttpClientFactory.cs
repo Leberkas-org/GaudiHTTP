@@ -7,7 +7,7 @@ using TurboHttp.Protocol.RFC6265;
 using TurboHttp.Protocol.RFC9111;
 using TurboHttp.Streams;
 
-namespace TurboHttp.Client;
+namespace TurboHttp;
 
 /// <summary>
 /// Default implementation of <see cref="ITurboHttpClientFactory"/>.

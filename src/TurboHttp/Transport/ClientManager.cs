@@ -1,6 +1,9 @@
 using System;
 using System.Buffers;
+using System.IO;
+using System.Threading;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Event;
 using Servus.Akka;
@@ -16,7 +19,9 @@ public sealed class ClientManager : ReceiveActor
         IActorRef Handler,
         Channel<(IMemoryOwner<byte> buffer, int readableBytes)> InboundChannel,
         Channel<(IMemoryOwner<byte> buffer, int readableBytes)> OutboundChannel,
-        IClientProvider? StreamProvider = null)
+        IClientProvider? StreamProvider = null,
+        StreamDirection Direction = StreamDirection.Bidirectional,
+        Func<CancellationToken, Task<Stream>>? StreamFactory = null)
         : CreateRunner(Options, Handler, StreamProvider);
 
     public ClientManager()
@@ -47,11 +52,18 @@ public sealed class ClientManager : ReceiveActor
         IActorRef runner;
         if (msg is CreateRunnerWithChannels msgWithChannels)
         {
-            runner = Context
-                .ResolveChildActor<ClientRunner>(name, provider, msg.Handler,
-                    msg.Options.MaxFrameSize,
-                    msgWithChannels.InboundChannel,
-                    msgWithChannels.OutboundChannel);
+            // Use Props.Create directly to avoid ActivatorUtilities type-matching
+            // issues with nullable/default constructor parameters (StreamFactory, Direction).
+            var inbound = msgWithChannels.InboundChannel;
+            var outbound = msgWithChannels.OutboundChannel;
+            var direction = msgWithChannels.Direction;
+            var streamFactory = msgWithChannels.StreamFactory;
+            var maxFrame = msg.Options.MaxFrameSize;
+            var handler = msg.Handler;
+            runner = Context.ActorOf(
+                Props.Create(() => new ClientRunner(
+                    provider, handler, maxFrame, inbound, outbound, direction, streamFactory)),
+                name);
         }
         else
         {

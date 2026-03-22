@@ -4,7 +4,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using TurboHttp.Protocol.RFC9112;
 
-namespace TurboHttp.Client;
+namespace TurboHttp;
 
 /// <summary>
 /// Immutable configuration record for a <see cref="TurboHttpClient"/> instance.

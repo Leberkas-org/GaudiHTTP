@@ -1,6 +1,5 @@
 using System;
 using System.Net.Sockets;
-using TurboHttp.Client;
 
 namespace TurboHttp.Transport;
 

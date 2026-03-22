@@ -16,10 +16,12 @@ internal sealed class ClientRunner : ReceiveActor
     private sealed record StreamFailed(Exception Exception);
 
     private readonly IClientProvider _clientProvider;
+    private readonly Func<CancellationToken, Task<Stream>>? _streamFactory;
     private readonly CancellationTokenSource _cts = new();
     private readonly IActorRef _selfClosure;
     private readonly IActorRef _handler;
     private readonly int _maxFrameSize;
+    private readonly StreamDirection _direction;
     private readonly Channel<(IMemoryOwner<byte> buffer, int readableBytes)>? _inboundChannel;
     private readonly Channel<(IMemoryOwner<byte> buffer, int readableBytes)>? _outboundChannel;
     private ClientState? _state;
@@ -33,12 +35,16 @@ internal sealed class ClientRunner : ReceiveActor
 
     public ClientRunner(IClientProvider clientProvider, IActorRef handler, int maxFrameSize,
         Channel<(IMemoryOwner<byte> buffer, int readableBytes)>? inboundChannel = null,
-        Channel<(IMemoryOwner<byte> buffer, int readableBytes)>? outboundChannel = null)
+        Channel<(IMemoryOwner<byte> buffer, int readableBytes)>? outboundChannel = null,
+        StreamDirection direction = StreamDirection.Bidirectional,
+        Func<CancellationToken, Task<Stream>>? streamFactory = null)
     {
         _clientProvider = clientProvider;
+        _streamFactory = streamFactory;
         _handler = handler;
         _selfClosure = Context.Self;
         _maxFrameSize = maxFrameSize;
+        _direction = direction;
         _inboundChannel = inboundChannel;
         _outboundChannel = outboundChannel;
 
@@ -54,7 +60,8 @@ internal sealed class ClientRunner : ReceiveActor
 
     protected override void PreStart()
     {
-        _clientProvider.GetStreamAsync(_cts.Token)
+        var openStream = _streamFactory ?? _clientProvider.GetStreamAsync;
+        openStream(_cts.Token)
             .PipeTo(Self,
                 success: stream => new StreamReady(stream),
                 failure: ex => new StreamFailed(ex));
@@ -62,26 +69,34 @@ internal sealed class ClientRunner : ReceiveActor
 
     private void OnStreamReady(StreamReady msg)
     {
-        _state = new ClientState(_maxFrameSize, msg.Stream, _inboundChannel, _outboundChannel);
+        _state = new ClientState(_maxFrameSize, msg.Stream, _inboundChannel, _outboundChannel, _direction);
         _handler.Tell(new ClientConnected(_clientProvider.RemoteEndPoint!, _state.InboundReader, _state.OutboundWriter));
 
         var log = Context.GetLogger();
         var self = _selfClosure;
 
-        var t1 = ClientByteMover.MoveStreamToPipe(_state, _selfClosure, log, _cts.Token);
-        _ = t1.ContinueWith(
-            t => { log.Error(t.Exception, "ClientRunner: MoveStreamToPipe faulted unexpectedly"); self.Tell(DoClose.Instance); },
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+        // ReadOnly or Bidirectional: start read pumps (Stream → Pipe → InboundChannel)
+        if (_direction is StreamDirection.ReadOnly or StreamDirection.Bidirectional)
+        {
+            var t1 = ClientByteMover.MoveStreamToPipe(_state, _selfClosure, log, _cts.Token);
+            _ = t1.ContinueWith(
+                t => { log.Error(t.Exception, "ClientRunner: MoveStreamToPipe faulted unexpectedly"); self.Tell(DoClose.Instance); },
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
 
-        var t2 = ClientByteMover.MovePipeToChannel(_state, _selfClosure, log, _cts.Token);
-        _ = t2.ContinueWith(
-            t => { log.Error(t.Exception, "ClientRunner: MovePipeToChannel faulted unexpectedly"); self.Tell(DoClose.Instance); },
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+            var t2 = ClientByteMover.MovePipeToChannel(_state, _selfClosure, log, _cts.Token);
+            _ = t2.ContinueWith(
+                t => { log.Error(t.Exception, "ClientRunner: MovePipeToChannel faulted unexpectedly"); self.Tell(DoClose.Instance); },
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+        }
 
-        var t3 = ClientByteMover.MoveChannelToStream(_state, _selfClosure, log, _cts.Token);
-        _ = t3.ContinueWith(
-            t => { log.Error(t.Exception, "ClientRunner: MoveChannelToStream faulted unexpectedly"); self.Tell(DoClose.Instance); },
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+        // WriteOnly or Bidirectional: start write pump (OutboundChannel → Stream)
+        if (_direction is StreamDirection.WriteOnly or StreamDirection.Bidirectional)
+        {
+            var t3 = ClientByteMover.MoveChannelToStream(_state, _selfClosure, log, _cts.Token);
+            _ = t3.ContinueWith(
+                t => { log.Error(t.Exception, "ClientRunner: MoveChannelToStream faulted unexpectedly"); self.Tell(DoClose.Instance); },
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+        }
     }
 
     private void OnStreamFailed(StreamFailed msg)

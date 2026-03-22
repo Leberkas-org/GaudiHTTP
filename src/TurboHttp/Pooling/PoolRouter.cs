@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Akka.Actor;
 using Servus.Akka;
-using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
 

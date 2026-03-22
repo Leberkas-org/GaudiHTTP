@@ -4,7 +4,6 @@ using System.Threading.Channels;
 using Akka.Actor;
 using Akka.TestKit;
 using Akka.TestKit.Xunit2;
-using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
 using TurboHttp.Pooling;
@@ -12,7 +11,7 @@ using TurboHttp.Pooling;
 namespace TurboHttp.StreamTests.IO;
 
 /// <summary>
-/// Tests QUIC-specific behavior: <see cref="Http3ConnectionActor.OpenNewStream"/>
+/// Tests QUIC-specific behavior: <see cref="Http3ConnectionActor.OpenTypedStream"/>
 /// message handling and multi-stream lifecycle management.
 /// </summary>
 public sealed class ConnectionActorQuicTests : TestKit
@@ -64,8 +63,8 @@ public sealed class ConnectionActorQuicTests : TestKit
             outbound.Writer);
     }
 
-    [Fact(DisplayName = "CQ-001: OpenNewStream ignored for TCP/TLS connection")]
-    public void Should_IgnoreOpenNewStream_WhenTcpConnection()
+    [Fact(DisplayName = "CQ-001: OpenTypedStream ignored for TCP/TLS connection")]
+    public void Should_IgnoreOpenTypedStream_WhenTcpConnection()
     {
         var config = new TurboClientOptions
         {
@@ -79,9 +78,9 @@ public sealed class ConnectionActorQuicTests : TestKit
         connectionActor.Tell(MakeConnected(), CreateTestProbe().Ref);
         parentProbe.ExpectMsg<ConnectionActorBase.ConnectionReady>(TimeSpan.FromSeconds(5));
 
-        // Send OpenNewStream to a TCP connection — should be silently ignored
+        // Send OpenTypedStream to a TCP connection — should be silently ignored
         var requester = CreateTestProbe("requester");
-        connectionActor.Tell(new Http3ConnectionActor.OpenNewStream(requester.Ref));
+        connectionActor.Tell(new Http3ConnectionActor.OpenTypedStream(requester.Ref, OutputStreamType.Request));
 
         // Requester should NOT receive anything (no handle, no error)
         requester.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
@@ -91,11 +90,11 @@ public sealed class ConnectionActorQuicTests : TestKit
         parentProbe.ExpectMsg<HostPool.StreamCompleted>(TimeSpan.FromSeconds(5));
     }
 
-    [Fact(DisplayName = "CQ-002: OpenNewStream message record has correct properties")]
-    public void Should_HaveCorrectProperties_WhenOpenNewStreamCreated()
+    [Fact(DisplayName = "CQ-002: OpenTypedStream message record has correct properties")]
+    public void Should_HaveCorrectProperties_WhenOpenTypedStreamCreated()
     {
         var requester = CreateTestProbe("requester");
-        var msg = new Http3ConnectionActor.OpenNewStream(requester.Ref);
+        var msg = new Http3ConnectionActor.OpenTypedStream(requester.Ref, OutputStreamType.Request);
 
         Assert.Equal(requester.Ref, msg.Requester);
     }

@@ -6,7 +6,7 @@ namespace TurboHttp.StreamTests.IO;
 /// <summary>
 /// Tests version-aware connection pooling in <see cref="HostPool"/> for HTTP/3 (QUIC).
 /// Verifies that QUIC connections bypass the per-host limiter, reuse connections via
-/// <see cref="Http3ConnectionActor.OpenNewStream"/>, and fall back to new connections when
+/// <see cref="Http3ConnectionActor.OpenTypedStream"/>, and fall back to new connections when
 /// the stream limit is reached.
 /// </summary>
 public sealed class HostPoolQuicTests : IOActorTestBase
@@ -17,16 +17,16 @@ public sealed class HostPoolQuicTests : IOActorTestBase
         var controlProbe = CreateTestProbe("control");
         var (pool, fakeConn, handle) = SetupReadyPool(controlProbe, Key30, TestQuicOptions);
 
-        // First EnsureHost → should find the ready connection and send OpenNewStream
+        // First EnsureHost → should find the ready connection and send OpenTypedStream
         pool.Tell(new PoolRouter.EnsureHost(Key30, TestQuicOptions), TestActor);
 
-        // For QUIC, HostPool sends OpenNewStream to the connection actor which forwards to controlProbe.
-        var openMsg = controlProbe.ExpectMsg<Http3ConnectionActor.OpenNewStream>(TimeSpan.FromSeconds(5));
+        // For QUIC, HostPool sends OpenTypedStream to the connection actor which forwards to controlProbe.
+        var openMsg = controlProbe.ExpectMsg<Http3ConnectionActor.OpenTypedStream>(TimeSpan.FromSeconds(5));
         Assert.Equal(TestActor, openMsg.Requester);
     }
 
-    [Fact(DisplayName = "QUIC-002: Subsequent QUIC requests reuse same connection via OpenNewStream")]
-    public void Should_ReuseConnectionViaOpenNewStream_WhenSubsequentQuicRequests()
+    [Fact(DisplayName = "QUIC-002: Subsequent QUIC requests reuse same connection via OpenTypedStream")]
+    public void Should_ReuseConnectionViaOpenTypedStream_WhenSubsequentQuicRequests()
     {
         var controlProbe = CreateTestProbe("control");
         var pool = CreatePool(controlProbe, Key30, TestQuicOptions);
@@ -36,7 +36,7 @@ public sealed class HostPoolQuicTests : IOActorTestBase
         var handle = CreateHandle(fakeConn, Key30);
         pool.Tell(new ConnectionActorBase.ConnectionReady(handle), fakeConn);
 
-        // Send multiple requests — each should route to same connection via OpenNewStream
+        // Send multiple requests — each should route to same connection via OpenTypedStream
         var requester1 = CreateTestProbe("r1");
         var requester2 = CreateTestProbe("r2");
         var requester3 = CreateTestProbe("r3");
@@ -45,10 +45,10 @@ public sealed class HostPoolQuicTests : IOActorTestBase
         pool.Tell(new PoolRouter.EnsureHost(Key30, TestQuicOptions), requester2.Ref);
         pool.Tell(new PoolRouter.EnsureHost(Key30, TestQuicOptions), requester3.Ref);
 
-        // All three OpenNewStream messages are forwarded to controlProbe by the FakeConnectionActor
-        var msg1 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenNewStream>(TimeSpan.FromSeconds(5));
-        var msg2 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenNewStream>(TimeSpan.FromSeconds(5));
-        var msg3 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenNewStream>(TimeSpan.FromSeconds(5));
+        // All three OpenTypedStream messages are forwarded to controlProbe by the FakeConnectionActor
+        var msg1 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenTypedStream>(TimeSpan.FromSeconds(5));
+        var msg2 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenTypedStream>(TimeSpan.FromSeconds(5));
+        var msg3 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenTypedStream>(TimeSpan.FromSeconds(5));
 
         Assert.Equal(requester1.Ref, msg1.Requester);
         Assert.Equal(requester2.Ref, msg2.Requester);
@@ -73,7 +73,7 @@ public sealed class HostPoolQuicTests : IOActorTestBase
         for (var i = 0; i < 100; i++)
         {
             pool.Tell(new PoolRouter.EnsureHost(Key30, TestQuicOptions), CreateTestProbe().Ref);
-            controlProbe.ExpectMsg<Http3ConnectionActor.OpenNewStream>(TimeSpan.FromSeconds(5));
+            controlProbe.ExpectMsg<Http3ConnectionActor.OpenTypedStream>(TimeSpan.FromSeconds(5));
         }
 
         // Connection is now at capacity. Next request should spawn a NEW connection
@@ -92,12 +92,12 @@ public sealed class HostPoolQuicTests : IOActorTestBase
         var controlProbe = CreateTestProbe("control");
         var (pool, fakeConn, handle) = SetupReadyPool(controlProbe, Key11);
 
-        // HTTP/1.1 → should receive handle directly, NOT OpenNewStream
+        // HTTP/1.1 → should receive handle directly, NOT OpenTypedStream
         pool.Tell(new PoolRouter.EnsureHost(Key11, TestOptions), TestActor);
         var received = ExpectMsg<ConnectionHandle>(TimeSpan.FromSeconds(5));
         Assert.Equal(handle, received);
 
-        // FakeConnectionActor should NOT receive OpenNewStream (nothing forwarded to controlProbe)
+        // FakeConnectionActor should NOT receive OpenTypedStream (nothing forwarded to controlProbe)
         controlProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
     }
 
@@ -114,8 +114,8 @@ public sealed class HostPoolQuicTests : IOActorTestBase
         controlProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
     }
 
-    [Fact(DisplayName = "QUIC-006: QUIC queued requesters served via OpenNewStream when connection becomes ready")]
-    public void Should_ServeQueuedRequestersViaOpenNewStream_WhenQuicConnectionBecomesReady()
+    [Fact(DisplayName = "QUIC-006: QUIC queued requesters served via OpenTypedStream when connection becomes ready")]
+    public void Should_ServeQueuedRequestersViaOpenTypedStream_WhenQuicConnectionBecomesReady()
     {
         var controlProbe = CreateTestProbe("control");
         var pool = CreatePool(controlProbe, Key30, TestQuicOptions);
@@ -137,9 +137,9 @@ public sealed class HostPoolQuicTests : IOActorTestBase
         var handle = CreateHandle(fakeConn, Key30);
         pool.Tell(new ConnectionActorBase.ConnectionReady(handle), fakeConn);
 
-        // Both queued requesters should be served via OpenNewStream (forwarded to controlProbe)
-        var msg1 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenNewStream>(TimeSpan.FromSeconds(5));
-        var msg2 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenNewStream>(TimeSpan.FromSeconds(5));
+        // Both queued requesters should be served via OpenTypedStream (forwarded to controlProbe)
+        var msg1 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenTypedStream>(TimeSpan.FromSeconds(5));
+        var msg2 = controlProbe.ExpectMsg<Http3ConnectionActor.OpenTypedStream>(TimeSpan.FromSeconds(5));
 
         var requesters = new[] { msg1.Requester, msg2.Requester };
         Assert.Contains(r1.Ref, requesters);
@@ -156,7 +156,7 @@ public sealed class HostPoolQuicTests : IOActorTestBase
         for (var i = 0; i < 100; i++)
         {
             pool.Tell(new PoolRouter.EnsureHost(Key30, TestQuicOptions), CreateTestProbe().Ref);
-            controlProbe.ExpectMsg<Http3ConnectionActor.OpenNewStream>(TimeSpan.FromSeconds(5));
+            controlProbe.ExpectMsg<Http3ConnectionActor.OpenTypedStream>(TimeSpan.FromSeconds(5));
         }
 
         // Queue one more — should be queued since at capacity.
@@ -170,8 +170,8 @@ public sealed class HostPoolQuicTests : IOActorTestBase
         // Complete a stream to free a slot
         pool.Tell(new HostPool.StreamCompleted(fakeConn), fakeConn);
 
-        // The queued requester should now be served via OpenNewStream on the original connection
-        var openMsg = controlProbe.ExpectMsg<Http3ConnectionActor.OpenNewStream>(TimeSpan.FromSeconds(5));
+        // The queued requester should now be served via OpenTypedStream on the original connection
+        var openMsg = controlProbe.ExpectMsg<Http3ConnectionActor.OpenTypedStream>(TimeSpan.FromSeconds(5));
         Assert.Equal(queued.Ref, openMsg.Requester);
     }
 }

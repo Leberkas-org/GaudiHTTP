@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using Akka.Actor;
 using TurboHttp.Streams;
 
-namespace TurboHttp.Client;
+namespace TurboHttp;
 
 /// <summary>
 /// Snapshot of <see cref="TurboHttpClient"/> configuration captured at request-submission time.

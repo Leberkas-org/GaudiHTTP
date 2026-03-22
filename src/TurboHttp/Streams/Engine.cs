@@ -5,7 +5,6 @@ using Akka;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Streams.Stages.Features;
 using TurboHttp.Streams.Stages.Routing;

@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
-namespace TurboHttp.Client;
+namespace TurboHttp;
 
 /// <summary>
 /// The primary TurboHttp client interface. Provides a channel-based API for high-throughput

@@ -1,5 +1,4 @@
 using System.Net;
-using TurboHttp.Client;
 using TurboHttp.Transport;
 
 namespace TurboHttp.Tests.RFC9114;

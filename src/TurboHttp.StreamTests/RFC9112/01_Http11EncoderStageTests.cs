@@ -128,7 +128,7 @@ public sealed class Http11EncoderStageTests : StreamTestBase
         var data = (DataItem)item;
         try
         {
-            var raw = System.Text.Encoding.Latin1.GetString(data.Memory.Memory.Span[..data.Length]);
+            var raw = Encoding.Latin1.GetString(data.Memory.Memory.Span[..data.Length]);
             Assert.StartsWith("GET /ok HTTP/1.1\r\n", raw);
         }
         finally

@@ -1,6 +1,6 @@
 using System;
 
-namespace TurboHttp.Client;
+namespace TurboHttp;
 
 public static class TurboHttpClientFactoryExtensions
 {

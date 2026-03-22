@@ -30,6 +30,21 @@ public interface IClientProvider : IAsyncDisposable
     /// Returns <see langword="true"/> for QUIC (HTTP/3), <see langword="false"/> for TCP/TLS.
     /// </summary>
     bool SupportsMultipleStreams => false;
+
+    /// <summary>
+    /// Opens a unidirectional outbound stream on the underlying connection.
+    /// Only supported by QUIC transports; TCP/TLS providers throw <see cref="NotSupportedException"/>.
+    /// </summary>
+    Task<Stream> GetUnidirectionalStreamAsync(CancellationToken ct = default)
+        => throw new NotSupportedException("Unidirectional streams are only supported by QUIC transports.");
+
+    /// <summary>
+    /// Accepts a server-initiated inbound unidirectional stream.
+    /// The caller is responsible for reading the stream-type byte from the returned stream.
+    /// Only supported by QUIC transports; TCP/TLS providers throw <see cref="NotSupportedException"/>.
+    /// </summary>
+    Task<Stream> AcceptInboundStreamAsync(CancellationToken ct = default)
+        => throw new NotSupportedException("Inbound streams are only supported by QUIC transports.");
 }
 
 /// <summary>

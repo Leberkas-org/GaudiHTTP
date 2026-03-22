@@ -11,7 +11,7 @@ using Servus.Akka;
 using TurboHttp.Pooling;
 using TurboHttp.Streams;
 
-namespace TurboHttp.Client;
+namespace TurboHttp;
 
 /// <summary>
 /// Owns the Akka.Streams pipeline for a <see cref="TurboHttpClient"/>.
@@ -109,11 +109,7 @@ internal sealed class TurboClientStreamManager
         {
             await foreach (var request in reader.ReadAllAsync())
             {
-                File.AppendAllText(@"D:\GIT\Akka.Streams.Http\diag.log",
-                    $"[DIAG-MGR] Offering request: {request.Method} {request.RequestUri} v{request.Version}\n");
-                var result = await queue.OfferAsync(request);
-                File.AppendAllText(@"D:\GIT\Akka.Streams.Http\diag.log",
-                    $"[DIAG-MGR] OfferAsync result: {result}\n");
+                await queue.OfferAsync(request);
             }
         }
 

@@ -5,7 +5,5 @@ namespace TurboHttp.Transport;
 /// Used to complete the inbound channel so that <see cref="ConnectionStage"/> can distinguish
 /// clean TLS closure from abrupt disconnection.
 /// </summary>
-public sealed class AbruptCloseException : TurboTransportException
-{
-    public AbruptCloseException() : base("Connection closed abruptly without TLS close_notify") { }
-}
+public sealed class AbruptCloseException()
+    : TurboTransportException("Connection closed abruptly without TLS close_notify");

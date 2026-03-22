@@ -45,6 +45,40 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
         }
     }
 
+    public async Task<Stream> GetUnidirectionalStreamAsync(CancellationToken ct = default)
+    {
+        var connection = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            return await connection.OpenOutboundStreamAsync(QuicStreamType.Unidirectional, ct).ConfigureAwait(false);
+        }
+        catch (QuicException ex)
+        {
+            Interlocked.CompareExchange(ref _connection, null, connection);
+            throw new InvalidOperationException(
+                $"QUIC connection to '{options.Host}:{options.Port}' is no longer usable. "
+                + "A new connection will be established on the next request.", ex);
+        }
+    }
+
+    public async Task<Stream> AcceptInboundStreamAsync(CancellationToken ct = default)
+    {
+        var connection = await EnsureConnectedAsync(ct).ConfigureAwait(false);
+
+        try
+        {
+            return await connection.AcceptInboundStreamAsync(ct).ConfigureAwait(false);
+        }
+        catch (QuicException ex)
+        {
+            Interlocked.CompareExchange(ref _connection, null, connection);
+            throw new InvalidOperationException(
+                $"QUIC connection to '{options.Host}:{options.Port}' is no longer usable. "
+                + "A new connection will be established on the next request.", ex);
+        }
+    }
+
     /// <summary>
     /// Ensures a QUIC connection is established. The first caller connects; concurrent callers
     /// wait on the semaphore and then reuse the established connection.

@@ -4,7 +4,6 @@ using Akka.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using TurboHttp.Client;
 using TurboHttp.Transport;
 
 namespace TurboHttp.IntegrationTests.Shared;

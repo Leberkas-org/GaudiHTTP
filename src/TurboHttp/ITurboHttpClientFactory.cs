@@ -1,4 +1,4 @@
-namespace TurboHttp.Client;
+namespace TurboHttp;
 
 /// <summary>
 /// Creates <see cref="ITurboHttpClient"/> instances with optional per-call configuration overrides.

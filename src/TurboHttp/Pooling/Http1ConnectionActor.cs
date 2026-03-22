@@ -1,6 +1,5 @@
 using Akka.Actor;
 using Akka.Event;
-using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
 

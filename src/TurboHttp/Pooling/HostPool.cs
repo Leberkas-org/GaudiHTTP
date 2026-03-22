@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Akka.Actor;
 using Akka.Event;
 using Servus.Akka;
-using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
 using TurboHttp.Protocol.RFC9112;
@@ -134,9 +133,9 @@ public sealed class HostPool : ReceiveActor
             if (IsQuic)
             {
                 // QUIC: request a new stream on the existing connection.
-                // Each requester gets its own channel pair via OpenNewStream.
+                // Each requester gets its own channel pair via OpenTypedStream.
                 conn.MarkBusy();
-                conn.Actor.Tell(new Http3ConnectionActor.OpenNewStream(Sender));
+                conn.Actor.Tell(new Http3ConnectionActor.OpenTypedStream(Sender, OutputStreamType.Request));
                 return;
             }
 
@@ -328,7 +327,7 @@ public sealed class HostPool : ReceiveActor
                 // QUIC: each requester needs its own stream (own channel pair).
                 // MarkBusy here — no StreamAcquired from Http20ConnectionStage for QUIC.
                 conn.MarkBusy();
-                conn.Actor.Tell(new Http3ConnectionActor.OpenNewStream(requester));
+                conn.Actor.Tell(new Http3ConnectionActor.OpenTypedStream(requester, OutputStreamType.Request));
             }
             else if (IsMultiStream)
             {
