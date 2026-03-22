@@ -10,7 +10,7 @@ namespace TurboHttp.Streams.Stages.Encoding;
 
 /// <summary>
 /// Emits the HTTP/3 control stream preface (stream type VarInt 0x00 + SETTINGS frame)
-/// on the first downstream pull, then passes all subsequent upstream items through unchanged.
+/// eagerly on PreStart, then passes all subsequent upstream items through unchanged.
 /// The preface is wrapped in an <see cref="Http3TaggedItem"/> with
 /// <see cref="OutputStreamType.Control"/> so the demux stage can route it
 /// to the correct QUIC unidirectional stream.
@@ -40,37 +40,30 @@ public sealed class Http30ControlStreamPrefaceStage : GraphStage<FlowShape<IOutp
     private sealed class Logic : GraphStageLogic
     {
         private readonly Http30ControlStreamPrefaceStage _stage;
-        private bool _prefaceSent;
 
         public Logic(Http30ControlStreamPrefaceStage stage) : base(stage.Shape)
         {
             _stage = stage;
 
-            SetHandler(stage._out, onPull: () =>
-            {
-                if (!_prefaceSent)
-                {
-                    _prefaceSent = true;
-
-                    var controlStream = new Http3ControlStream();
-                    var preface = controlStream.OpenLocalStream(_stage._localSettings);
-
-                    var owner = MemoryPool<byte>.Shared.Rent(preface.Length);
-                    ((ReadOnlySpan<byte>)preface).CopyTo(owner.Memory.Span);
-
-                    var dataItem = new DataItem(owner, preface.Length);
-                    Push(stage._out, new Http3TaggedItem(dataItem, OutputStreamType.Control));
-                    return;
-                }
-
-                Pull(stage._in);
-            });
+            SetHandler(stage._out, onPull: () => Pull(stage._in));
 
             SetHandler(stage._in,
                 onPush: () => Push(stage._out, Grab(stage._in)),
                 onUpstreamFinish: CompleteStage,
                 onUpstreamFailure: ex => Log.Warning(
                     "Http30ControlStreamPrefaceStage: Upstream failure absorbed: {0}", ex.Message));
+        }
+
+        public override void PreStart()
+        {
+            var controlStream = new Http3ControlStream();
+            var preface = controlStream.OpenLocalStream(_stage._localSettings);
+
+            var owner = MemoryPool<byte>.Shared.Rent(preface.Length);
+            ((ReadOnlySpan<byte>)preface).CopyTo(owner.Memory.Span);
+
+            var dataItem = new DataItem(owner, preface.Length);
+            Emit(_stage._out, new Http3TaggedItem(dataItem, OutputStreamType.Control));
         }
     }
 }

@@ -75,11 +75,11 @@ After removing `Http30StreamIdAllocatorStage` from `Http30Engine`, three issues 
 **Model:** opus — subtle Akka.Streams backpressure semantics
 
 **Acceptance Criteria:**
-- [ ] `Http30ControlStreamPrefaceStage` emits the control stream preface in `PreStart` using `Emit()` or equivalent pattern (not waiting for Pull)
-- [ ] First downstream Pull still triggers `Pull(in)` to begin passing upstream items
-- [ ] Existing 9 tests in `14_Http30ControlStreamPrefaceStageTests.cs` pass
-- [ ] Tests in `04_Http30ConnectionStageTests.cs` and `12_Http30PushRejectionStageTests.cs` still pass (they reference this stage)
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors, 0 warnings
+- [x] `Http30ControlStreamPrefaceStage` emits the control stream preface in `PreStart` using `Emit()` or equivalent pattern (not waiting for Pull)
+- [x] First downstream Pull still triggers `Pull(in)` to begin passing upstream items
+- [x] Existing 9 tests in `14_Http30ControlStreamPrefaceStageTests.cs` pass
+- [x] Tests in `04_Http30ConnectionStageTests.cs` and `12_Http30PushRejectionStageTests.cs` still pass (they reference this stage)
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors, 0 warnings
 
 **Implementation Notes:**
 - Current bug: the `onPull` handler emits preface on first Pull, then returns without pulling upstream. This means the preface only flows when downstream demands — but `Http30StreamDemuxStage` has 3 independent outlets, and `OutRequest` may pull before `OutControl`.
