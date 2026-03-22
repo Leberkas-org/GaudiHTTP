@@ -107,9 +107,9 @@
 | `12_DecoderNoBodyTests.cs` | 1 | NB | RFC9112-6-NB-010 |
 
 **Acceptance Criteria:**
-- [ ] 2 tests get RFC-tagged DisplayName attributes
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors
-- [ ] `dotnet test src/TurboHttp.Tests/TurboHttp.Tests.csproj --filter "FullyQualifiedName~RFC9112"` passes
+- [x] 2 tests get RFC-tagged DisplayName attributes
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors
+- [x] `dotnet test src/TurboHttp.Tests/TurboHttp.Tests.csproj --filter "FullyQualifiedName~RFC9112"` passes
 
 ---
 

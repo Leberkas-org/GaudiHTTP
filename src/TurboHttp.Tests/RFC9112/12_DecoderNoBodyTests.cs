@@ -135,7 +135,7 @@ public sealed class Http11DecoderNoBodyTests
         Assert.Contains("Upgrade", tokens);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-6-NB-010: Two responses in same buffer both decoded")]
     public async Task Should_DecodeBoth_When_TwoResponsesInSameBuffer()
     {
         var resp1 = BuildResponse(200, "OK", "first", ("Content-Length", "5"));

@@ -16,7 +16,7 @@ public sealed class Http11DecoderChunkedTests
 {
     private readonly Http11Decoder _decoder = new();
 
-    [Fact]
+    [Fact(DisplayName = "RFC9112-7-CH-012: Chunked body with two chunks decoded correctly")]
     public async Task Should_DecodeCorrectly_When_ChunkedBody()
     {
         const string chunkedBody = "5\r\nHello\r\n6\r\n World\r\n0\r\n\r\n";
