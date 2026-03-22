@@ -146,11 +146,11 @@
 **Parallel:** no — must run after all other tasks complete
 
 **Acceptance Criteria:**
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors
-- [ ] `dotnet test src/TurboHttp.sln` — all tests pass, zero failures
-- [ ] Grep for `[Fact]` and `[Theory]` without `DisplayName` in `src/TurboHttp.Tests/RFC*/` returns zero results
-- [ ] Grep for non-standard `RFC-9113-§` format returns zero results
-- [ ] Report: total DisplayName count per RFC folder
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors
+- [x] `dotnet test src/TurboHttp.sln` — all tests pass, zero failures
+- [x] Grep for `[Fact]` and `[Theory]` without `DisplayName` in `src/TurboHttp.Tests/RFC*/` returns zero results
+- [x] Grep for non-standard `RFC-9113-§` format returns zero results
+- [x] Report: total DisplayName count per RFC folder
 
 ## Task Dependency Graph
 
