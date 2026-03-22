@@ -81,12 +81,12 @@ internal sealed class
                 {
                     TryCorrelateAndEmit(stage);
 
-                    if (!HasBeenPulled(stage._inRequest))
+                    if (!IsClosed(stage._inRequest) && !HasBeenPulled(stage._inRequest))
                     {
                         Pull(stage._inRequest);
                     }
 
-                    if (!HasBeenPulled(stage._inResponse))
+                    if (!IsClosed(stage._inResponse) && !HasBeenPulled(stage._inResponse))
                     {
                         Pull(stage._inResponse);
                     }

@@ -238,15 +238,15 @@ This feature makes HTTP/3 production-ready by:
 - OR: the demux stage is the last stage before the single output, and the transport layer handles the demuxing post-engine
 
 **Acceptance Criteria:**
-- [ ] All protocol logic in stages — no protocol code in transport layer
-- [ ] QPACK dynamic table enabled with configurable capacity
-- [ ] Control stream preface emitted as first output
-- [ ] QPACK encoder instructions routed to dedicated output
-- [ ] QPACK decoder instructions received and fed back to encoder
-- [ ] Request/response correlation works with stream IDs
-- [ ] Existing Http30Engine tests updated or replaced
-- [ ] End-to-end engine test passes (EngineTestBase)
-- [ ] Build passes with zero warnings
+- [x] All protocol logic in stages — no protocol code in transport layer
+- [x] QPACK dynamic table enabled with configurable capacity
+- [x] Control stream preface emitted as first output
+- [x] QPACK encoder instructions routed to dedicated output
+- [x] QPACK decoder instructions received and fed back to encoder
+- [x] Request/response correlation works with stream IDs
+- [x] Existing Http30Engine tests updated or replaced
+- [x] End-to-end engine test passes (EngineTestBase)
+- [x] Build passes with zero warnings
 
 ### TASK-005-008: Clean Up QuicClientProvider — Pure Transport
 **Description:** As a developer, I want QuicClientProvider to be a pure transport provider with no protocol logic so that the stage layer owns all HTTP/3 protocol concerns.
@@ -264,11 +264,11 @@ This feature makes HTTP/3 production-ready by:
 - Update `Http3ConnectionActor` if its interaction with QuicClientProvider changes
 
 **Acceptance Criteria:**
-- [ ] No HTTP/3 protocol logic in QuicClientProvider (no SETTINGS, no control stream, no QPACK)
-- [ ] QuicClientProvider provides raw QUIC stream access only
-- [ ] `Http3ConnectionActor` updated if needed
-- [ ] `ClientRunner` / `ClientByteMover` can handle multiple QUIC streams from demux output
-- [ ] Build passes with zero warnings
+- [x] No HTTP/3 protocol logic in QuicClientProvider (no SETTINGS, no control stream, no QPACK)
+- [x] QuicClientProvider provides raw QUIC stream access only
+- [x] `Http3ConnectionActor` updated if needed
+- [x] `ClientRunner` / `ClientByteMover` can handle multiple QUIC streams from demux output
+- [x] Build passes with zero warnings
 
 ### TASK-005-009: Stream Tests + Integration Verification
 **Description:** As a developer, I want comprehensive stream tests for all new stages and a passing HTTP/3 smoke test to verify the full pipeline works end-to-end.

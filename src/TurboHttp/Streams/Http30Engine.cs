@@ -8,6 +8,7 @@ using TurboHttp.Internal;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Streams.Stages.Decoding;
 using TurboHttp.Streams.Stages.Encoding;
+using TurboHttp.Streams.Stages.Routing;
 
 namespace TurboHttp.Streams;
 
@@ -15,42 +16,45 @@ public sealed class Http30Engine : IHttpProtocolEngine
 {
     internal const long MaxBatchWeight = 65_536;
 
+    private readonly int _maxTableCapacity;
+
+    public Http30Engine() : this(4096)
+    {
+    }
+
+    public Http30Engine(int maxTableCapacity)
+    {
+        _maxTableCapacity = maxTableCapacity;
+    }
+
     public BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> CreateFlow()
     {
-        var requestEncoder = new Http3RequestEncoder(maxTableCapacity: 4096);
+        var requestEncoder = new Http3RequestEncoder(maxTableCapacity: _maxTableCapacity);
 
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
+            // ── Request path: allocate stream ID → broadcast to encoder and correlation ──
+            var streamIdAllocator = b.Add(new Http30StreamIdAllocatorStage());
+            var broadcast = b.Add(new Broadcast<(HttpRequestMessage, long)>(2));
+            var stripStreamId = b.Add(
+                Flow.Create<(HttpRequestMessage, long)>().Select(t => t.Item1));
             var requestToFrame = b.Add(new Http30Request2FrameStage(requestEncoder));
-            var frameEncoder = b.Add(new Http30EncoderStage());
-            var frameDecoder = b.Add(new Http30DecoderStage());
-            var streamDecoder = b.Add(new Http30StreamStage());
-            var connection = b.Add(new Http30ConnectionStage());
-            var encoderPreface = b.Add(new Http30QpackEncoderPrefaceStage());
-            var merge = b.Add(new Merge<IOutputItem>(2));
+            var correlation = b.Add(new Http30CorrelationStage());
 
-            // Request path: HttpRequestMessage → frames → connection
+            b.From(streamIdAllocator.Outlet).To(broadcast.In);
+            b.From(broadcast.Out(0)).Via(stripStreamId).To(requestToFrame.In);
+            b.From(broadcast.Out(1)).To(correlation.In0);
+
+            // ── Connection stage ──
+            var connection = b.Add(new Http30ConnectionStage());
             b.From(requestToFrame.OutFrame).To(connection.InApp);
 
-            // QPACK encoder instruction path: instructions → preface → merge
+            // ── QPACK encoder instruction path ──
+            var encoderPreface = b.Add(new Http30QpackEncoderPrefaceStage());
             b.From(requestToFrame.OutEncoder).To(encoderPreface.Inlet);
-            b.From(encoderPreface.Outlet).To(merge.In(1));
 
-            // Inbound: partition decoder stream bytes from regular frames
-            var partition = b.Add(new Partition<IInputItem>(2, ClassifyInputItem));
-            var extractBytes = b.Add(
-                Flow.Create<IInputItem>().Select(ExtractDecoderStreamBytes));
-            var decoderStream = b.Add(new QpackDecoderStreamStage());
-            var feedback = b.Add(new QpackDecoderFeedbackStage(requestEncoder.QpackEncoder));
-
-            b.From(partition.Out(0)).To(frameDecoder.Inlet);
-            b.From(partition.Out(1)).Via(extractBytes).Via(decoderStream).To(feedback);
-
-            // Server path: bytes → frames → connection → stream assembly
-            b.From(frameDecoder.Outlet).To(connection.InServer);
-            b.From(connection.OutApp).To(streamDecoder.Inlet);
-
-            // Outbound path: connection → frame encoder → batch → merge → network
+            // ── Outbound: connection → frame encoder → batch ──
+            var frameEncoder = b.Add(new Http30EncoderStage());
             var batchFlow = b.Add(
                 Flow.Create<IOutputItem>()
                     .BatchWeighted(
@@ -60,17 +64,59 @@ public sealed class Http30Engine : IHttpProtocolEngine
                         BatchConsolidate));
 
             b.From(connection.OutServer).To(frameEncoder.Inlet);
-            b.From(frameEncoder.Outlet).Via(batchFlow).To(merge.In(0));
+
+            // Merge encoder output + QPACK instructions before control preface + demux
+            var preDemuxMerge = b.Add(new Merge<IOutputItem>(2));
+            b.From(frameEncoder.Outlet).Via(batchFlow).To(preDemuxMerge.In(0));
+            b.From(encoderPreface.Outlet).To(preDemuxMerge.In(1));
+
+            // ── Control stream preface → demux → merge back ──
+            var controlPreface = b.Add(new Http30ControlStreamPrefaceStage());
+            var demux = b.Add(new Http30StreamDemuxStage());
+            var demuxMerge = b.Add(new Merge<IOutputItem>(3));
+
+            b.From(preDemuxMerge.Out).Via(controlPreface).To(demux.In);
+            b.From(demux.OutRequest).To(demuxMerge.In(0));
+            b.From(demux.OutControl).To(demuxMerge.In(1));
+            b.From(demux.OutEncoder).To(demuxMerge.In(2));
+
+            // ── Inbound: partition decoder stream bytes from regular frames ──
+            var partition = b.Add(new Partition<IInputItem>(2, ClassifyInputItem));
+            var frameDecoder = b.Add(new Http30DecoderStage());
+            var extractBytes = b.Add(
+                Flow.Create<IInputItem>().Select(ExtractDecoderStreamBytes));
+            var decoderStream = b.Add(new QpackDecoderStreamStage());
+            var feedback = b.Add(new QpackDecoderFeedbackStage(requestEncoder.QpackEncoder));
+
+            b.From(partition.Out(0)).To(frameDecoder.Inlet);
+            b.From(partition.Out(1)).Via(extractBytes).Via(decoderStream).To(feedback);
+
+            // ── Server response path: frames → connection → stream assembly → correlation ──
+            var streamDecoder = b.Add(new Http30StreamStage());
+            b.From(frameDecoder.Outlet).To(connection.InServer);
+            b.From(connection.OutApp).To(streamDecoder.Inlet);
+
+            // Assign response stream IDs to match allocator pattern (0, 4, 8, ...)
+            long responseStreamId = 0;
+            var responseIdFlow = b.Add(
+                Flow.Create<HttpResponseMessage>().Select(r =>
+                {
+                    var id = responseStreamId;
+                    responseStreamId += 4;
+                    return (r, id);
+                }));
+
+            b.From(streamDecoder.Outlet).Via(responseIdFlow).To(correlation.In1);
 
             return new BidiShape<
                 HttpRequestMessage,
                 IOutputItem,
                 IInputItem,
                 HttpResponseMessage>(
-                requestToFrame.In,
-                merge.Out,
+                streamIdAllocator.Inlet,
+                demuxMerge.Out,
                 partition.In,
-                streamDecoder.Outlet);
+                correlation.Out);
         }));
     }
 

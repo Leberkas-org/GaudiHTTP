@@ -380,15 +380,46 @@ public abstract class EngineTestBase : TestKit
 
         var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        var outboundBytes = new List<byte>();
+        var requestBytes = new List<byte>();
+        var controlBytes = new List<byte>();
         while (fake.OutboundChannel.Reader.TryRead(out var chunk))
         {
-            outboundBytes.AddRange(chunk.Item1.Memory.Span[..chunk.Item2].ToArray());
+            var bytes = chunk.Item1.Memory.Span[..chunk.Item2].ToArray();
+            switch (chunk.Item3)
+            {
+                case OutputStreamType.Control:
+                    controlBytes.AddRange(bytes);
+                    break;
+                case OutputStreamType.QpackEncoder:
+                    // QPACK encoder instructions — not HTTP/3 frames, skip.
+                    break;
+                default:
+                    requestBytes.AddRange(bytes);
+                    break;
+            }
         }
 
-        var frames = outboundBytes.Count > 0
-            ? new Http3FrameDecoder().DecodeAll(outboundBytes.ToArray(), out _)
-            : [];
+        var frames = new List<Http3Frame>();
+
+        if (requestBytes.Count > 0)
+        {
+            frames.AddRange(new Http3FrameDecoder().DecodeAll(requestBytes.ToArray(), out _));
+        }
+
+        if (controlBytes.Count > 0)
+        {
+            // Control stream bytes start with stream type VarInt(0x00); skip it.
+            var controlSpan = controlBytes.ToArray().AsSpan();
+            if (controlSpan.Length > 0 && controlSpan[0] == 0x00)
+            {
+                controlSpan = controlSpan[1..];
+            }
+
+            if (controlSpan.Length > 0)
+            {
+                frames.AddRange(new Http3FrameDecoder().DecodeAll(controlSpan.ToArray(), out _));
+            }
+        }
 
         return (response, frames);
     }
@@ -433,8 +464,8 @@ public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
 {
     private readonly IReadOnlyList<byte[]> _serverFrames;
 
-    public Channel<(IMemoryOwner<byte>, int)> OutboundChannel { get; } =
-        Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
+    public Channel<(IMemoryOwner<byte>, int, OutputStreamType?)> OutboundChannel { get; } =
+        Channel.CreateUnbounded<(IMemoryOwner<byte>, int, OutputStreamType?)>();
 
     public Inlet<IOutputItem> In { get; } = new("h3-engine-fake.in");
     public Outlet<IInputItem> Out { get; } = new("h3-engine-fake.out");
@@ -464,14 +495,26 @@ public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
                 onPush: () =>
                 {
                     var item = Grab(stage.In);
-                    if (item is DataItem(var owner, var length))
+
+                    // Unwrap tagged items (control preface, QPACK encoder, etc.)
+                    OutputStreamType? streamType = null;
+                    IOutputItem inner = item;
+                    if (item is Http3TaggedItem tagged)
+                    {
+                        streamType = tagged.StreamType;
+                        inner = tagged.Inner;
+                    }
+
+                    if (inner is DataItem(var owner, var length))
                     {
                         var copy = new byte[length];
                         owner.Memory.Span[..length].CopyTo(copy);
-                        stage.OutboundChannel.Writer.TryWrite((new SimpleMemoryOwner(copy), copy.Length));
+                        stage.OutboundChannel.Writer.TryWrite((new SimpleMemoryOwner(copy), copy.Length, streamType));
                         owner.Dispose();
-                        Unlock();
                     }
+
+                    // Every outbound push (tagged or not) unlocks a server frame.
+                    Unlock();
 
                     if (!IsClosed(stage.In))
                     {

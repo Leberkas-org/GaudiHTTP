@@ -4,17 +4,16 @@ using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Runtime.Versioning;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
-using TurboHttp.Protocol.RFC9114;
 
 namespace TurboHttp.Transport;
 
 /// <summary>
-/// QUIC implementation of <see cref="IClientProvider"/>. Establishes a single QUIC connection
-/// on the first call and opens a new bidirectional stream for each subsequent call,
-/// enabling HTTP/3 request multiplexing per RFC 9114.
+/// Pure transport QUIC implementation of <see cref="IClientProvider"/>. Establishes a single QUIC
+/// connection on the first call and opens a new bidirectional stream for each subsequent call.
+/// Contains no HTTP/3 protocol logic — all protocol concerns (control stream, QPACK, SETTINGS)
+/// are handled by stages in <c>Http30Engine</c>.
 /// </summary>
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
@@ -69,12 +68,12 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
                 return existing;
             }
 
-            // RFC 9114 §3.2: TLS handshake MUST include SNI extension.
+            // TLS 1.3 handshake requires SNI extension for QUIC connections.
             if (string.IsNullOrEmpty(options.Host))
             {
                 throw new InvalidOperationException(
-                    "QUIC connections require a non-empty hostname for TLS SNI (RFC 9114 §3.2). "
-                    + "Cannot establish HTTP/3 connection without Server Name Indication.");
+                    "QUIC connections require a non-empty hostname for TLS SNI. "
+                    + "Cannot establish a QUIC connection without Server Name Indication.");
             }
 
             var clientConnectionOptions = new QuicClientConnectionOptions
@@ -95,52 +94,12 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
 
             var connection = await QuicConnection.ConnectAsync(clientConnectionOptions, ct).ConfigureAwait(false);
 
-            // RFC 9114 §6.2.1: Open a unidirectional control stream and send SETTINGS
-            // as the very first frame. This MUST happen before any request streams.
-            var controlStreamBytes = new Http3ControlStream().OpenLocalStream();
-            var controlStream = await connection.OpenOutboundStreamAsync(
-                QuicStreamType.Unidirectional, ct).ConfigureAwait(false);
-            await controlStream.WriteAsync(controlStreamBytes, ct).ConfigureAwait(false);
-
-            // RFC 9114 §3.3: Validate server certificate covers the target hostname
-            // for safe connection coalescing. Skip if user provides a custom callback
-            // (they are handling validation themselves).
-            if (options.ServerCertificateValidationCallback is null)
-            {
-                await ValidateCertificateHostnameAsync(connection, options.Host).ConfigureAwait(false);
-            }
-
             Volatile.Write(ref _connection, connection);
             return connection;
         }
         finally
         {
             _connectLock.Release();
-        }
-    }
-
-    private async Task ValidateCertificateHostnameAsync(QuicConnection connection, string hostname)
-    {
-        var remoteCert = connection.RemoteCertificate;
-        if (remoteCert is null)
-        {
-            await CloseConnectionAsync(connection).ConfigureAwait(false);
-            throw new Http3ConnectionException(
-                Http3ErrorCode.GeneralProtocolError,
-                $"QUIC connection to '{hostname}' did not provide a server certificate (RFC 9114 §3.3).");
-        }
-
-        // QuicConnection.RemoteCertificate returns X509Certificate; convert to X509Certificate2 if needed.
-        var cert2 = remoteCert as X509Certificate2 ?? new X509Certificate2(remoteCert);
-
-        if (!Http3CertificateValidator.CoversHostname(cert2, hostname))
-        {
-            await CloseConnectionAsync(connection).ConfigureAwait(false);
-            throw new Http3ConnectionException(
-                Http3ErrorCode.GeneralProtocolError,
-                $"Server certificate does not cover hostname '{hostname}'. "
-                + "Connection coalescing is unsafe (RFC 9114 §3.3). "
-                + $"Certificate subject: {cert2.Subject}");
         }
     }
 
