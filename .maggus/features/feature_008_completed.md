@@ -100,12 +100,12 @@ After TASK-008-001, the `Http30StreamStage` outputs `(HttpResponseMessage, long)
 3. Verify end-to-end engine tests pass
 
 **Acceptance Criteria:**
-- [ ] `Http30Engine.CreateFlow()` no longer contains `responseStreamId` variable
-- [ ] `Http30Engine.CreateFlow()` no longer creates `responseIdFlow` node
-- [ ] `streamDecoder.Outlet` wired directly to `correlation.In1`
-- [ ] One fewer `b.Add()` call in `CreateFlow()`
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors
-- [ ] `dotnet test src/TurboHttp.sln` — all tests green
+- [x] `Http30Engine.CreateFlow()` no longer contains `responseStreamId` variable
+- [x] `Http30Engine.CreateFlow()` no longer creates `responseIdFlow` node
+- [x] `streamDecoder.Outlet` wired directly to `correlation.In1`
+- [x] One fewer `b.Add()` call in `CreateFlow()`
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` — 0 errors
+- [x] `dotnet test src/TurboHttp.sln` — all tests green
 
 ## Task Dependency Graph
 
