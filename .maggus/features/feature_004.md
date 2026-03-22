@@ -101,17 +101,17 @@ This feature refactors `ConnectionActor` into a class hierarchy with `Connection
 **Parallel:** yes — can run alongside TASK-004-002 and TASK-004-003
 
 **Acceptance Criteria:**
-- [ ] `Http3ConnectionActor` created in `src/TurboHttp/Pooling/Http3ConnectionActor.cs`
-- [ ] Inherits from `ConnectionActorBase`
-- [ ] Own fields: `_sharedProvider`, `_activeRunners`, `_pendingStreamRequesters`
-- [ ] `OpenNewStream` message handler lives here (not in base)
-- [ ] `Connect()` — creates `QuicClientProvider`, uses SharedProvider with `CreateRunnerWithChannels`
-- [ ] `HandleConnected()` — tracks runner in `_activeRunners`, sends `ConnectionReady`, flushes pending queue
-- [ ] `SpawnStreamRunner()` — BecomeStacked pattern for new QUIC streams
-- [ ] `HandleDisconnected()` / `HandleTerminated()` — only reconnect when all runners are gone
-- [ ] `Reconnect()` override — disposes SharedProvider, clears runner list
-- [ ] `PostStop()` — stops all runners, disposes SharedProvider
-- [ ] Build green
+- [x] `Http3ConnectionActor` created in `src/TurboHttp/Pooling/Http3ConnectionActor.cs`
+- [x] Inherits from `ConnectionActorBase`
+- [x] Own fields: `_sharedProvider`, `_activeRunners`, `_pendingStreamRequesters`
+- [x] `OpenNewStream` message handler lives here (not in base)
+- [x] `Connect()` — creates `QuicClientProvider`, uses SharedProvider with `CreateRunnerWithChannels`
+- [x] `HandleConnected()` — tracks runner in `_activeRunners`, sends `ConnectionReady`, flushes pending queue
+- [x] `SpawnStreamRunner()` — BecomeStacked pattern for new QUIC streams
+- [x] `HandleDisconnected()` / `HandleTerminated()` — only reconnect when all runners are gone
+- [x] `Reconnect()` override — disposes SharedProvider, clears runner list
+- [x] `PostStop()` — stops all runners, disposes SharedProvider
+- [x] Build green
 
 ### TASK-004-005: Migrate HostPool + remove old ConnectionActor
 
