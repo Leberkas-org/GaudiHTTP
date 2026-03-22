@@ -1,0 +1,125 @@
+using System.Collections.Generic;
+using System.Net.Http;
+using Akka.Streams;
+using Akka.Streams.Stage;
+
+namespace TurboHttp.Streams.Stages.Routing;
+
+internal sealed class
+    Http30CorrelationStage :
+    GraphStage<FanInShape<(HttpRequestMessage, long), (HttpResponseMessage, long), HttpResponseMessage>>
+{
+    private readonly Inlet<(HttpRequestMessage, long)> _inRequest = new("H3Correlation.In.Request");
+    private readonly Inlet<(HttpResponseMessage, long)> _inResponse = new("H3Correlation.In.Response");
+    private readonly Outlet<HttpResponseMessage> _out = new("H3Correlation.Out");
+
+    public override FanInShape<(HttpRequestMessage, long), (HttpResponseMessage, long), HttpResponseMessage> Shape
+    {
+        get;
+    }
+
+
+    public Http30CorrelationStage()
+    {
+        Shape = new FanInShape<(HttpRequestMessage, long), (HttpResponseMessage, long), HttpResponseMessage>(
+            _out, _inRequest, _inResponse);
+    }
+
+    protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
+        => new Logic(this);
+
+    private sealed class Logic : GraphStageLogic
+    {
+        private readonly Dictionary<long, HttpRequestMessage> _pending = new();
+        private readonly Dictionary<long, HttpResponseMessage> _waiting = new();
+
+        private bool _requestUpstreamFinished;
+        private bool _responseUpstreamFinished;
+
+        public Logic(Http30CorrelationStage stage) : base(stage.Shape)
+        {
+            SetHandler(stage._inRequest,
+                onPush: () =>
+                {
+                    var (request, streamId) = Grab(stage._inRequest);
+
+                    _pending[streamId] = request;
+                    TryCorrelateAndEmit(stage);
+
+                    if (!HasBeenPulled(stage._inRequest))
+                    {
+                        Pull(stage._inRequest);
+                    }
+                },
+                onUpstreamFinish: () =>
+                {
+                    _requestUpstreamFinished = true;
+                    TryComplete();
+                });
+
+            SetHandler(stage._inResponse,
+                onPush: () =>
+                {
+                    var (response, streamId) = Grab(stage._inResponse);
+
+                    _waiting[streamId] = response;
+                    TryCorrelateAndEmit(stage);
+
+                    if (!HasBeenPulled(stage._inResponse))
+                    {
+                        Pull(stage._inResponse);
+                    }
+                },
+                onUpstreamFinish: () =>
+                {
+                    _responseUpstreamFinished = true;
+                    TryComplete();
+                });
+
+            SetHandler(stage._out,
+                onPull: () =>
+                {
+                    TryCorrelateAndEmit(stage);
+
+                    if (!HasBeenPulled(stage._inRequest))
+                    {
+                        Pull(stage._inRequest);
+                    }
+
+                    if (!HasBeenPulled(stage._inResponse))
+                    {
+                        Pull(stage._inResponse);
+                    }
+                });
+        }
+
+        private void TryCorrelateAndEmit(Http30CorrelationStage stage)
+        {
+            if (!IsAvailable(stage._out))
+            {
+                return;
+            }
+
+            foreach (var (streamId, response) in _waiting)
+            {
+                if (_pending.Remove(streamId, out var request))
+                {
+                    _waiting.Remove(streamId);
+
+                    response.RequestMessage = request;
+
+                    Push(stage._out, response);
+                    return;
+                }
+            }
+        }
+
+        private void TryComplete()
+        {
+            if (_requestUpstreamFinished && _responseUpstreamFinished)
+            {
+                CompleteStage();
+            }
+        }
+    }
+}

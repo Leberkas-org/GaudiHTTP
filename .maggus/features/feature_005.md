@@ -76,12 +76,12 @@ This feature makes HTTP/3 production-ready by:
 - File: `src/TurboHttp/Streams/Stages/Routing/Http30CorrelationStage.cs`
 
 **Acceptance Criteria:**
-- [ ] Correlates request/response pairs by stream ID
-- [ ] Sets `HttpResponseMessage.RequestMessage` correctly
-- [ ] Handles out-of-order responses (response for stream 8 before stream 4)
-- [ ] Port names follow convention
-- [ ] Unit test verifies correlation with multiple concurrent requests
-- [ ] Build passes with zero warnings
+- [x] Correlates request/response pairs by stream ID
+- [x] Sets `HttpResponseMessage.RequestMessage` correctly
+- [x] Handles out-of-order responses (response for stream 8 before stream 4)
+- [x] Port names follow convention
+- [x] Unit test verifies correlation with multiple concurrent requests
+- [x] Build passes with zero warnings
 
 ### TASK-005-003: Http30ControlStreamPrefaceStage
 **Description:** As a developer, I want the HTTP/3 control stream preface (stream type 0x00 + SETTINGS frame) emitted by a stage so that all protocol logic is in the stage layer, not in QuicClientProvider.
