@@ -32,9 +32,9 @@ Add end-to-end integration tests for cookie handling using the existing Kestrel 
 **Parallel:** yes — can run alongside TASK-001-002
 
 **Acceptance Criteria:**
-- [ ] Test file `CookieIntegrationTests.cs` in `src/TurboHttp.IntegrationTests/`
-- [ ] Collection: `"Http1Integration"`, uses `KestrelFixture`
-- [ ] Tests cover all 11 cookie routes:
+- [x] Test file `CookieIntegrationTests.cs` in `src/TurboHttp.IntegrationTests/`
+- [x] Collection: `"Http1Integration"`, uses `KestrelFixture`
+- [x] Tests cover all 11 cookie routes:
   - `GET /cookie/set/{name}/{value}` — basic set + echo roundtrip
   - `GET /cookie/set-secure/{name}/{value}` — Secure flag (skipped over HTTP)
   - `GET /cookie/set-httponly/{name}/{value}` — HttpOnly flag
@@ -46,8 +46,8 @@ Add end-to-end integration tests for cookie handling using the existing Kestrel 
   - `GET /cookie/set-multiple` — multiple Set-Cookie headers
   - `GET /cookie/delete/{name}` — Max-Age=0 deletion
   - `GET /cookie/set-and-redirect` — set + 302 redirect to /cookie/echo
-- [ ] Each test uses `CancellationTokenSource(TimeSpan.FromSeconds(30))`
-- [ ] All tests pass with `dotnet test --filter "FullyQualifiedName~CookieIntegrationTests"`
+- [x] Each test uses `CancellationTokenSource(TimeSpan.FromSeconds(30))`
+- [x] All tests pass with `dotnet test --filter "FullyQualifiedName~CookieIntegrationTests"`
 
 ### TASK-001-002: Cookie Integration Tests — HTTP/2
 **Description:** As a library consumer, I want cookies to work correctly over HTTP/2 so that cookie handling is protocol-agnostic.
