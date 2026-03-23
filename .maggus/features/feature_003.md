@@ -55,10 +55,10 @@ Add end-to-end integration tests for retry handling. Validates that TurboHttp's 
 **Parallel:** yes — can run alongside TASK-003-001
 
 **Acceptance Criteria:**
-- [ ] Test file `RetryH2IntegrationTests.cs` in `src/TurboHttp.IntegrationTests/`
-- [ ] Collection: `"Http2Integration"`, uses `KestrelH2Fixture`
-- [ ] Covers same retry routes over h2c
-- [ ] All tests pass
+- [x] Test file `RetryH2IntegrationTests.cs` in `src/TurboHttp.IntegrationTests/`
+- [x] Collection: `"Http2Integration"`, uses `KestrelH2Fixture`
+- [x] Covers same retry routes over h2c
+- [x] All tests pass
 
 ### TASK-003-003: Verify Full Retry Suite
 **Description:** Run the complete integration test suite to confirm no regressions.
