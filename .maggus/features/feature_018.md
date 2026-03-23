@@ -34,12 +34,12 @@ The `docs/CLAUDE.md` guardrails are already in place. This feature applies those
 **Parallel:** yes — can run alongside TASK-018-002, TASK-018-003, TASK-018-004, TASK-018-005
 
 **Acceptance Criteria:**
-- [ ] Status Code Behaviour table rewritten with user language ("POST becomes GET for legacy compatibility" not spec semantics)
-- [ ] "Origin" defined inline where first used (scheme + hostname + port)
-- [ ] Loop Detection section adds user context ("prevents infinite loops from misconfigured servers")
-- [ ] `AllowHttpsToHttpDowngrade` includes practical advice ("rarely needed; only in fully-trusted internal networks")
-- [ ] No RFC section numbers anywhere on the page
-- [ ] Page reads as "what TurboHttp does for you" not "what the HTTP spec says"
+- [x] Status Code Behaviour table rewritten with user language ("POST becomes GET for legacy compatibility" not spec semantics)
+- [x] "Origin" defined inline where first used (scheme + hostname + port)
+- [x] Loop Detection section adds user context ("prevents infinite loops from misconfigured servers")
+- [x] `AllowHttpsToHttpDowngrade` includes practical advice ("rarely needed; only in fully-trusted internal networks")
+- [x] No RFC section numbers anywhere on the page
+- [x] Page reads as "what TurboHttp does for you" not "what the HTTP spec says"
 
 ### TASK-018-002: Revise guide/configuration.md, retries.md, caching.md, connection-pooling.md
 **Description:** As a library user, I want these guide pages to explain options and behavior with enough context that I don't need to look up technical terms or implementation details.
