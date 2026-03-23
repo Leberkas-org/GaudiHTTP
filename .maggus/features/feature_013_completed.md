@@ -120,8 +120,8 @@ Systematically audit and test all security-relevant code paths in TurboHttp. Whi
 **Parallel:** yes — can run alongside all other 013 tasks
 
 **Acceptance Criteria:**
-- [ ] Test file `src/TurboHttp.Tests/Security/HpackBombTests.cs`
-- [ ] Tests cover:
+- [x] Test file `src/TurboHttp.Tests/Security/HpackBombTests.cs`
+- [x] Tests cover:
   - HPACK dynamic table size update to maximum (SETTINGS_HEADER_TABLE_SIZE) → bounded memory
   - HPACK bomb: small compressed input expanding to huge headers → size limit enforced
   - Huffman decoding of adversarial input → no infinite loop, bounded output
@@ -130,8 +130,8 @@ Systematically audit and test all security-relevant code paths in TurboHttp. Whi
   - Zero-length header name via HPACK → rejected
   - QPACK: encoder instruction flooding → bounded table growth
   - QPACK: blocked stream limit enforcement
-- [ ] All tests include memory assertions (no allocation > configured limit)
-- [ ] All tests pass
+- [x] All tests include memory assertions (no allocation > configured limit)
+- [x] All tests pass
 
 ## Task Dependency Graph
 
