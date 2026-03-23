@@ -30,15 +30,15 @@ Both are correctness issues — the RedirectHandler tests are too strict, and th
 **Parallel:** yes — can run alongside TASK-017-002
 
 **Acceptance Criteria:**
-- [ ] `Assert.Same(content, redirected.Content)` replaced in all 4 tests:
+- [x] `Assert.Same(content, redirected.Content)` replaced in all 4 tests:
   - `Should_PreservePostMethodAndBody_When_307TemporaryRedirect` (line 105)
   - `Should_PreservePutMethodAndBody_When_307TemporaryRedirect` (line 122)
   - `Should_PreservePostMethodAndBody_When_308PermanentRedirect` (line 152)
   - `Should_PreservePatchMethodAndBody_When_308PermanentRedirect` (line 169)
-- [ ] Replacement assertions verify: content is not null, byte content is equal, Content-Type header is preserved
-- [ ] Test methods changed from `void` to `async Task` (required for `ReadAsByteArrayAsync`)
-- [ ] All 4 tests pass
-- [ ] Full `TurboHttp.Tests` suite passes (0 failures)
+- [x] Replacement assertions verify: content is not null, byte content is equal, Content-Type header is preserved
+- [x] Test methods changed from `void` to `async Task` (required for `ReadAsByteArrayAsync`)
+- [x] All 4 tests pass
+- [x] Full `TurboHttp.Tests` suite passes (0 failures)
 
 **Files to modify:**
 - `src/TurboHttp.Tests/RFC9110/01_RedirectHandlerTests.cs`

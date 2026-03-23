@@ -89,7 +89,7 @@ public sealed class RedirectHandlerTests
 
 
     [Fact(DisplayName = "RFC9110-15.4-RH-006: 307 preserves POST method and body")]
-    public void Should_PreservePostMethodAndBody_When_307TemporaryRedirect()
+    public async Task Should_PreservePostMethodAndBody_When_307TemporaryRedirect()
     {
         var handler = new RedirectHandler();
         var content = new StringContent("request body");
@@ -102,11 +102,15 @@ public sealed class RedirectHandlerTests
         var redirected = handler.BuildRedirectRequest(original, response);
 
         Assert.Equal(HttpMethod.Post, redirected.Method);
-        Assert.Same(content, redirected.Content);
+        Assert.NotNull(redirected.Content);
+        var expectedBytes = await content.ReadAsByteArrayAsync();
+        var actualBytes = await redirected.Content.ReadAsByteArrayAsync();
+        Assert.Equal(expectedBytes, actualBytes);
+        Assert.Equal("text/plain", redirected.Content.Headers.ContentType!.MediaType);
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RH-007: 307 preserves PUT method and body")]
-    public void Should_PreservePutMethodAndBody_When_307TemporaryRedirect()
+    public async Task Should_PreservePutMethodAndBody_When_307TemporaryRedirect()
     {
         var handler = new RedirectHandler();
         var content = new StringContent("request body");
@@ -119,7 +123,11 @@ public sealed class RedirectHandlerTests
         var redirected = handler.BuildRedirectRequest(original, response);
 
         Assert.Equal(HttpMethod.Put, redirected.Method);
-        Assert.Same(content, redirected.Content);
+        Assert.NotNull(redirected.Content);
+        var expectedBytes = await content.ReadAsByteArrayAsync();
+        var actualBytes = await redirected.Content.ReadAsByteArrayAsync();
+        Assert.Equal(expectedBytes, actualBytes);
+        Assert.Equal("text/plain", redirected.Content.Headers.ContentType!.MediaType);
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RH-008: 307 preserves DELETE method")]
@@ -136,7 +144,7 @@ public sealed class RedirectHandlerTests
 
 
     [Fact(DisplayName = "RFC9110-15.4-RH-009: 308 preserves POST method and body")]
-    public void Should_PreservePostMethodAndBody_When_308PermanentRedirect()
+    public async Task Should_PreservePostMethodAndBody_When_308PermanentRedirect()
     {
         var handler = new RedirectHandler();
         var content = new StringContent("body");
@@ -149,11 +157,15 @@ public sealed class RedirectHandlerTests
         var redirected = handler.BuildRedirectRequest(original, response);
 
         Assert.Equal(HttpMethod.Post, redirected.Method);
-        Assert.Same(content, redirected.Content);
+        Assert.NotNull(redirected.Content);
+        var expectedBytes = await content.ReadAsByteArrayAsync();
+        var actualBytes = await redirected.Content.ReadAsByteArrayAsync();
+        Assert.Equal(expectedBytes, actualBytes);
+        Assert.Equal("text/plain", redirected.Content.Headers.ContentType!.MediaType);
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RH-010: 308 preserves PATCH method and body")]
-    public void Should_PreservePatchMethodAndBody_When_308PermanentRedirect()
+    public async Task Should_PreservePatchMethodAndBody_When_308PermanentRedirect()
     {
         var handler = new RedirectHandler();
         var content = new StringContent("patch body");
@@ -166,7 +178,11 @@ public sealed class RedirectHandlerTests
         var redirected = handler.BuildRedirectRequest(original, response);
 
         Assert.Equal(HttpMethod.Patch, redirected.Method);
-        Assert.Same(content, redirected.Content);
+        Assert.NotNull(redirected.Content);
+        var expectedBytes = await content.ReadAsByteArrayAsync();
+        var actualBytes = await redirected.Content.ReadAsByteArrayAsync();
+        Assert.Equal(expectedBytes, actualBytes);
+        Assert.Equal("text/plain", redirected.Content.Headers.ContentType!.MediaType);
     }
 
 
