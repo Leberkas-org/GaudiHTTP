@@ -73,14 +73,14 @@ Add distributed tracing to TurboHttp using `System.Diagnostics.ActivitySource` a
 **Parallel:** no
 
 **Acceptance Criteria:**
-- [ ] Test file in `src/TurboHttp.Tests/` or `src/TurboHttp.StreamTests/`
-- [ ] Uses `ActivityListener` to capture emitted activities
-- [ ] Verifies root span name, tags, and status for successful request
-- [ ] Verifies redirect child spans with correct hop count
-- [ ] Verifies retry child spans with attempt number
-- [ ] Verifies cache lookup span with hit/miss tag
-- [ ] Verifies error span attributes on exception
-- [ ] All tests pass
+- [x] Test file in `src/TurboHttp.Tests/` or `src/TurboHttp.StreamTests/`
+- [x] Uses `ActivityListener` to capture emitted activities
+- [x] Verifies root span name, tags, and status for successful request
+- [x] Verifies redirect child spans with correct hop count
+- [x] Verifies retry child spans with attempt number
+- [x] Verifies cache lookup span with hit/miss tag
+- [x] Verifies error span attributes on exception
+- [x] All tests pass
 
 ## Task Dependency Graph
 
