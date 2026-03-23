@@ -58,10 +58,10 @@ Add end-to-end integration tests for cookie handling using the existing Kestrel 
 **Parallel:** yes — can run alongside TASK-001-001
 
 **Acceptance Criteria:**
-- [ ] Test file `CookieH2IntegrationTests.cs` in `src/TurboHttp.IntegrationTests/`
-- [ ] Collection: `"Http2Integration"`, uses `KestrelH2Fixture`
-- [ ] Covers same 11 cookie routes as TASK-001-001 over h2c
-- [ ] All tests pass
+- [x] Test file `CookieH2IntegrationTests.cs` in `src/TurboHttp.IntegrationTests/`
+- [x] Collection: `"Http2Integration"`, uses `KestrelH2Fixture`
+- [x] Covers same 11 cookie routes as TASK-001-001 over h2c
+- [x] All tests pass
 
 ### TASK-001-003: Verify Full Cookie Suite
 **Description:** Run the complete integration test suite to confirm no regressions.
