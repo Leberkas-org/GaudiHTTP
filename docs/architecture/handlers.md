@@ -1,4 +1,4 @@
-# Middleware Design for TurboHttp
+# Handler Design for TurboHttp
 
 ## What HttpClient Provides Out of the Box
 
@@ -31,6 +31,7 @@ TurboHttp follows the same builder pattern as `Microsoft.Extensions.Http` — yo
 public interface ITurboHttpClientBuilder
 {
     string Name { get; }
+    IServiceCollection SerivceCollection { get; }
 }
 ```
 

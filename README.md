@@ -64,15 +64,23 @@ Requires **.NET 10.0** or later.
 
 ### Basic Usage
 
-```csharp
-using TurboHttp.Client;
-using System.Net.Http;
+Register and inject via dependency injection:
 
-await using var client = TurboHttpClientFactory.Create(options =>
+```csharp
+using TurboHttp;
+using System.Net.Http;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+services.AddTurboHttpClient(options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
     options.DefaultRequestVersion = HttpVersion.Version20;
 });
+
+var provider = services.BuildServiceProvider();
+var factory = provider.GetRequiredService<ITurboHttpClientFactory>();
+var client = factory.CreateClient();
 
 var request = new HttpRequestMessage(HttpMethod.Get, "/users");
 var response = await client.SendAsync(request);
@@ -122,10 +130,15 @@ public class GitHubService(ITurboHttpClientFactory factory)
 For high-throughput scenarios, bypass `SendAsync` and use channels directly:
 
 ```csharp
-await using var client = TurboHttpClientFactory.Create(options =>
+var services = new ServiceCollection();
+services.AddTurboHttpClient(options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 });
+
+var provider = services.BuildServiceProvider();
+var factory = provider.GetRequiredService<ITurboHttpClientFactory>();
+var client = factory.CreateClient();
 
 // Fire requests
 await client.Requests.WriteAsync(new HttpRequestMessage(HttpMethod.Get, "/ping"));
@@ -174,13 +187,16 @@ services
 | Option | Default | Description |
 |--------|---------|-------------|
 | `BaseAddress` | `null` | Base URI for resolving relative request URIs |
-| `ConnectTimeout` | 10s | TCP connection timeout |
-| `IdleTimeout` | 10s | Idle connection eviction timeout |
-| `ReconnectInterval` | 5s | Delay between reconnection attempts |
+| `ConnectTimeout` | 10s | Timeout for establishing a new TCP connection |
+| `IdleTimeout` | 10s | Time a connection may remain idle before eviction |
+| `ReconnectInterval` | 5s | Delay between reconnection attempts after failure |
 | `MaxReconnectAttempts` | 10 | Max reconnection attempts before giving up |
-| `MaxFrameSize` | 128 KiB | HTTP/2 maximum frame size |
-| `ConnectionPolicy` | `null` | Per-host connection limits and multiplexing settings |
+| `MaxFrameSize` | 128 KiB | HTTP/2 maximum frame size in bytes |
+| `ConnectionPolicy` | `null` | Per-host connection limits and HTTP/2 multiplexing settings |
 | `DangerousAcceptAnyServerCertificate` | `false` | Skip TLS validation (dev/test only) |
+| `ServerCertificateValidationCallback` | — | Custom TLS certificate validation logic |
+| `ClientCertificates` | `null` | X.509 client certificates for mTLS |
+| `EnabledSslProtocols` | `SslProtocols.None` | TLS protocol versions to enable (OS default if `None`) |
 
 ---
 
