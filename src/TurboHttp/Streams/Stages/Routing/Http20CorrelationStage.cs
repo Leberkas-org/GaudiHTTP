@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Net.Http;
+using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 
@@ -55,7 +56,8 @@ internal sealed class
                 {
                     _requestUpstreamFinished = true;
                     TryComplete();
-                });
+                },
+                onUpstreamFailure: ex => Log.Warning("Http20CorrelationStage: Upstream failure absorbed: {0}", ex.Message));
 
             SetHandler(stage._inResponse,
                 onPush: () =>
@@ -74,7 +76,8 @@ internal sealed class
                 {
                     _responseUpstreamFinished = true;
                     TryComplete();
-                });
+                },
+                onUpstreamFailure: ex => Log.Warning("Http20CorrelationStage: Upstream failure absorbed: {0}", ex.Message));
 
             SetHandler(stage._out,
                 onPull: () =>

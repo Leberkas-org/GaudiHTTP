@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Net.Http;
 using Akka;
+using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHttp.Internal;
@@ -119,7 +120,8 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
                     {
                         CompleteStage();
                     }
-                });
+                },
+                onUpstreamFailure: ex => Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message));
 
             SetHandler(stage._inResponse,
                 onPush: () =>
@@ -138,7 +140,8 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
                     {
                         CompleteStage();
                     }
-                });
+                },
+                onUpstreamFailure: ex => Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message));
 
             SetHandler(stage._inReset,
                 onPush: () =>
@@ -153,7 +156,8 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
                 onUpstreamFinish: () =>
                 {
                     // InReset upstream finishing does not affect stage completion.
-                });
+                },
+                onUpstreamFailure: ex => Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message));
 
             SetHandler(stage._out,
                 onPull: () =>

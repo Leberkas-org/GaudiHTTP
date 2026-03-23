@@ -77,12 +77,12 @@ This feature also blocks HTTP/3 from being routed at the version partition level
 **Parallel:** yes — can run alongside TASK-019-001, TASK-019-002, TASK-019-004, TASK-019-005
 
 **Acceptance Criteria:**
-- [ ] `Http1XCorrelationStage`: all three inlets (`InRequest`, `InResponse`, `InReset`) have `onUpstreamFailure: ex => Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message)` handlers
-- [ ] `Http20CorrelationStage`: both inlets (`_inRequest`, `_inResponse`) have `onUpstreamFailure` absorption handlers
-- [ ] `Http30CorrelationStage`: both inlets have `onUpstreamFailure` absorption handlers
-- [ ] No existing tests break
-- [ ] Full `TurboHttp.StreamTests` suite passes
-- [ ] Build succeeds with zero errors
+- [x] `Http1XCorrelationStage`: all three inlets (`InRequest`, `InResponse`, `InReset`) have `onUpstreamFailure: ex => Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message)` handlers
+- [x] `Http20CorrelationStage`: both inlets (`_inRequest`, `_inResponse`) have `onUpstreamFailure` absorption handlers
+- [x] `Http30CorrelationStage`: both inlets have `onUpstreamFailure` absorption handlers
+- [x] No existing tests break
+- [x] Full `TurboHttp.StreamTests` suite passes
+- [x] Build succeeds with zero errors
 
 **Files to modify:**
 - `src/TurboHttp/Streams/Stages/Routing/Http1XCorrelationStage.cs`
