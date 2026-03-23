@@ -14,7 +14,7 @@ namespace TurboHttp.Streams;
 
 public sealed class Http30Engine : IHttpProtocolEngine
 {
-    internal const long MaxBatchWeight = 65_536;
+    private const long MaxBatchWeight = 65_536;
 
     private readonly int _maxTableCapacity;
 
@@ -106,31 +106,27 @@ public sealed class Http30Engine : IHttpProtocolEngine
         }));
     }
 
-    internal static int ClassifyInputItem(IInputItem item)
+    private static int ClassifyInputItem(IInputItem item)
     {
         return item is Http3InputTaggedItem { StreamType: InputStreamType.QpackDecoder } ? 1 : 0;
     }
 
-    internal static ReadOnlyMemory<byte> ExtractDecoderStreamBytes(IInputItem item)
+    private static ReadOnlyMemory<byte> ExtractDecoderStreamBytes(IInputItem item)
     {
         var tagged = (Http3InputTaggedItem)item;
         var data = (DataItem)tagged.Inner;
         return data.Memory.Memory[..data.Length];
     }
 
-    internal static IOutputItem BatchConsolidate(IOutputItem accumulated, IOutputItem next)
+    private static IOutputItem BatchConsolidate(IOutputItem accumulated, IOutputItem next)
     {
-        if (accumulated is DataItem accData && next is DataItem nextData)
-        {
-            var totalLength = accData.Length + nextData.Length;
-            var owner = MemoryPool<byte>.Shared.Rent(totalLength);
-            accData.Memory.Memory[..accData.Length].CopyTo(owner.Memory);
-            nextData.Memory.Memory[..nextData.Length].CopyTo(owner.Memory.Slice(accData.Length));
-            accData.Memory.Dispose();
-            nextData.Memory.Dispose();
-            return new DataItem(owner, totalLength) { Key = accData.Key };
-        }
-
-        return next;
+        if (accumulated is not DataItem accData || next is not DataItem nextData) return next;
+        var totalLength = accData.Length + nextData.Length;
+        var owner = MemoryPool<byte>.Shared.Rent(totalLength);
+        accData.Memory.Memory[..accData.Length].CopyTo(owner.Memory);
+        nextData.Memory.Memory[..nextData.Length].CopyTo(owner.Memory[accData.Length..]);
+        accData.Memory.Dispose();
+        nextData.Memory.Dispose();
+        return new DataItem(owner, totalLength) { Key = accData.Key };
     }
 }

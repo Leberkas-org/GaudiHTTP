@@ -94,12 +94,12 @@ TurboHttp has 139 integration tests but coverage is heavily skewed toward HTTP/1
 **Pattern:** Copy `CompressionIntegrationTests.cs` / `CookieIntegrationTests.cs`, change to `new Version(1, 0)`, rename DisplayNames to `Compression-H10-NNN` / `Cookie-H10-NNN`.
 
 **Acceptance Criteria:**
-- [ ] `CompressionH10IntegrationTests.cs` created with 7 tests mirroring `CompressionIntegrationTests`
-- [ ] `CookieH10IntegrationTests.cs` created with 11 tests mirroring `CookieIntegrationTests`
-- [ ] All tests use `[Collection("Http1Integration")]` and `ClientHelper.CreateClient(port, new Version(1, 0))`
-- [ ] DisplayNames follow `Compression-H10-001` / `Cookie-H10-001` pattern
-- [ ] All 18 tests pass: `dotnet test --filter "FullyQualifiedName~H10IntegrationTests"`
-- [ ] Build passes with zero warnings
+- [x] `CompressionH10IntegrationTests.cs` created with 7 tests mirroring `CompressionIntegrationTests`
+- [x] `CookieH10IntegrationTests.cs` created with 11 tests mirroring `CookieIntegrationTests`
+- [x] All tests use `[Collection("Http1Integration")]` and `ClientHelper.CreateClient(port, new Version(1, 0))`
+- [x] DisplayNames follow `Compression-H10-001` / `Cookie-H10-001` pattern
+- [x] All 18 tests pass: `dotnet test --filter "FullyQualifiedName~H10IntegrationTests"`
+- [x] Build passes with zero warnings
 
 **Files:**
 - `src/TurboHttp.IntegrationTests/CompressionH10IntegrationTests.cs` (NEW)

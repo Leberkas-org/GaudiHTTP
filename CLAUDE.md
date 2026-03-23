@@ -283,6 +283,7 @@ All `GraphStage` inlet/outlet string names follow `StageName.Direction` or `Stag
 - Use `DisplayName` attribute for RFC-tagged tests: `"RFC-section-cat-nnn: description"`
 - Do NOT add `#nullable enable` at the top of test files
 - **Max 500 lines per test class** — if a test file exceeds 500 lines, split it into multiple focused files following the `NN_<ThemaTests>.cs` naming pattern
+- **Timeout is REQUIRED** — all async tests must have explicit timeouts via either `[Fact(Timeout = 5000)]` or `[Theory(Timeout = 5000)]` attributes (milliseconds), OR `CancellationToken` passed through async call chains (using `CancellationTokenSource` with timeout in test body). Tests without timeouts can hang indefinitely and fail the build without diagnostic information — this is never acceptable.
 
 ## Test Organisation
 
