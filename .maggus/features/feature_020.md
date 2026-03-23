@@ -36,12 +36,12 @@ Additionally, `RequestCompressionBidiStage` and `DecompressionBidiStage` are com
 **Parallel:** yes — can run alongside TASK-020-002, TASK-020-003
 
 **Acceptance Criteria:**
-- [ ] `Http10Decoder.cs`: `ContentEncodingDecoder.Decompress()` call removed (~line 384); `decompressed` flag and conditional header-stripping removed; all headers including `Content-Encoding` preserved on response; `Content-Length` reflects raw (compressed) body size
-- [ ] `Http11Decoder.cs`: `ContentEncodingDecoder.Decompress()` call removed (~line 686); conditional `Content-Encoding`/`Content-Length` stripping removed (lines 700-726); all headers preserved
-- [ ] Decoder unit tests in `RFC1945/` and `RFC9112/` that test gzip responses updated: assert `Content-Encoding` header is preserved and body contains raw compressed bytes
-- [ ] `dotnet build --configuration Release ./src/TurboHttp.sln` — zero errors
-- [ ] `dotnet test ./src/TurboHttp.Tests/TurboHttp.Tests.csproj --filter "FullyQualifiedName~RFC1945"` — passes
-- [ ] `dotnet test ./src/TurboHttp.Tests/TurboHttp.Tests.csproj --filter "FullyQualifiedName~RFC9112"` — passes
+- [x] `Http10Decoder.cs`: `ContentEncodingDecoder.Decompress()` call removed (~line 384); `decompressed` flag and conditional header-stripping removed; all headers including `Content-Encoding` preserved on response; `Content-Length` reflects raw (compressed) body size
+- [x] `Http11Decoder.cs`: `ContentEncodingDecoder.Decompress()` call removed (~line 686); conditional `Content-Encoding`/`Content-Length` stripping removed (lines 700-726); all headers preserved
+- [x] Decoder unit tests in `RFC1945/` and `RFC9112/` that test gzip responses updated: assert `Content-Encoding` header is preserved and body contains raw compressed bytes
+- [x] `dotnet build --configuration Release ./src/TurboHttp.sln` — zero errors
+- [x] `dotnet test ./src/TurboHttp.Tests/TurboHttp.Tests.csproj --filter "FullyQualifiedName~RFC1945"` — passes
+- [x] `dotnet test ./src/TurboHttp.Tests/TurboHttp.Tests.csproj --filter "FullyQualifiedName~RFC9112"` — passes
 
 **Files to modify:**
 - `src/TurboHttp/Protocol/RFC1945/Http10Decoder.cs`

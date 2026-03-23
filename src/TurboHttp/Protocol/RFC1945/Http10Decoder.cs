@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Text;
-using TurboHttp.Protocol.RFC9110;
 
 namespace TurboHttp.Protocol.RFC1945;
 
@@ -370,20 +369,6 @@ public sealed class Http10Decoder
             Version = HttpVersion.Version10
         };
 
-        // Decompress body if Content-Encoding is set (RFC 9110 §8.4)
-        var contentEncoding = headers.TryGetValue(WellKnownHeaders.Names.ContentEncoding, out var ceValues) &&
-                              ceValues.Count > 0
-            ? ceValues[0]
-            : null;
-
-        var decompressed = !string.IsNullOrWhiteSpace(contentEncoding) &&
-                           !contentEncoding.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase);
-
-        if (decompressed)
-        {
-            body = ContentEncodingDecoder.Decompress(body, contentEncoding);
-        }
-
         var content = new ByteArrayContent(body);
         response.Content = content;
 
@@ -391,17 +376,6 @@ public sealed class Http10Decoder
         {
             foreach (var value in values)
             {
-                switch (decompressed)
-                {
-                    // Remove Content-Encoding after decompression (RFC 9110 §8.4)
-                    case true when name.Equals(WellKnownHeaders.Names.ContentEncoding,
-                        StringComparison.OrdinalIgnoreCase):
-                    // Update Content-Length to decompressed size (skip original value)
-                    case true
-                        when name.Equals(WellKnownHeaders.Names.ContentLength, StringComparison.OrdinalIgnoreCase):
-                        continue;
-                }
-
                 if (ContentHeaders.Contains(name))
                 {
                     content.Headers.TryAddWithoutValidation(name, value);
@@ -411,12 +385,6 @@ public sealed class Http10Decoder
                     response.Headers.TryAddWithoutValidation(name, value);
                 }
             }
-        }
-
-        // Set updated Content-Length after decompression
-        if (decompressed)
-        {
-            content.Headers.ContentLength = body.Length;
         }
 
         return response;

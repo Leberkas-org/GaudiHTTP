@@ -5,8 +5,6 @@ using System.Collections.Immutable;
 using System.Net;
 using System.Net.Http;
 using System.Text;
-using TurboHttp.Protocol.RFC9110;
-
 namespace TurboHttp.Protocol.RFC9112;
 
 /// <summary>
@@ -678,15 +676,7 @@ public sealed class Http11Decoder : IDisposable
             return HttpDecodeResult.Incomplete();
         }
 
-        // 7. Decompress body if Content-Encoding is set (RFC 9110 §8.4)
-        var contentEncoding = GetSingleHeader(headers, WellKnownHeaders.Names.ContentEncoding);
-        if (!string.IsNullOrWhiteSpace(contentEncoding) &&
-            !contentEncoding.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
-        {
-            bodyBytes = ContentEncodingDecoder.Decompress(bodyBytes, contentEncoding);
-        }
-
-        // 8. Create content
+        // 7. Create content
         var content = new ByteArrayContent(bodyBytes);
 
         foreach (var (name, values) in headers)
@@ -696,33 +686,10 @@ public sealed class Http11Decoder : IDisposable
                 continue;
             }
 
-            // Remove Content-Encoding after successful decompression (RFC 9110 §8.4)
-            if (name.Equals(WellKnownHeaders.Names.ContentEncoding, StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(contentEncoding) &&
-                !contentEncoding.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            // Update Content-Length to match decompressed size (skip the original value)
-            if (name.Equals(WellKnownHeaders.Names.ContentLength, StringComparison.OrdinalIgnoreCase) &&
-                !string.IsNullOrWhiteSpace(contentEncoding) &&
-                !contentEncoding.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             foreach (var value in values)
             {
                 content.Headers.TryAddWithoutValidation(name, value);
             }
-        }
-
-        // Set updated Content-Length after decompression
-        if (!string.IsNullOrWhiteSpace(contentEncoding) &&
-            !contentEncoding.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
-        {
-            content.Headers.ContentLength = bodyBytes.Length;
         }
 
         // 8. Add trailer headers
