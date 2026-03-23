@@ -53,14 +53,14 @@ The result: every request gets traced **twice** for ActivitySource and Metrics, 
 **Parallel:** no — depends on TASK-016-001
 
 **Acceptance Criteria:**
-- [ ] `_isEntry` field removed
-- [ ] Entire `if (stage._isEntry)` branch removed (was lines 54–138)
-- [ ] Only the non-entry pass-through logic remains — used for all handler instances regardless of index
-- [ ] `RequestTimestampKey` field removed
-- [ ] Unused usings removed: `System`, `System.Diagnostics`, `TurboHttp.Diagnostics`
-- [ ] `index` parameter kept in constructor for unique port naming only
-- [ ] Build succeeds with 0 errors
-- [ ] All existing tests pass (HandlerBidiStageTests + full suite)
+- [x] `_isEntry` field removed
+- [x] Entire `if (stage._isEntry)` branch removed (was lines 54–138)
+- [x] Only the non-entry pass-through logic remains — used for all handler instances regardless of index
+- [x] `RequestTimestampKey` field removed
+- [x] Unused usings removed: `System`, `System.Diagnostics`, `TurboHttp.Diagnostics`
+- [x] `index` parameter kept in constructor for unique port naming only
+- [x] Build succeeds with 0 errors
+- [x] All existing tests pass (HandlerBidiStageTests + full suite)
 
 ## Task Dependency Graph
 
