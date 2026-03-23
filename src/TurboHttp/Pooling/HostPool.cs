@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Akka.Actor;
 using Akka.Event;
 using Servus.Akka;
+using TurboHttp.Diagnostics;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
 using TurboHttp.Protocol.RFC9112;
@@ -94,6 +95,12 @@ public sealed class HostPool : ReceiveActor
         _scheduler?.Cancel();
     }
 
+    private KeyValuePair<string, object?>[] HostTags =>
+    [
+        new("server.address", _key.Host ?? "unknown"),
+        new("server.port", _key.Port)
+    ];
+
     private void HandleConnectionReady(ConnectionActorBase.ConnectionReady msg)
     {
         var conn = Find(msg.Handle.ConnectionActor);
@@ -105,6 +112,10 @@ public sealed class HostPool : ReceiveActor
         }
 
         conn.SetHandle(msg.Handle);
+
+        // New connection is active and idle
+        TurboHttpMetrics.ConnectionActive.Add(1, HostTags);
+        TurboHttpMetrics.ConnectionIdle.Add(1, HostTags);
 
         if (IsMultiStream)
         {
@@ -134,7 +145,13 @@ public sealed class HostPool : ReceiveActor
             {
                 // QUIC: request a new stream on the existing connection.
                 // Each requester gets its own channel pair via OpenTypedStream.
+                var wasIdleQuic = conn.Idle;
                 conn.MarkBusy();
+                if (wasIdleQuic && !conn.Idle)
+                {
+                    TurboHttpMetrics.ConnectionIdle.Add(-1, HostTags);
+                }
+
                 conn.Actor.Tell(new Http3ConnectionActor.OpenTypedStream(Sender, OutputStreamType.Request));
                 return;
             }
@@ -144,7 +161,12 @@ public sealed class HostPool : ReceiveActor
             // PendingRequests and break HasAvailableSlot.
             if (!IsMultiStream)
             {
+                var wasIdleH1 = conn.Idle;
                 conn.MarkBusy();
+                if (wasIdleH1 && !conn.Idle)
+                {
+                    TurboHttpMetrics.ConnectionIdle.Add(-1, HostTags);
+                }
             }
 
             Sender.Tell(conn.Handle);
@@ -206,7 +228,15 @@ public sealed class HostPool : ReceiveActor
     private void HandleIdle(ConnectionIdle msg)
     {
         var conn = Find(msg.Connection);
-        conn?.MarkIdle();
+        if (conn is not null)
+        {
+            var wasIdle = conn.Idle;
+            conn.MarkIdle();
+            if (!wasIdle && conn.Idle)
+            {
+                TurboHttpMetrics.ConnectionIdle.Add(1, HostTags);
+            }
+        }
     }
 
     private void HandleFailure(ConnectionFailed msg)
@@ -216,6 +246,13 @@ public sealed class HostPool : ReceiveActor
         if (conn == null)
         {
             return;
+        }
+
+        // Record metrics before state change
+        TurboHttpMetrics.ConnectionActive.Add(-1, HostTags);
+        if (conn.Idle)
+        {
+            TurboHttpMetrics.ConnectionIdle.Add(-1, HostTags);
         }
 
         // Mark inactive before removal so any in-flight observers see a dead connection.
@@ -259,6 +296,12 @@ public sealed class HostPool : ReceiveActor
 
             if (!expiredIdle && !nonReusable) continue;
 
+            TurboHttpMetrics.ConnectionActive.Add(-1, HostTags);
+            if (conn.Idle)
+            {
+                TurboHttpMetrics.ConnectionIdle.Add(-1, HostTags);
+            }
+
             Context.Unwatch(conn.Actor);
             conn.Actor.Tell(PoisonPill.Instance);
             _connections.Remove(conn);
@@ -281,7 +324,15 @@ public sealed class HostPool : ReceiveActor
     private void HandleStreamCompleted(StreamCompleted msg)
     {
         var conn = Find(msg.Connection);
-        conn?.MarkIdle();
+        if (conn is not null)
+        {
+            var wasIdle = conn.Idle;
+            conn.MarkIdle();
+            if (!wasIdle && conn.Idle)
+            {
+                TurboHttpMetrics.ConnectionIdle.Add(1, HostTags);
+            }
+        }
 
         // A stream freed up — try to serve queued requesters
         ServeQueuedRequesters();
@@ -290,7 +341,15 @@ public sealed class HostPool : ReceiveActor
     private void HandleStreamAcquired(StreamAcquired msg)
     {
         var conn = Find(msg.Connection);
-        conn?.MarkBusy();
+        if (conn is not null)
+        {
+            var wasIdle = conn.Idle;
+            conn.MarkBusy();
+            if (wasIdle && !conn.Idle)
+            {
+                TurboHttpMetrics.ConnectionIdle.Add(-1, HostTags);
+            }
+        }
     }
 
     private void HandleUpdateMaxConcurrentStreams(UpdateMaxConcurrentStreams msg)
@@ -326,7 +385,13 @@ public sealed class HostPool : ReceiveActor
             {
                 // QUIC: each requester needs its own stream (own channel pair).
                 // MarkBusy here — no StreamAcquired from Http20ConnectionStage for QUIC.
+                var wasIdleQuic = conn.Idle;
                 conn.MarkBusy();
+                if (wasIdleQuic && !conn.Idle)
+                {
+                    TurboHttpMetrics.ConnectionIdle.Add(-1, HostTags);
+                }
+
                 conn.Actor.Tell(new Http3ConnectionActor.OpenTypedStream(requester, OutputStreamType.Request));
             }
             else if (IsMultiStream)
@@ -337,7 +402,13 @@ public sealed class HostPool : ReceiveActor
             else
             {
                 // HTTP/1.x: MarkBusy here — no stage-level stream accounting.
+                var wasIdleH1 = conn.Idle;
                 conn.MarkBusy();
+                if (wasIdleH1 && !conn.Idle)
+                {
+                    TurboHttpMetrics.ConnectionIdle.Add(-1, HostTags);
+                }
+
                 requester.Tell(conn.Handle);
             }
         }

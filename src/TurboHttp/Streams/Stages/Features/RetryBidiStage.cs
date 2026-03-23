@@ -191,6 +191,11 @@ internal sealed class RetryBidiStage
                     retryActivity?.Stop();
                     Activity.Current = previous;
 
+                    // Record retry metric
+                    TurboHttpMetrics.RetryCount.Add(1,
+                        new KeyValuePair<string, object?>("http.request.method", original.Method.Method),
+                        new KeyValuePair<string, object?>("server.address", original.RequestUri?.Host ?? "unknown"));
+
                     // Retryable — dispose the response and enqueue the original request for retry.
                     response.Dispose();
                     original.Options.Set(AttemptCountKey, attemptCount + 1);

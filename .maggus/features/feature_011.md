@@ -56,14 +56,14 @@ Add metrics instrumentation to TurboHttp using `System.Diagnostics.Metrics.Meter
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `CacheBidiStage` records cache.hit / cache.miss on each request
-- [ ] `RetryBidiStage` records retry.count on each retry attempt
-- [ ] `RedirectBidiStage` records redirect.count on each redirect hop
-- [ ] Request pipeline entry/exit records request.count and request.duration
-- [ ] `HostPool` or `ConnectionActorBase` records connection.active / connection.idle changes
-- [ ] `ConnectionActorBase` records connection.duration on connection close
-- [ ] All existing tests pass — metrics are no-op when no listener attached
-- [ ] Build succeeds with 0 errors
+- [x] `CacheBidiStage` records cache.hit / cache.miss on each request
+- [x] `RetryBidiStage` records retry.count on each retry attempt
+- [x] `RedirectBidiStage` records redirect.count on each redirect hop
+- [x] Request pipeline entry/exit records request.count and request.duration
+- [x] `HostPool` or `ConnectionActorBase` records connection.active / connection.idle changes
+- [x] `ConnectionActorBase` records connection.duration on connection close
+- [x] All existing tests pass — metrics are no-op when no listener attached
+- [x] Build succeeds with 0 errors
 
 ### TASK-011-003: Metrics Unit Tests
 **Description:** As a library author, I want tests that verify metrics are emitted correctly.

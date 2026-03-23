@@ -1,8 +1,11 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading.Channels;
 using Akka.Actor;
 using Akka.Event;
+using TurboHttp.Diagnostics;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
 
@@ -37,6 +40,11 @@ public abstract class ConnectionActorBase : ReceiveActor
 
     protected IActorRef? Runner;
     protected int ReconnectAttempt;
+
+    /// <summary>
+    /// Timestamp when the current connection was established. Used to compute connection duration.
+    /// </summary>
+    private long _connectTimestamp;
 
     private protected ConnectionActorBase(TcpOptions options, IActorRef clientManager, RequestEndpoint requestEndpoint,
         TurboClientOptions config)
@@ -93,6 +101,16 @@ public abstract class ConnectionActorBase : ReceiveActor
     /// </summary>
     private protected virtual void Reconnect()
     {
+        // Record connection duration metric
+        if (_connectTimestamp > 0)
+        {
+            var elapsed = Stopwatch.GetElapsedTime(_connectTimestamp);
+            TurboHttpMetrics.ConnectionDuration.Record(elapsed.TotalSeconds,
+                new KeyValuePair<string, object?>("server.address", RequestEndpoint.Host ?? "unknown"),
+                new KeyValuePair<string, object?>("server.port", RequestEndpoint.Port));
+            _connectTimestamp = 0;
+        }
+
         Runner = null;
 
         // Complete both channels so old pump tasks exit cleanly before new channels are created.
@@ -147,6 +165,7 @@ public abstract class ConnectionActorBase : ReceiveActor
     /// </summary>
     private protected void NotifyParentReady(ConnectionHandle handle)
     {
+        _connectTimestamp = Stopwatch.GetTimestamp();
         Context.Parent.Tell(new ConnectionReady(handle));
     }
 }

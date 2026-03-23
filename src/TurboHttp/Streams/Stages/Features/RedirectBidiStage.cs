@@ -182,6 +182,10 @@ internal sealed class RedirectBidiStage
                         redirectActivity?.Stop();
                         Activity.Current = previous;
 
+                        // Record redirect metric
+                        TurboHttpMetrics.RedirectCount.Add(1,
+                            new KeyValuePair<string, object?>("http.response.status_code", (int)response.StatusCode));
+
                         // Carry the handler forward with the redirect request
                         newRequest.Options.Set(RedirectHandlerKey, handler);
 

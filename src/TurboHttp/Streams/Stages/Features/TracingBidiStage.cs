@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Http;
 using Akka.Streams;
@@ -44,6 +45,8 @@ internal sealed class TracingBidiStage
 
     private sealed class Logic : GraphStageLogic
     {
+        private static readonly HttpRequestOptionsKey<long> RequestTimestampKey = new("TurboHttp.RequestTimestamp");
+
         /// <summary>
         /// Tracks the most recent in-flight root activity so that upstream failures
         /// on the response path can be attributed to the correct span.
@@ -63,6 +66,9 @@ internal sealed class TracingBidiStage
                         request.Options.Set(TurboHttpInstrumentation.RequestActivityKey, activity);
                         _currentActivity = activity;
                     }
+
+                    // Record request start timestamp for duration calculation
+                    request.Options.Set(RequestTimestampKey, Stopwatch.GetTimestamp());
 
                     Push(stage._outRequest, request);
                 },
@@ -86,6 +92,9 @@ internal sealed class TracingBidiStage
                         _currentActivity = null;
                     }
 
+                    // Record request metrics
+                    RecordRequestMetrics(response);
+
                     Push(stage._outResponse, response);
                 },
                 onUpstreamFinish: () => Complete(stage._outResponse),
@@ -104,6 +113,32 @@ internal sealed class TracingBidiStage
             SetHandler(stage._outResponse,
                 onPull: () => Pull(stage._inResponse),
                 onDownstreamFinish: _ => Cancel(stage._inResponse));
+        }
+
+        private static void RecordRequestMetrics(HttpResponseMessage response)
+        {
+            var request = response.RequestMessage;
+            if (request is null)
+            {
+                return;
+            }
+
+            var method = request.Method.Method;
+            var statusCode = (int)response.StatusCode;
+            var host = request.RequestUri?.Host ?? "unknown";
+
+            TurboHttpMetrics.RequestCount.Add(1,
+                new KeyValuePair<string, object?>("http.request.method", method),
+                new KeyValuePair<string, object?>("http.response.status_code", statusCode),
+                new KeyValuePair<string, object?>("server.address", host));
+
+            if (request.Options.TryGetValue(RequestTimestampKey, out var startTimestamp))
+            {
+                var elapsed = Stopwatch.GetElapsedTime(startTimestamp);
+                TurboHttpMetrics.RequestDuration.Record(elapsed.TotalSeconds,
+                    new KeyValuePair<string, object?>("http.request.method", method),
+                    new KeyValuePair<string, object?>("http.response.status_code", statusCode));
+            }
         }
     }
 }

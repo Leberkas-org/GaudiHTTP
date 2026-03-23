@@ -180,6 +180,16 @@ internal sealed class CacheBidiStage
 
             Activity.Current = previous;
 
+            // Record cache hit/miss metrics
+            if (isHit)
+            {
+                TurboHttpMetrics.CacheHit.Add(1);
+            }
+            else
+            {
+                TurboHttpMetrics.CacheMiss.Add(1);
+            }
+
             if (isHit)
             {
                 // RFC 9111 §5.1 — inject Age header on every cached response
