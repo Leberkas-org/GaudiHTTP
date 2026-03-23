@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Net;
 using Akka.Streams.Dsl;
 using TurboHttp.Protocol.RFC9114;
@@ -10,7 +9,7 @@ namespace TurboHttp.StreamTests.RFC9114;
 /// <summary>
 /// Tests the HTTP/3 stream stage per RFC 9114 §4.1.
 /// Verifies that HEADERS and DATA frames are assembled into complete HttpResponseMessage objects
-/// with QPACK decoding and content-encoding decompression.
+/// with QPACK decoding. Content-Encoding is preserved for the feature layer.
 /// </summary>
 /// <remarks>
 /// Stage under test: <see cref="Http30StreamStage"/>.
@@ -150,25 +149,15 @@ public sealed class Http30StreamStageTests : StreamTestBase
         Assert.Equal("yes", responses[0].Headers.GetValues("x-visible").Single());
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.1-30S-007: Content-Encoding gzip triggers decompression")]
-    public async Task Should_DecompressBody_When_ContentEncodingIsGzip()
+    [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.1-30S-007: Content-Encoding preserved for feature layer")]
+    public async Task Should_PreserveRawBody_When_ContentEncodingIsGzip()
     {
         var headerBlock = EncodeHeaders(
             (":status", "200"),
             ("content-encoding", "gzip")
         );
 
-        var originalBody = "Hello, compressed world!"u8.ToArray();
-        byte[] compressedBody;
-        using (var ms = new MemoryStream())
-        {
-            using (var gzip = new GZipStream(ms, CompressionMode.Compress, leaveOpen: true))
-            {
-                gzip.Write(originalBody);
-            }
-
-            compressedBody = ms.ToArray();
-        }
+        var compressedBody = new byte[] { 0x1f, 0x8b, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04 };
 
         var responses = await RunAsync(
             new Http3HeadersFrame(headerBlock),
@@ -177,7 +166,11 @@ public sealed class Http30StreamStageTests : StreamTestBase
 
         Assert.Single(responses);
         var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
-        Assert.Equal(originalBody, responseBody);
+        // Stage preserves raw compressed bytes — decompression is handled by DecompressionBidiStage
+        Assert.Equal(compressedBody, responseBody);
+        // Content-Encoding header is preserved on the content headers
+        Assert.True(responses[0].Content.Headers.Contains("Content-Encoding"));
+        Assert.Equal("gzip", responses[0].Content.Headers.GetValues("Content-Encoding").Single());
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.1-30S-008: No Content-Encoding leaves body unchanged")]

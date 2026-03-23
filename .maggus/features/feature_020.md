@@ -77,10 +77,10 @@ Additionally, `RequestCompressionBidiStage` and `DecompressionBidiStage` are com
 **Parallel:** yes — can run alongside TASK-020-001, TASK-020-002
 
 **Acceptance Criteria:**
-- [ ] `Http30StreamStage.cs`: `ContentEncodingDecoder.Decompress()` call removed (~line 150)
-- [ ] Content headers applied unconditionally (same pattern as TASK-020-002)
-- [ ] Stream tests in `RFC9114/` adjusted if any assert decompressed output from Http30StreamStage
-- [ ] `dotnet test ./src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj --filter "FullyQualifiedName~RFC9114"` — passes
+- [x] `Http30StreamStage.cs`: `ContentEncodingDecoder.Decompress()` call removed (~line 150)
+- [x] Content headers applied unconditionally (same pattern as TASK-020-002)
+- [x] Stream tests in `RFC9114/` adjusted if any assert decompressed output from Http30StreamStage
+- [x] `dotnet test ./src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj --filter "FullyQualifiedName~RFC9114"` — passes
 
 **Files to modify:**
 - `src/TurboHttp/Streams/Stages/Decoding/Http30StreamStage.cs`

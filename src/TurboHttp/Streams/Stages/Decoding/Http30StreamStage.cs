@@ -1,12 +1,11 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHttp.Protocol;
-using TurboHttp.Protocol.RFC9110;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Protocol.RFC9204;
 
@@ -19,8 +18,8 @@ namespace TurboHttp.Streams.Stages.Decoding;
 /// and no flags byte. Stream completion is signaled by QUIC FIN (upstream completion).
 /// HEADERS frames are always complete (no CONTINUATION frames in HTTP/3).
 ///
-/// Uses QPACK (RFC 9204) for header decompression and ContentEncodingDecoder
-/// for body decompression (gzip, deflate, br).
+/// Uses QPACK (RFC 9204) for header decompression. Content-Encoding is preserved
+/// on the response for the feature layer (DecompressionBidiStage) to handle.
 /// </summary>
 public sealed class Http30StreamStage : GraphStage<FlowShape<Http3Frame, HttpResponseMessage>>
 {
@@ -44,7 +43,9 @@ public sealed class Http30StreamStage : GraphStage<FlowShape<Http3Frame, HttpRes
         private int _bodyLength;
 
         private HttpResponseMessage? _response;
-        private string? _contentEncoding;
+
+        // Content headers captured during HandleHeaders, applied when Content is created.
+        private List<(string Name, string Value)>? _contentHeaders;
 
         public Logic(Http30StreamStage stage) : base(stage.Shape)
         {
@@ -109,9 +110,10 @@ public sealed class Http30StreamStage : GraphStage<FlowShape<Http3Frame, HttpRes
                 {
                     _response.Headers.TryAddWithoutValidation(h.Name, h.Value);
 
-                    if (h.Name.Equals(WellKnownHeaders.Names.ContentEncoding, StringComparison.OrdinalIgnoreCase))
+                    if (IsContentHeader(h.Name))
                     {
-                        _contentEncoding = h.Value;
+                        _contentHeaders ??= new List<(string, string)>();
+                        _contentHeaders.Add((h.Name, h.Value));
                     }
                 }
             }
@@ -143,14 +145,8 @@ public sealed class Http30StreamStage : GraphStage<FlowShape<Http3Frame, HttpRes
             if (_bodyLength > 0)
             {
                 var bodyBytes = _bodyBuffer[.._bodyLength].ToArray();
-
-                // RFC 9110 §8.4 — apply content-encoding decompression (gzip, deflate, br)
-                if (!string.IsNullOrEmpty(_contentEncoding))
-                {
-                    bodyBytes = ContentEncodingDecoder.Decompress(bodyBytes, _contentEncoding);
-                }
-
                 response.Content = new ByteArrayContent(bodyBytes);
+                ApplyContentHeaders(response);
             }
 
             Emit(_stage._out, response);
@@ -159,8 +155,27 @@ public sealed class Http30StreamStage : GraphStage<FlowShape<Http3Frame, HttpRes
             _bodyOwner = null;
             _bodyLength = 0;
             _response = null;
-            _contentEncoding = null;
+            _contentHeaders = null;
         }
+
+        private void ApplyContentHeaders(HttpResponseMessage response)
+        {
+            if (_contentHeaders is null || response.Content is null)
+            {
+                return;
+            }
+
+            foreach (var (name, value) in _contentHeaders)
+            {
+                response.Content.Headers.TryAddWithoutValidation(name, value);
+            }
+        }
+
+        private static bool IsContentHeader(string name) =>
+            name.StartsWith("content-", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("allow", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("expires", StringComparison.OrdinalIgnoreCase) ||
+            name.Equals("last-modified", StringComparison.OrdinalIgnoreCase);
 
         private void EnsureBodyCapacity(int required)
         {

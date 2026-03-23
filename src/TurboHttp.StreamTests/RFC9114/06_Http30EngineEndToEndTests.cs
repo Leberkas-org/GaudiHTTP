@@ -72,8 +72,8 @@ public sealed class Http30EngineEndToEndTests : EngineTestBase
         Assert.Contains(outboundFrames, f => f is Http3DataFrame);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC9114-ENG-003: gzip-compressed response body is correctly decompressed")]
-    public async Task Should_DecompressGzipResponseBody_When_ContentEncodingIsGzip()
+    [Fact(Timeout = 10_000, DisplayName = "RFC9114-ENG-003: Content-Encoding preserved — raw compressed body returned")]
+    public async Task Should_PreserveRawCompressedBody_When_ContentEncodingIsGzip()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/data")
         {
@@ -112,7 +112,8 @@ public sealed class Http30EngineEndToEndTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content!.ReadAsByteArrayAsync();
-        Assert.Equal(originalBody, body);
+        // Engine preserves raw compressed bytes — decompression is handled by feature layer
+        Assert.Equal(compressedBody, body);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9114-ENG-004: SETTINGS frame emitted on engine start")]
