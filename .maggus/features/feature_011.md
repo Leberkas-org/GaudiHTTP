@@ -32,9 +32,9 @@ Add metrics instrumentation to TurboHttp using `System.Diagnostics.Metrics.Meter
 **Parallel:** yes — can run alongside Feature 010
 
 **Acceptance Criteria:**
-- [ ] New file `src/TurboHttp/Diagnostics/TurboHttpMetrics.cs`
-- [ ] Static `Meter` named `"TurboHttp"` with assembly version
-- [ ] Instruments defined:
+- [x] New file `src/TurboHttp/Diagnostics/TurboHttpMetrics.cs`
+- [x] Static `Meter` named `"TurboHttp"` with assembly version
+- [x] Instruments defined:
   - `Counter<long> http.client.request.count` — total requests sent (tags: method, status_code, server.address)
   - `Histogram<double> http.client.request.duration` — request duration in seconds (tags: method, status_code)
   - `Counter<long> http.client.cache.hit` — cache hits
@@ -44,7 +44,7 @@ Add metrics instrumentation to TurboHttp using `System.Diagnostics.Metrics.Meter
   - `Histogram<double> http.client.connection.duration` — connection lifetime in seconds
   - `UpDownCounter<long> http.client.connection.active` — currently active connections
   - `UpDownCounter<long> http.client.connection.idle` — currently idle connections
-- [ ] Build succeeds with 0 errors
+- [x] Build succeeds with 0 errors
 
 ### TASK-011-002: Instrument Stages and Pooling Layer
 **Description:** As an operator, I want to see metrics for request throughput, cache efficiency, and connection pool health.
