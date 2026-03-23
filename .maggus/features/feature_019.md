@@ -39,12 +39,12 @@ This feature also blocks HTTP/3 from being routed at the version partition level
 **Parallel:** yes — can run alongside TASK-019-002, TASK-019-003, TASK-019-004, TASK-019-005
 
 **Acceptance Criteria:**
-- [ ] `_onOutboundWriteFailed` callback in `ConnectionStage.Logic` no longer calls `FailStage(ex)`
-- [ ] Instead, it emits a `ConnectionReuseItem` with `Close` decision (signaling the pool to tear down the connection) via `_pendingReads.Enqueue()` or `Push()`
-- [ ] After emitting the signal, the stage clears `_handle = null` (connection is dead) and calls `TryPull()` to accept the next `ConnectItem`
-- [ ] Test `CS-011` in `05_ConnectionStageTests.cs` is updated: instead of asserting `ThrowsAnyAsync<Exception>`, verify that a `ConnectionReuseItem` with `Close` is emitted and the stream does not fault
-- [ ] Full `TurboHttp.StreamTests` suite passes
-- [ ] Build succeeds with zero errors
+- [x] `_onOutboundWriteFailed` callback in `ConnectionStage.Logic` no longer calls `FailStage(ex)`
+- [x] Instead, it emits a `ConnectionReuseItem` with `Close` decision (signaling the pool to tear down the connection) via `_pendingReads.Enqueue()` or `Push()`
+- [x] After emitting the signal, the stage clears `_handle = null` (connection is dead) and calls `TryPull()` to accept the next `ConnectItem`
+- [x] Test `CS-011` in `05_ConnectionStageTests.cs` is updated: instead of asserting `ThrowsAnyAsync<Exception>`, verify that a `ConnectionReuseItem` with `Close` is emitted and the stream does not fault
+- [x] Full `TurboHttp.StreamTests` suite passes
+- [x] Build succeeds with zero errors
 
 **Files to modify:**
 - `src/TurboHttp/Transport/ConnectionStage.cs`

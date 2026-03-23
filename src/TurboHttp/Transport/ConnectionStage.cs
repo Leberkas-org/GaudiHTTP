@@ -119,7 +119,33 @@ public sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInputIt
             _onOutboundWriteFailed = GetAsyncCallback<Exception>(ex =>
             {
                 Log.Warning("ConnectionStage: Outbound write failed — {0}", ex.Message);
-                FailStage(ex);
+
+                // Notify the pool to tear down the connection (same as ConnectionReuseItem(Close) path).
+                if (_handle is { } h)
+                {
+                    h.ConnectionActor.Tell(
+                        new HostPool.MarkConnectionNoReuse(h.ConnectionActor));
+                    h.ConnectionActor.Tell(
+                        new HostPool.StreamCompleted(h.ConnectionActor));
+                }
+
+                // Emit close signal downstream so decoder stages know the connection is dead.
+                var signal = new CloseSignalItem(TlsCloseKind.AbruptClose) { Key = _currentKey };
+                if (IsAvailable(_stage._out))
+                {
+                    Push(_stage._out, signal);
+                }
+                else
+                {
+                    _pendingReads.Enqueue(signal);
+                }
+
+                // Connection is dead — clear handle so next ConnectItem re-acquires.
+                StopInboundPump();
+                _handle = null;
+
+                // Accept next element (e.g. a new ConnectItem for reconnection).
+                TryPull();
             });
 
             _onHandleReceived = GetAsyncCallback<ConnectionHandle>(handle =>

@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Linq;
 using System.Net;
 using System.Threading.Channels;
 using Akka;
@@ -436,8 +437,8 @@ public sealed class ConnectionStageTests : StreamTestBase
     }
 
     [Fact(Timeout = 15_000,
-        DisplayName = "CS-011: DataItem write to closed outbound channel fails stage cleanly")]
-    public async Task Should_FailStage_When_OutboundChannelIsClosedDuringWrite()
+        DisplayName = "CS-011: DataItem write to closed outbound channel emits CloseSignal and stream survives")]
+    public async Task Should_EmitCloseSignalAndSurvive_When_OutboundChannelIsClosedDuringWrite()
     {
         // Build channels manually so we can complete the outbound writer to simulate a dead connection.
         var outbound = Channel.CreateUnbounded<(IMemoryOwner<byte>, int)>();
@@ -446,11 +447,12 @@ public sealed class ConnectionStageTests : StreamTestBase
         // Complete the outbound channel before the stage tries to write — simulates closed connection.
         outbound.Writer.Complete();
 
+        var connectionActorProbe = CreateTestProbe();
         var handle = new ConnectionHandle(
             outbound.Writer,
             inbound.Reader,
             TestKey,
-            ActorRefs.Nobody);
+            connectionActorProbe.Ref);
 
         var routerProbe = CreateTestProbe();
         var stubRouter = Sys.ActorOf(Props.Create(() =>
@@ -476,10 +478,17 @@ public sealed class ConnectionStageTests : StreamTestBase
         var data = MakeData(0xBB, 4);
         await inputQueue.OfferAsync(data);
 
-        // The stage should fail (not hang) — resultTask completes with an exception.
-        var ex = await Assert.ThrowsAnyAsync<Exception>(
-            () => resultTask.WaitAsync(TimeSpan.FromSeconds(10)));
-        Assert.NotNull(ex);
+        // Verify pool is notified: MarkConnectionNoReuse then StreamCompleted.
+        await connectionActorProbe.ExpectMsgAsync<HostPool.MarkConnectionNoReuse>(TimeSpan.FromSeconds(5));
+        await connectionActorProbe.ExpectMsgAsync<HostPool.StreamCompleted>(TimeSpan.FromSeconds(5));
+
+        // Complete the stream gracefully — it should NOT fault.
+        inputQueue.Complete();
+        var results = await resultTask.WaitAsync(TimeSpan.FromSeconds(10));
+
+        // The stage should have emitted a CloseSignalItem (AbruptClose) signaling connection death.
+        var closeSignal = Assert.Single(results.OfType<CloseSignalItem>());
+        Assert.Equal(TlsCloseKind.AbruptClose, closeSignal.CloseKind);
 
         inbound.Writer.Complete();
     }
