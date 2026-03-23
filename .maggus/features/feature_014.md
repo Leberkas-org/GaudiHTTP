@@ -32,19 +32,19 @@ Add property-based fuzzing tests for the HTTP/1.0 and HTTP/1.1 response decoders
 **Parallel:** yes — can run alongside TASK-014-002
 
 **Acceptance Criteria:**
-- [ ] Test file `src/TurboHttp.Tests/Security/Http10FuzzTests.cs`
-- [ ] Tests with `[Theory]` + `[InlineData(seed)]` for multiple fixed seeds (42, 137, 7, 99, 12345, 65536)
-- [ ] Fuzz categories:
+- [x] Test file `src/TurboHttp.Tests/Security/Http10FuzzTests.cs`
+- [x] Tests with `[Theory]` + `[InlineData(seed)]` for multiple fixed seeds (42, 137, 7, 99, 12345, 65536)
+- [x] Fuzz categories:
   - Pure random bytes (1–8KB) → TryDecode must not crash, returns false or valid result
   - Partial valid responses (valid status line + random body) → graceful handling
   - Truncated responses at every byte offset → no crash
   - Oversized header values (>64KB of random characters) → bounded handling
   - Valid response followed by garbage → decoder handles remainder correctly
   - Repeated calls with incremental random chunks → state machine stays consistent
-- [ ] Each test iteration has a 5-second timeout (`CancellationTokenSource`)
-- [ ] Memory assertion: decoder allocations stay below 1MB per iteration
-- [ ] Minimum 100 iterations per seed per category
-- [ ] All tests pass
+- [x] Each test iteration has a 5-second timeout (`CancellationTokenSource`)
+- [x] Memory assertion: decoder allocations stay below 1MB per iteration
+- [x] Minimum 100 iterations per seed per category
+- [x] All tests pass
 
 ### TASK-014-002: HTTP/1.1 Decoder Fuzzing
 **Description:** As a security engineer, I want to fuzz the HTTP/1.1 response decoder including chunked transfer encoding.
