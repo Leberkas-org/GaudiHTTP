@@ -59,11 +59,11 @@ This feature also blocks HTTP/3 from being routed at the version partition level
 **Parallel:** yes — can run alongside TASK-019-001, TASK-019-003, TASK-019-004, TASK-019-005
 
 **Acceptance Criteria:**
-- [ ] `onUpstreamFailure` handler on `_inResponse` (line 101-111) changed from `Fail(stage._outResponse, ex)` to `Log.Warning("TracingBidiStage: Upstream failure absorbed: {0}", ex.Message)`
-- [ ] The activity error recording (`SetError` + `Stop`) is preserved before the absorption
-- [ ] No tests assert that TracingBidiStage propagates failures (check and remove if found)
-- [ ] Full `TurboHttp.StreamTests` suite passes
-- [ ] Build succeeds with zero errors
+- [x] `onUpstreamFailure` handler on `_inResponse` (line 101-111) changed from `Fail(stage._outResponse, ex)` to `Log.Warning("TracingBidiStage: Upstream failure absorbed: {0}", ex.Message)`
+- [x] The activity error recording (`SetError` + `Stop`) is preserved before the absorption
+- [x] No tests assert that TracingBidiStage propagates failures (check and remove if found)
+- [x] Full `TurboHttp.StreamTests` suite passes
+- [x] Build succeeds with zero errors
 
 **Files to modify:**
 - `src/TurboHttp/Streams/Stages/Features/TracingBidiStage.cs`

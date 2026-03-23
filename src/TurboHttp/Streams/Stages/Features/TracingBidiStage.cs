@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Http;
+using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHttp.Diagnostics;
@@ -143,7 +144,7 @@ internal sealed class TracingBidiStage
                         _currentActivity = null;
                     }
 
-                    Fail(stage._outResponse, ex);
+                    Log.Warning("TracingBidiStage: Upstream failure absorbed: {0}", ex.Message);
                 });
 
             SetHandler(stage._outResponse,
