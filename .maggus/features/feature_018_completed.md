@@ -132,12 +132,12 @@ The `docs/CLAUDE.md` guardrails are already in place. This feature applies those
 **Parallel:** no — final verification after all content tasks
 
 **Acceptance Criteria:**
-- [ ] VitePress sidebar in `config.ts` matches actual file structure (no `advanced.md` reference)
-- [ ] All cross-page links verified (grep for `](./` and `](/` patterns)
-- [ ] No RFC references anywhere in `docs/**/*.md`
-- [ ] Consistent tone across all pages — spot-check 3 random pages
-- [ ] `npm run docs:build` clean
-- [ ] `npm run docs:dev` serves without errors
+- [x] VitePress sidebar in `config.ts` matches actual file structure (no `advanced.md` reference)
+- [x] All cross-page links verified (grep for `](./` and `](/` patterns)
+- [x] No RFC references anywhere in `docs/**/*.md`
+- [x] Consistent tone across all pages — spot-check 3 random pages
+- [x] `npm run docs:build` clean
+- [x] `npm run docs:dev` serves without errors
 
 ## Task Dependency Graph
 
