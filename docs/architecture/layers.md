@@ -47,7 +47,7 @@ The Streams layer is the heart of TurboHttp. It is a single composable Akka.Stre
 1. `RequestEnricherStage` — applies `BaseAddress`, `DefaultRequestVersion`, `DefaultRequestHeaders`
 2. `CookieBidiStage` — injects matching cookies from `CookieJar` into the `Cookie` header
 3. `CacheBidiStage` — checks `HttpCacheStore`; returns a cached response immediately on hit, bypassing the network
-4. `Engine` — demultiplexes by HTTP version and routes to `Http10Engine`, `Http11Engine`, or `Http20Engine`
+4. `Engine` — demultiplexes by HTTP version and routes to `Http10Engine`, `Http11Engine`, `Http20Engine`, or `Http30Engine`
 
 **Response chain (after the network):**
 

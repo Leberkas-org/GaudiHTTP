@@ -1,5 +1,5 @@
 // TurboHttp — Scenario Dynamic Views
-// Three playable end-to-end request sequences (HTTP/1.0, HTTP/1.1, HTTP/2).
+// Four playable end-to-end request sequences (HTTP/1.0, HTTP/1.1, HTTP/2, HTTP/3).
 
 views {
   // ── Scenario: HTTP/1.0 End-to-End ─────────────────────────────────────
@@ -44,7 +44,7 @@ views {
   // ── Scenario: HTTP/1.1 End-to-End ─────────────────────────────────────
   dynamic view scenarioHttp11 {
     title 'Scenario: HTTP/1.1 Request End-to-End'
-    description 'HTTP/1.1 with persistent connections. After decode, correlation stage branches: keep-alive signal feeds back to ConnectionStage while the response continues downstream.'
+    description 'HTTP/1.1 with persistent connections. After decode, a keep-alive signal feeds back to the transport while the response continues downstream.'
 
     // ── Request ────────────────────────────────────────────────────────
     user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
@@ -91,7 +91,7 @@ views {
   // ── Scenario: HTTP/2 End-to-End ────────────────────────────────────────
   dynamic view scenarioHttp2 {
     title 'Scenario: HTTP/2 Request End-to-End'
-    description 'Multiplexed HTTP/2. Request is framed as HEADERS + DATA frames; Http20ConnectionStage handles bidirectional flow control, SETTINGS, PING, and GOAWAY.'
+    description 'Multiplexed HTTP/2 over a single TCP connection. Requests are framed as HEADERS + DATA; the connection stage handles flow control, settings, and graceful shutdown.'
 
     // ── Request ────────────────────────────────────────────────────────
     user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
@@ -100,12 +100,12 @@ views {
     turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'check cache'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.Engine 'cache miss'
     turbohttp.streams.Engine -> turbohttp.streams.Http20Engine 'route to HTTP/2'
-    turbohttp.streams.Http20Engine -> turbohttp.streams.StreamIdAllocatorStage 'assign stream ID (1, 3, 5, …)'
-    turbohttp.streams.StreamIdAllocatorStage -> turbohttp.streams.Request2FrameStage 'HPACK-encode headers → HEADERS + DATA frames'
-    turbohttp.streams.Request2FrameStage -> turbohttp.streams.Http20ConnectionStage 'Http2Frame (flow-control)'
-    turbohttp.streams.Http20ConnectionStage -> turbohttp.streams.Http20EncoderStage 'serialise frame'
-    turbohttp.streams.Http20EncoderStage -> turbohttp.streams.PrependPrefaceStage 'IOutputItem'
-    turbohttp.streams.PrependPrefaceStage -> turbohttp.streams.ConnectionStage 'IOutputItem (preface injected on first ConnectItem)'
+    turbohttp.streams.Http20Engine -> turbohttp.streams.Http20StreamIdAllocatorStage 'assign stream ID (1, 3, 5, …)'
+    turbohttp.streams.Http20StreamIdAllocatorStage -> turbohttp.streams.Http20Request2FrameStage 'compress headers → HEADERS + DATA frames'
+    turbohttp.streams.Http20Request2FrameStage -> turbohttp.streams.Http20ConnectionStage 'outbound frames'
+    turbohttp.streams.Http20ConnectionStage -> turbohttp.streams.Http20EncoderStage 'outbound frames'
+    turbohttp.streams.Http20EncoderStage -> turbohttp.streams.Http20PrependPrefaceStage 'outbound bytes'
+    turbohttp.streams.Http20PrependPrefaceStage -> turbohttp.streams.ConnectionStage 'bytes with connection preface'
 
     // ── Connection setup ───────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.io.PoolRouter 'EnsureHost'
@@ -121,9 +121,51 @@ views {
 
     // ── Response ───────────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.streams.Http20DecoderStage 'raw bytes'
-    turbohttp.streams.Http20DecoderStage -> turbohttp.streams.Http20ConnectionStage 'Http2Frame (SETTINGS / PING / DATA / HEADERS)'
-    turbohttp.streams.Http20ConnectionStage -> turbohttp.streams.Http20StreamStage 'per-stream HEADERS + DATA'
-    turbohttp.streams.Http20StreamStage -> turbohttp.streams.DecompressionBidiStage 'HPACK-decode headers → HttpResponseMessage'
+    turbohttp.streams.Http20DecoderStage -> turbohttp.streams.Http20ConnectionStage 'inbound frames'
+    turbohttp.streams.Http20ConnectionStage -> turbohttp.streams.Http20StreamStage 'response frames per stream'
+    turbohttp.streams.Http20StreamStage -> turbohttp.streams.DecompressionBidiStage 'assembled HttpResponseMessage'
+    turbohttp.streams.DecompressionBidiStage -> turbohttp.streams.CookieBidiStage 'decompress body'
+    turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'store Set-Cookie'
+    turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'store cacheable response'
+    turbohttp.streams.RetryBidiStage -> turbohttp.streams.RedirectBidiStage 'no retry needed'
+    turbohttp.streams.RedirectBidiStage -> turbohttp.client.ITurboHttpClient 'final response'
+    turbohttp.client.ITurboHttpClient -> user 'HttpResponseMessage'
+  }
+
+  // ── Scenario: HTTP/3 End-to-End ────────────────────────────────────────
+  dynamic view scenarioHttp3 {
+    title 'Scenario: HTTP/3 Request End-to-End'
+    description 'Multiplexed HTTP/3 over QUIC. Each request uses an independent QUIC stream — no head-of-line blocking. QPACK compresses headers.'
+
+    // ── Request ────────────────────────────────────────────────────────
+    user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
+    turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricherStage 'apply BaseAddress + default headers'
+    turbohttp.streams.RequestEnricherStage -> turbohttp.streams.CookieBidiStage 'inject Cookie header'
+    turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'check cache'
+    turbohttp.streams.CacheBidiStage -> turbohttp.streams.Engine 'cache miss'
+    turbohttp.streams.Engine -> turbohttp.streams.Http30Engine 'route to HTTP/3'
+    turbohttp.streams.Http30Engine -> turbohttp.streams.Http30Request2FrameStage 'compress headers → HEADERS + DATA frames (QPACK)'
+    turbohttp.streams.Http30Request2FrameStage -> turbohttp.streams.Http30ConnectionStage 'frames'
+    turbohttp.streams.Http30ConnectionStage -> turbohttp.streams.Http30EncoderStage 'outbound frames'
+    turbohttp.streams.Http30EncoderStage -> turbohttp.streams.Http3ConnectionStage 'outbound bytes'
+
+    // ── Connection setup ───────────────────────────────────────────────
+    turbohttp.streams.Http3ConnectionStage -> turbohttp.io.PoolRouter 'EnsureHost (QUIC)'
+    turbohttp.io.PoolRouter -> turbohttp.io.HostPool 'EnsureHost (forward)'
+    turbohttp.io.HostPool -> turbohttp.io.ConnectionActor 'SpawnConnection'
+    turbohttp.io.ConnectionActor -> turbohttp.io.ClientManager 'CreateRunner'
+    turbohttp.io.ClientManager -> turbohttp.io.ClientRunner 'Spawn runner'
+    turbohttp.io.ConnectionActor -> turbohttp.streams.Http3ConnectionStage 'ConnectionReady'
+
+    // ── QUIC ──────────────────────────────────────────────────────────
+    turbohttp.streams.Http3ConnectionStage -> tcp 'send via QUIC stream'
+    tcp -> turbohttp.streams.Http3ConnectionStage 'receive via QUIC stream'
+
+    // ── Response ───────────────────────────────────────────────────────
+    turbohttp.streams.Http3ConnectionStage -> turbohttp.streams.Http30DecoderStage 'raw bytes'
+    turbohttp.streams.Http30DecoderStage -> turbohttp.streams.Http30ConnectionStage 'inbound frames'
+    turbohttp.streams.Http30ConnectionStage -> turbohttp.streams.Http30StreamStage 'response frames per stream'
+    turbohttp.streams.Http30StreamStage -> turbohttp.streams.DecompressionBidiStage 'assembled HttpResponseMessage'
     turbohttp.streams.DecompressionBidiStage -> turbohttp.streams.CookieBidiStage 'decompress body'
     turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'store Set-Cookie'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'store cacheable response'

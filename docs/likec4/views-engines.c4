@@ -4,7 +4,7 @@
 views {
   view http10Engine of turbohttp.streams.Http10Engine {
     title 'TurboHttp — HTTP/1.0 Engine Internals'
-    description 'Encode → TCP → decode. No keep-alive; correlation signals discarded.'
+    description 'Encode → TCP → decode. No keep-alive; connection closes after each response.'
     include turbohttp.streams.Http10Engine
     include turbohttp.streams.Http10EncoderStage
     include turbohttp.streams.Http10DecoderStage
@@ -14,7 +14,7 @@ views {
 
   view http11Engine of turbohttp.streams.Http11Engine {
     title 'TurboHttp — HTTP/1.1 Engine Internals'
-    description 'Encode → TCP → decode. Correlation signals merged (MergePreferred) into transport for keep-alive control.'
+    description 'Encode → TCP → decode. After each response, a keep-alive signal feeds back to the transport to reuse or close the connection.'
     include turbohttp.streams.Http11Engine
     include turbohttp.streams.Http11EncoderStage
     include turbohttp.streams.Http11DecoderStage
@@ -25,14 +25,29 @@ views {
 
   view http2Engine of turbohttp.streams.Http20Engine {
     title 'TurboHttp — HTTP/2 Engine Internals'
-    description 'Stream-multiplexed HTTP/2: assign stream ID → HPACK-encode frames → bidirectional connection stage → HPACK-decode frames → assemble response.'
+    description 'Multiplexed HTTP/2: assign stream ID → compress headers → bidirectional connection management → serialise frames → reassemble responses.'
     include turbohttp.streams.Http20Engine
-    include turbohttp.streams.StreamIdAllocatorStage
-    include turbohttp.streams.Request2FrameStage
+    include turbohttp.streams.Http20StreamIdAllocatorStage
+    include turbohttp.streams.Http20Request2FrameStage
     include turbohttp.streams.Http20ConnectionStage
     include turbohttp.streams.Http20EncoderStage
     include turbohttp.streams.Http20DecoderStage
     include turbohttp.streams.Http20StreamStage
+    include turbohttp.streams.Http20PrependPrefaceStage
+    include turbohttp.streams.Http20CorrelationStage
     include turbohttp.streams.ConnectionStage
+  }
+
+  view http3Engine of turbohttp.streams.Http30Engine {
+    title 'TurboHttp — HTTP/3 Engine Internals'
+    description 'Multiplexed HTTP/3 over QUIC: compress headers with QPACK → bidirectional connection management → serialise frames → reassemble responses.'
+    include turbohttp.streams.Http30Engine
+    include turbohttp.streams.Http30Request2FrameStage
+    include turbohttp.streams.Http30ConnectionStage
+    include turbohttp.streams.Http30EncoderStage
+    include turbohttp.streams.Http30DecoderStage
+    include turbohttp.streams.Http30StreamStage
+    include turbohttp.streams.Http30CorrelationStage
+    include turbohttp.streams.Http3ConnectionStage
   }
 }

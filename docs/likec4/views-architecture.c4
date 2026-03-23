@@ -4,7 +4,7 @@
 views {
   view index {
     title 'TurboHttp — System Overview'
-    description 'Top-level view: the application, TurboHttp system, and TCP network'
+    description 'Top-level view: the application, TurboHttp system, and the network'
     include *
     style turbohttp { color green }
     style tcp { color muted }

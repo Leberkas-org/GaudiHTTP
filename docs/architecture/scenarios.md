@@ -79,11 +79,11 @@ HTTP/2 is fundamentally different from HTTP/1.x. A single TCP connection carries
 
 ### Request Framing
 
-1. `StreamIdAllocatorStage` assigns the next available stream ID (1, 3, 5, …).
-2. `Request2FrameStage` HPACK-encodes the request headers into a `HEADERS` frame, and the body (if any) into `DATA` frame(s).
+1. `Http20StreamIdAllocatorStage` assigns the next available stream ID (1, 3, 5, …).
+2. `Http20Request2FrameStage` HPACK-encodes the request headers into a `HEADERS` frame, and the body (if any) into `DATA` frame(s).
 3. `Http20ConnectionStage` applies connection-level and stream-level flow control — it will withhold frames if the server's receive window is exhausted.
 4. `Http20EncoderStage` serialises each `Http2Frame` to its 9-byte framed wire format.
-5. `PrependPrefaceStage` injects the HTTP/2 connection preface (`PRI * HTTP/2.0…` + initial `SETTINGS`) on the first connection only.
+5. `Http20PrependPrefaceStage` injects the HTTP/2 connection preface (`PRI * HTTP/2.0…` + initial `SETTINGS`) on the first connection only.
 6. Frames travel to TCP via `ConnectionStage` and `ClientByteMover`.
 
 ### Connection-Level Frames
@@ -106,3 +106,43 @@ While request/response streams are active, `Http20ConnectionStage` also handles:
 ### Stream ID Exhaustion
 
 Client-side stream IDs are 31-bit odd integers. When the maximum (`2^31 - 1`) is reached, the connection sends `GOAWAY` and a new connection is established. This is handled transparently by `HostPool`.
+
+---
+
+## HTTP/3 — Multiplexed over QUIC
+
+<ClientOnly>
+  <LikeC4Diagram viewId="scenarioHttp3" :height="740" />
+</ClientOnly>
+
+HTTP/3 replaces TCP with **QUIC**, a UDP-based transport that provides built-in encryption and independent stream delivery. Each request uses its own QUIC stream, so a lost packet on one stream does not block other in-flight requests.
+
+### Request Framing
+
+1. `Http30Http20Request2FrameStage` QPACK-encodes the request headers into a `HEADERS` frame, and the body (if any) into `DATA` frame(s).
+2. `Http30ConnectionStage` manages connection-level concerns — `SETTINGS`, `GOAWAY`, and stream lifecycle.
+3. `Http30EncoderStage` serialises each HTTP/3 frame to wire bytes using QUIC variable-length integer encoding.
+4. `Http3ConnectionStage` acquires a QUIC connection from the pool and sends the bytes over the network.
+
+### Connection-Level Frames
+
+While request/response streams are active, `Http30ConnectionStage` handles:
+
+- **`SETTINGS`** — connection parameters exchanged at startup
+- **`GOAWAY`** — graceful shutdown; after receiving `GOAWAY`, no new streams are opened on this connection
+
+### Response Assembly
+
+5. Raw bytes from QUIC are parsed by `Http30DecoderStage` into HTTP/3 frame objects.
+6. `Http30ConnectionStage` routes connection-level frames to internal handlers and forwards per-stream frames downstream.
+7. `Http30StreamStage` groups `HEADERS` and `DATA` frames by stream and assembles them into an `HttpResponseMessage`; QPACK-decodes the response headers.
+8. The response continues through `DecompressionBidiStage`, `CookieBidiStage`, `CacheBidiStage`, `RetryBidiStage`, and `RedirectBidiStage` — the same response chain as HTTP/1.x and HTTP/2.
+
+### Key Differences from HTTP/2
+
+| | HTTP/2 | HTTP/3 |
+|---|--------|--------|
+| **Transport** | TCP + TLS | QUIC (UDP + built-in TLS) |
+| **Head-of-line blocking** | Yes — one lost TCP packet stalls all streams | No — each QUIC stream is independent |
+| **Header compression** | HPACK | QPACK (adapted for out-of-order delivery) |
+| **Connection preface** | Required (`PRI * HTTP/2.0...`) | Not needed — QUIC handles this |

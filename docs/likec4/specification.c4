@@ -47,6 +47,7 @@ specification {
   tag cache
   tag cookie
   tag api
+  tag http3
 
   // ── Custom relationship kinds ────────────────────────────────────────
   // flows    — ordered pipeline data flow (request chain or response chain)

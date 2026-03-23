@@ -83,18 +83,18 @@ HTTP/2 provides **stream multiplexing** — many logical requests share a single
 **Stage sequence:**
 
 ```
-StreamIdAllocatorStage → Request2FrameStage → Http20ConnectionStage → Http20EncoderStage → PrependPrefaceStage → ConnectionStage → TCP
+Http20StreamIdAllocatorStage → Http20Request2FrameStage → Http20ConnectionStage → Http20EncoderStage → Http20PrependPrefaceStage → ConnectionStage → TCP
                                                         ↑
 TCP → ConnectionStage → Http20DecoderStage → Http20ConnectionStage → Http20StreamStage → (response downstream)
 ```
 
 | Stage | Role |
 |-------|------|
-| `StreamIdAllocatorStage` | Allocates client stream IDs (1, 3, 5, …) — odd integers, client-initiated |
-| `Request2FrameStage` | HPACK-encodes request headers; emits `HEADERS` frame + `DATA` frame(s) |
+| `Http20StreamIdAllocatorStage` | Allocates client stream IDs (1, 3, 5, …) — odd integers, client-initiated |
+| `Http20Request2FrameStage` | HPACK-encodes request headers; emits `HEADERS` frame + `DATA` frame(s) |
 | `Http20ConnectionStage` | Bidirectional flow control; handles `SETTINGS`, `PING`, `WINDOW_UPDATE`, `GOAWAY` frames |
 | `Http20EncoderStage` | Serialises `Http2Frame` objects to wire bytes (9-byte frame header + payload) |
-| `PrependPrefaceStage` | Injects the HTTP/2 connection preface (`PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n` + client `SETTINGS`) on the first connection |
+| `Http20PrependPrefaceStage` | Injects the HTTP/2 connection preface (`PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n` + client `SETTINGS`) on the first connection |
 | `ConnectionStage` | TCP transport; shared with HTTP/1.x via the `Engine` demultiplexer |
 | `Http20DecoderStage` | Stateful parser; reassembles frames from TCP byte stream, handles partial frame delivery |
 | `Http20StreamStage` | Assembles per-stream `HEADERS` + `DATA` frames into `HttpResponseMessage`; HPACK-decodes headers |
@@ -107,3 +107,38 @@ TCP → ConnectionStage → Http20DecoderStage → Http20ConnectionStage → Htt
 **Flow control:**
 
 `Http20ConnectionStage` tracks both **connection-level** and **stream-level** window sizes. It emits `WINDOW_UPDATE` frames when the consumer reads data, preventing the remote server from stalling. The Akka.Streams backpressure demand signal is translated into HTTP/2 flow-control credits.
+
+---
+
+## HTTP/3 Engine
+
+<ClientOnly>
+  <LikeC4Diagram viewId="http3Engine" :height="520" />
+</ClientOnly>
+
+HTTP/3 runs over **QUIC** instead of TCP. Each request uses an independent QUIC stream, which eliminates the head-of-line blocking that affects HTTP/2 over a single TCP connection.
+
+**Stage sequence:**
+
+```
+Http30Http20Request2FrameStage → Http30ConnectionStage → Http30EncoderStage → Http3ConnectionStage → QUIC
+                                     ↑
+QUIC → Http3ConnectionStage → Http30DecoderStage → Http30ConnectionStage → Http30StreamStage → (response downstream)
+```
+
+| Stage | Role |
+|-------|------|
+| `Http30Http20Request2FrameStage` | QPACK-encodes request headers; emits `HEADERS` frame + `DATA` frame(s) |
+| `Http30ConnectionStage` | Bidirectional connection manager; handles `SETTINGS`, `GOAWAY`, and stream lifecycle |
+| `Http30EncoderStage` | Serialises HTTP/3 frames to wire bytes using QUIC variable-length encoding |
+| `Http3ConnectionStage` | QUIC transport bridge; acquires a QUIC connection from the pool, writes/reads bytes |
+| `Http30DecoderStage` | Parses wire bytes into HTTP/3 frames |
+| `Http30StreamStage` | Assembles per-stream `HEADERS` + `DATA` frames into `HttpResponseMessage`; QPACK-decodes headers |
+
+**QPACK header compression:**
+
+QPACK is the HTTP/3 equivalent of HPACK, adapted for QUIC's out-of-order delivery. `QpackEncoder` and `QpackDecoder` maintain synchronised dynamic tables and communicate updates via dedicated encoder/decoder instruction streams.
+
+**No head-of-line blocking:**
+
+Unlike HTTP/2 where a single lost TCP packet can stall all streams, HTTP/3's QUIC transport delivers each stream independently. A lost packet on one stream does not affect other in-flight requests.

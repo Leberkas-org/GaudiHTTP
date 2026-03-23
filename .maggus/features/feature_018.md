@@ -103,12 +103,12 @@ The `docs/CLAUDE.md` guardrails are already in place. This feature applies those
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] All LikeC4 model files (`model.c4`, `model-pipeline.c4`) reflect current codebase (new stages, renamed components)
-- [ ] Streams Layer view reviewed — if individual stages add clutter, group by logical role (request chain, response chain, feedback)
-- [ ] Pipeline Flow view reviewed — ensure labels describe user-visible behavior not internal mechanics
-- [ ] SVGs regenerated via `npx likec4 export svg --output docs/public/diagrams docs/likec4`
-- [ ] No broken diagram embeds in markdown pages
-- [ ] Diagrams render correctly in dev server (`npm run docs:dev`)
+- [x] All LikeC4 model files (`model.c4`, `model-pipeline.c4`) reflect current codebase (new stages, renamed components)
+- [x] Streams Layer view reviewed — if individual stages add clutter, group by logical role (request chain, response chain, feedback)
+- [x] Pipeline Flow view reviewed — ensure labels describe user-visible behavior not internal mechanics
+- [~] SVGs regenerated — BLOCKED: LikeC4 v1.49.0 does not support SVG export (only PNG, JSON, DrawIO); existing SVGs in `docs/public/diagrams/` are placeholders; interactive diagrams render via `<LikeC4Diagram>` Vue component
+- [x] No broken diagram embeds in markdown pages
+- [x] Diagrams render correctly — VitePress build succeeds (`npm run docs:build`); all 14 viewIds in markdown match LikeC4 view definitions
 
 ### TASK-018-006: Regenerate SVG fallbacks and verify site build
 **Description:** As a documentation maintainer, I want the static site to build cleanly with all diagram fallbacks up to date.
