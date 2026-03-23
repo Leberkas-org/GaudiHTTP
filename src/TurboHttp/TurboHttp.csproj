@@ -6,6 +6,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Akka.Logger.Extensions.Logging" />
         <PackageReference Include="Akka.Streams" />
         <PackageReference Include="Servus.Akka" />
     </ItemGroup>

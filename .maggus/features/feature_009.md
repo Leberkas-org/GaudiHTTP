@@ -33,10 +33,10 @@ Bridge Akka.NET's internal ILoggingAdapter to Microsoft.Extensions.Logging (ILog
 **Parallel:** yes — can run alongside nothing (dependency for 002)
 
 **Acceptance Criteria:**
-- [ ] `Akka.Logger.Extensions.Logging` added to `Directory.Packages.props` with version matching Akka 1.5.62
-- [ ] `PackageReference` added to `TurboHttp.csproj`
-- [ ] `dotnet restore` succeeds
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with 0 errors
+- [x] `Akka.Logger.Extensions.Logging` added to `Directory.Packages.props` with version matching Akka 1.5.62
+- [x] `PackageReference` added to `TurboHttp.csproj`
+- [x] `dotnet restore` succeeds
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with 0 errors
 
 ### TASK-009-002: Configure Logging Bridge in Hosting Layer
 **Description:** As a library consumer, I want the logging bridge to be configured automatically when I register TurboHttp in DI.
