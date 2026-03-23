@@ -81,26 +81,28 @@ public sealed class Http30PushRejectionStageTests : StreamTestBase
     // PUSH_PROMISE Rejection (RFC 9114 §10.5)
     // ──────────────────────────────────────────────────────────────────────
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC9114-10.5-PR-003: PUSH_PROMISE causes ExcessiveLoad connection error")]
-    public async Task Should_FailStage_When_PushPromiseReceived()
+    [Fact(Timeout = 10_000, DisplayName = "RFC9114-10.5-PR-003: PUSH_PROMISE absorbed without killing stage")]
+    public async Task Should_AbsorbPushPromise_When_PushPromiseReceived()
     {
         var settings = new Http3SettingsFrame([]);
         var pushPromise = new Http3PushPromiseFrame(0, new byte[] { 0x00 });
 
-        var ex = await Assert.ThrowsAsync<Http3Exception>(() => RunAsync(settings, pushPromise));
+        var (downstream, _) = await RunAsync(settings, pushPromise);
 
-        Assert.Equal(Http3ErrorCode.ExcessiveLoad, ex.ErrorCode);
+        // PUSH_PROMISE is absorbed (logged + dropped) — not forwarded to app
+        Assert.Empty(downstream);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC9114-10.5-PR-004: PUSH_PROMISE with any push ID causes ExcessiveLoad")]
-    public async Task Should_FailStage_When_PushPromiseWithNonZeroPushIdReceived()
+    [Fact(Timeout = 10_000, DisplayName = "RFC9114-10.5-PR-004: PUSH_PROMISE with any push ID absorbed without killing stage")]
+    public async Task Should_AbsorbPushPromise_When_PushPromiseWithNonZeroPushIdReceived()
     {
         var settings = new Http3SettingsFrame([]);
         var pushPromise = new Http3PushPromiseFrame(42, new byte[] { 0x00, 0x01 });
 
-        var ex = await Assert.ThrowsAsync<Http3Exception>(() => RunAsync(settings, pushPromise));
+        var (downstream, _) = await RunAsync(settings, pushPromise);
 
-        Assert.Equal(Http3ErrorCode.ExcessiveLoad, ex.ErrorCode);
+        // PUSH_PROMISE is absorbed (logged + dropped) — not forwarded to app
+        Assert.Empty(downstream);
     }
 
     // ──────────────────────────────────────────────────────────────────────

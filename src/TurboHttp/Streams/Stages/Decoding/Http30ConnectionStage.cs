@@ -229,9 +229,7 @@ public sealed class Http30ConnectionStage : GraphStage<Http30ConnectionShape>
                     }
                     catch (Http3Exception ex)
                     {
-                        Log.Error(ex, "Http30ConnectionStage: RFC 9114 §10.5 — server push rejected; push limit is zero.");
-                        FailStage(ex);
-                        return;
+                        Log.Warning("Http30ConnectionStage: RFC 9114 §10.5 — server push rejected; push limit is zero. {0}", ex.Message);
                     }
 
                     Pull(_stage._inServer);
@@ -295,8 +293,7 @@ public sealed class Http30ConnectionStage : GraphStage<Http30ConnectionShape>
             }
             catch (Http3Exception ex)
             {
-                Log.Error(ex, "Http30ConnectionStage: SETTINGS error — {0}", ex.Message);
-                FailStage(ex);
+                Log.Warning("Http30ConnectionStage: SETTINGS error absorbed — {0}", ex.Message);
             }
         }
 
@@ -312,8 +309,8 @@ public sealed class Http30ConnectionStage : GraphStage<Http30ConnectionShape>
             }
             catch (Http3Exception ex)
             {
-                Log.Error(ex, "Http30ConnectionStage: GOAWAY error — {0}", ex.Message);
-                FailStage(ex);
+                Log.Warning("Http30ConnectionStage: GOAWAY error absorbed — {0}", ex.Message);
+                _goAwayReceived = true;
             }
         }
 

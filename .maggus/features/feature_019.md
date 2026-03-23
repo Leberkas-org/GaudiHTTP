@@ -123,12 +123,12 @@ This feature also blocks HTTP/3 from being routed at the version partition level
 **Parallel:** yes — can run alongside TASK-019-001, TASK-019-002, TASK-019-003, TASK-019-004
 
 **Acceptance Criteria:**
-- [ ] `HandleServerFrame` — `Http3PushPromiseFrame` case (line 226-235): replace `FailStage(ex)` with `Log.Warning(...)` + `Pull(_stage._inServer)` (absorb the frame)
-- [ ] `HandleSettings` (line 296-300): replace `FailStage(ex)` with `Log.Warning(...)` + absorb (no further action needed since SETTINGS is control-level)
-- [ ] `HandleGoAway` (line 314-317): replace `FailStage(ex)` with `Log.Warning(...)` + set `_goAwayReceived = true` (the error case should still trigger GOAWAY semantics)
-- [ ] Tests in `12_Http30PushRejectionStageTests.cs`: `Should_FailStage_When_PushPromiseReceived` and `Should_FailStage_When_PushPromiseWithNonZeroPushIdReceived` are updated — instead of `Assert.ThrowsAsync<Http3Exception>`, verify that the frame is absorbed (no exception, no downstream output for that frame)
-- [ ] Full test suite passes
-- [ ] Build succeeds with zero errors
+- [x] `HandleServerFrame` — `Http3PushPromiseFrame` case (line 226-235): replace `FailStage(ex)` with `Log.Warning(...)` + `Pull(_stage._inServer)` (absorb the frame)
+- [x] `HandleSettings` (line 296-300): replace `FailStage(ex)` with `Log.Warning(...)` + absorb (no further action needed since SETTINGS is control-level)
+- [x] `HandleGoAway` (line 314-317): replace `FailStage(ex)` with `Log.Warning(...)` + set `_goAwayReceived = true` (the error case should still trigger GOAWAY semantics)
+- [x] Tests in `12_Http30PushRejectionStageTests.cs`: `Should_FailStage_When_PushPromiseReceived` and `Should_FailStage_When_PushPromiseWithNonZeroPushIdReceived` are updated — instead of `Assert.ThrowsAsync<Http3Exception>`, verify that the frame is absorbed (no exception, no downstream output for that frame)
+- [x] Full test suite passes
+- [x] Build succeeds with zero errors
 
 **Files to modify:**
 - `src/TurboHttp/Streams/Stages/Decoding/Http30ConnectionStage.cs`
