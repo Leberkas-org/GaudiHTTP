@@ -170,6 +170,11 @@ internal sealed class CacheBidiStage
                 // RFC 9111 §5.2.2.3 — strip qualified no-cache fields before serving
                 StripNoCacheFields(cachedResponse, result.Entry.CacheControl);
 
+                // Bind the cached response to the current request so that
+                // TurboHttpClient.DrainResponsesAsync can match the response
+                // back to the correct SendAsync caller via request Options.
+                cachedResponse.RequestMessage = request;
+
                 // Cache hit — short-circuit to response output
                 if (IsAvailable(_stage._outResponse))
                 {

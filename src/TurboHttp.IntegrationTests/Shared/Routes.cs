@@ -419,7 +419,7 @@ internal static class Routes
         // GET /cache/private → Cache-Control: private
         app.MapGet("/cache/private", async ctx =>
         {
-            ctx.Response.Headers.CacheControl = "private";
+            ctx.Response.Headers.CacheControl = "private, max-age=3600";
             ctx.Response.ContentType = "text/plain";
             var body = System.Text.Encoding.UTF8.GetBytes(DateTimeOffset.UtcNow.ToString("O"));
             ctx.Response.ContentLength = body.Length;

@@ -32,9 +32,9 @@ Add end-to-end integration tests for HTTP caching. Validates that TurboHttp's Ca
 **Parallel:** yes — can run alongside TASK-004-002
 
 **Acceptance Criteria:**
-- [ ] Test file `CacheIntegrationTests.cs` in `src/TurboHttp.IntegrationTests/`
-- [ ] Collection: `"Http1Integration"`, uses `KestrelFixture`
-- [ ] Tests cover all cache routes:
+- [x] Test file `CacheIntegrationTests.cs` in `src/TurboHttp.IntegrationTests/`
+- [x] Collection: `"Http1Integration"`, uses `KestrelFixture`
+- [x] Tests cover all cache routes:
   - `GET /cache/max-age/{seconds}` — first request stores, second serves from cache (same body timestamp)
   - `GET /cache/no-cache` — always revalidates with server
   - `GET /cache/no-store` — never cached (different body timestamp on each request)
@@ -45,8 +45,8 @@ Add end-to-end integration tests for HTTP caching. Validates that TurboHttp's Ca
   - `GET /cache/s-maxage/{seconds}` — shared cache max-age
   - `GET /cache/expires` — Expires header (1 hour from now)
   - `GET /cache/private` — Cache-Control: private
-- [ ] Cache hit verified by comparing response bodies (timestamp-based routes)
-- [ ] All tests pass
+- [x] Cache hit verified by comparing response bodies (timestamp-based routes)
+- [x] All tests pass
 
 ### TASK-004-002: Cache Integration Tests — HTTP/2
 **Description:** As a library consumer, I want caching to work identically over HTTP/2.
