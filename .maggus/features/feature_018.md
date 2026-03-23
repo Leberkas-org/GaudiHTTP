@@ -119,9 +119,9 @@ The `docs/CLAUDE.md` guardrails are already in place. This feature applies those
 **Parallel:** no — requires updated LikeC4 from TASK-018-005
 
 **Acceptance Criteria:**
-- [ ] `npm run docs:build` completes without errors
-- [ ] All SVG fallbacks in `docs/public/diagrams/` are up to date
-- [ ] No broken links in built site (check VitePress output for warnings)
+- [x] `npm run docs:build` completes without errors
+- [~] All SVG fallbacks in `docs/public/diagrams/` are up to date — SVG placeholders match all 14 viewIds; LikeC4 v1.49.0 does not support SVG export (only PNG/JSON/DrawIO) and PNG export requires Playwright browsers not available in this environment; existing placeholders are correctly aligned with current diagram definitions
+- [x] No broken links in built site (check VitePress output for warnings)
 
 ### TASK-018-007: Final review and cross-reference check
 **Description:** As a documentation reader, I want consistent navigation with no dead links or orphan pages after all changes.
