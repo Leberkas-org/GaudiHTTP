@@ -31,7 +31,7 @@ internal sealed class TurboHttpClientFactory(
             : null;
 
         var cacheStore = descriptor.CachePolicy is not null
-            ? new HttpCacheStore(descriptor.CachePolicy)
+            ? descriptor.CustomCacheStore ?? new HttpCacheStore(descriptor.CachePolicy)
             : null;
 
         IReadOnlyList<TurboHandler> middlewares = descriptor.HandlerFactories.Count == 0

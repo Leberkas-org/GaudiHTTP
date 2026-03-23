@@ -41,14 +41,16 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
         RunnableGraph.FromGraph(GraphDsl.Create(b =>
         {
             var stage = b.Add(new ExtractOptionsStage());
-            // Concat Never: prevents the source from completing before Out1 can deliver _pending.
+            // Concat Never: prevents the source from completing before OutRequest can deliver _pending.
             // A single-element completing source fires CompleteStage() synchronously in the same
-            // interpreter turn as the first push, so Out1 never sees its stashed request.
+            // interpreter turn as the first push, so OutRequest never sees its stashed request.
             var src = b.Add(Source.From(requestList).Concat(Source.Never<HttpRequestMessage>()));
+            var noReuse = b.Add(Source.Never<IControlItem>());
 
             b.From(src).To(stage.In);
-            b.From(stage.Out1).To(Sink.FromSubscriber(probe0));
-            b.From(stage.Out0).To(Sink.FromSubscriber(probe1));
+            b.From(noReuse).To(stage.InReuse);
+            b.From(stage.OutSignal).To(Sink.FromSubscriber(probe0));
+            b.From(stage.OutRequest).To(Sink.FromSubscriber(probe1));
 
             return ClosedShape.Instance;
         })).Run(Materializer);
@@ -148,10 +150,12 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
         {
             var stage = b.Add(new ExtractOptionsStage());
             var src = b.Add(Source.From(requests)); // completing source — intentional
+            var noReuse = b.Add(Source.Never<IControlItem>());
 
             b.From(src).To(stage.In);
-            b.From(stage.Out1).To(Sink.FromSubscriber(probe0));
-            b.From(stage.Out0).To(Sink.FromSubscriber(probe1));
+            b.From(noReuse).To(stage.InReuse);
+            b.From(stage.OutSignal).To(Sink.FromSubscriber(probe0));
+            b.From(stage.OutRequest).To(Sink.FromSubscriber(probe1));
 
             return ClosedShape.Instance;
         })).Run(Materializer);

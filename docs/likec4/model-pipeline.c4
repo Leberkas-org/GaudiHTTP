@@ -55,7 +55,8 @@ model {
   turbohttp.streams.Http20StreamIdAllocatorStage -[flows]-> turbohttp.streams.Http20Request2FrameStage 'request with stream ID'
   turbohttp.streams.Http20Request2FrameStage -[flows]-> turbohttp.streams.Http20ConnectionStage 'HEADERS + DATA frames'
   turbohttp.streams.Http20ConnectionStage -[flows]-> turbohttp.streams.Http20EncoderStage 'outbound frames'
-  turbohttp.streams.Http20EncoderStage -[flows]-> turbohttp.streams.ConnectionStage 'outbound bytes'
+  turbohttp.streams.Http20EncoderStage -[flows]-> turbohttp.streams.Http20PrependPrefaceStage 'outbound bytes'
+  turbohttp.streams.Http20PrependPrefaceStage -[flows]-> turbohttp.streams.ConnectionStage 'bytes with connection preface'
 
   // HTTP/2 response path
   turbohttp.streams.ConnectionStage -[flows]-> turbohttp.streams.Http20DecoderStage 'inbound bytes'

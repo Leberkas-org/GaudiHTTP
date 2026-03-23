@@ -25,6 +25,16 @@ public static class TurboHttpClientBuilderExtensions
         return builder;
     }
 
+    public static ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder, HttpCacheStore store, CachePolicy? policy = null)
+    {
+        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        {
+            d.CachePolicy = policy ?? CachePolicy.Default;
+            d.CustomCacheStore = store;
+        });
+        return builder;
+    }
+
     public static ITurboHttpClientBuilder WithRetry(this ITurboHttpClientBuilder builder, RetryPolicy policy)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d => { d.RetryPolicy = policy; });

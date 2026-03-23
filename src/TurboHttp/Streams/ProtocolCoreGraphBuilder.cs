@@ -99,7 +99,8 @@ internal static class ProtocolCoreGraphBuilder
             var bidi = b.Add(new TEngine().CreateFlow());
             var transportFlow = b.Add(transport);
 
-            // ExtractOptionsStage: first request → ConnectItem (Out1) + all requests (Out0)
+            // ExtractOptionsStage: first request → ConnectItem (OutSignal) + all requests (OutRequest)
+            // Feedback inlet (InReuse) receives ConnectionReuseItem to trigger reconnect for HTTP/1.0
             var extract = b.Add(new ExtractOptionsStage(clientOptions));
 
             // Concat: first the ConnectItem (In 0), then all BidiFlow transport output (In 1)
@@ -108,12 +109,15 @@ internal static class ProtocolCoreGraphBuilder
             // ConnectionReuseStage: evaluates keep-alive/close after each response
             var connReuse = b.Add(new ConnectionReuseStage());
 
+            // Broadcast reuse signal: one copy to ExtractOptionsStage (reconnect), one to ConnectionStage
+            var reuseBroadcast = b.Add(new Broadcast<IControlItem>(2));
+
             // MergePreferred: signal feedback (preferred) + normal data (in0) → transport
             var transportMerge = b.Add(new MergePreferred<IOutputItem>(1));
 
             // Request path: extract splits first request into ConnectItem + request stream
-            b.From(extract.Out0).To(bidi.Inlet1);
-            b.From(extract.Out1).To(concat.In(0));
+            b.From(extract.OutRequest).To(bidi.Inlet1);
+            b.From(extract.OutSignal).To(concat.In(0));
 
             // Transport path: ConnectItem + BidiFlow encoded output → concat → merge → transport → BidiFlow decode
             b.From(bidi.Outlet1).To(concat.In(1));
@@ -124,8 +128,10 @@ internal static class ProtocolCoreGraphBuilder
             // Response path: decoded response → ConnectionReuseStage → response output
             b.From(bidi.Outlet2).To(connReuse.In);
 
-            // Signal feedback: ConnectionReuseItem → buffer → merge preferred → ConnectionStage
-            b.From(connReuse.Out1)
+            // Signal feedback: ConnectionReuseItem → broadcast → ExtractOptionsStage + ConnectionStage
+            b.From(connReuse.Out1).To(reuseBroadcast.In);
+            b.From(reuseBroadcast.Out(0)).To(extract.InReuse);
+            b.From(reuseBroadcast.Out(1))
                 .Via(Flow.Create<IControlItem>().Select(IOutputItem (x) => x)
                     .Buffer(1, OverflowStrategy.Backpressure))
                 .To(transportMerge.Preferred);

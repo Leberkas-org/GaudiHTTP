@@ -16,7 +16,7 @@ namespace TurboHttp;
 public static class TurboClientServiceCollectionExtensions
 {
     private static readonly Config LoggingHocon = ConfigurationFactory.ParseString(
-        @"akka.loggers = [""Akka.Logger.Extensions.Logging.LoggingLogger, Akka.Logger.Extensions.Logging""]");
+        """akka.loggers = ["Akka.Logger.Extensions.Logging.LoggingLogger, Akka.Logger.Extensions.Logging"]""");
 
     /// <summary>
     /// Registers a named TurboHttp client and returns an <see cref="ITurboHttpClientBuilder"/>
@@ -34,7 +34,7 @@ public static class TurboClientServiceCollectionExtensions
 
         if (configure is not null)
         {
-            services.Configure<TurboClientOptions>(name, configure);
+            services.Configure(name, configure);
         }
 
         services.TryAddSingleton<ITurboHttpClientFactory>(provider =>

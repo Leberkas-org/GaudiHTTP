@@ -53,19 +53,19 @@ Fix HTTP/1.0 redirect and retry functionality by enabling the pipeline to emit n
 **Parallel:** no — foundational change required
 
 **Acceptance Criteria:**
-- [ ] File: `src/TurboHttp/Streams/Stages/Routing/ExtractOptionsStage.cs`
-- [ ] Add new inlet field: `private readonly Inlet<IControlItem> _inReuse = new("ExtractOptions.In.Reuse")`
-- [ ] Add shape field to track reuse inlet in constructor
-- [ ] Remove `Complete(_outSignal)` call from line 47 — outlet remains open
-- [ ] Add state field: `private ConnectionReuseDecision _lastReuse = ConnectionReuseDecision.Reuse` (default to no-close)
-- [ ] Add handler for `_inReuse`: Grab incoming `ConnectionReuseItem`, extract decision, update `_lastReuse`, then emit new `ConnectItem` if decision is `Close`
-- [ ] Modify push handler for `_outRequest` inlet:
+- [x] File: `src/TurboHttp/Streams/Stages/Routing/ExtractOptionsStage.cs`
+- [x] Add new inlet field: `private readonly Inlet<IControlItem> _inReuse = new("ExtractOptions.In.Reuse")`
+- [x] Add shape field to track reuse inlet in constructor
+- [x] Remove `Complete(_outSignal)` call from line 47 — outlet remains open
+- [x] Add state field: `private ConnectionReuseDecision _lastReuse = ConnectionReuseDecision.Reuse` (default to no-close)
+- [x] Add handler for `_inReuse`: Grab incoming `ConnectionReuseItem`, extract decision, update `_lastReuse`, then emit new `ConnectItem` if decision is `Close`
+- [x] Modify push handler for `_outRequest` inlet:
   - If first request (no `ConnectItem` sent yet): emit `ConnectItem` to `_outSignal`, then emit request to `_outRequest`
   - If not first request AND `_lastReuse == ConnectionReuseDecision.Close`: emit new `ConnectItem` to `_outSignal`, then emit request to `_outRequest`
   - Otherwise: emit request to `_outRequest` only
-- [ ] Ensure shape definition includes new `_inReuse` inlet (FanInShape or custom multi-port shape)
-- [ ] Typecheck/lint passes with zero warnings
-- [ ] No changes to outlet names or structure — preserve backward compatibility with downstream stages
+- [x] Ensure shape definition includes new `_inReuse` inlet (FanInShape or custom multi-port shape)
+- [x] Typecheck/lint passes with zero warnings
+- [x] No changes to outlet names or structure — preserve backward compatibility with downstream stages
 
 ### TASK-025-003: Update ProtocolCoreGraphBuilder — Wire Feedback Path
 **Description:** As a stream architect, I want to wire the feedback path from `ConnectionReuseStage` to `ExtractOptionsStage` in the pipeline graph so that reuse decisions are routed back to the request coordinator.
