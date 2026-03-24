@@ -44,14 +44,9 @@ public static class TurboAttributes
         public override string ToString() => $"MemoryBuffer(initial={Initial}, max={Max})";
     }
 
-    public sealed class SubstreamQueueSize : Attributes.IMandatoryAttribute, IEquatable<SubstreamQueueSize>
+    public sealed class SubstreamQueueSize(int size) : Attributes.IMandatoryAttribute, IEquatable<SubstreamQueueSize>
     {
-        public readonly int Size;
-
-        public SubstreamQueueSize(int size)
-        {
-            Size = size;
-        }
+        public readonly int Size = size;
 
         public bool Equals(SubstreamQueueSize? other)
         {

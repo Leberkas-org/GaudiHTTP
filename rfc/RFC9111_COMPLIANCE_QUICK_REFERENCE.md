@@ -1,6 +1,6 @@
 # RFC 9111 Client-Cache Compliance — Quick Reference Matrix
 
-**Last Updated**: 2026-03-21
+**Last Updated**: 2026-03-21 (updated 2026-03-24)
 **TurboHttp Compliance**: 90.6% (79/116 MUST/SHOULD requirements fully implemented)
 **Overall Score**: Production-Ready with Strategic Gaps
 

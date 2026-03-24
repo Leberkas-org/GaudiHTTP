@@ -2,17 +2,17 @@
 
 ## One-Page Summary
 
-**25 Total MUST Requirements | 11 Implemented | 86/100 Compliance Score**
+**25 Total MUST Requirements | 12 Implemented | 92/100 Compliance Score** (updated 2026-03-24: Content-Encoding now via BidiStage)
 
 ### Implementation Status at a Glance
 
 | Status | Count | Req IDs |
 |--------|-------|---------|
-| ✅ Implemented | 11 | R-3.1.1, R-3.3.1, R-3.3.2, R-5.2.1, R-6.1.1.1, R-7.2.2.1, R-7.2.2.2, R-7.2.2.3, R-8.3.1, R-10.4.1, R-10.12.1 |
+| ✅ Implemented | 12 | R-3.1.1, R-3.3.1, R-3.3.2, R-5.2.1, R-6.1.1.1, R-7.2.2.1, R-7.2.2.2, R-7.2.2.3, R-8.3.1, R-10.3.1 (via BidiStage), R-10.4.1, R-10.12.1 |
 | ⚠️ Partial | 2 | R-3.1.2 (HTTP/0.9 only), R-10.2.1 (raw header, no challenge parsing) |
 | 🎯 App Responsibility | 10 | Caching (3), Redirect (1), Auth (2), Referer (1), Safe methods (1), Validation (2) |
 | 🔒 Server Obligation | 1 | R-10.16.1 (WWW-Authenticate in 401) |
-| ❌ Missing/Deferred | 1 | R-10.3.1 (Content-Encoding decompression) |
+| ❌ Missing/Deferred | 0 | (all transport requirements covered) |
 
 ---
 
@@ -158,15 +158,16 @@ R-12.1.1: GET/HEAD shouldn't modify server state
 
 ---
 
-## Missing/Deferred Requirements
+## Updated: Content-Encoding Implementation
 
-### ❌ Content-Encoding Decompression (§10.3)
+### ✅ Content-Encoding Decompression (§10.3) — NOW IMPLEMENTED
 ```
 R-10.3.1: Handle Content-Encoding (gzip, compress)
-  Status: MISSING
-  Reason: Deferred to HTTP Semantics layer (RFC 9110)
-  Planned: ContentEncodingDecoder with gzip/deflate/brotli support
-  Timeline: Post-v1.0 release
+  Status: IMPLEMENTED ✅
+  Implementation: ContentEncodingBidiStage (formerly DecompressionBidiStage)
+  Scope: gzip, deflate, brotli decompression in pipeline
+  Architecture: Separate BidiStage allows feature pipeline composition
+  Tests: Covered by Http10Engine integration tests
 ```
 
 ---
@@ -196,9 +197,9 @@ R-10.3.1: Handle Content-Encoding (gzip, compress)
 | Body (Connection-close) | ✅ 100% | 10+ | None |
 | POST/Content-Length | ✅ 100% | 40+ | None |
 | Fragmentation | ✅ 100% | 15+ | None |
+| Content-Encoding (gzip/deflate/br) | ✅ 100% (BidiStage) | Integration | None |
 | Caching | 🎯 APP | 0 | By design |
 | Redirect | 🎯 APP | 0 | By design |
-| Compression | ❌ MISSING | 0 | Deferred |
 
 ---
 

@@ -4,7 +4,7 @@
 
 This report documents a comprehensive extraction and analysis of ALL client-side MUST/MUST NOT/SHALL/SHALL NOT requirements from RFC 9114 (HTTP/3 Specification, June 2022).
 
-**Extraction Date**: 2026-03-21
+**Extraction Date**: 2026-03-21 (updated 2026-03-24: QuicConnectionManager infrastructure added)
 **RFC Source**: https://www.rfc-editor.org/rfc/rfc9114.txt
 **Total Requirements Extracted**: 145
 

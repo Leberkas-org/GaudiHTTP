@@ -1,18 +1,27 @@
 # RFC 9114 (HTTP/3) - Complete Client-Side MUST Requirements Analysis
 
+**Status**: 2026-03-24 (Updated: QuicConnectionManager + Http30Engine infrastructure now in place)
+
 ## Executive Summary
 
 **Total MUST/MUST NOT/SHALL/SHALL NOT requirements extracted from RFC 9114: 145**
 
 This document provides a comprehensive extraction and categorization of ALL client-side requirements from RFC 9114 (HTTP/3 specification).
 
-### Status Breakdown
+### Status Breakdown (Updated 2026-03-24)
 
-- **NOT IMPLEMENTED**: 140 requirements (HTTP/3 entirely absent from TurboHttp)
+- **NOT IMPLEMENTED**: ~135 requirements (HTTP/3 mostly not implemented, infrastructure begun)
+- **IN PROGRESS**: 5+ requirements (QuicConnectionManager, Http30Engine, basic protocol foundation)
 - **REUSABLE FROM HTTP/2**: 2 requirements (identical logic in RFC 9113)
 - **NEW HTTP/3-SPECIFIC**: 136 unique requirements
 - **Auxiliary (QPACK/RFC 9204)**: ~20 requirements for header compression
 - **Auxiliary (QUIC/RFC 9000)**: ~25 requirements for transport layer
+
+**Key 2026-03-24 Additions**:
+- ✅ QuicConnectionManager for QUIC multi-stream management
+- ✅ Http30Engine infrastructure (parallel to Http10/11/20 engines)
+- ✅ DirectConnectionFactory for QUIC connection establishment
+- 🚧 QUIC variable-length integer encoding/decoding basic support
 
 ---
 

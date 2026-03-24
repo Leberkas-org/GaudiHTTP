@@ -68,13 +68,15 @@ Protocol Layer (TurboHttp/Protocol/)
     Encoders/Decoders, HPACK/QPACK, RedirectHandler, RetryEvaluator, CookieJar
     RFC subfolders: RFC1945/, RFC6265/, RFC7541/, RFC9000/, RFC9110/, RFC9111/, RFC9112/, RFC9113/, RFC9114/, RFC9204/
          ↓
-Pooling Layer (TurboHttp/Pooling/) — actors for connection lifecycle
-    PoolRouter → HostPool → ConnectionActorBase (Http1/Http2/Http3ConnectionActor)
-    ConnectionHandle, ConnectionState — zero data touches actor mailboxes
+Pooling Layer (TurboHttp/Pooling/) — actor-free connection pool
+    ConnectionPool → HostConnections (per host:port)
+    DirectConnectionFactory — establishes TCP/TLS/QUIC, returns ConnectionLease
+    QuicConnectionManager — QUIC multi-stream management (replaces Http3ConnectionActor)
+    ConnectionLease — wraps ConnectionHandle + lifecycle + metrics
          ↓
 Transport Layer (TurboHttp/Transport/) — data path, zero actor hops
     ConnectionStage ←→ Channel<byte> ←→ ClientByteMover ←→ TCP/QUIC
-    ClientRunner, ClientManager, ClientState, QuicClientProvider
+    ClientState, QuicClientProvider, TcpOptionsFactory
          ↓
 Network (TCP / QUIC)
 ```
@@ -122,7 +124,6 @@ Network (TCP / QUIC)
 - `ConnectionReuseEvaluator` — RFC 9112 §9: keep-alive/close decision, HTTP/1.0 opt-in
 - `CookieJar` — RFC 6265: domain/path matching, Secure/HttpOnly/SameSite, Max-Age/Expires
 - `ContentEncodingDecoder` — gzip/deflate/brotli decompression
-- `PerHostConnectionLimiter` — per-host concurrency limits
 
 **Caching** (RFC 9111):
 - `HttpCacheStore` — RFC 9111 §3: thread-safe in-memory LRU cache with Vary support
@@ -174,20 +175,19 @@ Network (TCP / QUIC)
 
 ### Pooling Layer (`TurboHttp/Pooling/`)
 
-**Actor hierarchy (lifecycle only)** — actors manage connection lifecycle; no data touches actor mailboxes:
-- `PoolRouter` — routes to per-host actors
-- `HostPool` — pools connections per host, enforces limits, handles reconnect/idle eviction
-- `ConnectionActorBase` → `Http1ConnectionActor`, `Http2ConnectionActor`, `Http3ConnectionActor` — per-protocol connection lifecycle
-- `ConnectionHandle` — record bundling writer/reader, passed from actors to `ConnectionStage`
-- `ConnectionState` — per-connection metadata (Active, Idle, Reusable, HttpVersion, stream capacity)
+**Actor-free connection pool** — zero actor mailbox hops for connection acquisition:
+- `ConnectionPool` — thread-safe async pool; `AcquireAsync()` / `Release()` / `IAsyncDisposable`; owns nested `HostConnections` per host:port
+- `HostConnections` — nested class inside `ConnectionPool`; `_idle: ConcurrentQueue<ConnectionLease>` (keep-alive pool), `_limiter: SemaphoreSlim` (per-host limit), `_evictionTimer` (idle eviction); MRU selection via `SelectMru()`
+- `DirectConnectionFactory` — static factory: `EstablishAsync(TcpOptions, RequestEndpoint)` → `ConnectionLease`; creates `ClientState`, spawns `ClientByteMover` tasks, emits metrics/events
+- `QuicConnectionManager` — QUIC multi-stream manager; `OpenStreamAsync(OutputStreamType)`, inbound acceptance loop, `_spawnLock: SemaphoreSlim(1)` for sequential spawning; replaces `Http3ConnectionActor`
+- `ConnectionLease` — wraps `ConnectionHandle` + `ClientState` + lifecycle; `MarkBusy()`, `MarkIdle()`, `MarkNoReuse()`, `UpdateMaxConcurrentStreams(n)`; `IAsyncDisposable` emits `ConnectionDuration` metric
+- `ConnectionHandle` — record bundling `OutboundWriter`/`InboundReader` channels; `CreateDirect()` factory method for actor-free construction
 
 ### Transport Layer (`TurboHttp/Transport/`)
 
 **Data path (zero actor hops)** — data flows through `System.Threading.Channels`:
-- `ConnectionStage` — Akka `GraphStage` that writes/reads directly via `ConnectionHandle`
-- `ClientByteMover` — async tasks per connection: TCP→Pipe, Pipe→InboundChannel, OutboundChannel→TCP
-- `ClientRunner` — per-connection actor that spawns `ClientByteMover` tasks and signals lifecycle events
-- `ClientManager` — spawns `ClientRunner` instances
+- `ConnectionStage` — Akka `GraphStage` that acquires `ConnectionLease` from `ConnectionPool` via `GetAsyncCallback<ConnectionLease>`; no `StageActor`, no actor messages
+- `ClientByteMover` — async tasks per connection: TCP→Pipe, Pipe→InboundChannel, OutboundChannel→TCP; supports both `IActorRef` and `Action onClose` callback overloads
 - `ClientState` — holds TCP stream, `System.IO.Pipelines.Pipe`, and channel reader/writers
 - `QuicClientProvider` / `QuicOptions` / `TcpOptionsFactory` — transport-specific configuration
 

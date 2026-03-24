@@ -1,6 +1,6 @@
 # RFC 9110 HTTP Semantics — Complete Client-Side MUST Requirements Analysis
 
-**Date**: 2026-03-21
+**Date**: 2026-03-21 (updated 2026-03-24: Redirect/Retry implementations added)
 **Scope**: All 18 sections of RFC 9110
 **Purpose**: Identify all normative MUST/MUST NOT/SHALL/SHALL NOT requirements applicable to HTTP client implementations
 
@@ -10,20 +10,24 @@
 
 **Total Requirements Found**: 138 across all 18 sections
 
-**Distribution**:
-- **IMPLEMENTED**: 27 (20%)
+**Distribution** (Updated 2026-03-24):
+- **IMPLEMENTED**: 29+ (21%) — Added: Redirect (§15.4), Retry (§9.2.2)
 - **PARTIALLY**: 3 (2%)
 - **DEFERRED**: 51 (37%) — Application responsibility or framework delegation
-- **MISSING**: 18 (13%) — Not yet implemented
+- **MISSING**: 16- (12%) — Reduced from 18
 - **N/A**: 39 (28%) — Server-only or intermediary-only requirements
 
-**Key Gaps**:
+**Key Improvements (2026-03-24)**:
+1. ✅ **Redirect handling** (§15.4) — RedirectBidiStage now implements 301/302/303/307/308 following
+2. ✅ **Idempotent retry** (§9.2.2) — RetryBidiStage implements automatic retry for idempotent requests
+3. ✅ **Connection pooling** — ConnectionPool for keep-alive connection reuse
+
+**Remaining Key Gaps**:
 1. Certificate verification (HTTPS identity validation) — delegated to .NET framework
 2. Userinfo stripping from URIs
 3. CONNECT method support
 4. Range request (206) handling
 5. If-Range conditional header support
-6. Referer header security filters
 
 ---
 

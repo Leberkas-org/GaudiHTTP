@@ -1,6 +1,6 @@
 # RFC 9111 Compliance Analysis — Document Index
 
-**Generated**: 2026-03-21
+**Generated**: 2026-03-21 (updated 2026-03-24)
 **TurboHttp Compliance**: 90.6% (79/116 requirements fully implemented)
 **Project**: TurboHttp HTTP Client Library (.NET 10, Akka.Streams)
 

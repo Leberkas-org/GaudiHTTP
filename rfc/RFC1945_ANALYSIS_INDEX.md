@@ -4,11 +4,11 @@
 
 This folder contains a complete RFC 1945 (HTTP/1.0) client-side requirement sweep for the TurboHttp library.
 
-**Analysis Date**: 2026-03-21
+**Analysis Date**: 2026-03-24 (updated from 2026-03-21)
 **Scope**: Client-side MUST/MUST NOT/SHALL requirements only
 **RFC Text Source**: https://www.rfc-editor.org/rfc/rfc1945.txt (3,363 lines)
 **Total Requirements Found**: 25 client-side MUST requirements
-**Implementation Score**: 86/100
+**Implementation Score**: 92/100 (updated: Content-Encoding now implemented via BidiStage)
 
 ---
 
@@ -73,11 +73,11 @@ This folder contains a complete RFC 1945 (HTTP/1.0) client-side requirement swee
 
 | Status | Count | Examples |
 |--------|-------|----------|
-| ✅ IMPLEMENTED | 11 | Status-Line, Content-Length, HEAD/1xx/204/304 handling, Pragma pass-through |
+| ✅ IMPLEMENTED | 12 | Status-Line, Content-Length, HEAD/1xx/204/304 handling, Content-Encoding decompression (BidiStage), Pragma pass-through |
 | ⚠️ PARTIAL | 2 | HTTP/0.9 (1.0 only), WWW-Authenticate (header extraction only) |
 | 🎯 APP RESPONSIBILITY | 10 | Caching (POST, Expires), Redirect (3xx), Auth credentials, Referer validation |
 | 🔒 SERVER OBLIGATION | 1 | WWW-Authenticate in 401 (client consequence only) |
-| ❌ MISSING/DEFERRED | 1 | Content-Encoding decompression (planned for HTTP Semantics layer) |
+| ❌ MISSING/DEFERRED | 0 | (all transport requirements covered) |
 
 ---
 
@@ -164,13 +164,14 @@ Developer responsibility (documented, no implementation needed):
 ### v1.0 Release Verdict: **YES ✅**
 
 **Rationale**:
-1. ✅ All 11 HTTP/1.0 transport MUST requirements implemented
-2. ✅ 274 tests (233 unit + 41 stream) verify correctness
+1. ✅ All 12 HTTP/1.0 transport MUST requirements implemented (including Content-Encoding decompression via BidiStage)
+2. ✅ 274+ tests (233 unit + 41 stream) verify correctness
 3. ✅ TCP fragmentation and edge cases handled
-4. ⚠️ 10 semantic requirements appropriately delegated to app/future layers
-5. ❌ 1 missing (Content-Encoding decompression) planned for v1.1
+4. ✅ Content-Encoding decompression integrated into pipeline as separate BidiStage (clean separation of concerns)
+5. ⚠️ 10 semantic requirements appropriately delegated to app/future layers
+6. ✅ Zero missing transport requirements
 
-**Completeness**: 86/100 (excellent for transport library)
+**Completeness**: 92/100 (excellent for transport library — only HTTP/0.9 and challenge parsing as deferred items)
 
 ### v1.1+ Roadmap
 

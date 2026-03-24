@@ -203,17 +203,17 @@ Replace the 5-class actor hierarchy (`PoolRouter` → `HostPool` → `Http1/2/3C
 **Parallel:** no
 
 **Acceptance Criteria:**
-- [ ] Deleted files: `PoolRouter.cs`, `HostPool.cs`, `ConnectionState.cs`, `ConnectionActorBase.cs`, `Http1ConnectionActor.cs`, `Http2ConnectionActor.cs`, `Http3ConnectionActor.cs`, `ClientManager.cs`, `ClientRunner.cs`, `PerHostConnectionLimiter.cs`
-- [ ] Removed from `TurboClientOptions`: `ReconnectInterval`, `MaxReconnectAttempts`
-- [ ] Removed from `TcpOptions`: `ReconnectInterval`, `MaxReconnectAttempts`
-- [ ] Removed from `TcpOptionsFactory.Build()`: reconnect property mappings (3 locations: TCP, TLS, QUIC)
-- [ ] Removed `DoClose` record if no remaining references
-- [ ] Rewritten tests: `01_ConnectionActorTests.cs` → `ConnectionPoolTests.cs`, `12_ConnectionActorQuicTests.cs` → `QuicConnectionManagerTests.cs`
-- [ ] Removed/simplified `IOActorTestBase.cs`
-- [ ] Updated `01_QuicOptionsTests.cs`: removed reconnect property assertions
-- [ ] All tests referencing `ReconnectInterval`/`MaxReconnectAttempts` updated
-- [ ] `grep -r "PoolRouter\|HostPool\|ConnectionActorBase\|Http1ConnectionActor\|ClientManager\b\|ClientRunner\b\|ReconnectInterval\|MaxReconnectAttempts\|ReconnectAttempt\|DoReconnect\|AttemptReconnect"` returns 0 hits in `src/`
-- [ ] `dotnet build src/TurboHttp.sln` — 0 errors, 0 warnings
+- [x] Deleted files: `PoolRouter.cs`, `HostPool.cs`, `ConnectionState.cs`, `ConnectionActorBase.cs`, `Http1ConnectionActor.cs`, `Http2ConnectionActor.cs`, `Http3ConnectionActor.cs`, `ClientManager.cs`, `ClientRunner.cs`, `PerHostConnectionLimiter.cs`
+- [x] Removed from `TurboClientOptions`: `ReconnectInterval`, `MaxReconnectAttempts`
+- [x] Removed from `TcpOptions`: `ReconnectInterval`, `MaxReconnectAttempts`
+- [x] Removed from `TcpOptionsFactory.Build()`: reconnect property mappings (3 locations: TCP, TLS, QUIC)
+- [x] Removed `DoClose` record if no remaining references
+- [x] Rewritten tests: `01_ConnectionActorTests.cs` → `ConnectionPoolTests.cs`, `12_ConnectionActorQuicTests.cs` → `QuicConnectionManagerTests.cs`
+- [x] Removed/simplified `IOActorTestBase.cs`
+- [x] Updated `01_QuicOptionsTests.cs`: removed reconnect property assertions
+- [x] All tests referencing `ReconnectInterval`/`MaxReconnectAttempts` updated
+- [x] `grep -r "PoolRouter\|HostPool\|ConnectionActorBase\|Http1ConnectionActor\|ClientManager\b\|ClientRunner\b\|ReconnectInterval\|MaxReconnectAttempts\|ReconnectAttempt\|DoReconnect\|AttemptReconnect"` returns 0 hits in `src/`
+- [x] `dotnet build src/TurboHttp.sln` — 0 errors, 0 warnings
 
 ### TASK-026-008: Validation
 **Description:** As a developer, I want to run comprehensive test suites multiple times to confirm zero flakiness and full feature parity.
