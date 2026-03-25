@@ -76,6 +76,9 @@ internal static class DirectConnectionFactory
 
             // 7. Emit connection opened metrics + diagnostics
             var protocol = VersionToProtocol(endpoint.Version);
+            TurboHttpMetrics.ConnectionActive.Add(1,
+                new("server.address", endpoint.Host),
+                new("server.port", endpoint.Port));
             TurboHttpEventSource.Log.ConnectionOpened(endpoint.Host, endpoint.Port, protocol);
             TurboHttpDiagnosticListener.OnConnectionOpened(endpoint.Host, endpoint.Port, protocol);
 

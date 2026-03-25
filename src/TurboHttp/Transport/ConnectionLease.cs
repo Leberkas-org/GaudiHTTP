@@ -144,6 +144,10 @@ internal sealed class ConnectionLease : IDisposable
         var host = Key.Host;
         var port = Key.Port;
 
+        TurboHttpMetrics.ConnectionDuration.Record(
+            durationMs / 1000.0,
+            new("server.address", host),
+            new("server.port", port));
         TurboHttpEventSource.Log.ConnectionClosed(host, port, durationMs);
         TurboHttpDiagnosticListener.OnConnectionClosed(host, port, TimeSpan.FromMilliseconds(durationMs));
     }

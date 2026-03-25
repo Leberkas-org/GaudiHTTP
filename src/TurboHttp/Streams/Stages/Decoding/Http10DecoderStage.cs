@@ -35,6 +35,33 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
                 {
                     var item = Grab(stage._in);
 
+                    // Connection closed: flush any partially buffered response
+                    // whose body is delimited by connection close (RFC 1945 §7.2.2).
+                    if (item is CloseSignalItem closeSignal)
+                    {
+                        if (closeSignal.CloseKind == TlsCloseKind.AbruptClose)
+                        {
+                            // Abrupt close (connection reset): discard partial data.
+                            _decoder.Reset();
+                            FailStage(new HttpRequestException(
+                                "Connection was aborted while receiving HTTP/1.0 response."));
+                            return;
+                        }
+
+                        // Clean close: body is delimited by connection close.
+                        if (_decoder.TryDecodeEof(out var eofResponse) && eofResponse is not null)
+                        {
+                            Push(stage._out, eofResponse);
+                        }
+                        else
+                        {
+                            _decoder.Reset();
+                            Pull(stage._in);
+                        }
+
+                        return;
+                    }
+
                     if (item is not DataItem dataItem)
                     {
                         Pull(stage._in);

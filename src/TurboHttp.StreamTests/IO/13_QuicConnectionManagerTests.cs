@@ -9,7 +9,6 @@ namespace TurboHttp.StreamTests.IO;
 
 /// <summary>
 /// Tests <see cref="QuicConnectionManager"/> — QUIC multi-stream management without actors.
-/// Mirrors the behavior validated in <see cref="ConnectionActorQuicTests"/>.
 /// </summary>
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
