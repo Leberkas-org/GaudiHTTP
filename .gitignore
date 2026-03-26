@@ -353,3 +353,12 @@ coverage-results/
 .maggus/bugs
 
 .claude/settings.local.json
+.maggus/feature_approvals.yml
+.maggus/daemon.pid
+.maggus/interactive.lock
+
+# Obsidian vault (personal notes)
+notes/.obsidian/
+notes/Debugging/
+
+TurboHttp/.obsidian/

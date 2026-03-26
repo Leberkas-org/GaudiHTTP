@@ -2,7 +2,7 @@ using TurboHttp.IntegrationTests.Shared;
 
 namespace TurboHttp.IntegrationTests.TLS;
 
-[Collection("TlsIntegration")]
+[Collection("TLS")]
 public sealed class SmokeTests : IAsyncLifetime
 {
     private readonly ServerFixture _server;

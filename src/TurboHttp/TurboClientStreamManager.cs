@@ -1,9 +1,7 @@
 using System;
 using System.Net.Http;
 using System.Threading.Channels;
-using System.Threading.Tasks;
 using Akka.Actor;
-using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHttp.Streams;
@@ -14,6 +12,11 @@ namespace TurboHttp;
 /// <summary>
 /// Owns the Akka.Streams pipeline for a <see cref="TurboHttpClient"/>.
 /// Materialises the graph once on construction and exposes raw channel endpoints.
+/// <para>
+/// Lifecycle: completing <see cref="Requests"/> signals the source to finish,
+/// which drains the pipeline and completes <see cref="Responses"/>.
+/// <see cref="Dispose"/> completes the request channel and disposes the pool.
+/// </para>
 /// </summary>
 internal sealed class TurboClientStreamManager : IDisposable
 {
@@ -36,7 +39,6 @@ internal sealed class TurboClientStreamManager : IDisposable
     internal TurboClientStreamManager(TurboClientOptions clientOptions, Func<TurboRequestOptions> requestOptionsFactory,
         ActorSystem system, PipelineDescriptor descriptor)
     {
-        var streamManagerId = Guid.NewGuid();
         var requestsChannel = Channel.CreateUnbounded<HttpRequestMessage>(new UnboundedChannelOptions
         {
             SingleReader = true
@@ -48,71 +50,37 @@ internal sealed class TurboClientStreamManager : IDisposable
 
         Requests = requestsChannel.Writer;
         Responses = responsesChannel.Reader;
-        var responseWriter = responsesChannel.Writer;
-        ResponseWriter = responseWriter;
-        var requestReader = requestsChannel.Reader;
+        ResponseWriter = responsesChannel.Writer;
 
         // Create ConnectionPool — manages per-host connections with idle eviction.
-        var pool = new ConnectionPool(clientOptions.IdleTimeout);
-        _pool = pool;
+        _pool = new ConnectionPool(clientOptions.IdleTimeout);
 
         // Build the full pipeline flow from Engine using the provided descriptor.
         var engine = new Engine();
-        var engineFlow = engine.CreateFlow(pool, clientOptions, requestOptionsFactory, descriptor);
+        var engineFlow = engine.CreateFlow(_pool, clientOptions, requestOptionsFactory, descriptor);
 
-
-        var sink = Sink.ForEachAsync<HttpResponseMessage>(1, async r => await responseWriter.WriteAsync(r));
         // Materialise the graph:
-        //   Source.Queue → Engine flow → Sink.ForEach (writes to response channel)
+        //   ChannelSource (request channel) → Engine flow → ChannelSink (response channel)
+        //
+        // No intermediate pump task or Source.Queue — channels drive the stream directly.
+        // Completing the request channel writer signals the source to finish,
+        // the pipeline drains, and the sink completes the response channel writer.
         var materializerSettings = ActorMaterializerSettings.Create(system)
             .WithInputBuffer(initialSize: 4, maxSize: 16);
         var materializer = system.Materializer(
             settings: materializerSettings,
-            namePrefix: $"stream-manager-{streamManagerId}");
+            namePrefix: $"stream-manager-{Guid.NewGuid()}");
 
-        var (queue, sinkTask) = Source.Queue<HttpRequestMessage>(256, OverflowStrategy.Backpressure)
+        ChannelSource.FromReader(requestsChannel.Reader)
             .Via(engineFlow)
-            .ToMaterialized(sink, Keep.Both)
-            .Run(materializer);
-
-        _ = sinkTask!.ContinueWith(task =>
-        {
-            if (task.Exception is not null)
-            {
-                responseWriter.Complete(task.Exception);
-            }
-            else
-            {
-                responseWriter.Complete();
-            }
-        }, TaskContinuationOptions.ExecuteSynchronously);
-
-        // Pump requests from the channel reader into the Akka.Streams queue.
-        // Attach a fault continuation so an unexpected exception in the pump
-        // is observed (preventing UnobservedTaskException) and logged.
-        var log = system.Log;
-        var pumpTask = PumpRequestsAsync(requestReader, queue);
-        _ = pumpTask.ContinueWith(
-            t => log.Error(t.Exception, "TurboClientStreamManager: request pump faulted unexpectedly"),
-            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+            .RunWith(ChannelSink.FromWriter(responsesChannel.Writer, isOwner: true), materializer);
     }
 
-    public void Dispose() => _pool.Dispose();
-
-    private static async Task PumpRequestsAsync(ChannelReader<HttpRequestMessage> reader,
-        ISourceQueueWithComplete<HttpRequestMessage> queue)
+    public void Dispose()
     {
-        try
-        {
-            await foreach (var request in reader.ReadAllAsync())
-            {
-                await queue.OfferAsync(request);
-            }
-        }
-
-        finally
-        {
-            queue.Complete();
-        }
+        // Complete the request channel → source finishes → pipeline drains
+        // → sink completes response channel writer.
+        Requests.TryComplete();
+        _pool.Dispose();
     }
 }

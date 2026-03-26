@@ -118,7 +118,11 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
                         CompleteStage();
                     }
                 },
-                onUpstreamFailure: ex => Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message);
+                    CompleteStage();
+                });
 
             SetHandler(stage._inResponse,
                 onPush: () =>
@@ -138,7 +142,11 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
                         CompleteStage();
                     }
                 },
-                onUpstreamFailure: ex => Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message);
+                    CompleteStage();
+                });
 
             SetHandler(stage._inReset,
                 onPush: () =>
@@ -154,7 +162,11 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
                 {
                     // InReset upstream finishing does not affect stage completion.
                 },
-                onUpstreamFailure: ex => Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    // InReset failure does not affect stage completion — mirror onUpstreamFinish.
+                    Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message);
+                });
 
             SetHandler(stage._out,
                 onPull: () =>

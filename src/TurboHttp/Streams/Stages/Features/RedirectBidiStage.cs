@@ -93,7 +93,11 @@ internal sealed class RedirectBidiStage
                 SetHandler(stage._inRequest,
                     onPush: () => Push(stage._outRequest, Grab(stage._inRequest)),
                     onUpstreamFinish: () => Complete(stage._outRequest),
-                    onUpstreamFailure: ex => Log.Warning("RedirectBidiStage: Request upstream failure absorbed: {0}", ex.Message));
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RedirectBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outRequest);
+                    });
 
                 SetHandler(stage._outRequest,
                     onPull: () => Pull(stage._inRequest),
@@ -102,7 +106,11 @@ internal sealed class RedirectBidiStage
                 SetHandler(stage._inResponse,
                     onPush: () => Push(stage._outResponse, Grab(stage._inResponse)),
                     onUpstreamFinish: () => Complete(stage._outResponse),
-                    onUpstreamFailure: ex => Log.Warning("RedirectBidiStage: Response upstream failure absorbed: {0}", ex.Message));
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RedirectBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outResponse);
+                    });
 
                 SetHandler(stage._outResponse,
                     onPull: () => Pull(stage._inResponse),
@@ -127,7 +135,11 @@ internal sealed class RedirectBidiStage
                     // Don't complete Out1 yet if there are pending redirects or in-flight requests
                     TryCompleteIfDone();
                 },
-                onUpstreamFailure: ex => Log.Warning("RedirectBidiStage: Request upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RedirectBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outRequest);
+                    });
 
             SetHandler(stage._outRequest,
                 onPull: () =>
@@ -230,7 +242,11 @@ internal sealed class RedirectBidiStage
                     Complete(stage._outResponse);
                     TryCompleteIfDone();
                 },
-                onUpstreamFailure: ex => Log.Warning("RedirectBidiStage: Response upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RedirectBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outResponse);
+                    });
 
             SetHandler(stage._outResponse,
                 onPull: () =>

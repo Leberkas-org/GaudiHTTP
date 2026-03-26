@@ -1,4 +1,5 @@
 using Akka.Actor;
+using Akka.Configuration;
 using Akka.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,8 +18,22 @@ public sealed class ActorSystemFixture : IAsyncLifetime
     {
         var services = new ServiceCollection();
         var diSetup = DependencyResolverSetup.Create(services.BuildServiceProvider());
-        var bootstrap = BootstrapSetup.Create().And(diSetup);
-        System = ActorSystem.Create($"turbohttp-shared-{Guid.NewGuid()}", bootstrap);
+        var bootstrap = BootstrapSetup.Create();
+
+        // When TURBO_DEBUG=1 is set, load akka.debug.conf for verbose pipeline logging.
+        if (Environment.GetEnvironmentVariable("TURBO_DEBUG") == "1")
+        {
+            var configFile = Path.Combine(AppContext.BaseDirectory, "akka.debug.conf");
+            if (File.Exists(configFile))
+            {
+                var hocon = File.ReadAllText(configFile);
+                var debugConfig = ConfigurationFactory.ParseString(hocon);
+                bootstrap = bootstrap.WithConfig(debugConfig);
+            }
+        }
+
+        var setup = bootstrap.And(diSetup);
+        System = ActorSystem.Create($"turbohttp-shared-{Guid.NewGuid()}", setup);
         return ValueTask.CompletedTask;
     }
 

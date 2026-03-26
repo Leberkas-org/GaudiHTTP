@@ -80,18 +80,18 @@ public sealed class ErrorHandlingIntegrationTests
         Assert.Equal(kb * 1024, headerValue.Length);
     }
 
-    [Fact(DisplayName = "Error-005: Unknown Content-Encoding causes graceful failure")]
-    public async Task Unknown_ContentEncoding_Causes_Graceful_Failure()
+    [Fact(DisplayName = "Error-005: Unknown Content-Encoding returns response gracefully")]
+    public async Task Unknown_ContentEncoding_Returns_Response_Gracefully()
     {
-        // The decoder rejects unknown Content-Encoding per RFC 9110 §8.4.
-        // Verify the client fails gracefully (timeout/cancellation) rather than hanging forever.
+        // When the server returns an unknown Content-Encoding, the pipeline
+        // passes the response through without decompression rather than throwing.
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await using var helper = CreateClient();
 
         var request = new HttpRequestMessage(HttpMethod.Get, "/edge/unknown-encoding");
+        var response = await helper.Client.SendAsync(request, cts.Token);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            async () => await helper.Client.SendAsync(request, cts.Token));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact(DisplayName = "Error-006: Empty body with no Content-Length returns empty")]

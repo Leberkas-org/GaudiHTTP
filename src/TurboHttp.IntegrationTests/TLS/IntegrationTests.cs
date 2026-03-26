@@ -5,7 +5,7 @@ using TurboHttp.IntegrationTests.Shared;
 
 namespace TurboHttp.IntegrationTests.TLS;
 
-[Collection("TlsIntegration")]
+[Collection("TLS")]
 public sealed class IntegrationTests
 {
     private readonly ServerFixture _server;

@@ -15,5 +15,5 @@ public sealed class H2IntegrationCollection;
 [CollectionDefinition("H3")]
 public sealed class H3IntegrationCollection;
 
-[CollectionDefinition("TlsIntegration")]
+[CollectionDefinition("TLS")]
 public sealed class TlsIntegrationCollection;

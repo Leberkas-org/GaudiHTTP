@@ -37,6 +37,9 @@ internal interface IStageCallbacks
     /// <summary>Emit a warning-level log message through the stage's logging adapter.</summary>
     void LogWarning(string format, params object[] args);
 
+    /// <summary>Emit a debug-level log message through the stage's logging adapter.</summary>
+    void LogDebug(string format, params object[] args);
+
     /// <summary>
     /// Wraps <paramref name="handler"/> in an Akka async callback so it can be invoked safely
     /// from outside the stage event loop (e.g. from <c>Task</c> continuations).

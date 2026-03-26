@@ -52,6 +52,9 @@ internal sealed class
                         ? RequestEndpoint.FromRequest(response.RequestMessage)
                         : RequestEndpoint.Default;
 
+                    Log.Debug("ConnectionReuseStage: onPush response status={0}, canReuse={1}, endpoint={2}:{3}",
+                        (int)response.StatusCode, decision.CanReuse, endpoint.Host, endpoint.Port);
+
                     _pendingResponse = response;
                     _pendingSignal = new ConnectionReuseItem(endpoint, decision);
 
@@ -72,7 +75,13 @@ internal sealed class
                         CompleteStage();
                     }
                 },
-                onUpstreamFailure: ex => Log.Warning("ConnectionReuseStage: Upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    // Absorb the failure (don't crash the pipeline) but complete the stage
+                    // so downstream stages can drain and the substream shuts down cleanly.
+                    Log.Warning("ConnectionReuseStage: Upstream failure absorbed: {0}", ex.Message);
+                    CompleteStage();
+                });
 
             SetHandler(stage._outResponse,
                 onPull: () =>
@@ -183,6 +192,8 @@ internal sealed class
             _pendingSignal = null;
             _signalOutletDemand = false;
 
+            Log.Debug("ConnectionReuseStage: pushing signal canReuse={0}, key={1}:{2}",
+                signal.Decision.CanReuse, signal.Key.Host, signal.Key.Port);
             Push(_stage._outSignal, signal);
             TryPullIfReady();
         }

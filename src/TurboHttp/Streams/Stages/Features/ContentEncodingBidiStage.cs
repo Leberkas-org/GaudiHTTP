@@ -63,14 +63,22 @@ internal sealed class ContentEncodingBidiStage
                         Push(stage._outRequest, CompressIfNeeded(request, policy));
                     },
                     onUpstreamFinish: () => Complete(stage._outRequest),
-                    onUpstreamFailure: ex => Log.Warning("ContentEncodingBidiStage: Request upstream failure absorbed: {0}", ex.Message));
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("ContentEncodingBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outRequest);
+                    });
             }
             else
             {
                 SetHandler(stage._inRequest,
                     onPush: () => Push(stage._outRequest, Grab(stage._inRequest)),
                     onUpstreamFinish: () => Complete(stage._outRequest),
-                    onUpstreamFailure: ex => Log.Warning("ContentEncodingBidiStage: Request upstream failure absorbed: {0}", ex.Message));
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("ContentEncodingBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outRequest);
+                    });
             }
 
             SetHandler(stage._outRequest,
@@ -87,14 +95,22 @@ internal sealed class ContentEncodingBidiStage
                         Push(stage._outResponse, Decompress(response));
                     },
                     onUpstreamFinish: () => Complete(stage._outResponse),
-                    onUpstreamFailure: ex => Log.Warning("ContentEncodingBidiStage: Response upstream failure absorbed: {0}", ex.Message));
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("ContentEncodingBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outResponse);
+                    });
             }
             else
             {
                 SetHandler(stage._inResponse,
                     onPush: () => Push(stage._outResponse, Grab(stage._inResponse)),
                     onUpstreamFinish: () => Complete(stage._outResponse),
-                    onUpstreamFailure: ex => Log.Warning("ContentEncodingBidiStage: Response upstream failure absorbed: {0}", ex.Message));
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("ContentEncodingBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outResponse);
+                    });
             }
 
             SetHandler(stage._outResponse,
@@ -183,6 +199,13 @@ internal sealed class ContentEncodingBidiStage
                 newContent.Headers.ContentLength = decompressed.Length;
 
                 response.Content = newContent;
+                return response;
+            }
+            catch (HttpDecoderException)
+            {
+                // Unknown or unsupported Content-Encoding — pass the response through
+                // unmodified rather than killing the stream. The caller sees the raw
+                // (still-encoded) body, which is the correct fallback per RFC 9110 §8.4.
                 return response;
             }
             finally

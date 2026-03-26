@@ -128,7 +128,11 @@ public sealed class Http11DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
                         }
                     },
                     onUpstreamFinish: CompleteStage,
-                    onUpstreamFailure: ex => Log.Warning("Http11DecoderStage: Upstream failure absorbed: {0}", ex.Message));
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("Http11DecoderStage: Upstream failure absorbed: {0}", ex.Message);
+                        CompleteStage();
+                    });
 
                 SetHandler(stage._out,
                     onPull: () => Pull(stage._in),

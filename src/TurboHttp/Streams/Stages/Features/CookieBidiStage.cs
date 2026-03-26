@@ -51,7 +51,11 @@ internal sealed class CookieBidiStage
                     Push(stage._outRequest, request);
                 },
                 onUpstreamFinish: () => Complete(stage._outRequest),
-                onUpstreamFailure: ex => Log.Warning("CookieBidiStage: Request upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("CookieBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outRequest);
+                });
 
             SetHandler(stage._outRequest,
                 onPull: () => Pull(stage._inRequest),
@@ -71,7 +75,11 @@ internal sealed class CookieBidiStage
                     Push(stage._outResponse, response);
                 },
                 onUpstreamFinish: () => Complete(stage._outResponse),
-                onUpstreamFailure: ex => Log.Warning("CookieBidiStage: Response upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("CookieBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outResponse);
+                });
 
             SetHandler(stage._outResponse,
                 onPull: () => Pull(stage._inResponse),

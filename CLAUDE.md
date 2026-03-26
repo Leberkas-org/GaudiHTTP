@@ -45,6 +45,43 @@ npm run docs:preview
 cd docs/likec4 && npx likec4 export svg --output ../../docs/public/diagrams
 ```
 
+### Obsidian Vault for Knowledge Management
+
+A structured Obsidian vault lives at `notes/` for capturing session logs, architecture decisions, RFC compliance notes, and bug investigations:
+
+**Vault Structure:**
+```
+notes/
+├── 00-Index.md            # Central hub with links
+├── rfc/                   # RFC reference documents (quick refs, analysis, requirements)
+├── Architecture/          # ADRs and design decisions
+├── RFC/                   # RFC compliance tracking notes
+├── Features/              # Feature planning and links
+├── Templates/             # Session-Log, RFC-Note, ADR, Bug-Investigation templates
+└── Debugging/             # (git-ignored) Personal bug investigations
+```
+
+**Opening the Vault:**
+Open Obsidian → "Open folder as vault" → select `notes/` → confirm it's using the `Templates/` folder
+
+**Creating Notes:**
+- Use `Insert Template` within Obsidian to create pre-formatted notes
+- Session logs: Daily work capture with decisions, blockers, references
+- RFC notes: Track compliance against specific RFC sections
+- Architecture decisions: ADR format (context, decision, consequences)
+- Bug investigations: Structured debugging logs
+
+**Claude Code Access:**
+When working in the vault, Claude can:
+- Read RFC reference documents from `notes/rfc/` (quick references and analysis)
+- Reference architecture decisions from `notes/Architecture/`
+- Link to feature plans in `notes/Features/` and `.maggus/features/`
+- Create new notes when documenting investigations or decisions
+
+**Git Tracking:**
+- Tracked: `00-Index.md`, `rfc/`, `Architecture/`, `RFC/`, `Features/`, `Templates/`
+- Ignored: `Debugging/`, `.obsidian/` (personal and config)
+
 ## Architecture
 
 ### Layered Design
@@ -251,6 +288,7 @@ All `GraphStage` inlet/outlet string names follow `StageName.Direction` or `Stag
 ## Workflow Rules
 
 - **Do NOT commit** — Claude must never run `git commit` or `git add` unless the user explicitly asks for it. All commits are done manually by the developer.
+- **Obsidian Vault Interaction** — When working with RFC analysis, architecture decisions, or feature planning, consider creating notes in the vault (`notes/`) to persist learnings. Use templates in `notes/Templates/` for consistent structure. Always provide relative paths when linking (e.g., `[RFC 9112](./rfc/RFC9112_CLIENT_REQUIREMENTS.md)`).
 
 ## Code Style and Conventions
 

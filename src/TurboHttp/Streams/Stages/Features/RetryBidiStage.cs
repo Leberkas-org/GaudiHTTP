@@ -94,7 +94,11 @@ internal sealed class RetryBidiStage
                 SetHandler(stage._inRequest,
                     onPush: () => Push(stage._outRequest, Grab(stage._inRequest)),
                     onUpstreamFinish: () => Complete(stage._outRequest),
-                    onUpstreamFailure: ex => Log.Warning("RetryBidiStage: Request upstream failure absorbed: {0}", ex.Message));
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RetryBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outRequest);
+                    });
 
                 SetHandler(stage._outRequest,
                     onPull: () => Pull(stage._inRequest),
@@ -103,7 +107,11 @@ internal sealed class RetryBidiStage
                 SetHandler(stage._inResponse,
                     onPush: () => Push(stage._outResponse, Grab(stage._inResponse)),
                     onUpstreamFinish: () => Complete(stage._outResponse),
-                    onUpstreamFailure: ex => Log.Warning("RetryBidiStage: Response upstream failure absorbed: {0}", ex.Message));
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RetryBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outResponse);
+                    });
 
                 SetHandler(stage._outResponse,
                     onPull: () => Pull(stage._inResponse),
@@ -128,7 +136,11 @@ internal sealed class RetryBidiStage
                     // Don't complete Out1 yet if there are pending retries or in-flight requests
                     TryCompleteIfDone();
                 },
-                onUpstreamFailure: ex => Log.Warning("RetryBidiStage: Request upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RetryBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outRequest);
+                    });
 
             SetHandler(stage._outRequest,
                 onPull: () =>
@@ -223,7 +235,11 @@ internal sealed class RetryBidiStage
                     Complete(stage._outResponse);
                     TryCompleteIfDone();
                 },
-                onUpstreamFailure: ex => Log.Warning("RetryBidiStage: Response upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RetryBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outResponse);
+                    });
 
             SetHandler(stage._outResponse,
                 onPull: () =>

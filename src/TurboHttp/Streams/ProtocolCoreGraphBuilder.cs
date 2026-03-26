@@ -113,8 +113,12 @@ internal static class ProtocolCoreGraphBuilder
             // ConnectionReuseStage: evaluates keep-alive/close after each response
             var connReuse = b.Add(new ConnectionReuseStage());
 
-            // Broadcast reuse signal: one copy to ExtractOptionsStage (reconnect), one to ConnectionStage
-            var reuseBroadcast = b.Add(new Broadcast<IControlItem>(2));
+            // Broadcast reuse signal: one copy to ExtractOptionsStage (reconnect), one to ConnectionStage.
+            // eagerCancel breaks the completion cycle: when ExtractOptionsStage completes and
+            // cancels InReuse (Out0), the broadcast immediately shuts down Out1 too, allowing
+            // transportMerge.Preferred → ConnectionStage → bidi → connReuse to complete.
+            // Without this, the substream never completes and zombie actors accumulate.
+            var reuseBroadcast = b.Add(new Broadcast<IControlItem>(2, eagerCancel: true));
 
             // MergePreferred: signal feedback (preferred) + normal data (in0) → transport
             var transportMerge = b.Add(new MergePreferred<IOutputItem>(1));

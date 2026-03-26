@@ -87,6 +87,8 @@ internal sealed class ExtractOptionsStage : GraphStage<ExtractOptionsShape>
                 onPush: () =>
                 {
                     var request = Grab(stage._in);
+                    Log.Debug("ExtractOptionsStage: onPush request={0} {1}, connectItemSent={2}, needsReconnect={3}",
+                        request.Method, request.RequestUri, _connectItemSent, _needsReconnect);
 
                     if (!_connectItemSent || _needsReconnect)
                     {
@@ -95,6 +97,7 @@ internal sealed class ExtractOptionsStage : GraphStage<ExtractOptionsShape>
                         _pending = request;
                         _connectItemSent = true;
                         _needsReconnect = false;
+                        Log.Debug("ExtractOptionsStage: emitting ConnectItem for {0}", request.RequestUri?.Authority);
                         Push(stage._outSignal, new ConnectItem(options) { Key = RequestEndpoint.FromRequest(request) });
 
                         // The downstream may have already pulled _outRequest
@@ -102,6 +105,7 @@ internal sealed class ExtractOptionsStage : GraphStage<ExtractOptionsShape>
                         // while Source.Queue delivery is async). Serve that demand now.
                         if (IsAvailable(stage._outRequest))
                         {
+                            Log.Debug("ExtractOptionsStage: outRequest available — pushing pending request immediately");
                             Push(stage._outRequest, _pending);
                             _pending = null;
                         }
@@ -112,15 +116,30 @@ internal sealed class ExtractOptionsStage : GraphStage<ExtractOptionsShape>
                     }
                 },
                 onUpstreamFinish: CompleteStage,
-                onUpstreamFailure: ex => Log.Warning("ExtractOptionsStage: Upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    // Absorb the failure (don't crash the pipeline) but complete the stage
+                    // so downstream stages can drain and the substream shuts down cleanly.
+                    Log.Warning("ExtractOptionsStage: Upstream failure absorbed: {0}", ex.Message);
+                    CompleteStage();
+                });
 
             SetHandler(stage._inReuse,
                 onPush: () =>
                 {
                     var item = Grab(stage._inReuse);
-                    if (item is ConnectionReuseItem reuse && !reuse.Decision.CanReuse)
+                    if (item is ConnectionReuseItem reuse)
                     {
-                        _needsReconnect = true;
+                        Log.Debug("ExtractOptionsStage: InReuse received canReuse={0}, _needsReconnect before={1}", reuse.Decision.CanReuse, _needsReconnect);
+                        if (!reuse.Decision.CanReuse)
+                        {
+                            _needsReconnect = true;
+                            Log.Debug("ExtractOptionsStage: _needsReconnect set to true");
+                        }
+                    }
+                    else
+                    {
+                        Log.Debug("ExtractOptionsStage: InReuse received non-reuse item {0}", item.GetType().Name);
                     }
 
                     Pull(stage._inReuse);

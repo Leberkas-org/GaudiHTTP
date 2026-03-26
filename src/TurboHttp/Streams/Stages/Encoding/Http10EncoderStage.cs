@@ -67,7 +67,11 @@ public sealed class Http10EncoderStage : GraphStage<FlowShape<HttpRequestMessage
                     }
                 },
                 onUpstreamFinish: CompleteStage,
-                onUpstreamFailure: ex => Log.Warning("Http10EncoderStage: Upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("Http10EncoderStage: Upstream failure absorbed: {0}", ex.Message);
+                    CompleteStage();
+                });
 
             SetHandler(stage._out,
                 onPull: () => Pull(stage._in),

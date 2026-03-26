@@ -78,7 +78,20 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                         CompleteStage();
                     }
                 },
-                onUpstreamFailure: ex => Log.Warning("MergeSubstreamsStage: Upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("MergeSubstreamsStage: Upstream failure absorbed: {0}", ex.Message);
+
+                    // Mark upstream as done so substream completion callbacks
+                    // can tear down the stage. Without this, zombie substream
+                    // actors linger after materializer shutdown.
+                    _upstreamDone = true;
+
+                    if (_active == 0 && _buffer.Count == 0)
+                    {
+                        CompleteStage();
+                    }
+                });
 
             SetHandler(stage._out,
                 onPull: () =>

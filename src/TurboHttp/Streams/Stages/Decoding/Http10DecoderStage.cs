@@ -108,7 +108,11 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
                         CompleteStage();
                     }
                 },
-                onUpstreamFailure: ex => Log.Warning("Http10DecoderStage: Upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("Http10DecoderStage: Upstream failure absorbed: {0}", ex.Message);
+                    CompleteStage();
+                });
 
             SetHandler(stage._out, onPull: () => Pull(stage._in), onDownstreamFinish: _ => CompleteStage());
         }

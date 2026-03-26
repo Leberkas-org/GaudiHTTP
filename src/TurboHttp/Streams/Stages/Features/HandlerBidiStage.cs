@@ -49,7 +49,11 @@ internal sealed class HandlerBidiStage
             SetHandler(stage._inRequest,
                 onPush: () => Push(stage._outRequest, stage._handler.ProcessRequest(Grab(stage._inRequest))),
                 onUpstreamFinish: () => Complete(stage._outRequest),
-                onUpstreamFailure: ex => Log.Warning("HandlerBidiStage: Request upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("HandlerBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outRequest);
+                });
 
             SetHandler(stage._outRequest,
                 onPull: () => Pull(stage._inRequest),
@@ -62,7 +66,11 @@ internal sealed class HandlerBidiStage
                     Push(stage._outResponse, stage._handler.ProcessResponse(resp.RequestMessage!, resp));
                 },
                 onUpstreamFinish: () => Complete(stage._outResponse),
-                onUpstreamFailure: ex => Log.Warning("HandlerBidiStage: Response upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("HandlerBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outResponse);
+                });
 
             SetHandler(stage._outResponse,
                 onPull: () => Pull(stage._inResponse),

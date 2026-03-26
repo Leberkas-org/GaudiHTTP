@@ -11,6 +11,6 @@ internal static class ModuleInit
         // the default thread pool (min = ProcessorCount).  Bump high so
         // HTTP/1.0 tests — which create a fresh ActorSystem per request —
         // don't stall waiting for threads during sustained test runs.
-        ThreadPool.SetMinThreads(256, 256);
+        ThreadPool.SetMinThreads(512, 512);
     }
 }

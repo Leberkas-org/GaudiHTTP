@@ -61,6 +61,7 @@ internal sealed class TcpTransportHandler : ITransportHandler
             // Guard: if _pendingConnect is already null and handle is present, this is a duplicate — skip.
             if (_pendingConnect is null && _handle is not null)
             {
+                callbacks.LogDebug("TcpTransport: _onLeaseAcquired duplicate — skipped");
                 return;
             }
 
@@ -70,6 +71,7 @@ internal sealed class TcpTransportHandler : ITransportHandler
             // _onInboundComplete from the prior pump is ignored (it carries the old gen).
             _connectionGen++;
             _leaseReturned = false;
+            callbacks.LogDebug("TcpTransport: _onLeaseAcquired gen={0}, key={1}:{2}", _connectionGen, lease.Key.Host, lease.Key.Port);
 
             // Discard any stale inbound items (DataItem / CloseSignalItem) that the
             // prior connection's pump pushed into the queue before it was cancelled.
@@ -97,6 +99,7 @@ internal sealed class TcpTransportHandler : ITransportHandler
 
         _onOutboundWriteFailed = callbacks.GetAsyncCallback<Exception>(ex =>
         {
+            callbacks.LogDebug("TcpTransport: _onOutboundWriteFailed — {0}", ex.Message);
             callbacks.LogWarning("ConnectionStage: Outbound write failed — {0}", ex.Message);
 
             // Mark lease as non-reusable and release it back to the pool.
@@ -149,8 +152,11 @@ internal sealed class TcpTransportHandler : ITransportHandler
             // connection when the events race (old pump completes after new lease acquired).
             if (gen != _connectionGen)
             {
+                callbacks.LogDebug("TcpTransport: _onInboundComplete gen MISMATCH (stale={0}, current={1}) — ignored", gen, _connectionGen);
                 return;
             }
+
+            callbacks.LogDebug("TcpTransport: _onInboundComplete gen={0}, closeKind={1}", gen, closeKind);
 
             // Emit close signal to downstream decoder stages before clearing the handle.
             var signal = new CloseSignalItem(closeKind) { Key = _currentKey };
@@ -190,6 +196,7 @@ internal sealed class TcpTransportHandler : ITransportHandler
     /// <inheritdoc/>
     public void HandleConnectItem(ConnectItem connect)
     {
+        _callbacks!.LogDebug("TcpTransport: HandleConnectItem key={0}:{1}", connect.Key.Host, connect.Key.Port);
         _pendingConnect = connect;
         AcquireConnection(connect);
         // Do NOT pull — wait for ConnectionLease before accepting data.
@@ -203,10 +210,13 @@ internal sealed class TcpTransportHandler : ITransportHandler
         {
             // Buffer items that arrive before the connection is established
             // (e.g. HTTP/2 preface from PrependPrefaceStage racing ahead of ConnectItem).
+            _callbacks!.LogDebug("TcpTransport: HandleDataItem buffered (no handle), length={0}, pending={1}", dataItem.Length, _pendingWrites.Count + 1);
             _pendingWrites.Enqueue(dataItem);
-            _callbacks!.SignalPullInput();
+            _callbacks.SignalPullInput();
             return;
         }
+
+        _callbacks!.LogDebug("TcpTransport: HandleDataItem writing length={0}", dataItem.Length);
 
         // Write directly to the connection's outbound channel.
         var writeTask = handle.OutboundWriter
@@ -232,12 +242,41 @@ internal sealed class TcpTransportHandler : ITransportHandler
     /// <inheritdoc/>
     public void HandleConnectionReuseItem(ConnectionReuseItem reuseItem)
     {
+        _callbacks!.LogDebug("TcpTransport: HandleConnectionReuseItem canReuse={0}, upstreamFinished={1}", reuseItem.Decision.CanReuse, _upstreamFinished);
         if (!reuseItem.Decision.CanReuse)
         {
             _currentLease?.MarkNoReuse();
         }
 
         ReturnLeaseToPool(reuseItem.Decision.CanReuse);
+
+        if (!reuseItem.Decision.CanReuse)
+        {
+            _connectionGen++;
+            StopInboundPump();
+            _handle = null;
+            _currentLease = null;
+        }
+
+        // If upstream has finished (source completed, i.e. client disposed),
+        // no more requests will arrive.  Clean up the connection and complete
+        // the stage so stream actors are released promptly.  Without this,
+        // the inbound pump keeps reading from an idle TCP socket, the stage
+        // never completes, and the actor tree becomes a zombie.
+        if (_upstreamFinished)
+        {
+            if (_handle is not null)
+            {
+                _connectionGen++;
+                StopInboundPump();
+                _handle = null;
+                _currentLease = null;
+            }
+
+            _callbacks!.RequestCompleteStage();
+            return;
+        }
+
         _callbacks!.SignalPullInput();
     }
 
@@ -292,6 +331,8 @@ internal sealed class TcpTransportHandler : ITransportHandler
     /// <inheritdoc/>
     public void Cleanup()
     {
+        _callbacks?.LogDebug("TcpTransport: Cleanup gen={0}", _connectionGen);
+        _connectionGen++;          // Invalidate stale async callbacks from the prior pump.
         StopInboundPump();
 
         if (_currentLease is { } lease)
@@ -379,6 +420,17 @@ internal sealed class TcpTransportHandler : ITransportHandler
                 {
                     while (reader.TryRead(out var chunk))
                     {
+                        if (gen != _connectionGen)
+                        {
+                            // Stale pump — discard this chunk and drain the rest to avoid memory leaks.
+                            chunk.Buffer.Dispose();
+                            while (reader.TryRead(out var stale))
+                            {
+                                stale.Buffer.Dispose();
+                            }
+                            return;
+                        }
+
                         var dataItem = new DataItem(chunk.Buffer, chunk.ReadableBytes) { Key = key };
                         onData(dataItem);
                     }
@@ -405,6 +457,7 @@ internal sealed class TcpTransportHandler : ITransportHandler
             return;
         }
 
+        _callbacks!.LogDebug("TcpTransport: StopInboundPump gen={0}", _connectionGen);
         _pumpCts.Cancel();
         _pumpCts.Dispose();
         _pumpCts = null;

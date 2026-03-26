@@ -94,6 +94,7 @@ internal sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInput
             switch (item)
             {
                 case ConnectItem connect:
+                    Log.Debug("ConnectionStage: HandlePush ConnectItem key={0}:{1}", connect.Key.Host, connect.Key.Port);
                     // Clean up prior transport if a new ConnectItem arrives (defensive: rarely occurs in practice).
                     _transport?.Cleanup();
                     _transport = connect.Options is QuicOptions
@@ -112,13 +113,16 @@ internal sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInput
                     break;
 
                 case Http3TaggedItem tagged:
+                    Log.Debug("ConnectionStage: HandlePush Http3TaggedItem");
                     if (_transport is null) { Log.Warning("ConnectionStage: {0} received without prior ConnectItem — dropping.", nameof(Http3TaggedItem)); Pull(_stage._in); break; }
                     _transport.HandleTaggedItem(tagged);
                     break;
 
                 case DataItem dataItem:
+                    Log.Debug("ConnectionStage: HandlePush DataItem length={0}", dataItem.Length);
                     if (_transport is null)
                     {
+                        Log.Debug("ConnectionStage: DataItem buffered (no transport yet), pendingWrites={0}", _pendingWrites.Count + 1);
                         // Buffer data that arrives before the ConnectItem
                         // (e.g. HTTP/2 preface from PrependPrefaceStage racing ahead of ConnectItem).
                         _pendingWrites.Enqueue(dataItem);
@@ -132,16 +136,19 @@ internal sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInput
                     break;
 
                 case ConnectionReuseItem reuseItem:
+                    Log.Debug("ConnectionStage: HandlePush ConnectionReuseItem canReuse={0}", reuseItem.Decision.CanReuse);
                     if (_transport is null) { Log.Warning("ConnectionStage: {0} received without prior ConnectItem — dropping.", nameof(ConnectionReuseItem)); Pull(_stage._in); break; }
                     _transport.HandleConnectionReuseItem(reuseItem);
                     break;
 
                 case MaxConcurrentStreamsItem maxStreams:
+                    Log.Debug("ConnectionStage: HandlePush MaxConcurrentStreamsItem maxStreams={0}", maxStreams.MaxStreams);
                     if (_transport is null) { Log.Warning("ConnectionStage: {0} received without prior ConnectItem — dropping.", nameof(MaxConcurrentStreamsItem)); Pull(_stage._in); break; }
                     _transport.HandleMaxConcurrentStreamsItem(maxStreams);
                     break;
 
                 case StreamAcquireItem acquireItem:
+                    Log.Debug("ConnectionStage: HandlePush StreamAcquireItem");
                     if (_transport is null) { Log.Warning("ConnectionStage: {0} received without prior ConnectItem — dropping.", nameof(StreamAcquireItem)); Pull(_stage._in); break; }
                     _transport.HandleStreamAcquireItem(acquireItem);
                     break;
@@ -173,10 +180,12 @@ internal sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInput
         {
             if (IsAvailable(_stage._out))
             {
+                Log.Debug("ConnectionStage: PushOutput {0} (direct)", item.GetType().Name);
                 Push(_stage._out, item);
             }
             else
             {
+                Log.Debug("ConnectionStage: PushOutput {0} (queued, pending={1})", item.GetType().Name, _pendingReads.Count + 1);
                 _pendingReads.Enqueue(item);
             }
         }
@@ -185,7 +194,12 @@ internal sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInput
         {
             if (!IsClosed(_stage._in) && !HasBeenPulled(_stage._in))
             {
+                Log.Debug("ConnectionStage: SignalPullInput — pulling inlet");
                 Pull(_stage._in);
+            }
+            else
+            {
+                Log.Debug("ConnectionStage: SignalPullInput — skipped (closed={0}, pulled={1})", IsClosed(_stage._in), HasBeenPulled(_stage._in));
             }
         }
 
@@ -202,10 +216,16 @@ internal sealed class ConnectionStage : GraphStage<FlowShape<IOutputItem, IInput
             => CancelTimer(ConnectTimerKey);
 
         void IStageCallbacks.RequestCompleteStage()
-            => CompleteStage();
+        {
+            Log.Debug("ConnectionStage: CompleteStage requested");
+            CompleteStage();
+        }
 
         void IStageCallbacks.LogWarning(string format, params object[] args)
             => Log.Warning(format, args);
+
+        void IStageCallbacks.LogDebug(string format, params object[] args)
+            => Log.Debug(format, args);
 
         Action<T> IStageCallbacks.GetAsyncCallback<T>(Action<T> handler)
             => GetAsyncCallback(handler);

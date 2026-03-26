@@ -130,9 +130,36 @@ public sealed class ClientHelper : IAsyncDisposable
             }
         }
 
-        // Dispose the ConnectionPool (stops idle eviction timers and closes connections).
-        // Must happen after ActorSystem termination so stages have already stopped.
+        // Signal the pipeline to drain by completing the request channel.
+        // The source sees the channel complete, completion propagates through all
+        // stages, and the sink completes the response channel writer.
+        _client.Requests.TryComplete();
+
+        // Wait for the pipeline to actually finish draining before disposing the
+        // client (which disposes the ConnectionPool). Without this, pool disposal
+        // kills in-flight connections while stages are still processing, and on a
+        // shared ActorSystem the lingering actors interfere with the next test.
+        try
+        {
+            await _client.Responses.Completion.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch
+        {
+            // Pipeline may complete with an error — that's fine during shutdown.
+        }
+
         _client.Dispose();
+
+        // Allow Akka dispatcher threads to finish processing remaining cleanup
+        // messages (PostStop, actor termination) before the next test materialises
+        // a new pipeline on the shared ActorSystem. The materializer.Shutdown()
+        // in TurboClientStreamManager.Dispose() sends PoisonPill to the supervisor,
+        // but actor termination is async — we must wait long enough for all stream
+        // actors (main pipeline + substreams) to fully stop.
+        if (!_ownsSystem)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(500));
+        }
 
         await _provider.DisposeAsync();
     }

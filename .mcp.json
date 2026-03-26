@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "obsidian": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@bitbonsai/mcpvault@latest",
+        "./TurboHttp"
+      ]
+    }
+  }
+}

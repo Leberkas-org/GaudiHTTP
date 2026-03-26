@@ -54,7 +54,11 @@ internal sealed class RequestEnricherStage : GraphStage<FlowShape<HttpRequestMes
                     Push(stage._out, request);
                 },
                 onUpstreamFinish: CompleteStage,
-                onUpstreamFailure: ex => Log.Warning("RequestEnricherStage: Upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("RequestEnricherStage: Upstream failure absorbed: {0}", ex.Message);
+                    CompleteStage();
+                });
 
             SetHandler(stage._out,
                 onPull: () => Pull(stage._in),

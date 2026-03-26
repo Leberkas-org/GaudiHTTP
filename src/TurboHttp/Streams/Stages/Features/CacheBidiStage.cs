@@ -93,7 +93,11 @@ internal sealed class CacheBidiStage
             SetHandler(stage._inRequest,
                 onPush: OnRequestPush,
                 onUpstreamFinish: () => Complete(stage._outRequest),
-                onUpstreamFailure: ex => Log.Warning("CacheBidiStage: Request upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("CacheBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outRequest);
+                });
 
             SetHandler(stage._outRequest,
                 onPull: () =>
@@ -109,7 +113,11 @@ internal sealed class CacheBidiStage
             SetHandler(stage._inResponse,
                 onPush: OnResponsePush,
                 onUpstreamFinish: () => Complete(stage._outResponse),
-                onUpstreamFailure: ex => Log.Warning("CacheBidiStage: Response upstream failure absorbed: {0}", ex.Message));
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("CacheBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outResponse);
+                });
 
             SetHandler(stage._outResponse,
                 onPull: () =>
