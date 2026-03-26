@@ -166,7 +166,7 @@ internal sealed class ContentEncodingBidiStage
             }
         }
 
-        private static HttpResponseMessage Decompress(HttpResponseMessage response)
+        private HttpResponseMessage Decompress(HttpResponseMessage response)
         {
             if (!response.Content.Headers.TryGetValues("Content-Encoding", out var values))
             {
@@ -178,6 +178,15 @@ internal sealed class ContentEncodingBidiStage
             if (string.IsNullOrEmpty(encoding) ||
                 encoding.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
             {
+                return response;
+            }
+
+            // Unknown encoding: pass the response through unchanged rather than
+            // allocating buffers and throwing. The caller sees the raw body,
+            // which is the correct fallback per RFC 9110 §8.4.
+            if (!ContentEncodingDecoder.IsSupported(encoding))
+            {
+                Log.Debug("ContentEncodingBidiStage: unknown encoding '{0}', passing through unchanged", encoding);
                 return response;
             }
 
@@ -205,9 +214,8 @@ internal sealed class ContentEncodingBidiStage
             }
             catch (HttpDecoderException)
             {
-                // Unknown or unsupported Content-Encoding — pass the response through
-                // unmodified rather than killing the stream. The caller sees the raw
-                // (still-encoded) body, which is the correct fallback per RFC 9110 §8.4.
+                // Decompression failure on a supported encoding — pass the response
+                // through unmodified rather than killing the stream.
                 return response;
             }
             finally

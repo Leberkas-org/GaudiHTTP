@@ -13,6 +13,39 @@ namespace TurboHttp.Protocol.RFC9110;
 internal static class ContentEncodingDecoder
 {
     /// <summary>
+    /// Returns <see langword="true"/> when the given encoding token is one this decoder can handle
+    /// (gzip, x-gzip, deflate, br, identity, or empty/null).
+    /// </summary>
+    public static bool IsSupported(string? encoding)
+    {
+        if (string.IsNullOrWhiteSpace(encoding))
+        {
+            return true;
+        }
+
+        // A comma-separated list may contain multiple tokens; all must be supported.
+        var tokens = encoding.Split(',');
+
+        for (var i = 0; i < tokens.Length; i++)
+        {
+            var token = tokens[i].Trim();
+
+            if (string.IsNullOrEmpty(token) ||
+                token.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!IsSupportedToken(token))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Decompresses <paramref name="body"/> according to the Content-Encoding token list.
     /// Returns the original bytes unchanged if encoding is null, empty, or "identity".
     /// Throws <see cref="HttpDecoderException"/> with <see cref="HttpDecoderError.DecompressionFailed"/>
@@ -48,6 +81,14 @@ internal static class ContentEncodingDecoder
         }
 
         return current;
+    }
+
+    private static bool IsSupportedToken(string token)
+    {
+        return token.Equals(WellKnownHeaders.Gzip, StringComparison.OrdinalIgnoreCase) ||
+               token.Equals(WellKnownHeaders.XGzip, StringComparison.OrdinalIgnoreCase) ||
+               token.Equals(WellKnownHeaders.Deflate, StringComparison.OrdinalIgnoreCase) ||
+               token.Equals(WellKnownHeaders.Brotli, StringComparison.OrdinalIgnoreCase);
     }
 
     private static byte[] DecompressSingle(byte[] data, string encoding)

@@ -105,17 +105,17 @@ Fix two critical issues blocking 12 HTTP/1.0 integration tests (out of 515 total
 **Parallel:** no — requires analysis from TASK-002-003
 
 **Acceptance Criteria:**
-- [ ] Modify `src/TurboHttp/Streams/Stages/Features/ContentEncodingBidiStage.cs`:
-  - [ ] Find the encoding type dispatch logic (if/switch statement)
-  - [ ] Add `default` case (or extend existing fallback) for unknown encodings:
+- [x] Modify `src/TurboHttp/Streams/Stages/Features/ContentEncodingBidiStage.cs`:
+  - [x] Find the encoding type dispatch logic (if/switch statement)
+  - [x] Add `default` case (or extend existing fallback) for unknown encodings:
     - Log `Log.Debug("ContentEncodingBidiStage: unknown encoding '{0}', passing through unchanged", encodingName)`
     - Create identity decompressor that returns body unchanged (no decompression)
     - Route response through identity decompressor
-  - [ ] Remove `throw InvalidOperationException` for unknown encodings
-  - [ ] Ensure response is passed to `Out2` with unchanged body
-- [ ] Error-H10-005 test case: Server returns `Content-Encoding: x-custom`, test expects `StatusCode.OK` (no exception)
-- [ ] Verify test passes: `dotnet test src/TurboHttp.IntegrationTests/H10/ErrorHandlingIntegrationTests.cs -- --filter "*H10005*"`
-- [ ] Compile with zero warnings
+  - [x] Remove `throw InvalidOperationException` for unknown encodings
+  - [x] Ensure response is passed to `Out2` with unchanged body
+- [x] Error-H10-005 test case: Server returns `Content-Encoding: x-custom`, test expects `StatusCode.OK` (no exception)
+- [x] Verify test passes: `dotnet test src/TurboHttp.IntegrationTests/H10/ErrorHandlingIntegrationTests.cs -- --filter "*H10005*"`
+- [x] Compile with zero warnings
 
 ---
 
