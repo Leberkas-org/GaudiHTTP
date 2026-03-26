@@ -1,0 +1,55 @@
+---
+title: "19.10.  MAX_STREAM_DATA Frames"
+rfc_number: 9000
+rfc_section: "19.10"
+source_url: "https://www.rfc-editor.org/rfc/rfc9000"
+description: "Section 19.10: MAX_STREAM_DATA Frames — RFC 9000 — QUIC: A UDP-Based Multiplexed and Secure Transport"
+tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, max_stream_data_frames]
+---
+
+## 19.10.  MAX_STREAM_DATA Frames
+
+19.10.  MAX_STREAM_DATA Frames
+
+   A MAX_STREAM_DATA frame (type=0x11) is used in flow control to inform
+   a peer of the maximum amount of data that can be sent on a stream.
+
+   A MAX_STREAM_DATA frame can be sent for streams in the "Recv" state;
+   see Section 3.2.  Receiving a MAX_STREAM_DATA frame for a locally
+> **MUST**: initiated stream that has not yet been created MUST be treated as a
+   connection error of type STREAM_STATE_ERROR.  An endpoint that
+> **MUST**: receives a MAX_STREAM_DATA frame for a receive-only stream MUST
+   terminate the connection with error STREAM_STATE_ERROR.
+
+   MAX_STREAM_DATA frames are formatted as shown in Figure 34.
+
+   MAX_STREAM_DATA Frame {
+     Type (i) = 0x11,
+     Stream ID (i),
+     Maximum Stream Data (i),
+   }
+
+                  Figure 34: MAX_STREAM_DATA Frame Format
+
+   MAX_STREAM_DATA frames contain the following fields:
+
+   Stream ID:  The stream ID of the affected stream, encoded as a
+      variable-length integer.
+
+   Maximum Stream Data:  A variable-length integer indicating the
+      maximum amount of data that can be sent on the identified stream,
+      in units of bytes.
+
+   When counting data toward this limit, an endpoint accounts for the
+   largest received offset of data that is sent or received on the
+   stream.  Loss or reordering can mean that the largest received offset
+   on a stream can be greater than the total size of data received on
+   that stream.  Receiving STREAM frames might not increase the largest
+   received offset.
+
+> **MUST NOT**: The data sent on a stream MUST NOT exceed the largest maximum stream
+> **MUST**: data value advertised by the receiver.  An endpoint MUST terminate a
+   connection with an error of type FLOW_CONTROL_ERROR if it receives
+   more data than the largest maximum stream data that it has sent for
+   the affected stream.  This includes violations of remembered limits
+   in Early Data; see Section 7.4.1.

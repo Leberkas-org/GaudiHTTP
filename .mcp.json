@@ -5,7 +5,7 @@
       "command": "npx",
       "args": [
         "@bitbonsai/mcpvault@latest",
-        "./TurboHttp"
+        "./notes"
       ]
     },
     "cwm-roslyn-navigator": {

@@ -1,252 +1,310 @@
-<!-- maggus-id: 20260325-213710-feature-027 -->
-# Feature 027: Diagnose and Fix HTTP/1.0 Pipeline Deadlock in Batch Test Runs
+<!-- maggus-id: 29f91fd7-8bcd-49b9-8b7f-88f7b4371432 -->
+<!-- maggus-id: 20260326-130819-feature-027 -->
+
+# Feature 027: RFC Knowledge Base Reorganisation (Phases 1–2)
 
 ## Introduction
 
-HTTP/1.0 integration tests deadlock sporadically when run as a batch (78 tests sequential), but pass 100% in isolation. The deadlocks manifest as 10-30s timeouts on `SendAsync` — the pipeline hangs and never produces a response. The issue affects all H10 test categories (Cookie, Cache, Retry, Redirect, Compression, Connection, Error) randomly, including **single-request tests** that don't involve reconnection.
+Clean up and reorganise the TurboHttp RFC Knowledge Base (`notes/RFC/`) to establish a unified, well-structured, semantically validated foundation for RFC compliance tracking. This feature implements **Phases 1–2** of a 5-phase roadmap: establishing a new RFC Index template standard and auditing/trimming oversized or sparse RFC documentation.
 
-This proves the root cause is **not** HTTP/1.0 reconnection logic (which was already fixed with `_connectionGen` guards). Instead, something in the shared pipeline infrastructure accumulates state or leaks resources across sequential test runs, eventually causing a deadlock in a subsequent test's fresh pipeline.
+The RFC Knowledge Base currently contains 404 markdown files across 10 RFCs (HTTP/1.0, HTTP/1.1, HTTP/2, HPACK, HTTP/3, QUIC, QPACK, HTTP Semantics, Cookies, Caching) with inconsistent structure, missing cross-references, and quality issues (RFC9000 oversized at 78 sections, RFC9110/9111 sparse). This feature resolves those structural problems and prepares the vault for future code-linking and compliance scoring.
 
 ### Architecture Context
 
-- **Components involved:**
-  - `TurboClientStreamManager` — owns the Akka.Streams pipeline per client (ChannelSource → Engine → ChannelSink)
-  - `ConnectionStage` / `TcpTransportHandler` — TCP connection lifecycle, inbound pump
-  - `GroupByHostKeyStage` — per-host substream routing
-  - `ExtractOptionsStage` — ConnectItem emission and reconnection signaling
-  - `MergePreferred` — priority merge for ConnectItem + DataItem + ConnectionReuseItem
-  - `ConnectionPool` — per-client connection pool with idle eviction
-  - `ActorSystemFixture` — shared ActorSystem across all integration tests
-
-- **Key observation:** Tests pass 10/10 in isolation (own process). They pass 78/78 sometimes in batch. When they fail, the failing test is random. This is classic accumulated-state corruption or resource exhaustion.
+- **Vision alignment:** Fulfils the core goal of producing a "production-ready HTTP client library" by establishing clear RFC compliance documentation that developers can navigate and reference
+- **Components involved:** Knowledge vault (`notes/RFC/`) organises RFC sections; Obsidian + MCP tools provide vault management; Roslyn Navigator will support future code-linking (Phase 3)
+- **New patterns:** Introduces RFC Index template standard; establishes semantic validation workflow for WikiLinks and cross-references
+- **Deferred:** Code-linking (Phase 3), compliance scoring (Phase 4), cross-references (Phase 5) — planned for future features (028+)
 
 ## Goals
 
-- Identify the exact location of the deadlock via structured diagnostic logging
-- Fix the root cause so 78/78 H10 tests pass in 10 consecutive batch runs (zero flakes)
-- Implement orderly stream shutdown on `Dispose()` so no zombie actors/pumps linger
-- Keep HTTP/1.0 single-client pattern (no regression to fresh-client-per-request workaround)
-
-## Hypotheses to Investigate
-
-Based on the analysis session, ranked by likelihood:
-
-### H1: GroupByHostKey Substream Death (Most Likely)
-`GroupByHostKey` creates substreams per host-key. If a substream's internal actor dies (e.g., from an unhandled exception in a stage), the substream is marked as dead. Subsequent requests to the same host-key in a NEW client's pipeline should get a NEW substream — but if the GroupByHostKey stage or the host-key registry has stale state in the shared ActorSystem, new clients might inherit dead substreams.
-
-**Evidence:** Test output shows `GroupByHostKeyStage: Upstream failure absorbed: Processor actor [...] terminated abruptly` warnings before failures.
-
-### H2: MergePreferred Demand Stall After Reconnection
-After `ConnectionReuseItem` is processed and a new `ConnectItem` is emitted, the `MergePreferred` stages (`transportMerge0` and `transportMerge`) might not propagate demand correctly. If one merge input has no demand, the pipeline stalls.
-
-**Evidence:** Retry tests (which generate pipeline-internal reconnection) fail disproportionately.
-
-### H3: ConnectionPool Lease Leak
-If `ConnectionPool.Release()` or `ConnectionLease.Dispose()` doesn't fully clean up in edge cases (e.g., double-release, race between `HandleConnectionReuseItem` and `_onInboundComplete`), subsequent `AcquireAsync` calls might block on an exhausted semaphore.
-
-**Evidence:** Each test creates its own pool, so this should be isolated. But if `HostConnections._limiter` isn't released on all code paths, the pool deadlocks.
-
-### H4: Inbound Pump Thread Leak
-Each `TcpTransportHandler.StartInboundPump()` spawns a `Task.Run` that reads from the connection. If `StopInboundPump()` doesn't fully cancel the task (CTS cancelled after callback posted), zombie pump tasks accumulate and exhaust the ThreadPool or Akka dispatcher.
-
-**Evidence:** 78 tests × 1-4 connections each = 78-312 pump tasks. Even with `_connectionGen` guards, the tasks stay alive until the channel reader completes.
+- ✅ Establish a unified RFC Index template (`RFC*.md`) with consistent structure, metadata, and quality standards
+- ✅ Apply the template to all 10 RFCs, ensuring RFC-level compliance overview
+- ✅ Audit RFC9000 (QUIC) and trim from 78 → 30–40 core sections (HTTP/3-relevant only)
+- ✅ Expand RFC9110 (HTTP Semantics) from ~20 → ~60 sections (restore completeness)
+- ✅ Expand RFC9111 (Caching) from ~15 → ~40 sections (restore completeness)
+- ✅ Verify RFC9114 (HTTP/3) section completeness and flag gaps
+- ✅ Validate all internal WikiLinks and cross-references for semantic correctness
+- ✅ Document handoff tasks for Phases 3–5 (code-linking, compliance scoring, cross-RFC linking)
 
 ## Tasks
 
-### TASK-027-001: Add Structured Diagnostic Logging to Pipeline Stages
-**Description:** As a developer, I want structured logging at every state transition in the HTTP/1.0 pipeline so that I can trace exactly where the deadlock occurs when a test hangs.
+### TASK-027-001: Create RFC Index Template Standard
 
-**Token Estimate:** ~75k tokens
-**Predecessors:** none
-**Successors:** TASK-027-002
-**Parallel:** yes — can run alongside TASK-027-005
-**Model:** opus
-
-**Acceptance Criteria:**
-- [x] `ExtractOptionsStage.Logic`: log on every `onPush` (request received), every `ConnectItem` emission, every `_needsReconnect` change, every `InReuse` signal received
-- [x] `TcpTransportHandler`: log `HandleConnectItem` (with key), `HandleDataItem` (buffered vs written), `HandleConnectionReuseItem` (canReuse, _upstreamFinished), `_onLeaseAcquired` (gen), `_onInboundComplete` (gen match/mismatch), `_onOutboundWriteFailed`, `StopInboundPump`, `Cleanup`
-- [x] `ConnectionStage.Logic`: log every `HandlePush` item type, every `PushOutput`, every `SignalPullInput`, every `CompleteStage`
-- [x] `ConnectionReuseStage`: log signal emission (canReuse, endpoint), response push
-- [x] `GroupByHostKeyStage`: log substream creation, substream completion, substream failure
-- [x] All logging uses `ILoggingAdapter` (Akka's built-in) with `Debug` level — does NOT affect production performance
-- [x] Logging can be enabled via Akka HOCON config: `akka.loglevel = DEBUG`
-- [x] Build succeeds with zero warnings
-
-**Implementation approach:**
-Add `Log.Debug("ExtractOptions: onPush request={Uri}, _connectItemSent={Flag}, _needsReconnect={Flag}", ...)` style calls at each decision point. Use structured message format (not string interpolation) so Akka can filter efficiently.
-
----
-
-### TASK-027-002: Reproduce and Capture Deadlock Trace
-**Description:** As a developer, I want to run the H10 batch tests with diagnostic logging enabled and capture the exact log output when a test deadlocks, so I can identify which stage is waiting for what.
-
-**Token Estimate:** ~40k tokens
-**Predecessors:** TASK-027-001
-**Successors:** TASK-027-003
-**Parallel:** no — requires logging to be in place
-
-**Acceptance Criteria:**
-- [x] Create `src/TurboHttp.IntegrationTests/akka.debug.conf` with `akka.loglevel = DEBUG` and `akka.loggers = ["Akka.Event.DefaultLogger"]`
-- [x] Modify `ActorSystemFixture` to optionally load this config (via env var `TURBO_DEBUG=1`)
-- [x] Run the H10 batch test 5 times with `TURBO_DEBUG=1` and capture output to files
-- [x] For each deadlocked test: extract the last 50 log lines before the timeout
-- [x] Identify the pattern: which stage's log entry is the LAST one before the hang?
-- [x] Document findings in `.maggus/analysis/feature_027_deadlock_trace.md`:
-  - Which stage is waiting (last log entry)
-  - What it's waiting for (demand? data? callback?)
-  - What should have provided it (which upstream/downstream stage)
-  - Whether the pattern is consistent across different deadlocked tests
-
----
-
-### TASK-027-003: Fix the Root Cause
-**Description:** As a developer, I want to fix the exact deadlock mechanism identified in TASK-027-002 so that all 78 H10 tests pass reliably in batch runs.
-
-**Token Estimate:** ~100k tokens
-**Predecessors:** TASK-027-002
-**Successors:** TASK-027-004
-**Parallel:** no — requires diagnosis
-**Model:** opus
-
-**Acceptance Criteria:**
-- [x] Root cause identified and documented
-- [x] Fix implemented in the minimal set of files
-- [x] Fix does not break HTTP/1.1, HTTP/2, or HTTP/3 behavior
-- [x] Build succeeds with zero warnings
-- [ ] Unit test added that provokes the exact deadlock scenario (if reproducible in a stream test)
-      — Not reproducible in stream test: requires real TCP connection close to kill Source.Queue actor
-
-**Likely fix areas (based on hypotheses):**
-- H1: Fix GroupByHostKey substream lifecycle or isolation
-- H2: Fix MergePreferred demand after reconnection signal path
-- H3: Fix ConnectionPool lease release on all code paths
-- H4: Fix pump task cleanup in StopInboundPump / Cleanup
-
----
-
-### TASK-027-004: Validate Zero Flakes (10x Batch Run)
-**Description:** As a developer, I want to run the H10 batch tests 10 times consecutively and see zero failures across all runs, proving the fix is stable.
+**Description:** As a knowledge manager, I want a unified RFC Index template (`RFC*.md`) so that every RFC has consistent metadata, structure, and quick reference information.
 
 **Token Estimate:** ~20k tokens
-**Predecessors:** TASK-027-003
-**Successors:** TASK-027-006
-**Parallel:** no — requires fix to be in place
 
-**Acceptance Criteria:**
-- [ ] Script: `for i in $(seq 1 10); do dotnet test ... --filter-namespace H10; done`
-- [ ] 10/10 runs show `Passed! total: 78 failed: 0`
-- [ ] No warnings about "terminated abruptly" or "Upstream failure absorbed" in any run
-- [ ] Total execution time per run is under 15 seconds (no lingering timeouts)
-- [ ] Results documented in `.maggus/analysis/feature_027_validation.md`
-
----
-
-### TASK-027-005: Implement Orderly Stream Shutdown in Dispose
-**Description:** As a developer, I want `TurboClientStreamManager.Dispose()` to orderly shut down the Akka.Streams pipeline so that no zombie actors or pump tasks linger in the shared ActorSystem.
-
-**Token Estimate:** ~50k tokens
 **Predecessors:** none
-**Successors:** TASK-027-006
-**Parallel:** yes — can run alongside TASK-027-001
+
+**Successors:** TASK-027-002, TASK-027-003, TASK-027-004, TASK-027-005
+
+**Parallel:** no — establishes template for all subsequent tasks
 
 **Acceptance Criteria:**
-- [ ] `Dispose()` completes the request channel writer (already done via `Requests.TryComplete()`)
-- [ ] `TcpTransportHandler.OnUpstreamFinished()`: when handle is active, close connection and complete stage (not just set flag)
-- [ ] After `Dispose()`, all stream actors under the materializer's supervision tree are stopped within 2 seconds
-- [ ] No `Task.Run` pump threads remain alive after dispose
-- [ ] Verify via test: create 50 clients, dispose all, check `ActorSystem` actor count returns to baseline
-- [ ] Build succeeds with zero warnings
 
-**Implementation:**
-```csharp
-// TcpTransportHandler.OnUpstreamFinished:
-public void OnUpstreamFinished()
-{
-    _upstreamFinished = true;
-    // Active connection exists — close it, no more requests coming.
-    _connectionGen++;
-    StopInboundPump();
-    if (_currentLease is { } lease)
-    {
-        lease.MarkNoReuse();
-        ReturnLeaseToPool(canReuse: false);
-    }
-    _handle = null;
-    _currentLease = null;
-    _callbacks!.RequestCompleteStage();
-}
-```
+- [ ] Template created at `notes/Templates/RFC-Index.md` with sections:
+  - Quick Reference (Compliance Score, Implementation Status, Test Files, Key Gaps)
+  - Core Concepts (bullet list with section links)
+  - Implementation Notes (Encoder/Decoder files, Tests, Status)
+  - Sections (list of section links with status badges)
+  - Dependencies (Depends on, Used by, other RFCs)
+- [ ] Frontmatter standardized: `title`, `rfc_number`, `description`, `tags` (all RFC files)
+- [ ] Example applied to RFC1945 (HTTP/1.0) as reference implementation
+- [ ] Template documented in `notes/VAULT_STYLE_GUIDE.md` (RFC Index section)
+- [ ] All 10 RFC index files updated to new template structure
+- [ ] No broken WikiLinks introduced; all template examples verified
 
-Note: this is safe because `OnUpstreamFinished` only fires when the ChannelSource completes (i.e., client is being disposed). No more requests will arrive.
+### TASK-027-002: Audit & Trim RFC9000 (QUIC)
 
----
+**Description:** As a knowledge keeper, I want RFC9000 sections trimmed from 78 → 30–40 core concepts so that the QUIC documentation focuses on HTTP/3-relevant topics and reduces cognitive load.
 
-### TASK-027-006: Cleanup — Remove Diagnostic Logging from Production Code
-**Description:** As a developer, I want to remove or gate the verbose diagnostic logging added in TASK-027-001 so that production code is not noisy.
+**Token Estimate:** ~35k tokens
+
+**Predecessors:** TASK-027-001
+
+**Successors:** TASK-027-006
+
+**Parallel:** yes — can run alongside TASK-027-003, TASK-027-004, TASK-027-005
+
+**Acceptance Criteria:**
+
+- [ ] RFC9000 sections audited: identify core (HTTP/3 essential), secondary (useful context), and theoretical (skip)
+- [ ] Sections reduced to 30–40 files covering:
+  - Packet structure & types
+  - Variable-length integers (core)
+  - Connection IDs & handshake concepts
+  - Stream frame basics (cross-referenced to RFC9114)
+  - Flow control principles (light treatment)
+- [ ] Removed sections documented in `notes/RFC/RFC9000/TRIM_RATIONALE.md` with reasoning
+- [ ] Remaining sections reviewed for completeness (no empty or stub files)
+- [ ] All removed section links cleaned from RFC9000.md index
+- [ ] RFC9113 and RFC9114 links to RFC9000 verified (no broken refs after trim)
+
+### TASK-027-003: Expand RFC9110 (HTTP Semantics) to ~60 Sections
+
+**Description:** As a protocol implementer, I want RFC9110 expanded from ~20 to ~60 sections so that HTTP semantics (redirects, retries, content negotiation, method semantics, status codes) have complete coverage matching the RFC structure.
+
+**Token Estimate:** ~40k tokens
+
+**Predecessors:** TASK-027-001
+
+**Successors:** TASK-027-006
+
+**Parallel:** yes — can run alongside TASK-027-002, TASK-027-004, TASK-027-005
+
+**Acceptance Criteria:**
+
+- [ ] RFC9110 sections mapped against official RFC 9110 (sections 1–19 + appendices)
+- [ ] Gap analysis completed: identify missing sections in `notes/RFC/RFC9110/EXPANSION_GAPS.md`
+- [ ] New section files created for missing areas (~40 new files):
+  - Request/response structure (§5)
+  - Method semantics (§9)
+  - Status codes (§15)
+  - Content negotiation (§12)
+  - Request routing & conditional logic (§11, §13)
+- [ ] Section files follow naming: `NN_description.md` (two-digit prefix)
+- [ ] RFC9110.md index updated with all sections; status badges applied
+- [ ] All new sections reviewed for placeholder-only content vs. meaningful stubs
+- [ ] Cross-references to RFC9111 (caching) and RFC6265 (cookies) verified
+
+### TASK-027-004: Expand RFC9111 (Caching) to ~40 Sections
+
+**Description:** As a caching implementer, I want RFC9111 expanded from ~15 to ~40 sections so that caching semantics (freshness, validation, storage, cache directives) have complete RFC coverage.
+
+**Token Estimate:** ~30k tokens
+
+**Predecessors:** TASK-027-001
+
+**Successors:** TASK-027-006
+
+**Parallel:** yes — can run alongside TASK-027-002, TASK-027-003, TASK-027-005
+
+**Acceptance Criteria:**
+
+- [ ] RFC9111 sections mapped against official RFC 9111 (sections 1–6 + appendices)
+- [ ] Gap analysis completed: identify missing sections in `notes/RFC/RFC9111/EXPANSION_GAPS.md`
+- [ ] New section files created for missing areas (~25 new files):
+  - Freshness (§4.2 with subsections)
+  - Validation & revalidation (§4.3)
+  - Cache-Control directives (§5.2, §5.3)
+  - Storage semantics (§3)
+- [ ] Section files follow naming: `NN_description.md` (two-digit prefix)
+- [ ] RFC9111.md index updated with all sections; status badges applied
+- [ ] Cross-references to RFC9110 (semantics) and RFC6265 (cookies) verified
+
+### TASK-027-005: Verify RFC9114 (HTTP/3) Section Completeness
+
+**Description:** As an HTTP/3 developer, I want RFC9114 sections audited to confirm all sections have content (not empty stubs) and are properly linked so that HTTP/3 documentation is complete and navigable.
 
 **Token Estimate:** ~15k tokens
-**Predecessors:** TASK-027-004, TASK-027-005
-**Successors:** none
-**Parallel:** no — requires validation to pass first
+
+**Predecessors:** TASK-027-001
+
+**Successors:** TASK-027-006
+
+**Parallel:** yes — can run alongside TASK-027-002, TASK-027-003, TASK-027-004
 
 **Acceptance Criteria:**
-- [ ] All `Log.Debug(...)` calls from TASK-027-001 are either:
-  - Removed entirely (if they're too verbose), OR
-  - Kept behind a `if (Log.IsDebugEnabled)` guard (if useful for future diagnosis)
-- [ ] Key state transitions (ConnectItem emission, reconnect, lease acquire/release) keep one-line Debug logs
-- [ ] No performance impact when logging is at INFO level (default)
-- [ ] Build succeeds with zero warnings
+
+- [ ] RFC9114 has 86 section files; audit performed to verify:
+  - No empty or placeholder-only files (must have meaningful content)
+  - Sections properly ordered (NN_description.md with sequential numbering)
+  - All sections linked in RFC9114.md index
+- [ ] Gap analysis completed in `notes/RFC/RFC9114/AUDIT_REPORT.md`:
+  - Which sections are thorough vs. sparse
+  - Which sections reference RFC9000 (QUIC), RFC7541 (HPACK), RFC9204 (QPACK)
+  - Encoder/decoder implementation gaps documented
+- [ ] Cross-references to HTTP/2 (RFC9113), QUIC (RFC9000), QPACK (RFC9204) verified
+- [ ] Status badges applied (✅ complete, 🔶 sparse, 🟡 stub)
+
+### TASK-027-006: Link Validation & Semantic Correctness Check
+
+**Description:** As a quality reviewer, I want all WikiLinks and cross-references validated for integrity (no broken links) and semantic correctness (links point to relevant sections) so that the RFC vault is navigation-safe and trustworthy.
+
+**Token Estimate:** ~25k tokens
+
+**Predecessors:** TASK-027-002, TASK-027-003, TASK-027-004, TASK-027-005
+
+**Successors:** TASK-027-007
+
+**Parallel:** no — depends on all expansion/trim tasks
+
+**Acceptance Criteria:**
+
+- [ ] Link validation script/process created:
+  - Scans all `notes/RFC/**/*.md` files
+  - Extracts WikiLinks: `[[path|DisplayName]]` format
+  - Verifies target files exist
+  - Reports broken links with file + line number
+- [ ] Manual semantic review performed on:
+  - RFC-to-RFC cross-references (RFC9113 → RFC7541 links contextually correct?)
+  - Section-to-section links within RFC (correct reference to RFC 9113 §6 when discussing frames?)
+  - Links to `notes/Architecture/` ADRs (if referenced)
+- [ ] All broken links fixed; semantic issues documented in `LINK_VALIDATION_REPORT.md`
+- [ ] Tag consistency validated (all RFC files have `rfc_number`, `tags` frontmatter)
+- [ ] Frontmatter linting passes (no missing required fields)
+- [ ] Build/test succeeds with no vault warnings
+
+### TASK-027-007: Document Phases 3–5 Handoff & Create Future Feature Placeholders
+
+**Description:** As a project planner, I want Phases 3–5 documented in a roadmap and placeholder feature files created so that future work (code-linking, compliance scoring, cross-references) is clearly scoped and scheduled.
+
+**Token Estimate:** ~10k tokens
+
+**Predecessors:** TASK-027-006
+
+**Successors:** none
+
+**Parallel:** no — final documentation task
+
+**Acceptance Criteria:**
+
+- [ ] Roadmap document created: `notes/RFC/PHASES_3-5_ROADMAP.md` describing:
+  - Phase 3: Code-Linking (Encoder/Decoder → RFC section mapping) — deferred, planned for feature_028
+  - Phase 4: Compliance Scoring (per-section scores + test coverage tracking) — feature_029
+  - Phase 5: Cross-References (RFC dependencies, Architecture ADR backlinks) — feature_030
+  - Estimated effort per phase (4–6 hours each)
+- [ ] Notes added to `00-Index.md` linking to roadmap
+- [ ] Placeholder feature files prepared (`feature_028_stub.md`, etc.) with guidance for future implementers
+- [ ] Summary document created: `PHASES_1-2_COMPLETION_SUMMARY.md` with stats:
+  - Files created/modified
+  - Sections added/removed
+  - Link validation results
+  - Open questions for Phase 3
 
 ## Task Dependency Graph
 
 ```
-TASK-027-001 (logging) ──→ TASK-027-002 (reproduce) ──→ TASK-027-003 (fix) ──→ TASK-027-004 (validate)
-                                                                                       ↓
-TASK-027-005 (shutdown) ──────────────────────────────────────────────────────→ TASK-027-006 (cleanup)
+TASK-027-001 ──→ TASK-027-002 ──┐
+                                 ├─→ TASK-027-006 ──→ TASK-027-007
+TASK-027-001 ──→ TASK-027-003 ──┤
+                                 ├─→ (link validation)
+TASK-027-001 ──→ TASK-027-004 ──┤
+                                 │
+TASK-027-001 ──→ TASK-027-005 ──┘
 ```
 
 | Task | Estimate | Predecessors | Parallel | Model |
 |------|----------|--------------|----------|-------|
-| TASK-027-001 | ~75k | none | yes (with 005) | opus |
-| TASK-027-002 | ~40k | 001 | no | — |
-| TASK-027-003 | ~100k | 002 | no | opus |
-| TASK-027-004 | ~20k | 003 | no | — |
-| TASK-027-005 | ~50k | none | yes (with 001) | — |
-| TASK-027-006 | ~15k | 004, 005 | no | haiku |
+| TASK-027-001 | ~20k | none | no | — |
+| TASK-027-002 | ~35k | 001 | yes (with 003-005) | — |
+| TASK-027-003 | ~40k | 001 | yes (with 002, 004-005) | — |
+| TASK-027-004 | ~30k | 001 | yes (with 002-003, 005) | — |
+| TASK-027-005 | ~15k | 001 | yes (with 002-004) | — |
+| TASK-027-006 | ~25k | 002-005 | no | — |
+| TASK-027-007 | ~10k | 006 | no | — |
 
-**Total estimated tokens:** ~300k
+**Total estimated tokens:** ~175k
+
+**Execution model:**
+- **Phase A (Sequential):** TASK-027-001 (template foundation)
+- **Phase B (Parallel):** TASK-027-002, 003, 004, 005 (4 concurrent audit/expansion tasks)
+- **Phase C (Sequential):** TASK-027-006, 007 (validation + handoff)
 
 ## Functional Requirements
 
-- FR-1: 78 H10 integration tests must pass in 10 consecutive batch runs with zero failures
-- FR-2: `TurboClientStreamManager.Dispose()` must stop all stream actors and pump tasks within 2 seconds
-- FR-3: No "Processor actor terminated abruptly" warnings during clean test runs
-- FR-4: HTTP/1.0 reconnection (sequential `SendAsync` on same client) must work reliably
-- FR-5: HTTP/1.1 and HTTP/2 tests must not regress
-- FR-6: Single-client-per-test pattern retained for all H10 tests (no fresh-client-per-request workaround)
+- FR-1: RFC Index template must include Quick Reference, Core Concepts, Implementation Notes, Sections list, Dependencies
+- FR-2: All 10 RFC index files (`RFC*.md`) must conform to the new template structure
+- FR-3: RFC9000 must be trimmed to 30–40 sections; trim rationale documented
+- FR-4: RFC9110 must expand to ~60 sections with gap analysis documented
+- FR-5: RFC9111 must expand to ~40 sections with gap analysis documented
+- FR-6: RFC9114 must be audited for completeness; status badges applied
+- FR-7: All WikiLinks across `notes/RFC/` must be validated for existence and semantic correctness
+- FR-8: Broken links must be reported with file + line number in validation report
+- FR-9: Tag consistency (frontmatter) must be verified across all RFC files
+- FR-10: Roadmap for Phases 3–5 must be documented; future features clearly scoped
 
 ## Non-Goals
 
-- HTTP/2 or HTTP/3 pipeline changes (unless the deadlock fix is cross-cutting)
-- Performance optimization of the reconnection path
-- Refactoring the pipeline to per-request streams (too large a scope)
-- Making the diagnostic logging a permanent, configurable production feature
+- **Code-linking (Phase 3)** — Encoder/Decoder → RFC section mapping is deferred to feature_028
+- **Compliance scoring (Phase 4)** — Per-section test coverage & compliance scores deferred to feature_029
+- **Cross-RFC dependencies (Phase 5)** — RFC dependency linking (RFC7541 ← RFC9113) deferred to feature_030
+- **Automated code-linking scripts** — Manual Roslyn Navigator approach reserved for Phase 3
+- **Full RFC text embedding** — Section files reference RFC text; no wholesale copying
+- **Implementation refactoring** — This is knowledge base cleanup, not code changes
+
+## Design Considerations
+
+- **Obsidian MCP Integration:** Use `read_note`, `write_note`, `patch_note`, `search_notes` tools for vault operations
+- **WikiLink Format:** Consistent `[[path|DisplayName]]` for internal references
+- **Status Badges:** Use ✅ (complete), 🔶 (sparse), 🟡 (stub), 🟢 (excellent) for quick visual scanning
+- **Naming Conventions:** Section files use `NN_description.md` two-digit prefix for ordering (matches existing patterns in RFC1945, RFC9112)
+- **Cross-Reference Validation:** Manual semantic review required — automated tools can't verify "is this actually relevant?"
 
 ## Technical Considerations
 
-- **Akka.Streams stage logging:** Use `Log` property (inherited from `GraphStageLogic`) which is an `ILoggingAdapter`. Messages go through the ActorSystem's logging pipeline.
-- **MergePreferred semantics:** Preferred input is always checked first when output has demand. Both regular and preferred inputs are pulled eagerly. If either input is not pulled, the merge blocks.
-- **GroupByHostKey:** Uses `GroupBy` under the hood with `maxSubstreams` parameter. Substreams have a finite lifecycle — completed substreams are cleaned up. But if a substream actor dies without completing, the GroupBy operator might not reopen that key.
-- **ChannelSource completion propagation:** When `ChannelWriter.TryComplete()` is called, `ChannelSource` detects the channel completion and completes the Akka source. This cascades through `Via(engineFlow)` to `ChannelSink`. The cascade requires all intermediate stages to propagate completion — if any stage blocks completion (like ConnectionStage waiting for _onInboundComplete), the cascade stalls.
-- **Shared ActorSystem impact:** All materializers share the same dispatcher thread pool. Zombie actors consume dispatcher slots. With 78 tests and incomplete cleanup, the dispatcher can become saturated even with `MinThreads=512`.
+- **Obsidian Vault:** Notes stored in `notes/RFC/` subdirectories; vault uses MCP tools for CI/CD and automation
+- **GitLink:** Vault structure must remain git-tracked; `.gitignore` already excludes `notes/Debugging/` and `.obsidian/`
+- **Link Formats:** All WikiLinks must use relative paths from vault root (e.g., `[[RFC/RFC9112/sections/06_message_body|Message Body]]`)
+- **Architecture Integration:** Future Phase 3 will require Roslyn Navigator (`find_symbol`, `find_references`, `get_symbol_detail`) to map code to RFC sections
+- **ARCHITECTURE.md Update:** Phase 3 (code-linking) may require updating `CLAUDE.md` with code-to-RFC mapping patterns
 
 ## Success Metrics
 
-- 78/78 passed in 10 of 10 consecutive runs
-- Average batch run time under 15 seconds (currently 10-11s when all pass)
-- Zero "terminated abruptly" warnings in clean runs
-- No zombie actors after test completion (verified via actor count baseline test)
+- ✅ All 10 RFC index files conform to new template (100% coverage)
+- ✅ RFC9000 trimmed to 30–40 sections (50% reduction, quality maintained)
+- ✅ RFC9110 expanded to ~60 sections (3× expansion)
+- ✅ RFC9111 expanded to ~40 sections (2.7× expansion)
+- ✅ RFC9114 audit completed with status badges applied
+- ✅ Link validation report shows 0 broken WikiLinks
+- ✅ Semantic review completed with no critical linking errors
+- ✅ Phases 3–5 roadmap documented and ready for feature_028+
 
 ## Open Questions
 
-None — all resolved.
+- **Trim threshold for RFC9000:** Are 30–40 sections the right target, or should it be 20–30? (Consider HTTP/3 implementer perspective)
+- **RFC9114 completeness:** Are the 86 existing sections comprehensive, or should we expand further before validating?
+- **Section-level metadata:** Should each section file include implementation status (encoder/decoder files) in frontmatter for future Phase 3 linking?
+- **Validation tooling:** Should link validation be scripted (bash/PowerShell) or manual Obsidian search?
+
+---
+
+**Status:** ✅ **Ready for Review & Clarification**
+
+This plan covers **Phases 1–2 only** (RFC Index Template + Audit & Trim). Phases 3–5 (Code-Linking, Compliance Scoring, Cross-References) are deferred to future features (028–030) and will be documented in the handoff (TASK-027-007).
+
+**Next Steps:**
+1. Review and provide feedback on scope, token estimates, or task dependencies
+2. Clarify answers to open questions (if any)
+3. Once approved, execute TASK-027-001 (template creation) to unlock parallel execution of tasks 002–005

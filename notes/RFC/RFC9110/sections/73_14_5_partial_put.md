@@ -1,0 +1,34 @@
+---
+title: "14.5.  Partial PUT"
+rfc_number: 9110
+rfc_section: "14.5"
+source_url: "https://www.rfc-editor.org/rfc/rfc9110"
+description: "Section 14.5: Partial PUT — RFC 9110 — HTTP Semantics"
+tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, content-negotiation, conditional-requests, partial_put]
+---
+
+## 14.5.  Partial PUT
+
+14.5.  Partial PUT
+
+   Some origin servers support PUT of a partial representation when the
+   user agent sends a Content-Range header field (Section 14.4) in the
+   request, though such support is inconsistent and depends on private
+   agreements with user agents.  In general, it requests that the state
+   of the target resource be partly replaced with the enclosed content
+   at an offset and length indicated by the Content-Range value, where
+   the offset is relative to the current selected representation.
+
+> **SHOULD**: An origin server SHOULD respond with a 400 (Bad Request) status code
+   if it receives Content-Range on a PUT for a target resource that does
+   not support partial PUT requests.
+
+   Partial PUT is not backwards compatible with the original definition
+   of PUT.  It may result in the content being written as a complete
+   replacement for the current representation.
+
+   Partial resource updates are also possible by targeting a separately
+   identified resource with state that overlaps or extends a portion of
+   the larger resource, or by using a different method that has been
+   specifically defined for partial updates (for example, the PATCH
+   method defined in [RFC5789]).
