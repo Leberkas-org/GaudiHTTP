@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 6.5.  Trailer Fields
 
-6.5.  Trailer Fields
+## 6.5  Trailer Fields
 
    Fields (Section 5) that are located within a "trailer section" are
    referred to as "trailer fields" (or just "trailers", colloquially).
@@ -25,7 +25,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    are received; those choices cannot be unmade by the later discovery
    of trailer fields.
 
-6.5.1.  Limitations on Use of Trailers
+### 6.5.1  Limitations on Use of Trailers
 
    A trailer section is only possible when supported by the version of
    HTTP in use and enabled by an explicit framing mechanism.  For
@@ -64,7 +64,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **SHOULD NOT**: transit, a server SHOULD NOT generate trailer fields that it believes
    are necessary for the user agent to receive.
 
-6.5.2.  Processing Trailer Fields
+### 6.5.2  Processing Trailer Fields
 
    The "Trailer" header field (Section 6.6.2) can be sent to indicate
    fields likely to be sent in the trailer section, which allows

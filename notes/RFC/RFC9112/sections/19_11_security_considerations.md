@@ -16,7 +16,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    message syntax and parsing.  Security considerations about HTTP
    semantics, content, and routing are addressed in [HTTP].
 
-11.1.  Response Splitting
+## 11.1  Response Splitting
 
    Response splitting (a.k.a. CRLF injection) is a common technique,
    used in various attacks on Web usage, that exploits the line-based
@@ -57,7 +57,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    allowing application servers to write directly to the protocol
    stream.
 
-11.2.  Request Smuggling
+## 11.2  Request Smuggling
 
    Request smuggling ([Linhart]) is a technique that exploits
    differences in protocol parsing among various recipients to hide
@@ -70,7 +70,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    parsing, particularly with regard to message framing in Section 6.3,
    to reduce the effectiveness of request smuggling.
 
-11.3.  Message Integrity
+## 11.3  Message Integrity
 
    HTTP does not define a specific mechanism for ensuring message
    integrity, instead relying on the error-detection ability of
@@ -103,7 +103,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    authentication codes or digital signatures that are selectively added
    to messages via extensible metadata fields.
 
-11.4.  Message Confidentiality
+## 11.4  Message Confidentiality
 
    HTTP relies on underlying transport protocols to provide message
    confidentiality when that is desired.  HTTP has been specifically

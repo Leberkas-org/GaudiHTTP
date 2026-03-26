@@ -7,9 +7,9 @@ description: "Section 10.16: WWW-Authenticate — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, www-authenticate]
 ---
 
-## 10.16.  WWW-Authenticate
+# 10.16.  WWW-Authenticate
 
-10.16  WWW-Authenticate
+## 10.16  WWW-Authenticate
 
    The WWW-Authenticate response-header field must be included in 401
    (unauthorized) response messages. The field value consists of at

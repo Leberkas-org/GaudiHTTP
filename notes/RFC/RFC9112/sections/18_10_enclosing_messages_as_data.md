@@ -11,7 +11,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 10.  Enclosing Messages as Data
 
-10.1.  Media Type message/http
+## 10.1  Media Type message/http
 
    The "message/http" media type can be used to enclose a single HTTP
    request or response message, provided that it obeys the MIME
@@ -71,7 +71,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
    Change controller:  IESG
 
-10.2.  Media Type application/http
+## 10.2  Media Type application/http
 
    The "application/http" media type can be used to enclose a pipeline
    of one or more HTTP request or response messages (not intermixed).

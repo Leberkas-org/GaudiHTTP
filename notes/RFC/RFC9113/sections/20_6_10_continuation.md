@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 6.10.  CONTINUATION
 
-6.10.  CONTINUATION
+## 6.10  CONTINUATION
 
    The CONTINUATION frame (type=0x09) is used to continue a sequence of
    field block fragments (Section 4.3).  Any number of CONTINUATION
@@ -43,7 +43,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
       this frame ends a field block (Section 4.3).
 
 > **MUST**: If the END_HEADERS flag is not set, this frame MUST be followed by
-> **MUST**: another CONTINUATION frame.  A receiver MUST treat the receipt of
+   another CONTINUATION frame.  A receiver MUST treat the receipt of
       any other type of frame or a frame on a different stream as a
       connection error (Section 5.4.1) of type PROTOCOL_ERROR.
 

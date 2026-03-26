@@ -7,9 +7,8 @@ description: "Section 4: Dynamic Table Management — RFC 7541 — HPACK: Header
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, dynamic_table_management]
 ---
 
-## 4.  Dynamic Table Management
+# 4.  Dynamic Table Management
 
-4.  Dynamic Table Management
 
    To limit the memory requirements on the decoder side, the dynamic
    table is constrained in size.
@@ -21,7 +20,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 
 
-4.1.  Calculating Table Size
+## 4.1.  Calculating Table Size
 
    The size of the dynamic table is the sum of the size of its entries.
 
@@ -37,7 +36,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
       entry and two 64-bit integers for counting the number of
       references to the name and value would have 32 octets of overhead.
 
-4.2.  Maximum Table Size
+## 4.2.  Maximum Table Size
 
    Protocols that use HPACK determine the maximum size that the encoder
    is permitted to use for the dynamic table.  In HTTP/2, this value is
@@ -72,13 +71,13 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 
 
-4.3.  Entry Eviction When Dynamic Table Size Changes
+## 4.3.  Entry Eviction When Dynamic Table Size Changes
 
    Whenever the maximum size for the dynamic table is reduced, entries
    are evicted from the end of the dynamic table until the size of the
    dynamic table is less than or equal to the maximum size.
 
-4.4.  Entry Eviction When Adding New Entries
+## 4.4.  Entry Eviction When Adding New Entries
 
    Before a new entry is added to the dynamic table, entries are evicted
    from the end of the dynamic table until the size of the dynamic table

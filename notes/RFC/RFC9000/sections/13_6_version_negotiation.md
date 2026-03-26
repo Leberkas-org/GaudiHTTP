@@ -7,9 +7,8 @@ description: "Section 6: Version Negotiation — RFC 9000 — QUIC: A UDP-Based 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, version_negotiation]
 ---
 
-## 6.  Version Negotiation
+# 6.  Version Negotiation
 
-6.  Version Negotiation
 
    Version negotiation allows a server to indicate that it does not
    support the version the client used.  A server sends a Version
@@ -26,7 +25,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Negotiation packet if the datagram it receives is smaller than the
    minimum size specified in a different version; see Section 14.1.
 
-6.1.  Sending Version Negotiation Packets
+## 6.1.  Sending Version Negotiation Packets
 
    If the version selected by the client is not acceptable to the
    server, the server responds with a Version Negotiation packet; see
@@ -46,7 +45,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    response to 0-RTT packets with the expectation that it will
    eventually receive an Initial packet.
 
-6.2.  Handling Version Negotiation Packets
+## 6.2.  Handling Version Negotiation Packets
 
    Version Negotiation packets are designed to allow for functionality
    to be defined in the future that allows QUIC to negotiate the version
@@ -68,7 +67,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    work will ensure robustness against version downgrade attacks; see
    Section 21.12.
 
-6.3.  Using Reserved Versions
+## 6.3.  Using Reserved Versions
 
    For a server to use a new version in the future, clients need to
    correctly handle unsupported versions.  Some version numbers

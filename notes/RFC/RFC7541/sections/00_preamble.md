@@ -7,7 +7,7 @@ description: "Preamble of RFC 7541 — HPACK: Header Compression for HTTP/2 — 
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, preamble]
 ---
 
-## Preamble
+# Preamble
 
 
 

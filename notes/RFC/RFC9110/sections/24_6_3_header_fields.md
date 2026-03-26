@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 6.3.  Header Fields
 
-6.3.  Header Fields
+## 6.3  Header Fields
 
    Fields (Section 5) that are sent or received before the content are
    referred to as "header fields" (or just "headers", colloquially).

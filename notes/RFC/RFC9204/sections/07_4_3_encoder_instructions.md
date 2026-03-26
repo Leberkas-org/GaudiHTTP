@@ -9,7 +9,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 ## 4.3.  Encoder Instructions
 
-4.3.  Encoder Instructions
+## 4.3  Encoder Instructions
 
    An encoder sends encoder instructions on the encoder stream to set
    the capacity of the dynamic table and add dynamic table entries.
@@ -20,7 +20,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    table, the full entry can also be used by reference, creating a
    duplicate entry.
 
-4.3.1.  Set Dynamic Table Capacity
+### 4.3.1  Set Dynamic Table Capacity
 
    An encoder informs the decoder of a change to the dynamic table
    capacity using an instruction that starts with the '001' 3-bit
@@ -47,7 +47,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    dynamic table is not acknowledged as this instruction does not insert
    an entry.
 
-4.3.2.  Insert with Name Reference
+### 4.3.2  Insert with Name Reference
 
    An encoder adds an entry to the dynamic table where the field name
    matches the field name of an entry stored in the static or the
@@ -73,7 +73,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
                 Figure 6: Insert Field Line -- Indexed Name
 
-4.3.3.  Insert with Literal Name
+### 4.3.3  Insert with Literal Name
 
    An encoder adds an entry to the dynamic table where both the field
    name and the field value are represented as string literals using an
@@ -96,7 +96,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
                   Figure 7: Insert Field Line -- New Name
 
-4.3.4.  Duplicate
+### 4.3.4  Duplicate
 
    An encoder duplicates an existing entry in the dynamic table using an
    instruction that starts with the '000' 3-bit pattern.  This is

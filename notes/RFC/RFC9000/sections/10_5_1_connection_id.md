@@ -7,9 +7,9 @@ description: "Section 5.1: Connection ID — RFC 9000 — QUIC: A UDP-Based Mult
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, connection_id]
 ---
 
-## 5.1.  Connection ID
+# 5.1.  Connection ID
 
-5.  Connections
+
 
    A QUIC connection is shared state between a client and a server.
 
@@ -40,7 +40,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    several ways for a client and server to terminate a connection, as
    described in Section 10.
 
-5.1.  Connection ID
+## 5.1.  Connection ID
 
    Each connection possesses a set of connection identifiers, or
    connection IDs, each of which can identify the connection.
@@ -98,7 +98,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    supplied by the endpoint using the NEW_CONNECTION_ID frame
    (Section 19.15).
 
-5.1.1.  Issuing Connection IDs
+### 5.1.1.  Issuing Connection IDs
 
    Each connection ID has an associated sequence number to assist in
    detecting when NEW_CONNECTION_ID or RETIRE_CONNECTION_ID frames refer
@@ -129,7 +129,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    available and unused connection IDs.  Endpoints advertise the number
    of active connection IDs they are willing to maintain using the
 > **MUST NOT**: active_connection_id_limit transport parameter.  An endpoint MUST NOT
-> **MAY**: provide more connection IDs than the peer's limit.  An endpoint MAY
+   provide more connection IDs than the peer's limit.  An endpoint MAY
    send connection IDs that temporarily exceed a peer's limit if the
    NEW_CONNECTION_ID frame also requires the retirement of any excess,
    by including a sufficiently large value in the Retire Prior To field.
@@ -164,7 +164,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Destination Connection ID field is used in all packets sent toward
    such an endpoint over any network path.
 
-5.1.2.  Consuming and Retiring Connection IDs
+### 5.1.2.  Consuming and Retiring Connection IDs
 
    An endpoint can change the connection ID it uses for a peer to
    another available one at any time during the connection.  An endpoint
@@ -210,7 +210,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **SHOULD**: acknowledged.  An endpoint SHOULD allow for sending and tracking a
    number of RETIRE_CONNECTION_ID frames of at least twice the value of
 > **MUST**: the active_connection_id_limit transport parameter.  An endpoint MUST
-> **MAY**: NOT forget a connection ID without retiring it, though it MAY choose
+   NOT forget a connection ID without retiring it, though it MAY choose
    to treat having connection IDs in need of retirement that exceed this
    limit as a connection error of type CONNECTION_ID_LIMIT_ERROR.
 

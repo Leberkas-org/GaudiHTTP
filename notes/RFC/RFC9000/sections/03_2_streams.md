@@ -7,9 +7,8 @@ description: "Section 2: Streams — RFC 9000 — QUIC: A UDP-Based Multiplexed 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, streams]
 ---
 
-## 2.  Streams
+# 2.  Streams
 
-2.  Streams
 
    Streams in QUIC provide a lightweight, ordered byte-stream
    abstraction to an application.  Streams can be unidirectional or
@@ -32,7 +31,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    stream, subject to flow control constraints and stream limits; see
    Section 4.
 
-2.1.  Stream Types and Identifiers
+## 2.1.  Stream Types and Identifiers
 
    Streams can be unidirectional or bidirectional.  Unidirectional
    streams carry data in one direction: from the initiator of the stream
@@ -77,7 +76,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    used out of order results in all streams of that type with lower-
    numbered stream IDs also being opened.
 
-2.2.  Sending and Receiving Data
+## 2.2.  Sending and Receiving Data
 
    STREAM frames (Section 19.8) encapsulate data sent by an application.
    An endpoint uses the Stream ID and Offset fields in STREAM frames to
@@ -95,7 +94,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    An endpoint could receive data for a stream at the same stream offset
    multiple times.  Data that has already been received can be
 > **MUST NOT**: discarded.  The data at a given offset MUST NOT change if it is sent
-> **MAY**: multiple times; an endpoint MAY treat receipt of different data at
+   multiple times; an endpoint MAY treat receipt of different data at
    the same offset within a stream as a connection error of type
    PROTOCOL_VIOLATION.
 
@@ -108,7 +107,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    is within the flow control limits set by its peer.  Flow control is
    described in detail in Section 4.
 
-2.3.  Stream Prioritization
+## 2.3.  Stream Prioritization
 
    Stream multiplexing can have a significant effect on application
    performance if resources allocated to streams are correctly
@@ -123,7 +122,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    information provided by the application to determine how to allocate
    resources to active streams.
 
-2.4.  Operations on Streams
+## 2.4.  Operations on Streams
 
    This document does not define an API for QUIC; it instead defines a
    set of functions on streams that application protocols can rely upon.

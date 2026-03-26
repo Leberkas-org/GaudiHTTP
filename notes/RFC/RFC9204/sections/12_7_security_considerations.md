@@ -21,7 +21,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    *  Denial of service resulting from exhausting processing or memory
       capacity at a decoder.
 
-7.1.  Probing Dynamic Table State
+## 7.1  Probing Dynamic Table State
 
    QPACK reduces the encoded size of field sections by exploiting the
    redundancy inherent in protocols like HTTP.  The ultimate goal of
@@ -56,7 +56,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    at a time, reducing an exponential-time attack into a linear-time
    attack.
 
-7.1.1.  Applicability to QPACK and HTTP
+### 7.1.1  Applicability to QPACK and HTTP
 
    QPACK mitigates, but does not completely prevent, attacks modeled on
    CRIME ([CRIME]) by forcing a guess to match an entire field line
@@ -92,7 +92,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    distrustful entities.  Other scenarios involving mutually distrustful
    entities are also possible.
 
-7.1.2.  Mitigation
+### 7.1.2  Mitigation
 
    Users of HTTP that require confidentiality for header or trailer
    fields can use values with entropy sufficient to make guessing
@@ -140,7 +140,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
       |  this sort of attack), and websites can easily force an image to
       |  be loaded, thereby refreshing the entry in the dynamic table.
 
-7.1.3.  Never-Indexed Literals
+### 7.1.3  Never-Indexed Literals
 
    Implementations can also choose to protect sensitive fields by not
    compressing them and instead encoding their value as literals.
@@ -177,7 +177,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    Note that these criteria for deciding to use a never-indexed literal
    representation will evolve over time as new attacks are discovered.
 
-7.2.  Static Huffman Encoding
+## 7.2  Static Huffman Encoding
 
    There is no currently known attack against a static Huffman encoding.
    A study has shown that using a static Huffman encoding table created
@@ -185,7 +185,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    attacker could not take advantage of this information leakage to
    recover any meaningful amount of information (see [PETAL]).
 
-7.3.  Memory Consumption
+## 7.3  Memory Consumption
 
    An attacker can try to cause an endpoint to exhaust its memory.
    QPACK is designed to limit both the peak and stable amounts of memory
@@ -246,7 +246,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    new streams, reading only from the encoder stream, or closing the
    connection.
 
-7.4.  Implementation Limits
+## 7.4  Implementation Limits
 
    An implementation of QPACK needs to ensure that large values for
    integers, long encoding for integers, or long string literals do not

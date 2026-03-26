@@ -7,9 +7,9 @@ description: "Section 3.1: Sending Stream States — RFC 9000 — QUIC: A UDP-Ba
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, sending_stream_states]
 ---
 
-## 3.1.  Sending Stream States
+# 3.1.  Sending Stream States
 
-3.  Stream States
+
 
    This section describes streams in terms of their send or receive
    components.  Two state machines are described: one for the streams on
@@ -41,7 +41,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
       |  sending stream: from the "Ready" state to the "Send" state, and
       |  from the "Send" state to the "Data Sent" state.
 
-3.1.  Sending Stream States
+## 3.1.  Sending Stream States
 
    Figure 2 shows the states for the part of a stream that sends data to
    a peer.

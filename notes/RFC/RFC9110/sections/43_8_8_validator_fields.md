@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 8.8.  Validator Fields
 
-8.8.  Validator Fields
+## 8.8  Validator Fields
 
    Resource metadata is referred to as a "validator" if it can be used
    within a precondition (Section 13.1) to make a conditional request
@@ -40,7 +40,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Distributed Authoring and Versioning [WEBDAV], that are beyond the
    scope of this specification.
 
-8.8.1.  Weak versus Strong
+### 8.8.1  Weak versus Strong
 
    Validators come in two flavors: strong or weak.  Weak validators are
    easy to generate but are far less useful for comparisons.  Strong
@@ -127,7 +127,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    such as when validating a cache entry or limiting a web traversal to
    recent changes.
 
-8.8.2.  Last-Modified
+### 8.8.2  Last-Modified
 
    The "Last-Modified" header field in a response provides a timestamp
    indicating the date and time at which the origin server believes the
@@ -144,7 +144,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    Last-Modified: Tue, 15 Nov 1994 12:45:26 GMT
 
-8.8.2.1.  Generation
+#### 8.8.2.1  Generation
 
 > **SHOULD**: An origin server SHOULD send Last-Modified for any selected
    representation for which a last modification date can be reasonably
@@ -179,7 +179,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    date for a response unless that date value was assigned to the
    resource by some other system (presumably one with a clock).
 
-8.8.2.2.  Comparison
+#### 8.8.2.2  Comparison
 
    A Last-Modified time, when used as a validator in a request, is
    implicitly weak unless it is possible to deduce that it is strong,
@@ -221,7 +221,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    same Last-Modified time, then at least one of those responses would
    have a Date value equal to its Last-Modified time.
 
-8.8.3.  ETag
+### 8.8.3  ETag
 
    The "ETag" field in a response provides the current entity tag for
    the selected representation, as determined at the conclusion of
@@ -274,7 +274,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    preferable to send ETag as a header field unless the entity tag is
    generated while sending the content.
 
-8.8.3.1.  Generation
+#### 8.8.3.1  Generation
 
    The principle behind entity tags is that only the service author
    knows the implementation of a resource well enough to select the most
@@ -298,7 +298,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    unnecessary transfers and significantly improve service availability,
    scalability, and reliability.
 
-8.8.3.2.  Comparison
+#### 8.8.3.2  Comparison
 
    There are two entity tag comparison functions, depending on whether
    or not the comparison context allows the use of weak validators:
@@ -327,7 +327,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
                             Table 3
 
-8.8.3.3.  Example: Entity Tags Varying on Content-Negotiated Resources
+#### 8.8.3.3  Example: Entity Tags Varying on Content-Negotiated Resources
 
    Consider a resource that is subject to content negotiation
    (Section 12), and where the representations sent in response to a GET

@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 16.4.  Authentication Scheme Extensibility
 
-16.4.  Authentication Scheme Extensibility
+## 16.4  Authentication Scheme Extensibility
 
-16.4.1.  Authentication Scheme Registry
+### 16.4.1  Authentication Scheme Registry
 
    The "Hypertext Transfer Protocol (HTTP) Authentication Scheme
    Registry" defines the namespace for the authentication schemes in
@@ -29,7 +29,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Values to be added to this namespace require IETF Review (see
    [RFC8126], Section 4.8).
 
-16.4.2.  Considerations for New Authentication Schemes
+### 16.4.2  Considerations for New Authentication Schemes
 
    There are certain aspects of the HTTP Authentication framework that
    put constraints on how new authentication schemes can work:

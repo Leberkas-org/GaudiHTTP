@@ -7,9 +7,8 @@ description: "Section 1: Introduction — RFC 7541 — HPACK: Header Compression
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, introduction]
 ---
 
-## 1.  Introduction
+# 1.  Introduction
 
-1.  Introduction
 
    In HTTP/1.1 (see [RFC7230]), header fields are not compressed.  As
    web pages have grown to require dozens to hundreds of requests, the
@@ -34,7 +33,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    defined; changes to the format are only possible by defining a
    complete replacement.
 
-1.1.  Overview
+## 1.1.  Overview
 
    The format defined in this specification treats a list of header
    fields as an ordered collection of name-value pairs that can include
@@ -67,9 +66,9 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    Examples illustrating the use of these different mechanisms to
    represent header fields are available in Appendix C.
 
-1.2.  Conventions
+## 1.2.  Conventions
 
-   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+> **MUST**: The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
    document are to be interpreted as described in RFC 2119 [RFC2119].
 
@@ -77,7 +76,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    unless otherwise indicated.  Literal values are provided in decimal
    or hexadecimal as appropriate.
 
-1.3.  Terminology
+## 1.3.  Terminology
 
    This specification uses the following terms:
 

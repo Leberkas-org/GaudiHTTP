@@ -11,7 +11,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 13.  References
 
-13.1.  Normative References
+## 13.1  Normative References
 
    [CACHING]  Fielding, R., Ed., Nottingham, M., Ed., and J. Reschke,
               Ed., "HTTP Caching", STD 98, RFC 9111,
@@ -72,7 +72,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
               DOI 10.1109/MC.1984.1659158, June 1984,
               <https://ieeexplore.ieee.org/document/1659158/>.
 
-13.2.  Informative References
+## 13.2  Informative References
 
    [HTTP/1.0] Berners-Lee, T., Fielding, R., and H. Frystyk, "Hypertext
               Transfer Protocol -- HTTP/1.0", RFC 1945,

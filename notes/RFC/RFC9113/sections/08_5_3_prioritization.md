@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 5.3.  Prioritization
 
-5.3.  Prioritization
+## 5.3  Prioritization
 
    In a multiplexed protocol like HTTP/2, prioritizing allocation of
    bandwidth and computation resources to streams can be critical to
@@ -24,7 +24,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    requests that is relevant to server prioritization.  In those cases,
    having clients provide priority information can improve performance.
 
-5.3.1.  Background on Priority in RFC 7540
+### 5.3.1  Background on Priority in RFC 7540
 
    RFC 7540 defined a rich system for signaling priority of requests.
    However, this system proved to be complex, and it was not uniformly
@@ -40,7 +40,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    In short, the prioritization signaling in RFC 7540 [RFC7540] was not
    successful.
 
-5.3.2.  Priority Signaling in This Document
+### 5.3.2  Priority Signaling in This Document
 
    This update to HTTP/2 deprecates the priority signaling defined in
    RFC 7540 [RFC7540].  The bulk of the text related to priority signals

@@ -11,7 +11,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 12.  References
 
-12.1.  Normative References
+## 12.1  Normative References
 
    [ALTSVC]   Nottingham, M., McManus, P., and J. Reschke, "HTTP
               Alternative Services", RFC 7838, DOI 10.17487/RFC7838,
@@ -81,7 +81,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
               RFC 3986, DOI 10.17487/RFC3986, January 2005,
               <https://www.rfc-editor.org/info/rfc3986>.
 
-12.2.  Informative References
+## 12.2  Informative References
 
    [BREACH]   Gluck, Y., Harris, N., and A. Prado, "BREACH: Reviving the
               CRIME Attack", July 2013,

@@ -7,9 +7,8 @@ description: "Section 6: Response — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request]
 ---
 
-## 6.  Response
+# 6.  Response
 
-6.  Response
 
    After receiving and interpreting a request message, a server responds
    in the form of an HTTP response message.
@@ -44,7 +43,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    accordingly. Note that the Simple-Response consists only of the
    entity body and is terminated by the server closing the connection.
 
-6.1  Status-Line
+## 6.1  Status-Line
 
    The first line of a Full-Response message is the Status-Line,
    consisting of the protocol version followed by a numeric status code
@@ -70,7 +69,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    Full-Request, most HTTP/0.9 servers are limited to responses of type
    "text/html" and therefore would never generate such a response.
 
-6.1.1 Status Code and Reason Phrase
+### 6.1.1  Status Code and Reason Phrase
 
    The Status-Code element is a 3-digit integer result code of the
    attempt to understand and satisfy the request. The Reason-Phrase is
@@ -152,7 +151,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    include human-readable information which will explain the unusual
    status.
 
-6.2  Response Header Fields
+## 6.2  Response Header Fields
 
    The response header fields allow the server to pass additional
    information about the response which cannot be placed in the Status-

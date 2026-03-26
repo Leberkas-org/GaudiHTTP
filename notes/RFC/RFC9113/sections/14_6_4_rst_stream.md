@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 6.4.  RST_STREAM
 
-6.4.  RST_STREAM
+## 6.4  RST_STREAM
 
    The RST_STREAM frame (type=0x03) allows for immediate termination of
    a stream.  RST_STREAM is sent to request cancellation of a stream or

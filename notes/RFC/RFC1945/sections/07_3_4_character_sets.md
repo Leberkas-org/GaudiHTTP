@@ -7,9 +7,9 @@ description: "Section 3.4: Character Sets — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, character_sets]
 ---
 
-## 3.4.  Character Sets
+# 3.4.  Character Sets
 
-3.4  Character Sets
+## 3.4  Character Sets
 
    HTTP uses the same definition of the term "character set" as that
    described for MIME:

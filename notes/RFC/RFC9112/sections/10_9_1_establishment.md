@@ -35,7 +35,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    of concurrent connections, while controlling request queues to enable
    fair use and detect denial-of-service attacks.
 
-9.1.  Establishment
+## 9.1  Establishment
 
    It is beyond the scope of this specification to describe how
    connections are established via various transport- or session-layer

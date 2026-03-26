@@ -7,9 +7,9 @@ description: "Section 10.13: Referer — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, referer]
 ---
 
-## 10.13.  Referer
+# 10.13.  Referer
 
-10.13  Referer
+## 10.13  Referer
 
    The Referer request-header field allows the client to specify, for
    the server's benefit, the address (URI) of the resource from which

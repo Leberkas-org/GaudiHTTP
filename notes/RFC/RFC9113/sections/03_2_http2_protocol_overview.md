@@ -54,7 +54,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    The server is then able to send a response to the synthetic request
    on a separate stream.
 
-2.1.  Document Organization
+## 2.1  Document Organization
 
    The HTTP/2 specification is split into four parts:
 
@@ -77,7 +77,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    layer.  The frame and stream layers are tailored to the needs of
    HTTP.
 
-2.2.  Conventions and Terminology
+## 2.2  Conventions and Terminology
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and

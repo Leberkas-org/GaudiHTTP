@@ -7,9 +7,8 @@ description: "Section 12: Insert the newly created cookie into the cookie store.
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, insert_the_newly_created_cookie_into_the_cookie_st]
 ---
 
-## 12.  Insert the newly created cookie into the cookie store.
+# 12.  Insert the newly created cookie into the cookie store.
 
-   12.  Insert the newly created cookie into the cookie store.
 
    A cookie is "expired" if the cookie has an expiry date in the past.
 

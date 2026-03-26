@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 11.3.  Challenge and Response
 
-11.3.  Challenge and Response
+## 11.3  Challenge and Response
 
    A 401 (Unauthorized) response message is used by an origin server to
    challenge the authorization of a user agent, including a

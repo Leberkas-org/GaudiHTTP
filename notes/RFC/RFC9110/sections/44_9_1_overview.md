@@ -11,7 +11,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 9.  Methods
 
-9.1.  Overview
+## 9.1  Overview
 
    The request method token is the primary source of request semantics;
    it indicates the purpose for which the client has made this request

@@ -7,9 +7,8 @@ description: "Section 7.2: Negotiating Connection IDs — RFC 9000 — QUIC: A U
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, negotiating_connection_ids]
 ---
 
-## 7.2.  Negotiating Connection IDs
+# 7.2.  Negotiating Connection IDs
 
-7.2.  Negotiating Connection IDs
 
    A connection ID is used to ensure consistent routing of packets, as
    described in Section 5.1.  The long header contains two connection
@@ -31,7 +30,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    received an Initial or Retry packet from the server, the client
    populates the Destination Connection ID field with an unpredictable
 > **MUST**: value.  This Destination Connection ID MUST be at least 8 bytes in
-> **MUST**: length.  Until a packet is received from the server, the client MUST
+   length.  Until a packet is received from the server, the client MUST
    use the same Destination Connection ID value on all packets in this
    connection.
 

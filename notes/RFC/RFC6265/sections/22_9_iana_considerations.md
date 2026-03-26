@@ -7,9 +7,8 @@ description: "Section 9: IANA Considerations — RFC 6265 — HTTP State Managem
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, iana_considerations]
 ---
 
-## 9.  IANA Considerations
+# 9.  IANA Considerations
 
-9.  IANA Considerations
 
    The permanent message header field registry (see [RFC3864]) has been
    updated with the following registrations.
@@ -24,7 +23,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 
 
-9.1.  Cookie
+## 9.1.  Cookie
 
    Header field name: Cookie
 
@@ -36,7 +35,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
    Specification document: this specification (Section 5.4)
 
-9.2.  Set-Cookie
+## 9.2.  Set-Cookie
 
    Header field name: Set-Cookie
 
@@ -48,7 +47,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
    Specification document: this specification (Section 5.2)
 
-9.3.  Cookie2
+## 9.3.  Cookie2
 
    Header field name: Cookie2
 
@@ -60,7 +59,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
    Specification document: [RFC2965]
 
-9.4.  Set-Cookie2
+## 9.4.  Set-Cookie2
 
    Header field name: Set-Cookie2
 

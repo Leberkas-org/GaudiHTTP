@@ -7,9 +7,8 @@ description: "Section 12.5: Frames and Number Spaces — RFC 9000 — QUIC: A UD
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, frames_and_number_spaces]
 ---
 
-## 12.5.  Frames and Number Spaces
+# 12.5.  Frames and Number Spaces
 
-12.5.  Frames and Number Spaces
 
    Some frames are prohibited in different packet number spaces.  The
    rules here generalize those of TLS, in that frames associated with
@@ -22,7 +21,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    *  CONNECTION_CLOSE frames signaling errors at the QUIC layer (type
 > **MAY**: 0x1c) MAY appear in any packet number space.  CONNECTION_CLOSE
-> **MUST**: frames signaling application errors (type 0x1d) MUST only appear
+   frames signaling application errors (type 0x1d) MUST only appear
       in the application data packet number space.
 
 > **MAY**: *  ACK frames MAY appear in any packet number space but can only

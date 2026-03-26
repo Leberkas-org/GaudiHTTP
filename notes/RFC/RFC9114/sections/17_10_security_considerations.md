@@ -16,13 +16,13 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    Section 10 of [HTTP/2] apply to [QUIC-TRANSPORT] and are discussed in
    that document.
 
-10.1.  Server Authority
+## 10.1  Server Authority
 
    HTTP/3 relies on the HTTP definition of authority.  The security
    considerations of establishing authority are discussed in
    Section 17.1 of [HTTP].
 
-10.2.  Cross-Protocol Attacks
+## 10.2  Cross-Protocol Attacks
 
    The use of ALPN in the TLS and QUIC handshakes establishes the target
    application protocol before application-layer bytes are processed.
@@ -34,7 +34,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    plaintext of QUIC packets can be used to perform request forgery
    against endpoints that don't use authenticated transports.
 
-10.3.  Intermediary-Encapsulation Attacks
+## 10.3  Intermediary-Encapsulation Attacks
 
    The HTTP/3 field encoding allows the expression of names that are not
    valid field names in the syntax used by HTTP (Section 5.1 of [HTTP]).
@@ -52,7 +52,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    malformed.  Valid characters are defined by the "field-content" ABNF
    rule in Section 5.5 of [HTTP].
 
-10.4.  Cacheability of Pushed Responses
+## 10.4  Cacheability of Pushed Responses
 
    Pushed responses do not have an explicit request from the client; the
    request is provided by the server in the PUSH_PROMISE frame.
@@ -73,7 +73,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    Clients are required to reject pushed responses for which an origin
    server is not authoritative; see Section 4.6.
 
-10.5.  Denial-of-Service Considerations
+## 10.5  Denial-of-Service Considerations
 
    An HTTP/3 connection can demand a greater commitment of resources to
    operate than an HTTP/1.1 or HTTP/2 connection.  The use of field
@@ -107,12 +107,12 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
    An endpoint that does not monitor such behavior exposes itself to a
 > **SHOULD**: risk of denial-of-service attack.  Implementations SHOULD track the
-> **MAY**: use of these features and set limits on their use.  An endpoint MAY
+   use of these features and set limits on their use.  An endpoint MAY
    treat activity that is suspicious as a connection error of type
    H3_EXCESSIVE_LOAD, but false positives will result in disrupting
    valid connections and requests.
 
-10.5.1.  Limits on Field Section Size
+### 10.5.1  Limits on Field Section Size
 
    A large field section (Section 4.1) can cause an implementation to
    commit a large amount of state.  Header fields that are critical for
@@ -139,7 +139,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    code ([RFC6585]).  A client can discard responses that it cannot
    process.
 
-10.5.2.  CONNECT Issues
+### 10.5.2  CONNECT Issues
 
    The CONNECT method can be used to create disproportionate load on a
    proxy, since stream creation is relatively inexpensive when compared
@@ -153,7 +153,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    account for this, a proxy might delay increasing the QUIC stream
    limits for some time after a TCP connection terminates.
 
-10.6.  Use of Compression
+## 10.6  Use of Compression
 
    Compression can allow an attacker to recover secret data when it is
    compressed in the same context as data under attacker control.
@@ -176,7 +176,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    Further considerations regarding the compression of field sections
    are described in [QPACK].
 
-10.7.  Padding and Traffic Analysis
+## 10.7  Padding and Traffic Analysis
 
    Padding can be used to obscure the exact size of frame content and is
    provided to mitigate specific attacks within HTTP, for example,
@@ -187,7 +187,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    frames to make a connection more resistant to traffic analysis,
    HTTP/3 can either rely on transport-layer padding or employ the
    reserved frame and stream types discussed in Sections 7.2.8 and
-   6.2.3.  These methods of padding produce different results in terms
+### 6.2.3  These methods of padding produce different results in terms
    of the granularity of padding, how padding is arranged in relation to
    the information that is being protected, whether padding is applied
    in the case of packet loss, and how an implementation might control
@@ -216,7 +216,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    payload sizes cross the fixed-sized boundary, which could be possible
    if an attacker can control plaintext.
 
-10.8.  Frame Parsing
+## 10.8  Frame Parsing
 
    Several protocol elements contain nested length elements, typically
    in the form of frames with an explicit length containing variable-
@@ -224,7 +224,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: implementer.  An implementation MUST ensure that the length of a
    frame exactly matches the length of the fields it contains.
 
-10.9.  Early Data
+## 10.9  Early Data
 
    The use of 0-RTT with HTTP/3 creates an exposure to replay attack.
 > **MUST**: The anti-replay mitigations in [HTTP-REPLAY] MUST be applied when
@@ -233,7 +233,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    QUIC, while all references to application data refer to the contents
    of streams.
 
-10.10.  Migration
+## 10.10  Migration
 
    Certain HTTP implementations use the client address for logging or
    access-control purposes.  Since a QUIC client's address might change
@@ -243,7 +243,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    are relevant or explicitly accept that the original address might
    change.
 
-10.11.  Privacy Considerations
+## 10.11  Privacy Considerations
 
    Several characteristics of HTTP/3 provide an observer an opportunity
    to correlate actions of a single client or server over time.  These

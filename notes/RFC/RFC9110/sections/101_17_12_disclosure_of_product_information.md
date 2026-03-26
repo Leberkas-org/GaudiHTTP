@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.12.  Disclosure of Product Information
 
-17.12.  Disclosure of Product Information
+## 17.12  Disclosure of Product Information
 
    The User-Agent (Section 10.1.5), Via (Section 7.6.3), and Server
    (Section 10.2.4) header fields often reveal information about the

@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 8.3.  HTTP Control Data
 
-8.3.  HTTP Control Data
+## 8.3  HTTP Control Data
 
    HTTP/2 uses special pseudo-header fields beginning with a ':'
    character (ASCII 0x3a) to convey message control data (see
@@ -22,9 +22,9 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    Pseudo-header fields are only valid in the context in which they are
 > **MUST NOT**: defined.  Pseudo-header fields defined for requests MUST NOT appear
-> **MUST NOT**: in responses; pseudo-header fields defined for responses MUST NOT
+   in responses; pseudo-header fields defined for responses MUST NOT
 > **MUST NOT**: appear in requests.  Pseudo-header fields MUST NOT appear in a
-> **MUST**: trailer section.  Endpoints MUST treat a request or response that
+   trailer section.  Endpoints MUST treat a request or response that
    contains undefined or invalid pseudo-header fields as malformed
    (Section 8.1.1).
 
@@ -38,7 +38,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 > **MUST**: contains a repeated pseudo-header field name MUST be treated as
    malformed (Section 8.1.1).
 
-8.3.1.  Request Pseudo-Header Fields
+### 8.3.1  Request Pseudo-Header Fields
 
    The following pseudo-header fields are defined for HTTP/2 requests:
 
@@ -58,7 +58,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    *  The ":authority" pseudo-header field conveys the authority portion
       (Section 3.2 of [RFC3986]) of the target URI (Section 7.1 of
-      [HTTP]).  The recipient of an HTTP/2 request MUST NOT use the Host
+> **MUST NOT**: [HTTP]).  The recipient of an HTTP/2 request MUST NOT use the Host
       header field to determine the target URI if ":authority" is
       present.
 
@@ -128,7 +128,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    protocol version.  All HTTP/2 requests implicitly have a protocol
    version of "2.0" (see Section 6.2 of [HTTP]).
 
-8.3.2.  Response Pseudo-Header Fields
+### 8.3.2  Response Pseudo-Header Fields
 
    For HTTP/2 responses, a single ":status" pseudo-header field is
    defined that carries the HTTP status code field (see Section 15 of

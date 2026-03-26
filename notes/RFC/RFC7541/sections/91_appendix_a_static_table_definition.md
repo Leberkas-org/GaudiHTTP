@@ -7,9 +7,8 @@ description: "Appendix A: Static Table Definition — RFC 7541 — HPACK: Header
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, static_table_definition]
 ---
 
-## Appendix A.  Static Table Definition
+# Appendix A.  Static Table Definition
 
-Appendix A.  Static Table Definition
 
    The static table (see Section 2.3.1) consists in a predefined and
    unchangeable list of header fields.

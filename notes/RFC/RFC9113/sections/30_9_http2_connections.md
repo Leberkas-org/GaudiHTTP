@@ -15,7 +15,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    interoperability, reduce exposure to known security vulnerabilities,
    or reduce the potential for implementation variation.
 
-9.1.  Connection Management
+## 9.1  Connection Management
 
    HTTP/2 connections are persistent.  For best performance, it is
    expected that clients will not close connections until it is
@@ -46,7 +46,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    whether previously sent frames have been processed and gracefully
    complete or terminate any necessary remaining tasks.
 
-9.1.1.  Connection Reuse
+### 9.1.1  Connection Reuse
 
    Connections that are made to an origin server, either directly or
 > **MAY**: through a tunnel created using the CONNECT method (Section 8.5), MAY
@@ -80,7 +80,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    requests to that proxy through a single connection.  That is, all
    requests sent via a proxy reuse the connection to the proxy.
 
-9.2.  Use of TLS Features
+## 9.2  Use of TLS Features
 
 > **MUST**: Implementations of HTTP/2 MUST use TLS version 1.2 [TLS12] or higher
    for HTTP/2 over TLS.  The general TLS usage guidance in [TLSBCP]
@@ -115,7 +115,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    performance, security, or other reasons.
 
 > **MUST**: A deployment of HTTP/2 over TLS 1.2 MUST disable renegotiation.  An
-> **MUST**: endpoint MUST treat a TLS renegotiation as a connection error
+   endpoint MUST treat a TLS renegotiation as a connection error
    (Section 5.4.1) of type PROTOCOL_ERROR.  Note that disabling
    renegotiation can result in long-lived connections becoming unusable
    due to limits on the number of messages the underlying cipher suite
@@ -124,7 +124,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 > **MAY**: An endpoint MAY use renegotiation to provide confidentiality
    protection for client credentials offered in the handshake, but any
 > **MUST**: renegotiation MUST occur prior to sending the connection preface.  A
-> **SHOULD**: server SHOULD request a client certificate if it sees a renegotiation
+   server SHOULD request a client certificate if it sees a renegotiation
    request immediately after establishing a connection.
 
    This effectively prevents the use of renegotiation in response to a
@@ -138,7 +138,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    Hellman (DHE) (Section 8.1.2 of [TLS12]) and 224 bits for cipher
    suites that use ephemeral elliptic curve Diffie-Hellman (ECDHE)
 > **MUST**: [RFC8422].  Clients MUST accept DHE sizes of up to 4096 bits.
-> **MAY**: Endpoints MAY treat negotiation of key sizes smaller than the lower
+   Endpoints MAY treat negotiation of key sizes smaller than the lower
    limits as a connection error (Section 5.4.1) of type
    INADEQUATE_SECURITY.
 
@@ -178,7 +178,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    versions.  This section discusses the use of these features.
 
 > **MUST NOT**: HTTP/2 servers MUST NOT send post-handshake TLS 1.3
-> **MUST**: CertificateRequest messages.  HTTP/2 clients MUST treat a TLS post-
+   CertificateRequest messages.  HTTP/2 clients MUST treat a TLS post-
    handshake CertificateRequest message as a connection error
    (Section 5.4.1) of type PROTOCOL_ERROR.
 

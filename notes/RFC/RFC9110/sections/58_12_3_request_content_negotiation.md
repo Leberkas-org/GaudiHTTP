@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 12.3.  Request Content Negotiation
 
-12.3.  Request Content Negotiation
+## 12.3  Request Content Negotiation
 
    When content negotiation preferences are sent in a server's response,
    the listed preferences are called "request content negotiation"

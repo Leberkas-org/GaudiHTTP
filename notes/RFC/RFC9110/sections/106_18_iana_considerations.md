@@ -14,13 +14,13 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    The change controller for the following registrations is: "IETF
    (iesg@ietf.org) - Internet Engineering Task Force".
 
-18.1.  URI Scheme Registration
+## 18.1  URI Scheme Registration
 
    IANA has updated the "Uniform Resource Identifier (URI) Schemes"
    registry [BCP35] at <https://www.iana.org/assignments/uri-schemes/>
    with the permanent schemes listed in Table 2 in Section 4.2.
 
-18.2.  Method Registration
+## 18.2  Method Registration
 
    IANA has updated the "Hypertext Transfer Protocol (HTTP) Method
    Registry" at <https://www.iana.org/assignments/http-methods> with the
@@ -55,7 +55,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    would conflict with its usage as a wildcard in some fields (e.g.,
    "Access-Control-Request-Method").
 
-18.3.  Status Code Registration
+## 18.3  Status Code Registration
 
    IANA has updated the "Hypertext Transfer Protocol (HTTP) Status Code
    Registry" at <https://www.iana.org/assignments/http-status-codes>
@@ -160,7 +160,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
                                   Table 8
 
-18.4.  Field Name Registration
+## 18.4  Field Name Registration
 
    This specification updates the HTTP-related aspects of the existing
    registration procedures for message header fields defined in

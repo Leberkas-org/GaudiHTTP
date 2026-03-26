@@ -7,9 +7,8 @@ description: "Section 8.2: Path Validation — RFC 9000 — QUIC: A UDP-Based Mu
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, path_validation]
 ---
 
-## 8.2.  Path Validation
+# 8.2.  Path Validation
 
-8.2.  Path Validation
 
    Path validation is used by both peers during connection migration
    (see Section 9) to verify reachability after a change of address.  In
@@ -61,13 +60,13 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    new local address used for a probe requires a previously unused
    connection ID.
 
-8.2.1.  Initiating Path Validation
+### 8.2.1.  Initiating Path Validation
 
    To initiate path validation, an endpoint sends a PATH_CHALLENGE frame
    containing an unpredictable payload on the path to be validated.
 
 > **MAY**: An endpoint MAY send multiple PATH_CHALLENGE frames to guard against
-> **SHOULD NOT**: packet loss.  However, an endpoint SHOULD NOT send multiple
+   packet loss.  However, an endpoint SHOULD NOT send multiple
    PATH_CHALLENGE frames in a single packet.
 
 > **SHOULD NOT**: An endpoint SHOULD NOT probe a new path with packets containing a
@@ -100,7 +99,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    discard datagrams that appear to be too small when they contain
    PATH_CHALLENGE or PATH_RESPONSE.
 
-8.2.2.  Path Validation Responses
+### 8.2.2.  Path Validation Responses
 
 > **MUST**: On receiving a PATH_CHALLENGE frame, an endpoint MUST respond by
    echoing the data contained in the PATH_CHALLENGE frame in a
@@ -128,7 +127,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    expected to send more PATH_CHALLENGE frames as necessary to evoke
    additional PATH_RESPONSE frames.
 
-8.2.3.  Successful Path Validation
+### 8.2.3.  Successful Path Validation
 
    Path validation succeeds when a PATH_RESPONSE frame is received that
    contains the data that was sent in a previous PATH_CHALLENGE frame.
@@ -147,7 +146,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    frame is not adequate validation, since the acknowledgment can be
    spoofed by a malicious peer.
 
-8.2.4.  Failed Path Validation
+### 8.2.4.  Failed Path Validation
 
    Path validation only fails when the endpoint attempting to validate
    the path abandons its attempt to validate the path.

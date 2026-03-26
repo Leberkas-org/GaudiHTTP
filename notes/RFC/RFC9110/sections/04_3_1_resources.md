@@ -16,7 +16,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    hypertext system.  Much of that architecture is reflected in the
    terminology used to define HTTP.
 
-3.1.  Resources
+## 3.1  Resources
 
    The target of an HTTP request is called a "resource".  HTTP does not
    limit the nature of a resource; it merely defines an interface that

@@ -31,7 +31,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    Experimental Use in RFC 7540.  These portions of the registries shall
    operate on the same policy as the remainder of each registry.
 
-11.1.  HTTP2-Settings Header Field Registration
+## 11.1  HTTP2-Settings Header Field Registration
 
    This section marks the HTTP2-Settings header field registered by
    Section 11.5 of [RFC7540] in the "Hypertext Transfer Protocol (HTTP)
@@ -47,7 +47,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    Comments:  Obsolete; see Section 11.1 of this document.
 
-11.2.  The h2c Upgrade Token
+## 11.2  The h2c Upgrade Token
 
    This section records the h2c upgrade token registered by Section 11.8
    of [RFC7540] in the "Hypertext Transfer Protocol (HTTP) Upgrade Token

@@ -52,7 +52,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    invalid (therefore not allowed to be generated) and furthermore is
    unlikely to be interoperable.
 
-13.1.2.  If-None-Match
+### 13.1.2  If-None-Match
 
    The "If-None-Match" header field makes the request method conditional
    on a recipient cache or origin server either not having any current

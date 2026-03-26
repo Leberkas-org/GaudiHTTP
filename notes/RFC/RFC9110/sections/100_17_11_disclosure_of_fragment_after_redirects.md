@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.11.  Disclosure of Fragment after Redirects
 
-17.11.  Disclosure of Fragment after Redirects
+## 17.11  Disclosure of Fragment after Redirects
 
    Although fragment identifiers used within URI references are not sent
    in requests, implementers ought to be aware that they will be visible

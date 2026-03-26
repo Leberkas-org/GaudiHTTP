@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 7.2.  Host and :authority
 
-7.2.  Host and :authority
+## 7.2  Host and :authority
 
    The "Host" header field in a request provides the host and port
    information from the target URI, enabling the origin server to

@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 14.3.  Accept-Ranges
 
-14.3.  Accept-Ranges
+## 14.3  Accept-Ranges
 
    The "Accept-Ranges" field in a response indicates whether an upstream
    server supports range requests for the target resource.

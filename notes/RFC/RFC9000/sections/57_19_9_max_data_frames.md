@@ -7,9 +7,8 @@ description: "Section 19.9: MAX_DATA Frames — RFC 9000 — QUIC: A UDP-Based M
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, max_data_frames]
 ---
 
-## 19.9.  MAX_DATA Frames
+# 19.9.  MAX_DATA Frames
 
-19.9.  MAX_DATA Frames
 
    A MAX_DATA frame (type=0x10) is used in flow control to inform the
    peer of the maximum amount of data that can be sent on the connection
@@ -33,7 +32,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    All data sent in STREAM frames counts toward this limit.  The sum of
    the final sizes on all streams -- including streams in terminal
 > **MUST NOT**: states -- MUST NOT exceed the value advertised by a receiver.  An
-> **MUST**: endpoint MUST terminate a connection with an error of type
+   endpoint MUST terminate a connection with an error of type
    FLOW_CONTROL_ERROR if it receives more data than the maximum data
    value that it has sent.  This includes violations of remembered
    limits in Early Data; see Section 7.4.1.

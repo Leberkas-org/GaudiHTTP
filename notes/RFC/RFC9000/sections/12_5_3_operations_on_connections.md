@@ -7,9 +7,8 @@ description: "Section 5.3: Operations on Connections — RFC 9000 — QUIC: A UD
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, operations_on_connections]
 ---
 
-## 5.3.  Operations on Connections
+# 5.3.  Operations on Connections
 
-5.3.  Operations on Connections
 
    This document does not define an API for QUIC; it instead defines a
    set of functions for QUIC connections that application protocols can

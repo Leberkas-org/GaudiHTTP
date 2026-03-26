@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 6.9.  WINDOW_UPDATE
 
-6.9.  WINDOW_UPDATE
+## 6.9  WINDOW_UPDATE
 
    The WINDOW_UPDATE frame (type=0x08) is used to implement flow
    control; see Section 5.2 for an overview.
@@ -27,7 +27,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    subject to flow control.  Of the frame types defined in this
    document, this includes only DATA frames.  Frames that are exempt
 > **MUST**: from flow control MUST be accepted and processed, unless the receiver
-> **MAY**: is unable to assign resources to handling the frame.  A receiver MAY
+   is unable to assign resources to handling the frame.  A receiver MAY
    respond with a stream error (Section 5.4.2) or connection error
    (Section 5.4.1) of type FLOW_CONTROL_ERROR if it is unable to accept
    a frame.
@@ -85,7 +85,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    treated as a connection error (Section 5.4.1) of type
    FRAME_SIZE_ERROR.
 
-6.9.1.  The Flow-Control Window
+### 6.9.1  The Flow-Control Window
 
    Flow control in HTTP/2 is implemented using a window kept by each
    sender on every stream.  The flow-control window is a simple integer
@@ -130,7 +130,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    This property allows a receiver to aggressively update the window
    size kept by the sender to prevent streams from stalling.
 
-6.9.2.  Initial Flow-Control Window Size
+### 6.9.2  Initial Flow-Control Window Size
 
    When an HTTP/2 connection is first established, new streams are
    created with an initial flow-control window size of 65,535 octets.
@@ -156,7 +156,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    A change to SETTINGS_INITIAL_WINDOW_SIZE can cause the available
 > **MUST**: space in a flow-control window to become negative.  A sender MUST
-> **MUST NOT**: track the negative flow-control window and MUST NOT send new flow-
+   track the negative flow-control window and MUST NOT send new flow-
    controlled frames until it receives WINDOW_UPDATE frames that cause
    the flow-control window to become positive.
 
@@ -173,7 +173,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    causes any flow-control window to exceed the maximum size as a
    connection error (Section 5.4.1) of type FLOW_CONTROL_ERROR.
 
-6.9.3.  Reducing the Stream Window Size
+### 6.9.3  Reducing the Stream Window Size
 
    A receiver that wishes to use a smaller flow-control window than the
    current size can send a new SETTINGS frame.  However, the receiver

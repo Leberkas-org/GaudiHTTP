@@ -9,7 +9,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 ## 4.4.  The CONNECT Method
 
-4.4.  The CONNECT Method
+## 4.4  The CONNECT Method
 
    The CONNECT method requests that the recipient establish a tunnel to
    the destination origin server identified by the request-target; see
@@ -73,7 +73,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: QUIC connection, it MUST close the TCP connection.  If the proxy
    detects that the client has reset the stream or aborted reading from
 > **MUST**: the stream, it MUST close the TCP connection.  If the stream is reset
-> **SHOULD**: or reading is aborted by the client, a proxy SHOULD perform the same
+   or reading is aborted by the client, a proxy SHOULD perform the same
    operation on the other direction in order to ensure that both
    directions of the stream are cancelled.  In all these cases, if the
 > **SHOULD**: underlying TCP implementation permits it, the proxy SHOULD send a TCP

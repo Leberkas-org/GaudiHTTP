@@ -7,9 +7,9 @@ description: "Section 3.7: Product Tokens — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, product_tokens]
 ---
 
-## 3.7.  Product Tokens
+# 3.7.  Product Tokens
 
-3.7  Product Tokens
+## 3.7  Product Tokens
 
    Product tokens are used to allow communicating applications to
    identify themselves via a simple product token, with an optional

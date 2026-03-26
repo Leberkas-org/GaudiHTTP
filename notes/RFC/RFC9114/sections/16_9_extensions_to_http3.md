@@ -28,7 +28,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    (Section 11.2.3), and stream types (Section 11.2.4).
 
 > **MUST**: Implementations MUST ignore unknown or unsupported values in all
-> **MUST**: extensible protocol elements.  Implementations MUST discard data or
+   extensible protocol elements.  Implementations MUST discard data or
    abort reading on unidirectional streams that have unknown or
    unsupported types.  This means that any of these extension points can
    be safely used by extensions without prior arrangement or

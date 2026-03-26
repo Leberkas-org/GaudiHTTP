@@ -7,9 +7,8 @@ description: "Section 7: Security Considerations — RFC 7541 — HPACK: Header 
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, security_considerations]
 ---
 
-## 7.  Security Considerations
+# 7.  Security Considerations
 
-7.  Security Considerations
 
    This section describes potential areas of security concern with
    HPACK:
@@ -21,7 +20,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    o  Denial of service resulting from exhausting processing or memory
       capacity at a decoder.
 
-7.1.  Probing Dynamic Table State
+## 7.1.  Probing Dynamic Table State
 
    HPACK reduces the length of header field encodings by exploiting the
    redundancy inherent in protocols like HTTP.  The ultimate goal of
@@ -57,7 +56,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    at a time, reducing an exponential-time attack into a linear-time
    attack.
 
-7.1.1.  Applicability to HPACK and HTTP
+### 7.1.1.  Applicability to HPACK and HTTP
 
    HPACK mitigates but does not completely prevent attacks modeled on
    CRIME [CRIME] by forcing a guess to match an entire header field
@@ -89,7 +88,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    connection by different web origins [ORIGIN] are made by mutually
    distrustful entities.
 
-7.1.2.  Mitigation
+### 7.1.2.  Mitigation
 
    Users of HTTP that require confidentiality for header fields can use
    values with entropy sufficient to make guessing infeasible.  However,
@@ -135,7 +134,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    dynamic table anymore might occur for shorter values more quickly or
    with higher probability than for longer values.
 
-7.1.3.  Never-Indexed Literals
+### 7.1.3.  Never-Indexed Literals
 
    Implementations can also choose to protect sensitive header fields by
    not compressing them and instead encoding their value as literals.
@@ -176,7 +175,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    Note that these criteria for deciding to use a never-indexed literal
    representation will evolve over time as new attacks are discovered.
 
-7.2.  Static Huffman Encoding
+## 7.2.  Static Huffman Encoding
 
    There is no currently known attack against a static Huffman encoding.
    A study has shown that using a static Huffman encoding table created
@@ -184,7 +183,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    attacker could not take advantage of this information leakage to
    recover any meaningful amount of information (see [PETAL]).
 
-7.3.  Memory Consumption
+## 7.3.  Memory Consumption
 
    An attacker can try to cause an endpoint to exhaust its memory.
    HPACK is designed to limit both the peak and state amounts of memory
@@ -218,7 +217,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    does not force this to occur, application constraints might make this
    necessary.
 
-7.4.  Implementation Limits
+## 7.4.  Implementation Limits
 
    An implementation of HPACK needs to ensure that large values for
    integers, long encoding for integers, or long string literals do not

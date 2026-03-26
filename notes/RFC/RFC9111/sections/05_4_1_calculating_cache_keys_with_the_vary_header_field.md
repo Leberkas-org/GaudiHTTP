@@ -69,7 +69,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 > **MUST**: A cache without a clock (Section 5.6.7 of [HTTP]) MUST revalidate
    stored responses upon every use.
 
-4.1.  Calculating Cache Keys with the Vary Header Field
+## 4.1  Calculating Cache Keys with the Vary Header Field
 
    When a cache receives a request that can be satisfied by a stored
    response and that stored response contains a Vary header field

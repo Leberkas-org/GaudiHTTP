@@ -9,7 +9,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ## 4.2.  Freshness
 
-4.2.  Freshness
+## 4.2  Freshness
 
    A "fresh" response is one whose age has not yet exceeded its
    freshness lifetime.  Conversely, a "stale" response is one where it
@@ -80,7 +80,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    resource.  See Section 6 for an explanation of the difference between
    caches and history mechanisms.
 
-4.2.1.  Calculating Freshness Lifetime
+### 4.2.1  Calculating Freshness Lifetime
 
    A cache can calculate the freshness lifetime (denoted as
    freshness_lifetime) of a response by evaluating the following rules
@@ -114,7 +114,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    responses that have invalid freshness information (e.g., a max-age
    directive with non-integer content) to be stale.
 
-4.2.2.  Calculating Heuristic Freshness
+### 4.2.2  Calculating Heuristic Freshness
 
    Since origin servers do not always provide explicit expiration times,
 > **MAY**: a cache MAY assign a heuristic expiration time when an explicit time
@@ -147,7 +147,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
       |  explicit directives (e.g., Cache-Control: no-cache) if they
       |  wish to prevent caching.
 
-4.2.3.  Calculating Age
+### 4.2.3  Calculating Age
 
    The Age header field is used to convey an estimated age of the
    response message when obtained from a cache.  The Age field value is
@@ -212,7 +212,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
      resident_time = now - response_time;
      current_age = corrected_initial_age + resident_time;
 
-4.2.4.  Serving Stale Responses
+### 4.2.4  Serving Stale Responses
 
    A "stale" response is one that either has explicit expiry information
    or is allowed to have heuristic expiry calculated, but is not fresh

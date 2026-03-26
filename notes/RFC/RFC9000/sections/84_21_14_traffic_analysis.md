@@ -7,9 +7,8 @@ description: "Section 21.14: Traffic Analysis — RFC 9000 — QUIC: A UDP-Based
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, traffic_analysis]
 ---
 
-## 21.14.  Traffic Analysis
+# 21.14.  Traffic Analysis
 
-21.14.  Traffic Analysis
 
    The length of QUIC packets can reveal information about the length of
    the content of those packets.  The PADDING frame is provided so that

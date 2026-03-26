@@ -7,15 +7,15 @@ description: "Section 17.1: Packet Number Encoding and Decoding — RFC 9000 —
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, packet_number_encoding_and_decoding]
 ---
 
-## 17.1.  Packet Number Encoding and Decoding
+# 17.1.  Packet Number Encoding and Decoding
 
-17.  Packet Formats
+
 
    All numeric values are encoded in network byte order (that is, big
    endian), and all field sizes are in bits.  Hexadecimal notation is
    used for describing the value of fields.
 
-17.1.  Packet Number Encoding and Decoding
+## 17.1.  Packet Number Encoding and Decoding
 
    Packet numbers are integers in the range 0 to 2^62-1 (Section 12.3).
    When present in long or short packet headers, they are encoded in 1

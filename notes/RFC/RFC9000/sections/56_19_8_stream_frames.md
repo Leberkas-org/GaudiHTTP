@@ -7,9 +7,8 @@ description: "Section 19.8: STREAM Frames — RFC 9000 — QUIC: A UDP-Based Mul
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, stream_frames]
 ---
 
-## 19.8.  STREAM Frames
+# 19.8.  STREAM Frames
 
-19.8.  STREAM Frames
 
    STREAM frames implicitly create a stream and carry stream data.  The
    Type field in the STREAM frame takes the form 0b00001XXX (or the set

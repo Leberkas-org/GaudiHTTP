@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 3.4.  Messages
 
-3.4.  Messages
+## 3.4  Messages
 
    HTTP is a stateless request/response protocol for exchanging
    "messages" across a connection.  The terms "sender" and "recipient"

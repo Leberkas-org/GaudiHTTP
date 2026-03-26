@@ -15,7 +15,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    creates new registries that manage the assignment of code points in
    HTTP/3.
 
-11.1.  Registration of HTTP/3 Identification String
+## 11.1  Registration of HTTP/3 Identification String
 
    This document creates a new registration for the identification of
    HTTP/3 in the "TLS Application-Layer Protocol Negotiation (ALPN)

@@ -7,9 +7,9 @@ description: "Section 10.1: Idle Timeout — RFC 9000 — QUIC: A UDP-Based Mult
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, idle_timeout]
 ---
 
-## 10.1.  Idle Timeout
+# 10.1.  Idle Timeout
 
-10.  Connection Termination
+
 
    An established QUIC connection can be terminated in one of three
    ways:
@@ -23,7 +23,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MAY**: An endpoint MAY discard connection state if it does not have a
    validated path on which it can send packets; see Section 8.2.
 
-10.1.  Idle Timeout
+## 10.1.  Idle Timeout
 
    If a max_idle_timeout is specified by either endpoint in its
    transport parameters (Section 18.2), the connection is silently
@@ -51,7 +51,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    expire, and therefore multiple probes to be sent and lost, prior to
    idle timeout.
 
-10.1.1.  Liveness Testing
+### 10.1.1.  Liveness Testing
 
    An endpoint that sends packets close to the effective timeout risks
    having them be discarded at the peer, since the idle timeout period
@@ -63,7 +63,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    useful if any available application data cannot be safely retried.
    Note that the application determines what data is safe to retry.
 
-10.1.2.  Deferring Idle Timeout
+### 10.1.2.  Deferring Idle Timeout
 
    An endpoint might need to send ack-eliciting packets to avoid an idle
    timeout if it is expecting response data but does not have or is

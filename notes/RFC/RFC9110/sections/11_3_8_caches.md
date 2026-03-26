@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 3.8.  Caches
 
-3.8.  Caches
+## 3.8  Caches
 
    A "cache" is a local store of previous response messages and the
    subsystem that controls its message storage, retrieval, and deletion.

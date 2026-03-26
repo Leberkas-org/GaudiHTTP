@@ -7,9 +7,8 @@ description: "Section 19.12: DATA_BLOCKED Frames — RFC 9000 — QUIC: A UDP-Ba
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, data_blocked_frames]
 ---
 
-## 19.12.  DATA_BLOCKED Frames
+# 19.12.  DATA_BLOCKED Frames
 
-19.12.  DATA_BLOCKED Frames
 
 > **SHOULD**: A sender SHOULD send a DATA_BLOCKED frame (type=0x14) when it wishes
    to send data but is unable to do so due to connection-level flow

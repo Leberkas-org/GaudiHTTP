@@ -28,7 +28,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    organizations maintain topical information and links to current
    research on Web application security (e.g., [OWASP]).
 
-17.1.  Establishing Authority
+## 17.1  Establishing Authority
 
    HTTP relies on the notion of an "authoritative response": a response
    that has been determined by (or at the direction of) the origin

@@ -9,7 +9,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 ## 4.3.  HTTP Control Data
 
-4.3.  HTTP Control Data
+## 4.3  HTTP Control Data
 
    Like HTTP/2, HTTP/3 employs a series of pseudo-header fields, where
    the field name begins with the : character (ASCII 0x3a).  These
@@ -23,9 +23,9 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
    Pseudo-header fields are only valid in the context in which they are
 > **MUST NOT**: defined.  Pseudo-header fields defined for requests MUST NOT appear
-> **MUST NOT**: in responses; pseudo-header fields defined for responses MUST NOT
+   in responses; pseudo-header fields defined for responses MUST NOT
 > **MUST NOT**: appear in requests.  Pseudo-header fields MUST NOT appear in trailer
-> **MUST**: sections.  Endpoints MUST treat a request or response that contains
+   sections.  Endpoints MUST treat a request or response that contains
    undefined or invalid pseudo-header fields as malformed.
 
 > **MUST**: All pseudo-header fields MUST appear in the header section before
@@ -33,7 +33,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    pseudo-header field that appears in a header section after a regular
 > **MUST**: header field MUST be treated as malformed.
 
-4.3.1.  Request Pseudo-Header Fields
+### 4.3.1  Request Pseudo-Header Fields
 
    The following pseudo-header fields are defined for requests:
 
@@ -51,7 +51,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
       "https".
 
    ":authority":  Contains the authority portion of the target URI
-      (Section 3.2 of [URI]).  The authority MUST NOT include the
+> **MUST NOT**: (Section 3.2 of [URI]).  The authority MUST NOT include the
       deprecated userinfo subcomponent for URIs of scheme "http" or
       "https".
 
@@ -84,7 +84,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    If the :scheme pseudo-header field identifies a scheme that has a
    mandatory authority component (including "http" and "https"), the
 > **MUST**: request MUST contain either an :authority pseudo-header field or a
-> **MUST NOT**: Host header field.  If these fields are present, they MUST NOT be
+   Host header field.  If these fields are present, they MUST NOT be
 > **MUST**: empty.  If both fields are present, they MUST contain the same value.
    If the scheme does not have a mandatory authority component and none
 > **MUST NOT**: is provided in the request target, the request MUST NOT contain the
@@ -97,7 +97,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    included in the HTTP/1.1 request line.  HTTP/3 requests implicitly
    have a protocol version of "3.0".
 
-4.3.2.  Response Pseudo-Header Fields
+### 4.3.2  Response Pseudo-Header Fields
 
    For responses, a single ":status" pseudo-header field is defined that
    carries the HTTP status code; see Section 15 of [HTTP].  This pseudo-

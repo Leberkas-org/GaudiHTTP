@@ -9,7 +9,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ## 9.7.  TLS Connection Initiation
 
-9.7.  TLS Connection Initiation
+## 9.7  TLS Connection Initiation
 
    Conceptually, HTTP/TLS is simply sending HTTP messages over a
    connection secured via TLS [TLS13].

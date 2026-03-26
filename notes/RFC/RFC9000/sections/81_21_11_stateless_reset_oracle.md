@@ -7,9 +7,8 @@ description: "Section 21.11: Stateless Reset Oracle — RFC 9000 — QUIC: A UDP
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, stateless_reset_oracle]
 ---
 
-## 21.11.  Stateless Reset Oracle
+# 21.11.  Stateless Reset Oracle
 
-21.11.  Stateless Reset Oracle
 
    Stateless resets create a possible denial-of-service attack analogous
    to a TCP reset injection.  This attack is possible if an attacker is

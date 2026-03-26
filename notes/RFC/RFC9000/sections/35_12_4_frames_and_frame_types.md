@@ -7,9 +7,8 @@ description: "Section 12.4: Frames and Frame Types — RFC 9000 — QUIC: A UDP-
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, frames_and_frame_types]
 ---
 
-## 12.4.  Frames and Frame Types
+# 12.4.  Frames and Frame Types
 
-12.4.  Frames and Frame Types
 
    The payload of QUIC packets, after removing packet protection,
    consists of a sequence of complete frames, as shown in Figure 11.
@@ -23,7 +22,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
                           Figure 11: QUIC Payload
 
 > **MUST**: The payload of a packet that contains frames MUST contain at least
-> **MAY**: one frame, and MAY contain multiple frames and multiple frame types.
+   one frame, and MAY contain multiple frames and multiple frame types.
 > **MUST**: An endpoint MUST treat receipt of a packet containing no frames as a
    connection error of type PROTOCOL_VIOLATION.  Frames always fit
    within a single QUIC packet and cannot span multiple packets.

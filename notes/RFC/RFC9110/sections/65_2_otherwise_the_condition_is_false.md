@@ -43,7 +43,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MAY**: A cache or intermediary MAY ignore If-Unmodified-Since because its
    interoperability features are only necessary for an origin server.
 
-13.1.5.  If-Range
+### 13.1.5  If-Range
 
    The "If-Range" header field provides a special conditional request
    mechanism that is similar to the If-Match and If-Unmodified-Since
@@ -75,14 +75,14 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    examining the first three characters for a DQUOTE.
 
 > **MUST NOT**: A client MUST NOT generate an If-Range header field in a request that
-> **MUST**: does not contain a Range header field.  A server MUST ignore an If-
+   does not contain a Range header field.  A server MUST ignore an If-
    Range header field received in a request that does not contain a
 > **MUST**: Range header field.  An origin server MUST ignore an If-Range header
    field received in a request for a target resource that does not
    support Range requests.
 
 > **MUST NOT**: A client MUST NOT generate an If-Range header field containing an
-> **MUST NOT**: entity tag that is marked as weak.  A client MUST NOT generate an If-
+   entity tag that is marked as weak.  A client MUST NOT generate an If-
    Range header field containing an HTTP-date unless the client has no
    entity tag for the corresponding representation and the date is a
    strong validator in the sense defined by Section 8.8.2.2.

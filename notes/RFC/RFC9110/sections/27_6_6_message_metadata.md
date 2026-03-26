@@ -9,13 +9,13 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 6.6.  Message Metadata
 
-6.6.  Message Metadata
+## 6.6  Message Metadata
 
    Fields that describe the message itself, such as when and how the
    message has been generated, can appear in both requests and
    responses.
 
-6.6.1.  Date
+### 6.6.1  Date
 
    The "Date" header field represents the date and time at which the
    message was originated, having the same semantics as the Origination
@@ -64,7 +64,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    interpretation of the user's request based on differences between the
    user agent and server clocks.
 
-6.6.2.  Trailer
+### 6.6.2  Trailer
 
    The "Trailer" header field provides a list of field names that the
    sender anticipates sending as trailer fields within that message.

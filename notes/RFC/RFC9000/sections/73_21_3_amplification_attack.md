@@ -7,9 +7,8 @@ description: "Section 21.3: Amplification Attack — RFC 9000 — QUIC: A UDP-Ba
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, amplification_attack]
 ---
 
-## 21.3.  Amplification Attack
+# 21.3.  Amplification Attack
 
-21.3.  Amplification Attack
 
    An attacker might be able to receive an address validation token
    (Section 8) from a server and then release the IP address it used to

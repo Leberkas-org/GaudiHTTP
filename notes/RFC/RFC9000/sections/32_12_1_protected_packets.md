@@ -7,9 +7,9 @@ description: "Section 12.1: Protected Packets — RFC 9000 — QUIC: A UDP-Based
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, protected_packets]
 ---
 
-## 12.1.  Protected Packets
+# 12.1.  Protected Packets
 
-12.  Packets and Frames
+
 
    QUIC endpoints communicate by exchanging packets.  Packets have
    confidentiality and integrity protection; see Section 12.1.  Packets
@@ -26,7 +26,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    are used after a connection is established and 1-RTT keys are
    available; see Section 17.3.
 
-12.1.  Protected Packets
+## 12.1.  Protected Packets
 
    QUIC packets have different levels of cryptographic protection based
    on the type of packet.  Details of packet protection are found in

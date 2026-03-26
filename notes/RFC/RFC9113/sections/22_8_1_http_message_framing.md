@@ -14,7 +14,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    HTTP/2 is an instantiation of the HTTP message abstraction (Section 6
    of [HTTP]).
 
-8.1.  HTTP Message Framing
+## 8.1  HTTP Message Framing
 
    A client sends an HTTP request on a new stream, using a previously
    unused stream identifier (Section 5.1.1).  A server sends an HTTP
@@ -86,7 +86,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    RST_STREAM, though clients can always discard responses at their
    discretion for other reasons.
 
-8.1.1.  Malformed Messages
+### 8.1.1  Malformed Messages
 
    A malformed request or response is one that is an otherwise valid
    sequence of HTTP/2 frames but is invalid due to the presence of
@@ -112,7 +112,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    PROTOCOL_ERROR.
 
 > **MAY**: For malformed requests, a server MAY send an HTTP response prior to
-> **MUST NOT**: closing or resetting the stream.  Clients MUST NOT accept a malformed
+   closing or resetting the stream.  Clients MUST NOT accept a malformed
    response.
 
    Endpoints that progressively process messages might have performed

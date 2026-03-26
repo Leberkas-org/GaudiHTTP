@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 3.3.  Connections, Clients, and Servers
 
-3.3.  Connections, Clients, and Servers
+## 3.3  Connections, Clients, and Servers
 
    HTTP is a client/server protocol that operates over a reliable
    transport- or session-layer "connection".

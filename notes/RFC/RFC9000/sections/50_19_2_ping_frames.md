@@ -7,9 +7,8 @@ description: "Section 19.2: PING Frames — RFC 9000 — QUIC: A UDP-Based Multi
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, ping_frames]
 ---
 
-## 19.2.  PING Frames
+# 19.2.  PING Frames
 
-19.2.  PING Frames
 
    Endpoints can use PING frames (type=0x01) to verify that their peers
    are still alive or to check reachability to the peer.

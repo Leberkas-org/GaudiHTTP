@@ -9,13 +9,13 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 ## 4.4.  Decoder Instructions
 
-4.4.  Decoder Instructions
+## 4.4  Decoder Instructions
 
    A decoder sends decoder instructions on the decoder stream to inform
    the encoder about the processing of field sections and table updates
    to ensure consistency of the dynamic table.
 
-4.4.1.  Section Acknowledgment
+### 4.4.1  Section Acknowledgment
 
    After processing an encoded field section whose declared Required
    Insert Count is not zero, the decoder emits a Section Acknowledgment
@@ -40,7 +40,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    The Section Acknowledgment instruction might increase the Known
    Received Count; see Section 2.1.4.
 
-4.4.2.  Stream Cancellation
+### 4.4.2  Stream Cancellation
 
    When a stream is reset or reading is abandoned, the decoder emits a
    Stream Cancellation instruction.  The instruction starts with the
@@ -56,7 +56,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
                        Figure 10: Stream Cancellation
 
-4.4.3.  Insert Count Increment
+### 4.4.3  Insert Count Increment
 
    The Insert Count Increment instruction starts with the '00' 2-bit
    pattern, followed by the Increment encoded as a 6-bit prefix integer.

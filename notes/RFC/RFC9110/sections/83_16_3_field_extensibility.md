@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 16.3.  Field Extensibility
 
-16.3.  Field Extensibility
+## 16.3  Field Extensibility
 
    HTTP's most widely used extensibility point is the definition of new
    header and trailer fields.
@@ -30,7 +30,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    request or by interacting with a defined well-known URI [RFC8615] if
    such inspection is defined along with the field being introduced.
 
-16.3.1.  Field Name Registry
+### 16.3.1  Field Name Registry
 
    The "Hypertext Transfer Protocol (HTTP) Field Name Registry" defines
    the namespace for HTTP field names.
@@ -53,7 +53,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    Field name:
 > **MUST**: The requested field name.  It MUST conform to the field-name
-> **SHOULD**: syntax defined in Section 5.1, and it SHOULD be restricted to just
+   syntax defined in Section 5.1, and it SHOULD be restricted to just
       letters, digits, and hyphen ('-') characters, with the first
       character being a letter.
 
@@ -89,7 +89,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    widely deployed and not likely to be registered in a timely manner
    otherwise.
 
-16.3.2.  Considerations for New Fields
+### 16.3.2  Considerations for New Fields
 
    HTTP header and trailer fields are a widely used extension point for
    the protocol.  While they can be used in an ad hoc fashion, fields
@@ -142,7 +142,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    *  If the field ought to be removed when automatically redirecting a
       request due to security concerns (see Section 15.4).
 
-16.3.2.1.  Considerations for New Field Names
+#### 16.3.2.1  Considerations for New Field Names
 
    Authors of specifications defining new fields are advised to choose a
    short but descriptive field name.  Short names avoid needless data
@@ -173,7 +173,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    to recognizing the purpose of a field and do not trigger automatic
    processing.
 
-16.3.2.2.  Considerations for New Field Values
+#### 16.3.2.2  Considerations for New Field Values
 
    A major task in the definition of a new HTTP field is the
    specification of the field value syntax: what senders should

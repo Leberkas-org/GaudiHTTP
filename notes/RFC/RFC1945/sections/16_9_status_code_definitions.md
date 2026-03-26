@@ -7,15 +7,14 @@ description: "Section 9: Status Code Definitions — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, status_code_definitions]
 ---
 
-## 9.  Status Code Definitions
+# 9.  Status Code Definitions
 
-9.  Status Code Definitions
 
    Each Status-Code is described below, including a description of which
    method(s) it can follow and any metainformation required in the
    response.
 
-9.1  Informational 1xx
+## 9.1  Informational 1xx
 
    This class of status code indicates a provisional response,
    consisting only of the Status-Line and optional headers, and is
@@ -24,7 +23,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    However, they may be useful for experimental applications which are
    outside the scope of this specification.
 
-9.2  Successful 2xx
+## 9.2  Successful 2xx
 
    This class of status code indicates that the client's request was
    successfully received, understood, and accepted.
@@ -89,7 +88,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    new metainformation in the form of entity headers, which should
    apply to the document currently in the user agent's active view.
 
-9.3  Redirection 3xx
+## 9.3  Redirection 3xx
 
    This class of status code indicates that further action needs to be
    taken by the user agent in order to fulfill the request. The action
@@ -170,7 +169,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    cache should update its cached entity to reflect any new field
    values given in the 304 response.
 
-9.4  Client Error 4xx
+## 9.4  Client Error 4xx
 
    The 4xx class of status code is intended for cases in which the
    client seems to have erred. If the client has not completed the
@@ -236,7 +235,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 
 
-9.5  Server Error 5xx
+## 9.5  Server Error 5xx
 
    Response status codes beginning with the digit "5" indicate cases in
    which the server is aware that it has erred or is incapable of

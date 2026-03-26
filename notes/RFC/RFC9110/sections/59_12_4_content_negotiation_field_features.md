@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 12.4.  Content Negotiation Field Features
 
-12.4.  Content Negotiation Field Features
+## 12.4  Content Negotiation Field Features
 
-12.4.1.  Absence
+### 12.4.1  Absence
 
    For each of the content negotiation fields, a request that does not
    contain the field implies that the sender has no preference on that
@@ -30,7 +30,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  easier for a server to identify an individual by virtue of the
       |  user agent's request characteristics (Section 17.13).
 
-12.4.2.  Quality Values
+### 12.4.2  Quality Values
 
    The content negotiation fields defined by this specification use a
    common parameter, named "q" (case-insensitive), to assign a relative
@@ -57,7 +57,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    decimal point.  User configuration of these values ought to be
    limited in the same fashion.
 
-12.4.3.  Wildcard Values
+### 12.4.3  Wildcard Values
 
    Most of these header fields, where indicated, define a wildcard value
    ("*") to select unspecified values.  If no wildcard is present,

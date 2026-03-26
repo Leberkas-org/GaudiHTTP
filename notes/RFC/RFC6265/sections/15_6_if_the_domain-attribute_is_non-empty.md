@@ -7,9 +7,9 @@ description: "Section 6: If the domain-attribute is non-empty: — RFC 6265 — 
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, if_the_domain-attribute_is_non-empty]
 ---
 
-## 6.  If the domain-attribute is non-empty:
+# 6.  If the domain-attribute is non-empty:
 
-   6.   If the domain-attribute is non-empty:
+
 
            If the canonicalized request-host does not domain-match the
            domain-attribute:

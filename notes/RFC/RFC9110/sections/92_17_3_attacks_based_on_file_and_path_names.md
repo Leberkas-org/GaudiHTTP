@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.3.  Attacks Based on File and Path Names
 
-17.3.  Attacks Based on File and Path Names
+## 17.3  Attacks Based on File and Path Names
 
    Origin servers frequently make use of their local file system to
    manage the mapping from target URI to resource representations.  Most

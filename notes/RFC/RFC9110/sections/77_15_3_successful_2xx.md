@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 15.3.  Successful 2xx
 
-15.3.  Successful 2xx
+## 15.3  Successful 2xx
 
    The 2xx (Successful) class of status code indicates that the client's
    request was successfully received, understood, and accepted.
@@ -207,7 +207,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    indicated by explicit cache controls (see Section 4.2.2 of
    [CACHING]).
 
-15.3.7.1.  Single Part
+#### 15.3.7.1  Single Part
 
    If a single part is being transferred, the server generating the 206
 > **MUST**: response MUST generate a Content-Range header field, describing what
@@ -223,7 +223,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    ... 26012 bytes of partial image data ...
 
-15.3.7.2.  Multiple Parts
+#### 15.3.7.2  Multiple Parts
 
    If multiple parts are being transferred, the server generating the
 > **MUST**: 206 response MUST generate "multipart/byteranges" content, as defined
@@ -288,7 +288,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    receiving the same ranges that it requested, nor the same order that
    it requested.
 
-15.3.7.3.  Combining Parts
+#### 15.3.7.3  Combining Parts
 
    A response might transfer only a subrange of a representation if the
    connection closed prematurely or if the request used one or more

@@ -7,9 +7,8 @@ description: "Section 15: Versions — RFC 9000 — QUIC: A UDP-Based Multiplexe
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, versions]
 ---
 
-## 15.  Versions
+# 15.  Versions
 
-15.  Versions
 
    QUIC versions are identified using a 32-bit unsigned number.
 
@@ -36,6 +35,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    Reserved version numbers will never represent a real protocol; a
 > **MAY**: client MAY use one of these version numbers with the expectation that
-> **MAY**: the server will initiate version negotiation; a server MAY advertise
+   the server will initiate version negotiation; a server MAY advertise
    support for one of these versions and can expect that clients ignore
    the value.

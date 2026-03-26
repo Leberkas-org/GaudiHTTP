@@ -9,7 +9,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 ## 4.5.  HTTP Upgrade
 
-4.5.  HTTP Upgrade
+## 4.5  HTTP Upgrade
 
    HTTP/3 does not support the HTTP Upgrade mechanism (Section 7.8 of
    [HTTP]) or the 101 (Switching Protocols) informational status code

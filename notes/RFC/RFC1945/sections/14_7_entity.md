@@ -7,9 +7,8 @@ description: "Section 7: Entity — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request]
 ---
 
-## 7.  Entity
+# 7.  Entity
 
-7.  Entity
 
    Full-Request and Full-Response messages may transfer an entity within
    some requests and responses. An entity consists of Entity-Header
@@ -29,7 +28,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 
 
-7.1  Entity Header Fields
+## 7.1  Entity Header Fields
 
    Entity-Header fields define optional metainformation about the
    Entity-Body or, if no body is present, about the resource identified
@@ -54,7 +53,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    be assumed to be recognizable by the recipient. Unrecognized header
    fields should be ignored by the recipient and forwarded by proxies.
 
-7.2  Entity Body
+## 7.2  Entity Body
 
    The entity body (if any) sent with an HTTP request or response is in
    a format and encoding defined by the Entity-Header fields.
@@ -80,7 +79,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    responses must include an entity body or a Content-Length header
    field defined with a value of zero (0).
 
-7.2.1 Type
+### 7.2.1  Type
 
    When an Entity-Body is included with a message, the data type of that
    body is determined via the header fields Content-Type and Content-
@@ -106,7 +105,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    type remains unknown, the recipient should treat it as type
    "application/octet-stream".
 
-7.2.2 Length
+### 7.2.2  Length
 
    When an Entity-Body is included with a message, the length of that
    body may be determined in one of two ways. If a Content-Length header

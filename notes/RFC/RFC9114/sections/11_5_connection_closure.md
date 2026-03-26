@@ -15,7 +15,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    and responses over time until the connection is closed.  Connection
    closure can happen in any of several different ways.
 
-5.1.  Idle Connections
+## 5.1  Idle Connections
 
    Each QUIC endpoint declares an idle timeout during the handshake.  If
    the QUIC connection remains idle (no packets received) for longer
@@ -36,7 +36,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **SHOULD**: latency cost of connection establishment to servers.  Servers SHOULD
    NOT actively keep connections open.
 
-5.2.  Connection Shutdown
+## 5.2  Connection Shutdown
 
    Even when a connection is not idle, either endpoint can decide to
    stop using the connection and initiate a graceful connection close.
@@ -96,7 +96,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    on.
 
 > **MAY**: An endpoint MAY send multiple GOAWAY frames indicating different
-> **MUST NOT**: identifiers, but the identifier in each frame MUST NOT be greater
+   identifiers, but the identifier in each frame MUST NOT be greater
    than the identifier in any previous frame, since clients might
    already have retried unprocessed requests on another HTTP connection.
    Receiving a GOAWAY containing a larger identifier than previously
@@ -134,7 +134,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    requests, the server need not send a GOAWAY frame, since the client
    is unable to make further requests.
 
-5.3.  Immediate Application Closure
+## 5.3  Immediate Application Closure
 
    An HTTP/3 implementation can immediately close the QUIC connection at
    any time.  This results in sending a QUIC CONNECTION_CLOSE frame to
@@ -152,7 +152,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    are implicitly closed when the connection is closed; see Section 10.2
    of [QUIC-TRANSPORT].
 
-5.4.  Transport Closure
+## 5.4  Transport Closure
 
    For various reasons, the QUIC transport could indicate to the
    application layer that the connection has terminated.  This might be

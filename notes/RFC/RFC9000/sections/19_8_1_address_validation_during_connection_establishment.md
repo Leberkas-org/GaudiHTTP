@@ -7,9 +7,9 @@ description: "Section 8.1: Address Validation during Connection Establishment â€
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, address_validation_during_connection_establishment]
 ---
 
-## 8.1.  Address Validation during Connection Establishment
+# 8.1.  Address Validation during Connection Establishment
 
-8.  Address Validation
+
 
    Address validation ensures that an endpoint cannot be used for a
    traffic amplification attack.  In such an attack, a packet is sent to
@@ -29,7 +29,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Address validation is performed both during connection establishment
    (see Section 8.1) and during connection migration (see Section 8.2).
 
-8.1.  Address Validation during Connection Establishment
+## 8.1.  Address Validation during Connection Establishment
 
    Connection establishment implicitly provides address validation for
    both endpoints.  In particular, receipt of a packet protected with
@@ -90,14 +90,14 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    by the congestion controller.  Clients are only constrained by the
    congestion controller.
 
-8.1.1.  Token Construction
+### 8.1.1.  Token Construction
 
 > **MUST**: A token sent in a NEW_TOKEN frame or a Retry packet MUST be
    constructed in a way that allows the server to identify how it was
    provided to a client.  These tokens are carried in the same field but
    require different handling from servers.
 
-8.1.2.  Address Validation Using Retry Packets
+### 8.1.2.  Address Validation Using Retry Packets
 
    Upon receiving the client's Initial packet, the server can request
    address validation by sending a Retry packet (Section 17.2.5)
@@ -150,7 +150,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
                    Figure 9: Example Handshake with Retry
 
-8.1.3.  Address Validation for Future Connections
+### 8.1.3.  Address Validation for Future Connections
 
 > **MAY**: A server MAY provide clients with an address validation token during
    one connection that can be used on a subsequent connection.  Address
@@ -163,7 +163,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    future connections.  In a future connection, the client includes this
    token in Initial packets to provide address validation.  The client
 > **MUST**: MUST include the token in all Initial packets it sends, unless a
-> **MUST NOT**: Retry replaces the token with a newer one.  The client MUST NOT use
+   Retry replaces the token with a newer one.  The client MUST NOT use
 > **MAY**: the token provided in a Retry for future connections.  Servers MAY
    discard any Initial packet that does not carry the expected token.
 
@@ -256,7 +256,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    that is being attempted, including the choice of possible application
    protocols, session tickets, or other connection properties.
 
-8.1.4.  Address Validation Token Integrity
+### 8.1.4.  Address Validation Token Integrity
 
 > **MUST**: An address validation token MUST be difficult to guess.  Including a
    random value with at least 128 bits of entropy in the token would be
@@ -289,11 +289,11 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    Attackers could replay tokens to use servers as amplifiers in DDoS
 > **MUST**: attacks.  To protect against such attacks, servers MUST ensure that
-> **SHOULD**: replay of tokens is prevented or limited.  Servers SHOULD ensure that
+   replay of tokens is prevented or limited.  Servers SHOULD ensure that
    tokens sent in Retry packets are only accepted for a short time, as
    they are returned immediately by clients.  Tokens that are provided
    in NEW_TOKEN frames (Section 19.7) need to be valid for longer but
 > **SHOULD NOT**: SHOULD NOT be accepted multiple times.  Servers are encouraged to
-> **MAY**: allow tokens to be used only once, if possible; tokens MAY include
+   allow tokens to be used only once, if possible; tokens MAY include
    additional information about clients to further narrow applicability
    or reuse.

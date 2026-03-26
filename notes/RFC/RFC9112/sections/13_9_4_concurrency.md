@@ -9,7 +9,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ## 9.4.  Concurrency
 
-9.4.  Concurrency
+## 9.4  Concurrency
 
    A client ought to limit the number of simultaneous open connections
    that it maintains to a given server.

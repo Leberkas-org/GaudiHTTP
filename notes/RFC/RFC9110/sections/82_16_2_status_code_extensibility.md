@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 16.2.  Status Code Extensibility
 
-16.2.  Status Code Extensibility
+## 16.2  Status Code Extensibility
 
-16.2.1.  Status Code Registry
+### 16.2.1  Status Code Registry
 
    The "Hypertext Transfer Protocol (HTTP) Status Code Registry",
    maintained by IANA at <https://www.iana.org/assignments/http-status-
@@ -28,7 +28,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Values to be added to the HTTP status code namespace require IETF
    Review (see [RFC8126], Section 4.8).
 
-16.2.2.  Considerations for New Status Codes
+### 16.2.2  Considerations for New Status Codes
 
    When it is necessary to express semantics for a response that are not
    defined by current status codes, a new status code can be registered.

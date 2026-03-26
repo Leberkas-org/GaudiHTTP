@@ -7,9 +7,8 @@ description: "Section 19.15: NEW_CONNECTION_ID Frames — RFC 9000 — QUIC: A U
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, new_connection_id_frames]
 ---
 
-## 19.15.  NEW_CONNECTION_ID Frames
+# 19.15.  NEW_CONNECTION_ID Frames
 
-19.15.  NEW_CONNECTION_ID Frames
 
    An endpoint sends a NEW_CONNECTION_ID frame (type=0x18) to provide
    its peer with alternative connection IDs that can be used to break

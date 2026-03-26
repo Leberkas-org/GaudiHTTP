@@ -7,9 +7,8 @@ description: "Section 11: Error Handling — RFC 9000 — QUIC: A UDP-Based Mult
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, error_handling]
 ---
 
-## 11.  Error Handling
+# 11.  Error Handling
 
-11.  Error Handling
 
 > **SHOULD**: An endpoint that detects an error SHOULD signal the existence of that
    error to its peer.  Both transport-level and application-level errors
@@ -31,7 +30,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST NOT**: stateless reset MUST NOT be used by an endpoint that has the state
    necessary to send a frame on the connection.
 
-11.1.  Connection Errors
+## 11.1.  Connection Errors
 
    Errors that result in the connection being unusable, such as an
    obvious violation of protocol semantics or corruption of state that
@@ -66,7 +65,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    packets might be used to reduce exposure to denial of service; see
    Section 21.2.
 
-11.2.  Stream Errors
+## 11.2.  Stream Errors
 
    If an application-level error affects a single stream but otherwise
    leaves the connection in a recoverable state, the endpoint can send a

@@ -7,9 +7,8 @@ description: "Section 22.5: QUIC Transport Error Codes Registry — RFC 9000 —
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, quic_transport_error_codes_registry]
 ---
 
-## 22.5.  QUIC Transport Error Codes Registry
+# 22.5.  QUIC Transport Error Codes Registry
 
-22.5.  QUIC Transport Error Codes Registry
 
    IANA has added a registry for "QUIC Transport Error Codes" under a
    "QUIC" heading.

@@ -11,7 +11,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 3.  Connection Setup and Management
 
-3.1.  Discovering an HTTP/3 Endpoint
+## 3.1  Discovering an HTTP/3 Endpoint
 
    HTTP relies on the notion of an authoritative response: a response
    that has been determined to be the most appropriate response for that
@@ -47,7 +47,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    advertisement always includes an explicit port, and URIs contain
    either an explicit port or a default port associated with the scheme.
 
-3.1.1.  HTTP Alternative Services
+### 3.1.1  HTTP Alternative Services
 
    An HTTP origin can advertise the availability of an equivalent HTTP/3
    endpoint via the Alt-Svc HTTP response header field or the HTTP/2
@@ -64,7 +64,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    port; if this connection is successful, the client can send HTTP
    requests using the mapping described in this document.
 
-3.1.2.  Other Schemes
+### 3.1.2  Other Schemes
 
    Although HTTP is independent of the transport protocol, the "http"
    scheme associates authority with the ability to receive TCP
@@ -82,7 +82,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    accomplish this is described in [RFC8164].  Other mechanisms might be
    defined for various schemes in the future.
 
-3.2.  Connection Establishment
+## 3.2  Connection Establishment
 
    HTTP/3 relies on QUIC version 1 as the underlying transport.  The use
 > **MAY**: of other QUIC transport versions with HTTP/3 MAY be defined by future
@@ -107,7 +107,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: established, a SETTINGS frame MUST be sent by each endpoint as the
    initial frame of their respective HTTP control stream.
 
-3.3.  Connection Reuse
+## 3.3  Connection Reuse
 
    HTTP/3 connections are persistent across multiple requests.  For best
    performance, it is expected that clients will not close connections
@@ -127,7 +127,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
    If the certificate is not acceptable with regard to the new origin
 > **MUST NOT**: for any reason, the connection MUST NOT be reused and a new
-> **SHOULD**: connection SHOULD be established for the new origin.  If the reason
+   connection SHOULD be established for the new origin.  If the reason
    the certificate cannot be verified might apply to other origins
 > **SHOULD**: already associated with the connection, the client SHOULD revalidate
    the server certificate for those origins.  For instance, if

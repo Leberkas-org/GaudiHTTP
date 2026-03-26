@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 15.5.  Client Error 4xx
 
-15.5.  Client Error 4xx
+## 15.5  Client Error 4xx
 
    The 4xx (Client Error) class of status code indicates that the client
    seems to have erred.  Except when responding to a HEAD request, the
@@ -56,7 +56,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    If authentication credentials were provided in the request, the
    server considers them insufficient to grant access.  The client
 > **SHOULD NOT**: SHOULD NOT automatically repeat the request with the same
-> **MAY**: credentials.  The client MAY repeat the request with new or different
+   credentials.  The client MAY repeat the request with new or different
    credentials.  However, a request might be forbidden for reasons
    unrelated to the credentials.
 

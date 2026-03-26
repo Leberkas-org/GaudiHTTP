@@ -7,7 +7,7 @@ description: "Preamble of RFC 6265 — HTTP State Management (Cookies) — Abstr
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, preamble]
 ---
 
-## Preamble
+# Preamble
 
 
 

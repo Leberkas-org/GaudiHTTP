@@ -16,7 +16,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    assigned permanent status and list a change controller of the IETF
    and a contact of the HTTP working group (ietf-http-wg@w3.org).
 
-8.1.  Settings Registration
+## 8.1  Settings Registration
 
    This document specifies two settings.  The entries in the following
    table are registered in the "HTTP/3 Settings" registry established in
@@ -35,7 +35,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    For formatting reasons, the setting names here are abbreviated by
    removing the 'SETTINGS_' prefix.
 
-8.2.  Stream Type Registration
+## 8.2  Stream Type Registration
 
    This document specifies two stream types.  The entries in the
    following table are registered in the "HTTP/3 Stream Types" registry
@@ -51,7 +51,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
           Table 2: Additions to the HTTP/3 Stream Types Registry
 
-8.3.  Error Code Registration
+## 8.3  Error Code Registration
 
    This document specifies three error codes.  The entries in the
    following table are registered in the "HTTP/3 Error Codes" registry

@@ -7,9 +7,8 @@ description: "Section 7: Return to Step 1 of this algorithm. — RFC 6265 — HT
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, return_to_step_1_of_this_algorithm]
 ---
 
-## 7.  Return to Step 1 of this algorithm.
+# 7.  Return to Step 1 of this algorithm.
 
-   7.  Return to Step 1 of this algorithm.
 
    When the user agent finishes parsing the set-cookie-string, the user
    agent is said to "receive a cookie" from the request-uri with name
@@ -17,7 +16,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    list.  (See Section 5.3 for additional requirements triggered by
    receiving a cookie.)
 
-5.2.1.  The Expires Attribute
+### 5.2.1.  The Expires Attribute
 
    If the attribute-name case-insensitively matches the string
 > **MUST**: "Expires", the user agent MUST process the cookie-av as follows.
@@ -41,7 +40,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    Append an attribute to the cookie-attribute-list with an attribute-
    name of Expires and an attribute-value of expiry-time.
 
-5.2.2.  The Max-Age Attribute
+### 5.2.2.  The Max-Age Attribute
 
    If the attribute-name case-insensitively matches the string "Max-
 > **MUST**: Age", the user agent MUST process the cookie-av as follows.
@@ -61,7 +60,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    Append an attribute to the cookie-attribute-list with an attribute-
    name of Max-Age and an attribute-value of expiry-time.
 
-5.2.3.  The Domain Attribute
+### 5.2.3.  The Domain Attribute
 
    If the attribute-name case-insensitively matches the string "Domain",
 > **MUST**: the user agent MUST process the cookie-av as follows.
@@ -85,7 +84,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 
 
-5.2.4.  The Path Attribute
+### 5.2.4.  The Path Attribute
 
    If the attribute-name case-insensitively matches the string "Path",
 > **MUST**: the user agent MUST process the cookie-av as follows.
@@ -102,20 +101,20 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    Append an attribute to the cookie-attribute-list with an attribute-
    name of Path and an attribute-value of cookie-path.
 
-5.2.5.  The Secure Attribute
+### 5.2.5.  The Secure Attribute
 
    If the attribute-name case-insensitively matches the string "Secure",
 > **MUST**: the user agent MUST append an attribute to the cookie-attribute-list
    with an attribute-name of Secure and an empty attribute-value.
 
-5.2.6.  The HttpOnly Attribute
+### 5.2.6.  The HttpOnly Attribute
 
    If the attribute-name case-insensitively matches the string
 > **MUST**: "HttpOnly", the user agent MUST append an attribute to the cookie-
    attribute-list with an attribute-name of HttpOnly and an empty
    attribute-value.
 
-5.3.  Storage Model
+## 5.3.  Storage Model
 
    The user agent stores the following fields about each cookie: name,
    value, expiry-time, domain, path, creation-time, last-access-time,
@@ -126,7 +125,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    cookie-name, value cookie-value, and attributes cookie-attribute-
 > **MUST**: list, the user agent MUST process the cookie as follows:
 
-   1.   A user agent MAY ignore a received cookie in its entirety.  For
+> **MAY**: 1.   A user agent MAY ignore a received cookie in its entirety.  For
         example, the user agent might wish to block receiving cookies
         from "third-party" responses or the user agent might not wish to
         store cookies that exceed some size.

@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 8.5.  Content-Language
 
-8.5.  Content-Language
+## 8.5  Content-Language
 
    The "Content-Language" header field describes the natural language(s)
    of the intended audience for the representation.  Note that this
@@ -52,7 +52,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MAY**: Content-Language MAY be applied to any media type -- it is not
    limited to textual documents.
 
-8.5.1.  Language Tags
+### 8.5.1  Language Tags
 
    A language tag, as defined in [RFC5646], identifies a natural
    language spoken, written, or otherwise conveyed by human beings for

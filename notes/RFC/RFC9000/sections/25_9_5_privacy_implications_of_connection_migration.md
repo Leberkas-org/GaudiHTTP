@@ -7,9 +7,8 @@ description: "Section 9.5: Privacy Implications of Connection Migration — RFC 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, privacy_implications_of_connection_migration]
 ---
 
-## 9.5.  Privacy Implications of Connection Migration
+# 9.5.  Privacy Implications of Connection Migration
 
-9.5.  Privacy Implications of Connection Migration
 
    Using a stable connection ID on multiple network paths would allow a
    passive observer to correlate activity between those paths.  An

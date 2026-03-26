@@ -66,7 +66,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    equivalent feature is present in HTTP/2 and HTTP/3 within the header
    block that terminates each stream.
 
-6.1.  Framing and Completeness
+## 6.1  Framing and Completeness
 
    Message framing indicates how each message begins and ends, such that
    each message can be distinguished from other messages or noise on the

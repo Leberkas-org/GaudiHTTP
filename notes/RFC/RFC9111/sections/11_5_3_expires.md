@@ -9,7 +9,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ## 5.3.  Expires
 
-5.3.  Expires
+## 5.3  Expires
 
    The "Expires" response header field gives the date/time after which
    the response is considered stale.  See Section 4.2 for further

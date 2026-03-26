@@ -7,14 +7,13 @@ description: "Section 5: Primitive Type Representations — RFC 7541 — HPACK: 
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, primitive_type_representations]
 ---
 
-## 5.  Primitive Type Representations
+# 5.  Primitive Type Representations
 
-5.  Primitive Type Representations
 
    HPACK encoding uses two primitive types: unsigned variable-length
    integers and strings of octets.
 
-5.1.  Integer Representation
+## 5.1.  Integer Representation
 
    Integers are used to represent name indexes, header field indexes, or
    string lengths.  An integer representation can start anywhere within
@@ -118,7 +117,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    Different limits can be set for each of the different uses of
    integers, based on implementation constraints.
 
-5.2.  String Literal Representation
+## 5.2.  String Literal Representation
 
    Header field names and header field values can be represented as
    string literals.  A string literal is encoded as a sequence of
@@ -167,5 +166,5 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 > **MUST**: than 7 bits MUST be treated as a decoding error.  A padding not
    corresponding to the most significant bits of the code for the EOS
 > **MUST**: symbol MUST be treated as a decoding error.  A Huffman-encoded string
-> **MUST**: literal containing the EOS symbol MUST be treated as a decoding
+   literal containing the EOS symbol MUST be treated as a decoding
    error.

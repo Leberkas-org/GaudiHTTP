@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.13.  Browser Fingerprinting
 
-17.13.  Browser Fingerprinting
+## 17.13  Browser Fingerprinting
 
    Browser fingerprinting is a set of techniques for identifying a
    specific user agent over time through its unique set of

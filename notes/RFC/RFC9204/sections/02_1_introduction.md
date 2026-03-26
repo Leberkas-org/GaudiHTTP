@@ -27,7 +27,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    substantially less head-of-line blocking under the same loss
    conditions.
 
-1.1.  Conventions and Definitions
+## 1.1  Conventions and Definitions
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
@@ -73,7 +73,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
    Note that QPACK is a name, not an abbreviation.
 
-1.2.  Notational Conventions
+## 1.2  Notational Conventions
 
    Diagrams in this document use the format described in Section 3.1 of
    [RFC2360], with the following additional conventions:

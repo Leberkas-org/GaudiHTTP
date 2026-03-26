@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 6.2.  Control Data
 
-6.2.  Control Data
+## 6.2  Control Data
 
    Messages start with control data that describe its primary purpose.
    Request message control data includes a request method (Section 9),

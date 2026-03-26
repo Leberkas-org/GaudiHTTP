@@ -7,9 +7,8 @@ description: "Section 17.2: Long Header Packets — RFC 9000 — QUIC: A UDP-Bas
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, long_header_packets]
 ---
 
-## 17.2.  Long Header Packets
+# 17.2.  Long Header Packets
 
-17.2.  Long Header Packets
 
    Long Header Packet {
      Header Form (1) = 1,
@@ -59,7 +58,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST NOT**: unsigned integer.  In QUIC version 1, this value MUST NOT exceed
       20 bytes.  Endpoints that receive a version 1 long header with a
 > **MUST**: value larger than 20 MUST drop the packet.  In order to properly
-> **SHOULD**: form a Version Negotiation packet, servers SHOULD be able to read
+   form a Version Negotiation packet, servers SHOULD be able to read
       longer connection IDs from other QUIC versions.
 
    Destination Connection ID:  The Destination Connection ID field
@@ -73,7 +72,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST NOT**: 8-bit unsigned integer.  In QUIC version 1, this value MUST NOT
       exceed 20 bytes.  Endpoints that receive a version 1 long header
 > **MUST**: with a value larger than 20 MUST drop the packet.  In order to
-> **SHOULD**: properly form a Version Negotiation packet, servers SHOULD be able
+   properly form a Version Negotiation packet, servers SHOULD be able
       to read longer connection IDs from other QUIC versions.
 
    Source Connection ID:  The Source Connection ID field follows the
@@ -143,7 +142,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Packet Payload:  This is the payload of the packet -- containing a
       sequence of frames -- that is protected using packet protection.
 
-17.2.1.  Version Negotiation Packet
+### 17.2.1.  Version Negotiation Packet
 
    A Version Negotiation packet is inherently not version specific.
    Upon receipt by a client, it will be identified as a Version
@@ -210,7 +209,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    See Section 6 for a description of the version negotiation process.
 
-17.2.2.  Initial Packet
+### 17.2.2.  Initial Packet
 
    An Initial packet uses long headers with a type value of 0x00.  It
    carries the first CRYPTO frames sent by the client and server to
@@ -289,7 +288,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    offset matching the size of the CRYPTO frames sent in the first
    flight of Initial packets.
 
-17.2.2.1.  Abandoning Initial Packets
+### 17.2.2.1.  Abandoning Initial Packets
 
    A client stops both sending and processing Initial packets when it
    sends its first Handshake packet.  A server stops sending and
@@ -303,7 +302,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Any data in CRYPTO frames is discarded -- and no longer retransmitted
    -- when Initial keys are discarded.
 
-17.2.3.  0-RTT
+### 17.2.3.  0-RTT
 
    A 0-RTT packet uses long headers with a type value of 0x01, followed
    by the Length and Packet Number fields; see Section 17.2.  The first
@@ -358,7 +357,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    (Section 7.4.1) as a connection error of an appropriate type (for
    instance, a FLOW_CONTROL_ERROR for exceeding stream data limits).
 
-17.2.4.  Handshake Packet
+### 17.2.4.  Handshake Packet
 
    A Handshake packet uses long headers with a type value of 0x02,
    followed by the Length and Packet Number fields; see Section 17.2.
@@ -399,7 +398,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    The payload of this packet contains CRYPTO frames and could contain
 > **MAY**: PING, PADDING, or ACK frames.  Handshake packets MAY contain
-> **MUST**: CONNECTION_CLOSE frames of type 0x1c.  Endpoints MUST treat receipt
+   CONNECTION_CLOSE frames of type 0x1c.  Endpoints MUST treat receipt
    of Handshake packets with other frames as a connection error of type
    PROTOCOL_VIOLATION.
 
@@ -407,7 +406,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    for Handshake packets is discarded -- and no longer retransmitted --
    when Handshake protection keys are discarded.
 
-17.2.5.  Retry Packet
+### 17.2.5.  Retry Packet
 
    As shown in Figure 18, a Retry packet uses a long packet header with
    a type value of 0x03.  It carries an address validation token created
@@ -441,7 +440,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Retry Integrity Tag:  Defined in Section 5.8 ("Retry Packet
       Integrity") of [QUIC-TLS].
 
-17.2.5.1.  Sending a Retry Packet
+### 17.2.5.1.  Sending a Retry Packet
 
    The server populates the Destination Connection ID with the
    connection ID that the client included in the Source Connection ID of
@@ -449,7 +448,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    The server includes a connection ID of its choice in the Source
 > **MUST NOT**: Connection ID field.  This value MUST NOT be equal to the Destination
-> **MUST**: Connection ID field of the packet sent by the client.  A client MUST
+   Connection ID field of the packet sent by the client.  A client MUST
    discard a Retry packet that contains a Source Connection ID field
    that is identical to the Destination Connection ID field of its
 > **MUST**: Initial packet.  The client MUST use the value from the Source
@@ -462,7 +461,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST NOT**: Initial or 0-RTT packets.  A server MUST NOT send more than one Retry
    packet in response to a single UDP datagram.
 
-17.2.5.2.  Handling a Retry Packet
+### 17.2.5.2.  Handling a Retry Packet
 
 > **MUST**: A client MUST accept and process at most one Retry packet for each
    connection attempt.  After the client has received and processed an
@@ -491,7 +490,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    A Retry packet does not include a packet number and cannot be
    explicitly acknowledged by a client.
 
-17.2.5.3.  Continuing a Handshake after Retry
+### 17.2.5.3.  Continuing a Handshake after Retry
 
    Subsequent Initial packets from the client include the connection ID
    and token values from the Retry packet.  The client copies the Source

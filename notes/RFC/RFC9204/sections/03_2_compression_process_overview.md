@@ -21,7 +21,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    QPACK defines unidirectional streams for sending instructions from
    encoder to decoder and vice versa.
 
-2.1.  Encoder
+## 2.1  Encoder
 
    An encoder converts a header or trailer section into a series of
    representations by emitting either an indexed or a literal
@@ -44,7 +44,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    QPACK is designed to place the burden of optional state tracking on
    the encoder, resulting in relatively simple decoders.
 
-2.1.1.  Limits on Dynamic Table Insertions
+### 2.1.1  Limits on Dynamic Table Insertions
 
    Inserting entries into the dynamic table might not be possible if the
    table contains entries that cannot be evicted.
@@ -67,7 +67,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    until those representations are acknowledged by the decoder; see
    Section 4.4.1.
 
-2.1.1.1.  Avoiding Prohibited Insertions
+#### 2.1.1.1  Avoiding Prohibited Insertions
 
    To ensure that the encoder is not prevented from adding new entries,
    the encoder can avoid referencing entries that are close to eviction.
@@ -100,7 +100,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
                   Figure 1: Draining Dynamic Table Entries
 
-2.1.2.  Blocked Streams
+### 2.1.2  Blocked Streams
 
    Because QUIC does not guarantee order between data on different
    streams, a decoder might encounter a representation that references a
@@ -140,7 +140,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    can result in the encoder becoming blocked on congestion or flow-
    control limits.
 
-2.1.3.  Avoiding Flow-Control Deadlocks
+### 2.1.3  Avoiding Flow-Control Deadlocks
 
    Writing instructions on streams that are limited by flow control can
    produce deadlocks.
@@ -160,7 +160,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    unless sufficient stream and connection flow-control credit is
    available for the entire instruction.
 
-2.1.4.  Known Received Count
+### 2.1.4  Known Received Count
 
    The Known Received Count is the total number of dynamic table
    insertions and duplications acknowledged by the decoder.  The encoder
@@ -179,7 +179,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    Known Received Count by its Increment parameter.  See Section 2.2.2.3
    for guidance.
 
-2.2.  Decoder
+## 2.2  Decoder
 
    As in HPACK, the decoder processes a series of representations and
    emits the corresponding field sections.  It also processes
@@ -193,7 +193,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 > **MUST**: The decoder MUST emit field lines in the order their representations
    appear in the encoded field section.
 
-2.2.1.  Blocked Decoding
+### 2.2.1  Blocked Decoding
 
    Upon receipt of an encoded field section, the decoder examines the
    Required Insert Count.  When the Required Insert Count is less than
@@ -218,12 +218,12 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 > **MAY**: encounters a Required Insert Count larger than expected, it MAY treat
    this as a connection error of type QPACK_DECOMPRESSION_FAILED.
 
-2.2.2.  State Synchronization
+### 2.2.2  State Synchronization
 
    The decoder signals the following events by emitting decoder
    instructions (Section 4.4) on the decoder stream.
 
-2.2.2.1.  Completed Processing of a Field Section
+#### 2.2.2.1  Completed Processing of a Field Section
 
    After the decoder finishes decoding a field section encoded using
 > **MUST**: representations containing dynamic table references, it MUST emit a
@@ -234,7 +234,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    unacknowledged field section containing dynamic table references sent
    on the given stream.
 
-2.2.2.2.  Abandonment of a Stream
+#### 2.2.2.2  Abandonment of a Stream
 
    When an endpoint receives a stream reset before the end of a stream
    or before all encoded field sections are processed on that stream, or
@@ -253,7 +253,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    Received Count has zero references, then it is considered evictable;
    see Section 2.1.1.
 
-2.2.2.3.  New Table Entries
+#### 2.2.2.3  New Table Entries
 
    After receiving new table entries on the encoder stream, the decoder
    chooses when to emit Insert Count Increment instructions; see
@@ -267,7 +267,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    inefficiencies if the encoder waits for an entry to be acknowledged
    before using it.
 
-2.2.3.  Invalid References
+### 2.2.3  Invalid References
 
    If the decoder encounters a reference in a field line representation
    to a dynamic table entry that has already been evicted or that has an

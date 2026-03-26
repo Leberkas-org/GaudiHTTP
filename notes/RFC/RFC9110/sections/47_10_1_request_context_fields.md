@@ -11,13 +11,13 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 10.  Message Context
 
-10.1.  Request Context Fields
+## 10.1  Request Context Fields
 
    The request header fields below provide additional information about
    the request context, including information about the user, user
    agent, and resource behind the request.
 
-10.1.1.  Expect
+### 10.1.1  Expect
 
    The "Expect" header field in a request indicates a certain set of
    behaviors (expectations) that need to be supported by the server in
@@ -137,7 +137,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    generate an immediate 100 (Continue) response to encourage the client
    to begin sending the content.
 
-10.1.2.  From
+### 10.1.2  From
 
    The "From" header field contains an Internet email address for a
    human user who controls the requesting user agent.  The address ought
@@ -171,7 +171,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    receiving or observing the request and is often recorded within
    logfiles and error reports without any expectation of privacy.
 
-10.1.3.  Referer
+### 10.1.3  Referer
 
    The "Referer" [sic] header field allows the user agent to specify a
    URI reference for the resource from which the target URI was obtained
@@ -271,7 +271,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Connection header field (Section 7.6.1) to inform intermediaries not
    to forward this field.
 
-10.1.5.  User-Agent
+### 10.1.5  User-Agent
 
    The "User-Agent" header field contains information about the user
    agent originating the request, which is often used by servers to help
@@ -303,7 +303,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 
 > **SHOULD**: A sender SHOULD limit generated product identifiers to what is
-> **MUST NOT**: necessary to identify the product; a sender MUST NOT generate
+   necessary to identify the product; a sender MUST NOT generate
    advertising or other nonessential information within the product
 > **SHOULD NOT**: identifier.  A sender SHOULD NOT generate information in
    product-version that is not a version identifier (i.e., successive
@@ -315,7 +315,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    User-Agent: CERN-LineMode/2.15 libwww/2.17b3
 
 > **SHOULD NOT**: A user agent SHOULD NOT generate a User-Agent header field containing
-> **SHOULD**: needlessly fine-grained detail and SHOULD limit the addition of
+   needlessly fine-grained detail and SHOULD limit the addition of
    subproducts by third parties.  Overly long and detailed User-Agent
    field values increase request latency and the risk of a user being
    identified against their wishes ("fingerprinting").

@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 9.3.  Method Definitions
 
-9.3.  Method Definitions
+## 9.3  Method Definitions
 
-9.3.1.  GET
+### 9.3.1  GET
 
    The GET method requests transfer of a current selected representation
    for the target resource.  A successful response reflects the quality
@@ -76,7 +76,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    transmit such information in the request content rather than within
    the target URI.
 
-9.3.2.  HEAD
+### 9.3.2  HEAD
 
 > **MUST NOT**: The HEAD method is identical to GET except that the server MUST NOT
    send content in the response.  HEAD is used to obtain metadata about
@@ -116,7 +116,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    response might also affect previously cached responses to GET; see
    Section 4.3.5 of [CACHING].
 
-9.3.3.  POST
+### 9.3.3  POST
 
    The POST method requests that the target resource process the
    representation enclosed in the request according to the resource's
@@ -165,7 +165,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    shared caching, though at the cost of an extra request if the user
    agent does not already have the representation cached.
 
-9.3.4.  PUT
+### 9.3.4  PUT
 
    The PUT method requests that the state of the target resource be
    created or replaced with the state defined by the representation
@@ -266,7 +266,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    the target resource and instead wishes to have it applied to a
    different resource, such as when the resource has been moved to a
 > **MUST**: different URI, then the origin server MUST send an appropriate 3xx
-> **MAY**: (Redirection) response; the user agent MAY then make its own decision
+   (Redirection) response; the user agent MAY then make its own decision
    regarding whether or not to redirect the request.
 
    A PUT request applied to the target resource can have side effects on
@@ -288,7 +288,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    for the target URI, those stored responses will be invalidated (see
    Section 4.4 of [CACHING]).
 
-9.3.5.  DELETE
+### 9.3.5  DELETE
 
    The DELETE method requests that the origin server remove the
    association between the target resource and its current
@@ -350,7 +350,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    responses for the target URI, those stored responses will be
    invalidated (see Section 4.4 of [CACHING]).
 
-9.3.6.  CONNECT
+### 9.3.6  CONNECT
 
    The CONNECT method requests that the recipient establish a tunnel to
    the destination origin server identified by the request target and,
@@ -415,7 +415,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    list of safe request targets.
 
 > **MUST NOT**: A server MUST NOT send any Transfer-Encoding or Content-Length header
-> **MUST**: fields in a 2xx (Successful) response to CONNECT.  A client MUST
+   fields in a 2xx (Successful) response to CONNECT.  A client MUST
    ignore any Content-Length or Transfer-Encoding header fields received
    in a successful response to CONNECT.
 
@@ -425,7 +425,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    Responses to the CONNECT method are not cacheable.
 
-9.3.7.  OPTIONS
+### 9.3.7  OPTIONS
 
    The OPTIONS method requests information about the communication
    options available for the target resource, at either the origin
@@ -468,7 +468,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    Responses to the OPTIONS method are not cacheable.
 
-9.3.8.  TRACE
+### 9.3.8  TRACE
 
    The TRACE method requests a remote, application-level loop-back of
 > **SHOULD**: the request message.  The final recipient of the request SHOULD

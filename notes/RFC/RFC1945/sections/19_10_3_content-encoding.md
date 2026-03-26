@@ -7,9 +7,9 @@ description: "Section 10.3: Content-Encoding — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, content-encoding]
 ---
 
-## 10.3.  Content-Encoding
+# 10.3.  Content-Encoding
 
-10.3  Content-Encoding
+## 10.3  Content-Encoding
 
    The Content-Encoding entity-header field is used as a modifier to the
    media-type. When present, its value indicates what additional content

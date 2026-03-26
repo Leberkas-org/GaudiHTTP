@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 8.5.  The CONNECT Method
 
-8.5.  The CONNECT Method
+## 8.5  The CONNECT Method
 
    The CONNECT method (Section 9.3.6 of [HTTP]) is used to convert an
    HTTP connection into a tunnel to a remote host.  CONNECT is primarily

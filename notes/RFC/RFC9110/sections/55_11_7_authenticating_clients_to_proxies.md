@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 11.7.  Authenticating Clients to Proxies
 
-11.7.  Authenticating Clients to Proxies
+## 11.7  Authenticating Clients to Proxies
 
-11.7.1.  Proxy-Authenticate
+### 11.7.1  Proxy-Authenticate
 
    The "Proxy-Authenticate" header field consists of at least one
    challenge that indicates the authentication scheme(s) and parameters
@@ -39,7 +39,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Note that the parsing considerations for WWW-Authenticate apply to
    this header field as well; see Section 11.6.1 for details.
 
-11.7.2.  Proxy-Authorization
+### 11.7.2  Proxy-Authorization
 
    The "Proxy-Authorization" header field allows the client to identify
    itself (or its user) to a proxy that requires authentication.  Its
@@ -62,7 +62,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    that is the mechanism by which the proxies cooperatively authenticate
    a given request.
 
-11.7.3.  Proxy-Authentication-Info
+### 11.7.3  Proxy-Authentication-Info
 
    The "Proxy-Authentication-Info" response header field is equivalent
    to Authentication-Info, except that it applies to proxy

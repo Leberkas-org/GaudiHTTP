@@ -7,9 +7,8 @@ description: "Section 1: Introduction — RFC 6265 — HTTP State Management (Co
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, introduction]
 ---
 
-## 1.  Introduction
+# 1.  Introduction
 
-1.  Introduction
 
    This document defines the HTTP Cookie and Set-Cookie header fields.
    Using the Set-Cookie header field, an HTTP server can pass name/value

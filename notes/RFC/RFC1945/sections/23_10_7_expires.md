@@ -7,9 +7,9 @@ description: "Section 10.7: Expires — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, expires]
 ---
 
-## 10.7.  Expires
+# 10.7.  Expires
 
-10.7  Expires
+## 10.7  Expires
 
    The Expires entity-header field gives the date/time after which the
    entity should be considered stale. This allows information providers

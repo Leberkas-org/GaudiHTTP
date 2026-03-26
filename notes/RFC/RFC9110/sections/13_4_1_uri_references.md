@@ -14,7 +14,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Uniform Resource Identifiers (URIs) [URI] are used throughout HTTP as
    the means for identifying resources (Section 3.1).
 
-4.1.  URI References
+## 4.1  URI References
 
    URI references are used to target requests, indicate redirects, and
    define relationships.

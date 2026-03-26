@@ -7,11 +7,10 @@ description: "Section 4: HTTP Message — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, http_message]
 ---
 
-## 4.  HTTP Message
+# 4.  HTTP Message
 
-4.  HTTP Message
 
-4.1  Message Types
+## 4.1  Message Types
 
    HTTP messages consist of requests from client to server and responses
    from server to client.
@@ -66,7 +65,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    Use of the Simple-Request format is discouraged because it prevents
    the server from identifying the media type of the returned entity.
 
-4.2  Message Headers
+## 4.2  Message Headers
 
    HTTP header fields, which include General-Header (Section 4.3),
    Request-Header (Section 5.2), Response-Header (Section 6.2), and
@@ -107,7 +106,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 
 
-4.3  General Header Fields
+## 4.3  General Header Fields
 
    There are a few header fields which have general applicability for
    both request and response messages, but which do not apply to the

@@ -7,9 +7,8 @@ description: "Section 21.4: Optimistic ACK Attack — RFC 9000 — QUIC: A UDP-B
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, optimistic_ack_attack]
 ---
 
-## 21.4.  Optimistic ACK Attack
+# 21.4.  Optimistic ACK Attack
 
-21.4.  Optimistic ACK Attack
 
    An endpoint that acknowledges packets it has not received might cause
    a congestion controller to permit sending at rates beyond what the

@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 6.5.  SETTINGS
 
-6.5.  SETTINGS
+## 6.5  SETTINGS
 
    The SETTINGS frame (type=0x04) conveys configuration parameters that
    affect how endpoints communicate, such as preferences and constraints
@@ -24,7 +24,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    might set a lower value to conserve resources.
 
 > **MUST**: A SETTINGS frame MUST be sent by both endpoints at the start of a
-> **MAY**: connection and MAY be sent at any other time by either endpoint over
+   connection and MAY be sent at any other time by either endpoint over
 > **MUST**: the lifetime of the connection.  Implementations MUST support all of
    the settings defined by this specification.
 
@@ -60,7 +60,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    be treated as a connection error (Section 5.4.1) of type
    FRAME_SIZE_ERROR.
 
-6.5.1.  SETTINGS Format
+### 6.5.1  SETTINGS Format
 
    The frame payload of a SETTINGS frame consists of zero or more
    settings, each consisting of an unsigned 16-bit setting identifier
@@ -95,7 +95,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    Value:  A 32-bit value for the setting.
 
-6.5.2.  Defined Settings
+### 6.5.2  Defined Settings
 
    The following settings are defined:
 
@@ -174,7 +174,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    An endpoint that receives a SETTINGS frame with any unknown or
 > **MUST**: unsupported identifier MUST ignore that setting.
 
-6.5.3.  Settings Synchronization
+### 6.5.3  Settings Synchronization
 
    Most values in SETTINGS benefit from or require an understanding of
    when the peer has received and applied the changed parameter values.
@@ -186,7 +186,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 > **MUST**: The values in the SETTINGS frame MUST be processed in the order they
    appear, with no other frame processing between values.  Unsupported
 > **MUST**: settings MUST be ignored.  Once all values have been processed, the
-> **MUST**: recipient MUST immediately emit a SETTINGS frame with the ACK flag
+   recipient MUST immediately emit a SETTINGS frame with the ACK flag
    set.  Upon receiving a SETTINGS frame with the ACK flag set, the
    sender of the altered settings can rely on the values from the oldest
    unacknowledged SETTINGS frame having been applied.

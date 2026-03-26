@@ -7,9 +7,8 @@ description: "Section 21.12: Version Downgrade — RFC 9000 — QUIC: A UDP-Base
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, version_downgrade]
 ---
 
-## 21.12.  Version Downgrade
+# 21.12.  Version Downgrade
 
-21.12.  Version Downgrade
 
    This document defines QUIC Version Negotiation packets (Section 6),
    which can be used to negotiate the QUIC version used between two

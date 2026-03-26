@@ -18,7 +18,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    TCP.  HTTP/3 supports the same semantics over a new transport
    protocol: QUIC.
 
-1.1.  Prior Versions of HTTP
+## 1.1  Prior Versions of HTTP
 
    HTTP/1.1 ([HTTP/1.1]) uses whitespace-delimited text fields to convey
    HTTP messages.  While these exchanges are human readable, using
@@ -38,7 +38,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    all active transactions to experience a stall regardless of whether
    that transaction was directly impacted by the lost packet.
 
-1.2.  Delegation to QUIC
+## 1.2  Delegation to QUIC
 
    The QUIC transport protocol incorporates stream multiplexing and per-
    stream flow control, similar to that provided by the HTTP/2 framing

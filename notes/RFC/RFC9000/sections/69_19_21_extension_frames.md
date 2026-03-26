@@ -7,9 +7,8 @@ description: "Section 19.21: Extension Frames — RFC 9000 — QUIC: A UDP-Based
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, extension_frames]
 ---
 
-## 19.21.  Extension Frames
+# 19.21.  Extension Frames
 
-19.21.  Extension Frames
 
    QUIC frames do not use a self-describing encoding.  An endpoint
    therefore needs to understand the syntax of all frames before it can

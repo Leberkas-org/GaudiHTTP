@@ -7,9 +7,9 @@ description: "Section 3.5: Content Codings — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, content_codings]
 ---
 
-## 3.5.  Content Codings
+# 3.5.  Content Codings
 
-3.5  Content Codings
+## 3.5  Content Codings
 
    Content coding values are used to indicate an encoding transformation
    that has been applied to a resource. Content codings are primarily

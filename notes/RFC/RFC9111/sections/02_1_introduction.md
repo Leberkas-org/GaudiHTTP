@@ -45,7 +45,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    This document obsoletes RFC 7234, with the changes being summarized
    in Appendix B.
 
-1.1.  Requirements Notation
+## 1.1  Requirements Notation
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
@@ -56,7 +56,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    Section 2 of [HTTP] defines conformance criteria and contains
    considerations regarding error handling.
 
-1.2.  Syntax Notation
+## 1.2  Syntax Notation
 
    This specification uses the Augmented Backus-Naur Form (ABNF)
    notation of [RFC5234], extended with the notation for case-
@@ -68,7 +68,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    Appendix A shows the collected grammar with all list operators
    expanded to standard ABNF notation.
 
-1.2.1.  Imported Rules
+### 1.2.1  Imported Rules
 
    The following core rule is included by reference, as defined in
    [RFC5234], Appendix B.1: DIGIT (decimal 0-9).
@@ -85,7 +85,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 ```
 
 
-1.2.2.  Delta Seconds
+### 1.2.2  Delta Seconds
 
    The delta-seconds rule specifies a non-negative integer, representing
    time in seconds.

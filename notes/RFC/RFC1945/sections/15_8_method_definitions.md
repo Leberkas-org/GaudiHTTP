@@ -7,9 +7,8 @@ description: "Section 8: Method Definitions — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, method_definitions]
 ---
 
-## 8.  Method Definitions
+# 8.  Method Definitions
 
-8.  Method Definitions
 
    The set of common methods for HTTP/1.0 is defined below. Although
    this set can be expanded, additional methods cannot be assumed to
@@ -18,7 +17,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 
 
-8.1  GET
+## 8.1  GET
 
    The GET method means retrieve whatever information (in the form of an
    entity) is identified by the Request-URI. If the Request-URI refers
@@ -35,7 +34,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    allowing cached entities to be refreshed without requiring multiple
    requests or transferring unnecessary data.
 
-8.2  HEAD
+## 8.2  HEAD
 
    The HEAD method is identical to GET except that the server must not
    return any Entity-Body in the response. The metainformation contained
@@ -50,7 +49,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    GET. If an If-Modified-Since header field is included with a HEAD
    request, it should be ignored.
 
-8.3  POST
+## 8.3  POST
 
    The POST method is used to request that the destination server accept
    the entity enclosed in the request as a new subordinate of the

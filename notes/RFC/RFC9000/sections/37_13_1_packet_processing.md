@@ -7,9 +7,9 @@ description: "Section 13.1: Packet Processing — RFC 9000 — QUIC: A UDP-Based
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, packet_processing]
 ---
 
-## 13.1.  Packet Processing
+# 13.1.  Packet Processing
 
-13.  Packetization and Reliability
+
 
    A sender sends one or more frames in a QUIC packet; see Section 12.4.
 
@@ -38,7 +38,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    necessary in outgoing packets without losing transmission efficiency
    to underfilled packets.
 
-13.1.  Packet Processing
+## 13.1.  Packet Processing
 
 > **MUST NOT**: A packet MUST NOT be acknowledged until packet protection has been
    successfully removed and all frames contained in the packet have been

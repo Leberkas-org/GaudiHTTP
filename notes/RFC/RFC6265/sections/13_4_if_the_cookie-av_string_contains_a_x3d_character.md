@@ -7,9 +7,9 @@ description: "Section 4: If the cookie-av string contains a %x3D ("=") character
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, if_the_cookie-av_string_contains_a_x3d_character]
 ---
 
-## 4.  If the cookie-av string contains a %x3D ("=") character:
+# 4.  If the cookie-av string contains a %x3D ("=") character:
 
-   4.  If the cookie-av string contains a %x3D ("=") character:
+
 
           The (possibly empty) attribute-name string consists of the
           characters up to, but not including, the first %x3D ("=")

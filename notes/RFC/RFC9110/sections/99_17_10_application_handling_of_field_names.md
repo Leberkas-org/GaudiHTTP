@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.10.  Application Handling of Field Names
 
-17.10.  Application Handling of Field Names
+## 17.10  Application Handling of Field Names
 
    Servers often use non-HTTP gateway interfaces and frameworks to
    process a received request and produce content for the response.  For

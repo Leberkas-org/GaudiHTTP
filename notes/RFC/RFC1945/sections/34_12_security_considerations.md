@@ -7,9 +7,8 @@ description: "Section 12: Security Considerations — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, security_considerations]
 ---
 
-## 12.  Security Considerations
+# 12.  Security Considerations
 
-12.  Security Considerations
 
    This section is meant to inform application developers, information
    providers, and users of the security limitations in HTTP/1.0 as
@@ -17,7 +16,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    definitive solutions to the problems revealed, though it does make
    some suggestions for reducing security risks.
 
-12.1  Authentication of Clients
+## 12.1  Authentication of Clients
 
    As mentioned in Section 11.1, the Basic authentication scheme is not
    a secure method of user authentication, nor does it prevent the
@@ -26,7 +25,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    authentication schemes and encryption mechanisms from being employed
    to increase security.
 
-12.2  Safe Methods
+## 12.2  Safe Methods
 
    The writers of client software should be aware that the software
    represents the user in their interactions over the Internet, and
@@ -51,7 +50,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    distinction here is that the user did not request the side-effects,
    so therefore cannot be held accountable for them.
 
-12.3  Abuse of Server Log Information
+## 12.3  Abuse of Server Log Information
 
    A server is in the position to save personal data about a user's
    requests which may identify their reading patterns or subjects of
@@ -61,7 +60,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    such material is not distributed without the permission of any
    individuals that are identifiable by the published results.
 
-12.4  Transfer of Sensitive Information
+## 12.4  Transfer of Sensitive Information
 
    Like any generic data transfer protocol, HTTP cannot regulate the
    content of the data that is transferred, nor is there any a priori
@@ -96,7 +95,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 
 
-12.5  Attacks Based On File and Path Names
+## 12.5  Attacks Based On File and Path Names
 
    Implementations of HTTP origin servers should be careful to restrict
    the documents returned by HTTP requests to be only those that were

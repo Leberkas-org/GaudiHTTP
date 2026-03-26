@@ -7,14 +7,13 @@ description: "Section 17.3: Short Header Packets — RFC 9000 — QUIC: A UDP-Ba
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, short_header_packets]
 ---
 
-## 17.3.  Short Header Packets
+# 17.3.  Short Header Packets
 
-17.3.  Short Header Packets
 
    This version of QUIC defines a single packet type that uses the short
    packet header.
 
-17.3.1.  1-RTT Packet
+### 17.3.1.  1-RTT Packet
 
    A 1-RTT packet uses a short packet header.  It is used after the
    version and 1-RTT keys are negotiated.

@@ -15,7 +15,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    addressed separately.  The following sections describe how entries in
    each table are addressed.
 
-3.1.  Static Table
+## 3.1  Static Table
 
    The static table consists of a predefined list of field lines, each
    of which has a fixed index over time.  Its entries are defined in
@@ -34,7 +34,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 > **MUST**: stream, this MUST be treated as a connection error of type
    QPACK_ENCODER_STREAM_ERROR.
 
-3.2.  Dynamic Table
+## 3.2  Dynamic Table
 
    The dynamic table consists of a list of field lines maintained in
    first-in, first-out order.  A QPACK encoder and decoder share a
@@ -48,7 +48,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
    Dynamic table entries can have empty values.
 
-3.2.1.  Dynamic Table Size
+### 3.2.1  Dynamic Table Size
 
    The size of the dynamic table is the sum of the size of its entries.
 
@@ -57,7 +57,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    entry is calculated using the length of its name and value without
    Huffman encoding applied.
 
-3.2.2.  Dynamic Table Capacity and Eviction
+### 3.2.2  Dynamic Table Capacity and Eviction
 
    The encoder sets the capacity of the dynamic table, which serves as
    the upper limit on its size.  The initial capacity of the dynamic
@@ -88,7 +88,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    clear entries from the dynamic table by setting a capacity of 0,
    which can subsequently be restored.
 
-3.2.3.  Maximum Dynamic Table Capacity
+### 3.2.3  Maximum Dynamic Table Capacity
 
    To bound the memory requirements of the decoder, the decoder limits
    the maximum value the encoder is permitted to set for the dynamic
@@ -102,7 +102,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    capacity is the remembered value of the setting or zero if the value
    was not previously sent.  When the client's 0-RTT value of the
 > **MAY**: SETTING is zero, the server MAY set it to a non-zero value in its
-> **MUST**: SETTINGS frame.  If the remembered value is non-zero, the server MUST
+   SETTINGS frame.  If the remembered value is non-zero, the server MUST
    send the same non-zero value in its SETTINGS frame.  If it specifies
    any other value, or omits SETTINGS_QPACK_MAX_TABLE_CAPACITY from
    SETTINGS, the encoder must treat this as a connection error of type
@@ -114,16 +114,16 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    value of SETTINGS_QPACK_MAX_TABLE_CAPACITY.
 
 > **MUST NOT**: When the maximum table capacity is zero, the encoder MUST NOT insert
-> **MUST NOT**: entries into the dynamic table and MUST NOT send any encoder
+   entries into the dynamic table and MUST NOT send any encoder
    instructions on the encoder stream.
 
-3.2.4.  Absolute Indexing
+### 3.2.4  Absolute Indexing
 
    Each entry possesses an absolute index that is fixed for the lifetime
    of that entry.  The first entry inserted has an absolute index of 0;
    indices increase by one with each insertion.
 
-3.2.5.  Relative Indexing
+### 3.2.5  Relative Indexing
 
    Relative indices begin at zero and increase in the opposite direction
    from the absolute index.  Determining which entry has a relative
@@ -181,7 +181,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
         Figure 3: Example Dynamic Table Indexing - Relative Index in
                                Representation
 
-3.2.6.  Post-Base Indexing
+### 3.2.6  Post-Base Indexing
 
    Post-Base indices are used in field line representations for entries
    with absolute indices greater than or equal to Base, starting at 0

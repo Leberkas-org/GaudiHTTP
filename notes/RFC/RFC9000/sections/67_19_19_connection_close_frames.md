@@ -7,9 +7,8 @@ description: "Section 19.19: CONNECTION_CLOSE Frames — RFC 9000 — QUIC: A UD
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, connection_close_frames]
 ---
 
-## 19.19.  CONNECTION_CLOSE Frames
+# 19.19.  CONNECTION_CLOSE Frames
 
-19.19.  CONNECTION_CLOSE Frames
 
    An endpoint sends a CONNECTION_CLOSE frame (type=0x1c or 0x1d) to
    notify its peer that the connection is being closed.  The

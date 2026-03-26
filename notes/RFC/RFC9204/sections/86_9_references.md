@@ -11,7 +11,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 9.  References
 
-9.1.  Normative References
+## 9.1  Normative References
 
    [HTTP]     Fielding, R., Ed., Nottingham, M., Ed., and J. Reschke,
               Ed., "HTTP Semantics", STD 97, RFC 9110,
@@ -44,7 +44,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
               2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
               May 2017, <https://www.rfc-editor.org/info/rfc8174>.
 
-9.2.  Informative References
+## 9.2  Informative References
 
    [CRIME]    Wikipedia, "CRIME", May 2015, <http://en.wikipedia.org/w/
               index.php?title=CRIME&oldid=660948120>.

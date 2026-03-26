@@ -7,9 +7,8 @@ description: "Section 4: Flow Control — RFC 9000 — QUIC: A UDP-Based Multipl
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, flow_control]
 ---
 
-## 4.  Flow Control
+# 4.  Flow Control
 
-4.  Flow Control
 
    Receivers need to limit the amount of data that they are required to
    buffer, in order to prevent a fast sender from overwhelming them or a
@@ -31,7 +30,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **SHOULD**: SHOULD provide an interface for the cryptographic protocol
    implementation to communicate its buffering limits.
 
-4.1.  Data Flow Control
+## 4.1.  Data Flow Control
 
    QUIC employs a limit-based flow control scheme where a receiver
    advertises the limit of total bytes it is prepared to receive on a
@@ -90,7 +89,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    periodically send a STREAM_DATA_BLOCKED or DATA_BLOCKED frame when it
    has no ack-eliciting packets in flight.
 
-4.2.  Increasing Flow Control Limits
+## 4.2.  Increasing Flow Control Limits
 
    Implementations decide when and how much credit to advertise in
    MAX_STREAM_DATA and MAX_DATA frames, but this section offers a few
@@ -129,7 +128,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    congestion; see Section 7.7 of [QUIC-RECOVERY] for a discussion of
    how a sender can avoid this congestion.
 
-4.3.  Flow Control Performance
+## 4.3.  Flow Control Performance
 
    If an endpoint cannot ensure that its peer always has available flow
    control credit that is greater than the peer's bandwidth-delay
@@ -145,7 +144,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    flow control updates along with other frames, such as ACK frames,
    reduces the cost of those updates.
 
-4.4.  Handling Stream Cancellation
+## 4.4.  Handling Stream Cancellation
 
    Endpoints need to eventually agree on the amount of flow control
    credit that has been consumed on every stream, to be able to account
@@ -161,7 +160,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    for the stream in the unterminated direction until that direction
    enters a terminal state.
 
-4.5.  Stream Final Size
+## 4.5.  Stream Final Size
 
    The final size is the amount of flow control credit that is consumed
    by a stream.  Assuming that every contiguous byte on the stream was
@@ -197,7 +196,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    endpoint needs to maintain the final size state for closed streams,
    which could mean a significant state commitment.
 
-4.6.  Controlling Concurrency
+## 4.6.  Controlling Concurrency
 
    An endpoint limits the cumulative number of incoming streams a peer
    can open.  Only streams with a stream ID less than "(max_streams * 4
@@ -233,7 +232,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    An endpoint that is unable to open a new stream due to the peer's
 > **SHOULD**: limits SHOULD send a STREAMS_BLOCKED frame (Section 19.14).  This
-> **MUST NOT**: signal is considered useful for debugging.  An endpoint MUST NOT wait
+   signal is considered useful for debugging.  An endpoint MUST NOT wait
    to receive this signal before advertising additional credit, since
    doing so will mean that the peer will be blocked for at least an
    entire round trip, and potentially indefinitely if the peer chooses

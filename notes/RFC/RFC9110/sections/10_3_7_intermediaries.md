@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 3.7.  Intermediaries
 
-3.7.  Intermediaries
+## 3.7  Intermediaries
 
    HTTP enables the use of intermediaries to satisfy requests through a
    chain of connections.  There are three common forms of HTTP

@@ -9,18 +9,18 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 7.3.  Routing Inbound Requests
 
-7.3.  Routing Inbound Requests
+## 7.3  Routing Inbound Requests
 
    Once the target URI and its origin are determined, a client decides
    whether a network request is necessary to accomplish the desired
    semantics and, if so, where that request is to be directed.
 
-7.3.1.  To a Cache
+### 7.3.1  To a Cache
 
    If the client has a cache [CACHING] and the request can be satisfied
    by it, then the request is usually directed there first.
 
-7.3.2.  To a Proxy
+### 7.3.2  To a Proxy
 
    If the request is not satisfied by a cache, then a typical client
    will check its configuration to determine whether a proxy is to be
@@ -34,7 +34,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    then sending it an HTTP request message containing a request target
    that matches the client's target URI.
 
-7.3.3.  To the Origin
+### 7.3.3  To the Origin
 
    If no proxy is applicable, a typical client will invoke a handler
    routine (specific to the target URI's scheme) to obtain access to the

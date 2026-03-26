@@ -9,7 +9,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ## 9.3.  Persistence
 
-9.3.  Persistence
+## 9.3  Persistence
 
    HTTP/1.1 defaults to the use of "persistent connections", allowing
    multiple requests and responses to be carried over a single
@@ -63,7 +63,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    See Appendix C.2.2 for more information on backwards compatibility
    with HTTP/1.0 clients.
 
-9.3.1.  Retrying Requests
+### 9.3.1  Retrying Requests
 
    Connections can be closed at any time, with or without intention.
    Implementations ought to anticipate the need to recover from
@@ -71,7 +71,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    automatically retry a sequence of outstanding requests are defined in
    Section 9.2.2 of [HTTP].
 
-9.3.2.  Pipelining
+### 9.3.2  Pipelining
 
 > **MAY**: A client that supports persistent connections MAY "pipeline" its
    requests (i.e., send multiple requests without waiting for each

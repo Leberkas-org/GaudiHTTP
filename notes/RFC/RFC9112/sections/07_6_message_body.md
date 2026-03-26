@@ -35,7 +35,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    response content is allowed by HTTP semantics (Section 6.4.1 of
    [HTTP]).
 
-6.1.  Transfer-Encoding
+## 6.1  Transfer-Encoding
 
    The Transfer-Encoding header field lists the transfer coding names
    corresponding to the sequence of transfer codings that have been (or
@@ -144,7 +144,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    have retained a portion of the message, in buffer, that could be
    misinterpreted by further use of the connection.
 
-6.2.  Content-Length
+## 6.2  Content-Length
 
    When a message does not have a Transfer-Encoding header field, a
    Content-Length header field (Section 8.6 of [HTTP]) can provide the
@@ -163,7 +163,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
       |  it is an optional field used only within the "message/external-
       |  body" media-type.
 
-6.3.  Message Body Length
+## 6.3  Message Body Length
 
    The length of a message body is determined by one of the following
    (in order of precedence):

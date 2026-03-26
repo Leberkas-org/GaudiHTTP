@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 15.4.  Redirection 3xx
 
-15.4.  Redirection 3xx
+## 15.4  Redirection 3xx
 
    The 3xx (Redirection) class of status code indicates that further
    action needs to be taken by the user agent in order to fulfill the
@@ -180,7 +180,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    target URI for future requests.
 
 > **SHOULD**: The server SHOULD generate a Location header field in the response
-> **MAY**: containing a URI reference for the different URI.  The user agent MAY
+   containing a URI reference for the different URI.  The user agent MAY
    use the Location field value for automatic redirection.  The server's
    response content usually contains a short hypertext note with a
    hyperlink to the different URI(s).
@@ -279,7 +279,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    requests.
 
 > **SHOULD**: The server SHOULD generate a Location header field in the response
-> **MAY**: containing a URI reference for the different URI.  The user agent MAY
+   containing a URI reference for the different URI.  The user agent MAY
    use the Location field value for automatic redirection.  The server's
    response content usually contains a short hypertext note with a
    hyperlink to the different URI(s).

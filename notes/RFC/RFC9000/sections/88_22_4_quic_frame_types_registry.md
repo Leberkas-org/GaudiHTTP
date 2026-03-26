@@ -7,9 +7,8 @@ description: "Section 22.4: QUIC Frame Types Registry — RFC 9000 — QUIC: A U
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, quic_frame_types_registry]
 ---
 
-## 22.4.  QUIC Frame Types Registry
+# 22.4.  QUIC Frame Types Registry
 
-22.4.  QUIC Frame Types Registry
 
    IANA has added a registry for "QUIC Frame Types" under a "QUIC"
    heading.

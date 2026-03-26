@@ -20,7 +20,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Requirements on cache handling of a received If-Modified-Since header
    field are defined in Section 4.3.2 of [CACHING].
 
-13.1.4.  If-Unmodified-Since
+### 13.1.4  If-Unmodified-Since
 
    The "If-Unmodified-Since" header field makes the request method
    conditional on the selected representation's last modification date

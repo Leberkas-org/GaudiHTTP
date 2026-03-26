@@ -7,9 +7,8 @@ description: "Section 19.5: STOP_SENDING Frames — RFC 9000 — QUIC: A UDP-Bas
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, stop_sending_frames]
 ---
 
-## 19.5.  STOP_SENDING Frames
+# 19.5.  STOP_SENDING Frames
 
-19.5.  STOP_SENDING Frames
 
    An endpoint uses a STOP_SENDING frame (type=0x05) to communicate that
    incoming data is being discarded on receipt per application request.

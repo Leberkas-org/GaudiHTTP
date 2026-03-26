@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 8.6.  The Upgrade Header Field
 
-8.6.  The Upgrade Header Field
+## 8.6  The Upgrade Header Field
 
    HTTP/2 does not support the 101 (Switching Protocols) informational
    status code (Section 15.2.2 of [HTTP]).

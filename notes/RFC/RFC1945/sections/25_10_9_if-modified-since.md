@@ -7,9 +7,9 @@ description: "Section 10.9: If-Modified-Since — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, if-modified-since]
 ---
 
-## 10.9.  If-Modified-Since
+# 10.9.  If-Modified-Since
 
-10.9  If-Modified-Since
+## 10.9  If-Modified-Since
 
    The If-Modified-Since request-header field is used with the GET
    method to make it conditional: if the requested resource has not been

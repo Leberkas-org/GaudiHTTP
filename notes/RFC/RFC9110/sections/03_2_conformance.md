@@ -11,7 +11,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 2.  Conformance
 
-2.1.  Syntax Notation
+## 2.1  Syntax Notation
 
    This specification uses the Augmented Backus-Naur Form (ABNF)
    notation of [RFC5234], extended with the notation for case-
@@ -40,7 +40,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    scheme", "charset", and "protocol element" as they are defined in
    [RFC6365].
 
-2.2.  Requirements Notation
+## 2.2  Requirements Notation
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
@@ -92,7 +92,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    and user agents often scan the Server field value, to adjust their
    own behavior with respect to known bugs or poorly chosen defaults.
 
-2.3.  Length Requirements
+## 2.3  Length Requirements
 
 > **SHOULD**: A recipient SHOULD parse a received protocol element defensively,
    with only marginal expectations that the element will conform to its
@@ -121,7 +121,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    name and field value components, but then forward the field without
    further parsing inside the field value.
 
-2.4.  Error Handling
+## 2.4  Error Handling
 
 > **MUST**: A recipient MUST interpret a received protocol element according to
    the semantics defined for it by this specification, including
@@ -146,7 +146,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Some requests can be automatically retried by a client in the event
    of an underlying connection failure, as described in Section 9.2.2.
 
-2.5.  Protocol Version
+## 2.5  Protocol Version
 
    HTTP's version number consists of two decimal digits separated by a
    "." (period or decimal point).  The first digit (major version)

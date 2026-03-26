@@ -7,11 +7,10 @@ description: "Section 6: Implementation Considerations — RFC 6265 — HTTP Sta
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, implementation_considerations]
 ---
 
-## 6.  Implementation Considerations
+# 6.  Implementation Considerations
 
-6.  Implementation Considerations
 
-6.1.  Limits
+## 6.1.  Limits
 
    Practical user agent implementations have limits on the number and
 > **SHOULD**: size of cookies that they can store.  General-use user agents SHOULD
@@ -32,7 +31,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    one or more cookies in the Cookie header because the user agent might
    evict any cookie at any time on orders from the user.
 
-6.2.  Application Programming Interfaces
+## 6.2.  Application Programming Interfaces
 
    One reason the Cookie and Set-Cookie headers use such esoteric syntax
    is that many platforms (both in servers and user agents) provide a
@@ -48,7 +47,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    clear benefits to accepting an abstract "Date" object instead of a
    serialized date string.
 
-6.3.  IDNA Dependency and Migration
+## 6.3.  IDNA Dependency and Migration
 
    IDNA2008 [RFC5890] supersedes IDNA2003 [RFC3490].  However, there are
    differences between the two specifications, and thus there can be
@@ -56,7 +55,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    have been registered under one from those registered under the other.
    There will be a transition period of some time during which IDNA2003-
 > **SHOULD**: based domain name labels will exist in the wild.  User agents SHOULD
-> **MAY**: implement IDNA2008 [RFC5890] and MAY implement [UTS46] or [RFC5895]
+   implement IDNA2008 [RFC5890] and MAY implement [UTS46] or [RFC5895]
 
 
 

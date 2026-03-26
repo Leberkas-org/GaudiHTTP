@@ -7,11 +7,10 @@ description: "Section 23: References — RFC 9000 — QUIC: A UDP-Based Multiple
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, references]
 ---
 
-## 23.  References
+# 23.  References
 
-23.  References
 
-23.1.  Normative References
+## 23.1.  Normative References
 
    [BCP38]    Ferguson, P. and D. Senie, "Network Ingress Filtering:
               Defeating Denial of Service Attacks which employ IP Source
@@ -101,7 +100,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
               DOI 10.17487/RFC0768, August 1980,
               <https://www.rfc-editor.org/info/rfc768>.
 
-23.2.  Informative References
+## 23.2.  Informative References
 
    [AEAD]     McGrew, D., "An Interface and Algorithms for Authenticated
               Encryption", RFC 5116, DOI 10.17487/RFC5116, January 2008,

@@ -9,7 +9,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ## 4.3.  Validation
 
-4.3.  Validation
+## 4.3  Validation
 
    When a cache has one or more stored responses for a requested URI,
    but cannot serve any of them (e.g., because they are not fresh, or
@@ -20,7 +20,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    replace the stored response(s) with a new response.  This process is
    known as "validating" or "revalidating" the stored response.
 
-4.3.1.  Sending a Validation Request
+### 4.3.1  Sending a Validation Request
 
    When generating a conditional request for validation, a cache either
    starts with a request it is attempting to satisfy or -- if it is
@@ -74,7 +74,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    intermediaries that do not understand entity tag preconditions to
    respond appropriately.
 
-4.3.2.  Handling a Received Validation Request
+### 4.3.2  Handling a Received Validation Request
 
    Each client in the request chain may have its own cache, so it is
    common for a cache at an intermediary to receive conditional requests
@@ -138,7 +138,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    corresponding stored response, as updated by the 304 response
    metadata (Section 4.3.4).
 
-4.3.3.  Handling a Validation Response
+### 4.3.3  Handling a Validation Response
 
    Cache handling of a response to a conditional request depends upon
    its status code:
@@ -149,7 +149,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    *  A full response (i.e., one containing content) indicates that none
       of the stored responses nominated in the conditional request are
 > **MUST**: suitable.  Instead, the cache MUST use the full response to
-> **MAY**: satisfy the request.  The cache MAY store such a full response,
+   satisfy the request.  The cache MAY store such a full response,
       subject to its constraints (see Section 3).
 
    *  However, if a cache receives a 5xx (Server Error) response while
@@ -159,7 +159,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
       stored response, subject to its constraints on doing so (see
       Section 4.2.4), or retry the validation request.
 
-4.3.4.  Freshening Stored Responses upon Validation
+### 4.3.4  Freshening Stored Responses upon Validation
 
    When a cache receives a 304 (Not Modified) response, it needs to
    identify stored responses that are suitable for updating with the new
@@ -198,7 +198,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    fields with the header fields provided in the 304 (Not Modified)
    response, as per Section 3.2.
 
-4.3.5.  Freshening Responses with HEAD
+### 4.3.5  Freshening Responses with HEAD
 
    A response to the HEAD method is identical to what an equivalent
    request made with a GET would have been, without sending the content.
@@ -218,7 +218,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    received validator fields (ETag and Last-Modified) and, if the HEAD
    response has a Content-Length header field, the value of Content-
 > **SHOULD**: Length matches that of the stored response, the cache SHOULD update
-> **SHOULD**: the stored response as described below; otherwise, the cache SHOULD
+   the stored response as described below; otherwise, the cache SHOULD
    consider the stored response to be stale.
 
    If a cache updates a stored response with the metadata provided in a

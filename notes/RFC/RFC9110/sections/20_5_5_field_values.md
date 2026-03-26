@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 5.5.  Field Values
 
-5.5.  Field Values
+## 5.5  Field Values
 
    HTTP field values consist of a sequence of characters in a format
    defined by the field's grammar.  Each field's grammar is usually

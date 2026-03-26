@@ -7,9 +7,8 @@ description: "Section 21.6: Slowloris Attacks — RFC 9000 — QUIC: A UDP-Based
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, slowloris_attacks]
 ---
 
-## 21.6.  Slowloris Attacks
+# 21.6.  Slowloris Attacks
 
-21.6.  Slowloris Attacks
 
    The attacks commonly known as Slowloris [SLOWLORIS] try to keep many
    connections to the target endpoint open and hold them open as long as

@@ -11,7 +11,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 1.  Introduction
 
-1.1.  Purpose
+## 1.1  Purpose
 
    The Hypertext Transfer Protocol (HTTP) is a family of stateless,
    application-level, request/response protocols that share a generic
@@ -43,7 +43,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    act in parallel and perhaps at cross-purposes, we cannot require that
    such changes be observable beyond the scope of a single response.
 
-1.2.  History and Evolution
+## 1.2  History and Evolution
 
    HTTP has been the primary information transfer protocol for the World
    Wide Web since its introduction in 1990.  It began as a trivial
@@ -84,7 +84,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    syntax ([HTTP/1.1]) to allow each major protocol version to progress
    independently while referring to the same core semantics.
 
-1.3.  Core Semantics
+## 1.3  Core Semantics
 
    HTTP provides a uniform interface for interacting with a resource
    (Section 3.1) -- regardless of its type, nature, or implementation --
@@ -113,7 +113,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    selection algorithms that are collectively referred to as "content
    negotiation" (Section 12).
 
-1.4.  Specifications Obsoleted by This Document
+## 1.4  Specifications Obsoleted by This Document
 
    +============================================+===========+=====+
    | Title                                      | Reference | See |

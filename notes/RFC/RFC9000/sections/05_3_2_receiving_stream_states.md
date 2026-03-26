@@ -7,9 +7,8 @@ description: "Section 3.2: Receiving Stream States — RFC 9000 — QUIC: A UDP-
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, receiving_stream_states]
 ---
 
-## 3.2.  Receiving Stream States
+# 3.2.  Receiving Stream States
 
-3.2.  Receiving Stream States
 
    Figure 3 shows the states for the part of a stream that receives data
    from a peer.  The states for a receiving part of a stream mirror only

@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 8.2.  Representation Metadata
 
-8.2.  Representation Metadata
+## 8.2  Representation Metadata
 
    Representation header fields provide metadata about the
    representation.  When a message includes content, the representation

@@ -7,9 +7,8 @@ description: "Section 13.4: Explicit Congestion Notification — RFC 9000 — QU
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, explicit_congestion_notification]
 ---
 
-## 13.4.  Explicit Congestion Notification
+# 13.4.  Explicit Congestion Notification
 
-13.4.  Explicit Congestion Notification
 
    QUIC endpoints can use ECN [RFC3168] to detect and respond to network
    congestion.  ECN allows an endpoint to set an ECN-Capable Transport
@@ -23,7 +22,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    path supports ECN marking and whether the peer reports the ECN values
    in received IP headers; see Section 13.4.2.
 
-13.4.1.  Reporting ECN Counts
+### 13.4.1.  Reporting ECN Counts
 
    The use of ECN requires the receiving endpoint to read the ECN field
    from an IP packet, which is not possible on all platforms.  If an
@@ -57,7 +56,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    processed and do not increase ECN counts; see Section 21.10 for
    relevant security concerns.
 
-13.4.2.  ECN Validation
+### 13.4.2.  ECN Validation
 
    It is possible for faulty network devices to corrupt or erroneously
    drop packets that carry a non-zero ECN codepoint.  To ensure
@@ -93,7 +92,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    codepoint need to perform ECN validation using the reported ECT(1)
    counts.
 
-13.4.2.1.  Receiving ACK Frames with ECN Counts
+### 13.4.2.1.  Receiving ACK Frames with ECN Counts
 
    Erroneous application of ECN-CE markings by the network can result in
    degraded connection performance.  An endpoint that receives an ACK
@@ -137,7 +136,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    ECT codepoint that it never applied.  This check detects when packets
    are remarked to ECT(0) or ECT(1) in the network.
 
-13.4.2.2.  ECN Validation Outcomes
+### 13.4.2.2.  ECN Validation Outcomes
 
 > **MUST**: If validation fails, then the endpoint MUST disable ECN.  It stops
    setting the ECT codepoint in IP packets that it sends, assuming that

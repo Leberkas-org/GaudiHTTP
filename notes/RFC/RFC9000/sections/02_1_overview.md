@@ -7,9 +7,8 @@ description: "Section 1: Overview — RFC 9000 — QUIC: A UDP-Based Multiplexed
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, overview]
 ---
 
-## 1.  Overview
+# 1.  Overview
 
-1.  Overview
 
    QUIC is a secure general-purpose transport protocol.  This document
    defines version 1 of QUIC, which conforms to the version-independent
@@ -61,7 +60,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    teardown, and a stateless mechanism provides for termination of
    connections after one endpoint has lost state.
 
-1.1.  Document Structure
+## 1.1.  Document Structure
 
    This document describes the core QUIC protocol and is structured as
    follows:
@@ -130,9 +129,9 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    limited set of version-independent properties of QUIC can cite
    [QUIC-INVARIANTS].
 
-1.2.  Terms and Definitions
+## 1.2.  Terms and Definitions
 
-   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+> **MUST**: The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
    "OPTIONAL" in this document are to be interpreted as described in BCP
    14 [RFC2119] [RFC8174] when, and only when, they appear in all
@@ -183,7 +182,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    one or more QUIC packets can be encapsulated in a UDP datagram, which
    is in turn encapsulated in an IP packet.
 
-1.3.  Notational Conventions
+## 1.3.  Notational Conventions
 
    Packet and frame diagrams in this document use a custom format.  The
    purpose of this format is to summarize, not define, protocol

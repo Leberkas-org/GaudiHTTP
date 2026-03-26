@@ -7,9 +7,8 @@ description: "Section 21.8: Stream Commitment Attack — RFC 9000 — QUIC: A UD
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, stream_commitment_attack]
 ---
 
-## 21.8.  Stream Commitment Attack
+# 21.8.  Stream Commitment Attack
 
-21.8.  Stream Commitment Attack
 
    An adversarial endpoint can open a large number of streams,
    exhausting state on an endpoint.  The adversarial endpoint could

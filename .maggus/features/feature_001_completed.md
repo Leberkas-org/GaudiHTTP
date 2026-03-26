@@ -212,18 +212,18 @@ cleanly in Obsidian.
 **Model:** haiku — repetitive structural conversion across 163 files
 
 **Acceptance Criteria:**
-- [ ] RFC1945 section files (36): top heading changed H2 → H1; duplicate title repeat removed
-- [ ] RFC6265 section files (24): same conversion applied
-- [ ] RFC7541 section files (12): same conversion applied
-- [ ] RFC9000 section files (91): same conversion applied
-- [ ] Every section file in batch has exactly one `# H1` heading matching frontmatter `title` field
-- [ ] No plain-text subsection headings remain (all `N.N.  Title` patterns converted to `##` or `###` as appropriate)
-- [ ] No duplicate title-repeat line below the H1 (RFC source verbatim text removed)
-- [ ] Prose lines containing MUST/SHOULD/MAY/SHALL/REQUIRED/SHALL NOT wrapped as `> **KEYWORD**:` callouts
-- [ ] YAML frontmatter remains unchanged
-- [ ] ABNF code blocks remain unchanged
-- [ ] Lines already inside blockquotes or code blocks are NOT double-processed
-- [ ] Total: 163 files converted, all verified for proper structure
+- [x] RFC1945 section files (36): top heading changed H2 → H1; duplicate title repeat removed
+- [x] RFC6265 section files (24): same conversion applied
+- [x] RFC7541 section files (12): same conversion applied
+- [x] RFC9000 section files (91): same conversion applied
+- [x] Every section file in batch has exactly one `# H1` heading matching frontmatter `title` field
+- [x] No plain-text subsection headings remain (all `N.N.  Title` patterns converted to `##` or `###` as appropriate)
+- [x] No duplicate title-repeat line below the H1 (RFC source verbatim text removed)
+- [x] Prose lines containing MUST/SHOULD/MAY/SHALL/REQUIRED/SHALL NOT wrapped as `> **KEYWORD**:` callouts
+- [x] YAML frontmatter remains unchanged
+- [x] ABNF code blocks remain unchanged
+- [x] Lines already inside blockquotes or code blocks are NOT double-processed
+- [x] Total: 163 files converted, all verified for proper structure
 
 ---
 
@@ -238,15 +238,15 @@ converted to proper Markdown using the same rules as TASK-026-009.
 **Model:** haiku — repetitive structural conversion across 157 files
 
 **Acceptance Criteria:**
-- [ ] RFC9110 section files (112): top heading H2 → H1; duplicate title removed
-- [ ] RFC9111 section files (20): same conversion applied
-- [ ] RFC9112 section files (25): same conversion applied
-- [ ] Every section file in batch has exactly one `# H1` heading matching frontmatter `title` field
-- [ ] No plain-text subsection headings remain
-- [ ] No duplicate title-repeat lines
-- [ ] Prose lines containing MUST/SHOULD/MAY/SHALL/REQUIRED/SHALL NOT wrapped as `> **KEYWORD**:` callouts
-- [ ] YAML frontmatter unchanged, ABNF/code blocks unchanged, no double-processing of blockquotes/code
-- [ ] Total: 157 files converted, all verified for proper structure
+- [x] RFC9110 section files (112): top heading H2 → H1; duplicate title removed
+- [x] RFC9111 section files (20): same conversion applied
+- [x] RFC9112 section files (25): same conversion applied
+- [x] Every section file in batch has exactly one `# H1` heading matching frontmatter `title` field
+- [x] No plain-text subsection headings remain
+- [x] No duplicate title-repeat lines
+- [x] Prose lines containing MUST/SHOULD/MAY/SHALL/REQUIRED/SHALL NOT wrapped as `> **KEYWORD**:` callouts
+- [x] YAML frontmatter unchanged, ABNF/code blocks unchanged, no double-processing of blockquotes/code
+- [x] Total: 157 files converted, all verified for proper structure
 
 ---
 
@@ -261,15 +261,15 @@ converted to proper Markdown using the same rules.
 **Model:** haiku — repetitive structural conversion across 73 files
 
 **Acceptance Criteria:**
-- [ ] RFC9113 section files (35): top heading H2 → H1; duplicate title removed
-- [ ] RFC9114 section files (21): same conversion applied
-- [ ] RFC9204 section files (17): same conversion applied
-- [ ] Every section file in batch has exactly one `# H1` heading matching frontmatter `title` field
-- [ ] No plain-text subsection headings remain
-- [ ] No duplicate title-repeat lines
-- [ ] Prose lines containing MUST/SHOULD/MAY/SHALL/REQUIRED/SHALL NOT wrapped as `> **KEYWORD**:` callouts
-- [ ] YAML frontmatter unchanged, ABNF/code blocks unchanged, no double-processing of blockquotes/code
-- [ ] Total: 73 files converted, all verified for proper structure
+- [x] RFC9113 section files (35): top heading H2 → H1; duplicate title removed
+- [x] RFC9114 section files (21): same conversion applied
+- [x] RFC9204 section files (17): same conversion applied
+- [x] Every section file in batch has exactly one `# H1` heading matching frontmatter `title` field
+- [x] No plain-text subsection headings remain
+- [x] No duplicate title-repeat lines
+- [x] Prose lines containing MUST/SHOULD/MAY/SHALL/REQUIRED/SHALL NOT wrapped as `> **KEYWORD**:` callouts
+- [x] YAML frontmatter unchanged, ABNF/code blocks unchanged, no double-processing of blockquotes/code
+- [x] Total: 73 files converted, all verified for proper structure
 
 ---
 

@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 5.2.  Flow Control
 
-5.2.  Flow Control
+## 5.2  Flow Control
 
    Using streams for multiplexing introduces contention over use of the
    TCP connection, resulting in blocked streams.  A flow-control scheme
@@ -20,7 +20,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    HTTP/2 provides for flow control through use of the WINDOW_UPDATE
    frame (Section 6.9).
 
-5.2.1.  Flow-Control Principles
+### 5.2.1  Flow-Control Principles
 
    HTTP/2 stream flow control aims to allow a variety of flow-control
    algorithms to be used without requiring protocol changes.  Flow
@@ -68,7 +68,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    for requests, and managing the creation of new streams.  Algorithm
    choices for these could interact with any flow-control algorithm.
 
-5.2.2.  Appropriate Use of Flow Control
+### 5.2.2  Appropriate Use of Flow Control
 
    Flow control is defined to protect endpoints that are operating under
    resource constraints.  For example, a proxy needs to share memory
@@ -99,7 +99,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    exhaustion attacks, as HTTP/2 flow control limits resource
    commitments.
 
-5.2.3.  Flow-Control Performance
+### 5.2.3  Flow-Control Performance
 
    If an endpoint cannot ensure that its peer always has available flow-
    control window space that is greater than the peer's bandwidth *

@@ -7,9 +7,8 @@ description: "Section 22.3: QUIC Transport Parameters Registry — RFC 9000 — 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, quic_transport_parameters_registry]
 ---
 
-## 22.3.  QUIC Transport Parameters Registry
+# 22.3.  QUIC Transport Parameters Registry
 
-22.3.  QUIC Transport Parameters Registry
 
    IANA has added a registry for "QUIC Transport Parameters" under a
    "QUIC" heading.
@@ -71,4 +70,4 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    Each value of the form "31 * N + 27" for integer values of N (that
 > **MUST NOT**: is, 27, 58, 89, ...) are reserved; these values MUST NOT be assigned
-> **MUST NOT**: by IANA and MUST NOT appear in the listing of assigned values.
+   by IANA and MUST NOT appear in the listing of assigned values.

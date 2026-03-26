@@ -7,9 +7,8 @@ description: "Section 11: Access Authentication — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, access_authentication]
 ---
 
-## 11.  Access Authentication
+# 11.  Access Authentication
 
-11.  Access Authentication
 
    HTTP provides a simple challenge-response authentication mechanism
    which may be used by a server to challenge a client request and by a
@@ -92,7 +91,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    request containing Authorization. HTTP/1.0 does not provide a means
    for a client to be authenticated with a proxy.
 
-11.1  Basic Authentication Scheme
+## 11.1  Basic Authentication Scheme
 
    The "basic" authentication scheme is based on the model that the user
    agent must authenticate itself with a user-ID and a password for each

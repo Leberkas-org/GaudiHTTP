@@ -46,7 +46,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    H3_NO_ERROR.  However, closing a stream can have other effects
    regardless of the error code; for example, see Section 4.1.
 
-8.1.  HTTP/3 Error Codes
+## 8.1  HTTP/3 Error Codes
 
    The following error codes are defined for use when abruptly
    terminating streams, aborting reading of streams, or immediately

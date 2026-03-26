@@ -7,9 +7,8 @@ description: "Section 12.3: Packet Numbers — RFC 9000 — QUIC: A UDP-Based Mu
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, packet_numbers]
 ---
 
-## 12.3.  Packet Numbers
+# 12.3.  Packet Numbers
 
-12.3.  Packet Numbers
 
    The packet number is an integer in the range 0 to 2^62-1.  This
    number is used in determining the cryptographic nonce for packet
@@ -58,7 +57,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST NOT**: A QUIC endpoint MUST NOT reuse a packet number within the same packet
    number space in one connection.  If the packet number for sending
 > **MUST**: reaches 2^62-1, the sender MUST close the connection without sending
-> **MAY**: a CONNECTION_CLOSE frame or any further packets; an endpoint MAY send
+   a CONNECTION_CLOSE frame or any further packets; an endpoint MAY send
    a Stateless Reset (Section 10.3) in response to further packets that
    it receives.
 

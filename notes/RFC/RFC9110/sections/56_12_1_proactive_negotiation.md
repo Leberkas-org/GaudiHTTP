@@ -46,7 +46,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    time, is determined entirely by whatever entity or algorithm selects
    or generates those responses.
 
-12.1.  Proactive Negotiation
+## 12.1  Proactive Negotiation
 
    When content negotiation preferences are sent by the user agent in a
    request to encourage an algorithm located at the server to select the

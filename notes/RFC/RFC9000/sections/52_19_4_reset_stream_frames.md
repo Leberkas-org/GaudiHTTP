@@ -7,9 +7,8 @@ description: "Section 19.4: RESET_STREAM Frames — RFC 9000 — QUIC: A UDP-Bas
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, reset_stream_frames]
 ---
 
-## 19.4.  RESET_STREAM Frames
+# 19.4.  RESET_STREAM Frames
 
-19.4.  RESET_STREAM Frames
 
    An endpoint uses a RESET_STREAM frame (type=0x04) to abruptly
    terminate the sending part of a stream.

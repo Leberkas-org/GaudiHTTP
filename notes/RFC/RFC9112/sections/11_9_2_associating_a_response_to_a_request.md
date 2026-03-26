@@ -9,7 +9,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ## 9.2.  Associating a Response to a Request
 
-9.2.  Associating a Response to a Request
+## 9.2  Associating a Response to a Request
 
    HTTP/1.1 does not include a request identifier for associating a
    given request message with its corresponding one or more response
@@ -21,12 +21,12 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
    A client that has more than one outstanding request on a connection
 > **MUST**: MUST maintain a list of outstanding requests in the order sent and
-> **MUST**: MUST associate each received response message on that connection to
+   MUST associate each received response message on that connection to
    the first outstanding request that has not yet received a final (non-
    1xx) response.
 
    If a client receives data on a connection that doesn't have
 > **MUST NOT**: outstanding requests, the client MUST NOT consider that data to be a
-> **SHOULD**: valid response; the client SHOULD close the connection, since message
+   valid response; the client SHOULD close the connection, since message
    delimitation is now ambiguous, unless the data consists only of one
    or more CRLF (which can be discarded per Section 2.2).

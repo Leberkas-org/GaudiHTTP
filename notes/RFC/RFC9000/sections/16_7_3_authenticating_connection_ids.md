@@ -7,9 +7,8 @@ description: "Section 7.3: Authenticating Connection IDs — RFC 9000 — QUIC: 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, authenticating_connection_ids]
 ---
 
-## 7.3.  Authenticating Connection IDs
+# 7.3.  Authenticating Connection IDs
 
-7.3.  Authenticating Connection IDs
 
    The choice each endpoint makes about connection IDs during the
    handshake is authenticated by including all values in transport

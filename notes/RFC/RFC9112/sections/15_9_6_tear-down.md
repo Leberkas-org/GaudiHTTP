@@ -9,7 +9,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ## 9.6.  Tear-down
 
-9.6.  Tear-down
+## 9.6  Tear-down
 
    The "close" connection option is defined as a signal that the sender
    will close this connection after completion of the response.  A
@@ -36,7 +36,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    closure of the connection (see below) after it sends the final
    response to the request that contained the "close" connection option.
 > **SHOULD**: The server SHOULD send a "close" connection option in its final
-> **MUST NOT**: response on that connection.  The server MUST NOT process any further
+   response on that connection.  The server MUST NOT process any further
    requests received on that connection.
 
 > **MUST**: A server that sends a "close" connection option MUST initiate closure

@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 11.6.  Authenticating Users to Origin Servers
 
-11.6.  Authenticating Users to Origin Servers
+## 11.6  Authenticating Users to Origin Servers
 
-11.6.1.  WWW-Authenticate
+### 11.6.1  WWW-Authenticate
 
    The "WWW-Authenticate" response header field indicates the
    authentication scheme(s) and parameters applicable to the target
@@ -59,7 +59,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  In practice, this ambiguity does not affect the semantics of
       |  the header field value and thus is harmless.
 
-11.6.2.  Authorization
+### 11.6.2  Authorization
 
    The "Authorization" header field allows a user agent to authenticate
    itself with an origin server -- usually, but not necessarily, after
@@ -84,7 +84,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    and requirements pertaining to handling of the Authorization header
    field by HTTP caches.
 
-11.6.3.  Authentication-Info
+### 11.6.3  Authentication-Info
 
    HTTP authentication schemes can use the "Authentication-Info"
    response field to communicate information after the client's

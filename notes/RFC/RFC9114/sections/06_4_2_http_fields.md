@@ -9,7 +9,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 ## 4.2.  HTTP Fields
 
-4.2.  HTTP Fields
+## 4.2  HTTP Fields
 
    HTTP messages carry metadata as a series of key-value pairs called
    "HTTP fields"; see Sections 6.3 and 6.5 of [HTTP].  For a listing of
@@ -34,7 +34,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    malformed.
 
 > **MAY**: The only exception to this is the TE header field, which MAY be
-> **MUST NOT**: present in an HTTP/3 request header; when it is, it MUST NOT contain
+   present in an HTTP/3 request header; when it is, it MUST NOT contain
    any value other than "trailers".
 
 > **MUST**: An intermediary transforming an HTTP/1.x message to HTTP/3 MUST
@@ -42,7 +42,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    Section 7.6.1 of [HTTP], or their messages will be treated by other
    HTTP/3 endpoints as malformed.
 
-4.2.1.  Field Compression
+### 4.2.1  Field Compression
 
    [QPACK] describes a variation of HPACK that gives an encoder some
    control over how much head-of-line blocking can be caused by
@@ -60,7 +60,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    than HTTP/2 or HTTP/3, such as an HTTP/1.1 connection, or a generic
    HTTP server application.
 
-4.2.2.  Header Size Constraints
+### 4.2.2  Header Size Constraints
 
 > **MAY**: An HTTP/3 implementation MAY impose a limit on the maximum size of
    the message header it will accept on an individual HTTP message.  A

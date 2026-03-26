@@ -7,15 +7,14 @@ description: "Section 6: Binary Format — RFC 7541 — HPACK: Header Compressio
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, binary_format]
 ---
 
-## 6.  Binary Format
+# 6.  Binary Format
 
-6.  Binary Format
 
    This section describes the detailed format of each of the different
    header field representations and the dynamic table size update
    instruction.
 
-6.1.  Indexed Header Field Representation
+## 6.1.  Indexed Header Field Representation
 
    An indexed header field representation identifies an entry in either
    the static table or the dynamic table (see Section 2.3).
@@ -42,7 +41,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 > **MUST**: The index value of 0 is not used.  It MUST be treated as a decoding
    error if found in an indexed header field representation.
 
-6.2.  Literal Header Field Representation
+## 6.2.  Literal Header Field Representation
 
    A literal header field representation contains a literal header field
    value.  Header field names are provided either as a literal or by
@@ -52,7 +51,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    This specification defines three forms of literal header field
    representations: with indexing, without indexing, and never indexed.
 
-6.2.1.  Literal Header Field with Incremental Indexing
+### 6.2.1.  Literal Header Field with Incremental Indexing
 
    A literal header field with incremental indexing representation
    results in appending a header field to the decoded header list and
@@ -117,7 +116,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    Either form of header field name representation is followed by the
    header field value represented as a string literal (see Section 5.2).
 
-6.2.2.  Literal Header Field without Indexing
+### 6.2.2.  Literal Header Field without Indexing
 
    A literal header field without indexing representation results in
    appending a header field to the decoded header list without altering
@@ -168,7 +167,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    Either form of header field name representation is followed by the
    header field value represented as a string literal (see Section 5.2).
 
-6.2.3.  Literal Header Field Never Indexed
+### 6.2.3.  Literal Header Field Never Indexed
 
    A literal header field never-indexed representation results in
    appending a header field to the decoded header list without altering
@@ -219,7 +218,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    The encoding of the representation is identical to the literal header
    field without indexing (see Section 6.2.2).
 
-6.3.  Dynamic Table Size Update
+## 6.3.  Dynamic Table Size Update
 
    A dynamic table size update signals a change to the size of the
    dynamic table.

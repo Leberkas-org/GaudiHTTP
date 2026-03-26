@@ -7,16 +7,16 @@ description: "Section 21.1: Overview of Security Properties — RFC 9000 — QUI
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, overview_of_security_properties]
 ---
 
-## 21.1.  Overview of Security Properties
+# 21.1.  Overview of Security Properties
 
-21.  Security Considerations
+
 
    The goal of QUIC is to provide a secure transport connection.
    Section 21.1 provides an overview of those properties; subsequent
    sections discuss constraints and caveats regarding these properties,
    including descriptions of known attacks and countermeasures.
 
-21.1.  Overview of Security Properties
+## 21.1.  Overview of Security Properties
 
    A complete security analysis of QUIC is outside the scope of this
    document.  This section provides an informal description of the
@@ -45,7 +45,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Properties of the handshake, protected packets, and connection
    migration are considered separately.
 
-21.1.1.  Handshake
+### 21.1.1.  Handshake
 
    The QUIC handshake incorporates the TLS 1.3 handshake and inherits
    the cryptographic properties described in Appendix E.1 of [TLS13].
@@ -68,7 +68,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    In addition to the properties provided by TLS, the QUIC handshake
    provides some defense against DoS attacks on the handshake.
 
-21.1.1.1.  Anti-Amplification
+### 21.1.1.1.  Anti-Amplification
 
    Address validation (Section 8) is used to verify that an entity that
    claims a given address is able to receive packets at that address.
@@ -85,7 +85,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
       |  clients when establishing a new connection or when initiating
       |  connection migration.
 
-21.1.1.2.  Server-Side DoS
+### 21.1.1.2.  Server-Side DoS
 
    Computing the server's first flight for a full handshake is
    potentially expensive, requiring both a signature and a key exchange
@@ -96,7 +96,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    successful handshake, servers can issue new tokens to a client, which
    will allow new connection establishment without incurring this cost.
 
-21.1.1.3.  On-Path Handshake Termination
+### 21.1.1.3.  On-Path Handshake Termination
 
    An on-path or off-path attacker can force a handshake to fail by
    replacing or racing Initial packets.  Once valid Initial packets have
@@ -110,7 +110,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    incorrect view of the remote addresses.  Such an attack is
    indistinguishable from the functions performed by a NAT.
 
-21.1.1.4.  Parameter Negotiation
+### 21.1.1.4.  Parameter Negotiation
 
    The entire handshake is cryptographically protected, with the Initial
    packets being encrypted with per-version keys and the Handshake and
@@ -129,7 +129,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    mechanism; implementations of incompatible versions will simply fail
    to establish a connection.
 
-21.1.2.  Protected Packets
+### 21.1.2.  Protected Packets
 
    Packet protection (Section 12.1) applies authenticated encryption to
    all packets except Version Negotiation packets, though Initial and
@@ -167,7 +167,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    functional effect on a connection, although it might change some
    performance characteristics.
 
-21.1.3.  Connection Migration
+### 21.1.3.  Connection Migration
 
    Connection migration (Section 9) provides endpoints with the ability
    to transition between IP addresses and ports on multiple paths, using
@@ -180,7 +180,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    This section describes the intended security properties of connection
    migration under various types of DoS attacks.
 
-21.1.3.1.  On-Path Active Attacks
+### 21.1.3.1.  On-Path Active Attacks
 
    An attacker that can cause a packet it observes to no longer reach
    its intended destination is considered an on-path attacker.  When an
@@ -237,7 +237,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
        for which it has modified an authenticated portion of that
        packet.
 
-21.1.3.2.  Off-Path Active Attacks
+### 21.1.3.2.  Off-Path Active Attacks
 
    An off-path attacker is not directly on the path between a client and
    server but could be able to obtain copies of some or all packets sent
@@ -305,7 +305,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
        server from the same IP address and port that the client
        originally used.
 
-21.1.3.3.  Limited On-Path Active Attacks
+### 21.1.3.3.  Limited On-Path Active Attacks
 
    A limited on-path attacker is an off-path attacker that has offered
    improved routing of packets by duplicating and forwarding original

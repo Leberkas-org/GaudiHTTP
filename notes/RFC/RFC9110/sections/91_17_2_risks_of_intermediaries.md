@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.2.  Risks of Intermediaries
 
-17.2.  Risks of Intermediaries
+## 17.2  Risks of Intermediaries
 
    HTTP intermediaries are inherently situated for on-path attacks.
    Compromise of the systems on which the intermediaries run can result

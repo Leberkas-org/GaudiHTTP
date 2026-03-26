@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 16.6.  Content Coding Extensibility
 
-16.6.  Content Coding Extensibility
+## 16.6  Content Coding Extensibility
 
-16.6.1.  Content Coding Registry
+### 16.6.1  Content Coding Registry
 
    The "HTTP Content Coding Registry", maintained by IANA at
    <https://www.iana.org/assignments/http-parameters/>, registers
@@ -35,7 +35,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MUST**: Section 4.8 of [RFC8126]) and MUST conform to the purpose of content
    coding defined in Section 8.4.1.
 
-16.6.2.  Considerations for New Content Codings
+### 16.6.2  Considerations for New Content Codings
 
    New content codings ought to be self-descriptive whenever possible,
    with optional parameters discoverable within the coding format

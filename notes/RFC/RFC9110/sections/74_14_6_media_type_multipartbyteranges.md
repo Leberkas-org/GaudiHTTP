@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 14.6.  Media Type multipart/byteranges
 
-14.6.  Media Type multipart/byteranges
+## 14.6  Media Type multipart/byteranges
 
    When a 206 (Partial Content) response message includes the content of
    multiple ranges, they are transmitted as body parts in a multipart

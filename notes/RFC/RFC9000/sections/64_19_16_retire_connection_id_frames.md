@@ -7,9 +7,8 @@ description: "Section 19.16: RETIRE_CONNECTION_ID Frames — RFC 9000 — QUIC: 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, retire_connection_id_frames]
 ---
 
-## 19.16.  RETIRE_CONNECTION_ID Frames
+# 19.16.  RETIRE_CONNECTION_ID Frames
 
-19.16.  RETIRE_CONNECTION_ID Frames
 
    An endpoint sends a RETIRE_CONNECTION_ID frame (type=0x19) to
    indicate that it will no longer use a connection ID that was issued

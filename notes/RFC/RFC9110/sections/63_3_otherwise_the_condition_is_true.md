@@ -25,7 +25,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    syntactically invalid (therefore not allowed to be generated) and
    furthermore is unlikely to be interoperable.
 
-13.1.3.  If-Modified-Since
+### 13.1.3  If-Modified-Since
 
    The "If-Modified-Since" header field makes a GET or HEAD request
    method conditional on the selected representation's modification date

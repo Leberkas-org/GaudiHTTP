@@ -7,9 +7,8 @@ description: "Section 1: Expired cookies. — RFC 6265 — HTTP State Management
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, expired_cookies]
 ---
 
-## 1.  Expired cookies.
+# 1.  Expired cookies.
 
-   1.  Expired cookies.
 
-   2.  Cookies that share a domain field with more than a predetermined
+
        number of other cookies.

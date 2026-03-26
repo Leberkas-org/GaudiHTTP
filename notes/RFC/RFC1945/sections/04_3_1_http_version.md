@@ -7,11 +7,11 @@ description: "Section 3.1: HTTP Version — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, http_version]
 ---
 
-## 3.1.  HTTP Version
+# 3.1.  HTTP Version
 
-3.  Protocol Parameters
 
-3.1  HTTP Version
+
+## 3.1  HTTP Version
 
    HTTP uses a "<major>.<minor>" numbering scheme to indicate versions
    of the protocol. The protocol versioning policy is intended to allow

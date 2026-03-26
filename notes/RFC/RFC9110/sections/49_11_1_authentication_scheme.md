@@ -11,7 +11,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 11.  HTTP Authentication
 
-11.1.  Authentication Scheme
+## 11.1  Authentication Scheme
 
    HTTP provides a general framework for access control and
    authentication, via an extensible set of challenge-response

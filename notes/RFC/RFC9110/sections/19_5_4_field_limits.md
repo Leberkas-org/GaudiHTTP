@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 5.4.  Field Limits
 
-5.4.  Field Limits
+## 5.4  Field Limits
 
    HTTP does not place a predefined limit on the length of each field
    line, field value, or on the length of a header or trailer section as

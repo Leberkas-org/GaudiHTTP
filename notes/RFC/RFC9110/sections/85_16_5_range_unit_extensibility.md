@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 16.5.  Range Unit Extensibility
 
-16.5.  Range Unit Extensibility
+## 16.5  Range Unit Extensibility
 
-16.5.1.  Range Unit Registry
+### 16.5.1  Range Unit Registry
 
    The "HTTP Range Unit Registry" defines the namespace for the range
    unit names and refers to their corresponding specifications.  It is
@@ -28,7 +28,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Values to be added to this namespace require IETF Review (see
    [RFC8126], Section 4.8).
 
-16.5.2.  Considerations for New Range Units
+### 16.5.2  Considerations for New Range Units
 
    Other range units, such as format-specific boundaries like pages,
    sections, records, rows, or time, are potentially usable in HTTP for

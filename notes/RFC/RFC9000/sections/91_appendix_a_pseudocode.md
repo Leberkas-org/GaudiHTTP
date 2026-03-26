@@ -7,9 +7,8 @@ description: "Appendix A: Pseudocode — RFC 9000 — QUIC: A UDP-Based Multiple
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, pseudocode]
 ---
 
-## Appendix A.  Pseudocode
+# Appendix A.  Pseudocode
 
-Appendix A.  Pseudocode
 
    The pseudocode in this section describes sample algorithms.  These
    algorithms are intended to be correct and clear, rather than being

@@ -7,11 +7,10 @@ description: "Section 2: Notational Conventions and Generic Grammar — RFC 1945
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, notational_conventions_and_generic_grammar]
 ---
 
-## 2.  Notational Conventions and Generic Grammar
+# 2.  Notational Conventions and Generic Grammar
 
-2.  Notational Conventions and Generic Grammar
 
-2.1  Augmented BNF
+## 2.1  Augmented BNF
 
    All of the mechanisms specified in this document are described in
    both prose and an augmented Backus-Naur Form (BNF) similar to that
@@ -115,7 +114,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
        implementations that fail to accept anything beyond the common
        forms.
 
-2.2  Basic Rules
+## 2.2  Basic Rules
 
    The following rules are used throughout this specification to
    describe basic parsing constructs. The US-ASCII coded character set

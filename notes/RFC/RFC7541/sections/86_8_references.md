@@ -7,11 +7,10 @@ description: "Section 8: References — RFC 7541 — HPACK: Header Compression f
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, references]
 ---
 
-## 8.  References
+# 8.  References
 
-8.  References
 
-8.1.  Normative References
+## 8.1.  Normative References
 
    [HTTP2]     Belshe, M., Peon, R., and M. Thomson, Ed., "Hypertext
                Transfer Protocol Version 2 (HTTP/2)", RFC 7540,
@@ -34,7 +33,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 
 
-8.2.  Informative References
+## 8.2.  Informative References
 
    [CANONICAL] Schwartz, E. and B. Kallick, "Generating a canonical
                prefix encoding", Communications of the ACM, Volume 7

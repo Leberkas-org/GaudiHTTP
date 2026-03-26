@@ -7,9 +7,9 @@ description: "Section 10.5: Content-Type — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, content-type]
 ---
 
-## 10.5.  Content-Type
+# 10.5.  Content-Type
 
-10.5  Content-Type
+## 10.5  Content-Type
 
    The Content-Type entity-header field indicates the media type of the
    Entity-Body sent to the recipient or, in the case of the HEAD method,

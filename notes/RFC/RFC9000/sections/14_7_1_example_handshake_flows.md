@@ -7,9 +7,9 @@ description: "Section 7.1: Example Handshake Flows — RFC 9000 — QUIC: A UDP-
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, example_handshake_flows]
 ---
 
-## 7.1.  Example Handshake Flows
+# 7.1.  Example Handshake Flows
 
-7.  Cryptographic and Transport Handshake
+
 
    QUIC relies on a combined cryptographic and transport handshake to
    minimize connection establishment latency.  QUIC uses the CRYPTO
@@ -79,7 +79,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    avoids situations where there is a disagreement about the protocol
    that is in use.
 
-7.1.  Example Handshake Flows
+## 7.1.  Example Handshake Flows
 
    Details of how TLS is integrated with QUIC are provided in
    [QUIC-TLS], but some examples are provided here.  An extension of

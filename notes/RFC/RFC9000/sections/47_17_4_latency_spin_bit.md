@@ -7,9 +7,8 @@ description: "Section 17.4: Latency Spin Bit — RFC 9000 — QUIC: A UDP-Based 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, latency_spin_bit]
 ---
 
-## 17.4.  Latency Spin Bit
+# 17.4.  Latency Spin Bit
 
-17.4.  Latency Spin Bit
 
    The latency spin bit, which is defined for 1-RTT packets
    (Section 17.3.1), enables passive latency monitoring from observation
@@ -43,7 +42,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    eight network paths.
 
 > **MAY**: When the spin bit is disabled, endpoints MAY set the spin bit to any
-> **MUST**: value and MUST ignore any incoming value.  It is RECOMMENDED that
+   value and MUST ignore any incoming value.  It is RECOMMENDED that
    endpoints set the spin bit to a random value either chosen
    independently for each packet or chosen independently for each
    connection ID.

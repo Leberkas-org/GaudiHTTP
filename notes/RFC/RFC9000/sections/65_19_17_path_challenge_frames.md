@@ -7,9 +7,8 @@ description: "Section 19.17: PATH_CHALLENGE Frames — RFC 9000 — QUIC: A UDP-
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, path_challenge_frames]
 ---
 
-## 19.17.  PATH_CHALLENGE Frames
+# 19.17.  PATH_CHALLENGE Frames
 
-19.17.  PATH_CHALLENGE Frames
 
    Endpoints can use PATH_CHALLENGE frames (type=0x1a) to check
    reachability to the peer and for path validation during connection

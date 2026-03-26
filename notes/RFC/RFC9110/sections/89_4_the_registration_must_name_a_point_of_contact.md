@@ -9,18 +9,18 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 4.  The registration MUST name a point of contact.
 
-   4.  The registration MUST name a point of contact.
+> **MUST**: 4.  The registration MUST name a point of contact.
 
-   5.  The registration MAY name a set of specifications associated with
+> **MAY**: 5.  The registration MAY name a set of specifications associated with
        that token.  Such specifications need not be publicly available.
 
-   6.  The registration SHOULD name a set of expected "protocol-version"
+> **SHOULD**: 6.  The registration SHOULD name a set of expected "protocol-version"
        tokens associated with that token at the time of registration.
 
-   7.  The responsible party MAY change the registration at any time.
+> **MAY**: 7.  The responsible party MAY change the registration at any time.
        The IANA will keep a record of all such changes, and make them
        available upon request.
 
-   8.  The IESG MAY reassign responsibility for a protocol token.  This
+> **MAY**: 8.  The IESG MAY reassign responsibility for a protocol token.  This
        will normally only be used in the case when a responsible party
        cannot be contacted.

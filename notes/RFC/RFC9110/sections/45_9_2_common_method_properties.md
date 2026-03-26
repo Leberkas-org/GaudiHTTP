@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 9.2.  Common Method Properties
 
-9.2.  Common Method Properties
+## 9.2  Common Method Properties
 
-9.2.1.  Safe Methods
+### 9.2.1  Safe Methods
 
    Request methods are considered "safe" if their defined semantics are
    essentially read-only; i.e., the client does not request, and does
@@ -59,7 +59,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    for the sake of link maintenance, pre-fetching, building a search
    index, etc.
 
-9.2.2.  Idempotent Methods
+### 9.2.2  Idempotent Methods
 
    A request method is considered "idempotent" if the intended effect on
    the server of multiple identical requests with that method is the
@@ -102,9 +102,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    particularly if an idle persistent connection was used.
 
 > **MUST NOT**: A proxy MUST NOT automatically retry non-idempotent requests.  A
-> **SHOULD NOT**: client SHOULD NOT automatically retry a failed automatic retry.
+   client SHOULD NOT automatically retry a failed automatic retry.
 
-9.2.3.  Methods and Caching
+### 9.2.3  Methods and Caching
 
    For a cache to store and use a response, the associated method needs
    to explicitly allow caching and to detail under what conditions a

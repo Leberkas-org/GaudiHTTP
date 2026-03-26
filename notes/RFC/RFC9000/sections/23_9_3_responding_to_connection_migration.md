@@ -7,15 +7,14 @@ description: "Section 9.3: Responding to Connection Migration — RFC 9000 — Q
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, responding_to_connection_migration]
 ---
 
-## 9.3.  Responding to Connection Migration
+# 9.3.  Responding to Connection Migration
 
-9.3.  Responding to Connection Migration
 
    Receiving a packet from a new peer address containing a non-probing
    frame indicates that the peer has migrated to that address.
 
 > **MUST**: If the recipient permits the migration, it MUST send subsequent
-> **MUST**: packets to the new peer address and MUST initiate path validation
+   packets to the new peer address and MUST initiate path validation
    (Section 8.2) to verify the peer's ownership of the address if
    validation is not already underway.  If the recipient has no unused
    connection IDs from the peer, it will not be able to send anything on
@@ -28,7 +27,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 > **MUST**: An endpoint MAY send data to an unvalidated peer address, but it MUST
    protect against potential attacks as described in Sections 9.3.1 and
-   9.3.2.  An endpoint MAY skip validation of a peer address if that
+## 9.3.2  An endpoint MAY skip validation of a peer address if that
    address has been seen recently.  In particular, if an endpoint
    returns to a previously validated path after detecting some form of
    spurious migration, skipping address validation and restoring loss
@@ -44,7 +43,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **SHOULD**: After verifying a new client address, the server SHOULD send new
    address validation tokens (Section 8) to the client.
 
-9.3.1.  Peer Address Spoofing
+### 9.3.1.  Peer Address Spoofing
 
    It is possible that a peer is spoofing its source address to cause an
    endpoint to send excessive amounts of data to an unwilling host.  If
@@ -62,7 +61,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    If an endpoint skips validation of a peer address as described above,
    it does not need to limit its sending rate.
 
-9.3.2.  On-Path Address Spoofing
+### 9.3.2.  On-Path Address Spoofing
 
    An on-path attacker could cause a spurious connection migration by
    copying and forwarding a packet with a spoofed address such that it
@@ -89,7 +88,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MAY**: generically.  For instance, an endpoint MAY send a Stateless Reset in
    response to any further incoming packets.
 
-9.3.3.  Off-Path Packet Forwarding
+### 9.3.3.  Off-Path Packet Forwarding
 
    An off-path attacker that can observe packets might forward copies of
    genuine packets to endpoints.  If the copied packet arrives before

@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 7.6.  Message Forwarding
 
-7.6.  Message Forwarding
+## 7.6  Message Forwarding
 
    As described in Section 3.7, intermediaries can serve a variety of
    roles in the processing of HTTP requests and responses.  Some
@@ -41,7 +41,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    implementations will buffer or delay message forwarding for the sake
    of network efficiency, security checks, or content transformations.
 
-7.6.1.  Connection
+### 7.6.1  Connection
 
    The "Connection" header field allows the sender to list desired
    control options for the current connection.
@@ -110,7 +110,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    names are registered in the "Hypertext Transfer Protocol (HTTP) Field
    Name Registry" (Section 16.3.1).
 
-7.6.2.  Max-Forwards
+### 7.6.2  Max-Forwards
 
    The "Max-Forwards" header field provides a mechanism with the TRACE
    (Section 9.3.8) and OPTIONS (Section 9.3.7) request methods to limit
@@ -131,7 +131,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MUST**: a Max-Forwards header field MUST check and update its value prior to
    forwarding the request.  If the received value is zero (0), the
 > **MUST NOT**: intermediary MUST NOT forward the request; instead, the intermediary
-> **MUST**: MUST respond as the final recipient.  If the received Max-Forwards
+   MUST respond as the final recipient.  If the received Max-Forwards
 > **MUST**: value is greater than zero, the intermediary MUST generate an updated
    Max-Forwards field in the forwarded message with a field value that
    is the lesser of a) the received value decremented by one (1) or b)
@@ -140,7 +140,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MAY**: A recipient MAY ignore a Max-Forwards header field received with any
    other request methods.
 
-7.6.3.  Via
+### 7.6.3  Via
 
    The "Via" header field indicates the presence of intermediate
    protocols and recipients between the user agent and the server (on
@@ -169,7 +169,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MUST**: A proxy MUST send an appropriate Via header field, as described
    below, in each message that it forwards.  An HTTP-to-HTTP gateway
 > **MUST**: MUST send an appropriate Via header field in each inbound request
-> **MAY**: message and MAY send a Via header field in forwarded response
+   message and MAY send a Via header field in forwarded response
    messages.
 
    For each intermediary, the received-protocol indicates the protocol
@@ -186,7 +186,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    of a recipient server or client that subsequently forwarded the
    message.  However, if the real host is considered to be sensitive
 > **MAY**: information, a sender MAY replace it with a pseudonym.  If a port is
-> **MAY**: not provided, a recipient MAY interpret that as meaning it was
+   not provided, a recipient MAY interpret that as meaning it was
    received on the default port, if any, for the received-protocol.
 
 > **MAY**: A sender MAY generate comments to identify the software of each

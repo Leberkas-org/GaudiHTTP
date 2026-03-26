@@ -7,9 +7,8 @@ description: "Section 7: Privacy Considerations — RFC 6265 — HTTP State Mana
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, privacy_considerations]
 ---
 
-## 7.  Privacy Considerations
+# 7.  Privacy Considerations
 
-7.  Privacy Considerations
 
    Cookies are often criticized for letting servers track users.  For
    example, a number of "web analytics" companies use cookies to
@@ -19,7 +18,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    they are persistent across user agent sessions and can be shared
    between hosts.
 
-7.1.  Third-Party Cookies
+## 7.1.  Third-Party Cookies
 
    Particularly worrisome are so-called "third-party" cookies.  In
    rendering an HTML document, a user agent often requests resources
@@ -46,7 +45,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    servers can often track users without using cookies at all by
    injecting identifying information into dynamic URLs.
 
-7.2.  User Controls
+## 7.2.  User Controls
 
 > **SHOULD**: User agents SHOULD provide users with a mechanism for managing the
    cookies stored in the cookie store.  For example, a user agent might
@@ -61,7 +60,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    the cookies stored in their cookie store.
 
 > **SHOULD**: User agents SHOULD provide users with a mechanism for disabling
-> **MUST NOT**: cookies.  When cookies are disabled, the user agent MUST NOT include
+   cookies.  When cookies are disabled, the user agent MUST NOT include
 > **MUST NOT**: a Cookie header in outbound HTTP requests and the user agent MUST NOT
    process Set-Cookie headers in inbound HTTP responses.
 
@@ -76,7 +75,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    controls generate a large number of prompts.  However, some privacy-
    conscious users find these controls useful nonetheless.
 
-7.3.  Expiration Dates
+## 7.3.  Expiration Dates
 
    Although servers can set the expiration date for cookies to the
    distant future, most user agents do not actually retain cookies for

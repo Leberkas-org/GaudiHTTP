@@ -7,9 +7,9 @@ description: "Section 10.10: Last-Modified — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, last-modified]
 ---
 
-## 10.10.  Last-Modified
+# 10.10.  Last-Modified
 
-10.10  Last-Modified
+## 10.10  Last-Modified
 
    The Last-Modified entity-header field indicates the date and time at
    which the sender believes the resource was last modified. The exact

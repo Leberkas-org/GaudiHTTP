@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 7.8.  Upgrade
 
-7.8.  Upgrade
+## 7.8  Upgrade
 
    The "Upgrade" header field is intended to provide a simple mechanism
    for transitioning from HTTP/1.1 to some other protocol on the same
@@ -41,7 +41,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Upgrade header field to indicate the new protocol(s) to which the
    connection is being switched; if multiple protocol layers are being
 > **MUST**: switched, the sender MUST list the protocols in layer-ascending
-> **MUST NOT**: order.  A server MUST NOT switch to a protocol that was not indicated
+   order.  A server MUST NOT switch to a protocol that was not indicated
    by the client in the corresponding request's Upgrade header field.  A
 > **MAY**: server MAY choose to ignore the order of preference indicated by the
    client and select the new protocol(s) based on other factors, such as

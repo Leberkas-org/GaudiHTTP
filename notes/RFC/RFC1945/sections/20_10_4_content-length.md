@@ -7,9 +7,9 @@ description: "Section 10.4: Content-Length — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request]
 ---
 
-## 10.4.  Content-Length
+# 10.4.  Content-Length
 
-10.4  Content-Length
+## 10.4  Content-Length
 
    The Content-Length entity-header field indicates the size of the
    Entity-Body, in decimal number of octets, sent to the recipient or,

@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 7.7.  Message Transformations
 
-7.7.  Message Transformations
+## 7.7  Message Transformations
 
    Some intermediaries include features for transforming messages and
    their content.  A proxy might, for example, convert between image
@@ -35,7 +35,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    If a proxy receives a target URI with a host name that is not a fully
 > **MAY**: qualified domain name, it MAY add its own domain to the host name it
-> **MUST NOT**: received when forwarding the request.  A proxy MUST NOT change the
+   received when forwarding the request.  A proxy MUST NOT change the
    host name if the target URI contains a fully qualified domain name.
 
 > **MUST NOT**: A proxy MUST NOT modify the "absolute-path" and "query" parts of the

@@ -9,9 +9,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 12.5.  Content Negotiation Fields
 
-12.5.  Content Negotiation Fields
+## 12.5  Content Negotiation Fields
 
-12.5.1.  Accept
+### 12.5.1  Accept
 
    The "Accept" header field can be used by user agents to specify their
    preferences regarding response media types.  For example, Accept
@@ -49,7 +49,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    complicated definition, was not being used in practice, and is more
    easily deployed through new header fields.  Senders using weights
 > **SHOULD**: SHOULD send "q" last (after all media-range parameters).  Recipients
-> **SHOULD**: SHOULD process any parameter named "q" as weight, regardless of
+   SHOULD process any parameter named "q" as weight, regardless of
    parameter ordering.
 
       |  *Note:* Use of the "q" parameter name to control content
@@ -123,7 +123,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  rendering agents, this default set ought to be configurable by
       |  the user.
 
-12.5.2.  Accept-Charset
+### 12.5.2  Accept-Charset
 
    The "Accept-Charset" header field can be sent by a user agent to
    indicate its preferences for charsets in textual response content.
@@ -155,7 +155,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  purpose user agents do not send Accept-Charset unless
       |  specifically configured to do so.
 
-12.5.3.  Accept-Encoding
+### 12.5.3  Accept-Encoding
 
    The "Accept-Encoding" header field can be used to indicate
    preferences regarding the use of content codings (Section 8.4.1).
@@ -249,7 +249,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    was big enough to justify use of a compression coding but the client
    failed do so.
 
-12.5.4.  Accept-Language
+### 12.5.4  Accept-Language
 
    The "Accept-Language" header field can be used by user agents to
    indicate the set of natural languages that are preferred in the
@@ -306,7 +306,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  available.  A user agent might suggest, in such a case, to add
       |  "en" to the list for better matching behavior.
 
-12.5.5.  Vary
+### 12.5.5  Vary
 
    The "Vary" header field in a response describes what parts of a
    request message, aside from the method and target URI, might have
@@ -343,7 +343,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    A Vary field containing a list of field names has two purposes:
 
-   1.  To inform cache recipients that they MUST NOT use this response
+> **MUST NOT**: 1.  To inform cache recipients that they MUST NOT use this response
        to satisfy a later request unless the later request has the same
        values for the listed header fields as the original request
        (Section 4.1 of [CACHING]) or reuse of the response has been

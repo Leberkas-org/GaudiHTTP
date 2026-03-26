@@ -20,9 +20,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    than or equal to" comparison used when evaluating an
    If-Unmodified-Since conditional.
 
-13.2.  Evaluation of Preconditions
+## 13.2  Evaluation of Preconditions
 
-13.2.1.  When to Evaluate
+### 13.2.1  When to Evaluate
 
 > **MUST**: Except when excluded below, a recipient cache or origin server MUST
    evaluate received request preconditions after it has successfully
@@ -60,7 +60,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Modified) response and more useful than a 412 (Precondition Failed)
    response.
 
-13.2.2.  Precedence of Preconditions
+### 13.2.2  Precedence of Preconditions
 
    When more than one conditional request header field is present in a
    request, the order in which the fields are evaluated becomes

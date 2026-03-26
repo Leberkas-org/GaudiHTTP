@@ -16,9 +16,9 @@ tags:
   - user_agent_requirements
 ---
 
-## 5.  User Agent Requirements
+# 5.  User Agent Requirements
 
-5.  User Agent Requirements
+
 
    This section specifies the Cookie and Set-Cookie headers in
    sufficient detail that a user agent implementing these requirements
@@ -30,12 +30,12 @@ tags:
    experiments have shown that such strictness reduces the likelihood
    that a user agent will be able to interoperate with existing servers.
 
-5.1.  Subcomponent Algorithms
+## 5.1.  Subcomponent Algorithms
 
    This section defines some algorithms used by user agents to process
    specific subcomponents of the Cookie and Set-Cookie headers.
 
-5.1.1.  Dates
+### 5.1.1.  Dates
 
 > **MUST**: The user agent MUST use an algorithm equivalent to the following
    algorithm to parse a cookie-date.  Note that the various boolean

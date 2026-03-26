@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.7.  Disclosure of Personal Information
 
-17.7.  Disclosure of Personal Information
+## 17.7  Disclosure of Personal Information
 
    Clients are often privy to large amounts of personal information,
    including both information provided by the user to interact with

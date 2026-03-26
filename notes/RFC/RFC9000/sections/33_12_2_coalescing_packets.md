@@ -7,9 +7,8 @@ description: "Section 12.2: Coalescing Packets — RFC 9000 — QUIC: A UDP-Base
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, coalescing_packets]
 ---
 
-## 12.2.  Coalescing Packets
+# 12.2.  Coalescing Packets
 
-12.2.  Coalescing Packets
 
    Initial (Section 17.2.2), 0-RTT (Section 17.2.3), and Handshake
    (Section 17.2.4) packets contain a Length field that determines the
@@ -35,7 +34,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    multiple packets at the same encryption level.
 
 > **MAY**: Receivers MAY route based on the information in the first packet
-> **MUST NOT**: contained in a UDP datagram.  Senders MUST NOT coalesce QUIC packets
+   contained in a UDP datagram.  Senders MUST NOT coalesce QUIC packets
    with different connection IDs into a single UDP datagram.  Receivers
 > **SHOULD**: SHOULD ignore any subsequent packets with a different Destination
    Connection ID than the first packet in the datagram.
@@ -46,7 +45,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    them, as if they were received as the payload of different UDP
    datagrams.  For example, if decryption fails (because the keys are
 > **MAY**: not available or for any other reason), the receiver MAY either
-> **MUST**: discard or buffer the packet for later processing and MUST attempt to
+   discard or buffer the packet for later processing and MUST attempt to
    process the remaining packets.
 
    Retry packets (Section 17.2.5), Version Negotiation packets

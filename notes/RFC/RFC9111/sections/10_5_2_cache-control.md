@@ -9,7 +9,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ## 5.2.  Cache-Control
 
-5.2.  Cache-Control
+## 5.2  Cache-Control
 
    The "Cache-Control" header field is used to list directives for
    caches along the request/response chain.  Cache directives are
@@ -43,7 +43,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    For the cache directives defined below, no argument is defined (nor
    allowed) unless stated otherwise.
 
-5.2.1.  Request Directives
+### 5.2.1  Request Directives
 
    This section defines cache request directives.  They are advisory;
 > **MAY**: caches MAY implement them, but are not required to.
@@ -106,8 +106,8 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 > **MUST NOT**: The no-store request directive indicates that a cache MUST NOT store
    any part of either this request or any response to it.  This
-   directive applies to both private and shared caches.  "MUST NOT
-> **MUST NOT**: store" in this context means that the cache MUST NOT intentionally
+> **MUST NOT**: directive applies to both private and shared caches.  "MUST NOT
+   store" in this context means that the cache MUST NOT intentionally
 > **MUST**: store the information in non-volatile storage and MUST make a best-
    effort attempt to remove the information from volatile storage as
    promptly as possible after forwarding it.
@@ -131,11 +131,11 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
    The only-if-cached request directive indicates that the client only
    wishes to obtain a stored response.  Caches that honor this request
-   directive SHOULD, upon receiving it, respond with either a stored
+> **SHOULD**: directive SHOULD, upon receiving it, respond with either a stored
    response consistent with the other constraints of the request or a
    504 (Gateway Timeout) status code.
 
-5.2.2.  Response Directives
+### 5.2.2  Response Directives
 
 > **MUST**: This section defines cache response directives.  A cache MUST obey
    the Cache-Control directives defined in this section.
@@ -164,7 +164,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    The must-revalidate directive is necessary to support reliable
    operation for certain protocol features.  In all circumstances, a
 > **MUST NOT**: cache MUST NOT ignore the must-revalidate directive; in particular,
-> **MUST**: if a cache is disconnected, the cache MUST generate an error response
+   if a cache is disconnected, the cache MUST generate an error response
    rather than reuse the stale response.  The generated status code
 > **SHOULD**: SHOULD be 504 (Gateway Timeout) unless another error status code is
    more applicable.
@@ -230,12 +230,12 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 5.2.2.5.  no-store
 
 > **MUST NOT**: The no-store response directive indicates that a cache MUST NOT store
-> **MUST NOT**: any part of either the immediate request or the response and MUST NOT
+   any part of either the immediate request or the response and MUST NOT
    use the response to satisfy any other request.
 
-   This directive applies to both private and shared caches.  "MUST NOT
+> **MUST NOT**: This directive applies to both private and shared caches.  "MUST NOT
 > **MUST NOT**: store" in this context means that the cache MUST NOT intentionally
-> **MUST**: store the information in non-volatile storage and MUST make a best-
+   store the information in non-volatile storage and MUST make a best-
    effort attempt to remove the information from volatile storage as
    promptly as possible after forwarding it.
 
@@ -261,7 +261,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
    The unqualified private response directive indicates that a shared
 > **MUST NOT**: cache MUST NOT store the response (i.e., the response is intended for
-> **MAY**: a single user).  It also indicates that a private cache MAY store the
+   a single user).  It also indicates that a private cache MAY store the
    response, subject to the constraints defined in Section 3, even if
    the response would not otherwise be heuristically cacheable by a
    private cache.
@@ -340,7 +340,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 > **MUST NOT**: 's-maxage=10' not 's-maxage="10"'.  A sender MUST NOT generate the
    quoted-string form.
 
-5.2.3.  Extension Directives
+### 5.2.3  Extension Directives
 
    The Cache-Control header field can be extended through the use of one
 > **MUST**: or more extension cache directives.  A cache MUST ignore unrecognized
@@ -386,7 +386,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    *  Whether the directive is specific to requests, specific to
       responses, or able to be used in either.
 
-5.2.4.  Cache Directive Registry
+### 5.2.4  Cache Directive Registry
 
    The "Hypertext Transfer Protocol (HTTP) Cache Directive Registry"
    defines the namespace for the cache directives.  It has been created

@@ -7,9 +7,8 @@ description: "Section 19.13: STREAM_DATA_BLOCKED Frames — RFC 9000 — QUIC: A
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, stream_data_blocked_frames]
 ---
 
-## 19.13.  STREAM_DATA_BLOCKED Frames
+# 19.13.  STREAM_DATA_BLOCKED Frames
 
-19.13.  STREAM_DATA_BLOCKED Frames
 
 > **SHOULD**: A sender SHOULD send a STREAM_DATA_BLOCKED frame (type=0x15) when it
    wishes to send data but is unable to do so due to stream-level flow

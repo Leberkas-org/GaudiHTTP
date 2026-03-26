@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 8.7.  Request Reliability
 
-8.7.  Request Reliability
+## 8.7  Request Reliability
 
    In general, an HTTP client is unable to retry a non-idempotent
    request when an error occurs because there is no means to determine
@@ -37,7 +37,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    unless it can guarantee that fact.  If frames that are on a stream
    are passed to the application layer for any stream, then
 > **MUST NOT**: REFUSED_STREAM MUST NOT be used for that stream, and a GOAWAY frame
-> **MUST**: MUST include a stream identifier that is greater than or equal to the
+   MUST include a stream identifier that is greater than or equal to the
    given stream identifier.
 
    In addition to these mechanisms, the PING frame provides a way for a

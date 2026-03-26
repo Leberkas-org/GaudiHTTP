@@ -7,9 +7,8 @@ description: "Section 21.2: Handshake Denial of Service — RFC 9000 — QUIC: A
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, handshake_denial_of_service]
 ---
 
-## 21.2.  Handshake Denial of Service
+# 21.2.  Handshake Denial of Service
 
-21.2.  Handshake Denial of Service
 
    As an encrypted and authenticated transport, QUIC provides a range of
    protections against denial of service.  Once the cryptographic

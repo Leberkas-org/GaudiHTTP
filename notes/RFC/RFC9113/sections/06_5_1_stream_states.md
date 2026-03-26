@@ -31,7 +31,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    *  Streams are identified by an integer.  Stream identifiers are
       assigned to streams by the endpoint initiating the stream.
 
-5.1.  Stream States
+## 5.1  Stream States
 
    The lifecycle of a stream is shown in Figure 2.
 
@@ -224,7 +224,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
       receives a RST_STREAM frame.
 
 > **MUST NOT**: An endpoint MUST NOT send frames other than PRIORITY on a closed
-> **MAY**: stream.  An endpoint MAY treat receipt of any other type of frame
+   stream.  An endpoint MAY treat receipt of any other type of frame
       on a closed stream as a connection error (Section 5.4.1) of type
       STREAM_CLOSED, except as noted below.
 
@@ -275,11 +275,11 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    exchange can be found in Section 8.8.  An example of the state
    transitions for server push can be found in Sections 8.4.1 and 8.4.2.
 
-5.1.1.  Stream Identifiers
+### 5.1.1  Stream Identifiers
 
    Streams are identified by an unsigned 31-bit integer.  Streams
 > **MUST**: initiated by a client MUST use odd-numbered stream identifiers; those
-> **MUST**: initiated by the server MUST use even-numbered stream identifiers.  A
+   initiated by the server MUST use even-numbered stream identifiers.  A
    stream identifier of zero (0x00) is used for connection control
    messages; the stream identifier of zero cannot be used to establish a
    new stream.
@@ -310,7 +310,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    frame so that the client is forced to open a new connection for new
    streams.
 
-5.1.2.  Stream Concurrency
+### 5.1.2  Stream Concurrency
 
    A peer can limit the number of concurrently active streams using the
    SETTINGS_MAX_CONCURRENT_STREAMS parameter (see Section 6.5.2) within

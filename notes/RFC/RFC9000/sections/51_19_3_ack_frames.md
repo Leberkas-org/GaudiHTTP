@@ -7,9 +7,8 @@ description: "Section 19.3: ACK Frames — RFC 9000 — QUIC: A UDP-Based Multip
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, ack_frames]
 ---
 
-## 19.3.  ACK Frames
+# 19.3.  ACK Frames
 
-19.3.  ACK Frames
 
    Receivers send ACK frames (types 0x02 and 0x03) to inform senders of
    packets they have received and processed.  The ACK frame contains one
@@ -83,7 +82,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    ECN Counts:  The three ECN counts; see Section 19.3.2.
 
-19.3.1.  ACK Ranges
+### 19.3.1.  ACK Ranges
 
    Each ACK Range consists of alternating Gap and ACK Range Length
    values in descending packet number order.  ACK Ranges can be
@@ -152,7 +151,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST**: If any computed packet number is negative, an endpoint MUST generate
    a connection error of type FRAME_ENCODING_ERROR.
 
-19.3.2.  ECN Counts
+### 19.3.2.  ECN Counts
 
    The ACK frame uses the least significant bit of the type value (that
    is, type 0x03) to indicate ECN feedback and report receipt of QUIC

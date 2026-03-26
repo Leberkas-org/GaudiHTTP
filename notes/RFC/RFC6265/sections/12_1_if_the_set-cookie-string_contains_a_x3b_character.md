@@ -7,9 +7,9 @@ description: "Section 1: If the set-cookie-string contains a %x3B (";") characte
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, if_the_set-cookie-string_contains_a_x3b_character]
 ---
 
-## 1.  If the set-cookie-string contains a %x3B (";") character:
+# 1.  If the set-cookie-string contains a %x3B (";") character:
 
-   1.  If the set-cookie-string contains a %x3B (";") character:
+
 
           The name-value-pair string consists of the characters up to,
           but not including, the first %x3B (";"), and the unparsed-

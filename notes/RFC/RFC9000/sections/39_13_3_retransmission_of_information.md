@@ -7,9 +7,8 @@ description: "Section 13.3: Retransmission of Information — RFC 9000 — QUIC:
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, retransmission_of_information]
 ---
 
-## 13.3.  Retransmission of Information
+# 13.3.  Retransmission of Information
 
-13.3.  Retransmission of Information
 
    QUIC packets that are determined to be lost are not retransmitted
    whole.  The same applies to the frames that are contained within lost

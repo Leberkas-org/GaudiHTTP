@@ -7,11 +7,10 @@ description: "Section 8: Security Considerations — RFC 6265 — HTTP State Man
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, security_considerations]
 ---
 
-## 8.  Security Considerations
+# 8.  Security Considerations
 
-8.  Security Considerations
 
-8.1.  Overview
+## 8.1.  Overview
 
    Cookies have a number of security pitfalls.  This section overviews a
    few of the more salient issues.
@@ -34,7 +33,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    confidentiality or integrity from network attackers, even when used
    in conjunction with HTTPS.
 
-8.2.  Ambient Authority
+## 8.2.  Ambient Authority
 
    A server that uses cookies to authenticate users can suffer security
    vulnerabilities because some user agents let remote parties issue
@@ -62,7 +61,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    judicious application of these principles can lead to more robust
    security.
 
-8.3.  Clear Text
+## 8.3.  Clear Text
 
    Unless sent over a secure channel (such as TLS), the information in
    the Cookie and Set-Cookie headers is transmitted in the clear.
@@ -108,7 +107,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    server had set the Secure attribute on its cookies, the user agent
    would not have included the cookies in the clear-text request.
 
-8.4.  Session Identifiers
+## 8.4.  Session Identifiers
 
    Instead of storing session information directly in a cookie (where it
    might be exposed to or replayed by an attacker), servers commonly
@@ -138,7 +137,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    server directly, possibly obtaining the user's authority or
    confidential information.
 
-8.5.  Weak Confidentiality
+## 8.5.  Weak Confidentiality
 
    Cookies do not provide isolation by port.  If a cookie is readable by
    a service running on one port, the cookie is also readable by a
@@ -166,7 +165,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    a resource retrieved from one path might be able to access cookies
    stored for another path.
 
-8.6.  Weak Integrity
+## 8.6.  Weak Integrity
 
    Cookies do not provide integrity guarantees for sibling domains (and
    their subdomains).  For example, consider foo.example.com and
@@ -213,7 +212,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 > **SHOULD NOT**: some cookies.  Servers SHOULD NOT rely upon user agents retaining
    cookies.
 
-8.7.  Reliance on DNS
+## 8.7.  Reliance on DNS
 
    Cookies rely upon the Domain Name System (DNS) for security.  If the
    DNS is partially or fully compromised, the cookie protocol might fail

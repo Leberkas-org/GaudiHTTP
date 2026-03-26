@@ -7,9 +7,8 @@ description: "Section 19.18: PATH_RESPONSE Frames — RFC 9000 — QUIC: A UDP-B
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, path_response_frames]
 ---
 
-## 19.18.  PATH_RESPONSE Frames
+# 19.18.  PATH_RESPONSE Frames
 
-19.18.  PATH_RESPONSE Frames
 
    A PATH_RESPONSE frame (type=0x1b) is sent in response to a
    PATH_CHALLENGE frame.

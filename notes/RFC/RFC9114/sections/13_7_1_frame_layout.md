@@ -56,7 +56,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    Note that, unlike QUIC frames, HTTP/3 frames can span multiple
    packets.
 
-7.1.  Frame Layout
+## 7.1  Frame Layout
 
    All frames have the following format:
 

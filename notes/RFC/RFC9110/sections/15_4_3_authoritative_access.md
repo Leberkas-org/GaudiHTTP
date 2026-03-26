@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 4.3.  Authoritative Access
 
-4.3.  Authoritative Access
+## 4.3  Authoritative Access
 
    Authoritative access refers to dereferencing a given identifier, for
    the sake of access to the identified resource, in a way that the
@@ -26,7 +26,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    See Section 17.1 for security considerations related to establishing
    authority.
 
-4.3.1.  URI Origin
+### 4.3.1  URI Origin
 
    The "origin" for a given URI is the triple of scheme, host, and port
    after normalizing the scheme and host to lowercase and normalizing
@@ -202,12 +202,12 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MUST**: agent MUST either obtain confirmation from the user before proceeding
    (see Section 3.5) or terminate the connection with a bad certificate
 > **MUST**: error.  Automated clients MUST log the error to an appropriate audit
-> **SHOULD**: log (if available) and SHOULD terminate the connection (with a bad
+   log (if available) and SHOULD terminate the connection (with a bad
 > **MAY**: certificate error).  Automated clients MAY provide a configuration
-> **MUST**: setting that disables this check, but MUST provide a setting which
+   setting that disables this check, but MUST provide a setting which
    enables it.
 
-4.3.5.  IP-ID Reference Identity
+### 4.3.5  IP-ID Reference Identity
 
    A server that is identified using an IP address literal in the "host"
    field of an "https" URI has a reference identity of type IP-ID.  An

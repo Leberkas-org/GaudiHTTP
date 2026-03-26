@@ -7,9 +7,8 @@ description: "Section 1: Using the grammar below, divide the cookie-date into da
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, using_the_grammar_below_divide_the_cookie-date_int]
 ---
 
-## 1.  Using the grammar below, divide the cookie-date into date-tokens.
+# 1.  Using the grammar below, divide the cookie-date into date-tokens.
 
-   1.  Using the grammar below, divide the cookie-date into date-tokens.
 
 
 ```abnf

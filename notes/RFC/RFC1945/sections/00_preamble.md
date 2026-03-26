@@ -7,7 +7,7 @@ description: "Preamble of RFC 1945 — HTTP/1.0 — Abstract, Status of This Mem
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, preamble]
 ---
 
-## Preamble
+# Preamble
 
 
 
@@ -66,7 +66,7 @@ Table of Contents
 
 
 
-       3.1  HTTP Version ......................................... 12
+## 3.1  HTTP Version ......................................... 12
        3.2  Uniform Resource Identifiers ......................... 14
             3.2.1  General Syntax ................................ 14
             3.2.2  http URL ...................................... 15
@@ -117,7 +117,7 @@ Table of Contents
 
 
 
-       10.9  If-Modified-Since ................................... 42
+## 10.9  If-Modified-Since ................................... 42
        10.10 Last-Modified ....................................... 43
        10.11 Location ............................................ 44
        10.12 Pragma .............................................. 44

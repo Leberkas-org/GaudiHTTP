@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 6.3.  PRIORITY
 
-6.3.  PRIORITY
+## 6.3  PRIORITY
 
    The PRIORITY frame (type=0x02) is deprecated; see Section 5.3.2.  A
    PRIORITY frame can be sent in any stream state, including idle or

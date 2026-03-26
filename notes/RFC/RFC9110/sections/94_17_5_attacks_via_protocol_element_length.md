@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.5.  Attacks via Protocol Element Length
 
-17.5.  Attacks via Protocol Element Length
+## 17.5  Attacks via Protocol Element Length
 
    Because HTTP uses mostly textual, character-delimited fields, parsers
    are often vulnerable to attacks based on sending very long (or very

@@ -32,7 +32,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    summarized in Appendix C.3.  The other parts of RFC 7230 are
    obsoleted by "HTTP Semantics" [HTTP].
 
-1.1.  Requirements Notation
+## 1.1  Requirements Notation
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
@@ -43,7 +43,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    Conformance criteria and considerations regarding error handling are
    defined in Section 2 of [HTTP].
 
-1.2.  Syntax Notation
+## 1.2  Syntax Notation
 
    This specification uses the Augmented Backus-Naur Form (ABNF)
    notation of [RFC5234], extended with the notation for case-

@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 8.2.  HTTP Fields
 
-8.2.  HTTP Fields
+## 8.2  HTTP Fields
 
    HTTP fields (Section 5 of [HTTP]) are conveyed by HTTP/2 in the
    HEADERS, CONTINUATION, and PUSH_PROMISE frames, compressed with HPACK
@@ -18,7 +18,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 > **MUST**: Field names MUST be converted to lowercase when constructing an
    HTTP/2 message.
 
-8.2.1.  Field Validity
+### 8.2.1  Field Validity
 
    The definitions of field names and values in HTTP prohibit some
    characters that HPACK might be able to convey.  HTTP/2
@@ -72,7 +72,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
       |  be malformed; the requirements above only apply to the generic
       |  syntax for fields as defined in Section 5 of [HTTP].
 
-8.2.2.  Connection-Specific Header Fields
+### 8.2.2  Connection-Specific Header Fields
 
    HTTP/2 does not use the Connection header field (Section 7.6.1 of
    [HTTP]) to indicate connection-specific header fields; in this
@@ -85,7 +85,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 > **MUST**: specific header fields MUST be treated as malformed (Section 8.1.1).
 
 > **MAY**: The only exception to this is the TE header field, which MAY be
-> **MUST NOT**: present in an HTTP/2 request; when it is, it MUST NOT contain any
+   present in an HTTP/2 request; when it is, it MUST NOT contain any
    value other than "trailers".
 
 > **MUST**: An intermediary transforming an HTTP/1.x message to HTTP/2 MUST
@@ -98,7 +98,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
       |  believed sufficient to negotiate the use of alternative
       |  protocols.
 
-8.2.3.  Compressing the Cookie Header Field
+### 8.2.3  Compressing the Cookie Header Field
 
    The Cookie header field [COOKIE] uses a semicolon (";") to delimit
    cookie-pairs (or "crumbs").  This header field contains multiple

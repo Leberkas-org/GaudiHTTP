@@ -7,9 +7,8 @@ description: "Section 7.4: Transport Parameters — RFC 9000 — QUIC: A UDP-Bas
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, transport_parameters]
 ---
 
-## 7.4.  Transport Parameters
+# 7.4.  Transport Parameters
 
-7.4.  Transport Parameters
 
    During connection establishment, both endpoints make authenticated
    declarations of their transport parameters.  Endpoints are required
@@ -35,7 +34,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    TRANSPORT_PARAMETER_ERROR.
 
 > **MUST NOT**: An endpoint MUST NOT send a parameter more than once in a given
-> **SHOULD**: transport parameters extension.  An endpoint SHOULD treat receipt of
+   transport parameters extension.  An endpoint SHOULD treat receipt of
    duplicate transport parameters as a connection error of type
    TRANSPORT_PARAMETER_ERROR.
 
@@ -52,7 +51,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    client to offer multiple application protocols if these constraints
    conflict.
 
-7.4.1.  Values of Transport Parameters for 0-RTT
+### 7.4.1.  Values of Transport Parameters for 0-RTT
 
    Using 0-RTT depends on both client and server using protocol
    parameters that were negotiated from a previous connection.  To
@@ -135,7 +134,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    parameters cannot be supported.
 
 > **MUST**: When sending frames in 0-RTT packets, a client MUST only use
-> **MUST NOT**: remembered transport parameters; importantly, it MUST NOT use updated
+   remembered transport parameters; importantly, it MUST NOT use updated
    values that it learns from the server's updated transport parameters
    or from frames received in 1-RTT packets.  Updated values of
    transport parameters from the handshake apply only to 1-RTT packets.
@@ -145,7 +144,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MAY**: server MAY treat the use of updated transport parameters in 0-RTT as
    a connection error of type PROTOCOL_VIOLATION.
 
-7.4.2.  New Transport Parameters
+### 7.4.2.  New Transport Parameters
 
    New transport parameters can be used to negotiate new protocol
 > **MUST**: behavior.  An endpoint MUST ignore transport parameters that it does

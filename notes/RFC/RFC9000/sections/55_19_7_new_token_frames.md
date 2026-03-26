@@ -7,9 +7,8 @@ description: "Section 19.7: NEW_TOKEN Frames — RFC 9000 — QUIC: A UDP-Based 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, new_token_frames]
 ---
 
-## 19.7.  NEW_TOKEN Frames
+# 19.7.  NEW_TOKEN Frames
 
-19.7.  NEW_TOKEN Frames
 
    A server sends a NEW_TOKEN frame (type=0x07) to provide the client
    with a token to send in the header of an Initial packet for a future

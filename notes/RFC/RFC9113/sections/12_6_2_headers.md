@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 6.2.  HEADERS
 
-6.2.  HEADERS
+## 6.2  HEADERS
 
    The HEADERS frame (type=0x01) is used to open a stream (Section 5.1),
    and additionally carries a field block fragment.  Despite the name, a
@@ -64,7 +64,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    Padding:  Padding octets that contain no application semantic value.
 > **MUST**: Padding octets MUST be set to zero when sending.  A receiver is
-> **MAY**: not obligated to verify padding but MAY treat non-zero padding as
+   not obligated to verify padding but MAY treat non-zero padding as
       a connection error (Section 5.4.1) of type PROTOCOL_ERROR.
 
    The HEADERS frame defines the following flags:
@@ -80,7 +80,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
       followed by any CONTINUATION frames.
 
 > **MUST**: A HEADERS frame without the END_HEADERS flag set MUST be followed
-> **MUST**: by a CONTINUATION frame for the same stream.  A receiver MUST
+   by a CONTINUATION frame for the same stream.  A receiver MUST
       treat the receipt of any other type of frame or a frame on a
       different stream as a connection error (Section 5.4.1) of type
       PROTOCOL_ERROR.
@@ -99,7 +99,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    frame is continued in a CONTINUATION frame (Section 6.10).
 
 > **MUST**: HEADERS frames MUST be associated with a stream.  If a HEADERS frame
-> **MUST**: is received whose Stream Identifier field is 0x00, the recipient MUST
+   is received whose Stream Identifier field is 0x00, the recipient MUST
    respond with a connection error (Section 5.4.1) of type
    PROTOCOL_ERROR.
 

@@ -7,9 +7,8 @@ description: "Section 21.9: Peer Denial of Service — RFC 9000 — QUIC: A UDP-
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, peer_denial_of_service]
 ---
 
-## 21.9.  Peer Denial of Service
+# 21.9.  Peer Denial of Service
 
-21.9.  Peer Denial of Service
 
    QUIC and TLS both contain frames or messages that have legitimate
    uses in some contexts, but these frames or messages can be abused to

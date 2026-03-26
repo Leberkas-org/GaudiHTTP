@@ -7,9 +7,9 @@ description: "Section 3.2: Uniform Resource Identifiers — RFC 1945 — HTTP/1.
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, uniform_resource_identifiers]
 ---
 
-## 3.2.  Uniform Resource Identifiers
+# 3.2.  Uniform Resource Identifiers
 
-3.2  Uniform Resource Identifiers
+## 3.2  Uniform Resource Identifiers
 
    URIs have been known by many names: WWW addresses, Universal Document
    Identifiers, Universal Resource Identifiers [2], and finally the
@@ -18,7 +18,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    simply formatted strings which identify--via name, location, or any
    other characteristic--a network resource.
 
-3.2.1 General Syntax
+## 3.2.1  General Syntax
 
    URIs in HTTP can be represented in absolute form or relative to some
    known base URI [9], depending upon the context of their use. The two

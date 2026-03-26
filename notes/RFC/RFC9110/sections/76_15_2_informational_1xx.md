@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 15.2.  Informational 1xx
 
-15.2.  Informational 1xx
+## 15.2  Informational 1xx
 
    The 1xx (Informational) class of status code indicates an interim
    response for communicating connection status or request progress

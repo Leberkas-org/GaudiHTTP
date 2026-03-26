@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 5.4.  Error Handling
 
-5.4.  Error Handling
+## 5.4  Error Handling
 
    HTTP/2 framing permits two classes of errors:
 
@@ -22,7 +22,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    It is possible that an endpoint will encounter frames that would
 > **MAY**: cause multiple errors.  Implementations MAY discover multiple errors
-> **SHOULD**: during processing, but they SHOULD report at most one stream and one
+   during processing, but they SHOULD report at most one stream and one
    connection error as a result.
 
    The first stream error reported for a given stream prevents any other
@@ -40,7 +40,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    generic error code (such as PROTOCOL_ERROR or INTERNAL_ERROR) can
    always be used in place of more specific error codes.
 
-5.4.1.  Connection Error Handling
+### 5.4.1  Connection Error Handling
 
    A connection error is any error that prevents further processing of
    the frame layer or corrupts any connection state.
@@ -59,10 +59,10 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    An endpoint can end a connection at any time.  In particular, an
 > **MAY**: endpoint MAY choose to treat a stream error as a connection error.
-> **SHOULD**: Endpoints SHOULD send a GOAWAY frame when ending a connection,
+   Endpoints SHOULD send a GOAWAY frame when ending a connection,
    providing that circumstances permit it.
 
-5.4.2.  Stream Error Handling
+### 5.4.2  Stream Error Handling
 
    A stream error is an error related to a specific stream that does not
    affect processing of other streams.
@@ -80,7 +80,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    (Section 4.3) or flow control).
 
 > **SHOULD NOT**: Normally, an endpoint SHOULD NOT send more than one RST_STREAM frame
-> **MAY**: for any stream.  However, an endpoint MAY send additional RST_STREAM
+   for any stream.  However, an endpoint MAY send additional RST_STREAM
    frames if it receives frames on a closed stream after more than a
    round-trip time.  This behavior is permitted to deal with misbehaving
    implementations.
@@ -88,7 +88,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 > **MUST NOT**: To avoid looping, an endpoint MUST NOT send a RST_STREAM in response
    to a RST_STREAM frame.
 
-5.4.3.  Connection Termination
+### 5.4.3  Connection Termination
 
    If the TCP connection is closed or reset while streams remain in the
    "open" or "half-closed" states, then the affected streams cannot be

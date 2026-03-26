@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.14.  Validator Retention
 
-17.14.  Validator Retention
+## 17.14  Validator Retention
 
    The validators defined by this specification are not intended to
    ensure the validity of a representation, guard against malicious

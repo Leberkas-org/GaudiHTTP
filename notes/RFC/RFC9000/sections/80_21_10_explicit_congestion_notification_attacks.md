@@ -7,9 +7,8 @@ description: "Section 21.10: Explicit Congestion Notification Attacks — RFC 90
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, explicit_congestion_notification_attacks]
 ---
 
-## 21.10.  Explicit Congestion Notification Attacks
+# 21.10.  Explicit Congestion Notification Attacks
 
-21.10.  Explicit Congestion Notification Attacks
 
    An on-path attacker could manipulate the value of ECN fields in the
    IP header to influence the sender's rate.  [RFC3168] discusses

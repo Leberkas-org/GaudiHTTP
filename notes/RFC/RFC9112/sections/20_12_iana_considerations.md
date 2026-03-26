@@ -14,7 +14,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    The change controller for the following registrations is: "IETF
    (iesg@ietf.org) - Internet Engineering Task Force".
 
-12.1.  Field Name Registration
+## 12.1  Field Name Registration
 
    IANA has added the following field names to the "Hypertext Transfer
    Protocol (HTTP) Field Name Registry" at
@@ -33,14 +33,14 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
                            Table 1
 
-12.2.  Media Type Registration
+## 12.2  Media Type Registration
 
    IANA has updated the "Media Types" registry at
    <https://www.iana.org/assignments/media-types> with the registration
    information in Sections 10.1 and 10.2 for the media types "message/
    http" and "application/http", respectively.
 
-12.3.  Transfer Coding Registration
+## 12.3  Transfer Coding Registration
 
    IANA has updated the "HTTP Transfer Coding Registry" at
    <https://www.iana.org/assignments/http-parameters/> with the
@@ -72,7 +72,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
       |  would conflict with the keyword "trailers" in the TE header
       |  field (Section 10.1.4 of [HTTP]).
 
-12.4.  ALPN Protocol ID Registration
+## 12.4  ALPN Protocol ID Registration
 
    IANA has updated the "TLS Application-Layer Protocol Negotiation
    (ALPN) Protocol IDs" registry at <https://www.iana.org/assignments/

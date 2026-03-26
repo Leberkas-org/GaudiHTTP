@@ -9,12 +9,12 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 8.8.  Examples
 
-8.8.  Examples
+## 8.8  Examples
 
    This section shows HTTP/1.1 requests and responses, with
    illustrations of equivalent HTTP/2 requests and responses.
 
-8.8.1.  Simple Request
+### 8.8.1  Simple Request
 
    An HTTP GET request includes control data and a request header with
    no message content and is therefore transmitted as a single HEADERS
@@ -37,7 +37,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 ```
 
 
-8.8.2.  Simple Response
+### 8.8.2  Simple Response
 
    Similarly, a response that includes only control data and a response
    header is transmitted as a HEADERS frame (again, followed by zero or
@@ -55,7 +55,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 ```
 
 
-8.8.3.  Complex Request
+### 8.8.3  Complex Request
 
    An HTTP POST request that includes control data and a request header
    with message content is transmitted as one HEADERS frame, followed by
@@ -90,7 +90,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    between field block fragments.  The allocation of field lines to
    frames in this example is illustrative only.
 
-8.8.4.  Response with Body
+### 8.8.4  Response with Body
 
    A response that includes control data and a response header with
    message content is transmitted as a HEADERS frame, followed by zero
@@ -113,7 +113,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
                                         + END_STREAM
                                       {binary data}
 
-8.8.5.  Informational Responses
+### 8.8.5  Informational Responses
 
    An informational response using a 1xx status code other than 101 is
    transmitted as a HEADERS frame, followed by zero or more CONTINUATION

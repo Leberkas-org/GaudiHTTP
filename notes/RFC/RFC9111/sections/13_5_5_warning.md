@@ -9,7 +9,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ## 5.5.  Warning
 
-5.5.  Warning
+## 5.5  Warning
 
    The "Warning" header field was used to carry additional information
    about the status or transformation of a message that might not be

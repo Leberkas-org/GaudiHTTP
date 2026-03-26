@@ -7,9 +7,8 @@ description: "Section 21.5: Request Forgery Attacks — RFC 9000 — QUIC: A UDP
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, request_forgery_attacks]
 ---
 
-## 21.5.  Request Forgery Attacks
+# 21.5.  Request Forgery Attacks
 
-21.5.  Request Forgery Attacks
 
    A request forgery attack occurs where an endpoint causes its peer to
    issue a request towards a victim, with the request controlled by the
@@ -62,7 +61,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST**: on clients.  Any future extension that allows server migration MUST
    also define countermeasures for forgery attacks.
 
-21.5.1.  Control Options for Endpoints
+### 21.5.1.  Control Options for Endpoints
 
    QUIC offers some opportunities for an attacker to influence or
    control where its peer sends UDP datagrams:
@@ -110,7 +109,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    on limiting the ways in which datagrams that are sent prior to
    address validation can be used for request forgery.
 
-21.5.2.  Request Forgery with Client Initial Packets
+### 21.5.2.  Request Forgery with Client Initial Packets
 
    An attacker acting as a server can choose the IP address and port on
    which it advertises its availability, so Initial packets from clients
@@ -151,7 +150,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Retry packet validates the server's address, thereby preventing the
    use of subsequent Initial packets for request forgery.
 
-21.5.3.  Request Forgery with Preferred Addresses
+### 21.5.3.  Request Forgery with Preferred Addresses
 
    Servers can specify a preferred address, which clients then migrate
    to after confirming the handshake; see Section 9.6.  The Destination
@@ -168,7 +167,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    endpoints.  The generic measures described in Section 21.5.6 could be
    used as further mitigation.
 
-21.5.4.  Request Forgery with Spoofed Migration
+### 21.5.4.  Request Forgery with Spoofed Migration
 
    Clients are able to present a spoofed source address as part of an
    apparent connection migration to cause a server to send datagrams to
@@ -193,7 +192,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    especially effective against attacks that use spoofing and originate
    from an external network.
 
-21.5.5.  Request Forgery with Version Negotiation
+### 21.5.5.  Request Forgery with Version Negotiation
 
    Clients that are able to present a spoofed source address on a packet
    can cause a server to send a Version Negotiation packet
@@ -210,7 +209,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    generic protections (Section 21.5.6) could apply.  In this case,
    ingress filtering [BCP38] is also effective.
 
-21.5.6.  Generic Request Forgery Countermeasures
+### 21.5.6.  Generic Request Forgery Countermeasures
 
    The most effective defense against request forgery attacks is to
    modify vulnerable services to use strong authentication.  However,
@@ -222,7 +221,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    Services offered over loopback interfaces often lack proper
 > **MAY**: authentication.  Endpoints MAY prevent connection attempts or
-> **SHOULD NOT**: migration to a loopback address.  Endpoints SHOULD NOT allow
+   migration to a loopback address.  Endpoints SHOULD NOT allow
    connections or migration to a loopback address if the same service
    was previously available at a different interface or if the address
    was provided by a service at a non-loopback address.  Endpoints that

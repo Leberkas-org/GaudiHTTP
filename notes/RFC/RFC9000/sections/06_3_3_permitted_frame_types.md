@@ -7,9 +7,8 @@ description: "Section 3.3: Permitted Frame Types — RFC 9000 — QUIC: A UDP-Ba
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, permitted_frame_types]
 ---
 
-## 3.3.  Permitted Frame Types
+# 3.3.  Permitted Frame Types
 
-3.3.  Permitted Frame Types
 
    The sender of a stream sends just three frame types that affect the
    state of a stream at either the sender or the receiver: STREAM
@@ -17,7 +16,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    (Section 19.4).
 
 > **MUST NOT**: A sender MUST NOT send any of these frames from a terminal state
-> **MUST NOT**: ("Data Recvd" or "Reset Recvd").  A sender MUST NOT send a STREAM or
+   ("Data Recvd" or "Reset Recvd").  A sender MUST NOT send a STREAM or
    STREAM_DATA_BLOCKED frame for a stream in the "Reset Sent" state or
    any terminal state -- that is, after sending a RESET_STREAM frame.  A
    receiver could receive any of these three frames in any state, due to

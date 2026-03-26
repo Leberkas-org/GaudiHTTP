@@ -7,9 +7,8 @@ description: "Section 18: Transport Parameter Encoding — RFC 9000 — QUIC: A 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, transport_parameter_encoding]
 ---
 
-## 18.  Transport Parameter Encoding
+# 18.  Transport Parameter Encoding
 
-18.  Transport Parameter Encoding
 
    The extension_data field of the quic_transport_parameters extension
    defined in [QUIC-TLS] contains the QUIC transport parameters.  They
@@ -39,14 +38,14 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    QUIC encodes transport parameters into a sequence of bytes, which is
    then included in the cryptographic handshake.
 
-18.1.  Reserved Transport Parameters
+## 18.1.  Reserved Transport Parameters
 
    Transport parameters with an identifier of the form "31 * N + 27" for
    integer values of N are reserved to exercise the requirement that
    unknown transport parameters be ignored.  These transport parameters
    have no semantics and can carry arbitrary values.
 
-18.2.  Transport Parameter Definitions
+## 18.2.  Transport Parameter Definitions
 
    This section details the transport parameters defined in this
    document.
@@ -72,7 +71,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    stateless_reset_token (0x02):  A stateless reset token is used in
       verifying a stateless reset; see Section 10.3.  This parameter is
 > **MUST NOT**: a sequence of 16 bytes.  This transport parameter MUST NOT be sent
-> **MAY**: by a client but MAY be sent by a server.  A server that does not
+   by a client but MAY be sent by a server.  A server that does not
       send this transport parameter cannot use stateless reset
       (Section 10.3) for the connection ID negotiated during the
       handshake.
@@ -198,7 +197,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
       address are identical in syntax and semantics to the corresponding
       fields of a NEW_CONNECTION_ID frame (Section 19.15).  A server
 > **MUST NOT**: that chooses a zero-length connection ID MUST NOT provide a
-> **MUST NOT**: preferred address.  Similarly, a server MUST NOT include a zero-
+   preferred address.  Similarly, a server MUST NOT include a zero-
 > **MUST**: length connection ID in this transport parameter.  A client MUST
       treat a violation of these requirements as a connection error of
       type TRANSPORT_PARAMETER_ERROR.
@@ -222,7 +221,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
       preferred_address transport parameter, and those received in
       NEW_CONNECTION_ID frames.  The value of the
 > **MUST**: active_connection_id_limit parameter MUST be at least 2.  An
-> **MUST**: endpoint that receives a value less than 2 MUST close the
+   endpoint that receives a value less than 2 MUST close the
       connection with an error of type TRANSPORT_PARAMETER_ERROR.  If
       this transport parameter is absent, a default of 2 is assumed.  If
       an endpoint issues a zero-length connection ID, it will never send

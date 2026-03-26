@@ -7,9 +7,8 @@ description: "Section 13.2: Generating Acknowledgments — RFC 9000 — QUIC: A 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, generating_acknowledgments]
 ---
 
-## 13.2.  Generating Acknowledgments
+# 13.2.  Generating Acknowledgments
 
-13.2.  Generating Acknowledgments
 
    Endpoints acknowledge all packets they receive and process.  However,
    only ack-eliciting packets cause an ACK frame to be sent within the
@@ -26,10 +25,10 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    every ack-eliciting packet.  The guidance offered below seeks to
    strike this balance.
 
-13.2.1.  Sending ACK Frames
+### 13.2.1.  Sending ACK Frames
 
 > **SHOULD**: Every packet SHOULD be acknowledged at least once, and ack-eliciting
-> **MUST**: packets MUST be acknowledged at least once within the maximum delay
+   packets MUST be acknowledged at least once within the maximum delay
    an endpoint communicated using the max_ack_delay transport parameter;
    see Section 18.2.  max_ack_delay declares an explicit contract: an
    endpoint promises to never intentionally delay acknowledgments of an
@@ -95,7 +94,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    for connections made by the endpoint and for other users of the
    network.
 
-13.2.2.  Acknowledgment Frequency
+### 13.2.2.  Acknowledgment Frequency
 
    A receiver determines how frequently to send acknowledgments in
    response to ack-eliciting packets.  This determination involves a
@@ -124,7 +123,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MAY**: A receiver MAY process multiple available packets before determining
    whether to send an ACK frame in response.
 
-13.2.3.  Managing ACK Ranges
+### 13.2.3.  Managing ACK Ranges
 
    When an ACK frame is sent, one or more ranges of acknowledged packets
    are included.  Including acknowledgments for older packets reduces
@@ -176,7 +175,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    algorithm is to generate an acknowledgment for every packet that is
    processed, it is still possible for acknowledgments to be lost.
 
-13.2.4.  Limiting Ranges by Tracking ACK Frames
+### 13.2.4.  Limiting Ranges by Tracking ACK Frames
 
    When a packet containing an ACK frame is sent, the Largest
    Acknowledged field in that frame can be saved.  When a packet
@@ -201,7 +200,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    algorithm could cause spurious retransmissions, but the sender will
    continue making forward progress.
 
-13.2.5.  Measuring and Reporting Host Delay
+### 13.2.5.  Measuring and Reporting Host Delay
 
    An endpoint measures the delays intentionally introduced between the
    time the packet with the largest packet number is received and the
@@ -223,7 +222,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    information is especially useful during the handshake when delays
    might be large; see Section 13.2.1.
 
-13.2.6.  ACK Frames and Packet Protection
+### 13.2.6.  ACK Frames and Packet Protection
 
 > **MUST**: ACK frames MUST only be carried in a packet that has the same packet
    number space as the packet being acknowledged; see Section 12.1.  For
@@ -237,7 +236,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Note that the same limitation applies to other data sent by the
    server protected by the 1-RTT keys.
 
-13.2.7.  PADDING Frames Consume Congestion Window
+### 13.2.7.  PADDING Frames Consume Congestion Window
 
    Packets containing PADDING frames are considered to be in flight for
    congestion control purposes [QUIC-RECOVERY].  Packets containing only

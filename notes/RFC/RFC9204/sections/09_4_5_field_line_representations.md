@@ -9,7 +9,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 ## 4.5.  Field Line Representations
 
-4.5.  Field Line Representations
+## 4.5  Field Line Representations
 
    An encoded field section consists of a prefix and a possibly empty
    sequence of representations defined in this section.  Each
@@ -20,7 +20,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    Encoded field sections are carried in frames on streams defined by
    the enclosing protocol.
 
-4.5.1.  Encoded Field Section Prefix
+### 4.5.1  Encoded Field Section Prefix
 
    Each encoded field section is prefixed with two integers.  The
    Required Insert Count is encoded as an integer with an 8-bit prefix
@@ -39,7 +39,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
                       Figure 12: Encoded Field Section
 
-4.5.1.1.  Required Insert Count
+#### 4.5.1.1  Required Insert Count
 
    Required Insert Count identifies the state of the dynamic table
    needed to process the encoded field section.  Blocking decoders use
@@ -120,7 +120,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    inserts, then an encoded value of 4 indicates that the Required
    Insert Count is 9 for the field section.
 
-4.5.1.2.  Base
+#### 4.5.1.2  Base
 
    The Base is used to resolve references in the dynamic table as
    described in Section 3.2.5.
@@ -175,7 +175,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    relative index of 1 refers to the fifth entry that was added to the
    table; a post-Base index of 1 refers to the eighth entry.
 
-4.5.2.  Indexed Field Line
+### 4.5.2  Indexed Field Line
 
    An indexed field line representation identifies an entry in the
    static table or an entry in the dynamic table with an absolute index
@@ -195,7 +195,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    number represents the static table index; when T=0, the number is the
    relative index of the entry in the dynamic table.
 
-4.5.3.  Indexed Field Line with Post-Base Index
+### 4.5.3  Indexed Field Line with Post-Base Index
 
    An indexed field line with post-Base index representation identifies
    an entry in the dynamic table with an absolute index greater than or
@@ -213,7 +213,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    line, represented as an integer with a 4-bit prefix; see
    Section 4.1.1.
 
-4.5.4.  Literal Field Line with Name Reference
+### 4.5.4  Literal Field Line with Name Reference
 
    A literal field line with name reference representation encodes a
    field line where the field name matches the field name of an entry in
@@ -252,7 +252,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    value is encoded as an 8-bit prefix string literal; see
    Section 4.1.2.
 
-4.5.5.  Literal Field Line with Post-Base Name Reference
+### 4.5.5  Literal Field Line with Post-Base Name Reference
 
    A literal field line with post-Base name reference representation
    encodes a field line where the field name matches the field name of a
@@ -279,7 +279,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    value is encoded as an 8-bit prefix string literal; see
    Section 4.1.2.
 
-4.5.6.  Literal Field Line with Literal Name
+### 4.5.6  Literal Field Line with Literal Name
 
    The literal field line with literal name representation encodes a
    field name and a field value as string literals.

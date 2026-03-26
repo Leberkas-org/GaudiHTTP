@@ -9,15 +9,15 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 ## 7.2.  Frame Definitions
 
-7.2.  Frame Definitions
+## 7.2  Frame Definitions
 
-7.2.1.  DATA
+### 7.2.1  DATA
 
    DATA frames (type=0x00) convey arbitrary, variable-length sequences
    of bytes associated with HTTP request or response content.
 
 > **MUST**: DATA frames MUST be associated with an HTTP request or response.  If
-> **MUST**: a DATA frame is received on a control stream, the recipient MUST
+   a DATA frame is received on a control stream, the recipient MUST
    respond with a connection error of type H3_FRAME_UNEXPECTED.
 
    DATA Frame {
@@ -28,7 +28,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
                             Figure 4: DATA Frame
 
-7.2.2.  HEADERS
+### 7.2.2  HEADERS
 
    The HEADERS frame (type=0x01) is used to carry an HTTP field section
    that is encoded using QPACK.  See [QPACK] for more details.
@@ -45,7 +45,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    If a HEADERS frame is received on a control stream, the recipient
 > **MUST**: MUST respond with a connection error of type H3_FRAME_UNEXPECTED.
 
-7.2.3.  CANCEL_PUSH
+### 7.2.3  CANCEL_PUSH
 
    The CANCEL_PUSH frame (type=0x03) is used to request cancellation of
    a server push prior to the push stream being received.  The
@@ -58,7 +58,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    state of the corresponding push stream.  If the server has not yet
    created a push stream, it does not create one.  If the push stream is
 > **SHOULD**: open, the server SHOULD abruptly terminate that stream.  If the push
-> **MAY**: stream has already ended, the server MAY still abruptly terminate the
+   stream has already ended, the server MAY still abruptly terminate the
 > **MAY**: stream or MAY take no action.
 
    A server sends a CANCEL_PUSH frame to indicate that it will not be
@@ -103,7 +103,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: ID that has not yet been mentioned by a PUSH_PROMISE frame, this MUST
    be treated as a connection error of type H3_ID_ERROR.
 
-7.2.4.  SETTINGS
+### 7.2.4  SETTINGS
 
    The SETTINGS frame (type=0x04) conveys configuration parameters that
    affect how endpoints communicate, such as preferences and constraints
@@ -114,7 +114,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
    SETTINGS frames always apply to an entire HTTP/3 connection, never a
 > **MUST**: single stream.  A SETTINGS frame MUST be sent as the first frame of
-> **MUST NOT**: each control stream (see Section 6.2.1) by each peer, and it MUST NOT
+   each control stream (see Section 6.2.1) by each peer, and it MUST NOT
    be sent subsequently.  If an endpoint receives a second SETTINGS
 > **MUST**: frame on the control stream, the endpoint MUST respond with a
    connection error of type H3_FRAME_UNEXPECTED.
@@ -138,7 +138,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    size.
 
 > **MUST NOT**: The same setting identifier MUST NOT occur more than once in the
-> **MAY**: SETTINGS frame.  A receiver MAY treat the presence of duplicate
+   SETTINGS frame.  A receiver MAY treat the presence of duplicate
    setting identifiers as a connection error of type H3_SETTINGS_ERROR.
 
    The payload of a SETTINGS frame consists of zero or more parameters.
@@ -161,7 +161,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: An implementation MUST ignore any parameter with an identifier it
    does not understand.
 
-7.2.4.1.  Defined SETTINGS Parameters
+#### 7.2.4.1  Defined SETTINGS Parameters
 
    The following settings are defined in HTTP/3:
 
@@ -172,7 +172,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    integer values of N are reserved to exercise the requirement that
    unknown identifiers be ignored.  Such settings have no defined
 > **SHOULD**: meaning.  Endpoints SHOULD include at least one such setting in their
-> **MUST NOT**: SETTINGS frame.  Endpoints MUST NOT consider such settings to have
+   SETTINGS frame.  Endpoints MUST NOT consider such settings to have
    any meaning upon receipt.
 
    Because the setting has no defined meaning, the value of the setting
@@ -181,13 +181,13 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    Setting identifiers that were defined in [HTTP/2] where there is no
    corresponding HTTP/3 setting have also been reserved
 > **MUST NOT**: (Section 11.2.2).  These reserved settings MUST NOT be sent, and
-> **MUST**: their receipt MUST be treated as a connection error of type
+   their receipt MUST be treated as a connection error of type
    H3_SETTINGS_ERROR.
 
    Additional settings can be defined by extensions to HTTP/3; see
    Section 9 for more details.
 
-7.2.4.2.  Initialization
+#### 7.2.4.2  Initialization
 
 > **MUST NOT**: An HTTP implementation MUST NOT send frames or requests that would be
    invalid based on its current understanding of the peer's settings.
@@ -200,7 +200,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
    This removes the need to wait for the SETTINGS frame before sending
 > **MUST NOT**: messages.  Endpoints MUST NOT require any data to be received from
-> **MUST**: the peer prior to sending the SETTINGS frame; settings MUST be sent
+   the peer prior to sending the SETTINGS frame; settings MUST be sent
    as soon as the transport is ready to send data.
 
    For servers, the initial value of each client setting is the default
@@ -217,7 +217,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    When a 0-RTT QUIC connection is being used, the initial value of each
    server setting is the value used in the previous session.  Clients
 > **SHOULD**: SHOULD store the settings the server provided in the HTTP/3
-> **MAY**: connection where resumption information was provided, but they MAY
+   connection where resumption information was provided, but they MAY
    opt not to store settings in certain cases (e.g., if the session
 > **MUST**: ticket is received before the SETTINGS frame).  A client MUST comply
    with stored settings -- or default values if no values are stored --
@@ -236,7 +236,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MAY**: A server MAY accept 0-RTT and subsequently provide different settings
    in its SETTINGS frame.  If 0-RTT data is accepted by the server, its
 > **MUST NOT**: SETTINGS frame MUST NOT reduce any limits or alter any values that
-> **MUST**: might be violated by the client with its 0-RTT data.  The server MUST
+   might be violated by the client with its 0-RTT data.  The server MUST
    include all settings that differ from their default values.  If a
    server accepts 0-RTT but then sends settings that are not compatible
 > **MUST**: with the previously specified settings, this MUST be treated as a
@@ -246,7 +246,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: was previously specified to have a non-default value, this MUST be
    treated as a connection error of type H3_SETTINGS_ERROR.
 
-7.2.5.  PUSH_PROMISE
+### 7.2.5  PUSH_PROMISE
 
    The PUSH_PROMISE frame (type=0x05) is used to carry a promised
    request header section from server to client on a request stream.
@@ -270,12 +270,12 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
       promised response.  See [QPACK] for more details.
 
 > **MUST NOT**: A server MUST NOT use a push ID that is larger than the client has
-> **MUST**: provided in a MAX_PUSH_ID frame (Section 7.2.7).  A client MUST treat
+   provided in a MAX_PUSH_ID frame (Section 7.2.7).  A client MUST treat
    receipt of a PUSH_PROMISE frame that contains a larger push ID than
    the client has advertised as a connection error of H3_ID_ERROR.
 
 > **MAY**: A server MAY use the same push ID in multiple PUSH_PROMISE frames.
-> **MUST**: If so, the decompressed request header sets MUST contain the same
+   If so, the decompressed request header sets MUST contain the same
    fields in the same order, and both the name and the value in each
 > **MUST**: field MUST be exact matches.  Clients SHOULD compare the request
    header sections for resources promised multiple times.  If a client
@@ -303,7 +303,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    See Section 4.6 for a description of the overall server push
    mechanism.
 
-7.2.6.  GOAWAY
+### 7.2.6  GOAWAY
 
    The GOAWAY frame (type=0x07) is used to initiate graceful shutdown of
    an HTTP/3 connection by either endpoint.  GOAWAY allows an endpoint
@@ -335,7 +335,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
    See Section 5.2 for more information on the use of the GOAWAY frame.
 
-7.2.7.  MAX_PUSH_ID
+### 7.2.7  MAX_PUSH_ID
 
    The MAX_PUSH_ID frame (type=0x0d) is used by clients to control the
    number of server pushes that the server can initiate.  This sets the
@@ -373,13 +373,13 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: previously received MUST be treated as a connection error of type
    H3_ID_ERROR.
 
-7.2.8.  Reserved Frame Types
+### 7.2.8  Reserved Frame Types
 
    Frame types of the format 0x1f * N + 0x21 for non-negative integer
    values of N are reserved to exercise the requirement that unknown
    types be ignored (Section 9).  These frames have no semantics, and
 > **MAY**: they MAY be sent on any stream where frames are allowed to be sent.
-> **MUST**: This enables their use for application-layer padding.  Endpoints MUST
+   This enables their use for application-layer padding.  Endpoints MUST
    NOT consider these frames to have any meaning upon receipt.
 
    The payload and length of the frames are selected in any manner the

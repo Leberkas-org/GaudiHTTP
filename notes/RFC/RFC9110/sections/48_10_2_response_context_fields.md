@@ -9,14 +9,14 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 10.2.  Response Context Fields
 
-10.2.  Response Context Fields
+## 10.2  Response Context Fields
 
    The response header fields below provide additional information about
    the response, beyond what is implied by the status code, including
    information about the server, about the target resource, or about
    related resources.
 
-10.2.1.  Allow
+### 10.2.1  Allow
 
    The "Allow" header field lists the set of methods advertised as
    supported by the target resource.  The purpose of this field is
@@ -35,7 +35,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    The actual set of allowed methods is defined by the origin server at
 > **MUST**: the time of each request.  An origin server MUST generate an Allow
-> **MAY**: header field in a 405 (Method Not Allowed) response and MAY do so in
+   header field in a 405 (Method Not Allowed) response and MAY do so in
    any other response.  An empty Allow field value indicates that the
    resource allows no methods, which might occur in a 405 response if
    the resource has been temporarily disabled by configuration.
@@ -44,7 +44,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    understand all of the indicated methods in order to handle them
    according to the generic message handling rules.
 
-10.2.2.  Location
+### 10.2.2  Location
 
    The "Location" header field is used in some responses to refer to a
    specific resource in relation to the response.  The type of
@@ -113,7 +113,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  It is therefore possible for a response to contain both the
       |  Location and Content-Location header fields.
 
-10.2.3.  Retry-After
+### 10.2.3  Retry-After
 
    Servers send the "Retry-After" header field to indicate how long the
    user agent ought to wait before making a follow-up request.  When
@@ -148,7 +148,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    In the latter example, the delay is 2 minutes.
 
-10.2.4.  Server
+### 10.2.4  Server
 
    The "Server" header field contains information about the software
    used by the origin server to handle the request, which is often used
@@ -177,7 +177,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Server: CERN/3.0 libwww/2.17
 
 > **SHOULD NOT**: An origin server SHOULD NOT generate a Server header field containing
-> **SHOULD**: needlessly fine-grained detail and SHOULD limit the addition of
+   needlessly fine-grained detail and SHOULD limit the addition of
    subproducts by third parties.  Overly long and detailed Server field
    values increase response latency and potentially reveal internal
    implementation details that might make it (slightly) easier for

@@ -7,9 +7,9 @@ description: "Section 10.15: User-Agent — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, user-agent]
 ---
 
-## 10.15.  User-Agent
+# 10.15.  User-Agent
 
-10.15  User-Agent
+## 10.15  User-Agent
 
    The User-Agent request-header field contains information about the
    user agent originating the request. This is for statistical purposes,

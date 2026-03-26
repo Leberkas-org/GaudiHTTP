@@ -16,7 +16,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    received within the header and trailer sections of messages
    (Section 6).
 
-5.1.  Field Names
+## 5.1  Field Names
 
    A field name labels the corresponding field value as having the
    semantics defined by that name.  For example, the Date header field

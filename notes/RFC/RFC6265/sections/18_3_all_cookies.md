@@ -7,9 +7,8 @@ description: "Section 3: All cookies. — RFC 6265 — HTTP State Management (Co
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, all_cookies]
 ---
 
-## 3.  All cookies.
+# 3.  All cookies.
 
-   3.  All cookies.
 
 > **MUST**: If two cookies have the same removal priority, the user agent MUST
    evict the cookie with the earliest last-access date first.
@@ -20,7 +19,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 > **MUST**: the user agent MUST remove from the cookie store all cookies with the
    persistent-flag set to false.
 
-5.4.  The Cookie Header
+## 5.4.  The Cookie Header
 
    The user agent includes stored cookies in the Cookie HTTP request
    header.
@@ -75,7 +74,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
           cookie if the cookie-string is being generated for a "non-
           HTTP" API (as defined by the user agent).
 
-   2.  The user agent SHOULD sort the cookie-list in the following
+> **SHOULD**: 2.  The user agent SHOULD sort the cookie-list in the following
        order:
 
        *  Cookies with longer paths are listed before cookies with

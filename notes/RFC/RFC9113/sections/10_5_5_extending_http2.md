@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 5.5.  Extending HTTP/2
 
-5.5.  Extending HTTP/2
+## 5.5  Extending HTTP/2
 
    HTTP/2 permits extension of the protocol.  Within the limitations
    described in this section, protocol extensions can be used to provide
@@ -27,7 +27,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    [RFC7540].
 
 > **MUST**: Implementations MUST ignore unknown or unsupported values in all
-> **MUST**: extensible protocol elements.  Implementations MUST discard frames
+   extensible protocol elements.  Implementations MUST discard frames
    that have unknown or unsupported types.  This means that any of these
    extension points can be safely used by extensions without prior
    arrangement or negotiation.  However, extension frames that appear in

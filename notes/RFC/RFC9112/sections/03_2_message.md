@@ -15,7 +15,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    Section 3 of [HTTP] for the general terminology and core concepts of
    HTTP.
 
-2.1.  Message Format
+## 2.1  Message Format
 
    An HTTP/1.1 message consists of a start-line followed by a CRLF and a
    sequence of octets in a format similar to the Internet Message Format
@@ -54,7 +54,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    Internet Mail Extensions (MIME) [RFC2045].  See Appendix B for the
    differences between HTTP and MIME messages.
 
-2.2.  Message Parsing
+## 2.2  Message Parsing
 
    The normal procedure for parsing an HTTP message is to read the
    start-line into a structure, read each header field line into a hash
@@ -118,7 +118,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 > **SHOULD**: SHOULD respond with a 400 (Bad Request) response and close the
    connection.
 
-2.3.  HTTP Version
+## 2.3  HTTP Version
 
    HTTP uses a "<major>.<minor>" numbering scheme to indicate versions
    of the protocol.  This specification defines version "1.1".

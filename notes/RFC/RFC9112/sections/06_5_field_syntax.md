@@ -25,7 +25,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    [HTTP].  This section covers the generic syntax for header field
    inclusion within, and extraction from, HTTP/1.1 messages.
 
-5.1.  Field Line Parsing
+## 5.1  Field Line Parsing
 
    Messages are parsed using a generic algorithm, independent of the
    individual field names.  The contents within a given field line value
@@ -49,7 +49,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    excluded by parsers when extracting the field line value from a field
    line.
 
-5.2.  Obsolete Line Folding
+## 5.2  Obsolete Line Folding
 
    Historically, HTTP/1.x field values could be extended over multiple
    lines by preceding each extra line with at least one space or

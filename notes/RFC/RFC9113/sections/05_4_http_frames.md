@@ -14,7 +14,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    Once the HTTP/2 connection is established, endpoints can begin
    exchanging frames.
 
-4.1.  Frame Format
+## 4.1  Frame Format
 
    All frames begin with a fixed 9-octet header followed by a variable-
    length frame payload.
@@ -37,7 +37,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    Length:  The length of the frame payload expressed as an unsigned
       24-bit integer in units of octets.  Values greater than 2^14
-      (16,384) MUST NOT be sent unless the receiver has set a larger
+> **MUST NOT**: (16,384) MUST NOT be sent unless the receiver has set a larger
       value for SETTINGS_MAX_FRAME_SIZE.
 
       The 9 octets of the frame header are not included in this value.
@@ -53,11 +53,11 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
       Flags are assigned semantics specific to the indicated frame type.
       Unused flags are those that have no defined semantics for a
 > **MUST**: particular frame type.  Unused flags MUST be ignored on receipt
-> **MUST**: and MUST be left unset (0x00) when sending.
+   and MUST be left unset (0x00) when sending.
 
    Reserved:  A reserved 1-bit field.  The semantics of this bit are
 > **MUST**: undefined, and the bit MUST remain unset (0x00) when sending and
-> **MUST**: MUST be ignored when receiving.
+   MUST be ignored when receiving.
 
    Stream Identifier:  A stream identifier (see Section 5.1.1) expressed
       as an unsigned 31-bit integer.  The value 0x00 is reserved for
@@ -67,7 +67,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    The structure and content of the frame payload are dependent entirely
    on the frame type.
 
-4.2.  Frame Size
+## 4.2  Frame Size
 
    The size of a frame payload is limited by the maximum size that a
    receiver advertises in the SETTINGS_MAX_FRAME_SIZE setting.  This
@@ -98,7 +98,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    WINDOW_UPDATE, or PRIORITY), which, if blocked by the transmission of
    a large frame, could affect performance.
 
-4.3.  Field Section Compression and Decompression
+## 4.3  Field Section Compression and Decompression
 
    Field section compression is the process of compressing a set of
    field lines (Section 5.2 of [HTTP]) to form a field block.  Field
@@ -166,7 +166,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 > **MUST**: A decoding error in a field block MUST be treated as a connection
    error (Section 5.4.1) of type COMPRESSION_ERROR.
 
-4.3.1.  Compression State
+### 4.3.1  Compression State
 
    Field compression is stateful.  Each endpoint has an HPACK encoder
    context and an HPACK decoder context that are used for encoding and

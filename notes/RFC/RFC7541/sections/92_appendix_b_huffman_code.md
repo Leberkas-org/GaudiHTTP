@@ -7,9 +7,8 @@ description: "Appendix B: Huffman Code — RFC 7541 — HPACK: Header Compressio
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, huffman_code]
 ---
 
-## Appendix B.  Huffman Code
+# Appendix B.  Huffman Code
 
-Appendix B.  Huffman Code
 
    The following Huffman code is used when encoding string literals with
    a Huffman coding (see Section 5.2).

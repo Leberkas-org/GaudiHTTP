@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 15.6.  Server Error 5xx
 
-15.6.  Server Error 5xx
+## 15.6  Server Error 5xx
 
    The 5xx (Server Error) class of status code indicates that the server
    is aware that it has erred or is incapable of performing the

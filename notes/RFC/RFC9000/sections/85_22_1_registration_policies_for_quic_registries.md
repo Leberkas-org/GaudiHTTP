@@ -7,21 +7,21 @@ description: "Section 22.1: Registration Policies for QUIC Registries — RFC 90
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, registration_policies_for_quic_registries]
 ---
 
-## 22.1.  Registration Policies for QUIC Registries
+# 22.1.  Registration Policies for QUIC Registries
 
-22.  IANA Considerations
+
 
    This document establishes several registries for the management of
    codepoints in QUIC.  These registries operate on a common set of
    policies as defined in Section 22.1.
 
-22.1.  Registration Policies for QUIC Registries
+## 22.1.  Registration Policies for QUIC Registries
 
    All QUIC registries allow for both provisional and permanent
    registration of codepoints.  This section documents policies that are
    common to these registries.
 
-22.1.1.  Provisional Registrations
+### 22.1.1.  Provisional Registrations
 
    Provisional registrations of codepoints are intended to allow for
    private use and experimentation with extensions to QUIC.  Provisional
@@ -59,7 +59,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    requesting a registration, as it is set to the date the registration
    is created or updated.
 
-22.1.2.  Selecting Codepoints
+### 22.1.2.  Selecting Codepoints
 
 > **SHOULD**: New requests for codepoints from QUIC registries SHOULD use a
    randomly selected codepoint that excludes both existing allocations
@@ -79,11 +79,11 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    the usage is especially sensitive to having a longer encoding.
 
 > **MAY**: Applications to register codepoints in QUIC registries MAY include a
-> **MUST**: requested codepoint as part of the registration.  IANA MUST allocate
+   requested codepoint as part of the registration.  IANA MUST allocate
    the selected codepoint if the codepoint is unassigned and the
    requirements of the registration policy are met.
 
-22.1.3.  Reclaiming Provisional Codepoints
+### 22.1.3.  Reclaiming Provisional Codepoints
 
    A request might be made to remove an unused provisional registration
    from the registry to reclaim space in a registry, or a portion of the
@@ -93,7 +93,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **SHOULD NOT**: been updated less than a year prior SHOULD NOT be reclaimed.
 
 > **MUST**: A request to remove a codepoint MUST be reviewed by the designated
-> **MUST**: experts.  The experts MUST attempt to determine whether the codepoint
+   experts.  The experts MUST attempt to determine whether the codepoint
    is still in use.  Experts are advised to contact the listed contacts
    for the registration, plus as wide a set of protocol implementers as
    possible in order to determine whether any use of the codepoint is
@@ -116,7 +116,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    the codepoint but to determine that the registration is an accurate
    representation of any deployed usage.
 
-22.1.4.  Permanent Registrations
+### 22.1.4.  Permanent Registrations
 
    Permanent registrations in QUIC registries use the Specification
    Required policy (Section 4.6 of [RFC8126]), unless otherwise

@@ -7,9 +7,8 @@ description: "Section 9.2: Initiating Connection Migration — RFC 9000 — QUIC
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, initiating_connection_migration]
 ---
 
-## 9.2.  Initiating Connection Migration
+# 9.2.  Initiating Connection Migration
 
-9.2.  Initiating Connection Migration
 
    An endpoint can migrate a connection to a new local address by
    sending packets containing non-probing frames from that address.

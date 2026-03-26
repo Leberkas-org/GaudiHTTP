@@ -7,19 +7,18 @@ description: "Section 4: Server Requirements — RFC 6265 — HTTP State Managem
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, server_requirements]
 ---
 
-## 4.  Server Requirements
+# 4.  Server Requirements
 
-4.  Server Requirements
 
    This section describes the syntax and semantics of a well-behaved
    profile of the Cookie and Set-Cookie headers.
 
-4.1.  Set-Cookie
+## 4.1.  Set-Cookie
 
    The Set-Cookie HTTP response header is used to send cookies from the
    server to the user agent.
 
-4.1.1.  Syntax
+### 4.1.1.  Syntax
 
    Informally, the Set-Cookie response header contains the header name
    "Set-Cookie" followed by a ":" and a cookie.  Each cookie begins with
@@ -107,7 +106,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    time_t processing on some systems might cause such user agents to
    process dates after the year 2038 incorrectly.
 
-4.1.2.  Semantics (Non-Normative)
+### 4.1.2.  Semantics (Non-Normative)
 
    This section describes simplified semantics of the Set-Cookie header.
    These semantics are detailed enough to be useful for understanding
@@ -140,7 +139,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 
 
-4.1.2.1.  The Expires Attribute
+### 4.1.2.1.  The Expires Attribute
 
    The Expires attribute indicates the maximum lifetime of the cookie,
    represented as the date and time at which the cookie expires.  The
@@ -148,7 +147,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    date has passed.  In fact, user agents often evict cookies due to
    memory pressure or privacy concerns.
 
-4.1.2.2.  The Max-Age Attribute
+### 4.1.2.2.  The Max-Age Attribute
 
    The Max-Age attribute indicates the maximum lifetime of the cookie,
    represented as the number of seconds until the cookie expires.  The
@@ -166,7 +165,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    attribute, the user agent will retain the cookie until "the current
    session is over" (as defined by the user agent).
 
-4.1.2.3.  The Domain Attribute
+### 4.1.2.3.  The Domain Attribute
 
    The Domain attribute specifies those hosts to which the cookie will
    be sent.  For example, if the value of the Domain attribute is
@@ -203,7 +202,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    some user agents will reject Domain attributes of "com" or "co.uk".
    (See Section 5.3 for more information.)
 
-4.1.2.4.  The Path Attribute
+### 4.1.2.4.  The Path Attribute
 
    The scope of each cookie is limited to a set of paths, controlled by
    the Path attribute.  If the server omits the Path attribute, the user
@@ -219,7 +218,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    paths within a given host, the Path attribute cannot be relied upon
    for security (see Section 8).
 
-4.1.2.5.  The Secure Attribute
+### 4.1.2.5.  The Secure Attribute
 
    The Secure attribute limits the scope of the cookie to "secure"
    channels (where "secure" is defined by the user agent).  When a
@@ -242,7 +241,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 
 
-4.1.2.6.  The HttpOnly Attribute
+### 4.1.2.6.  The HttpOnly Attribute
 
    The HttpOnly attribute limits the scope of the cookie to HTTP
    requests.  In particular, the attribute instructs the user agent to
@@ -253,9 +252,9 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    attribute: a cookie can have both the HttpOnly and the Secure
    attribute.
 
-4.2.  Cookie
+## 4.2.  Cookie
 
-4.2.1.  Syntax
+### 4.2.1.  Syntax
 
    The user agent sends stored cookies to the origin server in the
    Cookie header.  If the server conforms to the requirements in
@@ -270,7 +269,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ```
 
 
-4.2.2.  Semantics
+### 4.2.2.  Semantics
 
    Each cookie-pair represents a cookie stored by the user agent.  The
    cookie-pair contains the cookie-name and cookie-value the user agent

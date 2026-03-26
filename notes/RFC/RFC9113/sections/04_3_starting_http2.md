@@ -26,7 +26,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    by out-of-band means and requires prior knowledge of the support as
    described in Section 3.3.
 
-3.1.  HTTP/2 Version Identification
+## 3.1  HTTP/2 Version Identification
 
    The protocol defined in this document has two identifiers.  Creating
    a connection based on either implies the use of the transport,
@@ -60,7 +60,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 > **MUST**: Once TLS negotiation is complete, both the client and the server MUST
    send a connection preface (Section 3.4).
 
-3.3.  Starting HTTP/2 with Prior Knowledge
+## 3.3  Starting HTTP/2 with Prior Knowledge
 
    A client can learn that a particular server supports HTTP/2 by other
    means.  For example, a client could be configured with knowledge that
@@ -81,7 +81,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    to change, for configurations to differ between instances in
    clustered servers, or for network conditions to change.
 
-3.4.  HTTP/2 Connection Preface
+## 3.4  HTTP/2 Connection Preface
 
    In HTTP/2, each endpoint is required to send a connection preface as
    a final confirmation of the protocol in use and to establish the
@@ -95,7 +95,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    That is, the connection preface starts with the string "PRI *
 > **MUST**: HTTP/2.0\r\n\r\nSM\r\n\r\n".  This sequence MUST be followed by a
-> **MAY**: SETTINGS frame (Section 6.5), which MAY be empty.  The client sends
+   SETTINGS frame (Section 6.5), which MAY be empty.  The client sends
    the client connection preface as the first application data octets of
    a connection.
 

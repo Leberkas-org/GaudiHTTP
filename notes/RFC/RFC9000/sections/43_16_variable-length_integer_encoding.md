@@ -7,9 +7,8 @@ description: "Section 16: Variable-Length Integer Encoding — RFC 9000 — QUIC
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, variable-length_integer_encoding]
 ---
 
-## 16.  Variable-Length Integer Encoding
+# 16.  Variable-Length Integer Encoding
 
-16.  Variable-Length Integer Encoding
 
    QUIC packets and frames commonly use a variable-length encoding for
    non-negative integer values.  This encoding ensures that smaller

@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 6.6.  PUSH_PROMISE
 
-6.6.  PUSH_PROMISE
+## 6.6  PUSH_PROMISE
 
    The PUSH_PROMISE frame (type=0x05) is used to notify the peer
    endpoint in advance of streams the sender intends to initiate.  The
@@ -57,7 +57,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    Padding:  Padding octets that contain no application semantic value.
 > **MUST**: Padding octets MUST be set to zero when sending.  A receiver is
-> **MAY**: not obligated to verify padding but MAY treat non-zero padding as
+   not obligated to verify padding but MAY treat non-zero padding as
       a connection error (Section 5.4.1) of type PROTOCOL_ERROR.
 
    The PUSH_PROMISE frame defines the following flags:

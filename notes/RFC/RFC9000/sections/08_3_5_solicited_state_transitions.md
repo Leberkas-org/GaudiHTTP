@@ -7,9 +7,8 @@ description: "Section 3.5: Solicited State Transitions — RFC 9000 — QUIC: A 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, solicited_state_transitions]
 ---
 
-## 3.5.  Solicited State Transitions
+# 3.5.  Solicited State Transitions
 
-3.5.  Solicited State Transitions
 
    If an application is no longer interested in the data it is receiving
    on a stream, it can abort reading the stream and specify an

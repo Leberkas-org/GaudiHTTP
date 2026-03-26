@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 4.2.  HTTP-Related URI Schemes
 
-4.2.  HTTP-Related URI Schemes
+## 4.2  HTTP-Related URI Schemes
 
    IANA maintains the registry of URI Schemes [BCP35] at
    <https://www.iana.org/assignments/uri-schemes/>.  Although requests
@@ -55,7 +55,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    identified resource, as defined in Section 4.3.2.
 
 > **MUST NOT**: A sender MUST NOT generate an "http" URI with an empty host
-> **MUST**: identifier.  A recipient that processes such a URI reference MUST
+   identifier.  A recipient that processes such a URI reference MUST
    reject it as invalid.
 
    The hierarchical path component and optional query component identify
@@ -88,7 +88,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    identified resource, as defined in Section 4.3.3.
 
 > **MUST NOT**: A sender MUST NOT generate an "https" URI with an empty host
-> **MUST**: identifier.  A recipient that processes such a URI reference MUST
+   identifier.  A recipient that processes such a URI reference MUST
    reject it as invalid.
 
    The hierarchical path component and optional query component identify
@@ -148,10 +148,10 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Two HTTP URIs that are equivalent after normalization (using any
    method) can be assumed to identify the same resource, and any HTTP
 > **MAY**: component MAY perform normalization.  As a result, distinct resources
-> **SHOULD NOT**: SHOULD NOT be identified by HTTP URIs that are equivalent after
+   SHOULD NOT be identified by HTTP URIs that are equivalent after
    normalization (using any method defined in Section 6.2 of [URI]).
 
-4.2.4.  Deprecation of userinfo in http(s) URIs
+### 4.2.4  Deprecation of userinfo in http(s) URIs
 
    The URI generic syntax for authority also includes a userinfo
    subcomponent ([URI], Section 3.2.1) for including user authentication

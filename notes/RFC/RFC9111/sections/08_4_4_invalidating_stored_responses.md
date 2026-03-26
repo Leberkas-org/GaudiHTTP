@@ -9,7 +9,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ## 4.4.  Invalidating Stored Responses
 
-4.4.  Invalidating Stored Responses
+## 4.4  Invalidating Stored Responses
 
    Because unsafe request methods (Section 9.2.1 of [HTTP]) such as PUT,
    POST, or DELETE have the potential for changing state on the origin

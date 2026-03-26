@@ -7,9 +7,8 @@ description: "Section 19.11: MAX_STREAMS Frames — RFC 9000 — QUIC: A UDP-Bas
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, max_streams_frames]
 ---
 
-## 19.11.  MAX_STREAMS Frames
+# 19.11.  MAX_STREAMS Frames
 
-19.11.  MAX_STREAMS Frames
 
    A MAX_STREAMS frame (type=0x12 or 0x13) informs the peer of the
    cumulative number of streams of a given type it is permitted to open.

@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 11.2.  Authentication Parameters
 
-11.2.  Authentication Parameters
+## 11.2  Authentication Parameters
 
    The authentication scheme is followed by additional information
    necessary for achieving authentication via that scheme as either a

@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.9.  Disclosure of Sensitive Information in URIs
 
-17.9.  Disclosure of Sensitive Information in URIs
+## 17.9  Disclosure of Sensitive Information in URIs
 
    URIs are intended to be shared, not secured, even when they identify
    secure resources.  URIs are often shown on displays, added to

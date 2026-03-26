@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 3.6.  Origin Server
 
-3.6.  Origin Server
+## 3.6  Origin Server
 
    The term "origin server" refers to a program that can originate
    authoritative responses for a given target resource.

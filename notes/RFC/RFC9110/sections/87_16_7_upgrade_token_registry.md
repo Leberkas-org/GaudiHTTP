@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 16.7.  Upgrade Token Registry
 
-16.7.  Upgrade Token Registry
+## 16.7  Upgrade Token Registry
 
    The "Hypertext Transfer Protocol (HTTP) Upgrade Token Registry"
    defines the namespace for protocol-name tokens used to identify

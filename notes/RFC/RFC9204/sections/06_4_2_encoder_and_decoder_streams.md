@@ -9,7 +9,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 ## 4.2.  Encoder and Decoder Streams
 
-4.2.  Encoder and Decoder Streams
+## 4.2  Encoder and Decoder Streams
 
    QPACK defines two unidirectional stream types:
 
@@ -23,11 +23,11 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
    HTTP/3 endpoints contain a QPACK encoder and decoder.  Each endpoint
 > **MUST**: MUST initiate, at most, one encoder stream and, at most, one decoder
-> **MUST**: stream.  Receipt of a second instance of either stream type MUST be
+   stream.  Receipt of a second instance of either stream type MUST be
    treated as a connection error of type H3_STREAM_CREATION_ERROR.
 
 > **MUST NOT**: The sender MUST NOT close either of these streams, and the receiver
-> **MUST NOT**: MUST NOT request that the sender close either of these streams.
+   MUST NOT request that the sender close either of these streams.
 > **MUST**: Closure of either unidirectional stream type MUST be treated as a
    connection error of type H3_CLOSED_CRITICAL_STREAM.
 

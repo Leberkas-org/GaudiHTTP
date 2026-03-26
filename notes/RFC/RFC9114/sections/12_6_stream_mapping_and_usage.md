@@ -32,7 +32,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    maps to a particular HTTP transaction or to the entire HTTP/3
    connection context.
 
-6.1.  Bidirectional Streams
+## 6.1  Bidirectional Streams
 
    All client-initiated bidirectional streams are used for HTTP requests
    and responses.  A bidirectional stream ensures that the response can
@@ -53,7 +53,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    error of type H3_STREAM_CREATION_ERROR unless such an extension has
    been negotiated.
 
-6.2.  Unidirectional Streams
+## 6.2  Unidirectional Streams
 
    Unidirectional streams, in either direction, are used for a range of
    purposes.  The purpose is indicated by a stream type, which is sent
@@ -88,7 +88,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    unidirectional streams, and other extensions might require further
    streams.  Therefore, the transport parameters sent by both clients
 > **MUST**: and servers MUST allow the peer to create at least three
-> **SHOULD**: unidirectional streams.  These transport parameters SHOULD also
+   unidirectional streams.  These transport parameters SHOULD also
    provide at least 1,024 bytes of flow-control credit to each
    unidirectional stream.
 
@@ -123,7 +123,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    closed or reset prior to the reception of the unidirectional stream
    header.
 
-6.2.1.  Control Streams
+### 6.2.1  Control Streams
 
    A control stream is indicated by a stream type of 0x00.  Data on this
    stream consists of HTTP/3 frames, as defined in Section 7.2.
@@ -152,7 +152,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    connection, either client or server might be able to send stream data
    first.
 
-6.2.2.  Push Streams
+### 6.2.2  Push Streams
 
    Server push is an optional feature introduced in HTTP/2 that allows a
    server to initiate a response before a request has been made.  See
@@ -186,7 +186,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: used in another push stream header, the client MUST treat this as a
    connection error of type H3_ID_ERROR.
 
-6.2.3.  Reserved Stream Types
+### 6.2.3  Reserved Stream Types
 
    Stream types of the format 0x1f * N + 0x21 for non-negative integer
    values of N are reserved to exercise the requirement that unknown

@@ -9,7 +9,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ## 9.5.  Failures and Timeouts
 
-9.5.  Failures and Timeouts
+## 9.5  Failures and Timeouts
 
    Servers will usually have some timeout value beyond which they will
    no longer maintain an inactive connection.  Proxy servers might make
@@ -19,7 +19,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    existence) of this timeout for either the client or the server.
 
 > **SHOULD**: A client or server that wishes to time out SHOULD issue a graceful
-> **SHOULD**: close on the connection.  Implementations SHOULD constantly monitor
+   close on the connection.  Implementations SHOULD constantly monitor
    open connections for a received closure signal and respond to it as
    appropriate, since prompt closure of both sides of a connection
    enables allocated system resources to be reclaimed.

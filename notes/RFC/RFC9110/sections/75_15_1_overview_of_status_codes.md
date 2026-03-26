@@ -59,7 +59,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    "informational" (1xx) range, followed by exactly one "final" response
    with a status code in one of the other ranges.
 
-15.1.  Overview of Status Codes
+## 15.1  Overview of Status Codes
 
    The status codes listed below are defined in this specification.  The
    reason phrases listed here are only recommendations -- they can be

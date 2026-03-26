@@ -7,16 +7,15 @@ description: "Section 2: Compression Process Overview — RFC 7541 — HPACK: He
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, compression_process_overview]
 ---
 
-## 2.  Compression Process Overview
+# 2.  Compression Process Overview
 
-2.  Compression Process Overview
 
    This specification does not describe a specific algorithm for an
    encoder.  Instead, it defines precisely how a decoder is expected to
    operate, allowing encoders to produce any encoding that this
    definition permits.
 
-2.1.  Header List Ordering
+## 2.1.  Header List Ordering
 
    HPACK preserves the ordering of header fields inside the header list.
 > **MUST**: An encoder MUST order header field representations in the header
@@ -24,7 +23,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 > **MUST**: decoder MUST order header fields in the decoded header list according
    to their ordering in the header block.
 
-2.2.  Encoding and Decoding Contexts
+## 2.2.  Encoding and Decoding Contexts
 
    To decompress header blocks, a decoder only needs to maintain a
    dynamic table (see Section 2.3.2) as a decoding context.  No other
@@ -35,7 +34,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    completely independent, i.e., the request and response dynamic tables
    are separate.
 
-2.3.  Indexing Tables
+## 2.3.  Indexing Tables
 
    HPACK uses two tables for associating header fields to indexes.  The
    static table (see Section 2.3.1) is predefined and contains common
@@ -46,12 +45,12 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    These two tables are combined into a single address space for
    defining index values (see Section 2.3.3).
 
-2.3.1.  Static Table
+### 2.3.1.  Static Table
 
    The static table consists of a predefined static list of header
    fields.  Its entries are defined in Appendix A.
 
-2.3.2.  Dynamic Table
+### 2.3.2.  Dynamic Table
 
    The dynamic table consists of a list of header fields maintained in
    first-in, first-out order.  The first and newest entry in a dynamic
@@ -75,7 +74,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    The decoder updates the dynamic table during the processing of a list
    of header field representations (see Section 3.2).
 
-2.3.3.  Index Address Space
+### 2.3.3.  Index Address Space
 
    The static table and the dynamic table are combined into a single
    index address space.
@@ -111,7 +110,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 
 
-2.4.  Header Field Representation
+## 2.4.  Header Field Representation
 
    An encoded header field can be represented either as an index or as a
    literal.

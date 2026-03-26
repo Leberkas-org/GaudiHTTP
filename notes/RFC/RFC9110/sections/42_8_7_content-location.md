@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 8.7.  Content-Location
 
-8.7.  Content-Location
+## 8.7  Content-Location
 
    The "Content-Location" header field references a URI that can be used
    as an identifier for a specific resource corresponding to the

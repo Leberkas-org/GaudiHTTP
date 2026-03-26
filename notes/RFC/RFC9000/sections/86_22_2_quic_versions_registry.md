@@ -7,9 +7,8 @@ description: "Section 22.2: QUIC Versions Registry — RFC 9000 — QUIC: A UDP-
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, quic_versions_registry]
 ---
 
-## 22.2.  QUIC Versions Registry
+# 22.2.  QUIC Versions Registry
 
-22.2.  QUIC Versions Registry
 
    IANA has added a registry for "QUIC Versions" under a "QUIC" heading.
 
@@ -25,5 +24,5 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    negotiation.
 
 > **MUST**: All codepoints that follow the pattern 0x?a?a?a?a are reserved, MUST
-> **MUST NOT**: NOT be assigned by IANA, and MUST NOT appear in the listing of
+   NOT be assigned by IANA, and MUST NOT appear in the listing of
    assigned values.

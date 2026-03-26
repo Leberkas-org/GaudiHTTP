@@ -7,9 +7,8 @@ description: "Section 10.3: Stateless Reset — RFC 9000 — QUIC: A UDP-Based M
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, stateless_reset]
 ---
 
-## 10.3.  Stateless Reset
+# 10.3.  Stateless Reset
 
-10.3.  Stateless Reset
 
    A stateless reset is provided as an option of last resort for an
    endpoint that does not have access to the state of a connection.  A
@@ -97,7 +96,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    are never valid.
 
 > **MUST**: Endpoints MUST send Stateless Resets formatted as a packet with a
-> **MUST**: short header.  However, endpoints MUST treat any packet ending in a
+   short header.  However, endpoints MUST treat any packet ending in a
    valid stateless reset token as a Stateless Reset, as other QUIC
    versions might allow the use of a long header.
 
@@ -142,7 +141,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    aware of this and either (1) reuse this design or (2) use a portion
    of the packet other than the last 16 bytes for carrying data.
 
-10.3.1.  Detecting a Stateless Reset
+### 10.3.1.  Detecting a Stateless Reset
 
    An endpoint detects a potential Stateless Reset using the trailing 16
    bytes of the UDP datagram.  An endpoint remembers all stateless reset
@@ -158,7 +157,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    This comparison can be performed for every inbound datagram.
 > **MAY**: Endpoints MAY skip this check if any packet from a datagram is
-> **MUST**: successfully processed.  However, the comparison MUST be performed
+   successfully processed.  However, the comparison MUST be performed
    when the first packet in an incoming datagram either cannot be
    associated with a connection or cannot be decrypted.
 
@@ -183,7 +182,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST**: stateless reset token, the endpoint MUST enter the draining period
    and not send any further packets on this connection.
 
-10.3.2.  Calculating a Stateless Reset Token
+### 10.3.2.  Calculating a Stateless Reset Token
 
 > **MUST**: The stateless reset token MUST be difficult to guess.  In order to
    create a stateless reset token, an endpoint could randomly generate
@@ -233,7 +232,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    Note that Stateless Resets do not have any cryptographic protection.
 
-10.3.3.  Looping
+### 10.3.3.  Looping
 
    The design of a Stateless Reset is such that without knowing the
    stateless reset token it is indistinguishable from a valid packet.

@@ -23,7 +23,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    update" problem: one client accidentally overwriting the work of
    another client that has been acting in parallel.
 
-13.1.  Preconditions
+## 13.1  Preconditions
 
    Preconditions are usually defined with respect to a state of the
    target resource as a whole (its current value set) or the state as
@@ -59,7 +59,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    resource.  This encourages a focus on mutually agreed deployment of
    common standards.
 
-13.1.1.  If-Match
+### 13.1.1  If-Match
 
    The "If-Match" header field makes the request method conditional on
    the recipient origin server either having at least one current

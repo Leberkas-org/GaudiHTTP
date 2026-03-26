@@ -7,9 +7,8 @@ description: "Section 19.6: CRYPTO Frames — RFC 9000 — QUIC: A UDP-Based Mul
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, crypto_frames]
 ---
 
-## 19.6.  CRYPTO Frames
+# 19.6.  CRYPTO Frames
 
-19.6.  CRYPTO Frames
 
    A CRYPTO frame (type=0x06) is used to transmit cryptographic
    handshake messages.  It can be sent in all packet types except 0-RTT.

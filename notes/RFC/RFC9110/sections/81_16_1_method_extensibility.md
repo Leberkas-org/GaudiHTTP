@@ -41,9 +41,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    predictably, even when parts of the path implement different versions
    of HTTP.
 
-16.1.  Method Extensibility
+## 16.1  Method Extensibility
 
-16.1.1.  Method Registry
+### 16.1.1  Method Registry
 
    The "Hypertext Transfer Protocol (HTTP) Method Registry", maintained
    by IANA at <https://www.iana.org/assignments/http-methods>, registers
@@ -62,7 +62,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Values to be added to this namespace require IETF Review (see
    [RFC8126], Section 4.8).
 
-16.1.2.  Considerations for New Methods
+### 16.1.2  Considerations for New Methods
 
    Standardized methods are generic; that is, they are potentially
    applicable to any resource, not just one particular media type, kind

@@ -15,7 +15,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    properties of this protocol.  Many of the claims in this section do
    not hold unless TLS is used as described in Section 9.2.
 
-10.1.  Server Authority
+## 10.1  Server Authority
 
    HTTP/2 relies on the HTTP definition of authority for determining
    whether a server is authoritative in providing a given response (see
@@ -23,7 +23,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    "http" URI scheme and the authenticated server identity for the
    "https" scheme.
 
-10.2.  Cross-Protocol Attacks
+## 10.2  Cross-Protocol Attacks
 
    In a cross-protocol attack, an attacker causes a client to initiate a
    transaction in one protocol toward a server that understands a
@@ -47,7 +47,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    string that is designed to confuse HTTP/1.1 servers, but no special
    protection is offered for other protocols.
 
-10.3.  Intermediary Encapsulation Attacks
+## 10.3  Intermediary Encapsulation Attacks
 
    HPACK permits encoding of field names and values that might be
    treated as delimiters in other HTTP versions.  An intermediary that
@@ -81,7 +81,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    This ensures that if the message is translated into HTTP/1.1 at any
    point, the framing will be correct.
 
-10.4.  Cacheability of Pushed Responses
+## 10.4  Cacheability of Pushed Responses
 
    Pushed responses do not have an explicit request from the client; the
    request is provided by the server in the PUSH_PROMISE frame.
@@ -102,7 +102,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    Pushed responses for which an origin server is not authoritative (see
 > **MUST NOT**: Section 10.1) MUST NOT be used or cached.
 
-10.5.  Denial-of-Service Considerations
+## 10.5  Denial-of-Service Considerations
 
    An HTTP/2 connection can demand a greater commitment of resources to
    operate than an HTTP/1.1 connection.  Both field section compression
@@ -174,11 +174,11 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    An endpoint that doesn't monitor use of these features exposes itself
 > **SHOULD**: to a risk of denial of service.  Implementations SHOULD track the use
-> **MAY**: of these features and set limits on their use.  An endpoint MAY treat
+   of these features and set limits on their use.  An endpoint MAY treat
    activity that is suspicious as a connection error (Section 5.4.1) of
    type ENHANCE_YOUR_CALM.
 
-10.5.1.  Limits on Field Block Size
+### 10.5.1  Limits on Field Block Size
 
    A large field block (Section 4.3) can cause an implementation to
    commit a large amount of state.  Field lines that are critical for
@@ -205,7 +205,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 > **MUST**: process.  The field block MUST be processed to ensure a consistent
    connection state, unless the connection is closed.
 
-10.5.2.  CONNECT Issues
+### 10.5.2  CONNECT Issues
 
    The CONNECT method can be used to create disproportionate load on a
    proxy, since stream creation is relatively inexpensive when compared
@@ -216,7 +216,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    cannot rely on SETTINGS_MAX_CONCURRENT_STREAMS alone to limit the
    resources consumed by CONNECT requests.
 
-10.6.  Use of Compression
+## 10.6  Use of Compression
 
    Compression can allow an attacker to recover secret data when it is
    compressed in the same context as data under attacker control.
@@ -240,7 +240,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    Further considerations regarding the compression of header fields are
    described in [COMPRESSION].
 
-10.7.  Use of Padding
+## 10.7  Use of Padding
 
    Padding within HTTP/2 is not intended as a replacement for general
    purpose padding, such as that provided by TLS [TLS13].  Redundant
@@ -270,7 +270,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    intermediary to change the amount of padding of frames is to improve
    the protections that padding provides.
 
-10.8.  Privacy Considerations
+## 10.8  Privacy Considerations
 
    Several characteristics of HTTP/2 provide an observer an opportunity
    to correlate actions of a single client or server over time.  These
@@ -291,7 +291,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    they can be used by an endpoint to measure latency to their peer.
    This might have privacy implications in certain scenarios.
 
-10.9.  Remote Timing Attacks
+## 10.9  Remote Timing Attacks
 
    Remote timing attacks extract secrets from servers by observing
    variations in the time that servers take when processing requests

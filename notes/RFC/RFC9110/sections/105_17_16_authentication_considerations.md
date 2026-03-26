@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.16.  Authentication Considerations
 
-17.16.  Authentication Considerations
+## 17.16  Authentication Considerations
 
    Everything about the topic of HTTP authentication is a security
    consideration, so the list of considerations below is not exhaustive.
@@ -22,7 +22,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    [OWASP]), including common pitfalls for implementing and using the
    authentication schemes found in practice.
 
-17.16.1.  Confidentiality of Credentials
+### 17.16.1  Confidentiality of Credentials
 
    The HTTP authentication framework does not define a single mechanism
    for maintaining the confidentiality of credentials; instead, each
@@ -42,7 +42,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    require a secured connection prior to exchanging credentials
    (Section 4.2.2).
 
-17.16.2.  Credentials and Idle Clients
+### 17.16.2  Credentials and Idle Clients
 
    Existing HTTP clients and user agents typically retain authentication
    information indefinitely.  HTTP does not provide a mechanism for the
@@ -68,7 +68,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    readily accessible mechanism for discarding cached credentials under
    user control.
 
-17.16.3.  Protection Spaces
+### 17.16.3  Protection Spaces
 
    Authentication schemes that solely rely on the "realm" mechanism for
    establishing a protection space will expose credentials to all
@@ -86,7 +86,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    protection spaces by using a different host name (or port number) for
    each party.
 
-17.16.4.  Additional Response Fields
+### 17.16.4  Additional Response Fields
 
    Adding information to responses that are sent over an unencrypted
    channel can affect security and privacy.  The presence of the

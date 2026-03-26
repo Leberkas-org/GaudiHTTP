@@ -67,5 +67,5 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
       used instead of HTTP/2.
 
 > **MUST NOT**: Unknown or unsupported error codes MUST NOT trigger any special
-> **MAY**: behavior.  These MAY be treated by an implementation as being
+   behavior.  These MAY be treated by an implementation as being
    equivalent to INTERNAL_ERROR.

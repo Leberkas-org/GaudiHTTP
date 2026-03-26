@@ -7,9 +7,8 @@ description: "Section 21.7: Stream Fragmentation and Reassembly Attacks — RFC 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, stream_fragmentation_and_reassembly_attacks]
 ---
 
-## 21.7.  Stream Fragmentation and Reassembly Attacks
+# 21.7.  Stream Fragmentation and Reassembly Attacks
 
-21.7.  Stream Fragmentation and Reassembly Attacks
 
    An adversarial sender might intentionally not send portions of the
    stream data, causing the receiver to commit resources for the unsent

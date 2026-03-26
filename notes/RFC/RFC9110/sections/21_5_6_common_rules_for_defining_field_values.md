@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 5.6.  Common Rules for Defining Field Values
 
-5.6.  Common Rules for Defining Field Values
+## 5.6  Common Rules for Defining Field Values
 
 5.6.1.  Lists (#rule ABNF Extension)
 
@@ -22,7 +22,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    single comma (",") and optional whitespace (OWS, defined in
    Section 5.6.3).
 
-5.6.1.1.  Sender Requirements
+#### 5.6.1.1  Sender Requirements
 
 > **MUST NOT**: In any production that uses the list construct, a sender MUST NOT
    generate empty list elements.  In other words, a sender has to
@@ -41,7 +41,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Appendix A shows the collected ABNF for senders after the list
    constructs have been expanded.
 
-5.6.1.2.  Recipient Requirements
+#### 5.6.1.2  Recipient Requirements
 
    Empty elements do not contribute to the count of elements present.  A
 > **MUST**: recipient MUST parse and ignore a reasonable number of empty list
@@ -80,7 +80,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
      ","
      ",   ,"
 
-5.6.2.  Tokens
+### 5.6.2  Tokens
 
    Tokens are short textual identifiers that do not include whitespace
    or delimiters.
@@ -101,7 +101,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Delimiters are chosen from the set of US-ASCII visual characters not
    allowed in a token (DQUOTE and "(),/:;<=>?@[\]{}").
 
-5.6.3.  Whitespace
+### 5.6.3  Whitespace
 
    This specification uses three rules to denote the use of linear
    whitespace: OWS (optional whitespace), RWS (required whitespace), and
@@ -110,7 +110,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    The OWS rule is used where zero or more linear whitespace octets
    might appear.  For protocol elements where optional whitespace is
 > **SHOULD**: preferred to improve readability, a sender SHOULD generate the
-> **SHOULD NOT**: optional whitespace as a single SP; otherwise, a sender SHOULD NOT
+   optional whitespace as a single SP; otherwise, a sender SHOULD NOT
    generate optional whitespace except as needed to overwrite invalid or
    unwanted protocol elements during in-place message filtering.
 
@@ -124,7 +124,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    The BWS rule is used where the grammar allows optional whitespace
 > **MUST NOT**: only for historical reasons.  A sender MUST NOT generate BWS in
-> **MUST**: messages.  A recipient MUST parse for such bad whitespace and remove
+   messages.  A recipient MUST parse for such bad whitespace and remove
    it before interpreting the protocol element.
 
 > **MAY**: BWS has no semantics.  Any content known to be defined as BWS MAY be
@@ -141,7 +141,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 ```
 
 
-5.6.4.  Quoted Strings
+### 5.6.4  Quoted Strings
 
    A string of text is parsed as a single value if it is quoted using
    double-quote marks.
@@ -170,7 +170,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    except where necessary to quote parentheses ["(" and ")"] and
    backslash octets occurring within that comment.
 
-5.6.5.  Comments
+### 5.6.5  Comments
 
    Comments can be included in some HTTP fields by surrounding the
    comment text with parentheses.  Comments are only allowed in fields
@@ -183,7 +183,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 ```
 
 
-5.6.6.  Parameters
+### 5.6.6  Parameters
 
    Parameters are instances of name/value pairs; they are often used in
    field values as a common syntax for appending auxiliary information
@@ -212,7 +212,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  *Note:* Parameters do not allow whitespace (not even "bad"
       |  whitespace) around the "=" character.
 
-5.6.7.  Date/Time Formats
+### 5.6.7  Date/Time Formats
 
    Prior to 1995, there were three different formats commonly used by
    servers to communicate timestamps.  For compatibility with old

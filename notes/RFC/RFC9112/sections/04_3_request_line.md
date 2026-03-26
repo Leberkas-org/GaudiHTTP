@@ -43,7 +43,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    practice.  It is RECOMMENDED that all HTTP senders and recipients
    support, at a minimum, request-line lengths of 8000 octets.
 
-3.1.  Method
+## 3.1  Method
 
    The method token indicates the request method to be performed on the
    target resource.  The request method is case-sensitive.
@@ -58,7 +58,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    Section 9 of [HTTP], along with information regarding the HTTP method
    registry and considerations for defining new methods.
 
-3.2.  Request Target
+## 3.2  Request Target
 
    The request-target identifies the target resource upon which to apply
    the request.  The client derives a request-target from its desired
@@ -234,7 +234,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
    after connecting to port 8001 of host "www.example.org".
 
-3.3.  Reconstructing the Target URI
+## 3.3  Reconstructing the Target URI
 
    The target URI is the request-target when the request-target is in
    absolute-form.  In that case, a server will parse the URI into its

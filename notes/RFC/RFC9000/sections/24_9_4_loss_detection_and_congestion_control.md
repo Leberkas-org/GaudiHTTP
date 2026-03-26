@@ -7,9 +7,8 @@ description: "Section 9.4: Loss Detection and Congestion Control â€” RFC 9000 â€
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, loss_detection_and_congestion_control]
 ---
 
-## 9.4.  Loss Detection and Congestion Control
+# 9.4.  Loss Detection and Congestion Control
 
-9.4.  Loss Detection and Congestion Control
 
    The capacity available on the new path might not be the same as the
 > **MUST NOT**: old path.  Packets sent on the old path MUST NOT contribute to
@@ -50,4 +49,4 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    before the PATH_RESPONSE is received, the endpoint might send a new
    PATH_CHALLENGE and restart the timer for a longer period of time.
 > **SHOULD**: This timer SHOULD be set as described in Section 6.2.1 of
-> **MUST NOT**: [QUIC-RECOVERY] and MUST NOT be more aggressive.
+   [QUIC-RECOVERY] and MUST NOT be more aggressive.

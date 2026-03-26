@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 8.4.  Content-Encoding
 
-8.4.  Content-Encoding
+## 8.4  Content-Encoding
 
    The "Content-Encoding" header field indicates what content codings
    have been applied to the representation, beyond those inherent in the
@@ -63,7 +63,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Media Type) if a representation in the request message has a content
    coding that is not acceptable.
 
-8.4.1.  Content Codings
+### 8.4.1  Content Codings
 
    Content coding values indicate an encoding transformation that has
    been or can be applied to a representation.  Content codings are
@@ -86,14 +86,14 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Content-coding values are used in the Accept-Encoding
    (Section 12.5.3) and Content-Encoding (Section 8.4) header fields.
 
-8.4.1.1.  Compress Coding
+#### 8.4.1.1  Compress Coding
 
    The "compress" coding is an adaptive Lempel-Ziv-Welch (LZW) coding
    [Welch] that is commonly produced by the UNIX file compression
 > **SHOULD**: program "compress".  A recipient SHOULD consider "x-compress" to be
    equivalent to "compress".
 
-8.4.1.2.  Deflate Coding
+#### 8.4.1.2  Deflate Coding
 
    The "deflate" coding is a "zlib" data format [RFC1950] containing a
    "deflate" compressed data stream [RFC1951] that uses a combination of
@@ -102,7 +102,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  *Note:* Some non-conformant implementations send the "deflate"
       |  compressed data without the zlib wrapper.
 
-8.4.1.3.  Gzip Coding
+#### 8.4.1.3  Gzip Coding
 
    The "gzip" coding is an LZ77 coding with a 32-bit Cyclic Redundancy
    Check (CRC) that is commonly produced by the gzip file compression

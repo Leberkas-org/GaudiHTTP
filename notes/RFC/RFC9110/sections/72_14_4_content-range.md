@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 14.4.  Content-Range
 
-14.4.  Content-Range
+## 14.4  Content-Range
 
    The "Content-Range" header field is sent in a single part 206
    (Partial Content) response to indicate the partial range of the
@@ -35,7 +35,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    If a 206 (Partial Content) response contains a Content-Range header
    field with a range unit (Section 14.1) that the recipient does not
 > **MUST NOT**: understand, the recipient MUST NOT attempt to recombine it with a
-> **SHOULD**: stored representation.  A proxy that receives such a message SHOULD
+   stored representation.  A proxy that receives such a message SHOULD
    forward it downstream.
 
    Content-Range might also be sent as a request modifier to request a

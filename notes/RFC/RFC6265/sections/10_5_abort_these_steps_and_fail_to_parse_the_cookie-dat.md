@@ -7,9 +7,8 @@ description: "Section 5: Abort these steps and fail to parse the cookie-date if:
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, abort_these_steps_and_fail_to_parse_the_cookie-dat]
 ---
 
-## 5.  Abort these steps and fail to parse the cookie-date if:
+# 5.  Abort these steps and fail to parse the cookie-date if:
 
-   5.  Abort these steps and fail to parse the cookie-date if:
 
        *  at least one of the found-day-of-month, found-month, found-
           year, or found-time flags is not set,

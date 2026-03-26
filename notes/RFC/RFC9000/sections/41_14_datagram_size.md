@@ -7,9 +7,8 @@ description: "Section 14: Datagram Size — RFC 9000 — QUIC: A UDP-Based Multi
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, datagram_size]
 ---
 
-## 14.  Datagram Size
+# 14.  Datagram Size
 
-14.  Datagram Size
 
    A UDP datagram can include one or more QUIC packets.  The datagram
    size refers to the total UDP payload size of a single UDP datagram
@@ -49,7 +48,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    1200 bytes.
 
 > **MUST NOT**: UDP datagrams MUST NOT be fragmented at the IP layer.  In IPv4
-> **MUST**: [IPv4], the Don't Fragment (DF) bit MUST be set if possible, to
+   [IPv4], the Don't Fragment (DF) bit MUST be set if possible, to
    prevent fragmentation on the path.
 
    QUIC sometimes requires datagrams to be no smaller than a certain
@@ -60,7 +59,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    when it receives a datagram that does not meet size constraints; the
 > **MAY**: endpoint MAY discard such datagrams.
 
-14.1.  Initial Datagram Size
+## 14.1.  Initial Datagram Size
 
 > **MUST**: A client MUST expand the payload of all UDP datagrams carrying
    Initial packets to at least the smallest allowed maximum datagram
@@ -90,7 +89,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST**: The server MUST also limit the number of bytes it sends before
    validating the address of the client; see Section 8.
 
-14.2.  Path Maximum Transmission Unit
+## 14.2.  Path Maximum Transmission Unit
 
    The PMTU is the maximum size of the entire IP packet, including the
    IP header, UDP header, and UDP payload.  The UDP payload includes one
@@ -127,7 +126,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    maximum datagram size to allow for unknown tunnel overheads or IP
    header options/extensions.
 
-14.2.1.  Handling of ICMP Messages by PMTUD
+### 14.2.1.  Handling of ICMP Messages by PMTUD
 
    PMTUD [RFC1191] [RFC8201] relies on reception of ICMP messages (that
    is, IPv6 Packet Too Big (PTB) messages) that indicate when an IP
@@ -163,7 +162,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    QUIC's loss detection algorithm determines that the quoted packet has
    actually been lost.
 
-14.3.  Datagram Packetization Layer PMTU Discovery
+## 14.3.  Datagram Packetization Layer PMTU Discovery
 
    DPLPMTUD [DPLPMTUD] relies on tracking loss or acknowledgment of QUIC
    packets that are carried in PMTU probes.  PMTU probes for DPLPMTUD
@@ -179,20 +178,20 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    local and remote IP addresses.  This corresponds to the maximum
    datagram size.
 
-14.3.1.  DPLPMTUD and Initial Connectivity
+### 14.3.1.  DPLPMTUD and Initial Connectivity
 
    From the perspective of DPLPMTUD, QUIC is an acknowledged
    Packetization Layer (PL).  A QUIC sender can therefore enter the
    DPLPMTUD BASE state (Section 5.2 of [DPLPMTUD]) when the QUIC
    connection handshake has been completed.
 
-14.3.2.  Validating the Network Path with DPLPMTUD
+### 14.3.2.  Validating the Network Path with DPLPMTUD
 
    QUIC is an acknowledged PL; therefore, a QUIC sender does not
    implement a DPLPMTUD CONFIRMATION_TIMER while in the SEARCH_COMPLETE
    state; see Section 5.2 of [DPLPMTUD].
 
-14.3.3.  Handling of ICMP Messages by DPLPMTUD
+### 14.3.3.  Handling of ICMP Messages by DPLPMTUD
 
    An endpoint using DPLPMTUD requires the validation of any received
    ICMP PTB message before using the PTB information, as defined in
@@ -204,7 +203,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    The considerations for processing ICMP messages described in
    Section 14.2.1 also apply if these messages are used by DPLPMTUD.
 
-14.4.  Sending QUIC PMTU Probes
+## 14.4.  Sending QUIC PMTU Probes
 
    PMTU probes are ack-eliciting packets.
 
@@ -217,7 +216,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    PMTU probes consume congestion window, which could delay subsequent
    transmission by an application.
 
-14.4.1.  PMTU Probes Containing Source Connection ID
+### 14.4.1.  PMTU Probes Containing Source Connection ID
 
    Endpoints that rely on the Destination Connection ID field for
    routing incoming QUIC packets are likely to require that the

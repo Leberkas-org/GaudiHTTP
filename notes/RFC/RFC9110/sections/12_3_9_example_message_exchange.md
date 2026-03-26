@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 3.9.  Example Message Exchange
 
-3.9.  Example Message Exchange
+## 3.9  Example Message Exchange
 
    The following example illustrates a typical HTTP/1.1 message exchange
    for a GET request (Section 9.3.1) on the URI "http://www.example.com/

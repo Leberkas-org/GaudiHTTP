@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.8.  Privacy of Server Log Information
 
-17.8.  Privacy of Server Log Information
+## 17.8  Privacy of Server Log Information
 
    A server is in the position to save personal data about a user's
    requests over time, which might identify their reading patterns or

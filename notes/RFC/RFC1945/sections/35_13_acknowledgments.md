@@ -7,9 +7,8 @@ description: "Section 13: Acknowledgments — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, acknowledgments]
 ---
 
-## 13.  Acknowledgments
+# 13.  Acknowledgments
 
-13.  Acknowledgments
 
    This specification makes heavy use of the augmented BNF and generic
    constructs defined by David H. Crocker for RFC 822 [7]. Similarly, it

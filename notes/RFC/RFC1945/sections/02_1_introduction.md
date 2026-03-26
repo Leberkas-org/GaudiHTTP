@@ -7,11 +7,10 @@ description: "Section 1: Introduction — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, introduction]
 ---
 
-## 1.  Introduction
+# 1.  Introduction
 
-1.  Introduction
 
-1.1  Purpose
+## 1.1  Purpose
 
    The Hypertext Transfer Protocol (HTTP) is an application-level
    protocol with the lightness and speed necessary for distributed,
@@ -41,7 +40,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    basic hypermedia access to resources available from diverse
    applications and simplifying the implementation of user agents.
 
-1.2  Terminology
+## 1.2  Terminology
 
    This specification uses a number of terms to refer to the roles
    played by participants in, and objects of, the HTTP communication.
@@ -152,7 +151,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    server, proxy, gateway, or tunnel, switching behavior based on the
    nature of each request.
 
-1.3  Overall Operation
+## 1.3  Overall Operation
 
    The HTTP protocol is based on a request/response paradigm. A client
    establishes a connection with a server and sends a request to the
@@ -243,7 +242,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    any case, the closing of the connection by either or both parties
    always terminates the current request, regardless of its status.
 
-1.4  HTTP and MIME
+## 1.4  HTTP and MIME
 
    HTTP/1.0 uses many of the constructs defined for MIME, as defined in
    RFC 1521 [5]. Appendix C describes the ways in which the context of

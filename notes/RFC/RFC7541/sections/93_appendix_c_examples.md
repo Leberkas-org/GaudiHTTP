@@ -7,9 +7,8 @@ description: "Appendix C: Examples — RFC 7541 — HPACK: Header Compression fo
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, examples]
 ---
 
-## Appendix C.  Examples
+# Appendix C.  Examples
 
-Appendix C.  Examples
 
    This appendix contains examples covering integer encoding, header
    field representation, and the encoding of whole lists of header

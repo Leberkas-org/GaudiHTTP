@@ -7,14 +7,13 @@ description: "Section 20: Error Codes — RFC 9000 — QUIC: A UDP-Based Multipl
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, error_codes]
 ---
 
-## 20.  Error Codes
+# 20.  Error Codes
 
-20.  Error Codes
 
    QUIC transport error codes and application error codes are 62-bit
    unsigned integers.
 
-20.1.  Transport Error Codes
+## 20.1.  Transport Error Codes
 
    This section lists the defined QUIC transport error codes that can be
    used in a CONNECTION_CLOSE frame with a type of 0x1c.  These errors
@@ -104,7 +103,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    Finally, generic errors are provided for conditions where
    implementations are unable or unwilling to use more specific codes.
 
-20.2.  Application Protocol Error Codes
+## 20.2.  Application Protocol Error Codes
 
    The management of application error codes is left to application
    protocols.  Application protocol error codes are used for the

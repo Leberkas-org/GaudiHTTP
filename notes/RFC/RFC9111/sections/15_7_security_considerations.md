@@ -30,7 +30,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    them, for example, by allowing stored responses to be removed for
    some or all origin servers.
 
-7.1.  Cache Poisoning
+## 7.1  Cache Poisoning
 
    Storing malicious content in a cache can extend the reach of an
    attacker to affect multiple users.  Such "cache poisoning" attacks
@@ -44,7 +44,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    Section 6.3 of [HTTP/1.1] for the relevant requirements regarding
    HTTP/1.1.
 
-7.2.  Timing Attacks
+## 7.2  Timing Attacks
 
    Because one of the primary uses of a cache is to optimize
    performance, its use can "leak" information about which resources
@@ -61,7 +61,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    the attack described above).  This is sometimes called "double
    keying".
 
-7.3.  Caching of Sensitive Information
+## 7.3  Caching of Sensitive Information
 
    Implementation and deployment flaws (often led to by the
    misunderstanding of cache operation) might lead to the caching of

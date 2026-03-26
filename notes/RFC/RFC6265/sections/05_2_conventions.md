@@ -7,13 +7,12 @@ description: "Section 2: Conventions — RFC 6265 — HTTP State Management (Coo
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, conventions]
 ---
 
-## 2.  Conventions
+# 2.  Conventions
 
-2.  Conventions
 
-2.1.  Conformance Criteria
+## 2.1.  Conformance Criteria
 
-   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+> **MUST**: The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
    document are to be interpreted as described in [RFC2119].
 
@@ -21,7 +20,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 
 
-   Requirements phrased in the imperative as part of algorithms (such as
+> **MUST**: Requirements phrased in the imperative as part of algorithms (such as
    "strip any leading space characters" or "return false and abort these
    steps") are to be interpreted with the meaning of the key word
    ("MUST", "SHOULD", "MAY", etc.) used in introducing the algorithm.
@@ -32,7 +31,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    specification are intended to be easy to understand and are not
    intended to be performant.
 
-2.2.  Syntax Notation
+## 2.2.  Syntax Notation
 
    This specification uses the Augmented Backus-Naur Form (ABNF)
    notation of [RFC5234].
@@ -59,7 +58,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 > **SHOULD**: OWS SHOULD either not be produced or be produced as a single SP
    character.
 
-2.3.  Terminology
+## 2.3.  Terminology
 
    The terms user agent, client, server, proxy, and origin server have
    the same meaning as in the HTTP/1.1 specification ([RFC2616], Section

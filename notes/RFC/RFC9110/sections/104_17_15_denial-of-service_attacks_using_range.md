@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.15.  Denial-of-Service Attacks Using Range
 
-17.15.  Denial-of-Service Attacks Using Range
+## 17.15  Denial-of-Service Attacks Using Range
 
    Unconstrained multiple range requests are susceptible to denial-of-
    service attacks because the effort required to request many

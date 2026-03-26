@@ -14,7 +14,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    The change controller for the following registrations is: "IETF
    (iesg@ietf.org) - Internet Engineering Task Force".
 
-8.1.  Field Name Registration
+## 8.1  Field Name Registration
 
    IANA has updated the "Hypertext Transfer Protocol (HTTP) Field Name
    Registry" at <https://www.iana.org/assignments/http-fields>, as
@@ -37,7 +37,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
                          Table 1
 
-8.2.  Cache Directive Registration
+## 8.2  Cache Directive Registration
 
    IANA has updated the "Hypertext Transfer Protocol (HTTP) Cache
    Directive Registry" at <https://www.iana.org/assignments/http-cache-
@@ -76,7 +76,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
                    Table 2
 
-8.3.  Warn Code Registry
+## 8.3  Warn Code Registry
 
    IANA has added the following note to the "Hypertext Transfer Protocol
    (HTTP) Warn Codes" registry at <https://www.iana.org/assignments/

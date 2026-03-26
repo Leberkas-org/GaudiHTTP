@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 11.4.  Credentials
 
-11.4.  Credentials
+## 11.4  Credentials
 
    Both the Authorization field value and the Proxy-Authorization field
    value contain the client's credentials for the realm of the resource

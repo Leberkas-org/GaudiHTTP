@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 14.5.  Partial PUT
 
-14.5.  Partial PUT
+## 14.5  Partial PUT
 
    Some origin servers support PUT of a partial representation when the
    user agent sends a Content-Range header field (Section 14.4) in the

@@ -7,9 +7,8 @@ description: "Section 21.13: Targeted Attacks by Routing — RFC 9000 — QUIC: 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, targeted_attacks_by_routing]
 ---
 
-## 21.13.  Targeted Attacks by Routing
+# 21.13.  Targeted Attacks by Routing
 
-21.13.  Targeted Attacks by Routing
 
    Deployments should limit the ability of an attacker to target a new
    connection to a particular server instance.  Ideally, routing

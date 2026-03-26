@@ -7,9 +7,8 @@ description: "Section 9.6: Server's Preferred Address — RFC 9000 — QUIC: A U
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, servers_preferred_address]
 ---
 
-## 9.6.  Server's Preferred Address
+# 9.6.  Server's Preferred Address
 
-9.6.  Server's Preferred Address
 
    QUIC allows servers to accept connections on one IP address and
    attempt to transfer these connections to a more preferred address
@@ -25,7 +24,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **SHOULD**: not initiated a migration to that address, the client SHOULD discard
    these packets.
 
-9.6.1.  Communicating a Preferred Address
+### 9.6.1.  Communicating a Preferred Address
 
    A server conveys a preferred address by including the
    preferred_address transport parameter in the TLS handshake.
@@ -46,7 +45,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST**: fails, the client MUST continue sending all future packets to the
    server's original IP address.
 
-9.6.2.  Migration to a Preferred Address
+### 9.6.2.  Migration to a Preferred Address
 
 > **MUST**: A client that migrates to a preferred address MUST validate the
    address it chooses before migrating; see Section 21.5.3.
@@ -76,7 +75,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST NOT**: are provided.  A client MUST NOT use these for other connections,
    including connections that are resumed from the current connection.
 
-9.6.3.  Interaction of Client Migration and Preferred Address
+### 9.6.3.  Interaction of Client Migration and Preferred Address
 
    A client might need to perform a connection migration before it has
    migrated to the server's preferred address.  In this case, the client

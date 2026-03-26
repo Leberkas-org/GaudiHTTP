@@ -7,11 +7,10 @@ description: "Section 10: References — RFC 6265 — HTTP State Management (Coo
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, references]
 ---
 
-## 10.  References
+# 10.  References
 
-10.  References
 
-10.1.  Normative References
+## 10.1.  Normative References
 
    [RFC1034]  Mockapetris, P., "Domain names - concepts and facilities",
               STD 13, RFC 1034, November 1987.
@@ -48,7 +47,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
               Set -- 7-bit American Standard Code for Information
               Interchange", ANSI X3.4, 1986.
 
-10.2.  Informative References
+## 10.2.  Informative References
 
    [RFC2109]  Kristol, D. and L. Montulli, "HTTP State Management
               Mechanism", RFC 2109, February 1997.

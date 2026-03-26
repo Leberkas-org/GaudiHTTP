@@ -9,7 +9,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 ## 11.2.  New Registries
 
-11.2.  New Registries
+## 11.2  New Registries
 
    New registries created in this document operate under the QUIC
    registration policy documented in Section 22.1 of [QUIC-TRANSPORT].
@@ -21,7 +21,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    permanent status and list a change controller of the IETF and a
    contact of the HTTP working group (ietf-http-wg@w3.org).
 
-11.2.1.  Frame Types
+### 11.2.1  Frame Types
 
    This document establishes a registry for HTTP/3 frame type codes.
    The "HTTP/3 Frame Types" registry governs a 62-bit space.  This
@@ -36,7 +36,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    defined in [HTTP/2], it is preferable that the assignments parallel
    each other where the code spaces overlap.  If an entry is present in
 > **SHOULD**: only one registry, every effort SHOULD be made to avoid assigning the
-> **MAY**: corresponding value to an unrelated operation.  Expert reviewers MAY
+   corresponding value to an unrelated operation.  Expert reviewers MAY
    reject unrelated registrations that would conflict with the same
    value in the corresponding registry.
 
@@ -84,7 +84,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST NOT**: MUST NOT be assigned by IANA and MUST NOT appear in the listing of
    assigned values.
 
-11.2.2.  Settings Parameters
+### 11.2.2  Settings Parameters
 
    This document establishes a registry for HTTP/3 settings.  The
    "HTTP/3 Settings" registry governs a 62-bit space.  This registry
@@ -99,7 +99,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    defined in [HTTP/2], it is preferable that the assignments parallel
    each other.  If an entry is present in only one registry, every
 > **SHOULD**: effort SHOULD be made to avoid assigning the corresponding value to
-> **MAY**: an unrelated operation.  Expert reviewers MAY reject unrelated
+   an unrelated operation.  Expert reviewers MAY reject unrelated
    registrations that would conflict with the same value in the
    corresponding registry.
 
@@ -140,7 +140,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST NOT**: MUST NOT be assigned by IANA and MUST NOT appear in the listing of
    assigned values.
 
-11.2.3.  Error Codes
+### 11.2.3  Error Codes
 
    This document establishes a registry for HTTP/3 error codes.  The
    "HTTP/3 Error Codes" registry manages a 62-bit space.  This registry
@@ -251,7 +251,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST NOT**: MUST NOT be assigned by IANA and MUST NOT appear in the listing of
    assigned values.
 
-11.2.4.  Stream Types
+### 11.2.4  Stream Types
 
    This document establishes a registry for HTTP/3 unidirectional stream
    types.  The "HTTP/3 Stream Types" registry governs a 62-bit space.

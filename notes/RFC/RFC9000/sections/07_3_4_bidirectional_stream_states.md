@@ -7,9 +7,8 @@ description: "Section 3.4: Bidirectional Stream States — RFC 9000 — QUIC: A 
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, bidirectional_stream_states]
 ---
 
-## 3.4.  Bidirectional Stream States
+# 3.4.  Bidirectional Stream States
 
-3.4.  Bidirectional Stream States
 
    A bidirectional stream is composed of sending and receiving parts.
    Implementations can represent states of the bidirectional stream as

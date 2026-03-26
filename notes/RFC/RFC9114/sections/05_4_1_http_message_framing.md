@@ -11,7 +11,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 4.  Expressing HTTP Semantics in HTTP/3
 
-4.1.  HTTP Message Framing
+## 4.1  HTTP Message Framing
 
    A client sends an HTTP request on a request stream, which is a
    client-initiated bidirectional QUIC stream; see Section 6.1.  A
@@ -99,14 +99,14 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    reading the request stream, send a complete response, and cleanly
    close the sending part of the stream.  The error code H3_NO_ERROR
 > **SHOULD**: SHOULD be used when requesting that the client stop sending on the
-> **MUST NOT**: request stream.  Clients MUST NOT discard complete responses as a
+   request stream.  Clients MUST NOT discard complete responses as a
    result of having their request terminated abruptly, though clients
    can always discard responses at their discretion for other reasons.
    If the server sends a partial or complete response but does not abort
 > **SHOULD**: reading the request, clients SHOULD continue sending the content of
    the request and close the stream normally.
 
-4.1.1.  Request Cancellation and Rejection
+### 4.1.1  Request Cancellation and Rejection
 
 > **MAY**: Once a request stream has been opened, the request MAY be cancelled
    by either endpoint.  Clients cancel requests if the response is no
@@ -136,7 +136,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    stream with the error code H3_REQUEST_CANCELLED.
 
 > **SHOULD**: Client SHOULD use the error code H3_REQUEST_CANCELLED to cancel
-> **MAY**: requests.  Upon receipt of this error code, a server MAY abruptly
+   requests.  Upon receipt of this error code, a server MAY abruptly
    terminate the response using the error code H3_REQUEST_REJECTED if no
 > **MUST NOT**: processing was performed.  Clients MUST NOT use the
    H3_REQUEST_REJECTED error code, except when a server has requested
@@ -146,14 +146,14 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MAY**: client MAY ignore the cancellation and use the response.  However, if
    a stream is cancelled after receiving a partial response, the
 > **SHOULD NOT**: response SHOULD NOT be used.  Only idempotent actions such as GET,
-> **SHOULD NOT**: PUT, or DELETE can be safely retried; a client SHOULD NOT
+   PUT, or DELETE can be safely retried; a client SHOULD NOT
    automatically retry a request with a non-idempotent method unless it
    has some means to know that the request semantics are idempotent
    independent of the method or some means to detect that the original
    request was never applied.  See Section 9.2.2 of [HTTP] for more
    details.
 
-4.1.2.  Malformed Requests and Responses
+### 4.1.2  Malformed Requests and Responses
 
    A malformed request or response is one that is an otherwise valid
    sequence of frames but is invalid due to:
@@ -186,7 +186,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: detected MUST be treated as a stream error of type H3_MESSAGE_ERROR.
 
 > **MAY**: For malformed requests, a server MAY send an HTTP response indicating
-> **MUST NOT**: the error prior to closing or resetting the stream.  Clients MUST NOT
+   the error prior to closing or resetting the stream.  Clients MUST NOT
    accept a malformed response.  Note that these requirements are
    intended to protect against several types of common attacks against
    HTTP; they are deliberately strict because being permissive can

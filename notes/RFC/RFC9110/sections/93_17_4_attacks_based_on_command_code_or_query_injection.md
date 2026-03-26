@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.4.  Attacks Based on Command, Code, or Query Injection
 
-17.4.  Attacks Based on Command, Code, or Query Injection
+## 17.4  Attacks Based on Command, Code, or Query Injection
 
    Origin servers often use parameters within the URI as a means of
    identifying system services, selecting database entries, or choosing

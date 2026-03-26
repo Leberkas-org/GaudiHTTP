@@ -7,9 +7,8 @@ description: "Section 5.2: Matching Packets to Connections — RFC 9000 — QUIC
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, matching_packets_to_connections]
 ---
 
-## 5.2.  Matching Packets to Connections
+# 5.2.  Matching Packets to Connections
 
-5.2.  Matching Packets to Connections
 
    Incoming packets are classified on receipt.  Packets can either be
    associated with an existing connection or -- for servers --
@@ -42,11 +41,11 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    Invalid packets that lack strong integrity protection, such as
 > **MAY**: Initial, Retry, or Version Negotiation, MAY be discarded.  An
-> **MUST**: endpoint MUST generate a connection error if processing the contents
+   endpoint MUST generate a connection error if processing the contents
    of these packets prior to discovering an error, or fully revert any
    changes made during that processing.
 
-5.2.1.  Client Packet Handling
+### 5.2.1.  Client Packet Handling
 
    Valid packets sent to clients always include a Destination Connection
    ID that matches a value the client selects.  Clients that choose to
@@ -63,12 +62,12 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    If a client receives a packet that uses a different version than it
 > **MUST**: initially selected, it MUST discard that packet.
 
-5.2.2.  Server Packet Handling
+### 5.2.2.  Server Packet Handling
 
    If a server receives a packet that indicates an unsupported version
    and if the packet is large enough to initiate a new connection for
 > **SHOULD**: any supported version, the server SHOULD send a Version Negotiation
-> **MAY**: packet as described in Section 6.1.  A server MAY limit the number of
+   packet as described in Section 6.1.  A server MAY limit the number of
    packets to which it responds with a Version Negotiation packet.
 > **MUST**: Servers MUST drop smaller packets that specify unsupported versions.
 
@@ -102,7 +101,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 > **MUST**: Servers MUST drop incoming packets under all other circumstances.
 
-5.2.3.  Considerations for Simple Load Balancers
+### 5.2.3.  Considerations for Simple Load Balancers
 
    A server deployment could load-balance among servers using only
    source and destination IP addresses and ports.  Changes to the

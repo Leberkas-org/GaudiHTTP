@@ -7,9 +7,9 @@ description: "Section 14: References — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, references]
 ---
 
-## 14.  References
+# 14.  References
 
-14. References
+
 
    [1]  Anklesaria, F., McCahill, M., Lindner, P., Johnson, D.,
         Torrey, D., and B. Alberti, "The Internet Gopher Protocol: A

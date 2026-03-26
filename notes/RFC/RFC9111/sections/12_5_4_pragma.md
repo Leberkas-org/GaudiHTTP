@@ -9,7 +9,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ## 5.4.  Pragma
 
-5.4.  Pragma
+## 5.4  Pragma
 
    The "Pragma" request header field was defined for HTTP/1.0 caches, so
    that clients could specify a "no-cache" request (as Cache-Control was

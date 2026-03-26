@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 5.3.  Field Order
 
-5.3.  Field Order
+## 5.3  Field Order
 
 > **MAY**: A recipient MAY combine multiple field lines within a field section
    that have the same field name into one field line, without changing

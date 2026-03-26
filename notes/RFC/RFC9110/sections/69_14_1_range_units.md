@@ -27,7 +27,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    by a distinct status code to not be mistaken for full responses by
    caches that might not implement the feature.
 
-14.1.  Range Units
+## 14.1  Range Units
 
    Representation data can be partitioned into subranges when there are
    addressable structural units inherent to that data's content coding
@@ -55,7 +55,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Range units are intended to be extensible, as described in
    Section 16.5.
 
-14.1.1.  Range Specifiers
+### 14.1.1  Range Specifiers
 
    Ranges are expressed in terms of a range unit paired with a set of
    range specifiers.  The range unit name determines what kinds of
@@ -123,7 +123,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    range-spec that is satisfiable, as defined by the indicated
    range-unit.  Otherwise, the ranges-specifier is "unsatisfiable".
 
-14.1.2.  Byte Ranges
+### 14.1.2  Byte Ranges
 
    The "bytes" range unit is used to express subranges of a
    representation data's octet sequence.  Each byte range is expressed

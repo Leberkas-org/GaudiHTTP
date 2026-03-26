@@ -7,9 +7,8 @@ description: "Section 19.20: HANDSHAKE_DONE Frames — RFC 9000 — QUIC: A UDP-
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, handshake_done_frames]
 ---
 
-## 19.20.  HANDSHAKE_DONE Frames
+# 19.20.  HANDSHAKE_DONE Frames
 
-19.20.  HANDSHAKE_DONE Frames
 
    The server uses a HANDSHAKE_DONE frame (type=0x1e) to signal
    confirmation of the handshake to the client.

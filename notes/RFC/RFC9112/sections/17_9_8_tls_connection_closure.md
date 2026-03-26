@@ -9,7 +9,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ## 9.8.  TLS Connection Closure
 
-9.8.  TLS Connection Closure
+## 9.8  TLS Connection Closure
 
    TLS uses an exchange of closure alerts prior to (non-error)
    connection closure to provide secure connection closure; see
@@ -46,7 +46,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 > **SHOULD**: A client detecting an incomplete close SHOULD recover gracefully.
 
 > **MUST**: Clients MUST send a closure alert before closing the connection.
-> **MAY**: Clients that do not expect to receive any more data MAY choose not to
+   Clients that do not expect to receive any more data MAY choose not to
    wait for the server's closure alert and simply close the connection,
    thus generating an incomplete close on the server side.
 
@@ -54,6 +54,6 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    client, since the client can often locate the end of server data.
 
 > **MUST**: Servers MUST attempt to initiate an exchange of closure alerts with
-> **MAY**: the client before closing the connection.  Servers MAY close the
+   the client before closing the connection.  Servers MAY close the
    connection after sending the closure alert, thus generating an
    incomplete close on the client side.

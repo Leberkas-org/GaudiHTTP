@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 11.5.  Establishing a Protection Space (Realm)
 
-11.5.  Establishing a Protection Space (Realm)
+## 11.5  Establishing a Protection Space (Realm)
 
    The "realm" authentication parameter is reserved for use by
    authentication schemes that wish to indicate a scope of protection.

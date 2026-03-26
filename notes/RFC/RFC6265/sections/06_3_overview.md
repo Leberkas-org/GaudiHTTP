@@ -7,9 +7,8 @@ description: "Section 3: Overview — RFC 6265 — HTTP State Management (Cookie
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, overview]
 ---
 
-## 3.  Overview
+# 3.  Overview
 
-3.  Overview
 
    This section outlines a way for an origin server to send state
    information to a user agent and for the user agent to return the
@@ -23,7 +22,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    use its contents for an application-defined purpose.
 
 > **MAY**: Origin servers MAY send a Set-Cookie response header with any
-> **MAY**: response.  User agents MAY ignore Set-Cookie headers contained in
+   response.  User agents MAY ignore Set-Cookie headers contained in
 > **MUST**: responses with 100-level status codes but MUST process Set-Cookie
    headers contained in other responses (including responses with 400-
    and 500-level status codes).  An origin server can include multiple
@@ -37,7 +36,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    the Set-Cookie header field because the %x2C (",") character is used
    by Set-Cookie in a way that conflicts with such folding.
 
-3.1.  Examples
+## 3.1.  Examples
 
    Using the Set-Cookie header, a server can send the user agent a short
    string in an HTTP response that the user agent will return in future

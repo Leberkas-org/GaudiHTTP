@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 6.8.  GOAWAY
 
-6.8.  GOAWAY
+## 6.8  GOAWAY
 
    The GOAWAY frame (type=0x07) is used to initiate shutdown of a
    connection or to signal serious error conditions.  GOAWAY allows an

@@ -138,14 +138,14 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    (for the definition of the header field) and Appendix B of [RFC7231]
    (which removed the field definition from the updated specification).
 
-18.5.  Authentication Scheme Registration
+## 18.5  Authentication Scheme Registration
 
    IANA has updated the "Hypertext Transfer Protocol (HTTP)
    Authentication Scheme Registry" at <https://www.iana.org/assignments/
    http-authschemes> with the registration procedure of Section 16.4.1.
    No authentication schemes are defined in this document.
 
-18.6.  Content Coding Registration
+## 18.6  Content Coding Registration
 
    IANA has updated the "HTTP Content Coding Registry" at
    <https://www.iana.org/assignments/http-parameters/> with the
@@ -171,7 +171,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
                                  Table 10
 
-18.7.  Range Unit Registration
+## 18.7  Range Unit Registration
 
    IANA has updated the "HTTP Range Unit Registry" at
    <https://www.iana.org/assignments/http-parameters/> with the
@@ -189,7 +189,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
                                Table 11
 
-18.8.  Media Type Registration
+## 18.8  Media Type Registration
 
    IANA has updated the "Media Types" registry at
    <https://www.iana.org/assignments/media-types> with the registration
@@ -199,7 +199,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    IANA has updated the registry note about "q" parameters with a link
    to Section 12.5.1 of this document.
 
-18.9.  Port Registration
+## 18.9  Port Registration
 
    IANA has updated the "Service Name and Transport Protocol Port Number
    Registry" at <https://www.iana.org/assignments/service-names-port-
@@ -211,7 +211,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    2.  when currently unspecified, set "Assignee" to "IESG" and
        "Contact" to "IETF_Chair".
 
-18.10.  Upgrade Token Registration
+## 18.10  Upgrade Token Registration
 
    IANA has updated the "Hypertext Transfer Protocol (HTTP) Upgrade
    Token Registry" at <https://www.iana.org/assignments/http-upgrade-

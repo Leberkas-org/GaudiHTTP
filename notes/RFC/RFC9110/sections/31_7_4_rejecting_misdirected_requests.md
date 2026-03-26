@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 7.4.  Rejecting Misdirected Requests
 
-7.4.  Rejecting Misdirected Requests
+## 7.4  Rejecting Misdirected Requests
 
    Once a request is received by a server and parsed sufficiently to
    determine its target URI, the server decides whether to process the

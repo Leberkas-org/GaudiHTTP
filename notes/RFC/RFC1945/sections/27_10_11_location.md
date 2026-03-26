@@ -7,9 +7,9 @@ description: "Section 10.11: Location — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, location]
 ---
 
-## 10.11.  Location
+# 10.11.  Location
 
-10.11  Location
+## 10.11  Location
 
    The Location response-header field defines the exact location of the
    resource that was identified by the Request-URI. For 3xx responses,

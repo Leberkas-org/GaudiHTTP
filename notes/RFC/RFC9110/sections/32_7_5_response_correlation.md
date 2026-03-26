@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 7.5.  Response Correlation
 
-7.5.  Response Correlation
+## 7.5  Response Correlation
 
    A connection might be used for multiple request/response exchanges.
    The mechanism used to correlate between request and response messages

@@ -7,9 +7,9 @@ description: "Section 10.2: Authorization — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, authorization]
 ---
 
-## 10.2.  Authorization
+# 10.2.  Authorization
 
-10.2  Authorization
+## 10.2  Authorization
 
    A user agent that wishes to authenticate itself with a server--
    usually, but not necessarily, after receiving a 401 response--may do

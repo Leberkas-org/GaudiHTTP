@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 12.2.  Reactive Negotiation
 
-12.2.  Reactive Negotiation
+## 12.2  Reactive Negotiation
 
    With "reactive negotiation" (a.k.a., "agent-driven negotiation"),
    selection of content (regardless of the status code) is performed by

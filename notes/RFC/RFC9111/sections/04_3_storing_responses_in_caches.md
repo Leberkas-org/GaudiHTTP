@@ -65,7 +65,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    as such responses are not usually useful to store.  However, caches
    are not prohibited from storing such responses.
 
-3.1.  Storing Header and Trailer Fields
+## 3.1  Storing Header and Trailer Fields
 
 > **MUST**: Caches MUST include all received response header fields -- including
    unrecognized ones -- when storing a response; this assures that new
@@ -93,10 +93,10 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
       and Proxy-Authorization (Section 11.7.2 of [HTTP]).
 
 > **MAY**: Caches MAY either store trailer fields separate from header fields or
-> **MUST NOT**: discard them.  Caches MUST NOT combine trailer fields with header
+   discard them.  Caches MUST NOT combine trailer fields with header
    fields.
 
-3.2.  Updating Stored Header Fields
+## 3.2  Updating Stored Header Fields
 
    Caches are required to update a stored response's header fields from
    another (typically newer) response in several situations; for
@@ -121,7 +121,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    and updating header fields that affect that processing can result in
    inconsistent behavior and security issues.  Caches in this situation
 > **MAY**: MAY omit these header fields from updating stored responses on an
-> **SHOULD**: exceptional basis but SHOULD limit such omission to those fields
+   exceptional basis but SHOULD limit such omission to those fields
    necessary to assure integrity of the stored response.
 
    For example, a browser might decode the content coding of a response
@@ -143,14 +143,14 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    omitted from update; it is a convention for MIME header fields, not
    HTTP.
 
-3.3.  Storing Incomplete Responses
+## 3.3  Storing Incomplete Responses
 
    If the request method is GET, the response status code is 200 (OK),
 > **MAY**: and the entire response header section has been received, a cache MAY
    store a response that is not complete (Section 6.1 of [HTTP])
    provided that the stored response is recorded as being incomplete.
 > **MAY**: Likewise, a 206 (Partial Content) response MAY be stored as if it
-> **MUST NOT**: were an incomplete 200 (OK) response.  However, a cache MUST NOT
+   were an incomplete 200 (OK) response.  However, a cache MUST NOT
    store incomplete or partial-content responses if it does not support
    the Range and Content-Range header fields or if it does not
    understand the range units used in those fields.
@@ -165,7 +165,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    without explicitly marking it using the 206 (Partial Content) status
    code.
 
-3.4.  Combining Partial Content
+## 3.4  Combining Partial Content
 
    A response might transfer only a partial representation if the
    connection closed prematurely or if the request used one or more
@@ -180,7 +180,7 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 > **MUST**: cache MUST update the stored response header fields using the header
    fields provided in the new response, as per Section 3.2.
 
-3.5.  Storing Responses to Authenticated Requests
+## 3.5  Storing Responses to Authenticated Requests
 
 > **MUST NOT**: A shared cache MUST NOT use a cached response to a request with an
    Authorization header field (Section 11.6.2 of [HTTP]) to satisfy any

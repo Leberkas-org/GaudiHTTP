@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 3.5.  User Agents
 
-3.5.  User Agents
+## 3.5  User Agents
 
    The term "user agent" refers to any of the various client programs
    that initiate a request.

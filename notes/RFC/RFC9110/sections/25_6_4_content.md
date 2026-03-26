@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 6.4.  Content
 
-6.4.  Content
+## 6.4  Content
 
    HTTP messages often transfer a complete or partial representation as
    the message "content": a stream of octets sent after the header
@@ -31,7 +31,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  the selected representation (Section 3.2).  See the individual
       |  field's definition to disambiguate.
 
-6.4.1.  Content Semantics
+### 6.4.1  Content Semantics
 
    The purpose of content in a request is defined by the method
    semantics (Section 9).
@@ -75,7 +75,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    All other responses do include content, although that content might
    be of zero length.
 
-6.4.2.  Identifying Content
+### 6.4.2  Identifying Content
 
    When a complete or partial representation is transferred as message
    content, it is often desirable for the sender to supply, or the

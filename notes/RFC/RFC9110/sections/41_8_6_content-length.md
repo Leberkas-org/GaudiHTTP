@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 8.6.  Content-Length
 
-8.6.  Content-Length
+## 8.6  Content-Length
 
    The "Content-Length" header field indicates the associated
    representation's data length as a decimal non-negative integer number
@@ -39,7 +39,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    semantics do not anticipate such data.
 
 > **MAY**: A server MAY send a Content-Length header field in a response to a
-> **MUST NOT**: HEAD request (Section 9.3.2); a server MUST NOT send Content-Length
+   HEAD request (Section 9.3.2); a server MUST NOT send Content-Length
    in such a response unless its field value equals the decimal number
    of octets that would have been sent in the content of a response if
    the same request had used the GET method.

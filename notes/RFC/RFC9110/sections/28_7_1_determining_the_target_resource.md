@@ -17,7 +17,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    response routing follows the same connection chain back to the
    client.
 
-7.1.  Determining the Target Resource
+## 7.1  Determining the Target Resource
 
    Although HTTP is used in a wide variety of applications, most clients
    rely on the same resource identification mechanism and configuration

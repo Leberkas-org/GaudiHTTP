@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 17.6.  Attacks Using Shared-Dictionary Compression
 
-17.6.  Attacks Using Shared-Dictionary Compression
+## 17.6  Attacks Using Shared-Dictionary Compression
 
    Some attacks on encrypted protocols use the differences in size
    created by dynamic compression to reveal confidential information;

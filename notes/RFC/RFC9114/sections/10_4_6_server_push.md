@@ -9,7 +9,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 ## 4.6.  Server Push
 
-4.6.  Server Push
+## 4.6  Server Push
 
    Server push is an interaction mode that permits a server to push a
    request-response exchange to a client in anticipation of the client
@@ -27,7 +27,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    until after the client sends a MAX_PUSH_ID frame.  A client sends
    MAX_PUSH_ID frames to control the number of pushes that a server can
 > **SHOULD**: promise.  A server SHOULD use push IDs sequentially, beginning from
-> **MUST**: zero.  A client MUST treat receipt of a push stream as a connection
+   zero.  A client MUST treat receipt of a push stream as a connection
    error of type H3_ID_ERROR when no MAX_PUSH_ID frame has been sent or
    when the stream references a push ID that is greater than the maximum
    push ID.
@@ -38,7 +38,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    the server push to be associated with a client request.  When the
    same push ID is promised on multiple request streams, the
 > **MUST**: decompressed request field sections MUST contain the same fields in
-> **MUST**: the same order, and both the name and the value in each field MUST be
+   the same order, and both the name and the value in each field MUST be
    identical.
 
    The push ID is then included with the push stream that ultimately
@@ -113,5 +113,5 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    received.
 
 > **MUST NOT**: Pushed responses that are not cacheable MUST NOT be stored by any
-> **MAY**: HTTP cache.  They MAY be made available to the application
+   HTTP cache.  They MAY be made available to the application
    separately.

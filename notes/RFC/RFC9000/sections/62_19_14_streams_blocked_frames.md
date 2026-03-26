@@ -7,9 +7,8 @@ description: "Section 19.14: STREAMS_BLOCKED Frames — RFC 9000 — QUIC: A UDP
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, streams_blocked_frames]
 ---
 
-## 19.14.  STREAMS_BLOCKED Frames
+# 19.14.  STREAMS_BLOCKED Frames
 
-19.14.  STREAMS_BLOCKED Frames
 
 > **SHOULD**: A sender SHOULD send a STREAMS_BLOCKED frame (type=0x16 or 0x17) when
    it wishes to open a stream but is unable to do so due to the maximum

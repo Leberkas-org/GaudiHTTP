@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 8.3.  Content-Type
 
-8.3.  Content-Type
+## 8.3  Content-Type
 
    The "Content-Type" header field indicates the media type of the
    associated representation: either the representation enclosed in the
@@ -57,7 +57,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    security issues if different implementations have different error
    handling behaviors.
 
-8.3.1.  Media Type
+### 8.3.1  Media Type
 
    HTTP uses media types [RFC2046] in the Content-Type (Section 8.3) and
    Accept (Section 12.5.1) header fields in order to provide open and
@@ -95,7 +95,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Media types ought to be registered with IANA according to the
    procedures defined in [BCP13].
 
-8.3.2.  Charset
+### 8.3.2  Charset
 
    HTTP uses "charset" names to indicate or negotiate the character
    encoding scheme ([RFC6365], Section 2) of a textual representation.
@@ -115,7 +115,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
       |  registered at the time of this writing includes braces (see
       |  [Err5433]).
 
-8.3.3.  Multipart Types
+### 8.3.3  Multipart Types
 
    MIME provides for a number of "multipart" types -- encapsulations of
    one or more representations within a single message body.  All

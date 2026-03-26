@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 3.2.  Representations
 
-3.2.  Representations
+## 3.2  Representations
 
    A "representation" is information that is intended to reflect a past,
    current, or desired state of a given resource, in a format that can

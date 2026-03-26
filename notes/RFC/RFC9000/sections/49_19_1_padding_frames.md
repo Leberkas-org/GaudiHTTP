@@ -7,15 +7,15 @@ description: "Section 19.1: PADDING Frames — RFC 9000 — QUIC: A UDP-Based Mu
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, padding_frames]
 ---
 
-## 19.1.  PADDING Frames
+# 19.1.  PADDING Frames
 
-19.  Frame Types and Formats
+
 
    As described in Section 12.4, packets contain one or more frames.
    This section describes the format and semantics of the core QUIC
    frame types.
 
-19.1.  PADDING Frames
+## 19.1.  PADDING Frames
 
    A PADDING frame (type=0x00) has no semantic value.  PADDING frames
    can be used to increase the size of a packet.  Padding can be used to

@@ -7,9 +7,9 @@ description: "Section 9.1: Probing a New Path — RFC 9000 — QUIC: A UDP-Based
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, probing_a_new_path]
 ---
 
-## 9.1.  Probing a New Path
+# 9.1.  Probing a New Path
 
-9.  Connection Migration
+
 
    The use of a connection ID allows connections to survive changes to
    endpoint addresses (IP address and port), such as those caused by an
@@ -42,7 +42,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
    When an endpoint has no validated path on which to send packets, it
 > **MAY**: MAY discard connection state.  An endpoint capable of connection
-> **MAY**: migration MAY wait for a new path to become available before
+   migration MAY wait for a new path to become available before
    discarding connection state.
 
    This document limits migration of connections to new client
@@ -53,7 +53,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 > **MUST**: packets from an unknown server address, the client MUST discard these
    packets.
 
-9.1.  Probing a New Path
+## 9.1.  Probing a New Path
 
 > **MAY**: An endpoint MAY probe for peer reachability from a new local address
    using path validation (Section 8.2) prior to migrating the connection

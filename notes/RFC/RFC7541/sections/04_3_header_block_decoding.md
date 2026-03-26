@@ -7,11 +7,10 @@ description: "Section 3: Header Block Decoding — RFC 7541 — HPACK: Header Co
 tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, Huffman-coding, indexed-representation, header_block_decoding]
 ---
 
-## 3.  Header Block Decoding
+# 3.  Header Block Decoding
 
-3.  Header Block Decoding
 
-3.1.  Header Block Processing
+## 3.1.  Header Block Processing
 
    A decoder processes a header block sequentially to reconstruct the
    original header list.
@@ -30,7 +29,7 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    can be implemented with minimal transitory memory commitment in
    addition to the memory required for the dynamic table.
 
-3.2.  Header Field Representation Processing
+## 3.2.  Header Field Representation Processing
 
    The processing of a header block to obtain a header list is defined
    in this section.  To ensure that the decoding will successfully

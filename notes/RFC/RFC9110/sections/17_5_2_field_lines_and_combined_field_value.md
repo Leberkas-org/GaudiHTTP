@@ -9,7 +9,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## 5.2.  Field Lines and Combined Field Value
 
-5.2.  Field Lines and Combined Field Value
+## 5.2  Field Lines and Combined Field Value
 
    Field sections are composed of any number of "field lines", each with
    a "field name" (see Section 5.1) identifying the field, and a "field

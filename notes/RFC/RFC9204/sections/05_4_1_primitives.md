@@ -11,9 +11,9 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 4.  Wire Format
 
-4.1.  Primitives
+## 4.1  Primitives
 
-4.1.1.  Prefixed Integers
+### 4.1.1  Prefixed Integers
 
    The prefixed integer from Section 5.1 of [RFC7541] is used heavily
    throughout this document.  The format from [RFC7541] is used
@@ -23,7 +23,7 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 > **MUST**: QPACK implementations MUST be able to decode integers up to and
    including 62 bits long.
 
-4.1.2.  String Literals
+### 4.1.2  String Literals
 
    The string literal defined by Section 5.2 of [RFC7541] is also used
    throughout.  This string format includes optional Huffman encoding.

@@ -24,7 +24,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    and TE (Section 10.1.4 of [HTTP]) header fields (the latter also
    defining the "transfer-coding" grammar).
 
-7.1.  Chunked Transfer Coding
+## 7.1  Chunked Transfer Coding
 
    The chunked transfer coding wraps content in order to transfer it as
    a series of chunks, each with its own size indicator, followed by an
@@ -70,7 +70,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    The chunked coding does not define any parameters.  Their presence
 > **SHOULD**: SHOULD be treated as an error.
 
-7.1.1.  Chunk Extensions
+### 7.1.1  Chunk Extensions
 
    The chunked coding allows each chunk to include zero or more chunk
    extensions, immediately following the chunk-size, for the sake of
@@ -103,7 +103,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    parts of a message, and generate an appropriate 4xx (Client Error)
    response if that amount is exceeded.
 
-7.1.2.  Chunked Trailer Section
+### 7.1.2  Chunked Trailer Section
 
    A trailer section allows the sender to include additional fields at
    the end of a chunked message in order to supply metadata that might
@@ -128,7 +128,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    permits and instructs how the trailer field value can be safely
    merged.
 
-7.1.3.  Decoding Chunked
+### 7.1.3  Decoding Chunked
 
    A process for decoding the chunked transfer coding can be represented
    in pseudo-code as:
@@ -157,7 +157,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
      Content-Length := length
      Remove "chunked" from Transfer-Encoding
 
-7.2.  Transfer Codings for Compression
+## 7.2  Transfer Codings for Compression
 
    The following transfer coding names for compression are defined by
    the same algorithm as their corresponding content coding:
@@ -175,7 +175,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 > **SHOULD**: of parameters with any of these compression codings SHOULD be treated
    as an error.
 
-7.3.  Transfer Coding Registry
+## 7.3  Transfer Coding Registry
 
    The "HTTP Transfer Coding Registry" defines the namespace for
    transfer coding names.  It is maintained at
@@ -207,7 +207,7 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
    Use of program names for the identification of encoding formats is
    not desirable and is discouraged for future encodings.
 
-7.4.  Negotiating Transfer Codings
+## 7.4  Negotiating Transfer Codings
 
    The TE field (Section 10.1.4 of [HTTP]) is used in HTTP/1.1 to
    indicate what transfer codings, besides chunked, the client is

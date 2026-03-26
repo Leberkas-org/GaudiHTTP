@@ -7,9 +7,9 @@ description: "Section 5: Request — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request]
 ---
 
-## 5.  Request
+# 5.  Request
 
-5. Request
+
 
    A request message from a client to a server includes, within the
    first line of that message, the method to be applied to the resource,
@@ -36,7 +36,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    an HTTP/0.9 Simple-Response. An HTTP/1.0 client capable of receiving
    a Full-Response should never generate a Simple-Request.
 
-5.1  Request-Line
+## 5.1  Request-Line
 
    The Request-Line begins with a method token, followed by the
    Request-URI and the protocol version, and ending with CRLF. The
@@ -55,7 +55,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    Line of a Full-Request is the presence of the HTTP-Version field and
    the availability of methods other than GET.
 
-5.1.1 Method
+### 5.1.1  Method
 
    The Method token indicates the method to be performed on the resource
    identified by the Request-URI. The method is case-sensitive.
@@ -80,7 +80,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    The methods commonly used by HTTP/1.0 applications are fully defined
    in Section 8.
 
-5.1.2 Request-URI
+### 5.1.2  Request-URI
 
    The Request-URI is a Uniform Resource Identifier (Section 3.2) and
    identifies the resource upon which to apply the request.
@@ -128,7 +128,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    RFC 1738 [4]. The origin server must decode the Request-URI in order
    to properly interpret the request.
 
-5.2  Request Header Fields
+## 5.2  Request Header Fields
 
    The request header fields allow the client to pass additional
    information about the request, and about the client itself, to the

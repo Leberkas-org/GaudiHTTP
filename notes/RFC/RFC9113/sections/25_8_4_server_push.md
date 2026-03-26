@@ -9,7 +9,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## 8.4.  Server Push
 
-8.4.  Server Push
+## 8.4  Server Push
 
    HTTP/2 allows a server to preemptively send (or "push") responses
    (along with corresponding "promised" requests) to a client in
@@ -54,7 +54,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    promised stream identifier is still open.
 
 > **MUST NOT**: Pushed responses that are not cacheable MUST NOT be stored by any
-> **MAY**: HTTP cache.  They MAY be made available to the application
+   HTTP cache.  They MAY be made available to the application
    separately.
 
 > **MUST**: The server MUST include a value in the ":authority" pseudo-header
@@ -74,7 +74,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    PROTOCOL_ERROR.  A server cannot set the SETTINGS_ENABLE_PUSH setting
    to a value other than 0 (see Section 6.5.2).
 
-8.4.1.  Push Requests
+### 8.4.1  Push Requests
 
    Server push is semantically equivalent to a server responding to a
    request; however, in this case, that request is also sent by the
@@ -93,7 +93,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
    The header fields in PUSH_PROMISE and any subsequent CONTINUATION
 > **MUST**: frames MUST be a valid and complete set of request header fields
-> **MUST**: (Section 8.3.1).  The server MUST include a method in the ":method"
+   (Section 8.3.1).  The server MUST include a method in the ":method"
    pseudo-header field that is safe and cacheable.  If a client receives
    a PUSH_PROMISE that does not include a complete and valid set of
    header fields or the ":method" pseudo-header field identifies a
@@ -128,7 +128,7 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
    into the "reserved (local)" state for the server and the "reserved
    (remote)" state for the client.
 
-8.4.2.  Push Responses
+### 8.4.2  Push Responses
 
    After sending the PUSH_PROMISE frame, the server can begin delivering
    the pushed response as a response (Section 8.3.2) on a server-

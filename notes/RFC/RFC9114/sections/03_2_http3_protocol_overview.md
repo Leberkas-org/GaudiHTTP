@@ -46,7 +46,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    state, while encoded field sections refer to the state of the table
    without modifying it.
 
-2.1.  Document Organization
+## 2.1  Document Organization
 
    The following sections provide a detailed overview of the lifecycle
    of an HTTP/3 connection:
@@ -81,7 +81,7 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
    *  A more detailed comparison between HTTP/2 and HTTP/3 can be found
       in Appendix A.
 
-2.2.  Conventions and Terminology
+## 2.2  Conventions and Terminology
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and

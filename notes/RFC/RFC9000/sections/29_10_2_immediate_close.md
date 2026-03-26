@@ -7,9 +7,8 @@ description: "Section 10.2: Immediate Close — RFC 9000 — QUIC: A UDP-Based M
 tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, immediate_close]
 ---
 
-## 10.2.  Immediate Close
+# 10.2.  Immediate Close
 
-10.2.  Immediate Close
 
    An endpoint sends a CONNECTION_CLOSE frame (Section 19.19) to
    terminate the connection immediately.  A CONNECTION_CLOSE frame
@@ -49,11 +48,11 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    state early.
 
 > **SHOULD**: Once its closing or draining state ends, an endpoint SHOULD discard
-> **MAY**: all connection state.  The endpoint MAY send a Stateless Reset in
+   all connection state.  The endpoint MAY send a Stateless Reset in
    response to any further incoming packets belonging to this
    connection.
 
-10.2.1.  Closing Connection State
+### 10.2.1.  Closing Connection State
 
    An endpoint enters the closing state after initiating an immediate
    close.
@@ -108,7 +107,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    endpoint will not be able to process subsequently received packets,
    but it otherwise has no impact.
 
-10.2.2.  Draining Connection State
+### 10.2.2.  Draining Connection State
 
    The draining state is entered once an endpoint receives a
    CONNECTION_CLOSE frame, which indicates that its peer is closing or
@@ -131,7 +130,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    uses the same end time but ceases transmission of any packets on this
    connection.
 
-10.2.3.  Immediate Close during the Handshake
+### 10.2.3.  Immediate Close during the Handshake
 
    When sending a CONNECTION_CLOSE frame, the goal is to ensure that the
    peer will process the frame.  Generally, this means sending the frame
@@ -169,7 +168,7 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    CONNECTION_CLOSE of type 0x1c when sending the frame in Initial or
    Handshake packets.  Otherwise, information about the application
 > **MUST**: state might be revealed.  Endpoints MUST clear the value of the
-> **SHOULD**: Reason Phrase field and SHOULD use the APPLICATION_ERROR code when
+   Reason Phrase field and SHOULD use the APPLICATION_ERROR code when
    converting to a CONNECTION_CLOSE of type 0x1c.
 
    CONNECTION_CLOSE frames sent in multiple packet types can be

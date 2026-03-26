@@ -11,7 +11,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 8.  Representation Data and Metadata
 
-8.1.  Representation Data
+## 8.1  Representation Data
 
    The representation data associated with an HTTP message is either
    provided as the content of the message or referred to by the message

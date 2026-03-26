@@ -7,9 +7,8 @@ description: "Appendix A: Acknowledgements — RFC 6265 — HTTP State Managemen
 tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-matching, SameSite, HttpOnly, acknowledgements]
 ---
 
-## Appendix A.  Acknowledgements
+# Appendix A.  Acknowledgements
 
-Appendix A.  Acknowledgements
 
    This document borrows heavily from RFC 2109 [RFC2109].  We are
    indebted to David M. Kristol and Lou Montulli for their efforts to

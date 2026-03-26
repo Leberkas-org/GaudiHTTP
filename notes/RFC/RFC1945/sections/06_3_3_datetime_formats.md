@@ -7,9 +7,9 @@ description: "Section 3.3: Date/Time Formats — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, datetime_formats]
 ---
 
-## 3.3.  Date/Time Formats
+# 3.3.  Date/Time Formats
 
-3.3  Date/Time Formats
+## 3.3  Date/Time Formats
 
    HTTP/1.0 applications have historically allowed three different
    formats for the representation of date/time stamps:

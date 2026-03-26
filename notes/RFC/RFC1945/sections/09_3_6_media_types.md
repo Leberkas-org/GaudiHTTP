@@ -7,9 +7,9 @@ description: "Section 3.6: Media Types — RFC 1945 — HTTP/1.0"
 tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content-length, status-codes, simple-request, media_types]
 ---
 
-## 3.6.  Media Types
+# 3.6.  Media Types
 
-3.6  Media Types
+## 3.6  Media Types
 
    HTTP uses Internet Media Types [13] in the Content-Type header field
    (Section 10.5) in order to provide open and extensible data typing.
@@ -50,7 +50,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    outlined in RFC 1590 [13]. Use of non-registered media types is
    discouraged.
 
-3.6.1 Canonicalization and Text Defaults
+## 3.6.1  Canonicalization and Text Defaults
 
    Internet media types are registered with a canonical form. In
    general, an Entity-Body transferred via HTTP must be represented in
@@ -93,7 +93,7 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
       user to change the default interpretation of the media type
       character set when no charset parameter is given.
 
-3.6.2 Multipart Types
+## 3.6.2  Multipart Types
 
    MIME provides for a number of "multipart" types -- encapsulations of
    several entities within a single message's Entity-Body. The multipart
