@@ -59,21 +59,21 @@ Fix two critical issues blocking 12 HTTP/1.0 integration tests (out of 515 total
 **Parallel:** no — requires analysis from TASK-002-001
 
 **Acceptance Criteria:**
-- [ ] Modify `src/TurboHttp/Streams/Stages/Routing/GroupByHostKeyStage.cs`:
-  - [ ] Create new private method `TryCompleteStage()` that:
+- [x] Modify `src/TurboHttp/Streams/Stages/Routing/GroupByHostKeyStage.cs`:
+  - [x] Create new private method `TryCompleteStage()` that:
     - Checks `if (_subflows.Values.All(state => state.IsDead))`
     - Only calls `CompleteStage()` when true
     - Logs debug message "GroupByHostKeyStage: all substreams dead, completing stage" when completed
     - Logs "GroupByHostKeyStage: deferring completion, N substreams still alive" when deferred
-  - [ ] Modify `TryFinish()` method (line 159): change `CompleteStage()` to `TryCompleteStage()`
-  - [ ] Ensure `TryCompleteStage()` is called from all completion paths:
-    - [ ] End of `TryFinish()` method (existing flow)
-    - [ ] End of `_onOfferComplete` callback when `_upstreamFinished` and offer succeeds (line 130)
-    - [ ] End of `ReplaceSubstream()` when new substream created (line 251)
-    - [ ] End of `ReplaceSubstream()` when no pending items (line 243)
-- [ ] Ensure no other code calls `CompleteStage()` directly (grep to verify)
-- [ ] Compile with zero warnings
-- [ ] No behavior change for normal cases — two-phase completion is transparent to upstream/downstream
+  - [x] Modify `TryFinish()` method (line 159): change `CompleteStage()` to `TryCompleteStage()`
+  - [x] Ensure `TryCompleteStage()` is called from all completion paths:
+    - [x] End of `TryFinish()` method (existing flow)
+    - [x] End of `_onOfferComplete` callback when `_upstreamFinished` and offer succeeds (line 130)
+    - [x] End of `ReplaceSubstream()` when new substream created (line 251)
+    - [x] End of `ReplaceSubstream()` when no pending items (line 243)
+- [x] Ensure no other code calls `CompleteStage()` directly (grep to verify)
+- [x] Compile with zero warnings
+- [x] No behavior change for normal cases — two-phase completion is transparent to upstream/downstream
 
 ---
 

@@ -156,6 +156,23 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
             }
 
             Log.Debug("GroupByHostKeyStage: completing stage, {0} substreams", _subflows.Count);
+            TryCompleteStage();
+        }
+
+        // Two-phase completion: only kill stage actor scope when every substream
+        // has actually died. This gives downstream feature BidiStages (Retry,
+        // Cache) time to emit re-injections after upstream finishes.
+        private void TryCompleteStage()
+        {
+            var aliveCount = _subflows.Values.Count(state => !state.IsDead);
+
+            if (aliveCount > 0)
+            {
+                Log.Debug("GroupByHostKeyStage: deferring completion, {0} substreams still alive", aliveCount);
+                return;
+            }
+
+            Log.Debug("GroupByHostKeyStage: all substreams dead, completing stage");
             CompleteStage();
         }
 
@@ -257,6 +274,11 @@ internal sealed class GroupByHostKeyStage<T> : GraphStage<FlowShape<T, Source<T,
                 {
                     newState.Pending.Enqueue(pending);
                 }
+            }
+
+            if (_upstreamFinished)
+            {
+                TryCompleteStage();
             }
         }
 
