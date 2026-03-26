@@ -161,6 +161,36 @@ Four separate **protocol engines** route requests by HTTP version:
 - `ClientByteMover` spawns as background async tasks per connection
 - TCP/QUIC data flows through `System.IO.Pipelines.Pipe`
 
+## Actor-Based Stream Lifecycle (`TurboHttp/Client/`)
+
+The Akka stream pipeline is supervised by a two-actor hierarchy:
+
+```
+ClientStreamOwnerActor (supervisor)
+└── ClientStreamInstanceActor (materializes the Akka.Streams pipeline)
+```
+
+### ClientStreamOwnerActor
+- **Supervises** the stream instance actor
+- **Tracks pending work** from feature BidiStages (redirect/retry re-injections)
+- **Retries** with exponential backoff: 100ms → 500ms → 2s (max 3 attempts)
+- **Graceful shutdown**: 5s timeout, waits for pending work to drain
+
+### ClientStreamInstanceActor
+- **Owns and materializes** the Akka.Streams pipeline (`ChannelSource → Engine → Sink`)
+- **Reports** completion/failure to Owner actor
+- **Cleans up** resources in `PostStop`
+
+### Supporting Types
+- **IPendingWorkTracker / PendingWorkTracker** — thread-safe lock-free counter; feature BidiStages increment before re-injection, decrement after round-trip; Owner checks before allowing stream completion
+- **IClientStreamOwner** — public interface for advanced users; provides `InitializeStreamAsync` and `ActorRef` access
+- **StreamInitializationOptions** — record with `TurboClientOptions`, `RequestOptionsFactory`, optional `SupervisorStrategy`
+- **StreamInitializationResult** — union type: `Success(IActorRef)` or `Failed(Exception)`
+
+### Actor Protocol Messages (`ActorProtocol.cs`)
+- **ClientStreamOwner.Message**: `Create`, `Created`, `Failed`, `PendingWorkSignal`, `RequestStreamIdle`, `Shutdown`
+- **ClientStreamInstance.Message**: `Initialize`, `Initialized`, `Failed`, `PendingWorkChanged`, `RequestShutdown`
+
 ## Key Invariants
 
 1. **No actor mailbox in data path** — TCP→Channels→Pipe→Channels→TCP with zero actor hops
