@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TurboHttp.Client;
 using TurboHttp.Protocol.RFC6265;
 using TurboHttp.Protocol.RFC9110;
 using TurboHttp.Protocol.RFC9111;
@@ -14,7 +15,8 @@ internal sealed record PipelineDescriptor(
     CacheStore? CacheStore,
     CachePolicy? CachePolicy,
     IReadOnlyList<TurboHandler> Handlers,
-    bool AutomaticDecompression = true)
+    bool AutomaticDecompression = true,
+    IPendingWorkTracker? PendingWorkTracker = null)
 {
     public static readonly PipelineDescriptor Empty = new(
         RedirectPolicy: null,
@@ -25,5 +27,6 @@ internal sealed record PipelineDescriptor(
         CacheStore: null,
         CachePolicy: null,
         Handlers: [],
-        AutomaticDecompression: true);
+        AutomaticDecompression: true,
+        PendingWorkTracker: null);
 }

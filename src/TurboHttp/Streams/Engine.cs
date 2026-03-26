@@ -92,7 +92,8 @@ internal sealed class Engine
         // Protocol engine core (version demux + encode/decode) with async boundary.
         var engineFlow = Flow.FromGraph(
                 ProtocolCoreGraphBuilder.Build(pool, options,
-                    http10Factory, http11Factory, http20Factory, http30Factory))
+                    http10Factory, http11Factory, http20Factory, http30Factory,
+                    descriptor.PendingWorkTracker))
             .WithAttributes(Attributes.CreateAsyncBoundary());
 
         // Build feature BidiFlow chain via conditional Atop stacking.
@@ -103,13 +104,13 @@ internal sealed class Engine
         if (descriptor.AutomaticDecompression || descriptor.RequestCompressionPolicy is not null)
         {
             var contentEncoding = BidiFlow.FromGraph(
-                new ContentEncodingBidiStage(descriptor.AutomaticDecompression, descriptor.RequestCompressionPolicy));
+                new ContentEncodingBidiStage(descriptor.AutomaticDecompression, descriptor.RequestCompressionPolicy, descriptor.PendingWorkTracker));
             features = features is not null ? contentEncoding.Atop(features) : contentEncoding;
         }
 
         if (descriptor.CacheStore is not null)
         {
-            var cache = BidiFlow.FromGraph(new CacheBidiStage(descriptor.CacheStore, descriptor.CachePolicy));
+            var cache = BidiFlow.FromGraph(new CacheBidiStage(descriptor.CacheStore, descriptor.CachePolicy, descriptor.PendingWorkTracker));
             features = features is not null ? cache.Atop(features) : cache;
         }
 
@@ -121,7 +122,7 @@ internal sealed class Engine
 
         if (descriptor.RetryPolicy is not null)
         {
-            var retry = BidiFlow.FromGraph(new RetryBidiStage(descriptor.RetryPolicy));
+            var retry = BidiFlow.FromGraph(new RetryBidiStage(descriptor.RetryPolicy, descriptor.PendingWorkTracker));
             features = features is not null ? retry.Atop(features) : retry;
         }
 
@@ -133,7 +134,7 @@ internal sealed class Engine
 
         if (descriptor.RedirectPolicy is not null)
         {
-            var redirect = BidiFlow.FromGraph(new RedirectBidiStage(descriptor.RedirectPolicy));
+            var redirect = BidiFlow.FromGraph(new RedirectBidiStage(descriptor.RedirectPolicy, descriptor.PendingWorkTracker));
             features = features is not null ? redirect.Atop(features) : redirect;
         }
 

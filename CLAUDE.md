@@ -230,13 +230,22 @@ Network (TCP / QUIC)
 - `ITurboHttpClientFactory` / `TurboHttpClientFactory` — DI-friendly factory pattern for named/typed clients
 - `TurboHttpClientFactoryExtensions` — extension methods for factory registration
 - `TurboClientOptions` — per-client configuration (timeouts, redirects, retries)
-- `TurboClientStreamManager` — manages Akka stream lifecycle per client
+- `TurboClientStreamManager` — manages Akka stream lifecycle per client (internal; for advanced use see `IClientStreamOwner`)
+
+**Actor-based stream lifecycle** (`TurboHttp/Client/`):
+- `ClientStreamOwnerActor` — supervises stream instance; tracks pending work from feature BidiStages; retries with exponential backoff (100ms, 500ms, 2s, max 3 attempts); coordinates graceful shutdown (5s timeout)
+- `ClientStreamInstanceActor` — owns and materializes the Akka.Streams pipeline (`ChannelSource → Engine → Sink`); reports completion/failure to Owner; cleans up resources in `PostStop`
+- `IPendingWorkTracker` / `PendingWorkTracker` — thread-safe lock-free counter; feature BidiStages increment before re-injection, decrement after round-trip; Owner checks before allowing stream completion
+- `IClientStreamOwner` — public interface for advanced users to interact with the Owner actor directly; provides `InitializeStreamAsync` and `ActorRef` access
+- `StreamInitializationOptions` — record with `TurboClientOptions`, `RequestOptionsFactory`, and optional `SupervisorStrategy`
+- `StreamInitializationResult` — union type: `Success(IActorRef)` or `Failed(Exception)`
+- `ActorProtocol.cs` — message contracts: `ClientStreamOwner.Message` (Create, Created, Failed, PendingWorkSignal, RequestStreamIdle, Shutdown) and `ClientStreamInstance.Message` (Initialize, Initialized, Failed, PendingWorkChanged, RequestShutdown)
 
 ### Handlers Layer (`TurboHttp/Handlers/`)
 
-- `ITurboHttpClientBuilder` / `TurboHttpClientBuilder` — fluent API for composing handler pipeline
+- `ITurboHttpClientBuilder` / `TurboHttpClientBuilder` — fluent API for composing handler pipeline; includes `WithSupervisorStrategy(strategy)` for custom actor supervision
 - `TurboHandler` — delegating handler bridge to Akka stream pipeline
-- `TurboClientDescriptor` — describes a configured client instance
+- `TurboClientDescriptor` — describes a configured client instance (includes `CustomSupervisorStrategy`)
 
 ### Hosting Layer (`TurboHttp/Hosting/`)
 
@@ -416,6 +425,114 @@ Quality gates (use when applicable)
 
 Specialist agents
 - dotnet-concurrency-specialist, dotnet-performance-analyst, dotnet-benchmark-designer, akka-net-specialist, docfx-specialist, roslyn-incremental-generator-specialist
+
+## Roslyn Navigator (Code Navigation)
+
+The **RoslynNavigator** is an MCP-based semantic analyzer for navigating the codebase. Use it to understand code structure, find definitions, and trace call paths.
+
+### Core Navigation Tools
+
+| Tool | Purpose |
+|------|---------|
+| `find_symbol` | Locate a type, method, or property definition with file + line |
+| `find_references` | Find all usages of a symbol across the solution |
+| `find_callers` | Find which methods call a specific method |
+| `get_dependency_graph` | Trace recursive call chains (up to depth 5) |
+| `get_symbol_detail` | Get full signature, parameters, docs without reading file |
+| `get_type_hierarchy` | Full inheritance chain, interfaces, derived types |
+| `get_public_api` | List public members of a type |
+| `find_implementations` | Find all types implementing an interface |
+| `get_project_graph` | View solution structure + project references |
+
+### Quick Navigation Examples
+
+**"Where is `Http11EncoderStage` defined?"**
+→ `find_symbol("Http11EncoderStage")` → file + line
+
+**"Who calls `TryDecode`?"**
+→ `find_callers("TryDecode")` → all callers with snippets
+
+**"What does `ConnectionPool.AcquireAsync()` signature look like?"**
+→ `get_symbol_detail("AcquireAsync", containingType: "ConnectionPool")` → signature + docs
+
+**"What inherits from `IProtocolEngine`?"**
+→ `find_implementations("IProtocolEngine")` → all implementations
+
+**"What's the full call chain from `SendAsync`?"**
+→ `get_dependency_graph("SendAsync", depth: 3)` → call tree
+
+**"What types depend on `ConnectionHandle`?"**
+→ `find_references("ConnectionHandle")` → all usages with context
+
+### Integration with Obsidian Vault
+
+Use RoslynNavigator to explore code, then cross-reference with Obsidian vault (`notes/`):
+- Find RFC compliance gaps in code → check `notes/rfc/RFC*.md` for existing analysis
+- Discover architecture patterns → link from `notes/Architecture/` ADRs
+- Investigate protocol issues → correlate with `notes/RFC/` debugging notes
+- Search Obsidian vault with Obsidian MCP tools for related findings from previous sessions
+
+Example workflow:
+1. `find_symbol("Http11Decoder")` → locate implementation
+2. `search_notes("HTTP/1.1 decoder limits")` in Obsidian → find prior analysis
+3. `get_symbol_detail()` → understand current state vs. documented gaps
+
+## Obsidian MCP (Knowledge Management)
+
+The **Obsidian MCP** integration allows searching, reading, and writing to the project's knowledge vault (`notes/`). Use it to capture findings, retrieve past analysis, and cross-reference with code investigations.
+
+### Core Obsidian Tools
+
+| Tool | Purpose |
+|------|---------|
+| `search_notes` | Full-text search across vault by content or frontmatter |
+| `read_note` | Read a specific note with frontmatter + content |
+| `read_multiple_notes` | Batch read up to 10 notes (efficient for cross-referencing) |
+| `write_note` | Create or update a note with optional frontmatter |
+| `patch_note` | Update part of a note without rewriting entire file |
+| `get_notes_info` | Get metadata (path, title, modified) without reading content |
+| `list_all_tags` | Discover existing tags for consistent categorization |
+| `list_directory` | Browse vault structure (RFC sections, architecture, features) |
+| `get_vault_stats` | Overview: total notes, recent files, vault size |
+| `manage_tags` | Add/remove tags for organization |
+| `get_frontmatter` | Extract metadata without reading full content |
+| `move_note` / `move_file` | Reorganize vault structure |
+| `update_frontmatter` | Update metadata (tags, dates, status) |
+
+### Quick Obsidian Workflows
+
+**"Have I analyzed this RFC section before?"**
+→ `search_notes("RFC 9112 Content-Length")` → find prior notes
+
+**"What's the current status of HTTP/2 encoder gaps?"**
+→ `read_note("notes/rfc/RFC9113_ENCODER_GAPS.md")` → get full analysis
+
+**"What architecture decisions exist for connection pooling?"**
+→ `search_notes("connection pool", searchFrontmatter: true)` → find ADRs
+
+**"Document this new finding:"**
+→ `write_note("notes/RFC/Http11Decoder_Header_Limits.md", content, frontmatter)` → capture with RFC tag
+
+**"Link multiple findings together:"**
+→ `read_multiple_notes(["notes/rfc/RFC9112.md", "notes/Architecture/ConnectionPool.md"])` → cross-reference
+
+**"What recent discoveries are undocumented?"**
+→ `get_vault_stats(recentCount: 10)` → see recent notes, identify gaps
+
+**"Batch-tag notes with standard RFC labels:"**
+→ `manage_tags("notes/rfc/RFC9110.md", operation: "add", tags: ["rfc9110", "semantics"])` → categorize
+
+### Vault Organization (Quick Reference)
+
+```
+notes/
+├── rfc/                    # RFC analysis & compliance notes (search: RFC + section name)
+├── Architecture/           # ADRs & design decisions (search: component name)
+├── RFC/                    # Specific RFC compliance tracking (search: protocol + gap)
+├── Features/               # Feature planning & progress (search: feature name)
+├── Debugging/              # (git-ignored) Debugging investigations
+└── Templates/              # Session-Log, RFC-Note, ADR, Bug-Investigation
+```
 
 ### Required Before Commit
 

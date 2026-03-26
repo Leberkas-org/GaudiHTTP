@@ -33,12 +33,12 @@ Refactor TurboHttp client architecture to separate concerns between lifecycle ma
 **Parallel:** yes — foundational, unblocks all implementation tasks
 
 **Acceptance Criteria:**
-- [ ] Define `ClientStreamOwner.Message` union type with message cases: `CreateStreamInstance`, `StreamInstanceCreated`, `StreamInstanceFailed`, `PendingWorkSignal`, `RequestStreamIdle`, `Shutdown`
-- [ ] Define `ClientStreamInstance.Message` union type with: `InitializeStream`, `StreamInitialized`, `StreamFailed`, `PendingWorkChanged`, `RequestShutdown`
-- [ ] Define `IPendingWorkTracker` interface — methods `IncrementPending()`, `DecrementPending()`, `IsPending: bool`
-- [ ] Document per-message semantics: what triggers it, what sender expects in return, who is responsible for cleanup
-- [ ] Create message flow diagram showing happy path (create → initialize → idle) and error paths (crash → retry)
-- [ ] Add to `TurboHttp/Client/` as `ActorProtocol.cs`
+- [x] Define `ClientStreamOwner.Message` union type with message cases: `CreateStreamInstance`, `StreamInstanceCreated`, `StreamInstanceFailed`, `PendingWorkSignal`, `RequestStreamIdle`, `Shutdown`
+- [x] Define `ClientStreamInstance.Message` union type with: `InitializeStream`, `StreamInitialized`, `StreamFailed`, `PendingWorkChanged`, `RequestShutdown`
+- [x] Define `IPendingWorkTracker` interface — methods `IncrementPending()`, `DecrementPending()`, `IsPending: bool`
+- [x] Document per-message semantics: what triggers it, what sender expects in return, who is responsible for cleanup
+- [x] Create message flow diagram showing happy path (create → initialize → idle) and error paths (crash → retry)
+- [x] Add to `TurboHttp/Client/` as `ActorProtocol.cs`
 
 ---
 
@@ -53,15 +53,15 @@ Refactor TurboHttp client architecture to separate concerns between lifecycle ma
 **Model:** opus — complex state machine with supervision and retry logic
 
 **Acceptance Criteria:**
-- [ ] `ClientStreamOwner` implements actor receive for all message types from `ActorProtocol`
-- [ ] Maintains state: `_pending: int` (count of re-injections from feature stages), `_streamInstance: IActorRef`, `_retryAttempts: int`, `_lastError: Exception`
-- [ ] On `CreateStreamInstance` → spawns child `ClientStreamInstance` actor with `SupervisorStrategy.AllForOneStrategy` (max 3 retries with exponential backoff: 100ms, 500ms, 2s)
-- [ ] On `PendingWorkSignal(increment)` → updates `_pending` counter; tracks which stages have pending work (debug logging)
-- [ ] On `StreamInstanceFailed(error)` → applies retry backoff; recreates child after delay; emits diagnostic log with attempt number
-- [ ] On `RequestStreamIdle` from instance → checks if `_pending == 0`; only then signals instance to complete; otherwise waits for pending work to finish
-- [ ] On `Shutdown` → completes request channel, waits up to 5 seconds for stream instance to drain, then terminates gracefully
-- [ ] File: `TurboHttp/Client/ClientStreamOwner.cs`
-- [ ] Diagnostic logging at INFO level: creation, retry attempts, pending work state changes
+- [x] `ClientStreamOwner` implements actor receive for all message types from `ActorProtocol`
+- [x] Maintains state: `_pending: int` (count of re-injections from feature stages), `_streamInstance: IActorRef`, `_retryAttempts: int`, `_lastError: Exception`
+- [x] On `CreateStreamInstance` → spawns child `ClientStreamInstance` actor with `SupervisorStrategy.AllForOneStrategy` (max 3 retries with exponential backoff: 100ms, 500ms, 2s)
+- [x] On `PendingWorkSignal(increment)` → updates `_pending` counter; tracks which stages have pending work (debug logging)
+- [x] On `StreamInstanceFailed(error)` → applies retry backoff; recreates child after delay; emits diagnostic log with attempt number
+- [x] On `RequestStreamIdle` from instance → checks if `_pending == 0`; only then signals instance to complete; otherwise waits for pending work to finish
+- [x] On `Shutdown` → completes request channel, waits up to 5 seconds for stream instance to drain, then terminates gracefully
+- [x] File: `TurboHttp/Client/ClientStreamOwner.cs`
+- [x] Diagnostic logging at INFO level: creation, retry attempts, pending work state changes
 
 ---
 
@@ -76,14 +76,14 @@ Refactor TurboHttp client architecture to separate concerns between lifecycle ma
 **Model:** opus — complex stream lifecycle and error handling
 
 **Acceptance Criteria:**
-- [ ] `ClientStreamInstance` receives `InitializeStream` message containing: `ConnectionPool`, `TurboClientOptions`, `requestOptionsFactory`, `PipelineDescriptor`
-- [ ] Materializes the full Engine flow (same as current `TurboClientStreamManager`): `ChannelSource → Engine → ChannelSink`
-- [ ] Exposes `ChannelWriter<HttpRequestMessage> Requests` and `ChannelReader<HttpResponseMessage> Responses` as actor properties
-- [ ] On stream sink completion (success or failure) → sends `StreamFailed(exception)` or completion signal to parent Owner
-- [ ] Before allowing substream completion in `GroupByHostKeyStage`, checks with Owner: "is pending work zero?" (via `RequestStreamIdle` message)
-- [ ] Implements `PostStop()` → disposes materializer, closes channels, disposes pool
-- [ ] Diagnostic logging at DEBUG level: stream creation, frame counts, completion reasons
-- [ ] File: `TurboHttp/Client/ClientStreamInstance.cs`
+- [x] `ClientStreamInstance` receives `InitializeStream` message containing: `ConnectionPool`, `TurboClientOptions`, `requestOptionsFactory`, `PipelineDescriptor`
+- [x] Materializes the full Engine flow (same as current `TurboClientStreamManager`): `ChannelSource → Engine → ChannelSink`
+- [x] Exposes `ChannelWriter<HttpRequestMessage> Requests` and `ChannelReader<HttpResponseMessage> Responses` as actor properties
+- [x] On stream sink completion (success or failure) → sends `StreamFailed(exception)` or completion signal to parent Owner
+- [x] Before allowing substream completion in `GroupByHostKeyStage`, checks with Owner: "is pending work zero?" (via `RequestStreamIdle` message)
+- [x] Implements `PostStop()` → disposes materializer, closes channels, disposes pool
+- [x] Diagnostic logging at DEBUG level: stream creation, frame counts, completion reasons
+- [x] File: `TurboHttp/Client/ClientStreamInstance.cs`
 
 ---
 
@@ -97,17 +97,17 @@ Refactor TurboHttp client architecture to separate concerns between lifecycle ma
 **Parallel:** yes — can run alongside TASK-001-002, TASK-001-003
 
 **Acceptance Criteria:**
-- [ ] Add `IPendingWorkTracker` field to each feature BidiStage: `RetryBidiStage`, `CacheBidiStage`, `ContentEncodingBidiStage`, `RequestCompressionBidiStage`
-- [ ] On `onPush(response)` where the stage decides to re-inject a request:
-  - [ ] Call `_pendingWorkTracker.IncrementPending()` **before** pushing the request back upstream
-  - [ ] After request flows downstream and response returns, call `_pendingWorkTracker.DecrementPending()`
-- [ ] `RetryBidiStage`: increment on deciding to retry (e.g., after 503, max retries not exceeded)
-- [ ] `CacheBidiStage`: increment on deciding to revalidate (e.g., 304 or cache stale)
-- [ ] `ContentEncodingBidiStage` (decompression): increment only if re-injection is triggered by error (rare)
-- [ ] `RequestCompressionBidiStage`: typically no re-injection needed; leave as-is
-- [ ] Add optional `_logger` field for DEBUG level logging: "pending work incremented to X", "pending work decremented to Y"
-- [ ] Tests: unit tests verify `IncrementPending()` / `DecrementPending()` are called at correct points in stage lifecycle
-- [ ] Update `ProtocolCoreGraphBuilder` to inject `IPendingWorkTracker` into feature stages during Engine construction
+- [x] Add `IPendingWorkTracker` field to each feature BidiStage: `RetryBidiStage`, `CacheBidiStage`, `ContentEncodingBidiStage`, `RequestCompressionBidiStage`
+- [x] On `onPush(response)` where the stage decides to re-inject a request:
+  - [x] Call `_pendingWorkTracker.IncrementPending()` **before** pushing the request back upstream
+  - [x] After request flows downstream and response returns, call `_pendingWorkTracker.DecrementPending()`
+- [x] `RetryBidiStage`: increment on deciding to retry (e.g., after 503, max retries not exceeded)
+- [x] `CacheBidiStage`: increment on deciding to revalidate (e.g., 304 or cache stale)
+- [x] `ContentEncodingBidiStage` (decompression): increment only if re-injection is triggered by error (rare)
+- [x] `RequestCompressionBidiStage`: typically no re-injection needed; leave as-is
+- [x] Add optional `_logger` field for DEBUG level logging: "pending work incremented to X", "pending work decremented to Y"
+- [x] Tests: unit tests verify `IncrementPending()` / `DecrementPending()` are called at correct points in stage lifecycle
+- [x] Update `ProtocolCoreGraphBuilder` to inject `IPendingWorkTracker` into feature stages during Engine construction
 
 ---
 
@@ -121,14 +121,14 @@ Refactor TurboHttp client architecture to separate concerns between lifecycle ma
 **Parallel:** no — depends on pending-work signals
 
 **Acceptance Criteria:**
-- [ ] Add `IPendingWorkTracker` field to `GroupByHostKeyStage`
-- [ ] In the substream completion logic, before completing a substream:
-  - [ ] Check `_pendingWorkTracker.IsPending`
-  - [ ] If `true` → **do not complete yet**; re-schedule completion check in 10ms (via `GetAsyncCallback` or actor `ask`)
-  - [ ] If `false` → proceed with completion
-- [ ] Add exponential backoff cap: max 5 retries (50ms total wait) before force-completing with error
-- [ ] Diagnostic logging: "substream completion delayed due to pending work", "substream completed after pending work cleared"
-- [ ] Tests: unit test verifies that re-injections can flow through while substream is alive; no premature completion
+- [x] Add `IPendingWorkTracker` field to `GroupByHostKeyStage`
+- [x] In the substream completion logic, before completing a substream:
+  - [x] Check `_pendingWorkTracker.IsPending`
+  - [x] If `true` → **do not complete yet**; re-schedule completion check in 10ms (via `GetAsyncCallback` or actor `ask`)
+  - [x] If `false` → proceed with completion
+- [x] Add exponential backoff cap: max 5 retries (50ms total wait) before force-completing with error
+- [x] Diagnostic logging: "substream completion delayed due to pending work", "substream completed after pending work cleared"
+- [x] Tests: unit test verifies that re-injections can flow through while substream is alive; no premature completion
 
 ---
 
@@ -142,14 +142,14 @@ Refactor TurboHttp client architecture to separate concerns between lifecycle ma
 **Parallel:** no — integration point
 
 **Acceptance Criteria:**
-- [ ] Refactor `TurboClientStreamManager`: keep as internal wrapper around `ClientStreamOwner` for backward compatibility
-- [ ] Create `TurboClientStreamManager(options, requestFactory, system)` → spawns `ClientStreamOwner` actor internally
-- [ ] Expose `ChannelWriter<HttpRequestMessage>` and `ChannelReader<HttpResponseMessage>` by forwarding to underlying actor's channels
-- [ ] `Dispose()` → sends `Shutdown` message to owner; waits for actor termination
-- [ ] Update `TurboHttpClientBuilder` to pass `ActorSystem` through to `TurboClientStreamManager`
-- [ ] Update `TurboHttpClient` initialization to create owner+instance actors during `SendAsync` initialization
-- [ ] Ensure `TurboClientStreamManager` is registered in DI as singleton
-- [ ] Tests: integration test verifies `TurboHttpClient.SendAsync()` creates actors and completes them on `Dispose()`
+- [x] Refactor `TurboClientStreamManager`: keep as internal wrapper around `ClientStreamOwner` for backward compatibility
+- [x] Create `TurboClientStreamManager(options, requestFactory, system)` → spawns `ClientStreamOwner` actor internally
+- [x] Expose `ChannelWriter<HttpRequestMessage>` and `ChannelReader<HttpResponseMessage>` by forwarding to underlying actor's channels
+- [x] `Dispose()` → sends `Shutdown` message to owner; waits for actor termination
+- [x] Update `TurboHttpClientBuilder` to pass `ActorSystem` through to `TurboClientStreamManager`
+- [x] Update `TurboHttpClient` initialization to create owner+instance actors during `SendAsync` initialization
+- [x] Ensure `TurboClientStreamManager` is registered in DI as singleton
+- [x] Tests: integration test verifies `TurboHttpClient.SendAsync()` creates actors and completes them on `Dispose()`
 
 ---
 
@@ -163,24 +163,24 @@ Refactor TurboHttp client architecture to separate concerns between lifecycle ma
 **Parallel:** yes — can run alongside TASK-001-006
 
 **Acceptance Criteria:**
-- [ ] `ClientStreamOwnerTests.cs`:
-  - [ ] Owner creates stream instance on `CreateStreamInstance` message
-  - [ ] Owner increments/decrements pending work on signals
-  - [ ] Owner retries child creation on failure (3 attempts with backoff)
-  - [ ] Owner delays stream completion while pending work exists
-  - [ ] Owner terminates gracefully on `Shutdown` within 5 seconds
-  - [ ] Tests use `TestKit` (Akka.TestKit.Xunit)
-- [ ] `ClientStreamInstanceTests.cs`:
-  - [ ] Instance materializes stream on `InitializeStream`
-  - [ ] Instance sends failure message to parent on stream sink failure
-  - [ ] Instance checks pending work before allowing completion
-  - [ ] Instance cleans up resources on `PostStop`
-- [ ] `PendingWorkSignalTests.cs` (for feature stages):
-  - [ ] `RetryBidiStage` increments on deciding to retry
-  - [ ] `CacheBidiStage` increments on cache revalidation
-  - [ ] Pending work counter reflects accurate count
-- [ ] All tests have explicit `[Fact(Timeout = 5000)]` or `CancellationToken` timeouts
-- [ ] File: `src/TurboHttp.Tests/Client/ClientStreamOwnerTests.cs`, `ClientStreamInstanceTests.cs`, `PendingWorkSignalTests.cs`
+- [x] `ClientStreamOwnerTests.cs`:
+  - [x] Owner creates stream instance on `CreateStreamInstance` message
+  - [x] Owner increments/decrements pending work on signals
+  - [x] Owner retries child creation on failure (3 attempts with backoff)
+  - [x] Owner delays stream completion while pending work exists
+  - [x] Owner terminates gracefully on `Shutdown` within 5 seconds
+  - [x] Tests use `TestKit` (Akka.TestKit.Xunit)
+- [x] `ClientStreamInstanceTests.cs`:
+  - [x] Instance materializes stream on `InitializeStream`
+  - [x] Instance sends failure message to parent on stream sink failure
+  - [x] Instance checks pending work before allowing completion
+  - [x] Instance cleans up resources on `PostStop`
+- [x] `PendingWorkSignalTests.cs` (for feature stages):
+  - [x] `RetryBidiStage` increments on deciding to retry
+  - [x] `CacheBidiStage` increments on cache revalidation
+  - [x] Pending work counter reflects accurate count
+- [x] All tests have explicit `[Fact(Timeout = 5000)]` or `CancellationToken` timeouts
+- [x] File: `src/TurboHttp.Tests/Client/ClientStreamOwnerTests.cs`, `ClientStreamInstanceTests.cs`, `PendingWorkSignalTests.cs`
 
 ---
 
@@ -194,15 +194,15 @@ Refactor TurboHttp client architecture to separate concerns between lifecycle ma
 **Parallel:** yes — can run alongside TASK-001-007
 
 **Acceptance Criteria:**
-- [ ] Create test class `Http10ReinjectionTests.cs` in `src/TurboHttp.IntegrationTests/`
-- [ ] Test 1: Retry after error — sends request that gets 503, retries successfully; verifies no deadlock with 100 iterations
-- [ ] Test 2: Cache revalidation — sends request, cache hit with stale marker, revalidates with If-None-Match, gets 304; verifies no deadlock with 100 iterations
-- [ ] Test 3: Compression negotiation — sends request with Accept-Encoding, re-negotiates compression on second request; verifies no deadlock with 100 iterations
-- [ ] Test 4: Mixed features — one request triggers Retry, next triggers Cache revalidation, third triggers compression; verifies pipeline stays alive across all three
-- [ ] Each test uses Kestrel test fixture with real TCP connections
-- [ ] Each test runs 100 times in a loop; captures any timeout/deadlock as failure
-- [ ] Tests have `[Fact(Timeout = 60000)]` — 60 second timeout per test (100 iterations)
-- [ ] Diagnostic output: log pending work counter state during execution
+- [x] Create test class `Http10ReinjectionTests.cs` in `src/TurboHttp.IntegrationTests/`
+- [x] Test 1: Retry after error — sends request that gets 503, retries successfully; verifies no deadlock with 100 iterations
+- [x] Test 2: Cache revalidation — sends request, cache hit with stale marker, revalidates with If-None-Match, gets 304; verifies no deadlock with 100 iterations
+- [x] Test 3: Compression negotiation — sends request with Accept-Encoding, re-negotiates compression on second request; verifies no deadlock with 100 iterations
+- [x] Test 4: Mixed features — one request triggers Retry, next triggers Cache revalidation, third triggers compression; verifies pipeline stays alive across all three
+- [x] Each test uses Kestrel test fixture with real TCP connections
+- [x] Each test runs 100 times in a loop; captures any timeout/deadlock as failure
+- [x] Tests have `[Fact(Timeout = 60000)]` — 60 second timeout per test (100 iterations)
+- [x] Diagnostic output: log pending work counter state during execution
 
 ---
 
@@ -216,15 +216,15 @@ Refactor TurboHttp client architecture to separate concerns between lifecycle ma
 **Parallel:** no — requires testing validation first
 
 **Acceptance Criteria:**
-- [ ] Create `IClientStreamOwner` interface in public API (`TurboHttp.Client`):
-  - [ ] `Task<StreamInitializationResult> InitializeStreamAsync(StreamInitializationOptions options, CancellationToken ct)`
-  - [ ] `IActorRef ActorRef { get; }`
-- [ ] Create `StreamInitializationOptions` record: `ConnectionPool`, `TurboClientOptions`, `RequestOptionsFactory`, `SupervisorStrategy` (optional, defaults to AllForOne 3 retries)
-- [ ] Create `StreamInitializationResult` union type: `Success(IActorRef)`, `Failed(Exception)`
-- [ ] Update `TurboHttpClientBuilder` to accept optional `SupervisorStrategy customStrategy` parameter
-- [ ] Add deprecation notice (if any) to `TurboClientStreamManager` suggesting the new pattern for advanced use
-- [ ] Update `CLAUDE.md` section "Client Layer" with new actor-based design
-- [ ] Tests: verify `IClientStreamOwner` is accessible and usable from public API
+- [x] Create `IClientStreamOwner` interface in public API (`TurboHttp.Client`):
+  - [x] `Task<StreamInitializationResult> InitializeStreamAsync(StreamInitializationOptions options, CancellationToken ct)`
+  - [x] `IActorRef ActorRef { get; }`
+- [x] Create `StreamInitializationOptions` record: `ConnectionPool`, `TurboClientOptions`, `RequestOptionsFactory`, `SupervisorStrategy` (optional, defaults to AllForOne 3 retries)
+- [x] Create `StreamInitializationResult` union type: `Success(IActorRef)`, `Failed(Exception)`
+- [x] Update `TurboHttpClientBuilder` to accept optional `SupervisorStrategy customStrategy` parameter
+- [x] Add deprecation notice (if any) to `TurboClientStreamManager` suggesting the new pattern for advanced use
+- [x] Update `CLAUDE.md` section "Client Layer" with new actor-based design
+- [x] Tests: verify `IClientStreamOwner` is accessible and usable from public API
 
 ---
 

@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using Akka.Actor;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHttp.Protocol.RFC6265;
 using TurboHttp.Protocol.RFC9110;
@@ -52,6 +53,25 @@ public static class TurboHttpClientBuilderExtensions
     public static ITurboHttpClientBuilder WithDecompression(this ITurboHttpClientBuilder builder, bool enabled = true)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d => { d.AutomaticDecompression = enabled; });
+        return builder;
+    }
+
+    /// <summary>
+    /// Configures a custom <see cref="SupervisorStrategy"/> for the <c>ClientStreamOwner</c> actor
+    /// that supervises the stream instance. When not set, the default <c>AllForOneStrategy</c> with
+    /// 3 retries and exponential backoff (100ms, 500ms, 2s) is used.
+    /// <para>
+    /// This is an advanced option for users who need fine-grained control over stream instance
+    /// supervision behavior — for example, to increase retry limits or customize the decider logic.
+    /// </para>
+    /// </summary>
+    /// <param name="builder">The client builder.</param>
+    /// <param name="strategy">The custom supervisor strategy to apply.</param>
+    /// <returns>The builder for chaining.</returns>
+    public static ITurboHttpClientBuilder WithSupervisorStrategy(this ITurboHttpClientBuilder builder,
+        SupervisorStrategy strategy)
+    {
+        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d => { d.CustomSupervisorStrategy = strategy; });
         return builder;
     }
 

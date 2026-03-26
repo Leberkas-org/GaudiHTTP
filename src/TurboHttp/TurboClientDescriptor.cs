@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Akka.Actor;
 using TurboHttp.Protocol.RFC6265;
 using TurboHttp.Protocol.RFC9110;
 using TurboHttp.Protocol.RFC9111;
@@ -25,4 +26,11 @@ internal sealed class TurboClientDescriptor
     /// </summary>
     public List<Func<IServiceProvider, TurboHandler>> HandlerFactories { get; } = [];
     public bool AutomaticDecompression { get; set; } = true;
+
+    /// <summary>
+    /// Optional custom supervisor strategy for the <c>ClientStreamOwner</c> actor.
+    /// When <see langword="null"/>, the default <c>AllForOneStrategy</c> with 3 retries
+    /// and exponential backoff (100ms, 500ms, 2s) is used.
+    /// </summary>
+    public SupervisorStrategy? CustomSupervisorStrategy { get; set; }
 }

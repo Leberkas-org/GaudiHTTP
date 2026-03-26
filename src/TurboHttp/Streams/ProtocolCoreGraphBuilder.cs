@@ -3,6 +3,7 @@ using System.Net.Http;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHttp.Client;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
 using TurboHttp.Streams.Stages.Features;
@@ -28,7 +29,8 @@ internal static class ProtocolCoreGraphBuilder
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? http10Factory = null,
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? http11Factory = null,
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? http20Factory = null,
-        Func<Flow<IOutputItem, IInputItem, NotUsed>>? http30Factory = null)
+        Func<Flow<IOutputItem, IInputItem, NotUsed>>? http30Factory = null,
+        IPendingWorkTracker? pendingWorkTracker = null)
     {
         return GraphDsl.Create(builder =>
         {
@@ -40,16 +42,16 @@ internal static class ProtocolCoreGraphBuilder
             var highThroughputBuffer = Attributes.CreateInputBuffer(16, 64);
 
             var http10 =
-                builder.Add(BuildProtocolFlow<Http10Engine>(256, pool, http10Factory, clientOptions)
+                builder.Add(BuildProtocolFlow<Http10Engine>(256, pool, http10Factory, clientOptions, pendingWorkTracker)
                     .WithAttributes(highThroughputBuffer));
             var http11 =
-                builder.Add(BuildProtocolFlow<Http11Engine>(256, pool, http11Factory, clientOptions)
+                builder.Add(BuildProtocolFlow<Http11Engine>(256, pool, http11Factory, clientOptions, pendingWorkTracker)
                     .WithAttributes(highThroughputBuffer));
             var http20 =
-                builder.Add(BuildProtocolFlow<Http20Engine>(64, pool, http20Factory, clientOptions)
+                builder.Add(BuildProtocolFlow<Http20Engine>(64, pool, http20Factory, clientOptions, pendingWorkTracker)
                     .WithAttributes(highThroughputBuffer));
             var http30 =
-                builder.Add(BuildProtocolFlow<Http30Engine>(64, pool, http30Factory, clientOptions)
+                builder.Add(BuildProtocolFlow<Http30Engine>(64, pool, http30Factory, clientOptions, pendingWorkTracker)
                     .WithAttributes(highThroughputBuffer));
 
             builder.From(partition.Out(0)).Via(http10).To(hub);
@@ -65,7 +67,8 @@ internal static class ProtocolCoreGraphBuilder
         int maxSubstreams,
         ConnectionPool pool,
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? transportFactory = null,
-        TurboClientOptions? clientOptions = null)
+        TurboClientOptions? clientOptions = null,
+        IPendingWorkTracker? pendingWorkTracker = null)
         where TEngine : IHttpProtocolEngine, new()
     {
         // One connection flow blueprint per protocol version; GroupByHostKey
@@ -87,7 +90,7 @@ internal static class ProtocolCoreGraphBuilder
 
         return (Flow<HttpRequestMessage, HttpResponseMessage, NotUsed>)
             Flow.Create<HttpRequestMessage>()
-                .GroupByHostKey(RequestEndpoint.FromRequest, maxSubstreams)
+                .GroupByHostKey(RequestEndpoint.FromRequest, maxSubstreams, pendingWorkTracker: pendingWorkTracker)
                 .ViaSubFlow(connectionFlow)
                 .MergeSubstreams();
     }

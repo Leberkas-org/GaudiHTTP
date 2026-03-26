@@ -3,6 +3,7 @@ using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.Implementation;
+using TurboHttp.Client;
 using TurboHttp.Internal;
 
 namespace TurboHttp.Streams.Stages.Routing;
@@ -20,9 +21,10 @@ internal static class FlowHostKeyGroupByExtensions
         this IFlow<T, TMat> flow,
         Func<T, RequestEndpoint> keyFunction,
         int maxSubstreams,
-        int queueSize = 64)
+        int queueSize = 64,
+        IPendingWorkTracker? pendingWorkTracker = null)
     {
-        var mergeBack = new HostKeyMergeBack<T, TMat>(flow, keyFunction, maxSubstreams, queueSize);
+        var mergeBack = new HostKeyMergeBack<T, TMat>(flow, keyFunction, maxSubstreams, queueSize, pendingWorkTracker);
 
         // Flow.Create<T>() gives Flow<T,T,NotUsed>; cast is safe because callers always
         // start with a flow whose TMat is NotUsed (e.g. Flow.Create<HttpRequestMessage>()).

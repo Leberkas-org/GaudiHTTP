@@ -2,7 +2,8 @@ agent: claude
 model: opus
 include: []
 worktree: false
-auto_work: disabled
+approval_mode: opt-out
+auto_continue: null
 notifications:
     sound: true
     on_task_complete: null
@@ -18,3 +19,7 @@ git:
 on_complete:
     feature: ""
     bug: ""
+hooks:
+    on_feature_complete: []
+    on_bug_complete: []
+    on_task_complete: []

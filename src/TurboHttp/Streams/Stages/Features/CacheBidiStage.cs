@@ -7,6 +7,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHttp.Diagnostics;
+using TurboHttp.Client;
 using TurboHttp.Protocol.RFC9111;
 
 namespace TurboHttp.Streams.Stages.Features;
@@ -50,8 +51,12 @@ namespace TurboHttp.Streams.Stages.Features;
 internal sealed class CacheBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
 {
+    internal static readonly HttpRequestOptionsKey<bool> RevalidationKey
+        = new("TurboHttp.CacheRevalidation");
+
     private readonly CacheStore? _store;
     private readonly CachePolicy _policy;
+    private readonly IPendingWorkTracker? _pendingWorkTracker;
 
     private readonly Inlet<HttpRequestMessage> _inRequest = new("Cache.In.Request");
     private readonly Outlet<HttpRequestMessage> _outRequest = new("Cache.Out.Request");
@@ -60,10 +65,11 @@ internal sealed class CacheBidiStage
 
     public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape { get; }
 
-    public CacheBidiStage(CacheStore? store, CachePolicy? policy = null)
+    public CacheBidiStage(CacheStore? store, CachePolicy? policy = null, IPendingWorkTracker? pendingWorkTracker = null)
     {
         _store = store;
         _policy = policy ?? CachePolicy.Default;
+        _pendingWorkTracker = pendingWorkTracker;
         Shape = new BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>(
             _inRequest, _outRequest, _inResponse, _outResponse);
     }
@@ -231,9 +237,17 @@ internal sealed class CacheBidiStage
             else
             {
                 // Miss or MustRevalidate — forward to engine
-                var outgoing = result is { Status: CacheLookupStatus.MustRevalidate, Entry: not null }
-                    ? CacheValidationRequestBuilder.BuildConditionalRequest(request, result.Entry)
+                var isRevalidation = result is { Status: CacheLookupStatus.MustRevalidate, Entry: not null };
+                var outgoing = isRevalidation
+                    ? CacheValidationRequestBuilder.BuildConditionalRequest(request, result.Entry!)
                     : request;
+
+                if (isRevalidation)
+                {
+                    outgoing.Options.Set(RevalidationKey, true);
+                    _stage._pendingWorkTracker?.IncrementPending();
+                }
+
                 Push(_stage._outRequest, outgoing);
                 _state = CacheState.Forwarded;
             }
@@ -249,6 +263,12 @@ internal sealed class CacheBidiStage
                 _state = CacheState.Idle;
                 MaybePullNextRequest();
                 return;
+            }
+
+            // Decrement pending work for revalidation responses
+            if (response.RequestMessage.Options.TryGetValue(RevalidationKey, out var isReval) && isReval)
+            {
+                _stage._pendingWorkTracker?.DecrementPending();
             }
 
             var (processed, needsAsyncRead) = ProcessResponse(response);
