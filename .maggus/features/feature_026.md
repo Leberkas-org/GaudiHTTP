@@ -82,13 +82,13 @@ These fixes are prerequisites for production use. They address OWASP-relevant at
 **Parallel:** yes — can run alongside TASK-026-001, TASK-026-002, TASK-026-006, TASK-026-009
 
 **Acceptance Criteria:**
-- [ ] Http2Decoder accepts `HttpDecoderOptions` with `MaxHeaderSize` (default 16KB) and `MaxTotalHeaderSize` (default 64KB)
-- [ ] When decoding HEADERS frame, accumulate decompressed header block size
-- [ ] If any single header exceeds `MaxHeaderSize` after HPACK decompression, emit `Http2Exception` with FRAME_SIZE_ERROR
-- [ ] If total headers exceed `MaxTotalHeaderSize`, emit `Http2Exception` with FRAME_SIZE_ERROR
-- [ ] Pseudo-headers (`:method`, `:scheme`, etc.) count toward limit
-- [ ] CONTINUATION frames correctly accumulate decompressed size across frame boundaries
-- [ ] Compile with zero warnings
+- [x] Http2Decoder accepts `HttpDecoderOptions` with `MaxHeaderSize` (default 16KB) and `MaxTotalHeaderSize` (default 64KB)
+- [x] When decoding HEADERS frame, accumulate decompressed header block size
+- [x] If any single header exceeds `MaxHeaderSize` after HPACK decompression, emit `Http2Exception` with FRAME_SIZE_ERROR
+- [x] If total headers exceed `MaxTotalHeaderSize`, emit `Http2Exception` with FRAME_SIZE_ERROR
+- [x] Pseudo-headers (`:method`, `:scheme`, etc.) count toward limit
+- [x] CONTINUATION frames correctly accumulate decompressed size across frame boundaries
+- [x] Compile with zero warnings
 
 ---
 

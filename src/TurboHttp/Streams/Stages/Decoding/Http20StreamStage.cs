@@ -13,9 +13,23 @@ namespace TurboHttp.Streams.Stages.Decoding;
 
 public sealed class Http20StreamStage : GraphStage<FlowShape<Http2Frame, (HttpResponseMessage Response, int StreamId)>>
 {
+    private const int DefaultMaxHeaderSize = 16 * 1024;       // 16 KB per header field
+    private const int DefaultMaxTotalHeaderSize = 64 * 1024;  // 64 KB total headers
+
     private readonly Inlet<Http2Frame> _in = new("Http20Stream.In");
 
     private readonly Outlet<(HttpResponseMessage Response, int StreamId)> _out = new("Http20Stream.Out");
+
+    private readonly int _maxHeaderSize;
+    private readonly int _maxTotalHeaderSize;
+
+    public Http20StreamStage(
+        int maxHeaderSize = DefaultMaxHeaderSize,
+        int maxTotalHeaderSize = DefaultMaxTotalHeaderSize)
+    {
+        _maxHeaderSize = maxHeaderSize;
+        _maxTotalHeaderSize = maxTotalHeaderSize;
+    }
 
     public override FlowShape<Http2Frame, (HttpResponseMessage Response, int StreamId)> Shape => new(_in, _out);
 
@@ -227,6 +241,41 @@ public sealed class Http20StreamStage : GraphStage<FlowShape<Http2Frame, (HttpRe
             }
 
             var headers = _hpack.Decode(state.HeaderBuffer[..state.HeaderLength].Span);
+
+            // RFC 9113 §10.5.1: Validate decompressed header sizes
+            var maxHeaderSize = _stage._maxHeaderSize;
+            var maxTotalHeaderSize = _stage._maxTotalHeaderSize;
+            var totalHeaderSize = 0;
+
+            foreach (var h in headers)
+            {
+                var headerSize = System.Text.Encoding.UTF8.GetByteCount(h.Name)
+                                 + System.Text.Encoding.UTF8.GetByteCount(h.Value);
+
+                if (headerSize > maxHeaderSize)
+                {
+                    throw new Http2Exception(
+                        $"RFC 9113 §10.5.1: Single header field size {headerSize} bytes " +
+                        $"exceeds MaxHeaderSize limit ({maxHeaderSize} bytes) " +
+                        $"on stream {streamId} — header '{h.Name}'.",
+                        Http2ErrorCode.FrameSizeError,
+                        Http2ErrorScope.Stream,
+                        streamId);
+                }
+
+                totalHeaderSize += headerSize;
+
+                if (totalHeaderSize > maxTotalHeaderSize)
+                {
+                    throw new Http2Exception(
+                        $"RFC 9113 §10.5.1: Total header block size {totalHeaderSize} bytes " +
+                        $"exceeds MaxTotalHeaderSize limit ({maxTotalHeaderSize} bytes) " +
+                        $"on stream {streamId}.",
+                        Http2ErrorCode.FrameSizeError,
+                        Http2ErrorScope.Stream,
+                        streamId);
+                }
+            }
 
             var response = new HttpResponseMessage();
 
