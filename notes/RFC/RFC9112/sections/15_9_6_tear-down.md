@@ -1,0 +1,82 @@
+---
+title: "9.6.  Tear-down"
+rfc_number: 9112
+rfc_section: "9.6"
+source_url: "https://www.rfc-editor.org/rfc/rfc9112"
+description: "Section 9.6: Tear-down — RFC 9112 — HTTP/1.1"
+tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-management, keep-alive, Host-header, pipelining, tear-down]
+---
+
+## 9.6.  Tear-down
+
+## 9.6  Tear-down
+
+   The "close" connection option is defined as a signal that the sender
+   will close this connection after completion of the response.  A
+> **SHOULD**: sender SHOULD send a Connection header field (Section 7.6.1 of
+   [HTTP]) containing the "close" connection option when it intends to
+   close a connection.  For example,
+
+   Connection: close
+
+   as a request header field indicates that this is the last request
+   that the client will send on this connection, while in a response,
+   the same field indicates that the server is going to close this
+   connection after the response message is complete.
+
+   Note that the field name "Close" is reserved, since using that name
+   as a header field might conflict with the "close" connection option.
+
+> **MUST NOT**: A client that sends a "close" connection option MUST NOT send further
+   requests on that connection (after the one containing the "close")
+> **MUST**: and MUST close the connection after reading the final response
+   message corresponding to this request.
+
+> **MUST**: A server that receives a "close" connection option MUST initiate
+   closure of the connection (see below) after it sends the final
+   response to the request that contained the "close" connection option.
+> **SHOULD**: The server SHOULD send a "close" connection option in its final
+   response on that connection.  The server MUST NOT process any further
+   requests received on that connection.
+
+> **MUST**: A server that sends a "close" connection option MUST initiate closure
+   of the connection (see below) after it sends the response containing
+> **MUST NOT**: the "close" connection option.  The server MUST NOT process any
+   further requests received on that connection.
+
+> **MUST**: A client that receives a "close" connection option MUST cease sending
+   requests on that connection and close the connection after reading
+   the response message containing the "close" connection option; if
+   additional pipelined requests had been sent on the connection, the
+> **SHOULD NOT**: client SHOULD NOT assume that they will be processed by the server.
+
+   If a server performs an immediate close of a TCP connection, there is
+   a significant risk that the client will not be able to read the last
+   HTTP response.  If the server receives additional data from the
+   client on a fully closed connection, such as another request sent by
+   the client before receiving the server's response, the server's TCP
+   stack will send a reset packet to the client; unfortunately, the
+   reset packet might erase the client's unacknowledged input buffers
+   before they can be read and interpreted by the client's HTTP parser.
+
+   To avoid the TCP reset problem, servers typically close a connection
+   in stages.  First, the server performs a half-close by closing only
+   the write side of the read/write connection.  The server then
+   continues to read from the connection until it receives a
+   corresponding close by the client, or until the server is reasonably
+   certain that its own TCP stack has received the client's
+   acknowledgement of the packet(s) containing the server's last
+   response.  Finally, the server fully closes the connection.
+
+   It is unknown whether the reset problem is exclusive to TCP or might
+   also be found in other transport connection protocols.
+
+   Note that a TCP connection that is half-closed by the client does not
+   delimit a request message, nor does it imply that the client is no
+   longer interested in a response.  In general, transport signals
+   cannot be relied upon to signal edge cases, since HTTP/1.1 is
+   independent of transport.
+
+---
+
+**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "obsidian": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@bitbonsai/mcpvault@latest",
+        "./notes"
+      ]
+    },
+    "cwm-roslyn-navigator": {
+      "type": "stdio",
+      "command": "cwm-roslyn-navigator",
+      "args": [],
+      "env": {}
+    }
+  }
+}

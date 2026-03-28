@@ -331,3 +331,36 @@ ASALocalRun/
 
 **.env
 *cwd
+
+# VitePress docs
+docs/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+*.likec4-export/
+
+# CUSTOM
+.ralph/
+COMMIT.md
+.tools/
+coverage-results/
+.maggus/runs
+.maggus/MEMORY.md
+.maggus/RELEASE_NOTES.md
+.maggus/locks/
+.maggus-work/
+.maggus/usage*.csv
+.maggus/usage_*.jsonl
+.maggus/bugs
+
+.claude/settings.local.json
+.maggus/feature_approvals.yml
+.maggus/daemon.pid
+.maggus/interactive.lock
+
+# Obsidian vault (personal notes)
+notes/.obsidian/
+notes/Debugging/
+
+TurboHttp/.obsidian/
+
+.maggus/work.pid

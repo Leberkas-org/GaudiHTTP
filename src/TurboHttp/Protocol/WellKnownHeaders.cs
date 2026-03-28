@@ -16,7 +16,7 @@ public static class WellKnownHeaders
     /// <summary>RFC 9110 Section 11.6.2: Authorization header</summary>
     public static ReadOnlySpan<byte> Authorization => "Authorization"u8;
 
-    /// <summary>RFC 9110 Section 10.1.1: Accept header</summary>
+    /// <summary>RFC 9110 Section 12.5.1: Accept header</summary>
     public static ReadOnlySpan<byte> Accept => "Accept"u8;
 
     /// <summary>RFC 9110 Section 12.5.3: Accept-Encoding header</summary>
@@ -58,7 +58,7 @@ public static class WellKnownHeaders
     /// <summary>RFC 9110 Section 7.6.1: Connection header</summary>
     public static ReadOnlySpan<byte> Connection => "Connection"u8;
 
-    /// <summary>RFC 9112 Section 9.6: Trailer header</summary>
+    /// <summary>RFC 9110 Section 6.6.2: Trailer header</summary>
     public static ReadOnlySpan<byte> Trailer => "Trailer"u8;
 
     // ── Connection Token Values ─────────────────────────────────────────────────
@@ -95,6 +95,38 @@ public static class WellKnownHeaders
     /// <summary>Comma-space for multi-value headers</summary>
     public static ReadOnlySpan<byte> CommaSpace => ", "u8;
 
+    // ── Header Names (string) ──────────────────────────────────────────────────
+    // For use with System.Net.Http APIs that compare header names as strings.
+
+    /// <summary>Header name strings for use with System.Net.Http APIs.</summary>
+#pragma warning disable CS0108 // Nested constants intentionally shadow outer byte-span properties
+    public static class Names
+    {
+        public const string Host = "Host";
+        public const string Connection = "Connection";
+        public const string ContentLength = "Content-Length";
+        public const string ContentEncoding = "Content-Encoding";
+        public const string TransferEncoding = "Transfer-Encoding";
+    }
+#pragma warning restore CS0108
+
+    // ── Content-Encoding Values (RFC 9110 §8.4) ──────────────────────────────
+
+    /// <summary>RFC 9110 §8.4.1: identity encoding (no transformation)</summary>
+    public const string Identity = "identity";
+
+    /// <summary>RFC 9110 §8.4.1.3: gzip encoding</summary>
+    public const string Gzip = "gzip";
+
+    /// <summary>Legacy alias for gzip</summary>
+    public const string XGzip = "x-gzip";
+
+    /// <summary>RFC 9110 §8.4.1.2: deflate encoding</summary>
+    public const string Deflate = "deflate";
+
+    /// <summary>RFC 7932: Brotli encoding</summary>
+    public const string Brotli = "br";
+
     // ── Comparison Utilities ────────────────────────────────────────────────────
 
     /// <summary>
@@ -130,7 +162,6 @@ public static class WellKnownHeaders
     /// </summary>
     public static bool ContainsChunked(ReadOnlySpan<byte> value)
     {
-        // Simple substring search for "chunked"
         var chunked = Chunked;
         if (value.Length < chunked.Length)
         {

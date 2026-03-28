@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using TurboHttp.Protocol.RFC7541;
 
 namespace TurboHttp.Protocol;
 
@@ -97,7 +98,10 @@ public static class HuffmanCodec
             }
         }
 
-        if (bitLen <= 0) return;
+        if (bitLen <= 0)
+        {
+            return;
+        }
 
         bitBuf = (bitBuf << (8 - bitLen)) | (0xffu >> bitLen);
         output.WriteByte((byte)bitBuf);
@@ -114,7 +118,11 @@ public static class HuffmanCodec
 
     private static HuffmanNode GetRoot()
     {
-        if (_root is not null) return _root;
+        if (_root is not null)
+        {
+            return _root;
+        }
+
         var root = new HuffmanNode();
         for (var sym = 0; sym < HpackHuffmanTable.Length; sym++)
         {
@@ -146,7 +154,8 @@ public static class HuffmanCodec
 
                 if (node is null)
                 {
-                    throw new HpackException("");
+                    throw new HpackException(
+                        $"Invalid Huffman-encoded data: no valid symbol at bit offset {remainingBits} (input byte 0x{b:X2}).");
                 }
 
                 remainingBits++;
@@ -159,7 +168,8 @@ public static class HuffmanCodec
 
                 if (sym == 256)
                 {
-                    throw new HpackException("");
+                    throw new HpackException(
+                        "Invalid Huffman-encoded data: EOS symbol (256) must not appear in a Huffman-encoded string (RFC 7541 §5.2).");
                 }
 
                 result.WriteByte((byte)sym);
@@ -173,13 +183,15 @@ public static class HuffmanCodec
         {
             if (remainingBits > 7)
             {
-                throw new HpackException("");
+                throw new HpackException(
+                    $"Invalid Huffman-encoded data: {remainingBits} incomplete bits remain at end of input — a valid padding sequence is at most 7 bits (RFC 7541 §5.2).");
             }
 
             var mask = (1 << remainingBits) - 1;
             if (remainingValue != mask)
             {
-                throw new HpackException("");
+                throw new HpackException(
+                    $"Invalid Huffman-encoded data: padding bits must be all-ones (EOS prefix) but got 0x{remainingValue:X} with {remainingBits} bits (RFC 7541 §5.2).");
             }
         }
 

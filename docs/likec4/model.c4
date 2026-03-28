@@ -1,0 +1,505 @@
+// TurboHttp — Model
+// All elements (person, system, containers, components, actors) and their
+// structural relationships. Pipeline-specific flow/feedback/delegates
+// relationships live in model-pipeline.c4.
+
+model {
+  user = person 'Application' {
+    description 'Any .NET application using TurboHttp'
+  }
+
+  turbohttp = system 'TurboHttp' {
+    description 'High-performance HTTP client library for .NET built on Akka.Streams'
+    technology '.NET 10 / Akka.Streams 1.5'
+
+    // ── Client Layer ──────────────────────────────────────────────────────
+    client = container 'Client Layer' {
+      description 'Public API and Akka.Streams lifecycle management'
+      technology 'C# / .NET 10'
+
+      ITurboHttpClient = component 'ITurboHttpClient' {
+        #api
+        technology 'Interface'
+        description 'Channel-based request/response API: ChannelWriter<HttpRequestMessage> / ChannelReader<HttpResponseMessage>, SendAsync, BaseAddress, DefaultRequestVersion'
+      }
+
+      TurboClientStreamManager = component 'TurboClientStreamManager' {
+        technology 'Class'
+        description 'Materialises the Akka.Streams pipeline and manages stream lifecycle'
+      }
+
+      TurboClientOptions = component 'TurboClientOptions' {
+        technology 'Record'
+        description 'BaseAddress, DefaultRequestVersion, DefaultRequestHeaders'
+      }
+    }
+
+    // ── Streams Layer ─────────────────────────────────────────────────────
+    streams = container 'Streams Layer' {
+      description 'Akka.Streams GraphStages — request enrichment, protocol routing, response processing'
+      technology 'Akka.Streams / C#'
+
+      // Engine routing
+      Engine = component 'Engine' {
+        #graphstage
+        technology 'Class'
+        description 'Version demultiplexer: routes each request to the matching protocol engine (HTTP/1.0, 1.1, 2, or 3)'
+      }
+
+      Http10Engine = component 'Http10Engine' {
+        #graphstage
+        technology 'IHttpProtocolEngine'
+        description 'HTTP/1.0 pipeline: encode request, send over TCP, decode response, correlate'
+      }
+
+      Http11Engine = component 'Http11Engine' {
+        #graphstage
+        technology 'IHttpProtocolEngine'
+        description 'HTTP/1.1 pipeline: encode request, send over persistent TCP connection, decode response, correlate, signal keep-alive/close'
+      }
+
+      Http20Engine = component 'Http20Engine' {
+        #graphstage #http2
+        technology 'IHttpProtocolEngine'
+        description 'HTTP/2 pipeline: assign stream IDs, HPACK-encode frames, multiplex over a single TCP connection, decode and assemble responses'
+      }
+
+      // Shared infrastructure stages
+      RequestEnricherStage = component 'RequestEnricherStage' {
+        #graphstage
+        technology 'GraphStage'
+        description 'Applies BaseAddress, DefaultRequestVersion, DefaultRequestHeaders to every request'
+      }
+
+      ExtractOptionsStage = component 'ExtractOptionsStage' {
+        #graphstage
+        technology 'GraphStage'
+        description 'Splits transport options from the request; emits a connect item on first request per host'
+      }
+
+      ConnectionStage = component 'ConnectionStage' {
+        #graphstage
+        technology 'GraphStage'
+        description 'TCP transport bridge: acquires a connection from the pool, writes outbound bytes, reads inbound bytes'
+      }
+
+
+      ConnectionReuseStage = component 'ConnectionReuseStage' {
+        #graphstage
+        technology 'GraphStage'
+        description 'Evaluates whether to keep a connection alive or close it; sends reuse/close signal back to the connection stage'
+      }
+
+      // HTTP/1.x stages
+      Http10EncoderStage = component 'Http10EncoderStage' {
+        #graphstage
+        technology 'GraphStage'
+        description 'Serialises HttpRequestMessage to HTTP/1.0 wire bytes'
+      }
+
+      Http11EncoderStage = component 'Http11EncoderStage' {
+        #graphstage
+        technology 'GraphStage'
+        description 'Serialises HttpRequestMessage to HTTP/1.1 wire bytes (Host header, chunked transfer encoding)'
+      }
+
+      Http10DecoderStage = component 'Http10DecoderStage' {
+        #graphstage
+        technology 'GraphStage'
+        description 'Parses HTTP/1.0 response bytes into HttpResponseMessage'
+      }
+
+      Http11DecoderStage = component 'Http11DecoderStage' {
+        #graphstage
+        technology 'GraphStage'
+        description 'Parses HTTP/1.1 response bytes into HttpResponseMessage (chunked, keep-alive)'
+      }
+
+      Http1XCorrelationStage = component 'Http1XCorrelationStage' {
+        #graphstage
+        technology 'GraphStage'
+        description 'FIFO request-response matching for HTTP/1.x; emits control signals for connection reuse'
+      }
+
+      // HTTP/2 stages
+      Http20StreamIdAllocatorStage = component 'Http20StreamIdAllocatorStage' {
+        #graphstage #http2
+        technology 'GraphStage'
+        description 'Allocates client-initiated stream IDs: 1, 3, 5, ...'
+      }
+
+      Http20Request2FrameStage = component 'Http20Request2FrameStage' {
+        #graphstage #http2
+        technology 'GraphStage'
+        description 'Converts requests into HEADERS + DATA frames using HPACK compression'
+      }
+
+      Http20EncoderStage = component 'Http20EncoderStage' {
+        #graphstage #http2
+        technology 'GraphStage'
+        description 'Serialises HTTP/2 frames to wire bytes (9-byte header + payload)'
+      }
+
+      Http20DecoderStage = component 'Http20DecoderStage' {
+        #graphstage #http2
+        technology 'GraphStage'
+        description 'Parses wire bytes into HTTP/2 frames (handles TCP fragmentation)'
+      }
+
+      Http20ConnectionStage = component 'Http20ConnectionStage' {
+        #graphstage #http2
+        technology 'GraphStage (BidiFlow)'
+        description 'Bidirectional HTTP/2 connection manager: flow control, SETTINGS/PING/GOAWAY handling, stream backpressure'
+      }
+
+      Http20StreamStage = component 'Http20StreamStage' {
+        #graphstage #http2
+        technology 'GraphStage'
+        description 'Assembles per-stream HEADERS + DATA frames into HttpResponseMessage'
+      }
+
+      Http20PrependPrefaceStage = component 'Http20PrependPrefaceStage' {
+        #graphstage #http2
+        technology 'GraphStage'
+        description 'Injects the HTTP/2 connection preface on first connect'
+      }
+
+      Http20CorrelationStage = component 'Http20CorrelationStage' {
+        #graphstage #http2
+        technology 'GraphStage'
+        description 'Stream-ID-based request-response correlation for multiplexed HTTP/2 streams'
+      }
+
+      // Feature BidiStages — each handles both request and response direction
+      ContentEncodingBidiStage = component 'ContentEncodingBidiStage' {
+        #graphstage
+        technology 'BidiStage'
+        description 'Bidirectional compression/decompression: adds Accept-Encoding to requests, compresses request bodies, decompresses gzip/deflate/brotli response bodies automatically'
+      }
+
+      TracingBidiStage = component 'TracingBidiStage' {
+        #graphstage
+        technology 'BidiStage'
+        description 'Observability stage: traces request/response events for logging and metrics collection'
+      }
+
+      CacheBidiStage = component 'CacheBidiStage' {
+        #graphstage #cache
+        technology 'BidiStage'
+        description 'Returns cached responses on hit (skipping the network); stores cacheable responses; handles conditional revalidation with 304 merging'
+      }
+
+      CookieBidiStage = component 'CookieBidiStage' {
+        #graphstage #cookie
+        technology 'BidiStage'
+        description 'Injects matching cookies into outgoing requests; stores incoming Set-Cookie headers in the cookie jar'
+      }
+
+      RedirectBidiStage = component 'RedirectBidiStage' {
+        #graphstage
+        technology 'BidiStage'
+        description 'Follows redirects automatically; rewrites HTTP methods where needed (POST becomes GET for 301/302/303); detects loops and blocks HTTPS-to-HTTP downgrades'
+      }
+
+      RetryBidiStage = component 'RetryBidiStage' {
+        #graphstage
+        technology 'BidiStage'
+        description 'Retries safe (idempotent) requests on transient failures; respects Retry-After delays'
+      }
+
+      ExpectContinueBidiStage = component 'ExpectContinueBidiStage' {
+        #graphstage
+        technology 'BidiStage'
+        description 'Handles 100-continue negotiation: holds request body until the server confirms readiness'
+      }
+
+      HandlerBidiStage = component 'HandlerBidiStage' {
+        #graphstage
+        technology 'BidiStage'
+        description 'Bridge for custom DelegatingHandler middleware; allows user-defined request/response processing'
+      }
+    }
+
+    // ── Protocol Layer ────────────────────────────────────────────────────
+    protocol = container 'Protocol Layer' {
+      description 'Stateless encoders/decoders, header compression, and protocol business rules'
+      technology 'C# / .NET 10'
+
+      // HTTP/1.x codecs
+      Http10Encoder = component 'Http10Encoder' {
+        #staticClass #protocol
+        technology 'Static class'
+        description 'Encodes HTTP/1.0 request-line + headers to bytes'
+      }
+
+      Http11Encoder = component 'Http11Encoder' {
+        #staticClass #protocol
+        technology 'Static class'
+        description 'Encodes HTTP/1.1 request-line + Host header + headers + chunked body'
+      }
+
+      Http10Decoder = component 'Http10Decoder' {
+        #protocol
+        technology 'Class'
+        description 'Stateful HTTP/1.0 response parser; handles partial data across TCP reads'
+      }
+
+      Http11Decoder = component 'Http11Decoder' {
+        #protocol
+        technology 'Class'
+        description 'Stateful HTTP/1.1 response parser; handles chunked transfer decoding and partial data'
+      }
+
+      // HTTP/2 codecs
+      Http2RequestEncoder = component 'Http2RequestEncoder' {
+        #protocol #http2
+        technology 'Class'
+        description 'Encodes requests into HEADERS frames (via HPACK) + optional DATA frames'
+      }
+
+      Http2FrameDecoder = component 'Http2FrameDecoder' {
+        #protocol #http2
+        technology 'Class'
+        description 'Parses 9-byte frame headers + payload into typed HTTP/2 frame objects'
+      }
+
+      // HPACK (header compression for HTTP/2)
+      HpackEncoder = component 'HpackEncoder' {
+        #protocol #http2
+        technology 'Class'
+        description 'Header compression encoder; sensitive headers (Authorization, Cookie) are never indexed'
+      }
+
+      HpackDecoder = component 'HpackDecoder' {
+        #protocol #http2
+        technology 'Class'
+        description 'Header compression decoder; maintains synchronised dynamic table'
+      }
+
+      HpackDynamicTable = component 'HpackDynamicTable' {
+        #protocol #http2
+        technology 'Class'
+        description 'FIFO eviction table for HPACK header compression; 32-byte per-entry overhead'
+      }
+
+      HuffmanCodec = component 'HuffmanCodec' {
+        #staticClass #protocol #http2
+        technology 'Static class'
+        description 'Static Huffman encoding and decoding for HPACK string literals'
+      }
+
+      // HTTP semantics (business rules)
+      RedirectHandler = component 'RedirectHandler' {
+        #protocol
+        technology 'Class'
+        description 'Redirect logic: method rewriting (POST becomes GET for 301/302/303), HTTPS-to-HTTP downgrade protection, loop detection'
+      }
+
+      RetryEvaluator = component 'RetryEvaluator' {
+        #staticClass #protocol
+        technology 'Static class'
+        description 'Retry decision logic: determines if a request is safe to retry based on method and response; parses Retry-After headers'
+      }
+
+      ConnectionReuseEvaluator = component 'ConnectionReuseEvaluator' {
+        #staticClass #protocol
+        technology 'Static class'
+        description 'Keep-alive / close decision based on Connection header and HTTP version'
+      }
+
+      // Cookie jar
+      CookieJar = component 'CookieJar' {
+        #protocol #cookie
+        technology 'Class'
+        description 'Cookie storage with domain/path matching, Secure/HttpOnly/SameSite enforcement, and automatic expiry'
+      }
+
+      // Content encoding
+      ContentEncodingDecoder = component 'ContentEncodingDecoder' {
+        #staticClass #protocol
+        technology 'Internal static class'
+        description 'Decompresses gzip/deflate/brotli response bodies'
+      }
+
+      // Caching
+      HttpCacheStore = component 'HttpCacheStore' {
+        #protocol #cache
+        technology 'Class'
+        description 'Thread-safe in-memory LRU cache with Vary header support'
+      }
+
+      CacheFreshnessEvaluator = component 'CacheFreshnessEvaluator' {
+        #staticClass #protocol #cache
+        technology 'Static class'
+        description 'Calculates whether a cached response is still fresh based on max-age, Expires, and heuristic rules'
+      }
+
+      CacheValidationRequestBuilder = component 'CacheValidationRequestBuilder' {
+        #staticClass #protocol #cache
+        technology 'Static class'
+        description 'Builds conditional revalidation requests (If-None-Match, If-Modified-Since); merges 304 responses with cached entries'
+      }
+
+      CacheControlParser = component 'CacheControlParser' {
+        #staticClass #protocol #cache
+        technology 'Static class'
+        description 'Parses Cache-Control directive tokens and values'
+      }
+    }
+
+    // ── Transport Layer ──────────────────────────────────────────────────
+    transport = container 'Transport Layer' {
+      description 'Actor-free connection pool with direct async API, zero-copy channels, and metrics'
+      technology 'System.Threading.Channels / System.IO.Pipelines / System.Net.Sockets'
+
+      // Connection pool (direct async API)
+      ConnectionPool = component 'ConnectionPool' {
+        technology 'Class'
+        description 'Thread-safe per-host connection pool: AcquireAsync / Release API, manages idle timeout, eviction, version-aware reuse'
+      }
+
+      HostConnections = component 'HostConnections' {
+        technology 'Inner class'
+        description 'Per-host connection manager: idle queue, concurrent limiter, connection establishment'
+      }
+
+      DirectConnectionFactory = component 'DirectConnectionFactory' {
+        #staticClass
+        technology 'Static class'
+        description 'Establishes TCP/TLS connections, creates channels, spawns ByteMover pump tasks, returns ConnectionLease'
+      }
+
+      ConnectionLease = component 'ConnectionLease' {
+        technology 'Class'
+        description 'Wraps ConnectionHandle + ClientState: lifecycle management, active stream tracking, metrics emission, reusability state'
+      }
+
+      // Data path (zero actor hops)
+      ConnectionHandle = component 'ConnectionHandle' {
+        technology 'Record'
+        description 'Bundles outbound writer, inbound reader, endpoint key; provides direct channel I/O without actor hops'
+      }
+
+      ClientByteMover = component 'ClientByteMover' {
+        #staticClass
+        technology 'Static class'
+        description 'Three concurrent async pump tasks per connection: TCP-to-Pipe, Pipe-to-Channel, Channel-to-TCP'
+      }
+
+      ClientState = component 'ClientState' {
+        technology 'Class'
+        description 'Per-connection primitives: network stream, System.IO.Pipelines.Pipe, inbound/outbound channels'
+      }
+
+      // Transport abstractions
+      IClientProvider = component 'IClientProvider' {
+        technology 'Interface'
+        description 'Transport abstraction: GetStreamAsync for TCP/TLS providers'
+      }
+    }
+  }
+
+  // External system
+  tcp = externalSystem 'Network' {
+    description 'Remote HTTP servers (TCP or TLS)'
+    technology 'TCP / TLS'
+  }
+
+  // ── Structural relationships ───────────────────────────────────────────
+
+  // User → Client Layer
+  user -> turbohttp.client.ITurboHttpClient 'Sends HttpRequestMessage, receives HttpResponseMessage'
+  turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboClientStreamManager 'Materialises Akka.Streams pipeline'
+  turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboClientOptions 'Reads configuration'
+
+  // Client → Streams
+  turbohttp.client.TurboClientStreamManager -> turbohttp.streams.Engine 'Feeds requests into pipeline'
+  turbohttp.client.TurboClientStreamManager -> turbohttp.streams.RequestEnricherStage 'Enriches requests with defaults'
+
+  // Engine routing
+  turbohttp.streams.Engine -> turbohttp.streams.Http10Engine 'Routes HTTP/1.0 requests'
+  turbohttp.streams.Engine -> turbohttp.streams.Http11Engine 'Routes HTTP/1.1 requests'
+  turbohttp.streams.Engine -> turbohttp.streams.Http20Engine 'Routes HTTP/2 requests'
+
+  // Client → Network (simplified view for index/system overview)
+  turbohttp.client -> tcp 'HTTP requests / responses'
+
+  // Pipeline BidiStages (applied around engine core)
+  turbohttp.streams.Engine -> turbohttp.streams.RequestEnricherStage 'Applies defaults before routing'
+  turbohttp.streams.Engine -> turbohttp.streams.CookieBidiStage 'Injects/stores cookies'
+  turbohttp.streams.Engine -> turbohttp.streams.CacheBidiStage 'Checks/stores cache'
+  turbohttp.streams.Engine -> turbohttp.streams.ContentEncodingBidiStage 'Compresses requests, decompresses responses'
+  turbohttp.streams.Engine -> turbohttp.streams.TracingBidiStage 'Traces requests and responses'
+  turbohttp.streams.Engine -> turbohttp.streams.RetryBidiStage 'Feeds retry loop'
+  turbohttp.streams.Engine -> turbohttp.streams.RedirectBidiStage 'Feeds redirect loop'
+  turbohttp.streams.Engine -> turbohttp.streams.ConnectionReuseStage 'Signals keep-alive / close'
+  turbohttp.streams.Engine -> turbohttp.streams.ExpectContinueBidiStage 'Handles 100-continue'
+  turbohttp.streams.Engine -> turbohttp.streams.HandlerBidiStage 'Custom handler middleware'
+
+  // HTTP/1.0 engine internals
+  turbohttp.streams.Http10Engine -> turbohttp.streams.Http10EncoderStage 'Encodes requests'
+  turbohttp.streams.Http10Engine -> turbohttp.streams.Http10DecoderStage 'Decodes responses'
+  turbohttp.streams.Http10Engine -> turbohttp.streams.Http1XCorrelationStage 'Matches requests to responses'
+  turbohttp.streams.Http10Engine -> turbohttp.streams.ConnectionStage 'Reads/writes bytes via transport'
+
+  // HTTP/1.1 engine internals
+  turbohttp.streams.Http11Engine -> turbohttp.streams.Http11EncoderStage 'Encodes requests'
+  turbohttp.streams.Http11Engine -> turbohttp.streams.Http11DecoderStage 'Decodes responses'
+  turbohttp.streams.Http11Engine -> turbohttp.streams.Http1XCorrelationStage 'Matches requests to responses'
+  turbohttp.streams.Http11Engine -> turbohttp.streams.ConnectionStage 'Reads/writes bytes via transport'
+
+  // HTTP/2 engine internals
+  turbohttp.streams.Http20Engine -> turbohttp.streams.Http20StreamIdAllocatorStage 'Allocates stream IDs'
+  turbohttp.streams.Http20Engine -> turbohttp.streams.Http20Request2FrameStage 'Converts requests to HEADERS + DATA frames'
+  turbohttp.streams.Http20Engine -> turbohttp.streams.Http20ConnectionStage 'Manages connection-level frames'
+  turbohttp.streams.Http20Engine -> turbohttp.streams.Http20EncoderStage 'Serialises frames to bytes'
+  turbohttp.streams.Http20Engine -> turbohttp.streams.Http20DecoderStage 'Parses bytes to frames'
+  turbohttp.streams.Http20Engine -> turbohttp.streams.Http20StreamStage 'Assembles response from frames'
+  turbohttp.streams.Http20Engine -> turbohttp.streams.ConnectionStage 'Reads/writes bytes via transport'
+
+  // ConnectionStage → Transport Layer
+  turbohttp.streams.ConnectionStage -> turbohttp.transport.ConnectionPool 'AcquireAsync(options, endpoint) for TCP/TLS'
+  turbohttp.streams.ConnectionStage -> turbohttp.transport.ConnectionLease 'Leases connection, reads/writes via handle'
+  turbohttp.streams.ConnectionStage -> tcp 'Writes request bytes, reads response bytes via TCP/TLS'
+
+  // Stages → Protocol codecs
+  turbohttp.streams.Http10EncoderStage -> turbohttp.protocol.Http10Encoder 'Delegates encoding'
+  turbohttp.streams.Http11EncoderStage -> turbohttp.protocol.Http11Encoder 'Delegates encoding'
+  turbohttp.streams.Http10DecoderStage -> turbohttp.protocol.Http10Decoder 'Delegates decoding'
+  turbohttp.streams.Http11DecoderStage -> turbohttp.protocol.Http11Decoder 'Delegates decoding'
+  turbohttp.streams.Http20DecoderStage -> turbohttp.protocol.Http2FrameDecoder 'Delegates frame decoding'
+  turbohttp.streams.Http20StreamStage -> turbohttp.protocol.HpackDecoder 'Decompresses response headers'
+  turbohttp.streams.Http20Request2FrameStage -> turbohttp.protocol.Http2RequestEncoder 'Encodes requests to HEADERS + DATA frames'
+  turbohttp.streams.Http20Request2FrameStage -> turbohttp.protocol.HpackEncoder 'Compresses request headers'
+
+  // HPACK internals
+  turbohttp.protocol.HpackEncoder -> turbohttp.protocol.HpackDynamicTable 'Maintains dynamic table'
+  turbohttp.protocol.HpackDecoder -> turbohttp.protocol.HpackDynamicTable 'Maintains dynamic table'
+  turbohttp.protocol.HpackEncoder -> turbohttp.protocol.HuffmanCodec 'Huffman-encodes string literals'
+  turbohttp.protocol.HpackDecoder -> turbohttp.protocol.HuffmanCodec 'Huffman-decodes string literals'
+
+  // BidiStages → Protocol business rules
+  turbohttp.streams.RedirectBidiStage -> turbohttp.protocol.RedirectHandler 'Evaluates redirect rules'
+  turbohttp.streams.RetryBidiStage -> turbohttp.protocol.RetryEvaluator 'Evaluates retry eligibility'
+  turbohttp.streams.CookieBidiStage -> turbohttp.protocol.CookieJar 'Reads/stores cookies'
+  turbohttp.streams.ConnectionReuseStage -> turbohttp.protocol.ConnectionReuseEvaluator 'Evaluates keep-alive / close'
+  turbohttp.streams.ContentEncodingBidiStage -> turbohttp.protocol.ContentEncodingDecoder 'Decompresses and compresses content'
+
+  // BidiStages → Caching subsystem
+  turbohttp.streams.CacheBidiStage -> turbohttp.protocol.HttpCacheStore 'Looks up and stores cached responses'
+  turbohttp.streams.CacheBidiStage -> turbohttp.protocol.CacheFreshnessEvaluator 'Checks freshness lifetime'
+  turbohttp.streams.CacheBidiStage -> turbohttp.protocol.CacheControlParser 'Parses Cache-Control directives'
+  turbohttp.streams.CacheBidiStage -> turbohttp.protocol.CacheValidationRequestBuilder 'Builds conditional revalidation requests'
+
+  // Transport Layer internals
+  turbohttp.transport.ConnectionPool -> turbohttp.transport.HostConnections 'Per-host manager: AcquireAsync delegates'
+  turbohttp.transport.HostConnections -> turbohttp.transport.DirectConnectionFactory 'Establishes new connections'
+  turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.IClientProvider 'Gets TCP/TLS stream'
+  turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ClientByteMover 'Spawns async pump tasks'
+  turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ConnectionLease 'Wraps handle + state with lifecycle'
+  turbohttp.transport.ConnectionLease -> turbohttp.transport.ConnectionHandle 'Provides direct channel I/O'
+  turbohttp.transport.ConnectionLease -> turbohttp.transport.ClientState 'Owns connection state'
+  turbohttp.transport.ClientByteMover -> turbohttp.transport.ClientState 'Reads/writes network stream, pipe, and channels'
+  turbohttp.transport.IClientProvider -> tcp 'TCP / TLS socket operations'
+  turbohttp.transport.ClientByteMover -> tcp 'TCP / TLS socket read + write'
+}

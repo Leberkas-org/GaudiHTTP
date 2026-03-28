@@ -1,64 +1,164 @@
-﻿using System;
-using System.Buffers;
+using System;
+using System.Net;
 using System.Net.Http;
 using Akka;
-using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using Servus.Akka.IO;
+using TurboHttp.Diagnostics;
+using TurboHttp.Internal;
+using TurboHttp.Streams.Stages.Features;
+using TurboHttp.Streams.Stages.Routing;
+using TurboHttp.Transport;
 
 namespace TurboHttp.Streams;
 
-public class Engine
+internal sealed class Engine
 {
-    public Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> CreateFlow(IActorRef clientManager, TcpOptions options)
+    internal Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> CreateFlow(ConnectionPool pool,
+        TurboClientOptions? options,
+        Func<TurboRequestOptions>? requestOptionsFactory,
+        PipelineDescriptor descriptor)
     {
-        return Flow.FromGraph(GraphDsl.Create(builder =>
-        {
-            var partition = builder.Add(new Partition<HttpRequestMessage>(4, msg => msg.Version switch
-            {
-                { Major: 3, Minor: 0 } => 3,
-                { Major: 2, Minor: 0 } => 2,
-                { Major: 1, Minor: 1 } => 1,
-                { Major: 1, Minor: 0 } => 0
-            }));
-            var hub = builder.Add(new Merge<HttpResponseMessage>(4));
+        options ??= new TurboClientOptions();
+        var requestOptions = BuildRequestOptions(options);
+        requestOptionsFactory ??= () => requestOptions;
 
-            var http10 = builder.Add(BuildProtocolFlow<Http10Engine>(4, clientManager, options));
-            var http11 = builder.Add(BuildProtocolFlow<Http11Engine>(4, clientManager, options));
-            var http20 = builder.Add(BuildProtocolFlow<Http20Engine>(1, clientManager, options));
-            var http30 = builder.Add(BuildProtocolFlow<Http30Engine>(1, clientManager, options));
-
-            builder.From(partition.Out(0)).Via(http10).To(hub);
-            builder.From(partition.Out(1)).Via(http11).To(hub);
-            builder.From(partition.Out(2)).Via(http20).To(hub);
-            builder.From(partition.Out(3)).Via(http30).To(hub);
-
-            return new FlowShape<HttpRequestMessage, HttpResponseMessage>(partition.In, hub.Out);
-        }));
+        return BuildExtendedPipeline(pool, options, requestOptionsFactory, descriptor);
     }
 
-    private static IGraph<FlowShape<HttpRequestMessage, HttpResponseMessage>, NotUsed> BuildProtocolFlow<TEngine>(
-        int connectionCount,
-        IActorRef clientManager,
-        TcpOptions options,
-        Func<Flow<(IMemoryOwner<byte>, int), (IMemoryOwner<byte>, int), NotUsed>>? transportFactory = null)
-        where TEngine : IHttpProtocolEngine, new()
+    internal Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> CreateFlow(
+        Func<Flow<IOutputItem, IInputItem, NotUsed>> http10Factory,
+        Func<Flow<IOutputItem, IInputItem, NotUsed>> http11Factory,
+        Func<Flow<IOutputItem, IInputItem, NotUsed>> http20Factory,
+        Func<Flow<IOutputItem, IInputItem, NotUsed>> http30Factory,
+        PipelineDescriptor descriptor)
     {
-        return GraphDsl.Create(builder =>
+        var holder = new HttpRequestMessage();
+        var defaultOptions = new TurboRequestOptions(
+            BaseAddress: null,
+            DefaultRequestHeaders: holder.Headers,
+            DefaultRequestVersion: HttpVersion.Version11,
+            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrHigher,
+            Timeout: TimeSpan.FromSeconds(30),
+            MaxResponseContentBufferSize: 1024 * 1024);
+
+        return BuildExtendedPipeline(null!, new TurboClientOptions(), () => defaultOptions,
+            descriptor,
+            http10Factory, http11Factory, http20Factory, http30Factory);
+    }
+
+    private static TurboRequestOptions BuildRequestOptions(TurboClientOptions options)
+    {
+        var holder = new HttpRequestMessage();
+        return new TurboRequestOptions(
+            BaseAddress: options.BaseAddress,
+            DefaultRequestVersion: holder.Version,
+            DefaultRequestHeaders: holder.Headers,
+            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrHigher,
+            Timeout: TimeSpan.FromSeconds(30),
+            MaxResponseContentBufferSize: 1024 * 1024);
+    }
+
+    /// <summary>
+    /// Composes the pipeline by stacking feature and handler BidiFlows via <c>Atop</c>
+    /// around the protocol engine core, with <see cref="RequestEnricherStage"/> prepended
+    /// outside the BidiFlow chain.
+    /// <para><b>Stacking order (outermost → innermost):</b></para>
+    /// <list type="number">
+    ///   <item><description>TracingBidiStage — root "TurboHttp.Request" activity lifecycle</description></item>
+    ///   <item><description>User Handlers — HandlerBidiStage per TurboHandler (FIFO: [0] outermost)</description></item>
+    ///   <item><description>RedirectBidiStage — RFC 9110 §15.4, internal feedback loop</description></item>
+    ///   <item><description>CookieBidiStage — RFC 6265 §5.3–§5.4</description></item>
+    ///   <item><description>RetryBidiStage — RFC 9110 §9.2, internal feedback loop</description></item>
+    ///   <item><description>ExpectContinueBidiStage — RFC 9110 §10.1.1, Expect: 100-continue</description></item>
+    ///   <item><description>CacheBidiStage — RFC 9111, internal short-circuit</description></item>
+    ///   <item><description>ContentEncodingBidiStage — RFC 9110 §8.4 (request compression + response decompression)</description></item>
+    /// </list>
+    /// <para>Request direction: Handler[0] → … → Handler[N] → Redirect → Cookie → Retry → Expect100 → Cache → ContentEncoding → Engine</para>
+    /// <para>Response direction: Engine → ContentEncoding → Cache → Expect100 → Retry → Cookie → Redirect → Handler[N] → … → Handler[0]</para>
+    /// <para>Only BidiFlows for non-null policies are included. When all policies are null,
+    /// no handlers exist, and <see cref="PipelineDescriptor.AutomaticDecompression"/> is true,
+    /// the graph is: Enricher → ContentEncodingBidi(Engine) → Output.</para>
+    /// </summary>
+    private static Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> BuildExtendedPipeline(
+        ConnectionPool pool,
+        TurboClientOptions options,
+        Func<TurboRequestOptions> requestOptionsFactory,
+        PipelineDescriptor descriptor,
+        Func<Flow<IOutputItem, IInputItem, NotUsed>>? http10Factory = null,
+        Func<Flow<IOutputItem, IInputItem, NotUsed>>? http11Factory = null,
+        Func<Flow<IOutputItem, IInputItem, NotUsed>>? http20Factory = null,
+        Func<Flow<IOutputItem, IInputItem, NotUsed>>? http30Factory = null)
+    {
+        // Protocol engine core (version demux + encode/decode).
+        var engineFlow = Flow.FromGraph(
+            ProtocolCoreGraphBuilder.Build(pool, options, http10Factory, http11Factory, http20Factory, http30Factory));
+
+        // Build feature BidiFlow chain via conditional Atop stacking.
+        // Build from innermost to outermost so that each new layer wraps the previous.
+        BidiFlow<HttpRequestMessage, HttpRequestMessage,
+            HttpResponseMessage, HttpResponseMessage, NotUsed>? features = null;
+
+        if (descriptor.AutomaticDecompression || descriptor.RequestCompressionPolicy is not null)
         {
-            var balance = builder.Add(new Balance<HttpRequestMessage>(connectionCount));
-            var merge = builder.Add(new Merge<HttpResponseMessage>(connectionCount));
+            var contentEncoding = BidiFlow.FromGraph(
+                new ContentEncodingBidiStage(descriptor.AutomaticDecompression, descriptor.RequestCompressionPolicy));
+            features = features is not null ? contentEncoding.Atop(features) : contentEncoding;
+        }
 
-            for (var i = 0; i < connectionCount; i++)
-            {
-                var tcp = transportFactory?.Invoke() ??
-                          Flow.FromGraph(new Stages.ConnectionStage(clientManager, options));
-                var conn = builder.Add(new TEngine().CreateFlow().Join(tcp));
-                builder.From(balance.Out(i)).Via(conn).To(merge.In(i));
-            }
+        if (descriptor.CacheStore is not null)
+        {
+            var cache = BidiFlow.FromGraph(new CacheBidiStage(descriptor.CacheStore, descriptor.CachePolicy));
+            features = features is not null ? cache.Atop(features) : cache;
+        }
 
-            return new FlowShape<HttpRequestMessage, HttpResponseMessage>(balance.In, merge.Out);
-        });
+        if (descriptor.Expect100Policy is not null)
+        {
+            var expect = BidiFlow.FromGraph(new ExpectContinueBidiStage(descriptor.Expect100Policy));
+            features = features is not null ? expect.Atop(features) : expect;
+        }
+
+        if (descriptor.RetryPolicy is not null)
+        {
+            var retry = BidiFlow.FromGraph(new RetryBidiStage(descriptor.RetryPolicy));
+            features = features is not null ? retry.Atop(features) : retry;
+        }
+
+        if (descriptor.CookieJar is not null)
+        {
+            var cookie = BidiFlow.FromGraph(new CookieBidiStage(descriptor.CookieJar));
+            features = features is not null ? cookie.Atop(features) : cookie;
+        }
+
+        if (descriptor.RedirectPolicy is not null)
+        {
+            var redirect = BidiFlow.FromGraph(new RedirectBidiStage(descriptor.RedirectPolicy));
+            features = features is not null ? redirect.Atop(features) : redirect;
+        }
+
+        // Stack user handlers outermost via Atop. Iterate in reverse so that
+        // Handlers[0] ends up outermost (sees initial request first, final response last).
+        for (var i = descriptor.Handlers.Count - 1; i >= 0; i--)
+        {
+            var mw = BidiFlow.FromGraph(new HandlerBidiStage(descriptor.Handlers[i], i));
+            features = features is not null ? mw.Atop(features) : mw;
+        }
+
+        // Tracing is the absolute outermost layer — wraps everything including handlers.
+        // Creates root "TurboHttp.Request" activity per request, completes it on response.
+        var tracing = BidiFlow.FromGraph(new TracingBidiStage());
+        features = features is not null ? tracing.Atop(features) : tracing;
+
+        // Join features with engine, or use engine directly if no features.
+        var pipelineFlow = features is not null
+            ? features.Join(engineFlow)
+            : engineFlow;
+
+        // Prepend enricher (initial requests only — redirects/retries are handled
+        // internally by their BidiStages and bypass the enricher).
+        var requestPrep = Flow.Create<HttpRequestMessage>()
+            .Via(Flow.FromGraph(new RequestEnricherStage(requestOptionsFactory)));
+
+        return requestPrep.Via(pipelineFlow);
     }
 }

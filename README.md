@@ -1,401 +1,254 @@
-# HTTP/1.1 & HTTP/2.0 Implementation Guide for RALPH
+<div align="center">
+  <img src="docs/logo/logo.svg" alt="TurboHttp" width="200" />
+  <h1>TurboHttp</h1>
+  <p><strong>High-performance HTTP client for .NET — built on Akka.Streams with automatic retries, caching, cookies, and HTTP/2 multiplexing.</strong></p>
 
-## 📦 Package Contents
-
-This comprehensive implementation guide contains everything you need to build production-ready, RFC-conformant HTTP/1.1 and HTTP/2 encoders and decoders.
-
----
-
-## 📚 Documentation Overview
-
-### 1. **IMPLEMENTATION_PLAN.md** 📋
-**The Master Plan - Start Here!**
-
-Complete 14-week project roadmap with:
-- 6 detailed implementation phases
-- Task breakdown by RFC section
-- Acceptance criteria for each phase
-- Timeline and milestones
-- Security considerations
-- Performance targets
-
-**Use this to:** Understand the big picture and plan your sprints.
+  [![Build](https://github.com/st0o0/TurboHttp/actions/workflows/build-and-release.yml/badge.svg)](https://github.com/st0o0/TurboHttp/actions/workflows/build-and-release.yml)
+  [![NuGet](https://img.shields.io/nuget/v/TurboHttp.svg)](https://www.nuget.org/packages/TurboHttp)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+</div>
 
 ---
 
-### 2. **RFC_TEST_MATRIX.md** ✅
-**RFC Conformance Test Specification**
+## Why TurboHttp?
 
-Detailed test cases for:
-- RFC 7230 (HTTP/1.1 Message Syntax)
-- RFC 7231 (HTTP/1.1 Semantics)
-- RFC 7233 (Range Requests)
-- RFC 7540 (HTTP/2)
-- RFC 7541 (HPACK)
-
-Over **150+ specific test cases** with:
-- Test IDs
-- Priority levels (P0/P1/P2)
-- Expected results
-- Edge cases
-
-**Use this to:** Write comprehensive test suites and ensure RFC compliance.
+TurboHttp replaces `HttpClient` with a reactive, backpressure-aware HTTP pipeline built on [Akka.Streams](https://getakka.net/). Actors manage connection lifecycle while data flows through `System.Threading.Channels` — zero bytes ever touch an actor mailbox. The result: high throughput, low allocations, and a pipeline that never dies on transient errors.
 
 ---
 
-### 3. **DAILY_CHECKLIST.md** ✓
-**Your Daily Development Workflow**
+## Features
 
-Practical daily guidance including:
-- Morning routine checklist
-- Development workflow (TDD)
-- Code quality checks
-- Testing best practices
-- Debugging strategies
-- Weekly review template
-- Progress tracking
+### Protocol Support
 
-**Use this to:** Stay organized and maintain high code quality every day.
+- **HTTP/1.0 and HTTP/1.1** — chunked transfer encoding, keep-alive, pipelining
+- **HTTP/2** — binary framing, stream multiplexing, HPACK header compression, flow control
+
+### Resilience
+
+- **Immortal pipeline** — transport failures, protocol violations, and corrupt data are absorbed gracefully. The stream only completes when you dispose the client. No single bad request or broken connection can take down the pipeline.
+- **Automatic retries** — idempotent methods (GET, PUT, DELETE, HEAD, OPTIONS) are retried automatically on transient failures. Respects `Retry-After` headers. POST and other non-idempotent methods are never retried.
+- **Connection pooling** — per-host connection pools with configurable limits, idle eviction, and automatic reconnect with exponential backoff. Connections are reused transparently across requests.
+
+### HTTP Features
+
+- **Redirect following** — 301, 302, 303, 307, 308 with correct method rewriting (POST to GET on 303), body preservation on 307/308, loop detection, and HTTPS-to-HTTP downgrade protection. Configurable max redirects.
+- **Cookie management** — automatic cookie storage and injection across requests. Supports domain/path matching, `Secure`, `HttpOnly`, `SameSite`, `Max-Age`, and `Expires`. Bring your own `CookieJar` or use the built-in one.
+- **HTTP caching** — in-memory LRU cache with `Vary` support, conditional requests via `ETag`/`If-None-Match` and `Last-Modified`/`If-Modified-Since`, freshness evaluation (`max-age`, `s-maxage`, `Expires`, heuristic), and 304 response merging. Configurable via `CachePolicy`.
+- **Content encoding** — automatic gzip, deflate, and Brotli response decompression. Optional request body compression. Can be disabled per-client if you need raw compressed bytes.
+- **100-Continue** — `Expect: 100-continue` handling for large request bodies.
+
+### Performance
+
+- **Zero-allocation internals** — `Span<T>`, `ReadOnlyMemory<byte>`, `IBufferWriter<byte>`, and `System.Threading.Channels` throughout the hot path
+- **HTTP/2 multiplexing** — multiple concurrent requests over a single TCP connection with header compression and per-stream flow control
+- **Backpressure** — Akka.Streams backpressure propagates end-to-end from the network to the caller, preventing buffer bloat and memory exhaustion under load
+- **Channel-based API** — for high-throughput scenarios, bypass `SendAsync` and write/read directly to `System.Threading.Channels` for pipelined I/O
+
+### Extensibility
+
+- **Handler pipeline** — compose custom request/response transforms via `TurboHandler` subclasses or inline delegates, ordered FIFO
+- **DI integration** — first-class `IServiceCollection` support with named and typed clients, `IOptionsMonitor` for runtime configuration changes
+- **3,600+ tests** — unit tests, stream stage tests, integration tests, and benchmarks
 
 ---
 
-### 4. **QUICK_REFERENCE.md** ⚡
-**Cheat Sheet & Code Templates**
+## Getting Started
 
-Quick reference for:
-- Zero-allocation patterns
-- Test templates (5 types)
-- Common parsing patterns
-- HTTP/2 frame writing
-- Performance optimization
-- Debugging tips
-- Status codes table
-- Frame types reference
+### Installation
 
-**Use this to:** Copy-paste proven patterns and avoid common pitfalls.
-
----
-
-## 🚀 Getting Started
-
-### Step 1: Read the Implementation Plan
 ```bash
-# Open and read IMPLEMENTATION_PLAN.md
-# Understand the 6 phases
-# Note the 14-week timeline
+dotnet add package TurboHttp
 ```
 
-### Step 2: Set Up Your Environment
+Requires **.NET 10.0** or later.
+
+### Basic Usage
+
+Register and inject via dependency injection:
+
+```csharp
+using TurboHttp;
+using System.Net.Http;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+services.AddTurboHttpClient(options =>
+{
+    options.BaseAddress = new Uri("https://api.example.com");
+    options.DefaultRequestVersion = HttpVersion.Version20;
+});
+
+var provider = services.BuildServiceProvider();
+var factory = provider.GetRequiredService<ITurboHttpClientFactory>();
+var client = factory.CreateClient();
+
+var request = new HttpRequestMessage(HttpMethod.Get, "/users");
+var response = await client.SendAsync(request);
+
+Console.WriteLine($"Status: {response.StatusCode}");
+var body = await response.Content.ReadAsStringAsync();
+Console.WriteLine(body);
+```
+
+### Dependency Injection
+
+Register named or typed clients with `IServiceCollection`:
+
+```csharp
+services
+    .AddTurboHttpClient("GitHub", options =>
+    {
+        options.BaseAddress = new Uri("https://api.github.com");
+        options.ConnectTimeout = TimeSpan.FromSeconds(15);
+        options.IdleTimeout = TimeSpan.FromSeconds(30);
+    })
+    .WithRedirect()
+    .WithCookies()
+    .WithDecompression()
+    .WithRetry(new RetryPolicy { MaxRetries = 3 })
+    .WithCache(new CachePolicy { MaxEntries = 1000 });
+```
+
+Then inject and use:
+
+```csharp
+public class GitHubService(ITurboHttpClientFactory factory)
+{
+    private readonly ITurboHttpClient _client = factory.CreateClient("GitHub");
+
+    public async Task<string> GetRepoAsync(string owner, string repo, CancellationToken ct)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, $"/repos/{owner}/{repo}");
+        var response = await _client.SendAsync(request, ct);
+        return await response.Content.ReadAsStringAsync(ct);
+    }
+}
+```
+
+### Channel-based API
+
+For high-throughput scenarios, bypass `SendAsync` and use channels directly:
+
+```csharp
+var services = new ServiceCollection();
+services.AddTurboHttpClient(options =>
+{
+    options.BaseAddress = new Uri("https://api.example.com");
+});
+
+var provider = services.BuildServiceProvider();
+var factory = provider.GetRequiredService<ITurboHttpClientFactory>();
+var client = factory.CreateClient();
+
+// Fire requests
+await client.Requests.WriteAsync(new HttpRequestMessage(HttpMethod.Get, "/ping"));
+await client.Requests.WriteAsync(new HttpRequestMessage(HttpMethod.Get, "/health"));
+
+// Read responses as they arrive
+await foreach (var response in client.Responses.ReadAllAsync())
+{
+    Console.WriteLine($"{response.RequestMessage!.RequestUri} -> {response.StatusCode}");
+}
+```
+
+### Custom Handlers
+
+Extend the pipeline with custom request/response transforms:
+
+```csharp
+public sealed class AuthHandler : TurboHandler
+{
+    public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
+    {
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "my-token");
+        return request;
+    }
+}
+
+services
+    .AddTurboHttpClient("MyApi", options => { ... })
+    .AddHandler<AuthHandler>();
+```
+
+Or use inline delegates:
+
+```csharp
+services
+    .AddTurboHttpClient("MyApi")
+    .UseRequest(request =>
+    {
+        request.Headers.Add("X-Request-Id", Guid.NewGuid().ToString());
+        return request;
+    });
+```
+
+### Configuration Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `BaseAddress` | `null` | Base URI for resolving relative request URIs |
+| `ConnectTimeout` | 10s | Timeout for establishing a new TCP connection |
+| `IdleTimeout` | 10s | Time a connection may remain idle before eviction |
+| `ReconnectInterval` | 5s | Delay between reconnection attempts after failure |
+| `MaxReconnectAttempts` | 10 | Max reconnection attempts before giving up |
+| `MaxFrameSize` | 128 KiB | HTTP/2 maximum frame size in bytes |
+| `ConnectionPolicy` | `null` | Per-host connection limits and HTTP/2 multiplexing settings |
+| `DangerousAcceptAnyServerCertificate` | `false` | Skip TLS validation (dev/test only) |
+| `ServerCertificateValidationCallback` | — | Custom TLS certificate validation logic |
+| `ClientCertificates` | `null` | X.509 client certificates for mTLS |
+| `EnabledSslProtocols` | `SslProtocols.None` | TLS protocol versions to enable (OS default if `None`) |
+
+---
+
+## Architecture
+
+```
+Client Layer       ITurboHttpClient (SendAsync / channel API)
+      ↓
+Handlers Layer     TurboHandler pipeline (Auth, Logging, custom transforms)
+      ↓
+Streams Layer      Akka.Streams GraphStages — Engine, Feature BidiStages, Protocol Engines
+                   Features: Cache, Cookies, Redirect, Retry, ContentEncoding, Expect-Continue
+      ↓
+Protocol Layer     Encoders/Decoders, HPACK, frame types
+      ↓
+Pooling Layer      PoolRouter → HostPool → ConnectionActor (lifecycle only)
+      ↓
+Transport Layer    ConnectionStage ←→ Channel<byte> ←→ ClientByteMover ←→ TCP
+```
+
+For interactive architecture diagrams, see the [documentation site](https://turbohttp.st0o0.net/).
+
+---
+
+## Documentation
+
+Full documentation — including feature guides, architecture deep-dives, and a comparison with `HttpClient` — is available at **[https://st0o0.github.io/TurboHttp/](https://st0o0.github.io/TurboHttp/)**.
+
+---
+
+## Building from Source
+
 ```bash
-# Prerequisites
-- .NET 8.0+ SDK
-- Visual Studio 2022 / Rider / VS Code
-- Git
+# Restore and build
+dotnet restore ./src/TurboHttp.sln
+dotnet build --configuration Release ./src/TurboHttp.sln
 
-# Clone and setup
-git init http-stack
-cd http-stack
-dotnet new sln -n HttpStack
-dotnet new classlib -n HttpStack.Core
-dotnet new xunit -n HttpStack.Tests
-dotnet sln add **/*.csproj
-```
+# Run all tests
+dotnet test ./src/TurboHttp.sln
 
-### Step 3: Start with Phase 1
-```bash
-# Focus on HTTP/1.1 Request Parser first
-# Read: IMPLEMENTATION_PLAN.md -> Phase 1 -> Task 1.1
-# Consult: RFC_TEST_MATRIX.md -> RFC 7230 §3.1.1
-# Follow: DAILY_CHECKLIST.md -> Development Workflow
-```
-
-### Step 4: Use the Daily Checklist
-```bash
-# Every morning:
-- Review current phase
-- Check today's tasks
-- Run smoke tests
-
-# During development:
-- Write tests first (TDD)
-- Use Quick Reference for patterns
-- Commit early and often
-
-# Before pushing:
-- Run all tests
-- Check coverage
-- Verify benchmarks
+# Run benchmarks
+dotnet run --configuration Release --project ./src/TurboHttp.Benchmarks/TurboHttp.Benchmarks.csproj
 ```
 
 ---
 
-## 📊 Project Structure Recommendation
+## Contributing
 
-```
-http-stack/
-├── src/
-│   ├── HttpStack.Core/
-│   │   ├── Http11/
-│   │   │   ├── Parser.cs
-│   │   │   ├── Encoder.cs
-│   │   │   └── ChunkedEncoding.cs
-│   │   ├── Http2/
-│   │   │   ├── FrameParser.cs
-│   │   │   ├── FrameWriter.cs
-│   │   │   ├── HpackEncoder.cs
-│   │   │   ├── HpackDecoder.cs
-│   │   │   └── FlowControl.cs
-│   │   └── Common/
-│   │       ├── HttpRequest.cs
-│   │       ├── HttpResponse.cs
-│   │       └── HttpHeaders.cs
-│   └── HttpStack.Core.csproj
-├── tests/
-│   ├── HttpStack.Tests/
-│   │   ├── Unit/
-│   │   │   ├── Http11/
-│   │   │   │   ├── ParserTests.cs
-│   │   │   │   ├── EncoderTests.cs
-│   │   │   │   └── ChunkedTests.cs
-│   │   │   └── Http2/
-│   │   │       ├── FrameTests.cs
-│   │   │       ├── HpackTests.cs
-│   │   │       └── FlowControlTests.cs
-│   │   ├── Integration/
-│   │   │   ├── Http11EndToEndTests.cs
-│   │   │   └── Http2EndToEndTests.cs
-│   │   ├── Conformance/
-│   │   │   ├── RFC7230Tests.cs
-│   │   │   ├── RFC7540Tests.cs
-│   │   │   └── RFC7541Tests.cs
-│   │   └── HttpStack.Tests.csproj
-│   └── HttpStack.Benchmarks/
-│       ├── ParserBenchmarks.cs
-│       ├── EncoderBenchmarks.cs
-│       └── HttpStack.Benchmarks.csproj
-├── docs/
-│   ├── IMPLEMENTATION_PLAN.md
-│   ├── RFC_TEST_MATRIX.md
-│   ├── DAILY_CHECKLIST.md
-│   ├── QUICK_REFERENCE.md
-│   └── API_DOCUMENTATION.md (to be created)
-└── HttpStack.sln
-```
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for branch naming conventions, PR requirements, how to run tests locally, and recommended branch protection settings.
 
 ---
 
-## 🎯 Success Metrics
+## License
 
-### Code Quality:
-- ✅ **≥ 90% line coverage** (minimum)
-- ✅ **≥ 85% branch coverage**
-- ✅ **0 compiler warnings** (treat as errors)
-- ✅ **0 memory leaks** (verified with profiler)
-
-### RFC Compliance:
-- ✅ **100% of MUST requirements** implemented
-- ✅ **≥ 90% of SHOULD requirements** implemented
-- ✅ **h2spec conformance** (HTTP/2)
-
-### Performance:
-- ✅ **≥ 100,000 RPS** (HTTP/1.1)
-- ✅ **≥ 200,000 RPS** (HTTP/2 multiplexed)
-- ✅ **0 allocations** in hot paths (encoder)
-- ✅ **< 50μs P99 latency** (HTTP/1.1)
-- ✅ **< 100μs P99 latency** (HTTP/2)
-
----
-
-## 📅 Timeline Overview
-
-| Phase | Duration | Focus |
-|-------|----------|-------|
-| **Phase 1** | 3 weeks | HTTP/1.1 Core (parser, encoder) |
-| **Phase 2** | 2 weeks | HTTP/1.1 Advanced (range, conditional) |
-| **Phase 3** | 4 weeks | HTTP/2 Core (frames, HPACK, streams) |
-| **Phase 4** | 2 weeks | HTTP/2 Advanced (push, priority) |
-| **Phase 5** | 2 weeks | Integration & Performance |
-| **Phase 6** | 1 week | Production Hardening |
-| **TOTAL** | **14 weeks** | **Production-Ready Stack** |
-
----
-
-## 💡 Key Principles
-
-### 1. Test-Driven Development (TDD)
-- Write tests BEFORE implementation
-- Red → Green → Refactor
-- Aim for ≥ 90% coverage
-
-### 2. Zero-Allocation Hot Paths
-- Use `Span<byte>` for parsing
-- Use `ArrayPool` for temporary buffers
-- Avoid LINQ in critical paths
-
-### 3. RFC Compliance First
-- Read RFC sections carefully
-- Implement MUST requirements
-- Test against conformance suites
-
-### 4. Incremental Development
-- Small, focused commits
-- Continuous integration
-- Regular code reviews
-
-### 5. Performance Awareness
-- Benchmark continuously
-- Profile memory usage
-- Optimize after correctness
-
----
-
-## 🔧 Essential Tools
-
-### Development:
-- **Visual Studio 2022** or **JetBrains Rider**
-- **.NET 8.0 SDK**
-- **Git** (version control)
-
-### Testing:
-- **xUnit** (unit testing)
-- **BenchmarkDotNet** (performance)
-- **h2spec** (HTTP/2 conformance)
-- **h2load** (load testing)
-
-### Profiling:
-- **dotMemory** (memory profiling)
-- **dotTrace** (performance profiling)
-- **PerfView** (ETW tracing)
-
-### Documentation:
-- **DocFX** (API documentation)
-- **Mermaid** (diagrams)
-
----
-
-## 📖 Recommended Reading Order
-
-### Week 1:
-1. Read **IMPLEMENTATION_PLAN.md** (Phase 1)
-2. Skim **RFC 7230** (HTTP/1.1 Message Syntax)
-3. Review **QUICK_REFERENCE.md** (parsing patterns)
-4. Read **DAILY_CHECKLIST.md**
-
-### Week 2-3:
-1. Reference **RFC_TEST_MATRIX.md** for test cases
-2. Use **QUICK_REFERENCE.md** for code patterns
-3. Follow **DAILY_CHECKLIST.md** workflow
-4. Update progress in weekly review
-
-### Week 4+:
-1. Continue with next phases in **IMPLEMENTATION_PLAN.md**
-2. Add new tests from **RFC_TEST_MATRIX.md**
-3. Maintain daily habits from **DAILY_CHECKLIST.md**
-4. Reference **QUICK_REFERENCE.md** as needed
-
----
-
-## 🆘 Getting Help
-
-### When Stuck:
-1. **Re-read the RFC section** - Often the answer is there
-2. **Check the test matrix** - See if similar test exists
-3. **Review quick reference** - Look for applicable pattern
-4. **Read reference implementations** - nginx, nghttp2, curl
-5. **Ask for clarification** - Document ambiguous requirements
-
-### Useful Resources:
-- **RFC Editor:** https://www.rfc-editor.org/
-- **HTTP/2 Spec:** https://http2.github.io/
-- **HPACK Spec:** https://http2.github.io/http2-spec/compression.html
-- **nghttp2:** https://nghttp2.org/ (reference HTTP/2)
-- **h2spec:** https://github.com/summerwind/h2spec (conformance)
-
----
-
-## 🎉 Milestones to Celebrate
-
-- ✅ **First test passes** - You're on the right track!
-- ✅ **10 tests pass** - Building momentum
-- ✅ **50 tests pass** - Significant progress
-- ✅ **100 tests pass** - Major milestone!
-- ✅ **Phase 1 complete** - HTTP/1.1 core works!
-- ✅ **Phase 3 complete** - HTTP/2 core works!
-- ✅ **All tests pass** - Production ready!
-- ✅ **h2spec passes** - RFC conformant!
-- ✅ **Performance targets met** - Ship it! 🚀
-
----
-
-## 📝 Progress Tracking Template
-
-Create a `PROGRESS.md` file to track your journey:
-
-```markdown
-# Implementation Progress
-
-## Current Status
-- **Phase:** 1/6
-- **Week:** 1/14
-- **Overall Progress:** 5%
-
-## Completed
-- [x] Project setup
-- [x] Initial test structure
-- [ ] HTTP/1.1 Request Parser
-- [ ] HTTP/1.1 Response Parser
-
-## Metrics
-- Tests: 5 / ~300 (2%)
-- Coverage: 60%
-- Performance: Not yet measured
-
-## This Week
-- Focus: HTTP/1.1 Request Parser
-- Goal: Complete tasks 1.1 and 1.2
-
-## Blockers
-- None currently
-
-## Notes
-- Setup went smoothly
-- TDD workflow is working well
-```
-
----
-
-## 🚀 Let's Get Started!
-
-You now have everything you need:
-- ✅ **Detailed implementation plan** (14 weeks)
-- ✅ **150+ RFC test cases** (comprehensive coverage)
-- ✅ **Daily workflow guide** (stay organized)
-- ✅ **Code patterns & templates** (proven solutions)
-
-**Next Steps:**
-1. Set up your development environment
-2. Create the project structure
-3. Start with Phase 1, Task 1.1 (Request-Line Parsing)
-4. Follow the daily checklist religiously
-5. Track your progress
-6. Celebrate small wins!
-
----
-
-## 💪 You Got This, RALPH!
-
-Remember:
-- **Quality > Speed** - It's better to do it right
-- **Test First** - TDD saves time in the long run
-- **Small Steps** - Incremental progress compounds
-- **Ask Questions** - No question is too small
-- **Stay Organized** - Use the checklists
-- **Celebrate Wins** - Acknowledge your progress
-
-**This is a marathon, not a sprint. Pace yourself, and you'll build something amazing!**
-
-Good luck! 🎉🚀
-
----
-
-**Questions? Start with IMPLEMENTATION_PLAN.md and work through it systematically.**
+TurboHttp is licensed under the [MIT License](LICENSE).

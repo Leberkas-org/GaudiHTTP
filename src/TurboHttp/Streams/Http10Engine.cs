@@ -1,30 +1,46 @@
-using System.Buffers;
 using System.Net.Http;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHttp.Internal;
+using TurboHttp.Streams.Stages.Decoding;
+using TurboHttp.Streams.Stages.Encoding;
+using TurboHttp.Streams.Stages.Routing;
 
 namespace TurboHttp.Streams;
 
 public class Http10Engine : IHttpProtocolEngine
 {
-    public BidiFlow<HttpRequestMessage, (IMemoryOwner<byte>, int), (IMemoryOwner<byte>, int), HttpResponseMessage,
-        NotUsed> CreateFlow()
+    public BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> CreateFlow()
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var requestEncoder = b.Add(new Stages.Http10EncoderStage());
-            var responseDecoder = b.Add(new Stages.Http10DecoderStage());
+            var encoder = b.Add(new Http10EncoderStage());
+            var decoder = b.Add(new Http10DecoderStage());
+            var correlation = b.Add(new Http1XCorrelationStage());
+
+            var requestBCast = b.Add(new Broadcast<HttpRequestMessage>(2));
+
+            b.From(requestBCast.Out(0)).To(encoder.Inlet);
+            b.From(requestBCast.Out(1)).To(correlation.InRequest);
+
+            var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
+            b.From(correlation.OutControl).To(signalSink);
+
+            b.From(decoder.Outlet).To(correlation.InResponse);
+
+            var resetSrc = b.Add(Source.Empty<NotUsed>());
+            b.From(resetSrc).To(correlation.InReset);
 
             return new BidiShape<
                 HttpRequestMessage,
-                (IMemoryOwner<byte>, int),
-                (IMemoryOwner<byte>, int),
+                IOutputItem,
+                IInputItem,
                 HttpResponseMessage>(
-                requestEncoder.Inlet,
-                requestEncoder.Outlet,
-                responseDecoder.Inlet,
-                responseDecoder.Outlet);
+                requestBCast.In,
+                encoder.Outlet,
+                decoder.Inlet,
+                correlation.OutResponse);
         }));
     }
 }

@@ -1,0 +1,105 @@
+---
+title: "14.4.  Content-Range"
+rfc_number: 9110
+rfc_section: "14.4"
+source_url: "https://www.rfc-editor.org/rfc/rfc9110"
+description: "Section 14.4: Content-Range — RFC 9110 — HTTP Semantics"
+tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, content-negotiation, conditional-requests, content-range]
+---
+
+## 14.4.  Content-Range
+
+## 14.4  Content-Range
+
+   The "Content-Range" header field is sent in a single part 206
+   (Partial Content) response to indicate the partial range of the
+   selected representation enclosed as the message content, sent in each
+   part of a multipart 206 response to indicate the range enclosed
+   within each body part (Section 14.6), and sent in 416 (Range Not
+   Satisfiable) responses to provide information about the selected
+   representation.
+
+
+```abnf
+     Content-Range       = range-unit SP
+                           ( range-resp / unsatisfied-range )
+
+     range-resp          = incl-range "/" ( complete-length / "*" )
+     incl-range          = first-pos "-" last-pos
+     unsatisfied-range   = "*/" complete-length
+
+     complete-length     = 1*DIGIT
+```
+
+
+   If a 206 (Partial Content) response contains a Content-Range header
+   field with a range unit (Section 14.1) that the recipient does not
+> **MUST NOT**: understand, the recipient MUST NOT attempt to recombine it with a
+   stored representation.  A proxy that receives such a message SHOULD
+   forward it downstream.
+
+   Content-Range might also be sent as a request modifier to request a
+   partial PUT, as described in Section 14.5, based on private
+> **MUST**: agreements between client and origin server.  A server MUST ignore a
+   Content-Range header field received in a request with a method for
+   which Content-Range support is not defined.
+
+> **SHOULD**: For byte ranges, a sender SHOULD indicate the complete length of the
+   representation from which the range has been extracted, unless the
+   complete length is unknown or difficult to determine.  An asterisk
+   character ("*") in place of the complete-length indicates that the
+   representation length was unknown when the header field was
+   generated.
+
+   The following example illustrates when the complete length of the
+   selected representation is known by the sender to be 1234 bytes:
+
+   Content-Range: bytes 42-1233/1234
+
+   and this second example illustrates when the complete length is
+   unknown:
+
+   Content-Range: bytes 42-1233/*
+
+   A Content-Range field value is invalid if it contains a range-resp
+   that has a last-pos value less than its first-pos value, or a
+   complete-length value less than or equal to its last-pos value.  The
+> **MUST NOT**: recipient of an invalid Content-Range MUST NOT attempt to recombine
+   the received content with a stored representation.
+
+   A server generating a 416 (Range Not Satisfiable) response to a byte-
+> **SHOULD**: range request SHOULD send a Content-Range header field with an
+   unsatisfied-range value, as in the following example:
+
+   Content-Range: bytes */1234
+
+   The complete-length in a 416 response indicates the current length of
+   the selected representation.
+
+   The Content-Range header field has no meaning for status codes that
+   do not explicitly describe its semantic.  For this specification,
+   only the 206 (Partial Content) and 416 (Range Not Satisfiable) status
+   codes describe a meaning for Content-Range.
+
+   The following are examples of Content-Range values in which the
+   selected representation contains a total of 1234 bytes:
+
+   *  The first 500 bytes:
+
+      Content-Range: bytes 0-499/1234
+
+   *  The second 500 bytes:
+
+      Content-Range: bytes 500-999/1234
+
+   *  All except for the first 500 bytes:
+
+      Content-Range: bytes 500-1233/1234
+
+   *  The last 500 bytes:
+
+      Content-Range: bytes 734-1233/1234
+
+---
+
+**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

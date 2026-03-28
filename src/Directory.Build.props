@@ -1,0 +1,19 @@
+<Project>
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
+
+    <!-- Package metadata — applies only to the packable TurboHttp project -->
+    <PropertyGroup Condition="'$(IsPackable)' == 'true'">
+        <Authors>st0o0</Authors>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <RepositoryUrl>https://github.com/st0o0/TurboHttp</RepositoryUrl>
+        <PackageProjectUrl>https://turbohttp.st0o0.net</PackageProjectUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+    </PropertyGroup>
+
+</Project>

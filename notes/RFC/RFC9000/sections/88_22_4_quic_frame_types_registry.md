@@ -1,0 +1,43 @@
+---
+title: "22.4.  QUIC Frame Types Registry"
+rfc_number: 9000
+rfc_section: "22.4"
+source_url: "https://www.rfc-editor.org/rfc/rfc9000"
+description: "Section 22.4: QUIC Frame Types Registry — RFC 9000 — QUIC: A UDP-Based Multiplexed and Secure Transport"
+tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migration, stream-multiplexing, loss-detection, quic_frame_types_registry]
+---
+
+# 22.4.  QUIC Frame Types Registry
+
+
+   IANA has added a registry for "QUIC Frame Types" under a "QUIC"
+   heading.
+
+   The "QUIC Frame Types" registry governs a 62-bit space.  This
+   registry follows the registration policy from Section 22.1.
+   Permanent registrations in this registry are assigned using the
+   Specification Required policy (Section 4.6 of [RFC8126]), except for
+   values between 0x00 and 0x3f (in hexadecimal), inclusive, which are
+   assigned using Standards Action or IESG Approval as defined in
+   Sections 4.9 and 4.10 of [RFC8126].
+
+   In addition to the fields listed in Section 22.1.1, permanent
+> **MUST**: registrations in this registry MUST include the following field:
+
+   Frame Type Name:  A short mnemonic for the frame type.
+
+   In addition to the advice in Section 22.1, specifications for new
+> **SHOULD**: permanent registrations SHOULD describe the means by which an
+   endpoint might determine that it can send the identified type of
+   frame.  An accompanying transport parameter registration is expected
+   for most registrations; see Section 22.3.  Specifications for
+   permanent registrations also need to describe the format and assigned
+   semantics of any fields in the frame.
+
+   The initial contents of this registry are tabulated in Table 3.  Note
+   that the registry does not include the "Pkts" and "Spec" columns from
+   Table 3.
+
+---
+
+**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]
