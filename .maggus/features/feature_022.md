@@ -219,14 +219,14 @@ if (_loggers.TryGetValue(evt.Category, out var logger))
 ```
 
 **Acceptance Criteria:**
-- [ ] Constructor pre-creates 10 ILogger instances (one per category)
-- [ ] Logger names follow `"TurboHttp.Trace.{Category}"` pattern
-- [ ] Level mapping is correct for all 5 levels (including Info -> Information)
-- [ ] `IsEnabled()` respects both level and category filters
-- [ ] `Write()` checks `logger.IsEnabled()` before calling `FormatMessage()` (extra guard)
-- [ ] `Write()` includes SourceType and SourceHash in log output
-- [ ] Null `ILoggerFactory` throws `ArgumentNullException`
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors/warnings
+- [x] Constructor pre-creates 10 ILogger instances (one per category)
+- [x] Logger names follow `"TurboHttp.Trace.{Category}"` pattern
+- [x] Level mapping is correct for all 5 levels (including Info -> Information)
+- [x] `IsEnabled()` respects both level and category filters
+- [x] `Write()` checks `logger.IsEnabled()` before calling `FormatMessage()` (extra guard)
+- [x] `Write()` includes SourceType and SourceHash in log output
+- [x] Null `ILoggerFactory` throws `ArgumentNullException`
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors/warnings
 
 ---
 
