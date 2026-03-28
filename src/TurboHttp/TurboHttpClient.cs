@@ -9,6 +9,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using Akka.Actor;
 using TurboHttp.Streams;
+using TurboHttp.Streams.Lifecycle;
 
 namespace TurboHttp;
 

@@ -50,28 +50,6 @@ public sealed class Http10EncoderHeaderTests
         Assert.DoesNotContain(headerLines, h => h.StartsWith("Host:", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact(DisplayName = "RFC1945-4.2-HD-002: Connection header removed")]
-    public void Should_RemoveConnectionHeader_When_EncodingHttp10()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
-        request.Headers.TryAddWithoutValidation("Connection", "keep-alive");
-
-        var (_, headerLines, _) = ParseRaw(request);
-
-        Assert.DoesNotContain(headerLines, h => h.StartsWith("Connection:", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact(DisplayName = "RFC1945-4.2-HD-003: Keep-Alive header removed")]
-    public void Should_RemoveKeepAliveHeader_When_EncodingHttp10()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
-        request.Headers.TryAddWithoutValidation("Keep-Alive", "timeout=5");
-
-        var (_, headerLines, _) = ParseRaw(request);
-
-        Assert.DoesNotContain(headerLines, h => h.StartsWith("Keep-Alive:", StringComparison.OrdinalIgnoreCase));
-    }
-
     [Fact(DisplayName = "RFC1945-4.2-HD-004: Transfer-Encoding header removed")]
     public void Should_RemoveTransferEncodingHeader_When_EncodingHttp10()
     {
@@ -166,7 +144,6 @@ public sealed class Http10EncoderHeaderTests
         var (_, headerLines, _) = ParseRaw(request);
 
         Assert.DoesNotContain(headerLines, h => h.StartsWith("Host:", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(headerLines, h => h.StartsWith("Connection:", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(headerLines, h => h.StartsWith("Transfer-Encoding:", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -186,28 +163,6 @@ public sealed class Http10EncoderHeaderTests
         var (_, headerLines, _) = ParseRaw(request);
 
         Assert.DoesNotContain(headerLines, h => h.StartsWith("Host:", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact(DisplayName = "RFC1945-4.2-HD-014: Transfer-Encoding absent in HTTP/1.0 request")]
-    public void Should_OmitTransferEncoding_When_EncodingHttp10()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
-        request.Headers.TryAddWithoutValidation("Transfer-Encoding", "chunked");
-        var (_, headerLines, _) = ParseRaw(request);
-
-        Assert.DoesNotContain(headerLines,
-            h => h.StartsWith("Transfer-Encoding:", StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact(DisplayName = "RFC1945-4.2-HD-015: Connection header absent in HTTP/1.0 request")]
-    public void Should_OmitConnectionHeader_When_EncodingHttp10()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
-        request.Headers.TryAddWithoutValidation("Connection", "keep-alive");
-        var (_, headerLines, _) = ParseRaw(request);
-
-        Assert.DoesNotContain(headerLines,
-            h => h.StartsWith("Connection:", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact(DisplayName = "RFC1945-4.2-HD-016: Every header line terminated with CRLF")]

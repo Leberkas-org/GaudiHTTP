@@ -90,11 +90,9 @@ internal sealed class Engine
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? http20Factory = null,
         Func<Flow<IOutputItem, IInputItem, NotUsed>>? http30Factory = null)
     {
-        // Protocol engine core (version demux + encode/decode) with async boundary.
+        // Protocol engine core (version demux + encode/decode).
         var engineFlow = Flow.FromGraph(
-                ProtocolCoreGraphBuilder.Build(pool, options,
-                    http10Factory, http11Factory, http20Factory, http30Factory))
-            .WithAttributes(Attributes.CreateAsyncBoundary());
+            ProtocolCoreGraphBuilder.Build(pool, options, http10Factory, http11Factory, http20Factory, http30Factory));
 
         // Build feature BidiFlow chain via conditional Atop stacking.
         // Build from innermost to outermost so that each new layer wraps the previous.
@@ -155,16 +153,6 @@ internal sealed class Engine
         var pipelineFlow = features is not null
             ? features.Join(engineFlow)
             : engineFlow;
-
-#if DEBUG
-        pipelineFlow = pipelineFlow.Via(new DeadlockWatchdogStage<HttpResponseMessage>(
-            new DeadlockWatchdogOptions
-            {
-                StageName = "AfterFeatureStack",
-                WarningThreshold = TimeSpan.FromSeconds(10),
-                OnStall = TurboHttpDiagnosticListener.OnDeadlockStall
-            }));
-#endif
 
         // Prepend enricher (initial requests only — redirects/retries are handled
         // internally by their BidiStages and bypass the enricher).
