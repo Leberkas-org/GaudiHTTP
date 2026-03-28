@@ -1,3 +1,4 @@
+<!-- maggus-id: f9def089-336d-4c99-8626-2900796d6f7f -->
 <!-- maggus-id: 20250325-140000-feature-022 -->
 # Feature 022: TurboTrace — Termina-Style Developer Trace System
 
@@ -76,14 +77,14 @@ Redirect=32, Retry=64, Pool=128, Transport=256, Stream=512, All=1023
 - `bool IsEnabled(TurboTraceLevel level, TurboTraceCategory category)`
 
 **Acceptance Criteria:**
-- [ ] `TurboTraceLevel` has 5 values with correct numeric ordering (Trace < Debug < Info < Warning < Error)
-- [ ] `TurboTraceCategory` has 10 categories + None + All, all powers of 2, bitwise OR works correctly
-- [ ] `TraceEvent.FormatMessage()` correctly formats 0-3 args using stored template
-- [ ] `TraceEvent` is a `readonly struct` (verified via reflection in tests)
-- [ ] `ITurboTraceListener.Write` takes `in TraceEvent` (pass by ref, no copy)
-- [ ] All files use `namespace TurboHttp.Diagnostics;` file-scoped namespace
-- [ ] No `#nullable enable` directives (project-level)
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors/warnings
+- [x] `TurboTraceLevel` has 5 values with correct numeric ordering (Trace < Debug < Info < Warning < Error)
+- [x] `TurboTraceCategory` has 10 categories + None + All, all powers of 2, bitwise OR works correctly
+- [x] `TraceEvent.FormatMessage()` correctly formats 0-3 args using stored template
+- [x] `TraceEvent` is a `readonly struct` (verified via reflection in tests)
+- [x] `ITurboTraceListener.Write` takes `in TraceEvent` (pass by ref, no copy)
+- [x] All files use `namespace TurboHttp.Diagnostics;` file-scoped namespace
+- [x] No `#nullable enable` directives (project-level)
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors/warnings
 
 ---
 
