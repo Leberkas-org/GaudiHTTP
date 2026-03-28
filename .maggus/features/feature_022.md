@@ -272,12 +272,12 @@ public static IServiceCollection AddTurboTracing(
 ```
 
 **Acceptance Criteria:**
-- [ ] `AddTurboLoggerTracing()` registers `ITurboTraceListener` as singleton
-- [ ] `AddTurboLoggerTracing()` calls `TurboTrace.Configure()` when resolved
-- [ ] `AddTurboTracing()` accepts custom listener and configures immediately
-- [ ] Extension methods return `IServiceCollection` for chaining
-- [ ] Coexists with existing `AddTurboHttpClient()` registration without conflict
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors/warnings
+- [x] `AddTurboLoggerTracing()` registers `ITurboTraceListener` as singleton
+- [x] `AddTurboLoggerTracing()` calls `TurboTrace.Configure()` when resolved
+- [x] `AddTurboTracing()` accepts custom listener and configures immediately
+- [x] Extension methods return `IServiceCollection` for chaining
+- [x] Coexists with existing `AddTurboHttpClient()` registration without conflict
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` succeeds with zero errors/warnings
 
 ---
 
