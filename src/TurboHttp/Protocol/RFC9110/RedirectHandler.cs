@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Net;
-using System.Net.Http;
-using System.Threading;
 using TurboHttp.Protocol.RFC6265;
 
 namespace TurboHttp.Protocol.RFC9110;
@@ -26,7 +22,7 @@ public sealed class RedirectHandler
     public RedirectHandler(RedirectPolicy? policy = null)
     {
         _policy = policy ?? RedirectPolicy.Default;
-        _visitedUris = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _visitedUris = new HashSet<string>(StringComparer.Ordinal);
         _redirectCount = 0;
     }
 
@@ -69,7 +65,7 @@ public sealed class RedirectHandler
         // Register the current URL on first call (before first redirect)
         if (_redirectCount == 0)
         {
-            _visitedUris.Add(original.RequestUri.AbsoluteUri);
+            _visitedUris.Add(NormalizeUriForComparison(original.RequestUri));
         }
 
         // Enforce max redirects
@@ -93,12 +89,13 @@ public sealed class RedirectHandler
                 RedirectError.ProtocolDowngrade);
         }
 
-        // Detect redirect loops
-        var locationStr = locationUri.AbsoluteUri;
-        if (!_visitedUris.Add(locationStr))
+        // Detect redirect loops — normalized comparison is case-insensitive for
+        // scheme/host and case-sensitive for path/query; fragments are ignored.
+        var normalizedLocation = NormalizeUriForComparison(locationUri);
+        if (!_visitedUris.Add(normalizedLocation))
         {
             throw new RedirectException(
-                $"RFC 9110 §15.4: Redirect loop detected. URI already visited: {locationStr}",
+                $"RFC 9110 §15.4: Redirect loop detected. URI already visited: {normalizedLocation}",
                 RedirectError.RedirectLoop);
         }
 
@@ -124,7 +121,7 @@ public sealed class RedirectHandler
         // disposes the stream on first use, breaking re-reads on redirect.
         if (preserveBody && original.Content != null)
         {
-            using var ms = new System.IO.MemoryStream();
+            using var ms = new MemoryStream();
             original.Content.CopyTo(ms, null, CancellationToken.None);
             var bytes = ms.ToArray();
             var newContent = new ByteArrayContent(bytes);
@@ -153,6 +150,17 @@ public sealed class RedirectHandler
 
     // ── Private Helpers ──────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Normalizes a URI for redirect loop comparison.
+    /// Scheme and host are lowered (case-insensitive), path and query are preserved
+    /// (case-sensitive), and fragment is discarded (not sent to server).
+    /// </summary>
+    private static string NormalizeUriForComparison(Uri uri)
+    {
+        var port = uri.IsDefaultPort ? "" : $":{uri.Port}";
+        return $"{uri.Scheme.ToLowerInvariant()}://{uri.Host.ToLowerInvariant()}{port}{uri.AbsolutePath}{uri.Query}";
+    }
+
     private static Uri ResolveLocationUri(Uri baseUri, HttpResponseMessage response)
     {
         if (!response.Headers.TryGetValues("Location", out var locationValues))
@@ -175,8 +183,12 @@ public sealed class RedirectHandler
                 RedirectError.MissingLocationHeader);
         }
 
-        // Resolve relative URIs against the request URI (RFC 9110 §10.2.2)
-        if (Uri.TryCreate(locationValue, UriKind.Absolute, out var absoluteUri))
+        // Resolve relative URIs against the request URI (RFC 9110 §10.2.2).
+        // On Linux, Uri.TryCreate treats paths starting with "/" as absolute file:// URIs,
+        // so we must verify that the result has an http/https scheme.
+        if (Uri.TryCreate(locationValue, UriKind.Absolute, out var absoluteUri) &&
+            (absoluteUri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) ||
+             absoluteUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)))
         {
             return absoluteUri;
         }

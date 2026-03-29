@@ -945,6 +945,146 @@ public sealed class RedirectHandlerTests
     }
 
 
+    [Fact(DisplayName = "RFC9110-15.4-RH-059: Different query strings are treated as different URLs (no false loop)")]
+    public void Should_NotDetectLoop_When_QueryStringsDiffer()
+    {
+        var handler = new RedirectHandler();
+        var req1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page?v=1");
+        var res1 = BuildRedirect(HttpStatusCode.Found, "http://example.com/page?v=2");
+        var redirected = handler.BuildRedirectRequest(req1, res1);
+
+        Assert.Equal("http://example.com/page?v=2", redirected.RequestUri?.AbsoluteUri);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-060: Same URL with same query string detected as loop")]
+    public void Should_DetectLoop_When_QueryStringsMatch()
+    {
+        var handler = new RedirectHandler();
+        var req1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a?v=1");
+        var res1 = BuildRedirect(HttpStatusCode.Found, "http://example.com/b?v=1");
+        handler.BuildRedirectRequest(req1, res1);
+
+        var req2 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/b?v=1");
+        var res2 = BuildRedirect(HttpStatusCode.Found, "http://example.com/a?v=1");
+
+        var ex = Assert.Throws<RedirectException>(() =>
+            handler.BuildRedirectRequest(req2, res2));
+        Assert.Equal(RedirectError.RedirectLoop, ex.Error);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-061: Fragments are ignored in loop comparison")]
+    public void Should_DetectLoop_When_OnlyFragmentDiffers()
+    {
+        var handler = new RedirectHandler();
+        var req1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page#section1");
+        var res1 = BuildRedirect(HttpStatusCode.Found, "http://example.com/page#section2");
+
+        // Fragments are stripped by Uri, so these should be the same after normalization
+        var ex = Assert.Throws<RedirectException>(() =>
+            handler.BuildRedirectRequest(req1, res1));
+        Assert.Equal(RedirectError.RedirectLoop, ex.Error);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-062: Case-insensitive scheme/host matching detects loop")]
+    public void Should_DetectLoop_When_SchemeAndHostDifferOnlyInCase()
+    {
+        var handler = new RedirectHandler();
+        var req1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page");
+        var res1 = BuildRedirect(HttpStatusCode.Found, "http://example.com/other");
+        handler.BuildRedirectRequest(req1, res1);
+
+        var req2 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/other");
+        var res2 = BuildRedirect(HttpStatusCode.Found, "HTTP://EXAMPLE.COM/page");
+
+        var ex = Assert.Throws<RedirectException>(() =>
+            handler.BuildRedirectRequest(req2, res2));
+        Assert.Equal(RedirectError.RedirectLoop, ex.Error);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-063: Case-sensitive path comparison — different case paths are not loops")]
+    public void Should_NotDetectLoop_When_PathsDifferInCase()
+    {
+        var handler = new RedirectHandler();
+        var req1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/Page");
+        var res1 = BuildRedirect(HttpStatusCode.Found, "http://example.com/page");
+
+        var redirected = handler.BuildRedirectRequest(req1, res1);
+
+        Assert.Equal("http://example.com/page", redirected.RequestUri?.AbsoluteUri);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-064: Relative URL resolved before loop comparison")]
+    public void Should_DetectLoop_When_RelativeUrlResolvesToVisitedAbsoluteUrl()
+    {
+        var handler = new RedirectHandler();
+        var req1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/dir/start");
+        var res1 = BuildRedirect(HttpStatusCode.Found, "http://example.com/dir/other");
+        handler.BuildRedirectRequest(req1, res1);
+
+        // Redirect back using absolute URL that matches a previously visited URL
+        var req2 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/dir/other");
+        var res2 = BuildRedirect(HttpStatusCode.Found, "http://example.com/dir/start");
+
+        var ex = Assert.Throws<RedirectException>(() =>
+            handler.BuildRedirectRequest(req2, res2));
+        Assert.Equal(RedirectError.RedirectLoop, ex.Error);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-065: Three-hop redirect cycle (A→B→C→A) detected")]
+    public void Should_DetectLoop_When_ThreeHopCycle()
+    {
+        var handler = new RedirectHandler();
+
+        var req1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a");
+        var res1 = BuildRedirect(HttpStatusCode.Found, "http://example.com/b");
+        handler.BuildRedirectRequest(req1, res1);
+
+        var req2 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/b");
+        var res2 = BuildRedirect(HttpStatusCode.Found, "http://example.com/c");
+        handler.BuildRedirectRequest(req2, res2);
+
+        var req3 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/c");
+        var res3 = BuildRedirect(HttpStatusCode.Found, "http://example.com/a");
+
+        var ex = Assert.Throws<RedirectException>(() =>
+            handler.BuildRedirectRequest(req3, res3));
+        Assert.Equal(RedirectError.RedirectLoop, ex.Error);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-066: Max redirect depth message includes the limit value")]
+    public void Should_IncludeLimitInMessage_When_MaxRedirectsExceeded()
+    {
+        var handler = new RedirectHandler(new RedirectPolicy { MaxRedirects = 2 });
+
+        for (var i = 0; i < 2; i++)
+        {
+            var req = new HttpRequestMessage(HttpMethod.Get, $"http://example.com/p{i}");
+            var res = BuildRedirect(HttpStatusCode.Found, $"http://example.com/p{i + 1}");
+            handler.BuildRedirectRequest(req, res);
+        }
+
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/p2");
+        var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/p3");
+
+        var ex = Assert.Throws<RedirectException>(() =>
+            handler.BuildRedirectRequest(original, response));
+        Assert.Contains("Max redirect depth exceeded (2)", ex.Message);
+    }
+
+    [Fact(DisplayName = "RFC9110-15.4-RH-067: Redirect loop message includes the offending URI")]
+    public void Should_IncludeUriInMessage_When_LoopDetected()
+    {
+        var handler = new RedirectHandler();
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/loop");
+        var response = BuildRedirect(HttpStatusCode.Found, "http://example.com/loop");
+
+        var ex = Assert.Throws<RedirectException>(() =>
+            handler.BuildRedirectRequest(original, response));
+        Assert.Contains("Redirect loop detected:", ex.Message);
+        Assert.Contains("example.com/loop", ex.Message);
+    }
+
+
     private static HttpResponseMessage BuildRedirect(HttpStatusCode statusCode, string location)
     {
         var response = new HttpResponseMessage(statusCode);

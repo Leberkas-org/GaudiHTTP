@@ -15,16 +15,33 @@ public class Http20Engine : IHttpProtocolEngine
 {
     internal const long MaxBatchWeight = 65_536;
 
+    /// <summary>
+    /// Default initial value for MAX_CONCURRENT_STREAMS before the server sends its SETTINGS.
+    /// RFC 9113 §6.5.2: "Initially, there is no limit to this value."
+    /// We use <see cref="int.MaxValue"/> to represent "unlimited".
+    /// </summary>
+    internal const int DefaultMaxConcurrentStreams = int.MaxValue;
+
     private readonly int _initialWindowSize;
+    private readonly int _maxConcurrentStreams;
 
     public Http20Engine() : this(65535)
     {
     }
 
-    public Http20Engine(int initialWindowSize)
+    public Http20Engine(int initialWindowSize, int maxConcurrentStreams = DefaultMaxConcurrentStreams)
     {
         _initialWindowSize = initialWindowSize;
+        _maxConcurrentStreams = maxConcurrentStreams;
     }
+
+    /// <summary>
+    /// The configured initial MAX_CONCURRENT_STREAMS limit.
+    /// This value is passed to the underlying <see cref="Http20ConnectionStage"/>
+    /// and will be updated at runtime when the server sends a SETTINGS frame
+    /// with <see cref="SettingsParameter.MaxConcurrentStreams"/>.
+    /// </summary>
+    public int MaxConcurrentStreams => _maxConcurrentStreams;
 
     public BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> CreateFlow()
     {
@@ -33,6 +50,8 @@ public class Http20Engine : IHttpProtocolEngine
 
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
+            var limiterHandle = new StreamLimiterHandle();
+            var streamLimiter = b.Add(new Http20StreamLimiterStage(limiterHandle, _maxConcurrentStreams));
             var streamIdAllocator = b.Add(new Http20StreamIdAllocatorStage());
             var broadcast = b.Add(new Broadcast<(HttpRequestMessage, int)>(2));
             var requestToFrame = b.Add(new Http20Request2FrameStage(requestEncoder));
@@ -41,10 +60,11 @@ public class Http20Engine : IHttpProtocolEngine
             var streamDecoder = b.Add(new Http20StreamStage());
             var correlation = b.Add(new Http20CorrelationStage());
             var prependPreface = b.Add(new Http20PrependPrefaceStage());
-            var connection = b.Add(new Http20ConnectionStage(windowSize));
+            var connection = b.Add(new Http20ConnectionStage(windowSize, _maxConcurrentStreams, limiterHandle));
             var signalMerge = b.Add(new MergePreferred<IOutputItem>(1));
 
-            // Request path: allocate stream ID → broadcast to both frame encoder and correlation
+            // Request path: limiter → allocate stream ID → broadcast to both frame encoder and correlation
+            b.From(streamLimiter.Outlet).To(streamIdAllocator.Inlet);
             b.From(streamIdAllocator.Outlet).To(broadcast.In);
             b.From(broadcast.Out(0)).To(requestToFrame.Inlet);
             b.From(broadcast.Out(1)).To(correlation.In0);
@@ -76,7 +96,7 @@ public class Http20Engine : IHttpProtocolEngine
                 IOutputItem,
                 IInputItem,
                 HttpResponseMessage>(
-                streamIdAllocator.Inlet,
+                streamLimiter.Inlet,
                 prependPreface.Outlet,
                 frameDecoder.Inlet,
                 correlation.Out);

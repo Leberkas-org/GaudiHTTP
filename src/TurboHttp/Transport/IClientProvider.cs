@@ -1,12 +1,8 @@
-using System;
-using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace TurboHttp.Transport;
 
@@ -98,27 +94,16 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
 
     private Socket CreateSocket()
     {
-        var addressFamily = options.AddressFamily;
-        var result = new Socket(addressFamily, SocketType.Stream, ProtocolType.Tcp)
+        // On Linux, new Socket(AddressFamily.Unspecified, ...) throws SocketException
+        // "Protocol not supported" because AF_UNSPEC + IPPROTO_TCP is invalid.
+        // Create the dual-stack socket first when unspecified, before any other path.
+        var result = new Socket(SocketType.Stream, ProtocolType.Tcp)
         {
             NoDelay = true,
             LingerState = new LingerOption(true, 0)
         };
 
-        if (addressFamily is AddressFamily.Unspecified)
-        {
-            result = new Socket(SocketType.Stream, ProtocolType.Tcp)
-            {
-                NoDelay = true,
-                LingerState = new LingerOption(true, 0)
-            };
-        }
-
         result.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
-        if (addressFamily is AddressFamily.InterNetworkV6)
-        {
-            result.DualMode = true;
-        }
 
         return result;
     }
@@ -199,6 +184,5 @@ public record TcpOptions
     public required string Host { get; init; }
     public required int Port { get; init; }
     public int MaxFrameSize { get; init; } = 128 * 1024;
-    public AddressFamily AddressFamily { get; init; } = AddressFamily.Unspecified;
     public TimeSpan ConnectTimeout { get; init; } = TimeSpan.FromSeconds(10);
 }

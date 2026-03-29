@@ -1,6 +1,3 @@
-using System;
-using System.Net.Sockets;
-
 namespace TurboHttp.Transport;
 
 internal static class TcpOptionsFactory
@@ -30,15 +27,12 @@ internal static class TcpOptionsFactory
             port = isTls ? 443 : 80;
         }
 
-        var af = AddressFamilyOf(requestUri.HostNameType);
-
         if (IsHttp3(requestVersion))
         {
             return new QuicOptions
             {
                 Host = host,
                 Port = port,
-                AddressFamily = af,
                 ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
                 ConnectTimeout = clientOptions.ConnectTimeout,
                 MaxFrameSize = clientOptions.MaxFrameSize,
@@ -51,7 +45,6 @@ internal static class TcpOptionsFactory
             {
                 Host = host,
                 Port = port,
-                AddressFamily = af,
                 TargetHost = host,
                 ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
                 ClientCertificates = clientOptions.ClientCertificates,
@@ -65,17 +58,8 @@ internal static class TcpOptionsFactory
         {
             Host = host,
             Port = port,
-            AddressFamily = af,
             ConnectTimeout = clientOptions.ConnectTimeout,
             MaxFrameSize = clientOptions.MaxFrameSize,
         };
     }
-
-    private static AddressFamily AddressFamilyOf(UriHostNameType type)
-        => type switch
-        {
-            UriHostNameType.IPv4 => AddressFamily.InterNetwork,
-            UriHostNameType.IPv6 => AddressFamily.InterNetworkV6,
-            _ => AddressFamily.Unspecified,
-        };
 }

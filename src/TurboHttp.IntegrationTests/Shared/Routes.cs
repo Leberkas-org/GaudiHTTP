@@ -186,6 +186,15 @@ internal static class Routes
             return Results.Empty;
         });
 
+        // GET /redirect/cross-scheme/{code} → HTTPS→HTTP downgrade with given status code
+        app.MapGet("/redirect/cross-scheme/{code:int}", (HttpContext ctx, int code) =>
+        {
+            var port = ctx.Connection.LocalPort;
+            ctx.Response.StatusCode = code;
+            ctx.Response.Headers.Location = $"http://127.0.0.1:{port}/hello";
+            return Results.Empty;
+        });
+
         // GET /redirect/cross-origin → 302 to http://127.0.0.1:{port}/headers/echo
         // Used to test cross-origin Authorization header stripping
         // (client connects via localhost, redirect goes to 127.0.0.1 = different origin)

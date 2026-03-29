@@ -65,27 +65,32 @@ public static class Http3CertificateValidator
 
             // Format() returns a human-readable representation that includes
             // "DNS Name=<value>" entries on most platforms.
+            // On Linux, multiple SANs may appear comma-separated on a single line:
+            // "DNS:a.com, DNS:b.com" — so we split on newlines first, then on ", ".
             var formatted = ext.Format(multiLine: true);
             foreach (var line in formatted.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
             {
-                var trimmed = line.Trim();
+                foreach (var token in line.Split(new[] { ", " }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var trimmed = token.Trim();
 
-                // Windows format: "DNS Name=example.com"
-                if (trimmed.StartsWith("DNS Name=", StringComparison.OrdinalIgnoreCase))
-                {
-                    var value = trimmed["DNS Name=".Length..].Trim();
-                    if (value.Length > 0)
+                    // Windows format: "DNS Name=example.com"
+                    if (trimmed.StartsWith("DNS Name=", StringComparison.OrdinalIgnoreCase))
                     {
-                        result.Add(value);
+                        var value = trimmed["DNS Name=".Length..].Trim();
+                        if (value.Length > 0)
+                        {
+                            result.Add(value);
+                        }
                     }
-                }
-                // Linux/macOS format: "DNS:example.com"
-                else if (trimmed.StartsWith("DNS:", StringComparison.OrdinalIgnoreCase))
-                {
-                    var value = trimmed["DNS:".Length..].Trim();
-                    if (value.Length > 0)
+                    // Linux/macOS format: "DNS:example.com"
+                    else if (trimmed.StartsWith("DNS:", StringComparison.OrdinalIgnoreCase))
                     {
-                        result.Add(value);
+                        var value = trimmed["DNS:".Length..].Trim();
+                        if (value.Length > 0)
+                        {
+                            result.Add(value);
+                        }
                     }
                 }
             }

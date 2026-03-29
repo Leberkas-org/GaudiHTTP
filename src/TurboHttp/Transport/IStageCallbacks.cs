@@ -1,4 +1,3 @@
-using System;
 using TurboHttp.Internal;
 
 namespace TurboHttp.Transport;

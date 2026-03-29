@@ -1,5 +1,3 @@
-using System;
-using System.Threading;
 using TurboHttp.Diagnostics;
 using TurboHttp.Internal;
 
