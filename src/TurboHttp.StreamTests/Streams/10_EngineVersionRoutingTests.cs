@@ -143,7 +143,7 @@ public sealed class EngineVersionRoutingTests : EngineTestBase
             }), Materializer);
 
         // The request is absorbed — expect no response within a short window.
-        var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(2)));
+        var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
         Assert.NotEqual(tcs.Task, completed);
         Assert.Empty(responses);
     }
@@ -193,7 +193,7 @@ public sealed class EngineVersionRoutingTests : EngineTestBase
             .Via(flow)
             .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
 
-        return await task.WaitAsync(TimeSpan.FromSeconds(5));
+        return await task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     private async Task<List<HttpResponseMessage>> RunEngineManyAsync(
@@ -217,7 +217,7 @@ public sealed class EngineVersionRoutingTests : EngineTestBase
         // Wait for at least 2 responses or timeout
         try
         {
-            await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         }
         catch (TimeoutException)
         {

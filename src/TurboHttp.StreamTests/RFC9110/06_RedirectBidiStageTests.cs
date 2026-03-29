@@ -109,9 +109,9 @@ public sealed class RedirectBidiStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var responseSub = responsePublisher.ExpectSubscription();
-        var reqOutSub = requestOutProbe.ExpectSubscription();
-        var respOutSub = responseOutProbe.ExpectSubscription();
+        var responseSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var reqOutSub = requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respOutSub = responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         reqOutSub.Request(requestOutDemand);
         respOutSub.Request(responseOutDemand);
@@ -206,13 +206,13 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
         // Consume the forwarded request
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         // Push a 200 OK response
         var response = new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request };
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-006: 404 -> forwarded on Out2")]
@@ -222,12 +222,12 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = new HttpResponseMessage(HttpStatusCode.NotFound) { RequestMessage = request };
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-007: null RequestMessage -> forwarded on Out2")]
@@ -237,14 +237,14 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = new HttpResponseMessage(HttpStatusCode.Found);
         response.Headers.TryAddWithoutValidation("Location", "http://example.com/new");
         // RequestMessage intentionally not set
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     // ============================
@@ -259,18 +259,18 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
         // Original request forwarded
-        Assert.Same(request, reqOut.ExpectNext());
+        Assert.Same(request, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         // 301 response triggers redirect
         var response = BuildRedirectResponse(HttpStatusCode.MovedPermanently, "http://example.com/new", request);
         pushResp(response);
 
         // Redirect request appears on Out1
-        var redirectReq = reqOut.ExpectNext();
+        var redirectReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal("http://example.com/new", redirectReq.RequestUri?.AbsoluteUri);
 
         // No response on Out2 (response was disposed)
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-009: 302 -> redirect request emitted on Out1")]
@@ -280,14 +280,14 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        Assert.Same(request, reqOut.ExpectNext());
+        Assert.Same(request, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         var response = BuildRedirectResponse(HttpStatusCode.Found, "http://example.com/new", request);
         pushResp(response);
 
-        var redirectReq = reqOut.ExpectNext();
+        var redirectReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal("http://example.com/new", redirectReq.RequestUri?.AbsoluteUri);
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-010: 303 -> method rewritten to GET")]
@@ -297,15 +297,15 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        Assert.Same(request, reqOut.ExpectNext());
+        Assert.Same(request, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         var response = BuildRedirectResponse(HttpStatusCode.SeeOther, "http://example.com/result", request);
         pushResp(response);
 
-        var redirectReq = reqOut.ExpectNext();
+        var redirectReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal(HttpMethod.Get, redirectReq.Method);
         Assert.Equal("http://example.com/result", redirectReq.RequestUri?.AbsoluteUri);
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-011: 307 -> method preserved")]
@@ -315,14 +315,14 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        Assert.Same(request, reqOut.ExpectNext());
+        Assert.Same(request, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         var response = BuildRedirectResponse(HttpStatusCode.TemporaryRedirect, "http://example.com/api/v2", request);
         pushResp(response);
 
-        var redirectReq = reqOut.ExpectNext();
+        var redirectReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal(HttpMethod.Post, redirectReq.Method);
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-012: 308 -> method preserved")]
@@ -332,14 +332,14 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        Assert.Same(request, reqOut.ExpectNext());
+        Assert.Same(request, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         var response = BuildRedirectResponse(HttpStatusCode.PermanentRedirect, "http://example.com/resource/v2", request);
         pushResp(response);
 
-        var redirectReq = reqOut.ExpectNext();
+        var redirectReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal(HttpMethod.Put, redirectReq.Method);
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     // ============================
@@ -353,12 +353,12 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, _, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildRedirectResponse(HttpStatusCode.Found, "http://example.com/new", request);
         pushResp(response);
 
-        var redirectReq = reqOut.ExpectNext();
+        var redirectReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.True(redirectReq.Options.TryGetValue(RedirectBidiStage.RedirectHandlerKey, out var handler));
         Assert.NotNull(handler);
         Assert.Equal(1, handler.RedirectCount);
@@ -386,14 +386,14 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(policy);
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = new HttpResponseMessage(HttpStatusCode.Found) { RequestMessage = request };
         response.Headers.TryAddWithoutValidation("Location", "http://example.com/c");
         pushResp(response);
 
         // Should arrive on Out2 as final response (max exceeded)
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-015: redirect loop detected -> response forwarded on Out2")]
@@ -413,13 +413,13 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = new HttpResponseMessage(HttpStatusCode.Found) { RequestMessage = request };
         response.Headers.TryAddWithoutValidation("Location", "http://example.com/a");
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-016: HTTPS to HTTP downgrade blocked -> response forwarded on Out2")]
@@ -429,12 +429,12 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildRedirectResponse(HttpStatusCode.Found, "http://example.com/insecure", request);
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-017: missing Location header -> response forwarded on Out2")]
@@ -444,13 +444,13 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         // Redirect response with no Location header
         var response = new HttpResponseMessage(HttpStatusCode.MovedPermanently) { RequestMessage = request };
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     // ============================
@@ -465,20 +465,20 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
         // Original request forwarded
-        Assert.Same(request, reqOut.ExpectNext());
+        Assert.Same(request, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         // First redirect: a → b
         var response1 = BuildRedirectResponse(HttpStatusCode.Found, "http://example.com/b", request);
         pushResp(response1);
 
-        var redirectReq1 = reqOut.ExpectNext();
+        var redirectReq1 = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal("http://example.com/b", redirectReq1.RequestUri?.AbsoluteUri);
 
         // Final response for /b
         var finalResponse = new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = redirectReq1 };
         pushResp(finalResponse);
 
-        Assert.Same(finalResponse, respOut.ExpectNext());
+        Assert.Same(finalResponse, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-019: two redirects in chain -> final response reaches Out2")]
@@ -489,25 +489,25 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 10, 10, request);
 
         // Original request
-        Assert.Same(request, reqOut.ExpectNext());
+        Assert.Same(request, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         // First redirect: a → b
         var response1 = BuildRedirectResponse(HttpStatusCode.Found, "http://example.com/b", request);
         pushResp(response1);
-        var redirectReq1 = reqOut.ExpectNext();
+        var redirectReq1 = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal("http://example.com/b", redirectReq1.RequestUri?.AbsoluteUri);
 
         // Second redirect: b → c
         var response2 = BuildRedirectResponse(HttpStatusCode.Found, "http://example.com/c", redirectReq1);
         pushResp(response2);
-        var redirectReq2 = reqOut.ExpectNext();
+        var redirectReq2 = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal("http://example.com/c", redirectReq2.RequestUri?.AbsoluteUri);
 
         // Final response for /c
         var finalResponse = new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = redirectReq2 };
         pushResp(finalResponse);
 
-        Assert.Same(finalResponse, respOut.ExpectNext());
+        Assert.Same(finalResponse, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     // ============================
@@ -523,12 +523,12 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, _, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildRedirectResponse(HttpStatusCode.Found, "http://other.com/api", request);
         pushResp(response);
 
-        var redirectReq = reqOut.ExpectNext();
+        var redirectReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.False(redirectReq.Headers.Contains("Authorization"),
             "Authorization must be stripped on cross-origin redirect");
     }
@@ -547,12 +547,12 @@ public sealed class RedirectBidiStageTests : StreamTestBase
         var stage = new RedirectBidiStage(new RedirectPolicy());
         var (reqOut, _, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildRedirectResponse(HttpStatusCode.Found, "http://example.com/new", request);
         pushResp(response);
 
-        var redirectReq = reqOut.ExpectNext();
+        var redirectReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal(new Version(2, 0), redirectReq.Version);
     }
 
@@ -580,16 +580,16 @@ public sealed class RedirectBidiStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var reqPubSub = requestPublisher.ExpectSubscription();
-        responsePublisher.ExpectSubscription();
-        requestOutProbe.ExpectSubscription().Request(5);
-        responseOutProbe.ExpectSubscription().Request(5);
+        var reqPubSub = requestPublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(5);
+        responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(5);
 
         reqPubSub.SendError(new Exception("request boom"));
 
         // Stage absorbs the error (no OnError) but gracefully completes _outRequest
         requestOutProbe.ExpectComplete();
-        responseOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        responseOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-15.4-RDBIDI-023: response upstream failure absorbed")]
@@ -612,15 +612,15 @@ public sealed class RedirectBidiStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        requestPublisher.ExpectSubscription();
-        var respPubSub = responsePublisher.ExpectSubscription();
-        requestOutProbe.ExpectSubscription().Request(5);
-        responseOutProbe.ExpectSubscription().Request(5);
+        requestPublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respPubSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(5);
+        responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(5);
 
         respPubSub.SendError(new Exception("response boom"));
 
         // Stage absorbs the error (no OnError) but gracefully completes _outResponse
-        requestOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        requestOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
         responseOutProbe.ExpectComplete();
     }
 }

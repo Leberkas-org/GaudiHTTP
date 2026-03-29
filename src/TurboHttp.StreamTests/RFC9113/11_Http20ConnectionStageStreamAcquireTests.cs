@@ -57,8 +57,8 @@ public sealed class Http20ConnectionStageStreamAcquireTests : StreamTestBase
 
         var (serverBoundTask, signalTask) = graph.Run(Materializer);
 
-        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
-        var signals = await signalTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var signals = await signalTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         return (serverBound, signals);
     }
@@ -97,8 +97,8 @@ public sealed class Http20ConnectionStageStreamAcquireTests : StreamTestBase
 
         var (serverBoundTask, signalTask) = graph.Run(Materializer);
 
-        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
-        var signals = await signalTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var signals = await signalTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         return (serverBound, signals);
     }

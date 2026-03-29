@@ -48,7 +48,7 @@ public sealed class EnginePipelineDescriptorTests : EngineTestBase
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(r => tcs.TrySetResult(r)), Materializer);
 
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000,

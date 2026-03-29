@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
@@ -51,7 +51,7 @@ public sealed class Http11RoundTripMethodTests
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        Assert.Equal("hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-3-MT-002: HTTP/1.1 POST JSON → 201 Created round-trip")]
@@ -134,7 +134,7 @@ public sealed class Http11RoundTripMethodTests
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        Assert.Equal(responseBody, await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal(responseBody, await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-3-MT-006: HTTP/1.1 HEAD → Content-Length but no body")]

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
 namespace TurboHttp.Tests.RFC9112;
@@ -31,7 +31,7 @@ public sealed class Http11RoundTripFragmentationTests
         Assert.False(decoded1);
         Assert.True(decoded2);
         Assert.Single(responses);
-        Assert.Equal("hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-4-FG-002: TCP fragment split at header-body boundary — response assembled")]
@@ -45,7 +45,7 @@ public sealed class Http11RoundTripFragmentationTests
         decoder.TryDecode(bodyBytes, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-4-FG-003: TCP fragment split mid-body — body assembled correctly")]
@@ -65,7 +65,7 @@ public sealed class Http11RoundTripFragmentationTests
         decoder.TryDecode(part2, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("0123456789", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("0123456789", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-4-FG-004: Single-byte TCP delivery assembles complete response")]
@@ -87,7 +87,7 @@ public sealed class Http11RoundTripFragmentationTests
         }
 
         Assert.NotNull(finalResponse);
-        Assert.Equal("abc", await finalResponse.Content.ReadAsStringAsync());
+        Assert.Equal("abc", await finalResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-FG-005: TCP fragment split between two chunks — body assembled correctly")]
@@ -101,6 +101,6 @@ public sealed class Http11RoundTripFragmentationTests
         decoder.TryDecode(part2, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("foobar", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("foobar", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 }

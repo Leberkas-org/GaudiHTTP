@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC9114;
@@ -111,7 +111,7 @@ public sealed class Http30EngineEndToEndTests : EngineTestBase
             responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content!.ReadAsByteArrayAsync();
+        var body = await response.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         // Engine preserves raw compressed bytes — decompression is handled by feature layer
         Assert.Equal(compressedBody, body);
     }
@@ -162,7 +162,7 @@ public sealed class Http30EngineEndToEndTests : EngineTestBase
             responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content!.ReadAsByteArrayAsync();
+        var body = await response.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expectedBody, body);
     }
 }

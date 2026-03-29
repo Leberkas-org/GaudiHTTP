@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol.RFC1945;
 
 namespace TurboHttp.Tests.RFC1945;
@@ -45,7 +45,7 @@ public sealed class Http10RoundTripFragmentationTests
 
         Assert.True(result2);
         Assert.NotNull(response2);
-        Assert.Equal("Hello", await response2.Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await response2.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC1945-7.2-FG-002: Fragmented at header boundary")]
@@ -89,7 +89,7 @@ public sealed class Http10RoundTripFragmentationTests
         var result2 = decoder.TryDecode(fragment2, out var response2);
 
         Assert.True(result2);
-        Assert.Equal("FooBar", await response2!.Content.ReadAsStringAsync());
+        Assert.Equal("FooBar", await response2!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC1945-7.2-FG-004: Fragmented body delivery")]
@@ -119,6 +119,6 @@ public sealed class Http10RoundTripFragmentationTests
         var result3 = decoder.TryDecode(fragment3, out var response3);
 
         Assert.True(result3);
-        Assert.Equal(bodyText, await response3!.Content.ReadAsStringAsync());
+        Assert.Equal(bodyText, await response3!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 }

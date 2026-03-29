@@ -47,8 +47,8 @@ public sealed class Http30PushRejectionStageTests : StreamTestBase
 
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
-        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5));
-        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         return (downstream, serverBound);
     }

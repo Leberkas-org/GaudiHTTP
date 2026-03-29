@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
 namespace TurboHttp.Tests.RFC9112;
@@ -88,7 +88,7 @@ public sealed class Http11RoundTripBodyTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal(binary, await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Equal(binary, await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-BD-002: HTTP/1.1 1 MB body round-trip")]
@@ -112,7 +112,7 @@ public sealed class Http11RoundTripBodyTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal(body, await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Equal(body, await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-BD-003: HTTP/1.1 binary body with null bytes round-trip")]
@@ -131,7 +131,7 @@ public sealed class Http11RoundTripBodyTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal(body, await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Equal(body, await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-BD-004: Content-Length 0 — empty body decoded")]
@@ -142,7 +142,7 @@ public sealed class Http11RoundTripBodyTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-BD-005: Content-Length matches UTF-8 byte count exactly")]
@@ -157,7 +157,7 @@ public sealed class Http11RoundTripBodyTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal(bodyBytes, await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Equal(bodyBytes, await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-BD-006: 64KB body round-trip with Content-Length")]
@@ -171,7 +171,7 @@ public sealed class Http11RoundTripBodyTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal(body, await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Equal(body, await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-BD-007: Three pipelined Content-Length responses decoded in order")]
@@ -186,9 +186,9 @@ public sealed class Http11RoundTripBodyTests
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(3, responses.Count);
-        Assert.Equal("one", await responses[0].Content.ReadAsStringAsync());
-        Assert.Equal("two", await responses[1].Content.ReadAsStringAsync());
-        Assert.Equal("three", await responses[2].Content.ReadAsStringAsync());
+        Assert.Equal("one", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("two", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("three", await responses[2].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-BD-008: Content-Length 1 — single byte body decoded")]
@@ -200,7 +200,7 @@ public sealed class Http11RoundTripBodyTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal(body, await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Equal(body, await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-BD-009: Reset decoder — second Content-Length response decoded after reset")]
@@ -216,7 +216,7 @@ public sealed class Http11RoundTripBodyTests
 
         Assert.True(decoded);
         Assert.Single(responses);
-        Assert.Equal("second", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("second", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-BD-010: Keep-alive — varying body sizes all decoded correctly")]
@@ -232,7 +232,7 @@ public sealed class Http11RoundTripBodyTests
             decoder.TryDecode(raw, out var responses);
 
             Assert.Single(responses);
-            Assert.Equal(size, (await responses[0].Content.ReadAsStringAsync()).Length);
+            Assert.Equal(size, (await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Length);
         }
     }
 
@@ -273,7 +273,7 @@ public sealed class Http11RoundTripBodyTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        var decoded = Encoding.UTF8.GetString(await responses[0].Content.ReadAsByteArrayAsync());
+        var decoded = Encoding.UTF8.GetString(await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
         Assert.Equal(text, decoded);
     }
 

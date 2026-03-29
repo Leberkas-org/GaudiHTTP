@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol;
 using TurboHttp.Protocol.RFC9112;
 
@@ -24,7 +24,7 @@ public sealed class Http11DecoderChunkedTests
 
         var decoded = _decoder.TryDecode(raw, out var responses);
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello World", result);
     }
 
@@ -37,7 +37,7 @@ public sealed class Http11DecoderChunkedTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello", result);
     }
 
@@ -50,7 +50,7 @@ public sealed class Http11DecoderChunkedTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("foobarbaz", result);
     }
 
@@ -63,7 +63,7 @@ public sealed class Http11DecoderChunkedTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello", result);
     }
 
@@ -110,7 +110,7 @@ public sealed class Http11DecoderChunkedTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello", result);
     }
 
@@ -133,7 +133,7 @@ public sealed class Http11DecoderChunkedTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("X", result);
     }
 
@@ -146,7 +146,7 @@ public sealed class Http11DecoderChunkedTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("0123456789", result);
     }
 
@@ -160,7 +160,7 @@ public sealed class Http11DecoderChunkedTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("", result); // Empty body
     }
 

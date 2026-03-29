@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Streams;
 
@@ -34,7 +34,7 @@ public sealed class Http10EngineEndToEndTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpVersion.Version10, response.Version);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(responseBody, body);
     }
 
@@ -62,7 +62,7 @@ public sealed class Http10EngineEndToEndTests : EngineTestBase
 
         // Response must carry body
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var respBody = await response.Content.ReadAsStringAsync();
+        var respBody = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(responseBody, respBody);
     }
 

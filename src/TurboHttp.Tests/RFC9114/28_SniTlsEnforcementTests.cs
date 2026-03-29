@@ -44,7 +44,7 @@ public sealed class SniTlsEnforcementTests
         var provider = new QuicClientProvider(quicOptions);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => provider.GetStreamAsync());
+            () => provider.GetStreamAsync(TestContext.Current.CancellationToken));
 #pragma warning restore CA1416
         Assert.Contains("SNI", ex.Message);
         Assert.Contains("Server Name Indication", ex.Message);
@@ -59,7 +59,7 @@ public sealed class SniTlsEnforcementTests
         var provider = new QuicClientProvider(quicOptions);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => provider.GetStreamAsync());
+            () => provider.GetStreamAsync(TestContext.Current.CancellationToken));
 #pragma warning restore CA1416
         Assert.Contains("SNI", ex.Message);
         Assert.Contains("Server Name Indication", ex.Message);

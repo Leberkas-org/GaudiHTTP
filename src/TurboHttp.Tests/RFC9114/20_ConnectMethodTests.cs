@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Protocol.RFC9204;
 
@@ -202,7 +202,7 @@ public sealed class ConnectMethodTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         // Tunnel established — DATA frames are not assembled as body content
-        var bodyLength = response.Content is null ? 0 : (await response.Content.ReadAsByteArrayAsync()).Length;
+        var bodyLength = response.Content is null ? 0 : (await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken)).Length;
         Assert.Equal(0, bodyLength);
     }
 
@@ -223,7 +223,7 @@ public sealed class ConnectMethodTests
 
         Assert.Equal((HttpStatusCode)statusCode, response.StatusCode);
         // Tunnel data not assembled as body
-        var bodyLength = response.Content is null ? 0 : (await response.Content.ReadAsByteArrayAsync()).Length;
+        var bodyLength = response.Content is null ? 0 : (await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken)).Length;
         Assert.Equal(0, bodyLength);
     }
 
@@ -242,7 +242,7 @@ public sealed class ConnectMethodTests
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.NotNull(response.Content);
-        var content = await response.Content!.ReadAsByteArrayAsync();
+        var content = await response.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyBytes, content);
     }
 
@@ -275,7 +275,7 @@ public sealed class ConnectMethodTests
         var response = decoder.Decode(frames, streamId: 0, isConnect: true);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var bodyLength = response.Content is null ? 0 : (await response.Content.ReadAsByteArrayAsync()).Length;
+        var bodyLength = response.Content is null ? 0 : (await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken)).Length;
         Assert.Equal(0, bodyLength);
     }
 
@@ -294,7 +294,7 @@ public sealed class ConnectMethodTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(response.Content);
-        var content = await response.Content!.ReadAsByteArrayAsync();
+        var content = await response.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyBytes, content);
     }
 
@@ -325,7 +325,7 @@ public sealed class ConnectMethodTests
         };
         var response = decoder.Decode(responseFrames, streamId: 0, isConnect: true);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var bodyLength = response.Content is null ? 0 : (await response.Content.ReadAsByteArrayAsync()).Length;
+        var bodyLength = response.Content is null ? 0 : (await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken)).Length;
         Assert.Equal(0, bodyLength);
     }
 

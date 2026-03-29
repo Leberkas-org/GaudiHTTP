@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using Akka.Streams.Dsl;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Protocol.RFC9204;
@@ -49,7 +49,7 @@ public sealed class Http30StreamStageTests : StreamTestBase
         // HEADERS-only (no DATA frames) — no body content set by stage
         if (responses[0].Content is not null)
         {
-            var body = await responses[0].Content.ReadAsByteArrayAsync();
+            var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
             Assert.Empty(body);
         }
     }
@@ -69,7 +69,7 @@ public sealed class Http30StreamStageTests : StreamTestBase
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
+        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, responseBody);
     }
 
@@ -89,7 +89,7 @@ public sealed class Http30StreamStageTests : StreamTestBase
         );
 
         Assert.Single(responses);
-        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
+        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello, World!"u8.ToArray(), responseBody);
     }
 
@@ -165,7 +165,7 @@ public sealed class Http30StreamStageTests : StreamTestBase
         );
 
         Assert.Single(responses);
-        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
+        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         // Stage preserves raw compressed bytes — decompression is handled by ContentEncodingBidiStage
         Assert.Equal(compressedBody, responseBody);
         // Content-Encoding header is preserved on the content headers
@@ -187,7 +187,7 @@ public sealed class Http30StreamStageTests : StreamTestBase
         );
 
         Assert.Single(responses);
-        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
+        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, responseBody);
     }
 
@@ -206,7 +206,7 @@ public sealed class Http30StreamStageTests : StreamTestBase
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var body = await responses[0].Content!.ReadAsByteArrayAsync();
+        var body = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("ok"u8.ToArray(), body);
     }
 
@@ -224,7 +224,7 @@ public sealed class Http30StreamStageTests : StreamTestBase
         );
 
         Assert.Single(responses);
-        var body = await responses[0].Content!.ReadAsByteArrayAsync();
+        var body = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("data"u8.ToArray(), body);
     }
 
@@ -244,7 +244,7 @@ public sealed class Http30StreamStageTests : StreamTestBase
         // HEADERS-only (no DATA frames) — no body content set by stage
         if (responses[0].Content is not null)
         {
-            var body = await responses[0].Content.ReadAsByteArrayAsync();
+            var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
             Assert.Empty(body);
         }
     }

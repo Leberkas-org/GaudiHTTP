@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol;
 using TurboHttp.Protocol.RFC9112;
 
@@ -31,7 +31,7 @@ public sealed class Http11DecoderBodyTests
         Assert.False(decoded1);
         Assert.True(decoded2);
         Assert.Single(responses);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, result);
     }
 
@@ -50,7 +50,7 @@ public sealed class Http11DecoderBodyTests
 
         Assert.False(decoded1);
         Assert.True(decoded2);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, result);
     }
 
@@ -63,7 +63,7 @@ public sealed class Http11DecoderBodyTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, result);
         Assert.Equal(body.Length, responses[0].Content.Headers.ContentLength);
     }
@@ -141,7 +141,7 @@ public sealed class Http11DecoderBodyTests
 
         Assert.True(decoded);
         Assert.Equal(bodySize, responses[0].Content.Headers.ContentLength);
-        var result = await responses[0].Content.ReadAsByteArrayAsync();
+        var result = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodySize, result.Length);
     }
 
@@ -159,7 +159,7 @@ public sealed class Http11DecoderBodyTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        var result = await responses[0].Content.ReadAsByteArrayAsync();
+        var result = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(binaryBody, result);
     }
 

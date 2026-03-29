@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using TurboHttp.Streams;
 using TurboHttp.Streams.Stages.Decoding;
 
@@ -28,7 +28,7 @@ public sealed class Http11KeepAliveCloseTests : EngineTestBase
         Assert.Equal(new Version(1, 1), response.Version);
         Assert.Contains("close", response.Headers.Connection);
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
     }
 
@@ -70,7 +70,7 @@ public sealed class Http11KeepAliveCloseTests : EngineTestBase
         {
             Assert.Equal(HttpStatusCode.OK, responses[i].StatusCode);
             Assert.Contains("keep-alive", responses[i].Headers.Connection);
-            var body = await responses[i].Content.ReadAsStringAsync();
+            var body = await responses[i].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             Assert.Equal("hello", body);
         }
     }
@@ -93,7 +93,7 @@ public sealed class Http11KeepAliveCloseTests : EngineTestBase
         for (var i = 0; i < 3; i++)
         {
             Assert.Equal(HttpStatusCode.OK, responses[i].StatusCode);
-            var body = await responses[i].Content.ReadAsStringAsync();
+            var body = await responses[i].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             Assert.Equal(bodyText, body);
             Assert.Equal(bodyBytes.Length, responses[i].Content.Headers.ContentLength);
         }
@@ -110,7 +110,7 @@ public sealed class Http11KeepAliveCloseTests : EngineTestBase
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(new Version(1, 1), response.Version);
 
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
         Assert.NotNull(response.RequestMessage);
         Assert.Same(request, response.RequestMessage);

@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using TurboHttp.Protocol.RFC6265;
 using TurboHttp.Protocol.RFC9110;
 
@@ -103,8 +103,8 @@ public sealed class RedirectHandlerTests
 
         Assert.Equal(HttpMethod.Post, redirected.Method);
         Assert.NotNull(redirected.Content);
-        var expectedBytes = await content.ReadAsByteArrayAsync();
-        var actualBytes = await redirected.Content.ReadAsByteArrayAsync();
+        var expectedBytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var actualBytes = await redirected.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expectedBytes, actualBytes);
         Assert.Equal("text/plain", redirected.Content.Headers.ContentType!.MediaType);
     }
@@ -124,8 +124,8 @@ public sealed class RedirectHandlerTests
 
         Assert.Equal(HttpMethod.Put, redirected.Method);
         Assert.NotNull(redirected.Content);
-        var expectedBytes = await content.ReadAsByteArrayAsync();
-        var actualBytes = await redirected.Content.ReadAsByteArrayAsync();
+        var expectedBytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var actualBytes = await redirected.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expectedBytes, actualBytes);
         Assert.Equal("text/plain", redirected.Content.Headers.ContentType!.MediaType);
     }
@@ -158,8 +158,8 @@ public sealed class RedirectHandlerTests
 
         Assert.Equal(HttpMethod.Post, redirected.Method);
         Assert.NotNull(redirected.Content);
-        var expectedBytes = await content.ReadAsByteArrayAsync();
-        var actualBytes = await redirected.Content.ReadAsByteArrayAsync();
+        var expectedBytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var actualBytes = await redirected.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expectedBytes, actualBytes);
         Assert.Equal("text/plain", redirected.Content.Headers.ContentType!.MediaType);
     }
@@ -179,8 +179,8 @@ public sealed class RedirectHandlerTests
 
         Assert.Equal(HttpMethod.Patch, redirected.Method);
         Assert.NotNull(redirected.Content);
-        var expectedBytes = await content.ReadAsByteArrayAsync();
-        var actualBytes = await redirected.Content.ReadAsByteArrayAsync();
+        var expectedBytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var actualBytes = await redirected.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expectedBytes, actualBytes);
         Assert.Equal("text/plain", redirected.Content.Headers.ContentType!.MediaType);
     }

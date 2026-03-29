@@ -49,8 +49,8 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
 
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
-        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5));
-        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         return (downstream, serverBound);
     }
@@ -161,7 +161,7 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
         // Wait to let the stage process the oversized frame
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         // Stream must NOT have faulted
         Assert.False(downstreamTask.IsFaulted,
@@ -202,7 +202,7 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
         // Wait to let the stage process the oversized frame
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         // Stream must NOT have faulted
         Assert.False(downstreamTask.IsFaulted,
@@ -242,7 +242,7 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
         // Wait to let the stage process the oversized frame
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         // Stream must NOT have faulted
         Assert.False(downstreamTask.IsFaulted,
@@ -281,7 +281,7 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
 
         var serverBoundTask = graph.Run(Materializer);
 
-        var forwarded = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var forwarded = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var dataFrame = Assert.IsType<DataFrame>(forwarded);
         Assert.Equal(1024, dataFrame.Data.Length);
@@ -331,7 +331,7 @@ public sealed class Http20ConnectionStageFlowControlTests : StreamTestBase
 
         var serverBoundTask = graph.Run(Materializer);
 
-        var forwarded = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var forwarded = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // The request should be forwarded (not failed) — proves window was incremented
         var dataFrame = Assert.IsType<DataFrame>(forwarded);

@@ -24,7 +24,7 @@ public sealed class ClientByteMoverTests
         var state = new ClientState(65536, stream, inbound, outbound);
 
         // Write some data to the pipe so MovePipeToChannel has something to read
-        await state.Pipe.Writer.WriteAsync(new byte[] { 1, 2, 3, 4, 5 });
+        await state.Pipe.Writer.WriteAsync(new byte[] { 1, 2, 3, 4, 5 }, TestContext.Current.CancellationToken);
         await state.Pipe.Writer.CompleteAsync();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -53,7 +53,7 @@ public sealed class ClientByteMoverTests
 
         var state = new ClientState(65536, stream, inbound, outbound);
 
-        await state.Pipe.Writer.WriteAsync(new byte[] { 0xAB, 0xCD });
+        await state.Pipe.Writer.WriteAsync(new byte[] { 0xAB, 0xCD }, TestContext.Current.CancellationToken);
         await state.Pipe.Writer.CompleteAsync();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));

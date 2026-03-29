@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Net;
 using System.Net.Http;
 using Akka.Streams;
@@ -34,7 +34,7 @@ public sealed class CacheBidiAsyncBodyTests : StreamTestBase
         protected override async Task SerializeToStreamAsync(System.IO.Stream stream, System.Net.TransportContext? context)
         {
             var data = await _tcs.Task;
-            await stream.WriteAsync(data);
+            await stream.WriteAsync(data, TestContext.Current.CancellationToken);
         }
 
         protected override bool TryComputeLength(out long length)
@@ -105,7 +105,7 @@ public sealed class CacheBidiAsyncBodyTests : StreamTestBase
         var resultTask = RunResponseAsync(stage, response);
 
         // Simulate the slow body arriving after a delay
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         delayedContent.Complete("slow body data"u8.ToArray());
 
         // The stage should push the response after the async callback fires
@@ -141,7 +141,7 @@ public sealed class CacheBidiAsyncBodyTests : StreamTestBase
         var resultTask = RunResponseAsync(stage, response);
 
         // Give the graph time to process the push and upstream completion
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
 
         // The result task should NOT be completed yet — async read is still pending
         Assert.False(resultTask.IsCompleted, "Stage completed prematurely while async body read was in progress");

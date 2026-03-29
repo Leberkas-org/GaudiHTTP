@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC1945;
 
@@ -73,7 +73,7 @@ public sealed class Http10DecoderFragmentationTests
 
         var result2 = decoder.TryDecode(chunk2, out var response);
         Assert.True(result2);
-        var body = await response!.Content.ReadAsStringAsync();
+        var body = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("1234567890", body);
     }
 
@@ -157,7 +157,7 @@ public sealed class Http10DecoderFragmentationTests
         var result = decoder.TryDecode(c3, out var response);
 
         Assert.True(result);
-        var body = await response!.Content.ReadAsStringAsync();
+        var body = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("ABCDEFGHI", body);
     }
 
@@ -220,7 +220,7 @@ public sealed class Http10DecoderFragmentationTests
 
         Assert.False(decoder.TryDecode(full[..splitPoint], out _));
         Assert.True(decoder.TryDecode(full[splitPoint..], out var response));
-        var body = await response!.Content.ReadAsStringAsync();
+        var body = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("0123456789", body);
     }
 }

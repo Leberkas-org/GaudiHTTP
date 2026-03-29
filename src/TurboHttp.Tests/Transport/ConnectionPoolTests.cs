@@ -78,10 +78,10 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(HttpVersion.Version10);
 
-        var lease1 = await pool.AcquireAsync(options, endpoint);
+        var lease1 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
         pool.Release(lease1, canReuse: true);
 
-        var lease2 = await pool.AcquireAsync(options, endpoint);
+        var lease2 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         // HTTP/1.0 never reuses — must be different leases
         Assert.NotSame(lease1, lease2);
@@ -100,10 +100,10 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(HttpVersion.Version11);
 
-        var lease1 = await pool.AcquireAsync(options, endpoint);
+        var lease1 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
         pool.Release(lease1, canReuse: true);
 
-        var lease2 = await pool.AcquireAsync(options, endpoint);
+        var lease2 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         // HTTP/1.1 should reuse the idle connection
         Assert.Same(lease1, lease2);
@@ -122,9 +122,9 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(HttpVersion.Version20);
 
-        var lease1 = await pool.AcquireAsync(options, endpoint);
+        var lease1 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
         // Don't release — acquire second on same multiplexed connection
-        var lease2 = await pool.AcquireAsync(options, endpoint);
+        var lease2 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         // HTTP/2 should multiplex on the same lease
         Assert.Same(lease1, lease2);
@@ -145,7 +145,7 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(HttpVersion.Version11);
 
-        var lease = await pool.AcquireAsync(options, endpoint);
+        var lease = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
         pool.Release(lease, canReuse: true);
 
         // Connection is still alive (returned to idle, not disposed)
@@ -159,11 +159,11 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(HttpVersion.Version11);
 
-        var lease = await pool.AcquireAsync(options, endpoint);
+        var lease = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
         pool.Release(lease, canReuse: false);
 
         // Give async dispose a moment
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         Assert.False(lease.IsAlive);
     }
@@ -181,8 +181,8 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var endpoint = CreateEndpoint(HttpVersion.Version11);
 
         // Acquire two connections simultaneously (both active, so no reuse)
-        var lease1 = await pool.AcquireAsync(options, endpoint);
-        var lease2 = await pool.AcquireAsync(options, endpoint);
+        var lease1 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
+        var lease2 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
         Assert.NotSame(lease1, lease2);
 
         // Release both to idle
@@ -190,7 +190,7 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         pool.Release(lease2, canReuse: true);
 
         // Wait for idle timeout + eviction timer to fire
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // At least one expired connection should have been evicted
         // (keep-at-least-one preserves one, but the other should be disposed)
@@ -207,15 +207,15 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var endpoint = CreateEndpoint(HttpVersion.Version11);
 
         // Acquire two connections simultaneously to get distinct leases
-        var lease1 = await pool.AcquireAsync(options, endpoint);
-        var lease2 = await pool.AcquireAsync(options, endpoint);
+        var lease1 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
+        var lease2 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         // Release both to idle
         pool.Release(lease1, canReuse: true);
         pool.Release(lease2, canReuse: true);
 
         // Wait for idle timeout + eviction
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // At least one should still be alive (keep-at-least-one invariant)
         var anyAlive = lease1.IsAlive || lease2.IsAlive;
@@ -241,7 +241,7 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var leases = new List<ConnectionLease>();
         for (var i = 0; i < 6; i++)
         {
-            leases.Add(await pool.AcquireAsync(options, endpoint));
+            leases.Add(await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken));
         }
 
         // 7th acquire should block (we use a short timeout to detect blocking)
@@ -270,17 +270,17 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var endpoint = CreateEndpoint(HttpVersion.Version20);
 
         // Create first connection
-        var lease1 = await pool.AcquireAsync(options, endpoint);
+        var lease1 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
         pool.Release(lease1, canReuse: true);
 
         // Small delay to ensure different LastActivity timestamps
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Mark lease1 as non-reusable to force a second connection
         lease1.MarkNoReuse();
 
         // Create second connection (lease1 has no available slot since non-reusable)
-        var lease2 = await pool.AcquireAsync(options, endpoint);
+        var lease2 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         // lease2 is the most recently active and should be selected
         // (It was just established and marked busy)
@@ -301,7 +301,7 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(HttpVersion.Version11);
 
-        var lease = await pool.AcquireAsync(options, endpoint);
+        var lease = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         pool.Dispose();
 
@@ -316,7 +316,7 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
         {
-            await pool.AcquireAsync(CreateOptions(), CreateEndpoint());
+            await pool.AcquireAsync(CreateOptions(), CreateEndpoint(), TestContext.Current.CancellationToken);
         });
     }
 
@@ -331,8 +331,8 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(HttpVersion.Version20);
 
-        var lease1 = await pool.AcquireAsync(options, endpoint);
-        var lease2 = await pool.AcquireAsync(options, endpoint);
+        var lease1 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
+        var lease2 = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         // Same multiplexed connection
         Assert.Same(lease1, lease2);
@@ -345,7 +345,7 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         // Release last stream — should dispose (non-reusable + 0 active)
         pool.Release(lease2, canReuse: true);
 
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         Assert.False(lease2.IsAlive);
     }
 
@@ -360,10 +360,10 @@ public sealed class ConnectionPoolTests : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(HttpVersion.Version10);
 
-        var lease = await pool.AcquireAsync(options, endpoint);
+        var lease = await pool.AcquireAsync(options, endpoint, TestContext.Current.CancellationToken);
         pool.Release(lease, canReuse: true); // canReuse is ignored for HTTP/1.0
 
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         Assert.False(lease.IsAlive);
     }
 

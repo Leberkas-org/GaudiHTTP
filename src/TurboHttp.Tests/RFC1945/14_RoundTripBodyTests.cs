@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol.RFC1945;
 
 namespace TurboHttp.Tests.RFC1945;
@@ -48,7 +48,7 @@ public sealed class Http10RoundTripBodyTests
         var result = decoder.TryDecode(data, out var response);
 
         Assert.True(result);
-        var content = await response!.Content.ReadAsStringAsync();
+        var content = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyText, content);
     }
 
@@ -63,7 +63,7 @@ public sealed class Http10RoundTripBodyTests
         var result = decoder.TryDecode(data, out var response);
 
         Assert.True(result);
-        var content = await response!.Content.ReadAsByteArrayAsync();
+        var content = await response!.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(binaryBody, content);
     }
 
@@ -80,7 +80,7 @@ public sealed class Http10RoundTripBodyTests
         var result = decoder.TryDecode(data, out var response);
 
         Assert.True(result);
-        var content = await response!.Content.ReadAsStringAsync();
+        var content = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyText, content);
     }
 
@@ -94,7 +94,7 @@ public sealed class Http10RoundTripBodyTests
         var result = decoder.TryDecode(data, out var response);
 
         Assert.True(result);
-        var content = await response!.Content.ReadAsStringAsync();
+        var content = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Empty(content);
     }
 
@@ -109,7 +109,7 @@ public sealed class Http10RoundTripBodyTests
         var result = decoder.TryDecode(data, out var response);
 
         Assert.True(result);
-        var content = await response!.Content.ReadAsStringAsync();
+        var content = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1048576, content.Length);
         Assert.True(content.All(c => c == 'X'));
     }

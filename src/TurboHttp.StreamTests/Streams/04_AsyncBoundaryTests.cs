@@ -52,7 +52,7 @@ public sealed class AsyncBoundaryTests : TestKit
         _ = Source.Single(request)
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(r => tcs.TrySetResult(r)), materializer);
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 15_000, DisplayName = "ABND-001: HTTP/1.1 request completes with async boundary islands")]

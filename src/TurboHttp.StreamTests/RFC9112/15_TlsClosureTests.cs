@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
@@ -48,7 +48,7 @@ public sealed class TlsClosureTests : StreamTestBase
             .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello world", body);
     }
 
@@ -91,7 +91,7 @@ public sealed class TlsClosureTests : StreamTestBase
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var body = await responses[0].Content.ReadAsStringAsync();
+        var body = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
     }
 
@@ -112,7 +112,7 @@ public sealed class TlsClosureTests : StreamTestBase
             .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(string.Empty, body);
     }
 
@@ -135,7 +135,7 @@ public sealed class TlsClosureTests : StreamTestBase
             .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello world", body);
     }
 }

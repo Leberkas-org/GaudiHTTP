@@ -49,8 +49,8 @@ public sealed class Http20ConnectionStageSettingsTests : StreamTestBase
 
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
-        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5));
-        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         return (downstream, serverBound);
     }
@@ -85,9 +85,9 @@ public sealed class Http20ConnectionStageSettingsTests : StreamTestBase
 
         var (downstreamTask, serverBoundTask, signalTask) = graph.Run(Materializer);
 
-        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5));
-        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
-        var signals = await signalTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var signals = await signalTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         return (downstream, serverBound, signals);
     }
@@ -175,7 +175,7 @@ public sealed class Http20ConnectionStageSettingsTests : StreamTestBase
 
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         Assert.False(downstreamTask.IsFaulted,
             "Downstream task must not fault when inbound stream window is exceeded");

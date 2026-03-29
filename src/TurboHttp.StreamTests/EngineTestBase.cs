@@ -247,7 +247,7 @@ public abstract class EngineTestBase : TestKit
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
 
-        var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var rawBuilder = new StringBuilder();
         while (fake.OutboundChannel.Reader.TryRead(out var chunk))
@@ -281,7 +281,7 @@ public abstract class EngineTestBase : TestKit
                 }
             }), Materializer);
 
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var rawBuilder = new StringBuilder();
         while (fake.OutboundChannel.Reader.TryRead(out var chunk))
@@ -310,7 +310,7 @@ public abstract class EngineTestBase : TestKit
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
 
-        var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var outboundBytes = await DrainOutboundH2Async(fake);
 
@@ -349,7 +349,7 @@ public abstract class EngineTestBase : TestKit
                 }
             }), Materializer);
 
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var outboundBytes = await DrainOutboundH2Async(fake);
 
@@ -378,7 +378,7 @@ public abstract class EngineTestBase : TestKit
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
 
-        var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var requestBytes = new List<byte>();
         var controlBytes = new List<byte>();

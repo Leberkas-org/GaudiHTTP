@@ -48,8 +48,8 @@ public sealed class Http20ConnectionStageGoAwayTests : StreamTestBase
 
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
-        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5));
-        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         return (downstream, serverBound);
     }
@@ -109,7 +109,7 @@ public sealed class Http20ConnectionStageGoAwayTests : StreamTestBase
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
         // Wait long enough for both the GOAWAY and the delayed request to be processed
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         // Stream must NOT have faulted — the stage survives GOAWAY and drops the request
         Assert.False(downstreamTask.IsFaulted,

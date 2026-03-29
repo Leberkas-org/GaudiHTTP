@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.IO.Compression;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -152,7 +152,7 @@ public sealed class ContentEncodingBidiStageTests : StreamTestBase
         var results = await RunResponseAsync(stage, response);
 
         var result = Assert.Single(results);
-        var resultBody = await result.Content.ReadAsByteArrayAsync();
+        var resultBody = await result.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, resultBody);
         Assert.False(result.Content.Headers.Contains("Content-Encoding"));
     }
@@ -167,7 +167,7 @@ public sealed class ContentEncodingBidiStageTests : StreamTestBase
         var results = await RunResponseAsync(stage, response);
 
         var result = Assert.Single(results);
-        var resultBody = await result.Content.ReadAsByteArrayAsync();
+        var resultBody = await result.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, resultBody);
     }
 
@@ -182,7 +182,7 @@ public sealed class ContentEncodingBidiStageTests : StreamTestBase
         var results = await RunResponseAsync(stage, response);
 
         var result = Assert.Single(results);
-        var resultBody = await result.Content.ReadAsByteArrayAsync();
+        var resultBody = await result.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(original, resultBody);
     }
 
@@ -197,7 +197,7 @@ public sealed class ContentEncodingBidiStageTests : StreamTestBase
         var results = await RunResponseAsync(stage, response);
 
         var result = Assert.Single(results);
-        var resultBody = await result.Content.ReadAsByteArrayAsync();
+        var resultBody = await result.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(original, resultBody);
     }
 
@@ -212,7 +212,7 @@ public sealed class ContentEncodingBidiStageTests : StreamTestBase
         var results = await RunResponseAsync(stage, response);
 
         var result = Assert.Single(results);
-        var resultBody = await result.Content.ReadAsByteArrayAsync();
+        var resultBody = await result.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(original, resultBody);
     }
 
@@ -227,7 +227,7 @@ public sealed class ContentEncodingBidiStageTests : StreamTestBase
         var results = await RunResponseAsync(stage, response);
 
         var result = Assert.Single(results);
-        var resultBody = await result.Content.ReadAsByteArrayAsync();
+        var resultBody = await result.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(original, resultBody);
     }
 
@@ -293,8 +293,8 @@ public sealed class ContentEncodingBidiStageTests : StreamTestBase
         var results = await RunResponseAsync(stage, resp1, resp2, resp3);
 
         Assert.Equal(3, results.Count);
-        Assert.Equal(body1, await results[0].Content.ReadAsByteArrayAsync());
-        Assert.Equal(body2, await results[1].Content.ReadAsByteArrayAsync());
-        Assert.Equal(body3, await results[2].Content.ReadAsByteArrayAsync());
+        Assert.Equal(body1, await results[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(body2, await results[1].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(body3, await results[2].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 }

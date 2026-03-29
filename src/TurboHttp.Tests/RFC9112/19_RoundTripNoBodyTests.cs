@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
@@ -68,7 +68,7 @@ public sealed class Http11RoundTripNoBodyTests
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.NoContent, responses[0].StatusCode);
-        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-NB-003: Pipelined 304 → 200 — body only in 200 decoded")]
@@ -83,7 +83,7 @@ public sealed class Http11RoundTripNoBodyTests
 
         Assert.Equal(2, responses.Count);
         Assert.Equal(HttpStatusCode.NotModified, responses[0].StatusCode);
-        Assert.Equal("fresh", await responses[1].Content.ReadAsStringAsync());
+        Assert.Equal("fresh", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-NB-004: 204 with Content-Type header — empty body returned")]
@@ -97,7 +97,7 @@ public sealed class Http11RoundTripNoBodyTests
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.NoContent, responses[0].StatusCode);
-        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-NB-005: Pipelined 204 → 200 → 204 — no-body responses handled")]
@@ -113,7 +113,7 @@ public sealed class Http11RoundTripNoBodyTests
 
         Assert.Equal(3, responses.Count);
         Assert.Equal(HttpStatusCode.NoContent, responses[0].StatusCode);
-        Assert.Equal("data", await responses[1].Content.ReadAsStringAsync());
+        Assert.Equal("data", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.NoContent, responses[2].StatusCode);
     }
 
@@ -133,7 +133,7 @@ public sealed class Http11RoundTripNoBodyTests
         Assert.True(decoded);
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-NB-007: TryDecodeHead 404 — empty body returned")]
@@ -147,7 +147,7 @@ public sealed class Http11RoundTripNoBodyTests
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.NotFound, responses[0].StatusCode);
-        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync());
+        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-NB-008: Two pipelined HEAD responses via TryDecodeHead")]
@@ -162,8 +162,8 @@ public sealed class Http11RoundTripNoBodyTests
         decoder.TryDecodeHead(mem, out var responses);
 
         Assert.Equal(2, responses.Count);
-        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync());
-        Assert.Empty(await responses[1].Content.ReadAsByteArrayAsync());
+        Assert.Empty(await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await responses[1].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-NB-009: HEAD 200 then GET 200 on same decoder instance")]
@@ -174,11 +174,11 @@ public sealed class Http11RoundTripNoBodyTests
         const string headRaw = "HTTP/1.1 200 OK\r\nContent-Length: 42\r\n\r\n";
         decoder.TryDecodeHead((ReadOnlyMemory<byte>)Encoding.ASCII.GetBytes(headRaw), out var headResp);
         Assert.Single(headResp);
-        Assert.Empty(await headResp[0].Content.ReadAsByteArrayAsync());
+        Assert.Empty(await headResp[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
 
         var getRaw = BuildResponse(200, "OK", "actual body", ("Content-Length", "11"));
         decoder.TryDecode(getRaw, out var getResp);
         Assert.Single(getResp);
-        Assert.Equal("actual body", await getResp[0].Content.ReadAsStringAsync());
+        Assert.Equal("actual body", await getResp[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 }

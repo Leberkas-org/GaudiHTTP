@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol;
 using TurboHttp.Protocol.RFC9112;
 
@@ -187,8 +187,8 @@ public sealed class Http11NegativePathTests
         Assert.True(decoded);
         Assert.Equal(2, responses.Count);
 
-        var body1 = await responses[0].Content.ReadAsByteArrayAsync();
-        var body2 = await responses[1].Content.ReadAsByteArrayAsync();
+        var body1 = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var body2 = await responses[1].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Hello"u8.ToArray(), body1);
         Assert.Equal("Bye"u8.ToArray(), body2);
@@ -209,7 +209,7 @@ public sealed class Http11NegativePathTests
         Assert.Single(responses);
         Assert.Equal(System.Net.HttpStatusCode.NoContent, responses[0].StatusCode);
 
-        var body = await responses[0].Content.ReadAsByteArrayAsync();
+        var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 
@@ -227,7 +227,7 @@ public sealed class Http11NegativePathTests
         Assert.Single(responses);
         Assert.Equal(System.Net.HttpStatusCode.NotModified, responses[0].StatusCode);
 
-        var body = await responses[0].Content.ReadAsByteArrayAsync();
+        var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 
@@ -250,7 +250,7 @@ public sealed class Http11NegativePathTests
 
         Assert.True(decoded);
         Assert.Single(responses);
-        var body = await responses[0].Content.ReadAsByteArrayAsync();
+        var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello"u8.ToArray(), body);
     }
 
@@ -325,7 +325,7 @@ public sealed class Http11NegativePathTests
 
         Assert.True(decoded);
         Assert.Single(responses);
-        var body = await responses[0].Content.ReadAsByteArrayAsync();
+        var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(10, body.Length);
         Assert.Equal("0123456789"u8.ToArray(), body);
     }

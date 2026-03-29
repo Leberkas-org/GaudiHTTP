@@ -335,9 +335,9 @@ public sealed class Http11ConnectionReuseStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var pubSub = publisher.ExpectSubscription();
-        probe0.ExpectSubscription().Request(10);
-        probe1.ExpectSubscription().Request(10);
+        var pubSub = publisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        probe0.ExpectSubscription(TestContext.Current.CancellationToken).Request(10);
+        probe1.ExpectSubscription(TestContext.Current.CancellationToken).Request(10);
 
         // Fail upstream — stage absorbs error (no OnError) but completes gracefully
         pubSub.SendError(new Exception("upstream boom"));

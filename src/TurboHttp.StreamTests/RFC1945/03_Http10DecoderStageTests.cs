@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
@@ -53,7 +53,7 @@ public sealed class Http10DecoderStageTests : StreamTestBase
     {
         var response = await DecodeAsync("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
 
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(5, body.Length);
         Assert.Equal("hello", Encoding.ASCII.GetString(body));
     }
@@ -72,7 +72,7 @@ public sealed class Http10DecoderStageTests : StreamTestBase
         // Body split: first chunk has partial body ("he"), second chunk has remainder ("llo")
         var response = await DecodeAsync("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhe", "llo");
 
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("hello", Encoding.ASCII.GetString(body));
     }

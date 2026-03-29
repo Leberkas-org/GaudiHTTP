@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
@@ -64,7 +64,7 @@ public sealed class Http10RoundTripMethodTests : StreamTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpVersion.Version10, response.Version);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("OK", body);
     }
 
@@ -94,7 +94,7 @@ public sealed class Http10RoundTripMethodTests : StreamTestBase
             $"HTTP/1.0 200 OK\r\nContent-Type: application/json\r\nContent-Length: {responseBody.Length}\r\n\r\n{responseBody}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var respBody = await response.Content.ReadAsStringAsync();
+        var respBody = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(responseBody, respBody);
     }
 
@@ -116,7 +116,7 @@ public sealed class Http10RoundTripMethodTests : StreamTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(1024, response.Content.Headers.ContentLength);
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 
@@ -135,7 +135,7 @@ public sealed class Http10RoundTripMethodTests : StreamTestBase
         var response = await DecodeAsync("HTTP/1.0 204 No Content\r\n\r\n");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 
@@ -164,7 +164,7 @@ public sealed class Http10RoundTripMethodTests : StreamTestBase
             $"HTTP/1.0 200 OK\r\nContent-Type: application/json\r\nContent-Length: {responseBody.Length}\r\n\r\n{responseBody}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var respBody = await response.Content.ReadAsStringAsync();
+        var respBody = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(responseBody, respBody);
     }
 }

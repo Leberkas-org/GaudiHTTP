@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Net;
 using System.Text;
 using Akka;
@@ -85,7 +85,7 @@ public sealed class Http10DecompressionPipelineTests : EngineTestBase
             () => rawResponse);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expectedBody, body);
     }
 
@@ -150,7 +150,7 @@ public sealed class Http10DecompressionPipelineTests : EngineTestBase
             () => rawResponse);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expectedBody, body);
     }
 
@@ -195,7 +195,7 @@ public sealed class Http10DecompressionPipelineTests : EngineTestBase
             () => rawResponse);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expectedBody, body);
     }
 
@@ -217,7 +217,7 @@ public sealed class Http10DecompressionPipelineTests : EngineTestBase
             () => rawResponse);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expectedBody, body);
     }
 
@@ -242,7 +242,7 @@ public sealed class Http10DecompressionPipelineTests : EngineTestBase
             request,
             () => rawResponse);
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(jsonBody, body);
         Assert.Contains("application/json",
             response.Content.Headers.ContentType?.ToString() ?? "");

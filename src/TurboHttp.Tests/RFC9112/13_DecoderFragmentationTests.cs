@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
 namespace TurboHttp.Tests.RFC9112;
@@ -27,7 +27,7 @@ public sealed class Http11DecoderFragmentationTests
 
         Assert.False(decoded1);
         Assert.True(decoded2);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("body", result);
     }
 
@@ -43,7 +43,7 @@ public sealed class Http11DecoderFragmentationTests
 
         Assert.False(decoded1);
         Assert.True(decoded2);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("data", result);
     }
 
@@ -60,7 +60,7 @@ public sealed class Http11DecoderFragmentationTests
 
         Assert.False(decoded1);
         Assert.True(decoded2);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("test", result);
     }
 
@@ -78,7 +78,7 @@ public sealed class Http11DecoderFragmentationTests
 
         Assert.False(decoded1);
         Assert.True(decoded2);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, result);
     }
 
@@ -97,7 +97,7 @@ public sealed class Http11DecoderFragmentationTests
 
         Assert.False(decoded1);
         Assert.True(decoded2);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello", result);
     }
 
@@ -120,7 +120,7 @@ public sealed class Http11DecoderFragmentationTests
         var finalDecoded = _decoder.TryDecode(finalChunk, out var responses);
 
         Assert.True(finalDecoded);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, result);
     }
 

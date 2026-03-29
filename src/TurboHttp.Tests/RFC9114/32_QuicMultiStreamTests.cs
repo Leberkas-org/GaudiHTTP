@@ -54,7 +54,7 @@ public sealed class QuicMultiStreamTests
 #pragma warning disable CA1416
         var provider = new QuicClientProvider(new QuicOptions { Host = "", Port = 443 });
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => provider.GetStreamAsync());
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => provider.GetStreamAsync(TestContext.Current.CancellationToken));
 #pragma warning restore CA1416
         Assert.Contains("SNI", ex.Message);
     }
@@ -65,7 +65,7 @@ public sealed class QuicMultiStreamTests
 #pragma warning disable CA1416
         var provider = new QuicClientProvider(new QuicOptions { Host = null!, Port = 443 });
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => provider.GetStreamAsync());
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => provider.GetStreamAsync(TestContext.Current.CancellationToken));
 #pragma warning restore CA1416
         Assert.Contains("SNI", ex.Message);
     }
@@ -88,9 +88,9 @@ public sealed class QuicMultiStreamTests
     {
         var provider = new FakeReentrantProvider(streamCount: 5);
 
-        var stream1 = await provider.GetStreamAsync();
-        var stream2 = await provider.GetStreamAsync();
-        var stream3 = await provider.GetStreamAsync();
+        var stream1 = await provider.GetStreamAsync(TestContext.Current.CancellationToken);
+        var stream2 = await provider.GetStreamAsync(TestContext.Current.CancellationToken);
+        var stream3 = await provider.GetStreamAsync(TestContext.Current.CancellationToken);
 
         Assert.NotSame(stream1, stream2);
         Assert.NotSame(stream2, stream3);
@@ -108,7 +108,7 @@ public sealed class QuicMultiStreamTests
         var tasks = new Task<Stream>[5];
         for (var i = 0; i < tasks.Length; i++)
         {
-            tasks[i] = provider.GetStreamAsync();
+            tasks[i] = provider.GetStreamAsync(TestContext.Current.CancellationToken);
         }
 
         var streams = await Task.WhenAll(tasks);
@@ -132,14 +132,14 @@ public sealed class QuicMultiStreamTests
         var provider = new FakeReentrantProvider(streamCount: 10);
 
         // First stream succeeds
-        var stream1 = await provider.GetStreamAsync();
+        var stream1 = await provider.GetStreamAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, provider.ConnectionCount);
 
         // Simulate connection death
         provider.KillConnection();
 
         // Next call should reconnect
-        var stream2 = await provider.GetStreamAsync();
+        var stream2 = await provider.GetStreamAsync(TestContext.Current.CancellationToken);
         Assert.Equal(2, provider.ConnectionCount);
         Assert.NotSame(stream1, stream2);
     }
@@ -149,7 +149,7 @@ public sealed class QuicMultiStreamTests
     {
         var provider = new FakeReentrantProvider(streamCount: 10, failStreamOpen: true);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => provider.GetStreamAsync());
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => provider.GetStreamAsync(TestContext.Current.CancellationToken));
         Assert.Contains("no longer usable", ex.Message);
     }
 

@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
@@ -56,8 +56,8 @@ public sealed class Http11RoundTripPipeliningTests
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(2, responses.Count);
-        Assert.Equal("alpha", await responses[0].Content.ReadAsStringAsync());
-        Assert.Equal("beta", await responses[1].Content.ReadAsStringAsync());
+        Assert.Equal("alpha", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("beta", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-9-PL-002: Three pipelined responses decoded in order")]
@@ -72,9 +72,9 @@ public sealed class Http11RoundTripPipeliningTests
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(3, responses.Count);
-        Assert.Equal("alpha", await responses[0].Content.ReadAsStringAsync());
-        Assert.Equal("beta", await responses[1].Content.ReadAsStringAsync());
-        Assert.Equal("gamma", await responses[2].Content.ReadAsStringAsync());
+        Assert.Equal("alpha", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("beta", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("gamma", await responses[2].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-9-PL-003: Five pipelined responses all decoded correctly")]
@@ -91,7 +91,7 @@ public sealed class Http11RoundTripPipeliningTests
         Assert.Equal(5, decoded.Count);
         for (var i = 0; i < 5; i++)
         {
-            Assert.Equal($"r{i + 1}", await decoded[i].Content.ReadAsStringAsync());
+            Assert.Equal($"r{i + 1}", await decoded[i].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         }
     }
 
@@ -131,7 +131,7 @@ public sealed class Http11RoundTripPipeliningTests
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        Assert.Equal("done", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("done", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-9-PL-006: 102 Processing skipped — only 200 OK returned")]
@@ -147,7 +147,7 @@ public sealed class Http11RoundTripPipeliningTests
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        Assert.Equal("done", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("done", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-9-PL-007: Two sequential keep-alive responses decoded correctly")]
@@ -164,9 +164,9 @@ public sealed class Http11RoundTripPipeliningTests
         decoder.TryDecode(raw2, out var responses2);
 
         Assert.Single(responses1);
-        Assert.Equal("first", await responses1[0].Content.ReadAsStringAsync());
+        Assert.Equal("first", await responses1[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Single(responses2);
-        Assert.Equal("second", await responses2[0].Content.ReadAsStringAsync());
+        Assert.Equal("second", await responses2[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-9-PL-008: Three sequential keep-alive responses decoded correctly")]
@@ -183,7 +183,7 @@ public sealed class Http11RoundTripPipeliningTests
             decoder.TryDecode(raw, out var responses);
 
             Assert.Single(responses);
-            Assert.Equal(body, await responses[0].Content.ReadAsStringAsync());
+            Assert.Equal(body, await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         }
     }
 
@@ -221,8 +221,8 @@ public sealed class Http11RoundTripPipeliningTests
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(3, responses.Count);
-        Assert.Equal("chunked", await responses[0].Content.ReadAsStringAsync());
-        Assert.Equal("fixed", await responses[1].Content.ReadAsStringAsync());
+        Assert.Equal("chunked", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("fixed", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Equal(HttpStatusCode.NoContent, responses[2].StatusCode);
     }
 }

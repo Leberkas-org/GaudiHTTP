@@ -1,4 +1,4 @@
-using System.Buffers;
+﻿using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
@@ -120,8 +120,8 @@ public sealed class ConnectionPoolDeadlockTests : IAsyncLifetime
 
         // 7th acquire with 500ms timeout → OperationCanceledException, no indefinite wait
         using var shortCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            () => pool.AcquireAsync(options, endpoint, shortCts.Token));
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            pool.AcquireAsync(options, endpoint, shortCts.Token));
 
         // Cleanup
         foreach (var lease in leases)
@@ -161,7 +161,7 @@ public sealed class ConnectionPoolDeadlockTests : IAsyncLifetime
 
         // All 3 tasks should complete (not hang)
         await Task.WhenAll(streamToPipe, pipeToChannel, channelToStream)
-            .WaitAsync(TimeSpan.FromSeconds(2));
+            .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         // closeOnce fired — CancellationToken propagated to other pumps
         Assert.Equal(1, Volatile.Read(ref closeOnce));
@@ -198,7 +198,7 @@ public sealed class ConnectionPoolDeadlockTests : IAsyncLifetime
 
         // All tasks should exit without hanging
         await Task.WhenAll(streamToPipe, pipeToChannel, channelToStream)
-            .WaitAsync(TimeSpan.FromSeconds(2));
+            .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
     }
 
     #endregion
@@ -221,7 +221,8 @@ public sealed class ConnectionPoolDeadlockTests : IAsyncLifetime
         // Write pump should exit immediately — outbound channel is pre-completed
         var writePump = ClientByteMover.MoveChannelToStream(state, onClose, cts.Token);
 
-        var completed = await Task.WhenAny(writePump, Task.Delay(TimeSpan.FromSeconds(1)));
+        var completed = await Task.WhenAny(writePump,
+            Task.Delay(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken));
         Assert.Same(writePump, completed);
 
         // Pump completed without needing cancellation
@@ -256,7 +257,9 @@ public sealed class ConnectionPoolDeadlockTests : IAsyncLifetime
         public override void Write(byte[] buffer, int offset, int count) =>
             throw new NotSupportedException();
 
-        public override void Flush() { }
+        public override void Flush()
+        {
+        }
 
         public override long Seek(long offset, SeekOrigin origin) =>
             throw new NotSupportedException();

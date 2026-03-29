@@ -209,7 +209,7 @@ public sealed class StreamSurvivalTests : EngineTestBase
         var (downstreamTask, serverBoundTask) = graph.Run(Materializer);
 
         // Allow both GOAWAY and the delayed request to be processed
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         Assert.False(downstreamTask.IsFaulted,
             "Downstream task must not fault after GOAWAY + dropped request");
@@ -244,7 +244,7 @@ public sealed class StreamSurvivalTests : EngineTestBase
         await queue.OfferAsync(ValidHttp11Request("/timeout-test"));
 
         // Give any potential errors time to manifest
-        await Task.Delay(TimeSpan.FromMilliseconds(300));
+        await Task.Delay(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
 
         // Stream must be alive: not faulted, not completed
         Assert.False(pipelineTask.IsFaulted, "Pipeline must not fault when no response arrives");
@@ -289,7 +289,7 @@ public sealed class StreamSurvivalTests : EngineTestBase
 
             var response = await responses.Reader.ReadAsync()
                 .AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(5));
+                .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
@@ -326,7 +326,7 @@ public sealed class StreamSurvivalTests : EngineTestBase
             await queue.OfferAsync(ValidHttp11Request($"/item-{i}"));
             await responses.Reader.ReadAsync()
                 .AsTask()
-                .WaitAsync(TimeSpan.FromSeconds(5));
+                .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         }
 
         // After 3 successful round-trips the pipeline must still be running
@@ -354,13 +354,13 @@ public sealed class StreamSurvivalTests : EngineTestBase
         await queue.OfferAsync(ValidHttp11Request("/shutdown-test"));
         await responses.Reader.ReadAsync()
             .AsTask()
-            .WaitAsync(TimeSpan.FromSeconds(5));
+            .WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         // Simulate client Dispose
         queue.Complete();
 
         // Allow completion signal to propagate through the pipeline stages
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         // Pipeline must not have faulted; clean shutdown only
         Assert.False(pipelineTask.IsFaulted,

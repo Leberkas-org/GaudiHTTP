@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol;
 using TurboHttp.Protocol.RFC1945;
@@ -49,7 +49,7 @@ public sealed class Http10DecoderBodyTests
 
         decoder.TryDecode(data, out var response);
 
-        var actualBody = await response!.Content.ReadAsStringAsync();
+        var actualBody = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, actualBody);
     }
 
@@ -62,7 +62,7 @@ public sealed class Http10DecoderBodyTests
 
         decoder.TryDecode(Bytes(raw), out var response);
 
-        var bytes = await response!.Content.ReadAsByteArrayAsync();
+        var bytes = await response!.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, bytes.Length);
         Assert.Equal("ABC", Encoding.ASCII.GetString(bytes));
     }
@@ -87,7 +87,7 @@ public sealed class Http10DecoderBodyTests
 
         decoder.TryDecode(Bytes(raw), out var response);
 
-        var actualBody = await response!.Content.ReadAsStringAsync();
+        var actualBody = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, actualBody);
     }
 
@@ -101,7 +101,7 @@ public sealed class Http10DecoderBodyTests
 
         decoder.TryDecode(data, out var response);
 
-        var actualBody = await response!.Content.ReadAsByteArrayAsync();
+        var actualBody = await response!.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyBytes, actualBody);
     }
 
@@ -156,7 +156,7 @@ public sealed class Http10DecoderBodyTests
         var result = decoder.TryDecode(Bytes(raw), out var response);
 
         Assert.True(result);
-        var body = await response!.Content.ReadAsStringAsync();
+        var body = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello", body);
     }
 
@@ -170,7 +170,7 @@ public sealed class Http10DecoderBodyTests
 
         Assert.True(result);
         Assert.Equal(HttpStatusCode.NotModified, response!.StatusCode);
-        var bodyBytes = await response.Content.ReadAsByteArrayAsync();
+        var bodyBytes = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(bodyBytes);
     }
 
@@ -184,7 +184,7 @@ public sealed class Http10DecoderBodyTests
 
         Assert.True(result);
         Assert.Equal(HttpStatusCode.NotModified, response!.StatusCode);
-        var bodyBytes = await response.Content.ReadAsByteArrayAsync();
+        var bodyBytes = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(bodyBytes);
     }
 
@@ -198,7 +198,7 @@ public sealed class Http10DecoderBodyTests
 
         Assert.True(result);
         Assert.Equal(HttpStatusCode.NoContent, response!.StatusCode);
-        var bodyBytes = await response.Content.ReadAsByteArrayAsync();
+        var bodyBytes = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(bodyBytes);
     }
 
@@ -212,7 +212,7 @@ public sealed class Http10DecoderBodyTests
 
         decoder.TryDecode(data, out var response);
 
-        var actual = await response!.Content.ReadAsByteArrayAsync();
+        var actual = await response!.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyBytes, actual);
     }
 
@@ -228,7 +228,7 @@ public sealed class Http10DecoderBodyTests
         var result = decoder.TryDecode(data, out var response);
 
         Assert.True(result);
-        var actual = await response!.Content.ReadAsByteArrayAsync();
+        var actual = await response!.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyBytes.Length, actual.Length);
         Assert.Equal(bodyBytes, actual);
     }
@@ -259,7 +259,7 @@ public sealed class Http10DecoderBodyTests
         var result = decoder.TryDecode(data, out var response);
 
         Assert.True(result);
-        var body = await response!.Content.ReadAsStringAsync();
+        var body = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(chunkedBody, body);
     }
 
@@ -272,7 +272,7 @@ public sealed class Http10DecoderBodyTests
         // First TryDecode consumes headers + body (no CL, so all remaining is body)
         decoder.TryDecode(Bytes(raw), out var response);
 
-        var body = await response!.Content.ReadAsStringAsync();
+        var body = await response!.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("EOF body data", body);
     }
 

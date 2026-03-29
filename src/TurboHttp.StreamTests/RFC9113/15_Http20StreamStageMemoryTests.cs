@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using Akka.Streams.Dsl;
 using TurboHttp.Protocol.RFC7541;
 using TurboHttp.Protocol.RFC9113;
@@ -80,8 +80,8 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
         var responses = await RunAsync(frames);
 
         Assert.Equal(2, responses.Count);
-        var result1 = await responses[0].Content!.ReadAsByteArrayAsync();
-        var result3 = await responses[1].Content!.ReadAsByteArrayAsync();
+        var result1 = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var result3 = await responses[1].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
 
         // Both bodies must be byte-for-byte correct — no pool contamination
         Assert.Equal(body1, result1);
@@ -116,7 +116,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
         var responses = await RunAsync(frames);
 
         Assert.Single(responses);
-        var body = await responses[0].Content!.ReadAsByteArrayAsync();
+        var body = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
 
         // Verify exact byte values at key positions to catch copy failures
         Assert.Equal(610, body.Length);
@@ -151,7 +151,7 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
         var responses = await RunAsync(frameList.ToArray());
 
         Assert.Single(responses);
-        var body = await responses[0].Content!.ReadAsByteArrayAsync();
+        var body = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(expected.Length, body.Length);
         Assert.Equal(expected, body);
     }
@@ -353,8 +353,8 @@ public sealed class Http20StreamStageMemoryTests : StreamTestBase
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
         Assert.Equal(HttpStatusCode.Created, responses[1].StatusCode);
 
-        var resultBody1 = await responses[0].Content!.ReadAsByteArrayAsync();
-        var resultBody2 = await responses[1].Content!.ReadAsByteArrayAsync();
+        var resultBody1 = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var resultBody2 = await responses[1].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
 
         // If _streams.Remove was not called, the old BodyBuffer retains "first-response"
         // bytes and the second body would be "first-responsesecond-response" (512 bytes).

@@ -121,7 +121,7 @@ public sealed class Http30CorrelationStageTests : StreamTestBase
         var task = graph.Run(Materializer);
 
         // Stage must NOT complete: the second response has no matching request
-        var completedEarly = task.WaitAsync(TimeSpan.FromMilliseconds(500));
+        var completedEarly = task.WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
         await Assert.ThrowsAsync<TimeoutException>(() => completedEarly);
     }
 
@@ -197,7 +197,7 @@ public sealed class Http30CorrelationStageTests : StreamTestBase
         var task = graph.Run(Materializer);
 
         // Stage must NOT complete even though queues are empty — upstreams are still open.
-        await Assert.ThrowsAsync<TimeoutException>(() => task.WaitAsync(TimeSpan.FromMilliseconds(500)));
+        await Assert.ThrowsAsync<TimeoutException>(() => task.WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9114-4.1-30CR-007: Both upstreams finish → stage completes")]

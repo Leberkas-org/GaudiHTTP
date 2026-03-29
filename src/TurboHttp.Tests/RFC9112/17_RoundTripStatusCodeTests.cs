@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
@@ -54,7 +54,7 @@ public sealed class Http11RoundTripStatusCodeTests
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.NotFound, responses[0].StatusCode);
-        Assert.Equal("Not Found", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Not Found", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-4-SC-003: HTTP/1.1 GET → 500 Internal Server Error round-trip")]

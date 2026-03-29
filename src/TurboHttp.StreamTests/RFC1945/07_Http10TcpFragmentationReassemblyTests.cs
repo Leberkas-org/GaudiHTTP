@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
@@ -74,7 +74,7 @@ public sealed class Http10TcpFragmentationReassemblyTests : StreamTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpVersion.Version10, response.Version);
         Assert.Equal("text/plain", response.Content.Headers.ContentType?.MediaType);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello, World!", body);
     }
 
@@ -95,7 +95,7 @@ public sealed class Http10TcpFragmentationReassemblyTests : StreamTestBase
         Assert.Equal("TurboHttp", response.Headers.GetValues("Server").Single());
         Assert.Equal("test-value", response.Headers.GetValues("X-Custom").Single());
         Assert.Equal(4, response.Content.Headers.ContentLength);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Data", body);
     }
 
@@ -114,7 +114,7 @@ public sealed class Http10TcpFragmentationReassemblyTests : StreamTestBase
         var response = await DecodeFragmentsAsync(fragments);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyText, body);
     }
 
@@ -130,7 +130,7 @@ public sealed class Http10TcpFragmentationReassemblyTests : StreamTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpVersion.Version10, response.Version);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("ABC", body);
     }
 
@@ -152,7 +152,7 @@ public sealed class Http10TcpFragmentationReassemblyTests : StreamTestBase
         var response = await DecodeFragmentsAsync(fragments);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello", body);
     }
 }

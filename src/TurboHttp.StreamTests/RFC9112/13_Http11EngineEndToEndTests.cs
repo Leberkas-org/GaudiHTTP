@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Streams;
 
@@ -46,7 +46,7 @@ public sealed class Http11EngineEndToEndTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpVersion.Version11, response.Version);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(responseBody, body);
     }
 
@@ -74,7 +74,7 @@ public sealed class Http11EngineEndToEndTests : EngineTestBase
 
         // Response must be decoded correctly from chunked transfer encoding
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(responseBody, body);
     }
 

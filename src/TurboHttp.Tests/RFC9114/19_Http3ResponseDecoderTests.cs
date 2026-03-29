@@ -100,7 +100,7 @@ public sealed class Http3ResponseDecoderTests
 
         var response = decoder.Decode(new Http3Frame[] { headersFrame, dataFrame });
 
-        var content = await response.Content!.ReadAsByteArrayAsync();
+        var content = await response.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, content);
     }
 
@@ -119,7 +119,7 @@ public sealed class Http3ResponseDecoderTests
             new Http3DataFrame(part2),
         });
 
-        var content = await response.Content!.ReadAsByteArrayAsync();
+        var content = await response.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello, World!", Encoding.UTF8.GetString(content));
     }
 
@@ -134,7 +134,7 @@ public sealed class Http3ResponseDecoderTests
         // No content at all or empty content
         Assert.True(
             response.Content is null ||
-            (await response.Content.ReadAsByteArrayAsync()).Length == 0);
+            (await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken)).Length == 0);
     }
 
     [Fact(DisplayName = "RFC-9114-4.1-dec-007: Large body assembled from single DATA frame")]
@@ -151,7 +151,7 @@ public sealed class Http3ResponseDecoderTests
             new Http3DataFrame(body),
         });
 
-        var content = await response.Content!.ReadAsByteArrayAsync();
+        var content = await response.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, content);
     }
 
@@ -432,7 +432,7 @@ public sealed class Http3ResponseDecoderTests
             trailingHeaders,
         });
 
-        var content = await response.Content!.ReadAsByteArrayAsync();
+        var content = await response.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, content);
     }
 

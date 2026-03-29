@@ -41,7 +41,7 @@ public sealed class EngineBidiFlowCompositionTests : EngineTestBase
             .Concat(Source.Never<HttpRequestMessage>())
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(r => tcs.TrySetResult(r)), Materializer);
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     private Flow<HttpRequestMessage, HttpResponseMessage, NotUsed> BuildFlow(
@@ -323,7 +323,7 @@ public sealed class EngineBidiFlowCompositionTests : EngineTestBase
         var response = await RunSingleAsync(flow, request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(plainBody, body);
         Assert.False(response.Content.Headers.ContentEncoding.Contains("gzip"),
             "Content-Encoding: gzip should be removed after decompression");
@@ -359,7 +359,7 @@ public sealed class EngineBidiFlowCompositionTests : EngineTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         // Raw compressed bytes returned — Content-Encoding header preserved
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(compressedBody, body);
         Assert.True(response.Content.Headers.Contains("Content-Encoding"));
         Assert.Equal("gzip", string.Join("", response.Content.Headers.GetValues("Content-Encoding")));

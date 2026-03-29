@@ -129,16 +129,16 @@ public sealed class ConnectionStageTests : StreamTestBase
         await queue.OfferAsync(connectItem);
 
         // Give stage time to process the ConnectItem and acquire the lease.
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // The stage should have acquired the lease (handle is set, inbound pump started).
         // Verify by injecting inbound data — it should appear at outlet.
         var owner = MemoryPool<byte>.Shared.Rent(4);
         owner.Memory.Span[..4].Fill(0xAB);
-        await inboundWriter.WriteAsync((owner, 4));
+        await inboundWriter.WriteAsync((owner, 4), TestContext.Current.CancellationToken);
 
         // If AcquireAsync was called successfully, the inbound pump is active.
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
         inboundWriter.Complete();
     }
 
@@ -163,14 +163,14 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(connectItem);
 
         // Wait for the lease to be received and inbound pump to start
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Inject data through the inbound channel
         var owner = MemoryPool<byte>.Shared.Rent(4);
         owner.Memory.Span[..4].Fill(0xAB);
-        await inboundWriter.WriteAsync((owner, 4));
+        await inboundWriter.WriteAsync((owner, 4), TestContext.Current.CancellationToken);
 
-        var received = (DataItem)await resultTask.WaitAsync(TimeSpan.FromSeconds(10));
+        var received = (DataItem)await resultTask.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.Equal(4, received.Length);
         Assert.Equal(0xAB, received.Memory.Memory.Span[0]);
 
@@ -198,7 +198,7 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         // Connect first — stage needs a lease before accepting DataItems
         await inputQueue.OfferAsync(connectItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Push a DataItem
         await inputQueue.OfferAsync(data);
@@ -233,7 +233,7 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         // 1. Connect
         await inputQueue.OfferAsync(connectItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // 2. Write outbound data
         var outData = MakeData(0x01, 16);
@@ -249,14 +249,14 @@ public sealed class ConnectionStageTests : StreamTestBase
         // 4. Inject inbound data
         var inOwner = MemoryPool<byte>.Shared.Rent(12);
         inOwner.Memory.Span[..12].Fill(0x02);
-        await inboundWriter.WriteAsync((inOwner, 12));
+        await inboundWriter.WriteAsync((inOwner, 12), TestContext.Current.CancellationToken);
 
         // 5. Complete and collect
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
         inboundWriter.Complete();
         inputQueue.Complete();
 
-        var results = await resultTask.WaitAsync(TimeSpan.FromSeconds(10));
+        var results = await resultTask.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
         Assert.Equal(2, results.Count);
 
         var inbound = (DataItem)results[0];
@@ -287,13 +287,13 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         // Connect first — stage needs a lease
         await inputQueue.OfferAsync(connectItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Push a ConnectionReuseItem with CanReuse = false
         var decision = ConnectionReuseDecision.Close("Connection: close");
         var reuseItem = new ConnectionReuseItem(TestKey, decision);
         await inputQueue.OfferAsync(reuseItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Verify the lease was marked as non-reusable
         Assert.False(lease.Reusable);
@@ -326,13 +326,13 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         // Connect first
         await inputQueue.OfferAsync(connectItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Push a ConnectionReuseItem with CanReuse = true
         var decision = ConnectionReuseDecision.KeepAlive("HTTP/1.1 persistent");
         var reuseItem = new ConnectionReuseItem(TestKey, decision);
         await inputQueue.OfferAsync(reuseItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Verify lease is still marked as reusable
         Assert.True(lease.Reusable);
@@ -363,11 +363,11 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         // Connect first — stage needs a lease
         await inputQueue.OfferAsync(connectItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Push MaxConcurrentStreamsItem
         await inputQueue.OfferAsync(new MaxConcurrentStreamsItem(50));
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Verify the lease was updated directly
         Assert.Equal(50, lease.MaxConcurrentStreams);
@@ -394,13 +394,13 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         // Connect first — stage needs a lease
         await inputQueue.OfferAsync(connectItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         var streamsBefore = lease.ActiveStreams;
 
         // Push StreamAcquireItem
         await inputQueue.OfferAsync(new StreamAcquireItem());
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Verify stream count increased (MarkBusy increments ActiveStreams)
         Assert.True(lease.ActiveStreams > streamsBefore);
@@ -426,16 +426,16 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(data);
 
         // Give the stage a moment to process the dropped item.
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Push a second DataItem to confirm the stage is still alive and processing.
         var data2 = MakeData(0xEE, 4);
         await inputQueue.OfferAsync(data2);
-        await Task.Delay(200);
+        await Task.Delay(200, TestContext.Current.CancellationToken);
 
         // Complete the stream — no exception means the stage survived.
         inputQueue.Complete();
-        var results = await outputTask.WaitAsync(TimeSpan.FromSeconds(10));
+        var results = await outputTask.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         // No output items expected (handle was never established), but no crash.
         Assert.Empty(results);
@@ -461,7 +461,7 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         // Connect — handle becomes non-null.
         await inputQueue.OfferAsync(connectItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Simulate TCP disconnect: complete the inbound channel.
         // This triggers _onInboundComplete which sets _handle = null in the stage event loop.
@@ -475,11 +475,11 @@ public sealed class ConnectionStageTests : StreamTestBase
         await inputQueue.OfferAsync(new ConnectionReuseItem(TestKey, reuseDecision));
 
         // Allow all callbacks to drain.
-        await Task.Delay(400);
+        await Task.Delay(400, TestContext.Current.CancellationToken);
 
         // Complete the source — no exception means the stage survived.
         inputQueue.Complete();
-        var results = await outputTask.WaitAsync(TimeSpan.FromSeconds(10));
+        var results = await outputTask.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         // Inbound channel completion now emits a CloseSignalItem (TASK-007-004).
         var closeSignal = Assert.Single(results);
@@ -517,12 +517,12 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         // Connect — lease becomes available.
         await inputQueue.OfferAsync(connectItem);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Push a DataItem — WriteAsync should fail because the outbound channel is already completed.
         var data = MakeData(0xBB, 4);
         await inputQueue.OfferAsync(data);
-        await Task.Delay(300);
+        await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Verify pool.Release was called with canReuse: false
         Assert.True(pool.Released);
@@ -533,7 +533,7 @@ public sealed class ConnectionStageTests : StreamTestBase
 
         // Complete the stream gracefully — it should NOT fault.
         inputQueue.Complete();
-        var results = await resultTask.WaitAsync(TimeSpan.FromSeconds(10));
+        var results = await resultTask.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         // The stage should have emitted a CloseSignalItem (AbruptClose) signaling connection death.
         var closeSignal = Assert.Single(results.OfType<CloseSignalItem>());

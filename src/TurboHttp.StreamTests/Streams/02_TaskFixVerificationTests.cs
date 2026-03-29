@@ -37,13 +37,13 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         var (reqOut, _, pushResp, _) = RunRetryBidi(new RetryBidiStage(new RetryPolicy()), 5, 5, request);
 
         // Original request forwarded on Out1
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         // Push retryable response on In2
         pushResp(response);
 
         // Retry request appears on Out1 with updated attempt count
-        var retryRequest = reqOut.ExpectNext();
+        var retryRequest = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.True(retryRequest.Options.TryGetValue(
             new HttpRequestOptionsKey<int>("TurboHttp.RetryAttemptCount"), out var count));
         Assert.Equal(2, count); // attempt 1 → incremented to 2
@@ -71,11 +71,11 @@ public sealed class TaskFixVerificationTests : StreamTestBase
 
         var (reqOut, _, pushResp, _) = RunRetryBidi(new RetryBidiStage(policy), 5, 5, request);
 
-        reqOut.ExpectNext(); // original forwarded
+        reqOut.ExpectNext(TestContext.Current.CancellationToken); // original forwarded
         pushResp(response);
 
         // attempt 2 < MaxRetries 3 → should retry
-        var retryRequest = reqOut.ExpectNext();
+        var retryRequest = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Same(request, retryRequest);
     }
 
@@ -92,12 +92,12 @@ public sealed class TaskFixVerificationTests : StreamTestBase
 
         var (reqOut, respOut, pushResp, _) = RunRetryBidi(new RetryBidiStage(policy), 5, 5, request);
 
-        reqOut.ExpectNext(); // original forwarded
+        reqOut.ExpectNext(TestContext.Current.CancellationToken); // original forwarded
         pushResp(response);
 
         // attempt 3 >= MaxRetries 3 → final response on Out2
-        Assert.Same(response, respOut.ExpectNext());
-        reqOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
+        reqOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "TASK002-VFY-001: RedirectHandler.BuildRedirectRequest preserves HTTP/2 Version")]
@@ -144,7 +144,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         var (reqOut, _, pushResp, _) = RunRedirectBidi(stage, 10, 10, request);
 
         // Original request forwarded
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         // Push 302 redirect response
         var response1 = new HttpResponseMessage(HttpStatusCode.Found)
@@ -154,7 +154,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         response1.Headers.TryAddWithoutValidation("Location", "http://example.com/b");
         pushResp(response1);
 
-        var newReq1 = reqOut.ExpectNext();
+        var newReq1 = reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         // Verify handler was set
         Assert.True(newReq1.Options.TryGetValue(RedirectBidiStage.RedirectHandlerKey, out var handler));
@@ -168,7 +168,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         response2.Headers.TryAddWithoutValidation("Location", "http://example.com/c");
         pushResp(response2);
 
-        var newReq2 = reqOut.ExpectNext();
+        var newReq2 = reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         Assert.True(newReq2.Options.TryGetValue(RedirectBidiStage.RedirectHandlerKey, out var handler2));
         Assert.Equal(2, handler2!.RedirectCount); // same handler, count incremented
@@ -265,7 +265,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         });
 
         // Let them run for a short time
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         await cts.CancelAsync();
         await Task.WhenAll(writer, reader);
 
@@ -558,7 +558,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         Assert.Same(response, result);
 
         // Allow async callback to complete
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var entry = store.Get(request);
         Assert.NotNull(entry);
@@ -604,7 +604,7 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         await respOut2.ExpectNextAsync(CancellationToken.None);
 
         // Allow async callback to complete
-        await Task.Delay(100);
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         Assert.NotNull(store.Get(syncRequest));
         Assert.NotNull(store.Get(asyncRequest));
@@ -648,14 +648,14 @@ public sealed class TaskFixVerificationTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var respSub = responsePublisher.ExpectSubscription();
-        var reqOutSub = requestOutProbe.ExpectSubscription();
-        var respOutSub = responseOutProbe.ExpectSubscription();
+        var respSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var reqOutSub = requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respOutSub = responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
         reqOutSub.Request(10);
         respOutSub.Request(10);
 
         // Original request forwarded through both stages
-        requestOutProbe.ExpectNext();
+        requestOutProbe.ExpectNext(TestContext.Current.CancellationToken);
 
         // Push 301 redirect response — not retryable, but redirectable
         var response = new HttpResponseMessage(HttpStatusCode.MovedPermanently)
@@ -666,10 +666,10 @@ public sealed class TaskFixVerificationTests : StreamTestBase
         respSub.SendNext(response);
 
         // RedirectBidiStage should produce a redirect request on Out1
-        var redirectRequest = requestOutProbe.ExpectNext();
+        var redirectRequest = requestOutProbe.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal("http://example.com/new", redirectRequest.RequestUri?.AbsoluteUri);
         Assert.Equal(new Version(1, 1), redirectRequest.Version); // Version preserved (TASK-002)
-        responseOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        responseOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
         await Task.CompletedTask;
     }
 
@@ -713,9 +713,9 @@ public sealed class TaskFixVerificationTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var respSub = responsePublisher.ExpectSubscription();
-        requestOutProbe.ExpectSubscription().Request(10);
-        responseOutProbe.ExpectSubscription().Request(10);
+        var respSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(10);
+        responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(10);
 
         // Request forwarded through both stages (cache miss)
         await requestOutProbe.ExpectNextAsync(CancellationToken.None);
@@ -804,9 +804,9 @@ public sealed class TaskFixVerificationTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var respSub = responsePublisher.ExpectSubscription();
-        requestOutProbe.ExpectSubscription().Request(requestOutDemand);
-        responseOutProbe.ExpectSubscription().Request(responseOutDemand);
+        var respSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(requestOutDemand);
+        responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(responseOutDemand);
 
         return (requestOutProbe, responseOutProbe, respSub.SendNext, respSub.SendComplete);
     }
@@ -844,9 +844,9 @@ public sealed class TaskFixVerificationTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var respSub = responsePublisher.ExpectSubscription();
-        requestOutProbe.ExpectSubscription().Request(requestOutDemand);
-        responseOutProbe.ExpectSubscription().Request(responseOutDemand);
+        var respSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(requestOutDemand);
+        responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(responseOutDemand);
 
         return (requestOutProbe, responseOutProbe, respSub.SendNext, respSub.SendComplete);
     }
@@ -882,9 +882,9 @@ public sealed class TaskFixVerificationTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var respSub = responsePublisher.ExpectSubscription();
-        requestOutProbe.ExpectSubscription().Request(10);
-        responseOutProbe.ExpectSubscription().Request(10);
+        var respSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(10);
+        responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(10);
 
         return (requestOutProbe, responseOutProbe, respSub.SendNext, respSub.SendComplete);
     }
@@ -917,8 +917,8 @@ public sealed class TaskFixVerificationTests : StreamTestBase
                 }));
 
         var (serverBoundTask, signalTask) = graph.Run(Materializer);
-        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5));
-        var signals = await signalTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var serverBound = await serverBoundTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var signals = await signalTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         return (serverBound, signals);
     }

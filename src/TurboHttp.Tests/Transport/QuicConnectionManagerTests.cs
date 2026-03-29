@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Runtime.Versioning;
 using TurboHttp.Internal;
 using TurboHttp.Transport;
@@ -29,7 +29,7 @@ public sealed class QuicConnectionManagerTests
         await using var manager = new TestableQuicConnectionManager(options, TestEndpoint);
 
         // Act
-        var lease = await manager.OpenStreamAsync(OutputStreamType.Request);
+        var lease = await manager.OpenStreamAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
 
         // Assert
         Assert.NotNull(lease);
@@ -45,7 +45,7 @@ public sealed class QuicConnectionManagerTests
         var options = CreateTestOptions();
         await using var manager = new TestableQuicConnectionManager(options, TestEndpoint);
 
-        var lease = await manager.OpenStreamAsync(OutputStreamType.Control);
+        var lease = await manager.OpenStreamAsync(OutputStreamType.Control, TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
         Assert.True(lease.IsAlive);
@@ -59,7 +59,7 @@ public sealed class QuicConnectionManagerTests
         var options = CreateTestOptions();
         await using var manager = new TestableQuicConnectionManager(options, TestEndpoint);
 
-        var lease = await manager.OpenStreamAsync(OutputStreamType.QpackEncoder);
+        var lease = await manager.OpenStreamAsync(OutputStreamType.QpackEncoder, TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
         Assert.True(lease.IsAlive);
@@ -73,8 +73,8 @@ public sealed class QuicConnectionManagerTests
         var options = CreateTestOptions();
         await using var manager = new TestableQuicConnectionManager(options, TestEndpoint);
 
-        var lease1 = await manager.OpenStreamAsync(OutputStreamType.Request);
-        var lease2 = await manager.OpenStreamAsync(OutputStreamType.Control);
+        var lease1 = await manager.OpenStreamAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
+        var lease2 = await manager.OpenStreamAsync(OutputStreamType.Control, TestContext.Current.CancellationToken);
 
         // Both leases should be alive and tracked
         Assert.True(lease1.IsAlive);
@@ -93,8 +93,8 @@ public sealed class QuicConnectionManagerTests
         var options = CreateTestOptions();
         var manager = new TestableQuicConnectionManager(options, TestEndpoint);
 
-        var lease1 = await manager.OpenStreamAsync(OutputStreamType.Request);
-        var lease2 = await manager.OpenStreamAsync(OutputStreamType.Request);
+        var lease1 = await manager.OpenStreamAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
+        var lease2 = await manager.OpenStreamAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
 
         Assert.True(lease1.IsAlive);
         Assert.True(lease2.IsAlive);
@@ -115,7 +115,7 @@ public sealed class QuicConnectionManagerTests
         await manager.DisposeAsync();
 
         await Assert.ThrowsAsync<ObjectDisposedException>(
-            () => manager.OpenStreamAsync(OutputStreamType.Request));
+            () => manager.OpenStreamAsync(OutputStreamType.Request, TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "QCM-007: DisposeAsync is idempotent", Timeout = 5000)]
@@ -137,9 +137,9 @@ public sealed class QuicConnectionManagerTests
         // Launch multiple opens concurrently
         var tasks = new[]
         {
-            manager.OpenStreamAsync(OutputStreamType.Request),
-            manager.OpenStreamAsync(OutputStreamType.Control),
-            manager.OpenStreamAsync(OutputStreamType.QpackEncoder),
+            manager.OpenStreamAsync(OutputStreamType.Request, TestContext.Current.CancellationToken),
+            manager.OpenStreamAsync(OutputStreamType.Control, TestContext.Current.CancellationToken),
+            manager.OpenStreamAsync(OutputStreamType.QpackEncoder, TestContext.Current.CancellationToken),
         };
 
         var leases = await Task.WhenAll(tasks);
@@ -161,7 +161,7 @@ public sealed class QuicConnectionManagerTests
         await using var manager = new TestableQuicConnectionManager(options, TestEndpoint);
 
         // Open a stream first to ensure provider is created
-        var lease = await manager.OpenStreamAsync(OutputStreamType.Request);
+        var lease = await manager.OpenStreamAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
 
         // Buffer an inbound notification
         manager.SimulateInboundStream(InputStreamType.Control);
@@ -182,7 +182,7 @@ public sealed class QuicConnectionManagerTests
         var options = CreateTestOptions();
         await using var manager = new TestableQuicConnectionManager(options, TestEndpoint);
 
-        var lease = await manager.OpenStreamAsync(OutputStreamType.Request);
+        var lease = await manager.OpenStreamAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
         var notification = new QuicConnectionManager.InboundStream(lease, InputStreamType.QpackDecoder);
 
         Assert.Same(lease, notification.Lease);

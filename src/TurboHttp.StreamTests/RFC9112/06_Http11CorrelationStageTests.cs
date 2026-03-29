@@ -177,7 +177,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
         var task = graph.Run(Materializer);
 
         // Stage must NOT complete even though queues are empty — upstreams are still open.
-        await Assert.ThrowsAsync<TimeoutException>(() => task.WaitAsync(TimeSpan.FromMilliseconds(500)));
+        await Assert.ThrowsAsync<TimeoutException>(() => task.WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-007: Stage remains open while pending requests still exist")]
@@ -217,7 +217,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
 
         // The stream should NOT complete because there is still a pending request
         // with no matching response. Wait briefly and verify it's still running.
-        var completed = task.WaitAsync(TimeSpan.FromMilliseconds(500));
+        var completed = task.WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         await Assert.ThrowsAsync<TimeoutException>(() => completed);
     }
@@ -248,7 +248,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
         }));
 
         var task = graph.Run(Materializer);
-        var signals = await task.WaitAsync(TimeSpan.FromSeconds(5));
+        var signals = await task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var items = signals.ToList();
         Assert.Single(items);
@@ -289,7 +289,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
         }));
 
         var task = graph.Run(Materializer);
-        var signals = await task.WaitAsync(TimeSpan.FromSeconds(5));
+        var signals = await task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var items = signals.ToList();
         Assert.Equal(2, items.Count);

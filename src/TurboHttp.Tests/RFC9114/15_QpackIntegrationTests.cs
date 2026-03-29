@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC9114;
 using TurboHttp.Protocol.RFC9204;
@@ -149,7 +149,7 @@ public sealed class QpackIntegrationTests
         Assert.Equal("https://api.example.com/submit/42",
             response.Headers.GetValues("location").First());
         Assert.NotNull(response.Content);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("{\"id\":42}", body);
     }
 

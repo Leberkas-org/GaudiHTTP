@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol;
 using TurboHttp.Protocol.RFC9112;
 
@@ -25,7 +25,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-002: No extension — hex chunk size decoded correctly")]
@@ -37,7 +37,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("0123456789", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("0123456789", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-003: No extension — multiple chunks concatenated")]
@@ -49,7 +49,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("foobar", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("foobar", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-004: No extension — empty body with terminator only")]
@@ -61,7 +61,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-005: No extension — trailer fields preserved")]
@@ -85,7 +85,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-007: Extension with token value — accepted")]
@@ -97,7 +97,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-008: Extension with quoted string value — accepted")]
@@ -109,7 +109,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-009: Extension with empty quoted value — accepted")]
@@ -121,7 +121,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-010: Quoted value with backslash escape — accepted")]
@@ -133,7 +133,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-011: BWS (space) before extension name — accepted")]
@@ -145,7 +145,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-012: BWS (spaces) around equals sign — accepted")]
@@ -157,7 +157,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-013: BWS using tab character — accepted")]
@@ -169,7 +169,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-014: Extension name starting with '!' token char — accepted")]
@@ -181,7 +181,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-015: Extension with '#' token char in name — accepted")]
@@ -193,7 +193,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-016: Two name-only extensions — accepted")]
@@ -205,7 +205,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-017: Two name=value extensions — accepted")]
@@ -217,7 +217,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-018: Extensions on multiple chunks — all accepted")]
@@ -229,7 +229,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("foobar", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("foobar", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-019: Mixed name-only and name=value extensions — accepted")]
@@ -241,7 +241,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-020: Extension on terminator chunk (size=0) — accepted")]
@@ -253,7 +253,7 @@ public sealed class Http11DecoderChunkExtensionTests
         var decoded = _decoder.TryDecode(raw, out var responses);
 
         Assert.True(decoded);
-        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CE-021: BWS with no name following — rejected")]

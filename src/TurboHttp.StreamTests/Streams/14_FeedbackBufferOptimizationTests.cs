@@ -54,7 +54,7 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         _ = Source.Single(request)
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(r => tcs.TrySetResult(r)), Materializer);
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 15_000,
@@ -241,7 +241,7 @@ public sealed class FeedbackBufferOptimizationTests : EngineTestBase
         var response = await RunSingleAsync(flow, request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("OK", body);
     }
 }

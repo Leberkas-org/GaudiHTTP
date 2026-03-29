@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
@@ -94,7 +94,7 @@ public sealed class Http10RoundTripHeaderBodyPreservationTests : StreamTestBase
         var response = await DecodeAsync("HTTP/1.0 200 OK\r\nContent-Length: 0\r\n\r\n");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 
@@ -127,7 +127,7 @@ public sealed class Http10RoundTripHeaderBodyPreservationTests : StreamTestBase
             $"HTTP/1.0 200 OK\r\nContent-Length: 65536\r\n\r\n{responsePayload}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var respBody = await response.Content.ReadAsStringAsync();
+        var respBody = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(65536, respBody.Length);
         Assert.True(respBody.All(c => c == 'B'));
     }
@@ -170,7 +170,7 @@ public sealed class Http10RoundTripHeaderBodyPreservationTests : StreamTestBase
         var response = await DecodeRawAsync(responseData);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var respBody = await response.Content.ReadAsByteArrayAsync();
+        var respBody = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(binaryPayload, respBody);
     }
 
@@ -222,7 +222,7 @@ public sealed class Http10RoundTripHeaderBodyPreservationTests : StreamTestBase
         Assert.Equal(13, response.Content.Headers.ContentLength);
 
         // Check body
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello, World!", body);
     }
 

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol;
 using TurboHttp.Protocol.RFC1945;
 using TurboHttp.Protocol.RFC9112;
@@ -342,7 +342,7 @@ public sealed class HeaderInjectionTests
 
         Assert.True(decoded);
         Assert.Single(responses);
-        var body = await responses[0].Content.ReadAsByteArrayAsync();
+        var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello"u8.ToArray(), body);
     }
 

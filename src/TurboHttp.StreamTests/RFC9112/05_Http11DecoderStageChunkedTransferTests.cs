@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
 using TurboHttp.Streams.Stages.Decoding;
@@ -43,7 +43,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n0\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
     }
 
@@ -57,7 +57,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
             "5\r\nworld\r\n" +
             "0\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello world", body);
     }
 
@@ -68,7 +68,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
             "3\r\nfoo\r\n3\r\nbar\r\n3\r\nbaz\r\n0\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("foobarbaz", body);
     }
 
@@ -80,7 +80,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
             "5\r\nhello\r\n0\r\n\r\n");
 
         Assert.Single(responses);
-        var body = await responses[0].Content.ReadAsStringAsync();
+        var body = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
     }
 
@@ -90,7 +90,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
         var response = await DecodeAsync(
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("", body);
     }
 
@@ -101,7 +101,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
             "5;ext=val\r\nhello\r\n0\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
     }
 
@@ -112,7 +112,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
             "5;myext\r\nhello\r\n0\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
     }
 
@@ -123,7 +123,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
             "5\r\nhello\r\n0;end=true\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
     }
 
@@ -134,7 +134,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
             "5\r\nhello\r\n0\r\nX-Checksum: abc123\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
         Assert.True(response.TrailingHeaders.TryGetValues("X-Checksum", out var values));
         Assert.Equal("abc123", values.Single());
@@ -147,7 +147,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
             "5\r\nhello\r\n0\r\nX-Checksum: abc123\r\nX-Signature: sig456\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
 
         Assert.True(response.TrailingHeaders.TryGetValues("X-Checksum", out var checksumValues));
@@ -164,7 +164,7 @@ public sealed class Http11DecoderStageChunkedTransferTests : StreamTestBase
             "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n" +
             "5\r\nhello\r\n0\r\n\r\n");
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
         Assert.Empty(response.TrailingHeaders);
     }

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
 namespace TurboHttp.Tests.RFC9112;
@@ -61,7 +61,7 @@ public sealed class Http11RoundTripChunkedTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("Hello, World!", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello, World!", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CH-002: HTTP/1.1 GET → response with 5 chunks round-trip")]
@@ -72,7 +72,7 @@ public sealed class Http11RoundTripChunkedTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("onetwothreefourfive", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("onetwothreefourfive", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CH-003: HTTP/1.1 chunked response with trailer round-trip")]
@@ -85,7 +85,7 @@ public sealed class Http11RoundTripChunkedTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("chunk1chunk2", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("chunk1chunk2", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.True(responses[0].TrailingHeaders.TryGetValues("X-Checksum", out var trailerVals));
         Assert.Equal("abc123", trailerVals.Single());
     }
@@ -98,7 +98,7 @@ public sealed class Http11RoundTripChunkedTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("A", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("A", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CH-005: Uppercase hex chunk size decoded correctly")]
@@ -118,7 +118,7 @@ public sealed class Http11RoundTripChunkedTests
         decoder.TryDecode(mem, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("0123456789", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("0123456789", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CH-006: 20 single-character chunks concatenated correctly")]
@@ -131,7 +131,7 @@ public sealed class Http11RoundTripChunkedTests
 
         Assert.Single(responses);
         var expected = string.Concat(chars);
-        Assert.Equal(expected, await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal(expected, await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CH-007: 32KB single chunk decoded correctly")]
@@ -143,7 +143,7 @@ public sealed class Http11RoundTripChunkedTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        var decoded = await responses[0].Content.ReadAsStringAsync();
+        var decoded = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(32768, decoded.Length);
         Assert.All(decoded, c => Assert.Equal('X', c));
     }
@@ -167,7 +167,7 @@ public sealed class Http11RoundTripChunkedTests
         decoder.TryDecode(mem, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("Hello World", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("Hello World", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CH-009: Pipelined chunked then Content-Length response decoded")]
@@ -186,8 +186,8 @@ public sealed class Http11RoundTripChunkedTests
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(2, responses.Count);
-        Assert.Equal("chunk-data", await responses[0].Content.ReadAsStringAsync());
-        Assert.Equal("fixed", await responses[1].Content.ReadAsStringAsync());
+        Assert.Equal("chunk-data", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("fixed", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-7-CH-010: Chunked body with two trailer headers round-trip")]
@@ -200,7 +200,7 @@ public sealed class Http11RoundTripChunkedTests
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
-        Assert.Equal("part1part2", await responses[0].Content.ReadAsStringAsync());
+        Assert.Equal("part1part2", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.True(responses[0].TrailingHeaders.TryGetValues("X-Digest", out var digest));
         Assert.Equal("sha256:abc", digest.Single());
         Assert.True(responses[0].TrailingHeaders.TryGetValues("X-Request-Id", out var reqId));

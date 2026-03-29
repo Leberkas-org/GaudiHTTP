@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
@@ -67,7 +67,7 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(HttpVersion.Version11, response.Version);
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello", body);
     }
 
@@ -88,7 +88,7 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         var response = await Decode11Async(fragments);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("ABC", body);
     }
 
@@ -115,7 +115,7 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         Assert.Equal(HttpVersion.Version11, response.Version);
         Assert.Equal(bodyText.Length, response.Content.Headers.ContentLength);
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyText, body);
     }
 
@@ -139,7 +139,7 @@ public sealed class DecoderStagePartialTests : StreamTestBase
         var response = await Decode11Async(fragments);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyText, body);
     }
 

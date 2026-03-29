@@ -128,7 +128,7 @@ public sealed class Http20CorrelationStageTests : StreamTestBase
 
         // Stage must NOT complete: the unmatched response keeps _waiting non-empty
         // and there is no matching request to emit or empty the queue.
-        var completedEarly = task.WaitAsync(TimeSpan.FromMilliseconds(500));
+        var completedEarly = task.WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
         await Assert.ThrowsAsync<TimeoutException>(() => completedEarly);
     }
 
@@ -214,7 +214,7 @@ public sealed class Http20CorrelationStageTests : StreamTestBase
         var task = graph.Run(Materializer);
 
         // Stage must NOT complete even though dictionaries are empty — upstreams are still open.
-        await Assert.ThrowsAsync<TimeoutException>(() => task.WaitAsync(TimeSpan.FromMilliseconds(500)));
+        await Assert.ThrowsAsync<TimeoutException>(() => task.WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-8.1-20CR-007: Request(1), Response(3), Request(3) → correlation immediately on match")]

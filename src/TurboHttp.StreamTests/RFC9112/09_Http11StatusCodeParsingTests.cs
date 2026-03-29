@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using TurboHttp.Streams;
 using TurboHttp.Streams.Stages.Decoding;
 
@@ -27,7 +27,7 @@ public sealed class Http11StatusCodeParsingTests : EngineTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(200, (int)response.StatusCode);
         Assert.Equal(new Version(1, 1), response.Version);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("ok", body);
     }
 
@@ -55,7 +55,7 @@ public sealed class Http11StatusCodeParsingTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal(404, (int)response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("not found", body);
     }
 
@@ -69,7 +69,7 @@ public sealed class Http11StatusCodeParsingTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal(500, (int)response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("error", body);
     }
 
@@ -84,7 +84,7 @@ public sealed class Http11StatusCodeParsingTests : EngineTestBase
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(204, (int)response.StatusCode);
         Assert.Equal(new Version(1, 1), response.Version);
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 }

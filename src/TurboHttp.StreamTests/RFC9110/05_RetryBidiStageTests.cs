@@ -111,9 +111,9 @@ public sealed class RetryBidiStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var responseSub = responsePublisher.ExpectSubscription();
-        var reqOutSub = requestOutProbe.ExpectSubscription();
-        var respOutSub = responseOutProbe.ExpectSubscription();
+        var responseSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var reqOutSub = requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respOutSub = responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         reqOutSub.Request(requestOutDemand);
         respOutSub.Request(responseOutDemand);
@@ -208,13 +208,13 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
         // Consume the forwarded request
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         // Push a 200 OK response
         var response = BuildResponse(HttpStatusCode.OK, request);
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-9.2-RBIDI-006: 404 → forwarded on Out2")]
@@ -224,12 +224,12 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(new RetryPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildResponse(HttpStatusCode.NotFound, request);
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-9.2-RBIDI-007: 408 on POST → forwarded on Out2 (not idempotent)")]
@@ -239,12 +239,12 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(new RetryPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildResponse(HttpStatusCode.RequestTimeout, request);
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-9.2-RBIDI-008: null RequestMessage → forwarded on Out2")]
@@ -254,12 +254,12 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(new RetryPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = new HttpResponseMessage(HttpStatusCode.RequestTimeout);
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     // ============================
@@ -274,18 +274,18 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
         // Original request forwarded
-        Assert.Same(request, reqOut.ExpectNext());
+        Assert.Same(request, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         // 408 response triggers retry
         var response = BuildResponse(HttpStatusCode.RequestTimeout, request);
         pushResp(response);
 
         // Retry request appears on Out1
-        var retryReq = reqOut.ExpectNext();
+        var retryReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Same(request, retryReq);
 
         // No response on Out2 (response was disposed)
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-9.2-RBIDI-010: 503 on GET → retry request emitted on Out1")]
@@ -295,14 +295,14 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(new RetryPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        Assert.Same(request, reqOut.ExpectNext());
+        Assert.Same(request, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         var response = BuildResponse(HttpStatusCode.ServiceUnavailable, request);
         pushResp(response);
 
-        var retryReq = reqOut.ExpectNext();
+        var retryReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Same(request, retryReq);
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-9.2-RBIDI-011: attempt count incremented on retry")]
@@ -312,12 +312,12 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(new RetryPolicy());
         var (reqOut, _, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildResponse(HttpStatusCode.RequestTimeout, request);
         pushResp(response);
 
-        var retryReq = reqOut.ExpectNext();
+        var retryReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.True(retryReq.Options.TryGetValue(AttemptCountKey, out var count));
         Assert.Equal(2, count);
     }
@@ -330,14 +330,14 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(policy);
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         // MaxRetries=1, attemptCount starts at 1 → 1 >= 1 → no retry
         var response = BuildResponse(HttpStatusCode.RequestTimeout, request);
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
-        reqOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
+        reqOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     // ============================
@@ -356,14 +356,14 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(new RetryPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildResponse(HttpStatusCode.RequestTimeout, request);
         pushResp(response);
 
-        var retryReq = reqOut.ExpectNext();
+        var retryReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal(method, retryReq.Method);
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-9.2-RBIDI-014: 503 on PATCH → forwarded (not idempotent)")]
@@ -373,12 +373,12 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(new RetryPolicy());
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildResponse(HttpStatusCode.ServiceUnavailable, request);
         pushResp(response);
 
-        Assert.Same(response, respOut.ExpectNext());
+        Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     // ============================
@@ -392,14 +392,14 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(new RetryPolicy { RespectRetryAfter = true });
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildResponse(HttpStatusCode.ServiceUnavailable, request, retryAfterSeconds: "0");
         pushResp(response);
 
-        var retryReq = reqOut.ExpectNext();
+        var retryReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Same(request, retryReq);
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-9.2-RBIDI-016: Retry-After: 1 → delayed retry on Out1")]
@@ -409,18 +409,18 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var stage = new RetryBidiStage(new RetryPolicy { RespectRetryAfter = true });
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, request);
 
-        reqOut.ExpectNext();
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
 
         var response = BuildResponse(HttpStatusCode.ServiceUnavailable, request, retryAfterSeconds: "1");
         pushResp(response);
 
         // Should NOT appear immediately
-        reqOut.ExpectNoMsg(TimeSpan.FromMilliseconds(200));
+        reqOut.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
 
         // Should appear after the delay
-        var retryReq = reqOut.ExpectNext(TimeSpan.FromSeconds(3));
+        var retryReq = reqOut.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         Assert.Same(request, retryReq);
-        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        respOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     // ============================
@@ -436,8 +436,8 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 5, 5, requestA, requestB);
 
         // Both requests forwarded
-        Assert.Same(requestA, reqOut.ExpectNext());
-        Assert.Same(requestB, reqOut.ExpectNext());
+        Assert.Same(requestA, reqOut.ExpectNext(TestContext.Current.CancellationToken));
+        Assert.Same(requestB, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         // Request A gets 503 with long Retry-After
         var responseA = BuildResponse(HttpStatusCode.ServiceUnavailable, requestA, retryAfterSeconds: "10");
@@ -447,7 +447,7 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var responseB = BuildResponse(HttpStatusCode.OK, requestB);
         pushResp(responseB);
 
-        Assert.Same(responseB, respOut.ExpectNext());
+        Assert.Same(responseB, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9110-9.2-RBIDI-018: retry priority over new request from In1")]
@@ -475,10 +475,10 @@ public sealed class RetryBidiStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var reqPubSub = requestPublisher.ExpectSubscription();
-        var respPubSub = responsePublisher.ExpectSubscription();
-        var reqOutSub = requestOutProbe.ExpectSubscription();
-        var respOutSub = responseOutProbe.ExpectSubscription();
+        var reqPubSub = requestPublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respPubSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var reqOutSub = requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respOutSub = responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         // Issue demand on both outlets
         reqOutSub.Request(5);
@@ -486,14 +486,14 @@ public sealed class RetryBidiStageTests : StreamTestBase
 
         // Push a request
         reqPubSub.SendNext(request);
-        Assert.Same(request, requestOutProbe.ExpectNext());
+        Assert.Same(request, requestOutProbe.ExpectNext(TestContext.Current.CancellationToken));
 
         // Push a 503 → triggers retry. The retry request should be emitted on Out1 next.
         var response = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { RequestMessage = request };
         respPubSub.SendNext(response);
 
         // The retry request should appear on Out1 (priority over pulling In1 for new requests)
-        var retryReq = requestOutProbe.ExpectNext();
+        var retryReq = requestOutProbe.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Same(request, retryReq);
     }
 
@@ -507,26 +507,26 @@ public sealed class RetryBidiStageTests : StreamTestBase
         var (reqOut, respOut, pushResp, _) = RunManual(stage, 10, 10, requestA, requestB);
 
         // Both forwarded
-        Assert.Same(requestA, reqOut.ExpectNext());
-        Assert.Same(requestB, reqOut.ExpectNext());
+        Assert.Same(requestA, reqOut.ExpectNext(TestContext.Current.CancellationToken));
+        Assert.Same(requestB, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         // A gets 503 → retry (attempt 1)
         pushResp(BuildResponse(HttpStatusCode.ServiceUnavailable, requestA));
-        Assert.Same(requestA, reqOut.ExpectNext());
+        Assert.Same(requestA, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         // B gets 503 → retry (attempt 1, independent of A)
         pushResp(BuildResponse(HttpStatusCode.ServiceUnavailable, requestB));
-        Assert.Same(requestB, reqOut.ExpectNext());
+        Assert.Same(requestB, reqOut.ExpectNext(TestContext.Current.CancellationToken));
 
         // A gets 503 again → final (attempt 2 >= MaxRetries)
         var responseA2 = BuildResponse(HttpStatusCode.ServiceUnavailable, requestA);
         pushResp(responseA2);
-        Assert.Same(responseA2, respOut.ExpectNext());
+        Assert.Same(responseA2, respOut.ExpectNext(TestContext.Current.CancellationToken));
 
         // B gets 503 again → final (attempt 2 >= MaxRetries)
         var responseB2 = BuildResponse(HttpStatusCode.ServiceUnavailable, requestB);
         pushResp(responseB2);
-        Assert.Same(responseB2, respOut.ExpectNext());
+        Assert.Same(responseB2, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     // ============================
@@ -553,16 +553,16 @@ public sealed class RetryBidiStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var reqPubSub = requestPublisher.ExpectSubscription();
-        responsePublisher.ExpectSubscription();
-        requestOutProbe.ExpectSubscription().Request(5);
-        responseOutProbe.ExpectSubscription().Request(5);
+        var reqPubSub = requestPublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(5);
+        responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(5);
 
         reqPubSub.SendError(new Exception("request boom"));
 
         // Stage absorbs the error (no OnError) but gracefully completes _outRequest
         requestOutProbe.ExpectComplete();
-        responseOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(100));
+        responseOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
     }
 
     [Fact(DisplayName = "RFC9110-9.2-RBIDI-021: response upstream failure absorbed")]
@@ -585,15 +585,15 @@ public sealed class RetryBidiStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        requestPublisher.ExpectSubscription();
-        var respPubSub = responsePublisher.ExpectSubscription();
-        requestOutProbe.ExpectSubscription().Request(5);
-        responseOutProbe.ExpectSubscription().Request(5);
+        requestPublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respPubSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(5);
+        responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken).Request(5);
 
         respPubSub.SendError(new Exception("response boom"));
 
         // Stage absorbs the error (no OnError) but gracefully completes _outResponse
-        requestOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        requestOutProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
         responseOutProbe.ExpectComplete();
     }
 
@@ -622,17 +622,17 @@ public sealed class RetryBidiStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var reqPubSub = requestPublisher.ExpectSubscription();
-        var respPubSub = responsePublisher.ExpectSubscription();
-        var reqOutSub = requestOutProbe.ExpectSubscription();
-        var respOutSub = responseOutProbe.ExpectSubscription();
+        var reqPubSub = requestPublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respPubSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var reqOutSub = requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respOutSub = responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         reqOutSub.Request(10);
         respOutSub.Request(10);
 
         // Push a request then complete upstream (no more requests)
         reqPubSub.SendNext(request);
-        Assert.Same(request, requestOutProbe.ExpectNext());
+        Assert.Same(request, requestOutProbe.ExpectNext(TestContext.Current.CancellationToken));
         reqPubSub.SendComplete();
 
         // Push a 503 response → triggers retry. Despite upstream being finished,
@@ -641,13 +641,13 @@ public sealed class RetryBidiStageTests : StreamTestBase
         respPubSub.SendNext(response);
 
         // The retry request must appear on OutRequest (stage did NOT close it prematurely)
-        var retryReq = requestOutProbe.ExpectNext(TimeSpan.FromSeconds(3));
+        var retryReq = requestOutProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         Assert.Same(request, retryReq);
 
         // Now push a 200 for the retry → should pass through on Out2
         var finalResponse = new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request };
         respPubSub.SendNext(finalResponse);
-        Assert.Same(finalResponse, responseOutProbe.ExpectNext());
+        Assert.Same(finalResponse, responseOutProbe.ExpectNext(TestContext.Current.CancellationToken));
 
         // Now OutRequest should complete (upstream done, no more retries, in-flight resolved)
         requestOutProbe.ExpectComplete();
@@ -674,17 +674,17 @@ public sealed class RetryBidiStageTests : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var reqPubSub = requestPublisher.ExpectSubscription();
-        var respPubSub = responsePublisher.ExpectSubscription();
-        var reqOutSub = requestOutProbe.ExpectSubscription();
-        var respOutSub = responseOutProbe.ExpectSubscription();
+        var reqPubSub = requestPublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respPubSub = responsePublisher.ExpectSubscription(TestContext.Current.CancellationToken);
+        var reqOutSub = requestOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var respOutSub = responseOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         reqOutSub.Request(10);
         respOutSub.Request(10);
 
         // Push a request then complete upstream
         reqPubSub.SendNext(request);
-        Assert.Same(request, requestOutProbe.ExpectNext());
+        Assert.Same(request, requestOutProbe.ExpectNext(TestContext.Current.CancellationToken));
         reqPubSub.SendComplete();
 
         // Push a 200 OK → no retry needed
@@ -692,7 +692,7 @@ public sealed class RetryBidiStageTests : StreamTestBase
         respPubSub.SendNext(response);
 
         // Final response passes through
-        Assert.Same(response, responseOutProbe.ExpectNext());
+        Assert.Same(response, responseOutProbe.ExpectNext(TestContext.Current.CancellationToken));
 
         // OutRequest should complete (upstream done, no retries, in-flight resolved)
         requestOutProbe.ExpectComplete();

@@ -51,7 +51,7 @@ public sealed class MaterializerBufferTuningTests : TestKit
         _ = Source.Single(request)
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(r => tcs.TrySetResult(r)), materializer);
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "MBUF-001: Materializer with 4/16 input buffer — HTTP/1.1 pipeline completes")]

@@ -132,7 +132,7 @@ public sealed class Http20EngineEndToEndTests : EngineTestBase
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         // Protocol engine must NOT decompress — raw compressed bytes preserved for feature layer
-        var body = await response.Content!.ReadAsByteArrayAsync();
+        var body = await response.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(compressedBody, body);
         Assert.Equal("gzip", response.Content!.Headers.GetValues("Content-Encoding").Single());
     }
@@ -254,7 +254,7 @@ public sealed class Http20EngineEndToEndTests : EngineTestBase
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(res => responseTcs.TrySetResult(res)), Materializer);
 
-        var response = await responseTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var response = await responseTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -328,7 +328,7 @@ public sealed class Http20EngineEndToEndTests : EngineTestBase
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(res => responseTcs.TrySetResult(res)), Materializer);
 
-        var response = await responseTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var response = await responseTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         // Verify that a captured DataItem begins with the 24-byte HTTP/2 magic

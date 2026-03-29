@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC1945;
 using TurboHttp.Protocol.RFC9112;
@@ -31,7 +31,7 @@ public sealed class ConnectResponseTests
         Assert.True(decoded);
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var body = await responses[0].Content.ReadAsByteArrayAsync();
+        var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 
@@ -47,7 +47,7 @@ public sealed class ConnectResponseTests
         Assert.True(decoded);
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var body = await responses[0].Content.ReadAsByteArrayAsync();
+        var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 
@@ -67,7 +67,7 @@ public sealed class ConnectResponseTests
         Assert.True(decoded);
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.ProxyAuthenticationRequired, responses[0].StatusCode);
-        var body = await responses[0].Content.ReadAsStringAsync();
+        var body = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyText, body);
     }
 
@@ -87,7 +87,7 @@ public sealed class ConnectResponseTests
         Assert.True(decoded);
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var body = await responses[0].Content.ReadAsStringAsync();
+        var body = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyText, body);
     }
 
@@ -102,7 +102,7 @@ public sealed class ConnectResponseTests
 
         Assert.True(decoded);
         Assert.Single(responses);
-        var body = await responses[0].Content.ReadAsByteArrayAsync();
+        var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 
@@ -119,7 +119,7 @@ public sealed class ConnectResponseTests
         Assert.True(decoded);
         Assert.NotNull(response);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(body);
     }
 
@@ -138,7 +138,7 @@ public sealed class ConnectResponseTests
         Assert.True(decoded);
         Assert.NotNull(response);
         Assert.Equal(HttpStatusCode.ProxyAuthenticationRequired, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyText, body);
     }
 }

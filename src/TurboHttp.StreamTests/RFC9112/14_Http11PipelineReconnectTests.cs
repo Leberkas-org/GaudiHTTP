@@ -54,8 +54,8 @@ public sealed class Http11PipelineReconnectTests : StreamTestBase
 
         var (signalTask, responseTask) = graph.Run(Materializer);
         var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(5);
-        var signals = await signalTask.WaitAsync(effectiveTimeout);
-        var responses = await responseTask.WaitAsync(effectiveTimeout);
+        var signals = await signalTask.WaitAsync(effectiveTimeout, TestContext.Current.CancellationToken);
+        var responses = await responseTask.WaitAsync(effectiveTimeout, TestContext.Current.CancellationToken);
         return (signals.ToList(), responses.ToList());
     }
 

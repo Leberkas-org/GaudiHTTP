@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol;
 using TurboHttp.Protocol.RFC9112;
@@ -28,7 +28,7 @@ public sealed class Http11DecoderStatusLineTests
         Assert.True(decoded);
         Assert.Single(responses);
         Assert.Equal((int)HttpStatusCode.OK, (int)responses[0].StatusCode);
-        var result = await responses[0].Content.ReadAsStringAsync();
+        var result = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello, World!", result);
     }
 
@@ -194,7 +194,7 @@ public sealed class Http11DecoderStatusLineTests
         Assert.True(decoded);
         Assert.Single(responses); // All 1xx skipped
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var body = await responses[0].Content.ReadAsStringAsync();
+        var body = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("final", body);
     }
 

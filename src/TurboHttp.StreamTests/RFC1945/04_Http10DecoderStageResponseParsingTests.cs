@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
 using TurboHttp.Streams.Stages.Decoding;
@@ -83,7 +83,7 @@ public sealed class Http10DecoderStageResponseParsingTests : StreamTestBase
 
         var response = await DecodeAsync(raw);
 
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello, World!", body);
     }
 
@@ -103,7 +103,7 @@ public sealed class Http10DecoderStageResponseParsingTests : StreamTestBase
         var responses = await DecodeAllAsync(raw);
 
         Assert.Single(responses);
-        var body = await responses[0].Content.ReadAsStringAsync();
+        var body = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", body);
     }
 }

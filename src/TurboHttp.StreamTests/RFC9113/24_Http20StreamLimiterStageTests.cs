@@ -51,7 +51,7 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
 
     private static async Task OfferAsync(ISourceQueueWithComplete<HttpRequestMessage> queue, HttpRequestMessage request)
     {
-        var result = await queue.OfferAsync(request).WaitAsync(TimeSpan.FromSeconds(3));
+        var result = await queue.OfferAsync(request).WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         Assert.IsType<QueueOfferResult.Enqueued>(result);
     }
 
@@ -60,15 +60,15 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(3);
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // Send 2 requests (under limit of 3)
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         await OfferAsync(source, MakeRequest("/2"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-SL-002: Request at limit is queued and not emitted")]
@@ -76,19 +76,19 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(2);
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // Fill to limit
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         await OfferAsync(source, MakeRequest("/2"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // 3rd request should be queued
         await OfferAsync(source, MakeRequest("/3"));
-        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-SL-003: Queued request released when stream closes")]
@@ -96,23 +96,23 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(2);
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // Fill to limit
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         await OfferAsync(source, MakeRequest("/2"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Queue a 3rd request
         await OfferAsync(source, MakeRequest("/3"));
-        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
 
         // Close a stream → queued request should be released
         handle.OnStreamClosed!.Invoke();
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-SL-004: Multiple queued requests released as streams close")]
@@ -120,26 +120,26 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(1);
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // Fill to limit (1 stream)
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Queue 2 requests
         await OfferAsync(source, MakeRequest("/2"));
-        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(200));
+        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
 
         await OfferAsync(source, MakeRequest("/3"));
 
         // Close first stream → request 2 released
         handle.OnStreamClosed!.Invoke();
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Close second stream → request 3 released
         handle.OnStreamClosed!.Invoke();
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-SL-005: MAX_CONCURRENT_STREAMS=1 allows only one stream at a time")]
@@ -147,28 +147,28 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(1);
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // First request passes through
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Second request is queued
         await OfferAsync(source, MakeRequest("/2"));
-        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
 
         // Close first → second released
         handle.OnStreamClosed!.Invoke();
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Third request is queued again
         await OfferAsync(source, MakeRequest("/3"));
-        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
 
         // Close second → third released
         handle.OnStreamClosed!.Invoke();
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-SL-006: Mid-connection MAX_CONCURRENT_STREAMS increase releases queued requests")]
@@ -176,20 +176,20 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(1);
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // Fill to limit
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Queue a request
         await OfferAsync(source, MakeRequest("/2"));
-        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
 
         // Server increases limit to 3 → queued request should be released
         handle.OnMaxConcurrentStreamsChanged!.Invoke(3);
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-SL-007: Mid-connection MAX_CONCURRENT_STREAMS decrease tightens limit")]
@@ -197,27 +197,27 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(5);
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // Open 3 streams
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         await OfferAsync(source, MakeRequest("/2"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         await OfferAsync(source, MakeRequest("/3"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Server lowers limit to 3 → at capacity now
         handle.OnMaxConcurrentStreamsChanged!.Invoke(3);
 
         // Next request should be queued
         await OfferAsync(source, MakeRequest("/4"));
-        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        sink.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
 
         // Close a stream → queued request released
         handle.OnStreamClosed!.Invoke();
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-SL-008: Request timeout while waiting in queue fails the stage")]
@@ -226,12 +226,12 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
         // Use a very short timeout for testing
         var (handle, source, sink) = CreateLimiterProbes(1, queueTimeout: TimeSpan.FromMilliseconds(500));
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // Fill to limit
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Queue a request
         await OfferAsync(source, MakeRequest("/2"));
@@ -262,13 +262,13 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
                 return ClosedShape.Instance;
             })).Run(Materializer);
 
-        var sinkSub = sinkProbe.ExpectSubscription();
+        var sinkSub = sinkProbe.ExpectSubscription(TestContext.Current.CancellationToken);
         sinkSub.Request(10);
-        var srcSub = srcProbe.ExpectSubscription();
+        var srcSub = srcProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         // Fill to stream limit — stage will pull, we push 1
         srcSub.SendNext(MakeRequest("/0"));
-        sinkProbe.ExpectNext(TimeSpan.FromSeconds(3));
+        sinkProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Stage pulled again (continue-pulling after enqueue), push items to fill queue
         srcSub.SendNext(MakeRequest("/1")); // queued (1 of 3)
@@ -298,19 +298,19 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(3);
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // Open 1 stream
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Close it — no queued requests, should be safe
         handle.OnStreamClosed!.Invoke();
 
         // Open another — should still work
         await OfferAsync(source, MakeRequest("/2"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-SL-013: Unlimited streams (int.MaxValue) passes all requests through")]
@@ -318,13 +318,13 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(int.MaxValue);
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(20);
 
         for (var i = 0; i < 10; i++)
         {
             await OfferAsync(source, MakeRequest($"/{i}"));
-            sink.ExpectNext(TimeSpan.FromSeconds(3));
+            sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         }
     }
 
@@ -333,14 +333,14 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
     {
         var (handle, source, sink) = CreateLimiterProbes(2, queueTimeout: TimeSpan.FromMilliseconds(500));
 
-        var sub = sink.ExpectSubscription();
+        var sub = sink.ExpectSubscription(TestContext.Current.CancellationToken);
         sub.Request(10);
 
         // Fill to limit
         await OfferAsync(source, MakeRequest("/1"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         await OfferAsync(source, MakeRequest("/2"));
-        sink.ExpectNext(TimeSpan.FromSeconds(3));
+        sink.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Queue a request
         await OfferAsync(source, MakeRequest("/3"));
@@ -373,13 +373,13 @@ public sealed class Http20StreamLimiterStageTests : StreamTestBase
                 return ClosedShape.Instance;
             })).Run(Materializer);
 
-        var sinkSub = sinkProbe.ExpectSubscription();
+        var sinkSub = sinkProbe.ExpectSubscription(TestContext.Current.CancellationToken);
         sinkSub.Request(10);
-        var srcSub = srcProbe.ExpectSubscription();
+        var srcSub = srcProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         // Fill to stream limit
         srcSub.SendNext(MakeRequest("/0"));
-        sinkProbe.ExpectNext(TimeSpan.FromSeconds(3));
+        sinkProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Fill the queue to capacity
         srcSub.SendNext(MakeRequest("/1"));

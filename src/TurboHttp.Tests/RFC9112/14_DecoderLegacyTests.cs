@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
@@ -129,8 +129,8 @@ public sealed class Http11DecoderLegacyTests
         Assert.Equal(2, responses.Count);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
         Assert.Equal(HttpStatusCode.Created, responses[1].StatusCode);
-        Assert.Equal("first", await responses[0].Content.ReadAsStringAsync());
-        Assert.Equal("second", await responses[1].Content.ReadAsStringAsync());
+        Assert.Equal("first", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("second", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-9-LG-007: Partial second response held in remainder")]
@@ -158,7 +158,7 @@ public sealed class Http11DecoderLegacyTests
         Assert.True(decoded2);
         Assert.Single(responses2);
         Assert.Equal(HttpStatusCode.Accepted, responses2[0].StatusCode);
-        Assert.Equal("done", await responses2[0].Content.ReadAsStringAsync());
+        Assert.Equal("done", await responses2[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-9-LG-008: Three pipelined responses decoded in order")]
@@ -180,9 +180,9 @@ public sealed class Http11DecoderLegacyTests
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
         Assert.Equal(HttpStatusCode.Created, responses[1].StatusCode);
         Assert.Equal(HttpStatusCode.Accepted, responses[2].StatusCode);
-        Assert.Equal("alpha", await responses[0].Content.ReadAsStringAsync());
-        Assert.Equal("beta", await responses[1].Content.ReadAsStringAsync());
-        Assert.Equal("gamma", await responses[2].Content.ReadAsStringAsync());
+        Assert.Equal("alpha", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("beta", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("gamma", await responses[2].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact(DisplayName = "RFC9112-6-LG-009: Content-Range: bytes 0-499/1000 accessible")]
@@ -214,7 +214,7 @@ public sealed class Http11DecoderLegacyTests
         Assert.True(decoded);
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.PartialContent, responses[0].StatusCode);
-        var body = await responses[0].Content.ReadAsStringAsync();
+        var body = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(partialBody, body);
     }
 
@@ -246,7 +246,7 @@ public sealed class Http11DecoderLegacyTests
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.PartialContent, responses[0].StatusCode);
         Assert.Equal("multipart/byteranges", responses[0].Content.Headers.ContentType?.MediaType);
-        var body = await responses[0].Content.ReadAsStringAsync();
+        var body = await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("Hello", body);
         Assert.Contains("World", body);
     }

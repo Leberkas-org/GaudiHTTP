@@ -1,4 +1,4 @@
-using System.IO.Compression;
+﻿using System.IO.Compression;
 using System.Net;
 using Akka.Streams.Dsl;
 using TurboHttp.Protocol.RFC7541;
@@ -51,7 +51,7 @@ public sealed class Http20StreamStageTests : StreamTestBase
         // HEADERS-only (END_STREAM on HEADERS) — no DATA frames, so no body content set by stage
         if (responses[0].Content is not null)
         {
-            var body = await responses[0].Content.ReadAsByteArrayAsync();
+            var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
             Assert.Empty(body);
         }
     }
@@ -75,7 +75,7 @@ public sealed class Http20StreamStageTests : StreamTestBase
         // HEADERS-only (END_STREAM on HEADERS) — no DATA frames, so no body content set by stage
         if (responses[0].Content is not null)
         {
-            var body = await responses[0].Content.ReadAsByteArrayAsync();
+            var body = await responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
             Assert.Empty(body);
         }
     }
@@ -98,7 +98,7 @@ public sealed class Http20StreamStageTests : StreamTestBase
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
+        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, responseBody);
     }
 
@@ -121,7 +121,7 @@ public sealed class Http20StreamStageTests : StreamTestBase
         var responses = await RunAsync(frames);
 
         Assert.Single(responses);
-        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
+        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello, World!"u8.ToArray(), responseBody);
     }
 
@@ -150,7 +150,7 @@ public sealed class Http20StreamStageTests : StreamTestBase
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
         Assert.Equal("test-value", responses[0].Headers.GetValues("x-custom").Single());
-        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
+        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("body"u8.ToArray(), responseBody);
     }
 
@@ -211,11 +211,11 @@ public sealed class Http20StreamStageTests : StreamTestBase
 
         // Responses arrive in completion order (stream 1 first, then 3)
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var body1 = await responses[0].Content!.ReadAsByteArrayAsync();
+        var body1 = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("body-1"u8.ToArray(), body1);
 
         Assert.Equal(HttpStatusCode.NotFound, responses[1].StatusCode);
-        var body3 = await responses[1].Content!.ReadAsByteArrayAsync();
+        var body3 = await responses[1].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("body-3"u8.ToArray(), body3);
     }
 
@@ -243,11 +243,11 @@ public sealed class Http20StreamStageTests : StreamTestBase
 
         // Stream 3 completes first (DATA arrives before stream 1's DATA)
         Assert.Equal(HttpStatusCode.Created, responses[0].StatusCode);
-        var body3 = await responses[0].Content!.ReadAsByteArrayAsync();
+        var body3 = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("three"u8.ToArray(), body3);
 
         Assert.Equal(HttpStatusCode.OK, responses[1].StatusCode);
-        var body1 = await responses[1].Content!.ReadAsByteArrayAsync();
+        var body1 = await responses[1].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("one"u8.ToArray(), body1);
     }
 
@@ -307,7 +307,7 @@ public sealed class Http20StreamStageTests : StreamTestBase
 
         Assert.Single(responses);
         // Stage must NOT decompress — raw compressed bytes are passed through
-        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
+        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(compressedBody, responseBody);
         // Content-Encoding header must be preserved for the feature layer
         Assert.Equal("gzip", responses[0].Content!.Headers.GetValues("Content-Encoding").Single());
@@ -330,7 +330,7 @@ public sealed class Http20StreamStageTests : StreamTestBase
         var responses = await RunAsync(frames);
 
         Assert.Single(responses);
-        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync();
+        var responseBody = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(body, responseBody);
     }
 
@@ -399,7 +399,7 @@ public sealed class Http20StreamStageTests : StreamTestBase
 
         Assert.Single(responses);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
-        var body = await responses[0].Content!.ReadAsByteArrayAsync();
+        var body = await responses[0].Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("ok"u8.ToArray(), body);
     }
 

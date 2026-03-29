@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC1945;
 
@@ -67,7 +67,7 @@ public sealed class Http09SimpleResponseTests
         Assert.True(result);
         Assert.NotNull(response);
 
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello World", Encoding.GetEncoding("ISO-8859-1").GetString(body));
     }
 
@@ -86,7 +86,7 @@ public sealed class Http09SimpleResponseTests
         Assert.Equal(HttpVersion.Version10, response.Version);
         Assert.Equal("OK", response.ReasonPhrase);
 
-        var body = await response.Content.ReadAsByteArrayAsync();
+        var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", Encoding.ASCII.GetString(body));
     }
 

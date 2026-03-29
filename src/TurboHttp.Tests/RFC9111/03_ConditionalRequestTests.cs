@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using TurboHttp.Protocol.RFC9111;
 
 namespace TurboHttp.Tests.RFC9111;
@@ -136,7 +136,7 @@ public sealed class ConditionalRequestTests
 
         var merged = CacheValidationRequestBuilder.MergeNotModifiedResponse(notModified, entry);
 
-        var body = await merged.Content.ReadAsByteArrayAsync();
+        var body = await merged.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(entry.Body, body);
     }
 

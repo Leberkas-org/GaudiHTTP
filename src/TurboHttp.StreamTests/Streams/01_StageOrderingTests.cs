@@ -109,7 +109,7 @@ public sealed class StageOrderingTests : EngineTestBase
             .Concat(Source.Never<HttpRequestMessage>())
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(r => tcs.TrySetResult(r)), Materializer);
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
     // ============================
@@ -446,7 +446,7 @@ public sealed class StageOrderingTests : EngineTestBase
         var response = await RunSingleAsync(flow, request);
 
         // Verify the output response body is decompressed
-        var outputBody = await response.Content.ReadAsByteArrayAsync();
+        var outputBody = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(plainBody, outputBody);
 
         // Verify the cached entry stores the decompressed body
@@ -548,7 +548,7 @@ public sealed class StageOrderingTests : EngineTestBase
         var response = await RunSingleAsync(flow, request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(originalText, body);
         Assert.False(response.Content.Headers.ContentEncoding.Contains("gzip"),
             "Content-Encoding: gzip should be removed after decompression");

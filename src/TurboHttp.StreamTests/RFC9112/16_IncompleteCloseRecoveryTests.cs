@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using Akka.Streams.Dsl;
 using TurboHttp.Internal;
@@ -95,7 +95,7 @@ public sealed class IncompleteCloseRecoveryTests : StreamTestBase
             .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("complete body", body);
     }
 

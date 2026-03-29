@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -374,7 +374,7 @@ public sealed class CacheBidiStageTests : StreamTestBase
 
         var result = Assert.Single(results);
         Assert.Equal(HttpStatusCode.OK, result.StatusCode);
-        var body = await result.Content.ReadAsByteArrayAsync();
+        var body = await result.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("original body", System.Text.Encoding.UTF8.GetString(body));
     }
 

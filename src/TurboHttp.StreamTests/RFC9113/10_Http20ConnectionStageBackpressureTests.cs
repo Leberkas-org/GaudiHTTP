@@ -62,7 +62,7 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
     /// </summary>
     private static async Task OfferAsync(ISourceQueueWithComplete<Http2Frame> queue, Http2Frame frame)
     {
-        var result = await queue.OfferAsync(frame).WaitAsync(TimeSpan.FromSeconds(3));
+        var result = await queue.OfferAsync(frame).WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         Assert.IsType<QueueOfferResult.Enqueued>(result);
     }
 
@@ -81,8 +81,8 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
         for (var i = 0; i < count; i++)
         {
             await OfferAsync(queue, new HeadersFrame(streamId: streamId, headerBlock: new byte[] { 0x82 }, endHeaders: true));
-            serverBoundProbe.ExpectNext();
-            signalProbe.ExpectNext();
+            serverBoundProbe.ExpectNext(TestContext.Current.CancellationToken);
+            signalProbe.ExpectNext(TestContext.Current.CancellationToken);
             streamId += 2;
         }
 
@@ -94,9 +94,9 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
     {
         var (requestQueue, _, serverBoundProbe, appOutProbe, signalProbe) = CreateProbes(3);
 
-        var appOutSub = appOutProbe.ExpectSubscription();
-        var serverBoundSub = serverBoundProbe.ExpectSubscription();
-        var signalSub = signalProbe.ExpectSubscription();
+        var appOutSub = appOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var serverBoundSub = serverBoundProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var signalSub = signalProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         appOutSub.Request(100);
         serverBoundSub.Request(100);
@@ -109,7 +109,7 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
         await OfferAsync(requestQueue, new HeadersFrame(streamId: nextId, headerBlock: new byte[] { 0x82 }, endHeaders: true));
 
         // The 4th frame should NOT appear on OutServer because the stage is gating _inApp
-        serverBoundProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        serverBoundProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-20CS-BP-002: END_STREAM decrements active streams and resumes pull")]
@@ -117,15 +117,15 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
     {
         var (requestQueue, serverProbe, serverBoundProbe, appOutProbe, signalProbe) = CreateProbes(3);
 
-        var appOutSub = appOutProbe.ExpectSubscription();
-        var serverBoundSub = serverBoundProbe.ExpectSubscription();
-        var signalSub = signalProbe.ExpectSubscription();
+        var appOutSub = appOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var serverBoundSub = serverBoundProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var signalSub = signalProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         appOutSub.Request(100);
         serverBoundSub.Request(100);
         signalSub.Request(100);
 
-        var srvSub = serverProbe.ExpectSubscription();
+        var srvSub = serverProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         // Fill 3 streams (the limit)
         var nextId = await FillStreamsAsync(requestQueue, serverBoundProbe, signalProbe, 3);
@@ -134,15 +134,15 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
         await OfferAsync(requestQueue, new HeadersFrame(streamId: nextId, headerBlock: new byte[] { 0x82 }, endHeaders: true));
 
         // Verify gated
-        serverBoundProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(200));
+        serverBoundProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
 
         // Server sends END_STREAM on stream 1 (zero-length DataFrame)
         srvSub.SendNext(new DataFrame(streamId: 1, data: Array.Empty<byte>(), endStream: true));
-        appOutProbe.ExpectNext();
+        appOutProbe.ExpectNext(TestContext.Current.CancellationToken);
 
         // Pull resumes — the 4th frame now appears on OutServer
-        serverBoundProbe.ExpectNext(TimeSpan.FromSeconds(3));
-        signalProbe.ExpectNext(TimeSpan.FromSeconds(3));
+        serverBoundProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        signalProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-20CS-BP-003: RstStreamFrame decrements active streams and resumes pull")]
@@ -150,30 +150,30 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
     {
         var (requestQueue, serverProbe, serverBoundProbe, appOutProbe, signalProbe) = CreateProbes(3);
 
-        var appOutSub = appOutProbe.ExpectSubscription();
-        var serverBoundSub = serverBoundProbe.ExpectSubscription();
-        var signalSub = signalProbe.ExpectSubscription();
+        var appOutSub = appOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var serverBoundSub = serverBoundProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var signalSub = signalProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         appOutSub.Request(100);
         serverBoundSub.Request(100);
         signalSub.Request(100);
 
-        var srvSub = serverProbe.ExpectSubscription();
+        var srvSub = serverProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         // Fill 3 streams (the limit)
         var nextId = await FillStreamsAsync(requestQueue, serverBoundProbe, signalProbe, 3);
 
         // Offer a 4th frame — queued but gated
         await OfferAsync(requestQueue, new HeadersFrame(streamId: nextId, headerBlock: new byte[] { 0x82 }, endHeaders: true));
-        serverBoundProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(200));
+        serverBoundProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
 
         // Server sends RST_STREAM on stream 3
         srvSub.SendNext(new RstStreamFrame(streamId: 3, Http2ErrorCode.Cancel));
-        appOutProbe.ExpectNext();
+        appOutProbe.ExpectNext(TestContext.Current.CancellationToken);
 
         // Pull resumes — the 4th frame now appears on OutServer
-        serverBoundProbe.ExpectNext(TimeSpan.FromSeconds(3));
-        signalProbe.ExpectNext(TimeSpan.FromSeconds(3));
+        serverBoundProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        signalProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000, DisplayName = "RFC9113-5.1.2-20CS-BP-004: SETTINGS MAX_CONCURRENT_STREAMS mid-session enforces new limit immediately")]
@@ -182,15 +182,15 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
         // Start with limit=100, open 2 streams, then SETTINGS lowers limit to 2
         var (requestQueue, serverProbe, serverBoundProbe, appOutProbe, signalProbe) = CreateProbes(100);
 
-        var appOutSub = appOutProbe.ExpectSubscription();
-        var serverBoundSub = serverBoundProbe.ExpectSubscription();
-        var signalSub = signalProbe.ExpectSubscription();
+        var appOutSub = appOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var serverBoundSub = serverBoundProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var signalSub = signalProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         appOutSub.Request(100);
         serverBoundSub.Request(100);
         signalSub.Request(100);
 
-        var srvSub = serverProbe.ExpectSubscription();
+        var srvSub = serverProbe.ExpectSubscription(TestContext.Current.CancellationToken);
 
         // Open 2 streams
         await FillStreamsAsync(requestQueue, serverBoundProbe, signalProbe, 2);
@@ -200,31 +200,31 @@ public sealed class Http20ConnectionStageBackpressureTests : StreamTestBase
             [(SettingsParameter.MaxConcurrentStreams, 2u)]));
 
         // SETTINGS frame forwarded to OutStream
-        appOutProbe.ExpectNext();
+        appOutProbe.ExpectNext(TestContext.Current.CancellationToken);
         // SETTINGS ACK emitted on OutServer
-        serverBoundProbe.ExpectNext();
+        serverBoundProbe.ExpectNext(TestContext.Current.CancellationToken);
         // MaxConcurrentStreamsItem signal
-        signalProbe.ExpectNext();
+        signalProbe.ExpectNext(TestContext.Current.CancellationToken);
 
         // The stage had an outstanding pull from when limit was 100.
         // That in-flight pull will be satisfied by the next offered element regardless of the new limit.
         // Offer the 3rd frame — it passes through on the pre-existing pull.
         await OfferAsync(requestQueue, new HeadersFrame(streamId: 5, headerBlock: new byte[] { 0x82 }, endHeaders: true));
-        serverBoundProbe.ExpectNext(TimeSpan.FromSeconds(3));
-        signalProbe.ExpectNext(TimeSpan.FromSeconds(3));
+        serverBoundProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        signalProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Now at activeStreams=3 with limit=2 — offer a 4th, should be gated
         await OfferAsync(requestQueue, new HeadersFrame(streamId: 7, headerBlock: new byte[] { 0x82 }, endHeaders: true));
-        serverBoundProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300));
+        serverBoundProbe.ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
 
         // Close streams 1 and 3 to drop to activeStreams=1 < limit=2 → pull resumes
         srvSub.SendNext(new DataFrame(streamId: 1, data: Array.Empty<byte>(), endStream: true));
-        appOutProbe.ExpectNext();
+        appOutProbe.ExpectNext(TestContext.Current.CancellationToken);
         srvSub.SendNext(new RstStreamFrame(streamId: 3, Http2ErrorCode.Cancel));
-        appOutProbe.ExpectNext();
+        appOutProbe.ExpectNext(TestContext.Current.CancellationToken);
 
         // The 4th frame should now flow through
-        serverBoundProbe.ExpectNext(TimeSpan.FromSeconds(3));
-        signalProbe.ExpectNext(TimeSpan.FromSeconds(3));
+        serverBoundProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        signalProbe.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 }

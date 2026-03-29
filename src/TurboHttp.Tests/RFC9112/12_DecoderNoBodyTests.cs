@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using TurboHttp.Protocol.RFC9112;
 
@@ -151,8 +151,8 @@ public sealed class Http11DecoderNoBodyTests
         Assert.Equal(2, responses.Count);
         Assert.Equal(HttpStatusCode.OK, responses[0].StatusCode);
         Assert.Equal(HttpStatusCode.Created, responses[1].StatusCode);
-        Assert.Equal("first", await responses[0].Content.ReadAsStringAsync());
-        Assert.Equal("second", await responses[1].Content.ReadAsStringAsync());
+        Assert.Equal("first", await responses[0].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("second", await responses[1].Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     private static ReadOnlyMemory<byte> BuildResponse(int code, string reason, string body,
