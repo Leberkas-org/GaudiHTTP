@@ -60,17 +60,13 @@ public class Http11Engine : IHttpProtocolEngine
 
     internal static IOutputItem BatchConsolidate(IOutputItem accumulated, IOutputItem next)
     {
-        if (accumulated is DataItem accData && next is DataItem nextData)
-        {
-            var totalLength = accData.Length + nextData.Length;
-            var owner = MemoryPool<byte>.Shared.Rent(totalLength);
-            accData.Memory.Memory[..accData.Length].CopyTo(owner.Memory);
-            nextData.Memory.Memory[..nextData.Length].CopyTo(owner.Memory.Slice(accData.Length));
-            accData.Memory.Dispose();
-            nextData.Memory.Dispose();
-            return new DataItem(owner, totalLength) { Key = accData.Key };
-        }
-
-        return next;
+        if (accumulated is not DataItem accData || next is not DataItem nextData) return next;
+        var totalLength = accData.Length + nextData.Length;
+        var owner = MemoryPool<byte>.Shared.Rent(totalLength);
+        accData.Memory.Memory[..accData.Length].CopyTo(owner.Memory);
+        nextData.Memory.Memory[..nextData.Length].CopyTo(owner.Memory[accData.Length..]);
+        accData.Memory.Dispose();
+        nextData.Memory.Dispose();
+        return new DataItem(owner, totalLength) { Key = accData.Key };
     }
 }

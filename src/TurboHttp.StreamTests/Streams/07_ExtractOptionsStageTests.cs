@@ -45,12 +45,10 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
             // A single-element completing source fires CompleteStage() synchronously in the same
             // interpreter turn as the first push, so OutRequest never sees its stashed request.
             var src = b.Add(Source.From(requestList).Concat(Source.Never<HttpRequestMessage>()));
-            var noReuse = b.Add(Source.Never<IControlItem>());
 
-            b.From(src).To(stage.Inlet);
-            b.From(noReuse).To(stage.InletReuse);
-            b.From(stage.OutletSignal).To(Sink.FromSubscriber(probe0));
-            b.From(stage.OutletRequest).To(Sink.FromSubscriber(probe1));
+            b.From(src).To(stage.In);
+            b.From(stage.Out1).To(Sink.FromSubscriber(probe0));
+            b.From(stage.Out0).To(Sink.FromSubscriber(probe1));
 
             return ClosedShape.Instance;
         })).Run(Materializer);
@@ -82,7 +80,8 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
         return (signals, messages);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "EXT-001: First request → Out0 emits ConnectItem, Out1 emits HttpRequestMessage")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "EXT-001: First request → Out0 emits ConnectItem, Out1 emits HttpRequestMessage")]
     public async Task Should_EmitConnectItemAndRequestMessage_When_FirstRequestArrives()
     {
         var req = MakeRequest();
@@ -120,7 +119,8 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
         Assert.Equal(5, messages.Count);
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "EXT-004: ConnectItem extracted only on very first request (_initialSent flag)")]
+    [Fact(Timeout = 10_000,
+        DisplayName = "EXT-004: ConnectItem extracted only on very first request (_initialSent flag)")]
     public async Task Should_ExtractConnectItemOnlyOnce_When_MultipleRequestsArrive()
     {
         var requests = Enumerable.Range(1, 5)
@@ -150,12 +150,10 @@ public sealed class ExtractOptionsStageTests : StreamTestBase
         {
             var stage = b.Add(new ExtractOptionsStage());
             var src = b.Add(Source.From(requests)); // completing source — intentional
-            var noReuse = b.Add(Source.Never<IControlItem>());
 
-            b.From(src).To(stage.Inlet);
-            b.From(noReuse).To(stage.InletReuse);
-            b.From(stage.OutletSignal).To(Sink.FromSubscriber(probe0));
-            b.From(stage.OutletRequest).To(Sink.FromSubscriber(probe1));
+            b.From(src).To(stage.In);
+            b.From(stage.Out1).To(Sink.FromSubscriber(probe0));
+            b.From(stage.Out0).To(Sink.FromSubscriber(probe1));
 
             return ClosedShape.Instance;
         })).Run(Materializer);

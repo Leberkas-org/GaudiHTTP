@@ -49,7 +49,6 @@ public class Http20Engine : IHttpProtocolEngine
 
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            ;
             var streamIdAllocator = b.Add(new Http20StreamIdAllocatorStage());
             var broadcast = b.Add(new Broadcast<(HttpRequestMessage, int)>(2));
             var requestToFrame = b.Add(new Http20Request2FrameStage(requestEncoder));
@@ -85,8 +84,8 @@ public class Http20Engine : IHttpProtocolEngine
                         BatchConsolidate));
 
             b.From(frameEncoder.Outlet).Via(batchFlow).To(signalMerge.In(0));
-            b.From(signalMerge.Out).To(prependPreface.Inlet);
             b.From(connection.OutSignal).Via(signalCast).To(signalMerge.Preferred);
+            b.From(signalMerge.Out).To(prependPreface.Inlet);
 
             return new BidiShape<
                 HttpRequestMessage,
@@ -102,17 +101,13 @@ public class Http20Engine : IHttpProtocolEngine
 
     internal static IOutputItem BatchConsolidate(IOutputItem accumulated, IOutputItem next)
     {
-        if (accumulated is DataItem accData && next is DataItem nextData)
-        {
-            var totalLength = accData.Length + nextData.Length;
-            var owner = MemoryPool<byte>.Shared.Rent(totalLength);
-            accData.Memory.Memory[..accData.Length].CopyTo(owner.Memory);
-            nextData.Memory.Memory[..nextData.Length].CopyTo(owner.Memory.Slice(accData.Length));
-            accData.Memory.Dispose();
-            nextData.Memory.Dispose();
-            return new DataItem(owner, totalLength) { Key = accData.Key };
-        }
-
-        return next;
+        if (accumulated is not DataItem accData || next is not DataItem nextData) return next;
+        var totalLength = accData.Length + nextData.Length;
+        var owner = MemoryPool<byte>.Shared.Rent(totalLength);
+        accData.Memory.Memory[..accData.Length].CopyTo(owner.Memory);
+        nextData.Memory.Memory[..nextData.Length].CopyTo(owner.Memory[accData.Length..]);
+        accData.Memory.Dispose();
+        nextData.Memory.Dispose();
+        return new DataItem(owner, totalLength) { Key = accData.Key };
     }
 }

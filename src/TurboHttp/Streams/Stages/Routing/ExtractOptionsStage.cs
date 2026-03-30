@@ -12,62 +12,19 @@ namespace TurboHttp.Streams.Stages.Routing;
 /// Custom shape for <see cref="ExtractOptionsStage"/>: two inlets (request + reuse feedback),
 /// two outlets (request passthrough + connection signal).
 /// </summary>
-internal sealed class ExtractOptionsShape : Shape
-{
-    public Inlet<HttpRequestMessage> Inlet { get; }
-    public Inlet<IControlItem> InletReuse { get; }
-    public Outlet<HttpRequestMessage> OutletRequest { get; }
-    public Outlet<IOutputItem> OutletSignal { get; }
-
-    public ExtractOptionsShape(
-        Inlet<HttpRequestMessage> inlet,
-        Inlet<IControlItem> inletReuse,
-        Outlet<HttpRequestMessage> outletRequest,
-        Outlet<IOutputItem> outletSignal)
-    {
-        Inlet = inlet;
-        InletReuse = inletReuse;
-        OutletRequest = outletRequest;
-        OutletSignal = outletSignal;
-    }
-
-    public override ImmutableArray<Inlet> Inlets => [Inlet, InletReuse];
-
-    public override ImmutableArray<Outlet> Outlets => [OutletRequest, OutletSignal];
-
-    public override Shape DeepCopy()
-    {
-        return new ExtractOptionsShape(
-            (Inlet<HttpRequestMessage>)Inlet.CarbonCopy(),
-            (Inlet<IControlItem>)InletReuse.CarbonCopy(),
-            (Outlet<HttpRequestMessage>)OutletRequest.CarbonCopy(),
-            (Outlet<IOutputItem>)OutletSignal.CarbonCopy());
-    }
-
-    public override Shape CopyFromPorts(ImmutableArray<Inlet> inlets, ImmutableArray<Outlet> outlets)
-    {
-        return new ExtractOptionsShape(
-            (Inlet<HttpRequestMessage>)inlets[0],
-            (Inlet<IControlItem>)inlets[1],
-            (Outlet<HttpRequestMessage>)outlets[0],
-            (Outlet<IOutputItem>)outlets[1]);
-    }
-}
-
-internal sealed class ExtractOptionsStage : GraphStage<ExtractOptionsShape>
+internal sealed class ExtractOptionsStage : GraphStage<FanOutShape<HttpRequestMessage, HttpRequestMessage, IOutputItem>>
 {
     private readonly TurboClientOptions _clientOptions;
     private readonly Inlet<HttpRequestMessage> _in = new("ExtractOptions.In");
-    private readonly Inlet<IControlItem> _inReuse = new("ExtractOptions.In.Reuse");
     private readonly Outlet<HttpRequestMessage> _outRequest = new("ExtractOptions.Out.Request");
     private readonly Outlet<IOutputItem> _outSignal = new("ExtractOptions.Out.Signal");
 
-    public override ExtractOptionsShape Shape { get; }
+    public override FanOutShape<HttpRequestMessage, HttpRequestMessage, IOutputItem> Shape { get; }
 
     public ExtractOptionsStage(TurboClientOptions? clientOptions = null)
     {
         _clientOptions = clientOptions ?? new TurboClientOptions();
-        Shape = new ExtractOptionsShape(_in, _inReuse, _outRequest, _outSignal);
+        Shape = new FanOutShape<HttpRequestMessage, HttpRequestMessage, IOutputItem>(_in, _outRequest, _outSignal);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -90,14 +47,11 @@ internal sealed class ExtractOptionsStage : GraphStage<ExtractOptionsShape>
                     Log.Debug("ExtractOptionsStage: onPush request={0} {1}, connectItemSent={2}, needsReconnect={3}",
                         request.Method, request.RequestUri, _connectItemSent, _needsReconnect);
 
-                    // HTTP/1.0 always closes after each response (RFC 1945 §6.1),
-                    // so every request needs a fresh connection — no feedback wait.
-                    var isHttp10 = request.Version == HttpVersion.Version10;
-
-                    if (!_connectItemSent || _needsReconnect || isHttp10)
+                    if (!_connectItemSent)
                     {
                         // First request, reconnect needed, or HTTP/1.0: emit ConnectItem
-                        var options = TcpOptionsFactory.Build(request.RequestUri!, stage._clientOptions, request.Version);
+                        var options =
+                            TcpOptionsFactory.Build(request.RequestUri!, stage._clientOptions, request.Version);
                         _pending = request;
                         _connectItemSent = true;
                         _needsReconnect = false;
@@ -109,7 +63,8 @@ internal sealed class ExtractOptionsStage : GraphStage<ExtractOptionsShape>
                         // while Source.Queue delivery is async). Serve that demand now.
                         if (IsAvailable(stage._outRequest))
                         {
-                            Log.Debug("ExtractOptionsStage: outRequest available — pushing pending request immediately");
+                            Log.Debug(
+                                "ExtractOptionsStage: outRequest available — pushing pending request immediately");
                             Push(stage._outRequest, _pending);
                             _pending = null;
                         }
@@ -127,29 +82,6 @@ internal sealed class ExtractOptionsStage : GraphStage<ExtractOptionsShape>
                     Log.Warning("ExtractOptionsStage: Upstream failure absorbed: {0}", ex.Message);
                     CompleteStage();
                 });
-
-            SetHandler(stage._inReuse,
-                onPush: () =>
-                {
-                    var item = Grab(stage._inReuse);
-                    if (item is ConnectionReuseItem reuse)
-                    {
-                        Log.Debug("ExtractOptionsStage: InReuse received canReuse={0}, _needsReconnect before={1}", reuse.Decision.CanReuse, _needsReconnect);
-                        if (!reuse.Decision.CanReuse)
-                        {
-                            _needsReconnect = true;
-                            Log.Debug("ExtractOptionsStage: _needsReconnect set to true");
-                        }
-                    }
-                    else
-                    {
-                        Log.Debug("ExtractOptionsStage: InReuse received non-reuse item {0}", item.GetType().Name);
-                    }
-
-                    Pull(stage._inReuse);
-                },
-                onUpstreamFinish: () => { },
-                onUpstreamFailure: ex => Log.Warning("ExtractOptionsStage: Reuse feedback failure absorbed: {0}", ex.Message));
 
             SetHandler(stage._outSignal,
                 onPull: () =>
@@ -173,12 +105,6 @@ internal sealed class ExtractOptionsStage : GraphStage<ExtractOptionsShape>
                         Pull(stage._in);
                     }
                 }, onDownstreamFinish: _ => CompleteStage());
-        }
-
-        public override void PreStart()
-        {
-            // Prime the feedback inlet so it is ready to receive reuse signals
-            Pull(_stage._inReuse);
         }
     }
 }

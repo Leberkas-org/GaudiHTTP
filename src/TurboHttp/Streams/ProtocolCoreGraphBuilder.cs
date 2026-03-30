@@ -112,19 +112,12 @@ internal static class ProtocolCoreGraphBuilder
             // ConnectionReuseStage: evaluates keep-alive/close after each response
             var connReuse = b.Add(new ConnectionReuseStage());
 
-            // Broadcast reuse signal: one copy to ExtractOptionsStage (reconnect), one to ConnectionStage.
-            // eagerCancel breaks the completion cycle: when ExtractOptionsStage completes and
-            // cancels InReuse (Out0), the broadcast immediately shuts down Out1 too, allowing
-            // transportMerge.Preferred → ConnectionStage → bidi → connReuse to complete.
-            // Without this, the substream never completes and zombie actors accumulate.
-            var reuseBroadcast = b.Add(new Broadcast<IControlItem>(2, eagerCancel: true));
-
             // MergePreferred: signal feedback (preferred) + normal data (in0) → transport
             var transportMerge = b.Add(new MergePreferred<IOutputItem>(1));
 
             // Request path: extract splits first request into ConnectItem + request stream
-            b.From(extract.OutletRequest).To(bidi.Inlet1);
-            b.From(extract.OutletSignal).To(transportMerge0.Preferred);
+            b.From(extract.Out0).To(bidi.Inlet1);
+            b.From(extract.Out1).To(transportMerge0.Preferred);
 
             // Transport path: ConnectItem + BidiFlow encoded output → concat → merge → transport → BidiFlow decode
             b.From(bidi.Outlet1).To(transportMerge0.In(0));
@@ -136,14 +129,11 @@ internal static class ProtocolCoreGraphBuilder
             b.From(bidi.Outlet2).To(connReuse.In);
 
             // Signal feedback: ConnectionReuseItem → broadcast → ExtractOptionsStage + ConnectionStage
-            b.From(connReuse.Out1).To(reuseBroadcast.In);
-            b.From(reuseBroadcast.Out(0)).To(extract.InletReuse);
-            b.From(reuseBroadcast.Out(1))
-                .Via(Flow.Create<IControlItem>().Select(IOutputItem (x) => x)
-                    .Buffer(1, OverflowStrategy.Backpressure))
+            b.From(connReuse.Out1)
+                .Via(Flow.Create<IControlItem>().Select(IOutputItem (x) => x).Buffer(16, OverflowStrategy.Backpressure))
                 .To(transportMerge.Preferred);
 
-            return new FlowShape<HttpRequestMessage, HttpResponseMessage>(extract.Inlet, connReuse.Out0);
+            return new FlowShape<HttpRequestMessage, HttpResponseMessage>(extract.In, connReuse.Out0);
         });
     }
 

@@ -1,5 +1,5 @@
 agent: claude
-model: opus
+model: ""
 include: []
 approval_mode: opt-in
 auto_continue: null
