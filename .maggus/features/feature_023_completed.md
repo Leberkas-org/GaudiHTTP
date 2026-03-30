@@ -1,3 +1,4 @@
+<!-- maggus-id: af3f2fc9-8c83-45f8-b8af-01da9bed7661 -->
 <!-- maggus-id: 20250325-140000-feature-023 -->
 
 # Feature 023: Integration Test Depth – Interactions, Resilience, Request Compression & Handlers
@@ -73,12 +74,12 @@ public static ITurboHttpClientBuilder WithExpectContinue(
 - `POST /compress/verify-br` → verifies body is valid brotli
 
 **Acceptance Criteria:**
-- [ ] `WithRequestCompression()` and `WithExpectContinue()` added to `TurboHttpClientBuilderExtensions.cs`
-- [ ] `Routes.RegisterResilienceRoutes()` with 8 routes added
-- [ ] `Routes.RegisterRequestCompressionRoutes()` with 4 routes added
-- [ ] All fixtures call both new registration methods
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` passes with zero warnings
-- [ ] Existing tests still pass
+- [x] `WithRequestCompression()` and `WithExpectContinue()` added to `TurboHttpClientBuilderExtensions.cs`
+- [x] `Routes.RegisterResilienceRoutes()` with 8 routes added
+- [x] `Routes.RegisterRequestCompressionRoutes()` with 4 routes added
+- [x] All fixtures call both new registration methods
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` passes with zero warnings
+- [x] Existing tests still pass
 
 **Files:**
 - `src/TurboHttp/TurboHttpClientBuilderExtensions.cs` → add 2 extension methods
@@ -112,12 +113,12 @@ public static ITurboHttpClientBuilder WithExpectContinue(
 **Client Configuration:** `configure: b => b.WithCookies().WithCache(policy).WithRetry(policy).WithRedirect()`
 
 **Acceptance Criteria:**
-- [ ] `FeatureInteractionIntegrationTests.cs` created with 7 tests
-- [ ] All tests use `[Collection("H11")]` and `new Version(1, 1)`
-- [ ] DisplayNames follow `Interaction-001` pattern
-- [ ] Tests configure multiple BidiStages via `ClientHelper.CreateClient(..., configure: ...)`
-- [ ] All 7 tests pass
-- [ ] Build passes with zero warnings
+- [x] `FeatureInteractionIntegrationTests.cs` created with 7 tests
+- [x] All tests use `[Collection("H11")]` and `new Version(1, 1)`
+- [x] DisplayNames follow `Interaction-001` pattern
+- [x] Tests configure multiple BidiStages via `ClientHelper.CreateClient(..., configure: ...)`
+- [x] All 7 tests pass
+- [x] Build passes with zero warnings
 
 **Files:**
 - `src/TurboHttp.IntegrationTests/H11/FeatureInteractionIntegrationTests.cs` (NEW)
@@ -135,12 +136,12 @@ public static ITurboHttpClientBuilder WithExpectContinue(
 **Pattern:** Copy `FeatureInteractionIntegrationTests.cs`, change version/fixture/collection/display names.
 
 **Acceptance Criteria:**
-- [ ] `FeatureInteractionH10IntegrationTests.cs` → 7 tests, `new Version(1, 0)`, `[Collection("H10")]`
-- [ ] `FeatureInteractionH2IntegrationTests.cs` → 7 tests, `new Version(2, 0)`, `[Collection("H2")]`
-- [ ] `FeatureInteractionTlsIntegrationTests.cs` → 7 tests, `new Version(1, 1)`, `scheme: "https"`, `[Collection("TLS")]`
-- [ ] DisplayNames: `Interaction-H10-001`, `Interaction-H2-001`, `Interaction-TLS-001`
-- [ ] All 21 tests pass
-- [ ] Build passes with zero warnings
+- [x] `FeatureInteractionH10IntegrationTests.cs` → 7 tests, `new Version(1, 0)`, `[Collection("H10")]`
+- [x] `FeatureInteractionH2IntegrationTests.cs` → 7 tests, `new Version(2, 0)`, `[Collection("H2")]`
+- [x] `FeatureInteractionTlsIntegrationTests.cs` → 7 tests, `new Version(1, 1)`, `scheme: "https"`, `[Collection("TLS")]`
+- [x] DisplayNames: `Interaction-H10-001`, `Interaction-H2-001`, `Interaction-TLS-001`
+- [x] All 21 tests pass
+- [x] Build passes with zero warnings
 
 **Files:**
 - `src/TurboHttp.IntegrationTests/H10/FeatureInteractionH10IntegrationTests.cs` (NEW)
@@ -171,13 +172,13 @@ public static ITurboHttpClientBuilder WithExpectContinue(
 | 8 | `Resilience-008: Empty response causes exception` | `/resilience/empty-response` | Exception – no hang |
 
 **Acceptance Criteria:**
-- [ ] `ResilienceIntegrationTests.cs` created with 8 tests
-- [ ] Tests use short timeouts (3-5s) for expected failures, 30s for expected success
-- [ ] Each failure scenario verified with `Assert.ThrowsAnyAsync<Exception>` or `Assert.ThrowsAnyAsync<OperationCanceledException>`
-- [ ] No test hangs indefinitely
-- [ ] DisplayNames follow `Resilience-001` pattern
-- [ ] All 8 tests pass
-- [ ] Build passes with zero warnings
+- [x] `ResilienceIntegrationTests.cs` created with 8 tests
+- [x] Tests use short timeouts (3-5s) for expected failures, 30s for expected success
+- [x] Each failure scenario verified with `Assert.ThrowsAnyAsync<Exception>` or `Assert.ThrowsAnyAsync<OperationCanceledException>`
+- [x] No test hangs indefinitely
+- [x] DisplayNames follow `Resilience-001` pattern
+- [x] All 8 tests pass
+- [x] Build passes with zero warnings
 
 **Files:**
 - `src/TurboHttp.IntegrationTests/H11/ResilienceIntegrationTests.cs` (NEW)
@@ -198,13 +199,13 @@ public static ITurboHttpClientBuilder WithExpectContinue(
 - TLS: All scenarios over HTTPS – identical behavior expected
 
 **Acceptance Criteria:**
-- [ ] `/H10/ResilienceIntegrationTests.cs` → 8 tests adapted for HTTP/1.0
-- [ ] `/H2/ResilienceIntegrationTests.cs` → 8 tests adapted for HTTP/2 (H2-specific error modes)
-- [ ] `/TLS/ResilienceIntegrationTests.cs` → 8 tests over HTTPS
-- [ ] DisplayNames: `Resilience-H10-001`, `Resilience-H2-001`, `Resilience-TLS-001`
-- [ ] HTTP/2 tests may expect different exception types (e.g., `HttpRequestException` instead of `OperationCanceledException` for RST_STREAM)
-- [ ] All 24 tests pass
-- [ ] Build passes with zero warnings
+- [x] `/H10/ResilienceIntegrationTests.cs` → 8 tests adapted for HTTP/1.0
+- [x] `/H2/ResilienceIntegrationTests.cs` → 8 tests adapted for HTTP/2 (H2-specific error modes)
+- [x] `/TLS/ResilienceIntegrationTests.cs` → 8 tests over HTTPS
+- [x] DisplayNames: `Resilience-H10-001`, `Resilience-H2-001`, `Resilience-TLS-001`
+- [x] HTTP/2 tests may expect different exception types (e.g., `HttpRequestException` instead of `OperationCanceledException` for RST_STREAM)
+- [x] All 24 tests pass
+- [x] Build passes with zero warnings
 
 **Files:**
 - `src/TurboHttp.IntegrationTests/H10/ResilienceIntegrationTests.cs` (NEW)
@@ -235,13 +236,13 @@ public static ITurboHttpClientBuilder WithExpectContinue(
 | 6 | `ReqCompress-006: compressed request + decompressed response roundtrip` | gzip | POST gzip → response gzip → both sides correct |
 
 **Acceptance Criteria:**
-- [ ] `RequestCompressionIntegrationTests.cs` created with 6 tests
-- [ ] Tests use `WithRequestCompression()` via `configure` callback
-- [ ] Threshold test verifies 100-byte body is NOT compressed (< 1024 default)
-- [ ] Roundtrip test sends compressed body AND receives compressed response
-- [ ] DisplayNames follow `ReqCompress-001` pattern
-- [ ] All 6 tests pass
-- [ ] Build passes with zero warnings
+- [x] `RequestCompressionIntegrationTests.cs` created with 6 tests
+- [x] Tests use `WithRequestCompression()` via `configure` callback
+- [x] Threshold test verifies 100-byte body is NOT compressed (< 1024 default)
+- [x] Roundtrip test sends compressed body AND receives compressed response
+- [x] DisplayNames follow `ReqCompress-001` pattern
+- [x] All 6 tests pass
+- [x] Build passes with zero warnings
 
 **Files:**
 - `src/TurboHttp.IntegrationTests/H11/RequestCompressionIntegrationTests.cs` (NEW)
@@ -257,12 +258,12 @@ public static ITurboHttpClientBuilder WithExpectContinue(
 **Parallel:** no – needs reference from TASK-023-006
 
 **Acceptance Criteria:**
-- [ ] `/H10/RequestCompressionIntegrationTests.cs` → 6 tests, `new Version(1, 0)`
-- [ ] `/H2/RequestCompressionIntegrationTests.cs` → 6 tests, `new Version(2, 0)`
-- [ ] `/TLS/RequestCompressionIntegrationTests.cs` → 6 tests, `scheme: "https"`
-- [ ] DisplayNames: `ReqCompress-H10-001`, `ReqCompress-H2-001`, `ReqCompress-TLS-001`
-- [ ] All 18 tests pass
-- [ ] Build passes with zero warnings
+- [x] `/H10/RequestCompressionIntegrationTests.cs` → 6 tests, `new Version(1, 0)`
+- [x] `/H2/RequestCompressionIntegrationTests.cs` → 6 tests, `new Version(2, 0)`
+- [x] `/TLS/RequestCompressionIntegrationTests.cs` → 6 tests, `scheme: "https"`
+- [x] DisplayNames: `ReqCompress-H10-001`, `ReqCompress-H2-001`, `ReqCompress-TLS-001`
+- [x] All 18 tests pass
+- [x] Build passes with zero warnings
 
 **Files:**
 - `src/TurboHttp.IntegrationTests/H10/RequestCompressionIntegrationTests.cs` (NEW)
@@ -295,13 +296,13 @@ public static ITurboHttpClientBuilder WithExpectContinue(
 **HTTP/2 Variant (4 Tests):** Tests 1, 3, 4, 6 over HTTP/2 to verify that handlers are protocol-agnostic.
 
 **Acceptance Criteria:**
-- [ ] `/H11/HandlerPipelineIntegrationTests.cs` created (HTTP/1.1, 8 tests)
-- [ ] `/H2/HandlerPipelineIntegrationTests.cs` created (HTTP/2, 4 selected tests)
-- [ ] Custom `TestHeaderHandler : TurboHandler` class defined in test file
-- [ ] Tests use `configure: b => b.UseRequest(...)`, `b.UseResponse(...)`, `b.AddHandler<T>()`
-- [ ] DisplayNames follow `Handler-001` / `Handler-H2-001`
-- [ ] All 12 tests pass
-- [ ] Build passes with zero warnings
+- [x] `/H11/HandlerPipelineIntegrationTests.cs` created (HTTP/1.1, 8 tests)
+- [x] `/H2/HandlerPipelineIntegrationTests.cs` created (HTTP/2, 4 selected tests)
+- [x] Custom `TestHeaderHandler : TurboHandler` class defined in test file
+- [x] Tests use `configure: b => b.UseRequest(...)`, `b.UseResponse(...)`, `b.AddHandler<T>()`
+- [x] DisplayNames follow `Handler-001` / `Handler-H2-001`
+- [x] All 12 tests pass
+- [x] Build passes with zero warnings
 
 **Files:**
 - `src/TurboHttp.IntegrationTests/H11/HandlerPipelineIntegrationTests.cs` (NEW)
@@ -318,12 +319,12 @@ public static ITurboHttpClientBuilder WithExpectContinue(
 **Parallel:** no – final gate
 
 **Acceptance Criteria:**
-- [ ] `dotnet build --configuration Release src/TurboHttp.sln` → zero errors, zero warnings
-- [ ] `dotnet test src/TurboHttp.IntegrationTests/TurboHttp.IntegrationTests.csproj` → all tests pass
-- [ ] New test count: ~96 additional tests (7+21 interactions + 8+24 resilience + 6+18 compression + 12 handlers)
-- [ ] 3 consecutive test runs pass (no flaky tests)
-- [ ] `dotnet test src/TurboHttp.Tests/TurboHttp.Tests.csproj` → existing unit tests still pass (no regressions from builder extensions)
-- [ ] `dotnet test src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj` → existing stream tests still pass
+- [x] `dotnet build --configuration Release src/TurboHttp.sln` → zero errors, zero warnings
+- [x] `dotnet test src/TurboHttp.IntegrationTests/TurboHttp.IntegrationTests.csproj` → all tests pass
+- [x] New test count: ~96 additional tests (7+21 interactions + 8+24 resilience + 6+18 compression + 12 handlers)
+- [x] 3 consecutive test runs pass (no flaky tests)
+- [x] `dotnet test src/TurboHttp.Tests/TurboHttp.Tests.csproj` → existing unit tests still pass (no regressions from builder extensions)
+- [x] `dotnet test src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj` → existing stream tests still pass
 
 **Files:** (read-only verification)
 

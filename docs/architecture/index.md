@@ -15,9 +15,21 @@ Your Request
     ↓
 [Enricher] — applies default headers, base address
     ↓
+[Tracing] — starts an activity span for observability
+    ↓
+[Handlers] — runs any custom middleware you registered
+    ↓
+[Redirects] — tracks redirect chain; follows on response side
+    ↓
 [Cookies] — injects matching cookies from the cookie jar
     ↓
-[Cache] — checks if response is cached; returns immediately if fresh
+[Retry] — attaches retry context; re-sends on transient failures
+    ↓
+[Expect-Continue] — holds large bodies until server confirms readiness
+    ↓
+[Cache] — returns immediately if response is cached and fresh
+    ↓
+[Content Encoding] — compresses request body / decompresses response
     ↓
 [Protocol Encoder] — converts to HTTP/1.0, 1.1, 2, or 3 bytes
     ↓
@@ -25,15 +37,17 @@ Your Request
     ↓
 [Protocol Decoder] — parses response bytes
     ↓
-[Decompression] — decompresses gzip/deflate/brotli
+[Content Encoding] — decompresses gzip/deflate/brotli
     ↓
-[Cookies] — stores Set-Cookie headers
-    ↓
-[Cache] — caches the response if cacheable
+[Cache] — stores response if cacheable
     ↓
 [Retry] — re-sends on transient errors or 503/429
     ↓
+[Cookies] — stores Set-Cookie headers
+    ↓
 [Redirects] — follows 301-308 automatically
+    ↓
+[Tracing] — closes the activity span
     ↓
 Your Response
 ```
@@ -45,7 +59,7 @@ Each stage does one thing well. Most of the time you don't think about them — 
 - **Automatic**: Cookies, caching, retries, redirects all work out of the box
 - **Efficient**: HTTP/2 and HTTP/3 multiplexing, keep-alive connection reuse, lock-free data movement
 - **Correct**: Follows HTTP specifications for freshness, method rewriting, retry idempotency
-- **Observable**: See exactly what happens at each stage
+- **Observable**: See exactly what happens at each stage via built-in tracing
 
 ## Learn More
 

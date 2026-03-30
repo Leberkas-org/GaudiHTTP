@@ -684,5 +684,8 @@ public sealed class ServerFixture : IAsyncLifetime
         Routes.RegisterErrorHandlingRoutes(app);
         Routes.RegisterConnectionReuseRoutes(app);
         Routes.RegisterExpectContinueRoutes(app);
+        Routes.RegisterResilienceRoutes(app);
+        Routes.RegisterRequestCompressionRoutes(app);
+        Routes.RegisterInteractionRoutes(app);
     }
 }

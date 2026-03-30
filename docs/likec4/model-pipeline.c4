@@ -2,94 +2,119 @@
 // Extends model.c4 with ordered flow and feedback relationships
 // that represent BuildExtendedPipeline's data paths and control loops.
 //
-// REQUEST CHAIN  (user → Network)
-//   enricher → [redirect feedback merge] → cookie bidi → [retry feedback merge]
-//   → cache bidi → engine → [version engines → Network]
+// PIPELINE STACKING (outermost → innermost):
+//   Tracing → Handlers → Redirect → Cookie → Retry → Expect100 → Cache → ContentEncoding → Engine
 //
-// RESPONSE CHAIN  (Network → user)
-//   engine → decompression bidi → cookie bidi → cache bidi → retry bidi
-//   → [cache hit merge] → redirect bidi → user
+// REQUEST CHAIN (user → Network):
+//   enricher → tracing → [handlers →] redirect → cookie → retry → expect100 → cache → contentEncoding
+//   → engine → [version engines → Network]
+//
+// RESPONSE CHAIN (Network → user):
+//   engine → contentEncoding → cache → expect100 → retry → cookie → redirect → [handlers →] tracing → user
 //
 // FEEDBACK LOOPS
-//   retry bidi    ─── retryable request ──▶ cookie bidi (preferred inlet)
-//   redirect bidi ─── redirect request ───▶ request enricher (preferred inlet)
-//   cache hit     ─── cached response ────▶ redirect bidi (skip engine entirely)
+//   redirect   ─── redirect request ──▶ cookie (re-enters with cookie injection for new URL)
+//   retry      ─── retry request    ──▶ expect100 (re-enters below cookie, above engine)
+//   cache hit  ─── cached response  ──▶ response chain at retry level (bypasses ContentEncoding + engine)
+//   QPACK      ─── table updates    ──▶ Http30Request2FrameStage (encoder/decoder table sync)
 
 model {
-  // Request chain — inbound
+  // ── Request chain — outermost to innermost ────────────────────────────────
   turbohttp.client.ITurboHttpClient -[flows]-> turbohttp.streams.RequestEnricherStage 'HttpRequestMessage'
-  turbohttp.streams.RequestEnricherStage -[flows]-> turbohttp.streams.CookieBidiStage 'request with defaults applied'
-  turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.CacheBidiStage 'request with cookies'
-  turbohttp.streams.CacheBidiStage -[flows]-> turbohttp.streams.Engine 'request (cache miss)'
+  turbohttp.streams.RequestEnricherStage -[flows]-> turbohttp.streams.TracingBidiStage 'request with defaults applied'
+  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'request (tracing started)'
+  turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'request'
+  turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.RetryBidiStage 'request with cookies'
+  turbohttp.streams.RetryBidiStage -[flows]-> turbohttp.streams.ExpectContinueBidiStage 'request'
+  turbohttp.streams.ExpectContinueBidiStage -[flows]-> turbohttp.streams.CacheBidiStage 'request'
+  turbohttp.streams.CacheBidiStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'request (cache miss)'
+  turbohttp.streams.ContentEncodingBidiStage -[flows]-> turbohttp.streams.Engine 'request (compressed if policy set)'
 
-  // Engine routes to version-specific sub-pipeline
-  turbohttp.streams.Engine -[flows]-> turbohttp.streams.ExtractOptionsStage 'request routed by host'
-  turbohttp.streams.ExtractOptionsStage -[flows]-> turbohttp.streams.Http10Engine 'request'
-  turbohttp.streams.ExtractOptionsStage -[flows]-> turbohttp.streams.Http11Engine 'request'
-  turbohttp.streams.ExtractOptionsStage -[flows]-> turbohttp.streams.Http20Engine 'request'
-  // HTTP/1.0 request path (encode → TCP)
+  // ── Engine routes by HTTP version ────────────────────────────────────────
+  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http10Engine 'HTTP/1.0 request'
+  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http11Engine 'HTTP/1.1 request'
+  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http20Engine 'HTTP/2 request'
+  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http30Engine 'HTTP/3 request'
+
+  // ── HTTP/1.0 engine: encode → TCP → decode ───────────────────────────────
   turbohttp.streams.Http10Engine -[flows]-> turbohttp.streams.Http10EncoderStage 'HttpRequestMessage'
   turbohttp.streams.Http10EncoderStage -[flows]-> turbohttp.streams.ConnectionStage 'outbound bytes'
-
-  // HTTP/1.0 response path (TCP → decode)
+  turbohttp.streams.Http10EncoderStage -[flows]-> turbohttp.streams.Http1XCorrelationStage 'request (correlation)'
   turbohttp.streams.ConnectionStage -[flows]-> turbohttp.streams.Http10DecoderStage 'inbound bytes'
-  turbohttp.streams.Http10DecoderStage -[flows]-> turbohttp.streams.Http1XCorrelationStage 'HttpResponseMessage (path 1)'
-  turbohttp.streams.Http10EncoderStage -[flows]-> turbohttp.streams.Http1XCorrelationStage 'request (path 0 - correlation)'
+  turbohttp.streams.Http10DecoderStage -[flows]-> turbohttp.streams.Http1XCorrelationStage 'HttpResponseMessage'
   turbohttp.streams.Http1XCorrelationStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'matched response'
 
-  // HTTP/1.1 request path (encode → TCP)
+  // ── HTTP/1.1 engine: encode → TCP → decode → keep-alive ──────────────────
   turbohttp.streams.Http11Engine -[flows]-> turbohttp.streams.Http11EncoderStage 'HttpRequestMessage'
   turbohttp.streams.Http11EncoderStage -[flows]-> turbohttp.streams.ConnectionStage 'outbound bytes'
-
-  // HTTP/1.1 response path (TCP → decode)
+  turbohttp.streams.Http11EncoderStage -[flows]-> turbohttp.streams.Http1XCorrelationStage 'request (correlation)'
   turbohttp.streams.ConnectionStage -[flows]-> turbohttp.streams.Http11DecoderStage 'inbound bytes'
-  turbohttp.streams.Http11DecoderStage -[flows]-> turbohttp.streams.Http1XCorrelationStage 'HttpResponseMessage (path 1)'
-  turbohttp.streams.Http11EncoderStage -[flows]-> turbohttp.streams.Http1XCorrelationStage 'request (path 0 - correlation)'
-
-  // HTTP/1.1 keep-alive signal path
+  turbohttp.streams.Http11DecoderStage -[flows]-> turbohttp.streams.Http1XCorrelationStage 'HttpResponseMessage (chunked decoded)'
   turbohttp.streams.Http1XCorrelationStage -[flows]-> turbohttp.streams.ConnectionReuseStage 'keep-alive / close signal'
-  turbohttp.streams.ConnectionReuseStage -[flows]-> turbohttp.streams.ConnectionStage 'keep connection alive or close it'
+  turbohttp.streams.ConnectionReuseStage -[feedback]-> turbohttp.streams.ConnectionStage 'reuse or close decision'
   turbohttp.streams.Http1XCorrelationStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'matched response'
 
-  // HTTP/2 request path
+  // ── HTTP/2 engine: stream IDs → HPACK → frames → TCP ─────────────────────
   turbohttp.streams.Http20Engine -[flows]-> turbohttp.streams.Http20StreamIdAllocatorStage 'HttpRequestMessage'
-  turbohttp.streams.Http20StreamIdAllocatorStage -[flows]-> turbohttp.streams.Http20Request2FrameStage 'request with stream ID (path 0 - frame encoder)'
-  turbohttp.streams.Http20StreamIdAllocatorStage -[flows]-> turbohttp.streams.Http20CorrelationStage 'request with stream ID (path 1 - correlation input)'
+  turbohttp.streams.Http20StreamIdAllocatorStage -[flows]-> turbohttp.streams.Http20Request2FrameStage 'request with stream ID (frame path)'
+  turbohttp.streams.Http20StreamIdAllocatorStage -[flows]-> turbohttp.streams.Http20CorrelationStage 'request with stream ID (correlation path)'
   turbohttp.streams.Http20Request2FrameStage -[flows]-> turbohttp.streams.Http20ConnectionStage 'HEADERS + DATA frames'
   turbohttp.streams.Http20ConnectionStage -[flows]-> turbohttp.streams.Http20EncoderStage 'outbound frames'
   turbohttp.streams.Http20EncoderStage -[flows]-> turbohttp.streams.Http20PrependPrefaceStage 'outbound bytes'
   turbohttp.streams.Http20PrependPrefaceStage -[flows]-> turbohttp.streams.ConnectionStage 'bytes with connection preface'
-
-  // HTTP/2 response path
   turbohttp.streams.ConnectionStage -[flows]-> turbohttp.streams.Http20DecoderStage 'inbound bytes'
   turbohttp.streams.Http20DecoderStage -[flows]-> turbohttp.streams.Http20ConnectionStage 'inbound frames'
   turbohttp.streams.Http20ConnectionStage -[flows]-> turbohttp.streams.Http20StreamStage 'response frames per stream'
-  turbohttp.streams.Http20StreamStage -[flows]-> turbohttp.streams.Http20CorrelationStage 'assembled HttpResponseMessage (path 1 - correlation input)'
-  turbohttp.streams.Http20CorrelationStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'matched response (path 0 - output)'
+  turbohttp.streams.Http20StreamStage -[flows]-> turbohttp.streams.Http20CorrelationStage 'assembled HttpResponseMessage'
+  turbohttp.streams.Http20CorrelationStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'matched response'
 
-  // ConnectionStage → Transport Pool (direct async API)
+  // ── HTTP/3 engine: QPACK → frames → QUIC ─────────────────────────────────
+  turbohttp.streams.Http30Engine -[flows]-> turbohttp.streams.Http30Request2FrameStage 'HttpRequestMessage'
+  turbohttp.streams.Http30Request2FrameStage -[flows]-> turbohttp.streams.Http30ConnectionStage 'HEADERS + DATA frames (frame path)'
+  turbohttp.streams.Http30Request2FrameStage -[flows]-> turbohttp.streams.Http30CorrelationStage 'request (correlation broadcast)'
+  turbohttp.streams.Http30Request2FrameStage -[flows]-> turbohttp.streams.Http30QpackEncoderPrefaceStage 'QPACK encoder instructions'
+  turbohttp.streams.Http30ConnectionStage -[flows]-> turbohttp.streams.Http30EncoderStage 'outbound frames'
+  turbohttp.streams.Http30EncoderStage -[flows]-> turbohttp.streams.Http30ControlStreamPrefaceStage 'outbound bytes'
+  turbohttp.streams.Http30QpackEncoderPrefaceStage -[flows]-> turbohttp.streams.Http30ControlStreamPrefaceStage 'QPACK encoder stream bytes'
+  turbohttp.streams.Http30ControlStreamPrefaceStage -[flows]-> turbohttp.streams.ConnectionStage 'bytes with control + QPACK stream preface'
+  turbohttp.streams.ConnectionStage -[flows]-> turbohttp.streams.Http30DecoderStage 'inbound bytes'
+  turbohttp.streams.Http30DecoderStage -[flows]-> turbohttp.streams.Http30ConnectionStage 'inbound frames (regular frames)'
+  turbohttp.streams.Http30DecoderStage -[flows]-> turbohttp.streams.QpackDecoderStreamStage 'QPACK decoder stream bytes'
+  turbohttp.streams.QpackDecoderStreamStage -[flows]-> turbohttp.streams.QpackDecoderFeedbackStage 'decoder table instructions'
+  turbohttp.streams.QpackDecoderFeedbackStage -[feedback]-> turbohttp.streams.Http30Request2FrameStage 'dynamic table updates (encoder/decoder sync)'
+  turbohttp.streams.Http30ConnectionStage -[flows]-> turbohttp.streams.Http30StreamStage 'response frames per stream'
+  turbohttp.streams.Http30StreamStage -[flows]-> turbohttp.streams.Http30CorrelationStage 'assembled HttpResponseMessage'
+  turbohttp.streams.Http30CorrelationStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'matched response'
+
+  // ── ConnectionStage → Transport Pool ─────────────────────────────────────
   turbohttp.streams.ConnectionStage -[flows]-> turbohttp.transport.ConnectionPool 'AcquireAsync(options, endpoint)'
   turbohttp.transport.ConnectionPool -[flows]-> turbohttp.transport.HostConnections 'acquire from per-host manager'
   turbohttp.transport.HostConnections -[flows]-> turbohttp.transport.DirectConnectionFactory 'establish if no idle connection'
   turbohttp.transport.DirectConnectionFactory -[flows]-> turbohttp.transport.ConnectionLease 'lease with live connection'
   turbohttp.transport.ConnectionLease -[flows]-> turbohttp.streams.ConnectionStage 'ready to read/write'
 
-  // ClientByteMover ↔ Network (data path)
+  // ── ClientByteMover ↔ Network ─────────────────────────────────────────────
   turbohttp.transport.ClientByteMover -[flows]-> tcp 'outbound bytes → socket'
   tcp -[flows]-> turbohttp.transport.ClientByteMover 'socket → inbound bytes'
   turbohttp.transport.ClientByteMover -[flows]-> turbohttp.streams.ConnectionStage 'inbound bytes'
 
-  // Response chain — shared across all versions
-  turbohttp.streams.ContentEncodingBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'decompressed response'
-  turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.CacheBidiStage 'response (cookies stored)'
-  turbohttp.streams.CacheBidiStage -[flows]-> turbohttp.streams.RetryBidiStage 'response (cached if eligible)'
-  turbohttp.streams.RetryBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'response (no retry needed)'
-  turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.client.ITurboHttpClient 'final response'
+  // ── Response chain — innermost to outermost ──────────────────────────────
+  turbohttp.streams.ContentEncodingBidiStage -[flows]-> turbohttp.streams.CacheBidiStage 'decompressed response'
+  turbohttp.streams.CacheBidiStage -[flows]-> turbohttp.streams.ExpectContinueBidiStage 'response (cached if eligible)'
+  turbohttp.streams.ExpectContinueBidiStage -[flows]-> turbohttp.streams.RetryBidiStage 'response'
+  turbohttp.streams.RetryBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'response (no retry needed)'
+  turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'response (cookies stored)'
+  turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.streams.TracingBidiStage 'final response'
+  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.client.ITurboHttpClient 'final response (tracing complete)'
 
-  // Cache hit shortcut (bypasses engine entirely)
-  turbohttp.streams.CacheBidiStage -[feedback]-> turbohttp.streams.RetryBidiStage 'cached response (cache hit, bypasses network)'
+  // ── Feedback loops ────────────────────────────────────────────────────────
 
-  // Feedback loops
-  turbohttp.streams.RetryBidiStage -[feedback]-> turbohttp.streams.CookieBidiStage 'retryable request fed back into pipeline'
-  turbohttp.streams.RedirectBidiStage -[feedback]-> turbohttp.streams.RequestEnricherStage 'redirect request fed back into pipeline'
+  // Cache hit: cached response bypasses ContentEncoding + Engine; enters response chain at ExpectContinue
+  turbohttp.streams.CacheBidiStage -[feedback]-> turbohttp.streams.RetryBidiStage 'cached response (bypasses network)'
+
+  // Redirect: new request re-enters at Cookie (needs cookie injection for the new URL)
+  turbohttp.streams.RedirectBidiStage -[feedback]-> turbohttp.streams.CookieBidiStage 'redirect request re-enters with cookie injection'
+
+  // Retry: request re-enters below Cookie (same URL, cookies already set)
+  turbohttp.streams.RetryBidiStage -[feedback]-> turbohttp.streams.ExpectContinueBidiStage 'retry request re-enters below cookie'
 }

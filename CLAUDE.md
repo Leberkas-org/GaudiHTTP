@@ -8,34 +8,41 @@ TurboHttp is a high-performance HTTP client library for .NET built on Akka.Strea
 
 ## Build Commands
 
+> **Note:** All commands run from the **repository root** (`d:\GIT\Akka.Streams.Http\`).
+> `dotnet test --project` paths are relative to `src/` (where `global.json` with MTP runner lives).
+> `dotnet restore`/`build`/`run` use full paths from root.
+
 ```bash
 # Restore and build
 dotnet restore ./src/TurboHttp.sln
 dotnet build --configuration Release ./src/TurboHttp.sln
 
-# Run all tests
-dotnet test ./src/TurboHttp.sln
+# Run all tests (includes integration tests — requires network)
+dotnet test --project TurboHttp.sln
 
-# Run specific test class (xUnit v3 MTP filter — note: args after --)
-dotnet test ./src/TurboHttp.Tests/TurboHttp.Tests.csproj -- --filter-class "TurboHttp.Tests.RFC9113.Http2DecoderBasicFrameTests"
+# Run unit tests only
+dotnet test --project TurboHttp.Tests/TurboHttp.Tests.csproj
+
+# Run specific test class (xUnit v3 direct runner — -class flag)
+dotnet run --project TurboHttp.Tests/TurboHttp.Tests.csproj -- -class "TurboHttp.Tests.RFC9113.Http2DecoderErrorCodeTests"
 
 # Run specific RFC section (by namespace)
-dotnet test ./src/TurboHttp.Tests/TurboHttp.Tests.csproj -- --filter-namespace "TurboHttp.Tests.RFC9113"
+dotnet test --project TurboHttp.Tests/TurboHttp.Tests.csproj -- --filter-namespace "TurboHttp.Tests.RFC9113"
 
 # Run integration tests (H10/H11/H2/H3/TLS — requires network)
-dotnet test ./src/TurboHttp.IntegrationTests/TurboHttp.IntegrationTests.csproj
+dotnet test --project TurboHttp.IntegrationTests/TurboHttp.IntegrationTests.csproj
 
 # Run integration tests for one HTTP version
-dotnet test ./src/TurboHttp.IntegrationTests/TurboHttp.IntegrationTests.csproj -- --filter-namespace "TurboHttp.IntegrationTests.H11"
+dotnet test --project TurboHttp.IntegrationTests/TurboHttp.IntegrationTests.csproj -- --filter-namespace "TurboHttp.IntegrationTests.H11"
 
 # Run Akka.Streams stage tests
-dotnet test ./src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj
+dotnet test --project TurboHttp.StreamTests/TurboHttp.StreamTests.csproj
 
 # Run stage tests for one RFC section
-dotnet test ./src/TurboHttp.StreamTests/TurboHttp.StreamTests.csproj -- --filter-namespace "TurboHttp.StreamTests.RFC9113"
+dotnet test --project TurboHttp.StreamTests/TurboHttp.StreamTests.csproj -- --filter-namespace "TurboHttp.StreamTests.RFC9113"
 
 # Run benchmarks
-dotnet run --configuration Release ./src/TurboHttp.Benchmarks/TurboHttp.Benchmarks.csproj
+dotnet run --configuration Release --project TurboHttp.Benchmarks/TurboHttp.Benchmarks.csproj
 ```
 
 ### Documentation Site (requires Node.js 20+)

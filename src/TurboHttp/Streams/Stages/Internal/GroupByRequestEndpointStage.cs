@@ -7,7 +7,7 @@ using TurboHttp.Internal;
 
 namespace TurboHttp.Streams.Stages.Internal;
 
-internal sealed class GroupByRequestKeyStage<T> : GraphStage<FlowShape<T, Source<T, NotUsed>>>
+internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, Source<T, NotUsed>>>
 {
     private readonly Inlet<T> _in = new("GroupByRequestKey.In");
     private readonly Outlet<Source<T, NotUsed>> _out = new("GroupByRequestKey.Out");
@@ -17,7 +17,7 @@ internal sealed class GroupByRequestKeyStage<T> : GraphStage<FlowShape<T, Source
     private readonly int _maxSubstreams;
     private readonly int _maxSubstreamsPerKey;
 
-    public GroupByRequestKeyStage(
+    public GroupByRequestEndpointStage(
         Func<T, RequestEndpoint> keyFor,
         int maxSubstreams = -1,
         int maxSubstreamsPerKey = 1)
@@ -85,7 +85,7 @@ internal sealed class GroupByRequestKeyStage<T> : GraphStage<FlowShape<T, Source
 
     private sealed class Logic : GraphStageLogic
     {
-        private readonly GroupByRequestKeyStage<T> _stage;
+        private readonly GroupByRequestEndpointStage<T> _stage;
         private readonly int _queueSize;
         private readonly Dictionary<RequestEndpoint, SubflowGroup> _subflows = new();
         private readonly Queue<Source<T, NotUsed>> _pendingSources = new();
@@ -93,7 +93,7 @@ internal sealed class GroupByRequestKeyStage<T> : GraphStage<FlowShape<T, Source
         private Action<NotUsed>? _onSubstreamDied;
         private bool _upstreamFinished;
 
-        public Logic(GroupByRequestKeyStage<T> stage, Attributes inheritedAttributes) : base(stage.Shape)
+        public Logic(GroupByRequestEndpointStage<T> stage, Attributes inheritedAttributes) : base(stage.Shape)
         {
             _stage = stage;
             var queueAttr = inheritedAttributes.GetAttribute(new TurboAttributes.SubstreamQueueSize(1));

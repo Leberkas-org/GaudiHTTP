@@ -20,11 +20,13 @@ views {
     include turbohttp.client.*
     include turbohttp.streams.Engine
     include turbohttp.streams.RequestEnricherStage
+    include turbohttp.streams.TracingBidiStage
     include turbohttp.streams.CookieBidiStage
     include turbohttp.streams.CacheBidiStage
     include turbohttp.streams.ContentEncodingBidiStage
     include turbohttp.streams.RetryBidiStage
     include turbohttp.streams.RedirectBidiStage
+    include turbohttp.streams.ExpectContinueBidiStage
     include tcp
   }
 
@@ -44,14 +46,15 @@ views {
     include turbohttp.streams.RequestEnricherStage
     include turbohttp.streams.ExtractOptionsStage
 
-    // Feature layers (applied around engine)
+    // Feature layers (applied around engine, outermost → innermost)
+    include turbohttp.streams.TracingBidiStage
+    include turbohttp.streams.HandlerBidiStage
+    include turbohttp.streams.RedirectBidiStage
     include turbohttp.streams.CookieBidiStage
+    include turbohttp.streams.RetryBidiStage
+    include turbohttp.streams.ExpectContinueBidiStage
     include turbohttp.streams.CacheBidiStage
     include turbohttp.streams.ContentEncodingBidiStage
-    include turbohttp.streams.RetryBidiStage
-    include turbohttp.streams.RedirectBidiStage
-    include turbohttp.streams.ExpectContinueBidiStage
-    include turbohttp.streams.HandlerBidiStage
     include turbohttp.streams.ConnectionReuseStage
 
     // Engine (version demultiplexer)
@@ -59,6 +62,7 @@ views {
     include turbohttp.streams.Http10Engine
     include turbohttp.streams.Http11Engine
     include turbohttp.streams.Http20Engine
+    include turbohttp.streams.Http30Engine
 
     // HTTP/1.x stages
     include turbohttp.streams.Http10EncoderStage
@@ -76,6 +80,18 @@ views {
     include turbohttp.streams.Http20StreamStage
     include turbohttp.streams.Http20PrependPrefaceStage
     include turbohttp.streams.Http20CorrelationStage
+
+    // HTTP/3 stages
+    include turbohttp.streams.Http30Request2FrameStage
+    include turbohttp.streams.Http30ConnectionStage
+    include turbohttp.streams.Http30EncoderStage
+    include turbohttp.streams.Http30DecoderStage
+    include turbohttp.streams.Http30StreamStage
+    include turbohttp.streams.Http30CorrelationStage
+    include turbohttp.streams.Http30ControlStreamPrefaceStage
+    include turbohttp.streams.Http30QpackEncoderPrefaceStage
+    include turbohttp.streams.QpackDecoderStreamStage
+    include turbohttp.streams.QpackDecoderFeedbackStage
 
     // Transport
     include turbohttp.streams.ConnectionStage

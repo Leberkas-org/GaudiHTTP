@@ -64,6 +64,12 @@ model {
         description 'HTTP/2 pipeline: assign stream IDs, HPACK-encode frames, multiplex over a single TCP connection, decode and assemble responses'
       }
 
+      Http30Engine = component 'Http30Engine' {
+        #graphstage #http3
+        technology 'IHttpProtocolEngine'
+        description 'HTTP/3 pipeline over QUIC: QPACK-encode requests, multiplex over QUIC streams, decode and assemble responses'
+      }
+
       // Shared infrastructure stages
       RequestEnricherStage = component 'RequestEnricherStage' {
         #graphstage
@@ -168,6 +174,67 @@ model {
         #graphstage #http2
         technology 'GraphStage'
         description 'Stream-ID-based request-response correlation for multiplexed HTTP/2 streams'
+      }
+
+      // HTTP/3 stages
+      Http30Request2FrameStage = component 'Http30Request2FrameStage' {
+        #graphstage #http3
+        technology 'GraphStage'
+        description 'Converts requests into HEADERS + DATA frames using QPACK compression; broadcasts to correlation stage in parallel'
+      }
+
+      Http30EncoderStage = component 'Http30EncoderStage' {
+        #graphstage #http3
+        technology 'GraphStage'
+        description 'Serialises HTTP/3 frames to wire bytes; batches DATA items for efficiency'
+      }
+
+      Http30DecoderStage = component 'Http30DecoderStage' {
+        #graphstage #http3
+        technology 'GraphStage'
+        description 'Parses inbound bytes into HTTP/3 frames; routes QPACK decoder stream bytes separately'
+      }
+
+      Http30ConnectionStage = component 'Http30ConnectionStage' {
+        #graphstage #http3
+        technology 'GraphStage (BidiFlow)'
+        description 'Bidirectional HTTP/3 connection manager: stream multiplexing, flow control, GOAWAY handling'
+      }
+
+      Http30StreamStage = component 'Http30StreamStage' {
+        #graphstage #http3
+        technology 'GraphStage'
+        description 'Assembles per-stream HEADERS + DATA frames into HttpResponseMessage'
+      }
+
+      Http30ControlStreamPrefaceStage = component 'Http30ControlStreamPrefaceStage' {
+        #graphstage #http3
+        technology 'GraphStage'
+        description 'Injects the HTTP/3 control stream preface on first connect'
+      }
+
+      Http30QpackEncoderPrefaceStage = component 'Http30QpackEncoderPrefaceStage' {
+        #graphstage #http3
+        technology 'GraphStage'
+        description 'Injects the QPACK encoder stream preface on first connect; merges encoder instructions into the outbound stream'
+      }
+
+      Http30CorrelationStage = component 'Http30CorrelationStage' {
+        #graphstage #http3
+        technology 'GraphStage'
+        description 'Stream-ID-based request-response correlation for multiplexed HTTP/3 streams'
+      }
+
+      QpackDecoderStreamStage = component 'QpackDecoderStreamStage' {
+        #graphstage #http3
+        technology 'GraphStage'
+        description 'Processes QPACK decoder stream instructions received from the server'
+      }
+
+      QpackDecoderFeedbackStage = component 'QpackDecoderFeedbackStage' {
+        #graphstage #http3
+        technology 'GraphStage'
+        description 'Feeds QPACK dynamic table updates back to the encoder to keep encoder and decoder tables synchronised'
       }
 
       // Feature BidiStages — each handles both request and response direction
@@ -288,6 +355,44 @@ model {
         description 'Static Huffman encoding and decoding for HPACK string literals'
       }
 
+      // HTTP/3 codecs
+      Http3RequestEncoder = component 'Http3RequestEncoder' {
+        #protocol #http3
+        technology 'Class'
+        description 'Encodes requests into HEADERS frames (via QPACK) + optional DATA frames'
+      }
+
+      Http3FrameDecoder = component 'Http3FrameDecoder' {
+        #protocol #http3
+        technology 'Class'
+        description 'Parses HTTP/3 frame headers + payload into typed frame objects'
+      }
+
+      Http3FrameEncoder = component 'Http3FrameEncoder' {
+        #staticClass #protocol #http3
+        technology 'Static class'
+        description 'Serialises HTTP/3 frame objects to wire bytes'
+      }
+
+      // QPACK (header compression for HTTP/3)
+      QpackEncoder = component 'QpackEncoder' {
+        #protocol #http3
+        technology 'Class'
+        description 'QPACK header compression encoder; maintains dynamic table; sensitive headers are never indexed'
+      }
+
+      QpackDecoder = component 'QpackDecoder' {
+        #protocol #http3
+        technology 'Class'
+        description 'QPACK header compression decoder; applies encoder instructions to maintain synchronised dynamic table'
+      }
+
+      QpackDynamicTable = component 'QpackDynamicTable' {
+        #protocol #http3
+        technology 'Class'
+        description 'FIFO eviction table for QPACK header compression'
+      }
+
       // HTTP semantics (business rules)
       RedirectHandler = component 'RedirectHandler' {
         #protocol
@@ -394,15 +499,20 @@ model {
       // Transport abstractions
       IClientProvider = component 'IClientProvider' {
         technology 'Interface'
-        description 'Transport abstraction: GetStreamAsync for TCP/TLS providers'
+        description 'Transport abstraction: GetStreamAsync for TCP/TLS and QUIC providers'
+      }
+
+      QuicClientProvider = component 'QuicClientProvider' {
+        technology 'Class'
+        description 'QUIC transport provider for HTTP/3: establishes QUIC connections and exposes them as streams; implements IClientProvider'
       }
     }
   }
 
   // External system
   tcp = externalSystem 'Network' {
-    description 'Remote HTTP servers (TCP or TLS)'
-    technology 'TCP / TLS'
+    description 'Remote HTTP servers (TCP, TLS, or QUIC)'
+    technology 'TCP / TLS / QUIC'
   }
 
   // ── Structural relationships ───────────────────────────────────────────
@@ -420,6 +530,7 @@ model {
   turbohttp.streams.Engine -> turbohttp.streams.Http10Engine 'Routes HTTP/1.0 requests'
   turbohttp.streams.Engine -> turbohttp.streams.Http11Engine 'Routes HTTP/1.1 requests'
   turbohttp.streams.Engine -> turbohttp.streams.Http20Engine 'Routes HTTP/2 requests'
+  turbohttp.streams.Engine -> turbohttp.streams.Http30Engine 'Routes HTTP/3 requests'
 
   // Client → Network (simplified view for index/system overview)
   turbohttp.client -> tcp 'HTTP requests / responses'
@@ -457,6 +568,19 @@ model {
   turbohttp.streams.Http20Engine -> turbohttp.streams.Http20StreamStage 'Assembles response from frames'
   turbohttp.streams.Http20Engine -> turbohttp.streams.ConnectionStage 'Reads/writes bytes via transport'
 
+  // HTTP/3 engine internals
+  turbohttp.streams.Http30Engine -> turbohttp.streams.Http30Request2FrameStage 'Converts requests to HEADERS + DATA frames'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.Http30ConnectionStage 'Manages connection-level streams and flow control'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.Http30EncoderStage 'Serialises frames to bytes'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.Http30DecoderStage 'Parses bytes to frames'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.Http30StreamStage 'Assembles response from frames'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.Http30CorrelationStage 'Matches requests to responses by stream ID'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.Http30ControlStreamPrefaceStage 'Injects control stream preface on first connect'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.Http30QpackEncoderPrefaceStage 'Injects QPACK encoder stream preface'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.QpackDecoderStreamStage 'Processes QPACK decoder stream instructions'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.QpackDecoderFeedbackStage 'Feeds QPACK table updates back to encoder'
+  turbohttp.streams.Http30Engine -> turbohttp.streams.ConnectionStage 'Reads/writes bytes via QUIC transport'
+
   // ConnectionStage → Transport Layer
   turbohttp.streams.ConnectionStage -> turbohttp.transport.ConnectionPool 'AcquireAsync(options, endpoint) for TCP/TLS'
   turbohttp.streams.ConnectionStage -> turbohttp.transport.ConnectionLease 'Leases connection, reads/writes via handle'
@@ -478,6 +602,17 @@ model {
   turbohttp.protocol.HpackEncoder -> turbohttp.protocol.HuffmanCodec 'Huffman-encodes string literals'
   turbohttp.protocol.HpackDecoder -> turbohttp.protocol.HuffmanCodec 'Huffman-decodes string literals'
 
+  // HTTP/3 stages → Protocol codecs
+  turbohttp.streams.Http30Request2FrameStage -> turbohttp.protocol.Http3RequestEncoder 'Encodes requests to HEADERS + DATA frames'
+  turbohttp.streams.Http30Request2FrameStage -> turbohttp.protocol.QpackEncoder 'Compresses request headers'
+  turbohttp.streams.Http30DecoderStage -> turbohttp.protocol.Http3FrameDecoder 'Delegates frame decoding'
+  turbohttp.streams.Http30EncoderStage -> turbohttp.protocol.Http3FrameEncoder 'Delegates frame encoding'
+  turbohttp.streams.Http30StreamStage -> turbohttp.protocol.QpackDecoder 'Decompresses response headers'
+
+  // QPACK internals
+  turbohttp.protocol.QpackEncoder -> turbohttp.protocol.QpackDynamicTable 'Maintains dynamic table'
+  turbohttp.protocol.QpackDecoder -> turbohttp.protocol.QpackDynamicTable 'Maintains dynamic table'
+
   // BidiStages → Protocol business rules
   turbohttp.streams.RedirectBidiStage -> turbohttp.protocol.RedirectHandler 'Evaluates redirect rules'
   turbohttp.streams.RetryBidiStage -> turbohttp.protocol.RetryEvaluator 'Evaluates retry eligibility'
@@ -494,12 +629,14 @@ model {
   // Transport Layer internals
   turbohttp.transport.ConnectionPool -> turbohttp.transport.HostConnections 'Per-host manager: AcquireAsync delegates'
   turbohttp.transport.HostConnections -> turbohttp.transport.DirectConnectionFactory 'Establishes new connections'
-  turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.IClientProvider 'Gets TCP/TLS stream'
+  turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.IClientProvider 'Gets TCP/TLS or QUIC stream'
+  turbohttp.transport.QuicClientProvider -> tcp 'QUIC socket operations'
   turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ClientByteMover 'Spawns async pump tasks'
   turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ConnectionLease 'Wraps handle + state with lifecycle'
   turbohttp.transport.ConnectionLease -> turbohttp.transport.ConnectionHandle 'Provides direct channel I/O'
   turbohttp.transport.ConnectionLease -> turbohttp.transport.ClientState 'Owns connection state'
   turbohttp.transport.ClientByteMover -> turbohttp.transport.ClientState 'Reads/writes network stream, pipe, and channels'
   turbohttp.transport.IClientProvider -> tcp 'TCP / TLS socket operations'
+  turbohttp.transport.QuicClientProvider -> turbohttp.transport.IClientProvider 'implements'
   turbohttp.transport.ClientByteMover -> tcp 'TCP / TLS socket read + write'
 }

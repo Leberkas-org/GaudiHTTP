@@ -1,3 +1,4 @@
+<!-- maggus-id: fb81e08e-0662-4cfe-b382-4445d8294566 -->
 <!-- maggus-id: 20260326-163730-feature-028 -->
 
 # Feature 028: Phase 3 — Performance Optimizations (Allocation & CPU Reduction)

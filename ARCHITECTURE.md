@@ -17,20 +17,21 @@ TurboHttp is a high-performance **.NET 10 HTTP client library** built on **Akka.
 ├─────────────────────────────────────────────────┤
 │ Streams Layer (Akka.Streams GraphStages)        │
 │ ┌─────────────────────────────────────────────┐ │
-│ │ Feature BidiFlow Chain (Island 1)            │ │
-│ │ Tracing → Handlers → Redirect → Cookie       │ │
-│ │ → Retry → Expect100 → Cache → ContentEncoding│ │
+│ │ Feature BidiFlow Chain (Island 1)           │ │
+│ │ Tracing → Handlers → Redirect → Cookie      │ │
+│ │ → Retry → Expect100                         │ │
+│ │ → Cache → ContentEncoding                   │ │
 │ ├─────────────────────────────────────────────┤ │
-│ │ Protocol Engine Core (Island 2)              │ │
-│ │ RequestEnricher → Partition(version)         │ │
+│ │ Protocol Engine Core (Island 2)             │ │
+│ │ RequestEnricher → Partition(version)        │ │
 │ │ → GroupByHost → [H10|H11|H20|H30] engines   │ │
-│ │ → MergeSubstreams → Merge(4)                 │ │
+│ │ → MergeSubstreams → Merge(4)                │ │
 │ └─────────────────────────────────────────────┘ │
 ├─────────────────────────────────────────────────┤
 │ Protocol Layer (RFC-subfolder encoders/decoders)│
-│ - RFC9112 HTTP/1.x, RFC9113 HTTP/2             │
+│ - RFC9112 HTTP/1.x, RFC9113 HTTP/2              │
 │ - RFC9114 HTTP/3, RFC7541 HPACK, RFC9204 QPACK  │
-│ - Business logic: cookies, cache, redirect, retry│
+│ - Business logic: cookies, cache, redirect...   │
 ├─────────────────────────────────────────────────┤
 │ Transport Layer (actor-free connection pool)    │
 │ - ConnectionPool → HostConnections              │

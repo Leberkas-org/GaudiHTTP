@@ -1,4 +1,3 @@
-using Akka.Actor;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHttp.Protocol.RFC6265;
 using TurboHttp.Protocol.RFC9110;
@@ -55,10 +54,19 @@ public static class TurboHttpClientBuilderExtensions
         return builder;
     }
 
-    public static ITurboHttpClientBuilder WithCompression(this ITurboHttpClientBuilder builder,
-        CompressionPolicy? policy = null)
+    public static ITurboHttpClientBuilder WithRequestCompression(
+        this ITurboHttpClientBuilder builder, CompressionPolicy? policy = null)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d => { d.CompressionPolicy = policy; });
+        builder.Services.Configure<TurboClientDescriptor>(builder.Name,
+            d => { d.CompressionPolicy = policy ?? CompressionPolicy.Default; });
+        return builder;
+    }
+
+    public static ITurboHttpClientBuilder WithExpectContinue(
+        this ITurboHttpClientBuilder builder, Expect100Policy? policy = null)
+    {
+        builder.Services.Configure<TurboClientDescriptor>(builder.Name,
+            d => { d.Expect100Policy = policy ?? Expect100Policy.Default; });
         return builder;
     }
 

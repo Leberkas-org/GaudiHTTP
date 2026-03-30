@@ -38,4 +38,21 @@ views {
     include turbohttp.streams.ConnectionStage
   }
 
+  view http3Engine of turbohttp.streams.Http30Engine {
+    title 'TurboHttp — HTTP/3 Engine Internals'
+    description 'QPACK-compressed frames multiplexed over QUIC streams. Outbound: request → QPACK encode → connection → frame encode → control preface → transport. Inbound: transport → frame decode → per-stream assembly → correlate. QPACK decoder table updates feed back to the encoder for header compression synchronisation.'
+    include turbohttp.streams.Http30Engine
+    include turbohttp.streams.Http30Request2FrameStage
+    include turbohttp.streams.Http30ConnectionStage
+    include turbohttp.streams.Http30EncoderStage
+    include turbohttp.streams.Http30DecoderStage
+    include turbohttp.streams.Http30StreamStage
+    include turbohttp.streams.Http30CorrelationStage
+    include turbohttp.streams.Http30ControlStreamPrefaceStage
+    include turbohttp.streams.Http30QpackEncoderPrefaceStage
+    include turbohttp.streams.QpackDecoderStreamStage
+    include turbohttp.streams.QpackDecoderFeedbackStage
+    include turbohttp.streams.ConnectionStage
+  }
+
 }

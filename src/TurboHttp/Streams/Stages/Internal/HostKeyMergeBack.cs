@@ -37,7 +37,7 @@ internal sealed class HostKeyMergeBack<TIn, TMat> : IMergeBack<TIn, TMat>
             : breadth;
 
         return _baseFlow
-            .Via(new GroupByRequestKeyStage<TIn>(_keyFunction, maxSubstreams, _maxSubstreamsPerKey))
+            .Via(new GroupByRequestEndpointStage<TIn>(_keyFunction, maxSubstreams, _maxSubstreamsPerKey))
             .Via(Flow.Create<Source<TIn, NotUsed>>()
                 .Select(src => src.Via(flow)))
             .Via(new MergeSubstreamsStage<TOut>(effectiveBreadth));

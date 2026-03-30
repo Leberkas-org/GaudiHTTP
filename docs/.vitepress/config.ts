@@ -5,10 +5,10 @@ export default defineConfig({
     description: 'High-performance HTTP client library for .NET built on Akka.Streams — HTTP/1.0, HTTP/1.1, and HTTP/2 with automatic retries, caching, cookies, and connection pooling.',
     base: '/',
     head: [
-        ['link', { rel: 'icon', type: 'image/png', href: '/TurboHttp/logo/icon.png' }],
+        ['link', { rel: 'icon', type: 'image/png', href: '/logo/icon.png' }],
     ],
     themeConfig: {
-        logo: '/logo/logo_small.png',
+        logo: '/logo/icon.png',
         search: {
             provider: 'local',
         },

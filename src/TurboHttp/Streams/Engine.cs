@@ -159,7 +159,7 @@ internal sealed class Engine
     }
 
     /// <summary>
-    /// Builds the protocol engine core: a single <see cref="FlowHostKeyGroupByExtensions.GroupByRequestKey{T,TMat}"/>
+    /// Builds the protocol engine core: a single <see cref="GroupByExtensions.GroupByRequestEndpoint{T,TMat}"/>
     /// groups by <see cref="RequestEndpoint"/> (scheme, host, port, version), then each substream
     /// is routed through a version-specific connection flow via <see cref="BuildVersionRouter"/>.
     /// </summary>
@@ -184,7 +184,7 @@ internal sealed class Engine
         // Cast to Flow<> to apply the high-throughput input buffer attribute.
         var core = (Flow<HttpRequestMessage, HttpResponseMessage, NotUsed>)
             Flow.Create<HttpRequestMessage>()
-                .GroupByRequestKey(RequestEndpoint.FromRequest, maxSubstreams: clientOptions.MaxEndpointSubstreams)
+                .GroupByRequestEndpoint(RequestEndpoint.FromRequest, maxSubstreams: clientOptions.MaxEndpointSubstreams)
                 .ViaSubFlow(versionRouter)
                 .MergeSubstreams();
         

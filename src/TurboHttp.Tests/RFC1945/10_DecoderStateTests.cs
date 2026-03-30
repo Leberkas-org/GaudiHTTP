@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHttp.Protocol;
 using TurboHttp.Protocol.RFC1945;
 
 namespace TurboHttp.Tests.RFC1945;
@@ -28,15 +29,12 @@ public sealed class Http10DecoderStateTests
     [Fact(DisplayName = "RFC1945-7.2-ST-001: TryDecodeEof with buffered data returns true")]
     public void Should_ReturnTrue_When_EofWithBufferedData()
     {
+        // HTTP/0.9 response: no headers — entire buffer is body, delimited by EOF (RFC 1945 §2.1)
         var decoder = new Http10Decoder();
-        var incomplete = Bytes("HTTP/1.0 200 OK\r\n\r\nsome body data");
-        decoder.TryDecode(incomplete, out _);
+        var body = Bytes("<html>response body</html>");
+        decoder.TryDecode(body, out _);
 
-        var decoder2 = new Http10Decoder();
-        var partial = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nshort");
-        decoder2.TryDecode(partial, out _);
-
-        var result = decoder2.TryDecodeEof(out var response);
+        var result = decoder.TryDecodeEof(out var response);
 
         Assert.True(result);
         Assert.NotNull(response);
@@ -69,15 +67,27 @@ public sealed class Http10DecoderStateTests
     [Fact(DisplayName = "RFC1945-7.2-ST-004: TryDecodeEof clears remainder")]
     public void Should_ClearRemainder_When_EofDecoded()
     {
+        // HTTP/0.9 response: first TryDecodeEof clears buffered body; second call returns false
         var decoder = new Http10Decoder();
-        var partial = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nshort");
-        decoder.TryDecode(partial, out _);
+        var body = Bytes("<html>some body</html>");
+        decoder.TryDecode(body, out _);
 
         decoder.TryDecodeEof(out _);
 
         var result = decoder.TryDecodeEof(out var response);
         Assert.False(result);
         Assert.Null(response);
+    }
+
+    [Fact(DisplayName = "RFC1945-7.2-ST-014: TryDecodeEof throws on Content-Length mismatch")]
+    public void Should_Throw_When_EofWithContentLengthMismatch()
+    {
+        // RFC 1945 §7.2.2: if Content-Length is declared, EOF before all bytes is an error
+        var decoder = new Http10Decoder();
+        var partial = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nshort");
+        decoder.TryDecode(partial, out _);
+
+        Assert.Throws<HttpDecoderException>(() => decoder.TryDecodeEof(out _));
     }
 
     [Fact(DisplayName = "RFC1945-7.2-ST-005: Reset clears buffered data")]

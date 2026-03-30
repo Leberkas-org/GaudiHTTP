@@ -15,6 +15,13 @@ public sealed class Http10Decoder
 
     private ReadOnlyMemory<byte> _remainder = ReadOnlyMemory<byte>.Empty;
     private bool _isHttp09;
+    private int? _pendingContentLength;  // Non-null if waiting for body data due to Content-Length
+
+    /// <summary>
+    /// Returns true if the decoder is waiting for body data due to a Content-Length header.
+    /// This is used to detect Content-Length mismatches when the connection abruptly closes.
+    /// </summary>
+    public bool IsWaitingForContentLength => _pendingContentLength.HasValue;
 
     public Http10Decoder(int maxHeaderSize = DefaultMaxHeaderSize, int maxTotalHeaderSize = DefaultMaxTotalHeaderSize)
     {
@@ -86,6 +93,7 @@ public sealed class Http10Decoder
         if (statusCode is 204 or 304)
         {
             response = BuildResponse(lines[0], headers, []);
+            _pendingContentLength = null;
             return true;
         }
 
@@ -95,14 +103,17 @@ public sealed class Http10Decoder
             if (bodyData.Length < contentLength.Value)
             {
                 _remainder = working;
+                _pendingContentLength = contentLength.Value;
                 return false;
             }
 
             response = BuildResponse(lines[0], headers, bodyData.Span[..contentLength.Value].ToArray());
+            _pendingContentLength = null;
             return true;
         }
 
         response = BuildResponse(lines[0], headers, bodyData.ToArray());
+        _pendingContentLength = null;
         return true;
     }
 
@@ -116,6 +127,7 @@ public sealed class Http10Decoder
             {
                 response = BuildHttp09Response([]);
                 _isHttp09 = false;
+                _pendingContentLength = null;
                 return true;
             }
 
@@ -128,6 +140,7 @@ public sealed class Http10Decoder
             response = BuildHttp09Response(_remainder.ToArray());
             _remainder = ReadOnlyMemory<byte>.Empty;
             _isHttp09 = false;
+            _pendingContentLength = null;
             return true;
         }
 
@@ -150,8 +163,20 @@ public sealed class Http10Decoder
         var index = headerEnd + GetHeaderDelimiterLength(span, headerEnd);
         var body = _remainder[index..].ToArray();
 
+        // RFC 1945: If a Content-Length was declared but EOF arrived after receiving partial
+        // body data, it's a truncation error. When body is empty, allow it — connection
+        // may have been closed cleanly after headers (e.g. HEAD response, 204, or abrupt
+        // close already detected via CloseSignalItem.AbruptClose before reaching here).
+        var contentLength = GetContentLength(headers);
+        if (contentLength.HasValue && body.Length > 0 && body.Length < contentLength.Value)
+        {
+            throw new HttpDecoderException(HttpDecoderError.InvalidContentLength,
+                $"Content-Length mismatch: expected {contentLength.Value} bytes but received {body.Length} bytes before EOF.");
+        }
+
         response = BuildResponse(lines[0], headers, body);
         _remainder = ReadOnlyMemory<byte>.Empty;
+        _pendingContentLength = null;
         return true;
     }
 
@@ -196,6 +221,7 @@ public sealed class Http10Decoder
         if (statusCode is >= 200 and < 300)
         {
             response = BuildResponse(lines[0], headers, []);
+            _pendingContentLength = null;
             return true;
         }
 
@@ -203,6 +229,7 @@ public sealed class Http10Decoder
         if (statusCode is 204 or 304)
         {
             response = BuildResponse(lines[0], headers, []);
+            _pendingContentLength = null;
             return true;
         }
 
@@ -212,14 +239,17 @@ public sealed class Http10Decoder
             if (bodyData.Length < contentLength.Value)
             {
                 _remainder = working;
+                _pendingContentLength = contentLength.Value;
                 return false;
             }
 
             response = BuildResponse(lines[0], headers, bodyData.Span[..contentLength.Value].ToArray());
+            _pendingContentLength = null;
             return true;
         }
 
         response = BuildResponse(lines[0], headers, bodyData.ToArray());
+        _pendingContentLength = null;
         return true;
     }
 
@@ -227,6 +257,7 @@ public sealed class Http10Decoder
     {
         _remainder = ReadOnlyMemory<byte>.Empty;
         _isHttp09 = false;
+        _pendingContentLength = null;
     }
 
     private static void ValidateStatusLine(string statusLine)

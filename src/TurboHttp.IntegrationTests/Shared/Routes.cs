@@ -633,6 +633,168 @@ internal static class Routes
         });
     }
 
+    internal static void RegisterResilienceRoutes(WebApplication app)
+    {
+        // GET /resilience/content-length-mismatch → Content-Length: 1000 but sends only 500 bytes, then closes
+        app.MapGet("/resilience/content-length-mismatch", async (HttpContext ctx) =>
+        {
+            ctx.Response.ContentType = "text/plain";
+            ctx.Response.ContentLength = 1000;
+            await ctx.Response.Body.WriteAsync(new byte[500]);
+            await ctx.Response.Body.FlushAsync();
+            ctx.Abort();
+        });
+
+        // GET /resilience/corrupt-gzip → Content-Encoding: gzip but body is random bytes
+        app.MapGet("/resilience/corrupt-gzip", async (HttpContext ctx) =>
+        {
+            var body = new byte[256];
+            Random.Shared.NextBytes(body);
+            ctx.Response.ContentType = "text/plain";
+            ctx.Response.Headers.ContentEncoding = "gzip";
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.Body.WriteAsync(body);
+        });
+
+        // GET /resilience/corrupt-br → Content-Encoding: br but body is random bytes
+        app.MapGet("/resilience/corrupt-br", async (HttpContext ctx) =>
+        {
+            var body = new byte[256];
+            Random.Shared.NextBytes(body);
+            ctx.Response.ContentType = "text/plain";
+            ctx.Response.Headers.ContentEncoding = "br";
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.Body.WriteAsync(body);
+        });
+
+        // GET /resilience/truncated-body/{kb} → sends kb KB Content-Length header, stops at 50%
+        app.MapGet("/resilience/truncated-body/{kb:int}", async (HttpContext ctx, int kb) =>
+        {
+            var totalSize = kb * 1024;
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = totalSize;
+            await ctx.Response.Body.WriteAsync(new byte[totalSize / 2]);
+            await ctx.Response.Body.FlushAsync();
+            ctx.Abort();
+        });
+
+        // GET /resilience/slow-headers/{ms} → delay ms before sending headers
+        app.MapGet("/resilience/slow-headers/{ms:int}", async (HttpContext ctx, int ms) =>
+        {
+            await Task.Delay(ms, ctx.RequestAborted);
+            ctx.Response.ContentType = "text/plain";
+            var body = "slow-headers"u8.ToArray();
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.Body.WriteAsync(body);
+        });
+
+        // GET /resilience/slow-body/{ms} → sends first half of body, delays ms, then sends rest
+        app.MapGet("/resilience/slow-body/{ms:int}", async (HttpContext ctx, int ms) =>
+        {
+            var body = "slow-body-first-half-||-slow-body-second-half"u8.ToArray();
+            ctx.Response.ContentType = "text/plain";
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.StartAsync();
+            var half = body.Length / 2;
+            await ctx.Response.Body.WriteAsync(body.AsMemory(0, half));
+            await ctx.Response.Body.FlushAsync();
+            await Task.Delay(ms, ctx.RequestAborted);
+            await ctx.Response.Body.WriteAsync(body.AsMemory(half));
+            await ctx.Response.Body.FlushAsync();
+        });
+
+        // GET /resilience/invalid-header → response with header containing unusual characters
+        app.MapGet("/resilience/invalid-header", async (HttpContext ctx) =>
+        {
+            ctx.Response.Headers["X-Invalid"] = "value\twith\ttabs";
+            ctx.Response.ContentType = "text/plain";
+            var body = "invalid-header"u8.ToArray();
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.Body.WriteAsync(body);
+        });
+
+        // GET /resilience/empty-response → closes connection immediately (no status line)
+        app.MapGet("/resilience/empty-response", (HttpContext ctx) =>
+        {
+            ctx.Abort();
+            return Results.Empty;
+        });
+    }
+
+    internal static void RegisterRequestCompressionRoutes(WebApplication app)
+    {
+        // POST /compress/echo → reads request body, echoes back uncompressed
+        // Returns X-Content-Encoding header showing what Content-Encoding the server received
+        app.MapPost("/compress/echo", async (HttpContext ctx) =>
+        {
+            var receivedEncoding = ctx.Request.Headers.ContentEncoding.ToString();
+            using var ms = new MemoryStream();
+            await ctx.Request.Body.CopyToAsync(ms);
+            var body = ms.ToArray();
+            ctx.Response.Headers["X-Content-Encoding"] = string.IsNullOrEmpty(receivedEncoding)
+                ? "identity"
+                : receivedEncoding;
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.Body.WriteAsync(body);
+        });
+
+        // POST /compress/verify-gzip → verifies body is valid gzip, decompresses, echoes
+        app.MapPost("/compress/verify-gzip", async (HttpContext ctx) =>
+        {
+            using var ms = new MemoryStream();
+            await ctx.Request.Body.CopyToAsync(ms);
+            ms.Position = 0;
+            using var decompressed = new MemoryStream();
+            using (var gz = new GZipStream(ms, CompressionMode.Decompress))
+            {
+                await gz.CopyToAsync(decompressed);
+            }
+
+            var body = decompressed.ToArray();
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.Body.WriteAsync(body);
+        });
+
+        // POST /compress/verify-deflate → verifies body is valid zlib-deflate, decompresses, echoes
+        // Uses ZLibStream because the TurboHttp client compresses deflate as zlib-wrapped deflate (RFC 1950).
+        app.MapPost("/compress/verify-deflate", async (HttpContext ctx) =>
+        {
+            using var ms = new MemoryStream();
+            await ctx.Request.Body.CopyToAsync(ms);
+            ms.Position = 0;
+            using var decompressed = new MemoryStream();
+            using (var ds = new ZLibStream(ms, CompressionMode.Decompress))
+            {
+                await ds.CopyToAsync(decompressed);
+            }
+
+            var body = decompressed.ToArray();
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.Body.WriteAsync(body);
+        });
+
+        // POST /compress/verify-br → verifies body is valid brotli, decompresses, echoes
+        app.MapPost("/compress/verify-br", async (HttpContext ctx) =>
+        {
+            using var ms = new MemoryStream();
+            await ctx.Request.Body.CopyToAsync(ms);
+            ms.Position = 0;
+            using var decompressed = new MemoryStream();
+            using (var bs = new BrotliStream(ms, CompressionMode.Decompress))
+            {
+                await bs.CopyToAsync(decompressed);
+            }
+
+            var body = decompressed.ToArray();
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.Body.WriteAsync(body);
+        });
+    }
+
     internal static void RegisterExpectContinueRoutes(WebApplication app)
     {
         // POST /expect/echo → reads Expect: 100-continue, Kestrel sends 100 Continue
@@ -665,6 +827,68 @@ internal static class Routes
             ctx.Response.ContentType = "application/octet-stream";
             ctx.Response.ContentLength = body.Length;
             await ctx.Response.Body.WriteAsync(body);
+        });
+    }
+
+    internal static void RegisterInteractionRoutes(WebApplication app)
+    {
+        // GET /interaction/cache-gzip → gzip-compressed body + Cache-Control: max-age=3600
+        app.MapGet("/interaction/cache-gzip", async (HttpContext ctx) =>
+        {
+            var payload = "interaction-cache-gzip-payload"u8.ToArray();
+            using var ms = new MemoryStream();
+            using (var gz = new GZipStream(ms, CompressionLevel.Fastest))
+            {
+                gz.Write(payload, 0, payload.Length);
+            }
+            var compressed = ms.ToArray();
+            ctx.Response.Headers.CacheControl = "max-age=3600";
+            ctx.Response.ContentType = "text/plain";
+            ctx.Response.Headers.ContentEncoding = "gzip";
+            ctx.Response.ContentLength = compressed.Length;
+            await ctx.Response.Body.WriteAsync(compressed);
+        });
+
+        // GET /interaction/cookie-hop/{hop:int}
+        // Hop 1 → sets hop1=val1 + 302 → /interaction/cookie-hop/2
+        // Hop 2 → sets hop2=val2 + 302 → /interaction/cookie-hop/3
+        // Hop 3 → sets hop3=val3 + 302 → /cookie/echo
+        app.MapGet("/interaction/cookie-hop/{hop:int}", (HttpContext ctx, int hop) =>
+        {
+            ctx.Response.Headers.Append("Set-Cookie", $"hop{hop}=val{hop}; Path=/");
+            ctx.Response.StatusCode = 302;
+            ctx.Response.Headers.Location = hop < 3
+                ? $"/interaction/cookie-hop/{hop + 1}"
+                : "/cookie/echo";
+            return Results.Empty;
+        });
+
+        // GET /interaction/redirect-succeed-after/{n:int}/{key}
+        // → 302 redirect to /retry/succeed-after/{n}?key={key}
+        app.MapGet("/interaction/redirect-succeed-after/{n:int}/{key}", (HttpContext ctx, int n, string key) =>
+        {
+            ctx.Response.StatusCode = 302;
+            ctx.Response.Headers.Location = $"/retry/succeed-after/{n}?key={key}";
+            return Results.Empty;
+        });
+
+        // GET /interaction/echo-all-headers → echoes X-* request headers as response headers
+        // Cookie header echoed as X-Received-Cookie (for handler + cookie pipeline interaction test)
+        app.MapGet("/interaction/echo-all-headers", (HttpContext ctx) =>
+        {
+            foreach (var header in ctx.Request.Headers)
+            {
+                if (header.Key.StartsWith("X-", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Response.Headers[header.Key] = header.Value;
+                }
+            }
+            if (ctx.Request.Headers.TryGetValue("Cookie", out var cookie))
+            {
+                ctx.Response.Headers["X-Received-Cookie"] = cookie;
+            }
+            ctx.Response.ContentLength = 0;
+            return Results.Empty;
         });
     }
 }

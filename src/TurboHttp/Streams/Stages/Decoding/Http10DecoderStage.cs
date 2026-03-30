@@ -39,10 +39,15 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
                     {
                         if (closeSignal.CloseKind == TlsCloseKind.AbruptClose)
                         {
-                            // Abrupt close (connection reset): discard partial data.
+                            // Abrupt close (connection reset).
+                            // If the decoder was waiting for body data due to Content-Length,
+                            // it's a Content-Length mismatch — treat as an error.
+                            var message = _decoder.IsWaitingForContentLength
+                                ? "Content-Length mismatch: connection closed before all body data was received."
+                                : "Connection was aborted while receiving HTTP/1.0 response.";
+
                             _decoder.Reset();
-                            FailStage(new HttpRequestException(
-                                "Connection was aborted while receiving HTTP/1.0 response."));
+                            FailStage(new HttpRequestException(message));
                             return;
                         }
 
@@ -95,15 +100,24 @@ public sealed class Http10DecoderStage : GraphStage<FlowShape<IInputItem, HttpRe
                 },
                 onUpstreamFinish: () =>
                 {
-                    // Flush any partial response buffered in the decoder
-                    if (_decoder.TryDecodeEof(out var response) && response is not null)
+                    try
                     {
-                        Emit(stage._out, response, CompleteStage);
+                        // Flush any partial response buffered in the decoder
+                        if (_decoder.TryDecodeEof(out var response) && response is not null)
+                        {
+                            Emit(stage._out, response, CompleteStage);
+                        }
+                        else
+                        {
+                            _decoder.Reset();
+                            CompleteStage();
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
+                        Log.Warning("Http10DecoderStage: Failed to decode EOF: {0}", ex.Message);
                         _decoder.Reset();
-                        CompleteStage();
+                        FailStage(ex);
                     }
                 },
                 onUpstreamFailure: ex =>

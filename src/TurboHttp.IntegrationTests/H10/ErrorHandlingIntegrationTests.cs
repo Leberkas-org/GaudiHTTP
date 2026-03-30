@@ -46,19 +46,20 @@ public sealed class ErrorHandlingIntegrationTests
             async () => await helper.Client.SendAsync(request, sendCts.Token));
     }
 
-    [Fact(Timeout = 30000, DisplayName = "Error-H10-003: Mid-response connection abort returns truncated body")]
-    public async Task MidResponse_Connection_Abort_Returns_Truncated_Body()
+    [Fact(Timeout = 30000, DisplayName = "Error-H10-003: Mid-response connection abort causes exception")]
+    public async Task MidResponse_Connection_Abort_Causes_Exception()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         await using var helper = CreateClient();
 
-        var request = new HttpRequestMessage(HttpMethod.Get, "/edge/close-mid-response");
-
-        // HTTP/1.0 reads until EOF — server aborts after writing 7 bytes ("partial")
-        // despite claiming Content-Length: 10000. The decoder returns the truncated body.
-        var response = await helper.Client.SendAsync(request, cts.Token);
-        var body = await response.Content.ReadAsStringAsync(cts.Token);
-        Assert.True(body.Length < 10000, $"Body should be truncated but was {body.Length} bytes");
+        // Server sets Content-Length: 10000, writes 7 bytes ("partial"), then calls ctx.Abort().
+        // The decoder detects the Content-Length mismatch on abrupt close and fails the stage.
+        await Assert.ThrowsAnyAsync<Exception>(async () =>
+        {
+            var response = await helper.Client.SendAsync(
+                new HttpRequestMessage(HttpMethod.Get, "/edge/close-mid-response"), cts.Token);
+            await response.Content.ReadAsStringAsync(cts.Token);
+        });
     }
 
     [Theory(Timeout = 30000, DisplayName = "Error-H10-004: Large response headers received correctly")]

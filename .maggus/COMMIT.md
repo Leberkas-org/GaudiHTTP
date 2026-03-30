@@ -1,12 +1,21 @@
-TASK-021-006: TLS Uniform Coverage Part 1 (Compression + Cookie + Redirect + Retry)
+# TASK-023-009: Verification Gate – Integration Test Depth Feature 023
 
-Add four dedicated TLS integration test classes mirroring the HTTP/1.1 feature test classes
-over HTTPS transport. All 41 new tests pass; build is zero-warning.
+Fixed `Error-H10-003` test and aligned H10 decoder behavior with RFC 1945 §7.2.2:
+Content-Length mismatch on abrupt close now throws instead of returning truncated body.
 
-- TLS/CompressionIntegrationTests: 7 tests (gzip, deflate, brotli, identity, negotiate)
-- TLS/CookieIntegrationTests: 11 tests (set/echo, Secure over HTTPS, HttpOnly, SameSite,
-  Max-Age expiry, domain/path scoping, multi-cookie, delete, set-and-redirect)
-- TLS/RedirectIntegrationTests: 14 tests (301-308, chains, loop, relative URL, method
-  preservation, HTTPS→HTTP downgrade blocking for cross-scheme and cross-origin routes)
-- TLS/RetryIntegrationTests: 9 tests (408/503 retries, Retry-After seconds and HTTP-date,
-  succeed-after-N, idempotent PUT/DELETE, non-idempotent POST)
+- Updated `Http10Decoder`: added `_pendingContentLength` tracking and `IsWaitingForContentLength`
+  property; `TryDecodeEof` throws `HttpDecoderException` on Content-Length mismatch
+  (only when `body.Length > 0`, preserving HEAD response semantics)
+- Updated `Http10DecoderStage`: abrupt close (`TlsCloseKind.AbruptClose`) with
+  `IsWaitingForContentLength` → `FailStage`; `onUpstreamFinish` catches decoder exceptions
+- Updated `10_DecoderStateTests.cs`: ST-001/ST-004 use HTTP/0.9 (body-until-EOF) pattern;
+  added ST-014 for Content-Length mismatch throw behavior
+- Updated `ErrorHandlingIntegrationTests.cs`: Error-H10-003 updated to expect exception
+  instead of truncated body (new correct behavior)
+
+Verified:
+- Build: 0 errors, 0 warnings
+- Unit tests: 3652/3652 pass
+- Stream tests: 810/810 pass
+- H10 ErrorHandling: 17/17 pass
+- H10 Resilience: 8/8 pass
