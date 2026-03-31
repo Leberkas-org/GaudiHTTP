@@ -57,6 +57,12 @@ public record TurboClientOptions
     /// </summary>
     public SslProtocols EnabledSslProtocols { get; init; } = SslProtocols.None;
 
+    /// <summary>
+    /// Time a pipeline stage may remain idle (no elements passing) before a stall event is reported.
+    /// Default is 10 seconds. Set to <see cref="TimeSpan.Zero"/> to disable monitoring entirely.
+    /// </summary>
+    public TimeSpan PipelineStallTimeout { get; init; } = TimeSpan.FromSeconds(10);
+
     /// <summary>Connection management policy controlling per-host connection limits and HTTP/2 multiplexing.</summary>
     public ConnectionPolicy? ConnectionPolicy { get; init; }
 

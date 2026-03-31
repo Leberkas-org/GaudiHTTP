@@ -84,6 +84,13 @@ internal sealed class RedirectBidiStage
         /// </summary>
         private int _inFlightCount;
 
+        /// <summary>
+        /// Guards the redirect transaction (evaluate → enqueue → emit → decrement) so that
+        /// <see cref="TryCompleteIfDone"/> cannot fire mid-decision and close the outlet
+        /// prematurely. Matches the <see cref="RetryBidiStage._retryTransactionActive"/> pattern.
+        /// </summary>
+        private bool _redirectTransactionActive;
+
         public Logic(RedirectBidiStage stage) : base(stage.Shape)
         {
             _stage = stage;
@@ -161,18 +168,11 @@ internal sealed class RedirectBidiStage
                 {
                     var response = Grab(stage._inResponse);
                     var original = response.RequestMessage;
-                    _inFlightCount--;
 
                     // Without the original request context, cannot evaluate redirect — pass through.
                     if (original is null || !RedirectHandler.IsRedirect(response))
                     {
-                        // If this was a redirected request, clean up the handler state.
-                        if (original is not null
-                            && original.Options.TryGetValue(RedirectHandlerKey, out _))
-                        {
-                            // Handler state cleanup handled by garbage collection
-                        }
-
+                        _inFlightCount--;
                         _responseDemand = false;
                         Push(stage._outResponse, response);
                         TryCompleteIfDone();
@@ -223,21 +223,22 @@ internal sealed class RedirectBidiStage
                         // Dispose the redirect response — it won't reach the caller
                         response.Dispose();
 
+                        // Atomic redirect transaction: enqueue → emit → decrement → pull → complete check.
+                        // The guard prevents TryCompleteIfDone from firing mid-transaction when
+                        // _inFlightCount momentarily reaches 0 between TryEmitRedirect (increment)
+                        // and _inFlightCount-- (decrement for the consumed redirect response).
+                        _redirectTransactionActive = true;
                         _readyRedirects.Enqueue(newRequest);
                         TryEmitRedirect();
-
-                        // Pull next response (demand still outstanding since we didn't push to Out2)
+                        _inFlightCount--;
                         TryPullResponse();
+                        _redirectTransactionActive = false;
+                        TryCompleteIfDone();
                     }
                     catch (RedirectException ex) when (ex.Error == RedirectError.ProtocolDowngrade)
                     {
                         // HTTPS→HTTP downgrade blocked — forward as final response.
-                        // Handler state will be cleaned up by garbage collection.
-                        if (original.Options.TryGetValue(RedirectHandlerKey, out _))
-                        {
-                            // No pending work tracking needed
-                        }
-
+                        _inFlightCount--;
                         _responseDemand = false;
                         Push(stage._outResponse, response);
                         TryCompleteIfDone();
@@ -246,11 +247,7 @@ internal sealed class RedirectBidiStage
                     catch (RedirectException)
                     {
                         // Max redirects exceeded or loop detected — forward as final response.
-                        if (original.Options.TryGetValue(RedirectHandlerKey, out _))
-                        {
-                            // No pending work tracking needed
-                        }
-
+                        _inFlightCount--;
                         _responseDemand = false;
                         Push(stage._outResponse, response);
                         TryCompleteIfDone();
@@ -335,6 +332,11 @@ internal sealed class RedirectBidiStage
         /// </summary>
         private void TryCompleteIfDone()
         {
+            if (_redirectTransactionActive)
+            {
+                return;
+            }
+
             if (IsClosed(_stage._outRequest))
             {
                 return;

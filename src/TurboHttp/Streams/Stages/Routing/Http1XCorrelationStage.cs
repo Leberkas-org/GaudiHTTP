@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using Akka;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -11,26 +10,23 @@ public sealed class Http1XCorrelationShape : Shape
 {
     public Inlet<HttpRequestMessage> InRequest { get; }
     public Inlet<HttpResponseMessage> InResponse { get; }
-    public Inlet<NotUsed> InReset { get; }
     public Outlet<HttpResponseMessage> OutResponse { get; }
     public Outlet<IControlItem> OutControl { get; }
 
     public Http1XCorrelationShape(
         Inlet<HttpRequestMessage> inRequest,
         Inlet<HttpResponseMessage> inResponse,
-        Inlet<NotUsed> inReset,
         Outlet<HttpResponseMessage> outResponse,
         Outlet<IControlItem> outControl)
     {
         InRequest = inRequest;
         InResponse = inResponse;
-        InReset = inReset;
         OutResponse = outResponse;
         OutControl = outControl;
     }
 
     public override ImmutableArray<Inlet> Inlets =>
-        [InRequest, InResponse, InReset];
+        [InRequest, InResponse];
 
     public override ImmutableArray<Outlet> Outlets =>
         [OutResponse, OutControl];
@@ -40,7 +36,6 @@ public sealed class Http1XCorrelationShape : Shape
         return new Http1XCorrelationShape(
             (Inlet<HttpRequestMessage>)InRequest.CarbonCopy(),
             (Inlet<HttpResponseMessage>)InResponse.CarbonCopy(),
-            (Inlet<NotUsed>)InReset.CarbonCopy(),
             (Outlet<HttpResponseMessage>)OutResponse.CarbonCopy(),
             (Outlet<IControlItem>)OutControl.CarbonCopy());
     }
@@ -50,7 +45,6 @@ public sealed class Http1XCorrelationShape : Shape
         return new Http1XCorrelationShape(
             (Inlet<HttpRequestMessage>)inlets[0],
             (Inlet<HttpResponseMessage>)inlets[1],
-            (Inlet<NotUsed>)inlets[2],
             (Outlet<HttpResponseMessage>)outlets[0],
             (Outlet<IControlItem>)outlets[1]);
     }
@@ -60,7 +54,6 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
 {
     private readonly Inlet<HttpRequestMessage> _inRequest = new("Http1XCorrelation.In.Request");
     private readonly Inlet<HttpResponseMessage> _inResponse = new("Http1XCorrelation.In.Response");
-    private readonly Inlet<NotUsed> _inReset = new("Http1XCorrelation.In.Reset");
     private readonly Outlet<HttpResponseMessage> _out = new("Http1XCorrelation.Out");
     private readonly Outlet<IControlItem> _outSignal = new("Http1XCorrelation.Out.Signal");
 
@@ -68,7 +61,7 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
 
     public Http1XCorrelationStage()
     {
-        Shape = new Http1XCorrelationShape(_inRequest, _inResponse, _inReset, _out, _outSignal);
+        Shape = new Http1XCorrelationShape(_inRequest, _inResponse, _out, _outSignal);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
@@ -77,12 +70,9 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
     private sealed class Logic : GraphStageLogic
     {
         private readonly Http1XCorrelationStage _stage;
-        private readonly Queue<HttpRequestMessage> _pending = new();
-        private readonly Queue<HttpResponseMessage> _waiting = new();
-
+        private HttpRequestMessage? _inFlightRequest;
         private bool _requestUpstreamFinished;
         private bool _responseUpstreamFinished;
-        private bool _pipelineUnlocked;
 
         public Logic(Http1XCorrelationStage stage) : base(stage.Shape)
         {
@@ -91,30 +81,24 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
             SetHandler(stage._inRequest,
                 onPush: () =>
                 {
-                    var request = Grab(stage._inRequest);
-                    var wasEmpty = _pending.Count == 0;
-                    _pending.Enqueue(request);
-
-                    if (wasEmpty)
+                    _inFlightRequest = Grab(stage._inRequest);
+                    var key = RequestEndpoint.FromRequest(_inFlightRequest);
+                    Emit(stage._outSignal, new StreamAcquireItem { Key = key });
+                    if (_responseUpstreamFinished)
                     {
-                        var key = RequestEndpoint.FromRequest(request);
-                        Emit(stage._outSignal, new StreamAcquireItem { Key = key });
+                        // Response stream is done; this request can never be fulfilled.
+                        CompleteStage();
+                        return;
                     }
-
-                    TryCorrelateAndEmit();
-
-                    if ((_pipelineUnlocked || _pending.Count == 0) && !HasBeenPulled(stage._inRequest))
+                    if (!HasBeenPulled(stage._inResponse))
                     {
-                        Pull(stage._inRequest);
+                        Pull(stage._inResponse);
                     }
                 },
                 onUpstreamFinish: () =>
                 {
                     _requestUpstreamFinished = true;
-                    if (_responseUpstreamFinished)
-                    {
-                        CompleteStage();
-                    }
+                    TryComplete();
                 },
                 onUpstreamFailure: ex =>
                 {
@@ -125,20 +109,15 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
             SetHandler(stage._inResponse,
                 onPush: () =>
                 {
-                    _waiting.Enqueue(Grab(stage._inResponse));
-                    TryCorrelateAndEmit();
-                    if (!HasBeenPulled(stage._inResponse))
-                    {
-                        Pull(stage._inResponse);
-                    }
+                    var response = Grab(stage._inResponse);
+                    response.RequestMessage = _inFlightRequest;
+                    _inFlightRequest = null;
+                    Push(stage._out, response);
                 },
                 onUpstreamFinish: () =>
                 {
                     _responseUpstreamFinished = true;
-                    if (_requestUpstreamFinished)
-                    {
-                        CompleteStage();
-                    }
+                    TryComplete();
                 },
                 onUpstreamFailure: ex =>
                 {
@@ -146,35 +125,10 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
                     CompleteStage();
                 });
 
-            SetHandler(stage._inReset,
-                onPush: () =>
-                {
-                    Grab(stage._inReset);
-                    _pipelineUnlocked = false;
-                    if (!HasBeenPulled(stage._inReset))
-                    {
-                        Pull(stage._inReset);
-                    }
-                },
-                onUpstreamFinish: () =>
-                {
-                    // InReset upstream finishing does not affect stage completion.
-                },
-                onUpstreamFailure: ex =>
-                {
-                    // InReset failure does not affect stage completion — mirror onUpstreamFinish.
-                    Log.Warning("Http1XCorrelationStage: Upstream failure absorbed: {0}", ex.Message);
-                });
-
             SetHandler(stage._out,
                 onPull: () =>
                 {
-                    if (!IsClosed(stage._inResponse) && !HasBeenPulled(stage._inResponse))
-                    {
-                        Pull(stage._inResponse);
-                    }
-
-                    if (!IsClosed(stage._inRequest) && !HasBeenPulled(stage._inRequest) && (_pipelineUnlocked || _pending.Count == 0))
+                    if (_inFlightRequest == null && !IsClosed(stage._inRequest) && !HasBeenPulled(stage._inRequest))
                     {
                         Pull(stage._inRequest);
                     }
@@ -186,28 +140,18 @@ internal sealed class Http1XCorrelationStage : GraphStage<Http1XCorrelationShape
             });
         }
 
-        public override void PreStart()
+        private void TryComplete()
         {
-            Pull(_stage._inReset);
-        }
-
-        private void TryCorrelateAndEmit()
-        {
-            while (_pending.Count > 0 && _waiting.Count > 0 && IsAvailable(_stage._out))
+            // If the response stream ended while a request is in flight, the request will
+            // never receive a response — complete the stage gracefully to avoid deadlock.
+            if (_responseUpstreamFinished && _inFlightRequest != null)
             {
-                var response = _waiting.Dequeue();
-                response.RequestMessage = _pending.Dequeue();
-                Push(_stage._out, response);
-
-                if (!_pipelineUnlocked)
-                {
-                    _pipelineUnlocked = true;
-
-                    if (!IsClosed(_stage._inRequest) && !HasBeenPulled(_stage._inRequest))
-                    {
-                        Pull(_stage._inRequest);
-                    }
-                }
+                CompleteStage();
+                return;
+            }
+            if (_requestUpstreamFinished && _responseUpstreamFinished && _inFlightRequest == null)
+            {
+                CompleteStage();
             }
         }
     }

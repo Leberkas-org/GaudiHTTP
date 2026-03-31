@@ -60,3 +60,21 @@ public class MicroBenchmarkConfig : ManualConfig
         AddColumn(new RequestsPerSecondColumn());
     }
 }
+
+/// <summary>
+/// Benchmark configuration for engine-level throughput and latency measurements.
+/// Includes p50/p95/p100 latency percentile columns, memory diagnostics, and a
+/// requests-per-second column for throughput visibility.
+/// </summary>
+public class EngineBenchmarkConfig : ManualConfig
+{
+    public EngineBenchmarkConfig()
+    {
+        AddDiagnoser(MemoryDiagnoser.Default);
+        AddExporter(MarkdownExporter.GitHub);
+        AddColumn(StatisticColumn.P50);
+        AddColumn(StatisticColumn.P95);
+        AddColumn(StatisticColumn.P100);
+        AddColumn(new RequestsPerSecondColumn());
+    }
+}

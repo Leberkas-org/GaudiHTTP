@@ -111,4 +111,14 @@ public static class TurboHttpMetrics
             "http.client.connection.idle",
             unit: "{connection}",
             description: "Number of currently idle HTTP connections");
+
+    /// <summary>
+    /// Pipeline stall events detected by <c>PipelineHealthMonitorStage</c>.
+    /// Tags: <c>stage</c>, <c>direction</c>.
+    /// </summary>
+    public static Counter<long> PipelineStall { get; } =
+        Meter.CreateCounter<long>(
+            "turbohttp.pipeline.stall",
+            unit: "{stall}",
+            description: "Number of pipeline stall events detected");
 }

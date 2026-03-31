@@ -1,3 +1,4 @@
+<!-- maggus-id: eb898755-3148-4387-8886-5f2e24d6bcee -->
 <!-- maggus-id: 20250325-140000-feature-024 -->
 
 # Feature 024: Benchmark Comparison — TurboHttp vs Standard HttpClient
@@ -34,17 +35,17 @@ Create a comprehensive benchmark suite comparing TurboHttp's `ITurboHttpClient` 
 **Parallel:** yes — can run alongside other setup tasks
 
 **Acceptance Criteria:**
-- [ ] `BenchmarkBaseClass` created with:
+- [x] `BenchmarkBaseClass` created with:
   - `[Params(1, 4, 16, 64, 256)]` for ConcurrencyLevel
   - `[Params("light", "heavy")]` for PayloadType (no body vs 10KB)
   - `[Params(HttpVersion.Version11, HttpVersion.Version20)]` for HttpVersion
   - Public properties for derived classes
-- [ ] Helper: `CreateKestrelUri(path)` returns base URI for test server
-- [ ] Helper: `GeneratePayload(sizeBytes)` returns deterministic byte[] for consistency
-- [ ] Helper: `WarmupRequest()` async method for pre-test priming
-- [ ] Configuration: Uses EngineBenchmarkConfig (p50/p95/p100 latency columns + req/sec)
-- [ ] Typecheck/lint passes
-- [ ] Unit tests verify payload generation is deterministic
+- [x] Helper: `CreateKestrelUri(path)` returns base URI for test server
+- [x] Helper: `GeneratePayload(sizeBytes)` returns deterministic byte[] for consistency
+- [x] Helper: `WarmupRequest()` async method for pre-test priming
+- [x] Configuration: Uses EngineBenchmarkConfig (p50/p95/p100 latency columns + req/sec)
+- [x] Typecheck/lint passes
+- [x] Unit tests verify payload generation is deterministic
 
 ### TASK-024-002: Set Up Minimal Kestrel Test Server
 **Description:** As a benchmark developer, I want a real Kestrel server running on localhost with two simple routes so that both HttpClient and TurboHttp benchmarks measure through the same wire protocol stack.
@@ -56,16 +57,16 @@ Create a comprehensive benchmark suite comparing TurboHttp's `ITurboHttpClient` 
 **Model:** haiku — straightforward server setup
 
 **Acceptance Criteria:**
-- [ ] Kestrel server starts in GlobalSetup on `http://127.0.0.1:0` (dynamic port)
-- [ ] Port discovered via `IServer.Features.Get<IServerAddressesFeature>()`
-- [ ] Routes registered:
+- [x] Kestrel server starts in GlobalSetup on `http://127.0.0.1:0` (dynamic port)
+- [x] Port discovered via `IServer.Features.Get<IServerAddressesFeature>()`
+- [x] Routes registered:
   - `GET /benchmark/simple` — returns 200 OK with minimal body (e.g., "OK\n")
   - `POST /benchmark/payload` — accepts 10KB body, returns 200 OK with echo of size received
-- [ ] HTTP/1.1 support: explicit (all requests use Version11)
-- [ ] HTTP/2 support: Kestrel Alt-Svc header or ALPN upgrade path configured
-- [ ] Connection keep-alive enabled (Connection: keep-alive header)
-- [ ] Server stops cleanly in GlobalCleanup
-- [ ] Typecheck/lint passes
+- [x] HTTP/1.1 support: explicit (all requests use Version11)
+- [x] HTTP/2 support: Kestrel Alt-Svc header or ALPN upgrade path configured
+- [x] Connection keep-alive enabled (Connection: keep-alive header)
+- [x] Server stops cleanly in GlobalCleanup
+- [x] Typecheck/lint passes
 
 ### TASK-024-003: Implement HttpClient Benchmarks
 **Description:** As a benchmark developer, I want to measure standard .NET HttpClient performance across payload sizes and concurrency levels so that we have a quantified baseline for comparison.
@@ -76,22 +77,22 @@ Create a comprehensive benchmark suite comparing TurboHttp's `ITurboHttpClient` 
 **Parallel:** yes — can run alongside TASK-024-004
 
 **Acceptance Criteria:**
-- [ ] New file: `src/TurboHttp.Benchmarks/HttpClientComparativeBenchmarks.cs`
-- [ ] Extends `BenchmarkBaseClass`
-- [ ] Class: `HttpClientSingleRequestBenchmarks`
+- [x] New file: `src/TurboHttp.Benchmarks/HttpClientComparativeBenchmarks.cs`
+- [x] Extends `BenchmarkBaseClass`
+- [x] Class: `HttpClientSingleRequestBenchmarks`
   - `[Benchmark]` method: Single request throughput (light payload)
   - `[Benchmark]` method: Single request throughput (heavy payload)
   - Parameterized by HttpVersion (1.1 and 2.0)
-- [ ] Class: `HttpClientConcurrentBenchmarks`
+- [x] Class: `HttpClientConcurrentBenchmarks`
   - `[Benchmark]` method: N concurrent requests (light payload)
   - `[Benchmark]` method: N concurrent requests (heavy payload)
   - Parameterized by ConcurrencyLevel and HttpVersion
   - Uses `Task.WhenAll()` to wait for completion
-- [ ] GlobalSetup: Creates `HttpClient` with AllowAutoRedirect=false, configured for protocol version
-- [ ] GlobalCleanup: Disposes HttpClient
-- [ ] All benchmarks include `[MemoryDiagnoser]` to capture allocations
-- [ ] Warmup: 3 iterations, Target: 5 iterations, Invocations: 32 (per user spec)
-- [ ] Typecheck/lint passes
+- [x] GlobalSetup: Creates `HttpClient` with AllowAutoRedirect=false, configured for protocol version
+- [x] GlobalCleanup: Disposes HttpClient
+- [x] All benchmarks include `[MemoryDiagnoser]` to capture allocations
+- [x] Warmup: 3 iterations, Target: 5 iterations, Invocations: 32 (per user spec)
+- [x] Typecheck/lint passes
 
 ### TASK-024-004: Implement TurboHttp Benchmarks
 **Description:** As a benchmark developer, I want to measure TurboHttp's `ITurboHttpClient` performance across the same scenarios as HttpClient so that we can compare apples-to-apples throughput, latency, and memory efficiency.
@@ -102,22 +103,22 @@ Create a comprehensive benchmark suite comparing TurboHttp's `ITurboHttpClient` 
 **Parallel:** yes — can run alongside TASK-024-003
 
 **Acceptance Criteria:**
-- [ ] New file: `src/TurboHttp.Benchmarks/TurboHttpComparativeBenchmarks.cs`
-- [ ] Extends `BenchmarkBaseClass`
-- [ ] Class: `TurboHttpSingleRequestBenchmarks`
+- [x] New file: `src/TurboHttp.Benchmarks/TurboHttpComparativeBenchmarks.cs`
+- [x] Extends `BenchmarkBaseClass`
+- [x] Class: `TurboHttpSingleRequestBenchmarks`
   - `[Benchmark]` method: Single request via channel write/read (light payload)
   - `[Benchmark]` method: Single request via channel write/read (heavy payload)
   - Parameterized by HttpVersion (1.1 and 2.0)
-- [ ] Class: `TurboHttpConcurrentBenchmarks`
+- [x] Class: `TurboHttpConcurrentBenchmarks`
   - `[Benchmark]` method: N concurrent requests (light payload)
   - `[Benchmark]` method: N concurrent requests (heavy payload)
   - Parameterized by ConcurrencyLevel and HttpVersion
   - Uses `Task.WhenAll()` on N tasks, each writing request and reading response
-- [ ] GlobalSetup: Creates `ITurboHttpClient` via `ClientHelper.CreateClient()` with version override
-- [ ] GlobalCleanup: Calls `DisposeAsync()` on client
-- [ ] All benchmarks include `[MemoryDiagnoser]` to capture allocations
-- [ ] Warmup: 3 iterations, Target: 5 iterations, Invocations: 32 (per user spec)
-- [ ] Typecheck/lint passes
+- [x] GlobalSetup: Creates `ITurboHttpClient` via `ClientHelper.CreateClient()` with version override
+- [x] GlobalCleanup: Calls `DisposeAsync()` on client
+- [x] All benchmarks include `[MemoryDiagnoser]` to capture allocations
+- [x] Warmup: 3 iterations, Target: 5 iterations, Invocations: 32 (per user spec)
+- [x] Typecheck/lint passes
 
 ### TASK-024-005: Create Markdown Comparison Report Generator
 **Description:** As a benchmark developer, I want to transform BenchmarkDotNet results into a human-readable markdown report showing TurboHttp vs HttpClient performance deltas so that stakeholders can quickly understand relative performance.
@@ -128,21 +129,21 @@ Create a comprehensive benchmark suite comparing TurboHttp's `ITurboHttpClient` 
 **Parallel:** no — requires both sets of benchmark results
 
 **Acceptance Criteria:**
-- [ ] New utility class: `BenchmarkComparisonReport` in `src/TurboHttp.Benchmarks/`
-- [ ] Method: `GenerateReport(httpClientResults, turboHttpResults) → markdown string`
-- [ ] Report structure:
+- [x] New utility class: `BenchmarkComparisonReport` in `src/TurboHttp.Benchmarks/`
+- [x] Method: `GenerateReport(httpClientResults, turboHttpResults) → markdown string`
+- [x] Report structure:
   - Header: Feature version, test date, server configuration
   - Summary table: Throughput comparison (Req/sec) for single + concurrent scenarios
   - Latency table: p50/p95/p99 comparison for each scenario
   - Memory table: Allocations/op comparison for each scenario
   - Notes: CPU/GC pressure observations, any variance anomalies
-- [ ] Comparison format: Side-by-side columns (HttpClient | TurboHttp | Delta%)
+- [x] Comparison format: Side-by-side columns (HttpClient | TurboHttp | Delta%)
   - Green highlight (✓) if TurboHttp ≥ HttpClient by >5%
   - Neutral (–) if within ±5%
   - Red highlight (✗) if TurboHttp <HttpClient by >5%
-- [ ] Output: Markdown written to `benchmarks/comparison_report_<timestamp>.md`
-- [ ] Typecheck/lint passes
-- [ ] Unit tests verify table formatting and delta calculation
+- [x] Output: Markdown written to `benchmarks/comparison_report_<timestamp>.md`
+- [x] Typecheck/lint passes
+- [x] Unit tests verify table formatting and delta calculation
 
 ### TASK-024-006: Verification Gate — Run & Validate Benchmarks
 **Description:** As a benchmark developer, I want to execute the full benchmark suite with dry-run validation, verify server connectivity, and generate a sample comparison report so that all infrastructure is working before committing.

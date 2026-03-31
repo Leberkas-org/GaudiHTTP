@@ -12,8 +12,8 @@ namespace TurboHttp.StreamTests.RFC9112;
 /// Verifies that responses are matched to requests in FIFO order and that RequestMessage is correctly set.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="CorrelationHttp1XStage"/>.
-/// RFC 9112 §9.3: HTTP/1.1 pipeline ordering and request-response pairing.
+/// Stage under test: <see cref="Http1XCorrelationStage"/>.
+/// RFC 9112 §9: HTTP/1.x strict one-request-in-flight ordering and request-response pairing.
 /// </remarks>
 public sealed class Http11CorrelationStageTests : StreamTestBase
 {
@@ -35,10 +35,8 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
             var resSrc = b.Add(responseSource);
             var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
 
-            var resetSrc = b.Add(Source.Never<NotUsed>());
             b.From(reqSrc).To(corr.InRequest);
             b.From(resSrc).To(corr.InResponse);
-            b.From(resetSrc).To(corr.InReset);
             b.From(corr.OutResponse).To(s);
             b.From(corr.OutControl).To(signalSink);
 
@@ -108,17 +106,17 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
             "response.RequestMessage must be the exact same object reference as the sent request.");
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-004: Response arrives before request → correctly buffered and correlated")]
-    public async Task Should_BufferAndCorrelate_WhenResponseArrivesBeforeRequest()
+    [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-004: Request arrives, response arrives later → correctly correlated")]
+    public async Task Should_Correlate_WhenResponseArrivesAfterRequest()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/delayed");
         var response = OkResponse();
 
-        // Response source emits immediately; request source delayed by 300ms.
-        // The response will be buffered in the _waiting queue until the request arrives.
+        // Request is sent first; response is delayed by 300ms.
+        // Stage pulls InRequest first, then pulls InResponse after request arrives.
         var results = await RunStageAsync(
-            Source.Single(request).InitialDelay(TimeSpan.FromMilliseconds(300)),
-            Source.Single(response));
+            Source.Single(request),
+            Source.Single(response).InitialDelay(TimeSpan.FromMilliseconds(300)));
 
         Assert.Single(results);
         Assert.Same(request, results[0].RequestMessage);
@@ -132,7 +130,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
         var response = OkResponse();
 
         // Request source emits immediately; response source delayed by 300ms.
-        // The request will be buffered in the _pending queue until the response arrives.
+        // Stage waits for the response after pulling and storing the request.
         var results = await RunStageAsync(
             Source.Single(request),
             Source.Single(response).InitialDelay(TimeSpan.FromMilliseconds(300)));
@@ -164,10 +162,8 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
             var resSrc = b.Add(responseSource);
             var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
 
-            var resetSrc = b.Add(Source.Never<NotUsed>());
             b.From(reqSrc).To(corr.InRequest);
             b.From(resSrc).To(corr.InResponse);
-            b.From(resetSrc).To(corr.InReset);
             b.From(corr.OutResponse).To(s);
             b.From(corr.OutControl).To(signalSink);
 
@@ -180,19 +176,19 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
         await Assert.ThrowsAsync<TimeoutException>(() => task.WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken));
     }
 
-    [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-007: Stage remains open while pending requests still exist")]
-    public async Task Should_RemainOpen_WhenPendingRequestsExist()
+    [Fact(Timeout = 10_000, DisplayName = "RFC9112-9.3-11CR-007: Stage remains open while in-flight request awaits response")]
+    public async Task Should_RemainOpen_WhenInFlightRequestAwaitingResponse()
     {
-        // Send 2 requests but only 1 response.
-        // The response source stays open (via Concat+Never) so the stage cannot
-        // complete due to upstream finish — only the pending request queue keeps it alive.
+        // Send 2 requests but keep the response source open after delivering only 1 response.
+        // The second request is pulled after the first response; it waits for its response
+        // indefinitely (Never) — the stage must remain open.
         var request1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/1");
         var request2 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/2");
         var response1 = OkResponse();
 
         var sink = Sink.Seq<HttpResponseMessage>();
 
-        // Keep the response source open so only pending-request logic matters.
+        // Keep the response source open so only the in-flight back-pressure matters.
         var neverEndingResponses = Source.Single(response1)
             .Concat(Source.Never<HttpResponseMessage>());
 
@@ -203,10 +199,8 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
             var resSrc = b.Add(neverEndingResponses);
             var signalSink = b.Add(Sink.Ignore<IControlItem>().MapMaterializedValue(_ => NotUsed.Instance));
 
-            var resetSrc = b.Add(Source.Never<NotUsed>());
             b.From(reqSrc).To(corr.InRequest);
             b.From(resSrc).To(corr.InResponse);
-            b.From(resetSrc).To(corr.InReset);
             b.From(corr.OutResponse).To(s);
             b.From(corr.OutControl).To(signalSink);
 
@@ -215,8 +209,7 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
 
         var task = graph.Run(Materializer);
 
-        // The stream should NOT complete because there is still a pending request
-        // with no matching response. Wait briefly and verify it's still running.
+        // The stream should NOT complete because request2 is in flight with no matching response.
         var completed = task.WaitAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 
         await Assert.ThrowsAsync<TimeoutException>(() => completed);
@@ -237,10 +230,8 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
             var resSrc = b.Add(Source.Single(response));
             var responseSink = b.Add(Sink.Ignore<HttpResponseMessage>().MapMaterializedValue(_ => NotUsed.Instance));
 
-            var resetSrc = b.Add(Source.Never<NotUsed>());
             b.From(reqSrc).To(corr.InRequest);
             b.From(resSrc).To(corr.InResponse);
-            b.From(resetSrc).To(corr.InReset);
             b.From(corr.OutResponse).To(responseSink);
             b.From(corr.OutControl).To(s);
 
@@ -278,10 +269,8 @@ public sealed class Http11CorrelationStageTests : StreamTestBase
             var resSrc = b.Add(Source.From(responses));
             var responseSink = b.Add(Sink.Ignore<HttpResponseMessage>().MapMaterializedValue(_ => NotUsed.Instance));
 
-            var resetSrc = b.Add(Source.Never<NotUsed>());
             b.From(reqSrc).To(corr.InRequest);
             b.From(resSrc).To(corr.InResponse);
-            b.From(resetSrc).To(corr.InReset);
             b.From(corr.OutResponse).To(responseSink);
             b.From(corr.OutControl).To(s);
 
