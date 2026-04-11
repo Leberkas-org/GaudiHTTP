@@ -52,28 +52,34 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
 
         public readonly Queue<T> Pending = new();
 
-        /// <summary>
-        /// Number of items currently buffered in the channel and not yet consumed by the downstream stage.
-        /// Incremented by <c>DrainPending</c> on each successful write; decremented by <c>_onChannelConsumed</c>.
-        /// </summary>
-        public int OfferingCount;
+        /// <summary>The endpoint key this slot belongs to, so write-ready callbacks can look up the group.</summary>
+        public readonly RequestEndpoint Key;
 
-        /// <summary>Maximum number of items that may be simultaneously in-flight in the channel.</summary>
-        public readonly int MaxOffering;
+        /// <summary>
+        /// True when a <see cref="System.Threading.Channels.ChannelWriter{T}.WaitToWriteAsync"/>
+        /// callback is pending. Prevents duplicate registrations.
+        /// </summary>
+        public bool WaitingForWrite;
+
+        /// <summary>
+        /// Pre-allocated delegate for <c>WaitToWriteAsync().OnCompleted()</c> to avoid
+        /// per-wait closure allocation.
+        /// </summary>
+        public Action? WriteReadyCallback;
 
         public bool WatchRegistered;
 
-        public SubflowState(ChannelSourceStage<T> channelStage, int maxOffering = 1)
+        public SubflowState(ChannelSourceStage<T> channelStage, RequestEndpoint key)
         {
             ChannelStage = channelStage;
             WatchTask = channelStage.Completion;
-            MaxOffering = maxOffering;
+            Key = key;
         }
 
         public bool IsDead => WatchTask.IsCompleted;
 
         /// <summary>True when this slot can accept at least one more item.</summary>
-        public bool HasCapacity => !IsDead && OfferingCount < MaxOffering;
+        public bool HasCapacity => !IsDead && !WaitingForWrite;
 
         /// <summary>Total items queued (channel + local pending) for load-balancing purposes.</summary>
         public int TotalPending => Pending.Count + ChannelStage.Count;
@@ -198,7 +204,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
         private readonly GroupByRequestEndpointStage<T> _stage;
         private readonly Dictionary<RequestEndpoint, SubflowGroup> _subflows = new();
         private readonly Queue<Source<T, NotUsed>> _pendingSources = new();
-        private Action<(RequestEndpoint Key, SubflowState State)>? _onChannelConsumed;
+        private Action<SubflowState>? _onWriteReady;
         private Action<NotUsed>? _onSubstreamDied;
         private bool _upstreamFinished;
         private int _totalSlotCount;
@@ -232,46 +238,36 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
         {
             _onSubstreamDied = GetAsyncCallback<NotUsed>(_ => TryCompleteStage());
 
-            // Fired by ChannelSourceStage when it reads an item — meaning the channel slot has
-            // capacity again and the next item from the local Pending queue can be forwarded.
-            // This replaces the old _onOfferComplete + Task.WhenAny approach, eliminating
-            // one Akka actor round-trip per item on the write path.
-            _onChannelConsumed =
-                GetAsyncCallback<(RequestEndpoint Key, SubflowState State)>(tuple =>
+            // Fired when a channel transitions from full to non-full (WaitToWriteAsync resolves).
+            // Unlike the old batched ack system, this fires as soon as ONE slot opens — immediate
+            // 1-item granularity backpressure feedback.
+            _onWriteReady = GetAsyncCallback<SubflowState>(state =>
+            {
+                state.WaitingForWrite = false;
+
+                if (!_subflows.TryGetValue(state.Key, out var group) || !group.ContainsSlot(state))
                 {
-                    var (key, originState) = tuple;
+                    return; // stale callback from evicted slot
+                }
 
-                    if (!_subflows.TryGetValue(key, out var group))
-                    {
-                        return;
-                    }
+                if (state.IsDead)
+                {
+                    HandleDeadSlot(state.Key, group, state);
+                    return;
+                }
 
-                    // Guard against stale callbacks from a slot that was already evicted.
-                    if (!group.ContainsSlot(originState))
-                    {
-                        return;
-                    }
+                DrainPending(state.Key, state);
 
-                    originState.OfferingCount--;
-
-                    if (originState.IsDead)
-                    {
-                        HandleDeadSlot(key, group, originState);
-                        return;
-                    }
-
-                    DrainPending(key, originState);
-
-                    if (_upstreamFinished)
-                    {
-                        TryFinish();
-                        TryCompleteStage();
-                    }
-                    else if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in))
-                    {
-                        Pull(_stage._in);
-                    }
-                });
+                if (_upstreamFinished)
+                {
+                    TryFinish();
+                    TryCompleteStage();
+                }
+                else if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in))
+                {
+                    Pull(_stage._in);
+                }
+            });
         }
 
         // Defers completion until all live subflows are drained.
@@ -281,7 +277,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             {
                 foreach (var state in group.AllSlots)
                 {
-                    if (!state.IsDead && (state.Pending.Count > 0 || state.OfferingCount > 0))
+                    if (!state.IsDead && state.Pending.Count > 0)
                     {
                         Log.Debug("GroupByHostKeyStage: TryFinish deferred — subflows still draining");
                         return; // still draining
@@ -320,20 +316,30 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                 return;
             }
 
+            // Single-pass: count alive slots AND register WatchTask callbacks
+            // in the same loop. Two separate loops had a race where IsDead could
+            // flip between the counting pass and the registration pass, leaving
+            // aliveCount > 0 but zero callbacks registered → permanent deadlock.
             var aliveCount = 0;
-            var idleAlive = 0;
+            var callback = _onSubstreamDied!;
 
             foreach (var group in _subflows.Values)
             {
                 foreach (var slot in group.AllSlots)
                 {
-                    if (slot.IsDead) { continue; }
+                    if (slot.IsDead)
+                    {
+                        continue;
+                    }
 
                     aliveCount++;
 
-                    if (slot is { OfferingCount: 0, Pending.Count: 0 })
+                    if (!slot.WatchRegistered)
                     {
-                        idleAlive++;
+                        slot.WatchRegistered = true;
+                        slot.WatchTask.ContinueWith(
+                            _ => callback(NotUsed.Instance),
+                            TaskContinuationOptions.ExecuteSynchronously);
                     }
                 }
             }
@@ -341,27 +347,8 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             if (aliveCount > 0)
             {
                 Log.Debug(
-                    "GroupByHostKeyStage: deferring completion, {0} substreams still alive ({1} idle but not yet dead)",
-                    aliveCount, idleAlive);
-
-                // Register a callback on each alive substream's WatchTask so we
-                // re-check once it dies.  Without this, nobody would re-invoke
-                // TryCompleteStage after TryFinish has already completed the queues.
-                var callback = _onSubstreamDied!;
-                foreach (var group in _subflows.Values)
-                {
-                    foreach (var state in group.AllSlots)
-                    {
-                        if (state is { IsDead: false, WatchRegistered: false })
-                        {
-                            state.WatchRegistered = true;
-                            state.WatchTask.ContinueWith(
-                                _ => callback(NotUsed.Instance),
-                                TaskContinuationOptions.ExecuteSynchronously);
-                        }
-                    }
-                }
-
+                    "GroupByHostKeyStage: deferring completion, {0} substreams still alive",
+                    aliveCount);
                 return;
             }
 
@@ -454,7 +441,8 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                 }
             }
 
-            if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in) && _pendingSources.Count == 0)
+            if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in)
+                && _pendingSources.Count == 0)
             {
                 Pull(_stage._in);
             }
@@ -492,21 +480,13 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             Log.Debug("GroupByHostKeyStage: creating new substream key={0}:{1}, total={2}", key.Host, key.Port,
                 _subflows.Count);
 
-            // Late-bound capture: the state is created after the channel stage so the
-            // consumed callback can reference it without a circular dependency.
-            var consumedCallback = _onChannelConsumed!;
-            var capturedKey = key;
-            SubflowState? capturedState = null;
-
             var maxOffering = _stage._maxConcurrencyPerSlot(key);
-            var channelStage = new ChannelSourceStage<T>(
-                capacity: maxOffering,
-                onConsumed: () => consumedCallback((capturedKey, capturedState!)));
+            var channelCapacity = Math.Max(maxOffering, 16);
+            var channelStage = new ChannelSourceStage<T>(capacity: channelCapacity);
 
             var (_, source) = Source.FromGraph(channelStage).Async().PreMaterialize(SubFusingMaterializer);
 
-            var state = new SubflowState(channelStage, maxOffering);
-            capturedState = state;
+            var state = new SubflowState(channelStage, key);
 
             group.AddSlot(state);
             _totalSlotCount++;
@@ -594,10 +574,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
 
         private void DrainPending(RequestEndpoint key, SubflowState state)
         {
-            // Fill the channel up to MaxOffering in one pass — no Akka round-trip between items.
-            // _onChannelConsumed fires per consumed item and decrements OfferingCount, allowing
-            // further draining without waiting for the whole channel to empty first.
-            while (state is { HasCapacity: true, Pending.Count: > 0 })
+            while (state.Pending.Count > 0)
             {
                 if (state.IsDead)
                 {
@@ -605,26 +582,74 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                     {
                         HandleDeadSlot(key, grp, state);
                     }
+
                     return;
                 }
 
-                var item = state.Pending.Dequeue();
-
+                var item = state.Pending.Peek();
                 if (state.ChannelStage.Writer.TryWrite(item))
                 {
-                    state.OfferingCount++;
+                    state.Pending.Dequeue();
                 }
                 else
                 {
-                    // Channel full or completed unexpectedly — re-enqueue and bail.
-                    state.Pending.Enqueue(item);
-                    if (state.IsDead && _subflows.TryGetValue(key, out var grp))
-                    {
-                        HandleDeadSlot(key, grp, state);
-                    }
+                    // Channel full — register for write-ready notification.
+                    ScheduleWriteReady(state);
                     return;
                 }
             }
+        }
+
+        private void ScheduleWriteReady(SubflowState state)
+        {
+            if (state.WaitingForWrite)
+            {
+                return; // already registered
+            }
+
+            state.WaitingForWrite = true;
+
+            var vt = state.ChannelStage.Writer.WaitToWriteAsync();
+
+            // Fast path: space already available (race with reader)
+            if (vt.IsCompleted)
+            {
+                state.WaitingForWrite = false;
+                if (vt is { IsCompletedSuccessfully: true, Result: true })
+                {
+                    DrainPending(state.Key, state);
+                }
+
+                return;
+            }
+
+            // Slow path: register callback. Reuse pre-allocated delegate to avoid
+            // per-wait closure allocation.
+            var cb = _onWriteReady!;
+            state.WriteReadyCallback ??= () => cb(state);
+            vt.GetAwaiter().OnCompleted(state.WriteReadyCallback);
+        }
+
+        /// <summary>
+        /// Returns true if at least one slot across all endpoints can accept items.
+        /// When all slots are full (WaitingForWrite), upstream pull is suppressed —
+        /// backpressure propagates to the user's request channel.
+        /// </summary>
+        private bool AnySlotHasCapacity()
+        {
+            foreach (var group in _subflows.Values)
+            {
+                foreach (var slot in group.AllSlots)
+                {
+                    if (slot.HasCapacity)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            // No subflows yet — allow pull so the first item can create a subflow
+            return _subflows.Count == 0;
         }
     }
 }

@@ -49,10 +49,9 @@ public static class SummaryExtractor
     {
         var method = benchmarkCase.Descriptor.WorkloadMethod.Name;
         var concurrency = GetParam(benchmarkCase, "ConcurrencyLevel") ?? "1";
-        var payload = GetParam(benchmarkCase, "PayloadType") ?? "light";
         var version = GetParam(benchmarkCase, "HttpVersion") ?? "1.1";
 
-        return $"{method} / CL={concurrency} / {payload} / HTTP {version}";
+        return $"{method} / CL={concurrency} / HTTP {version}";
     }
 
     private static string? GetParam(BenchmarkCase benchmarkCase, string paramName)

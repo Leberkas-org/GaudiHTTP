@@ -197,11 +197,11 @@ public sealed class LoggingBridgeSpec : IAsyncLifetime
         var entries = _capture.Entries.ToList();
 
         Assert.Contains(entries, e =>
-            e is { CategoryName: "TurboHttp.Trace.Request", Level: LogLevel.Information } &&
+            e is { CategoryName: "TurboHTTP.Trace.Request", Level: LogLevel.Information } &&
             e.Message.Contains("Request started:", StringComparison.OrdinalIgnoreCase));
 
         Assert.Contains(entries, e =>
-            e is { CategoryName: "TurboHttp.Trace.Request", Level: LogLevel.Information } &&
+            e is { CategoryName: "TurboHTTP.Trace.Request", Level: LogLevel.Information } &&
             e.Message.Contains("Request completed:", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -219,7 +219,7 @@ public sealed class LoggingBridgeSpec : IAsyncLifetime
         var entries = _capture.Entries.ToList();
 
         Assert.Contains(entries, e =>
-            e is { CategoryName: "TurboHttp.Trace.Connection", Level: LogLevel.Information } &&
+            e is { CategoryName: "TurboHTTP.Trace.Connection", Level: LogLevel.Information } &&
             e.Message.Contains("Connection opened:", StringComparison.OrdinalIgnoreCase));
     }
 

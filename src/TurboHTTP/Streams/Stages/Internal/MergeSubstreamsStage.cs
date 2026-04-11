@@ -28,13 +28,16 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
     {
         private readonly MergeSubstreamsStage<T> _stage;
 
-        private readonly Queue<T> _buffer = new();
-        private int _active;
-        private bool _upstreamDone;
+        /// <summary>
+        /// SubSinkInlets that have pushed an element but the outlet was busy.
+        /// On the next <c>_out</c> pull we grab from the first ready sink.
+        /// </summary>
+        private readonly Queue<SubSinkInlet<T>> _readyQueue = new();
 
-        private Action<T>? _onElement;
-        private Action? _onSubstreamDone;
-        private Action<Exception>? _onSubstreamFailed;
+        /// <summary>All currently active SubSinkInlets — needed for cleanup.</summary>
+        private readonly List<SubSinkInlet<T>> _activeSinks = [];
+
+        private bool _upstreamDone;
 
         public Logic(MergeSubstreamsStage<T> stage) : base(stage.Shape)
         {
@@ -44,34 +47,22 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                 onPush: () =>
                 {
                     var source = Grab(stage._in);
-                    _active++;
 
-                    source
-                        .RunWith(Sink.ForEach<T>(elem => _onElement!(elem)), SubFusingMaterializer)
-                        .ContinueWith(
-                            t =>
-                            {
-                                if (t.IsFaulted)
-                                {
-                                    _onSubstreamFailed!(t.Exception!.GetBaseException());
-                                }
-                                else
-                                {
-                                    _onSubstreamDone!();
-                                }
-                            }, TaskContinuationOptions.ExecuteSynchronously);
+                    MaterializeSubstream(source);
 
-                    if (_active < _stage._maxConcurrent && !HasBeenPulled(stage._in))
+                    if (_activeSinks.Count < _stage._maxConcurrent && !HasBeenPulled(stage._in))
                     {
                         Pull(stage._in);
                     }
                 },
                 onUpstreamFinish: () =>
                 {
+
                     _upstreamDone = true;
 
-                    if (_active == 0 && _buffer.Count == 0)
+                    if (_activeSinks.Count == 0 && _readyQueue.Count == 0)
                     {
+
                         CompleteStage();
                     }
                 },
@@ -84,7 +75,7 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                     // actors linger after materializer shutdown.
                     _upstreamDone = true;
 
-                    if (_active == 0 && _buffer.Count == 0)
+                    if (_activeSinks.Count == 0 && _readyQueue.Count == 0)
                     {
                         CompleteStage();
                     }
@@ -93,65 +84,103 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
             SetHandler(stage._out,
                 onPull: () =>
                 {
-                    if (_buffer.TryDequeue(out var elem))
+                    // First try to drain from a substream that already has data ready.
+                    // A sink may have completed (onUpstreamFinish) while its last pushed
+                    // element was parked in _readyQueue. We must still Grab() that element
+                    // — only skip Pull() since the sink is done.
+                    while (_readyQueue.TryDequeue(out var readySink))
                     {
+                        var isActive = _activeSinks.Contains(readySink);
+                        var elem = readySink.Grab();
                         Push(stage._out, elem);
+                        if (isActive)
+                        {
+                            readySink.Pull();
+                        }
+
+                        return;
                     }
-                    else if (!_upstreamDone && !HasBeenPulled(stage._in) && _active < _stage._maxConcurrent)
+
+                    // No ready sinks — pull all active sinks that haven't been pulled
+                    foreach (var sink in _activeSinks)
+                    {
+                        if (!sink.HasBeenPulled && !sink.IsClosed)
+                        {
+                            sink.Pull();
+                        }
+                    }
+
+                    // Also try to accept more substreams
+                    if (!_upstreamDone && !HasBeenPulled(stage._in) && _activeSinks.Count < _stage._maxConcurrent)
                     {
                         Pull(stage._in);
                     }
-                    // else: wait for next _onElement callback
+
+                    // All substreams may have completed while their elements were
+                    // in _readyQueue. Now that the queue is drained, check completion.
+                    if (_upstreamDone && _activeSinks.Count == 0 && _readyQueue.Count == 0)
+                    {
+                        CompleteStage();
+                    }
                 });
         }
 
         public override void PreStart()
         {
-            _onElement = GetAsyncCallback<T>(elem =>
-            {
-                if (IsAvailable(_stage._out))
-                {
-                    Push(_stage._out, elem);
-                }
-                else
-                {
-                    _buffer.Enqueue(elem);
-                }
-            });
-
-            _onSubstreamDone = GetAsyncCallback(() =>
-            {
-                _active--;
-
-                switch (_upstreamDone)
-                {
-                    case true when _active == 0 && _buffer.Count == 0:
-                        CompleteStage();
-                        return;
-                    case false when !HasBeenPulled(_stage._in) && _active < _stage._maxConcurrent:
-                        Pull(_stage._in);
-                        break;
-                }
-            });
-
-            _onSubstreamFailed = GetAsyncCallback<Exception>(ex =>
-            {
-                _active--;
-                Log.Warning("MergeSubstreamsStage: Substream failed, absorbed: {0}", ex.Message);
-
-                if (_upstreamDone && _active == 0 && _buffer.Count == 0)
-                {
-                    CompleteStage();
-                    return;
-                }
-
-                if (!_upstreamDone && !HasBeenPulled(_stage._in) && _active < _stage._maxConcurrent)
-                {
-                    Pull(_stage._in);
-                }
-            });
-
             Pull(_stage._in);
+        }
+
+        private void MaterializeSubstream(Source<T, NotUsed> source)
+        {
+            var subSink = new SubSinkInlet<T>(this, $"MergeSubstreams.SubSink.{_activeSinks.Count}");
+            _activeSinks.Add(subSink);
+
+            subSink.SetHandler(new LambdaInHandler(
+                onPush: () =>
+                {
+                    if (IsAvailable(_stage._out))
+                    {
+                        var elem = subSink.Grab();
+    
+                        Push(_stage._out, elem);
+                        subSink.Pull();
+                    }
+                    else
+                    {
+
+                        // Outlet is busy — park this sink in the ready queue
+                        _readyQueue.Enqueue(subSink);
+                    }
+                },
+                onUpstreamFinish: () => OnSubstreamComplete(subSink),
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("MergeSubstreamsStage: Substream failed, absorbed: {0}", ex.Message);
+                    OnSubstreamComplete(subSink);
+                }));
+
+            source.RunWith(Sink.FromGraph(subSink.Sink), SubFusingMaterializer);
+
+            // Start pulling from this substream immediately
+            subSink.Pull();
+        }
+
+        private void OnSubstreamComplete(SubSinkInlet<T> subSink)
+        {
+            _activeSinks.Remove(subSink);
+
+
+            if (_upstreamDone && _activeSinks.Count == 0 && _readyQueue.Count == 0)
+            {
+
+                CompleteStage();
+                return;
+            }
+
+            if (!_upstreamDone && !HasBeenPulled(_stage._in) && _activeSinks.Count < _stage._maxConcurrent)
+            {
+                Pull(_stage._in);
+            }
         }
     }
 }

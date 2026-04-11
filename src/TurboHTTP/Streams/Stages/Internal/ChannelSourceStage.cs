@@ -11,16 +11,16 @@ namespace TurboHTTP.Streams.Stages.Internal;
 /// <para>
 /// The key advantage over <c>Source.Queue</c> is that the producer (GroupBy stage) writes items
 /// via a synchronous <see cref="System.Threading.Channels.ChannelWriter{T}.TryWrite"/> call with no
-/// Akka actor Ask round-trip. The consumer (this stage) signals capacity via an
-/// <paramref name="onConsumed"/> callback after each item is pushed downstream, allowing the
-/// producer to drain its local pending queue.
+/// Akka actor Ask round-trip. Backpressure is provided by the channel's bounded capacity:
+/// when the channel is full, <c>TryWrite</c> returns false and the producer registers a
+/// <see cref="System.Threading.Channels.ChannelWriter{T}.WaitToWriteAsync"/> callback to
+/// resume draining once space opens.
 /// </para>
 /// </summary>
 /// <typeparam name="T">The element type flowing through the stage.</typeparam>
 internal sealed class ChannelSourceStage<T> : GraphStage<SourceShape<T>>
 {
     private readonly Channel<T> _channel;
-    private readonly Action? _onConsumed;
     private readonly TaskCompletionSource _completionTcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -46,10 +46,10 @@ internal sealed class ChannelSourceStage<T> : GraphStage<SourceShape<T>>
     /// </summary>
     internal int Count => _channel.Reader.Count;
 
-    public ChannelSourceStage(int capacity, Action? onConsumed = null)
+    public ChannelSourceStage(int capacity)
     {
-        _onConsumed = onConsumed;
-        _channel = Channel.CreateBounded<T>(new BoundedChannelOptions(capacity)
+        var channelCapacity = Math.Max(capacity, 1);
+        _channel = Channel.CreateBounded<T>(new BoundedChannelOptions(channelCapacity)
         {
             SingleReader = true,
             SingleWriter = true,
@@ -111,11 +111,10 @@ internal sealed class ChannelSourceStage<T> : GraphStage<SourceShape<T>>
                 if (IsAvailable(_stage._out))
                 {
                     Push(_stage._out, item);
-                    _stage._onConsumed?.Invoke();
                 }
             });
 
-            _onChannelDoneCallback = GetAsyncCallback(() => CompleteStage());
+            _onChannelDoneCallback = GetAsyncCallback(CompleteStage);
         }
 
         public override void PostStop()
@@ -129,7 +128,6 @@ internal sealed class ChannelSourceStage<T> : GraphStage<SourceShape<T>>
             if (_stage._channel.Reader.TryRead(out var item))
             {
                 Push(_stage._out, item);
-                _stage._onConsumed?.Invoke();
                 return;
             }
 
@@ -152,12 +150,16 @@ internal sealed class ChannelSourceStage<T> : GraphStage<SourceShape<T>>
                     _stage._channel.Reader.TryRead(out var item))
                 {
                     Push(_stage._out, item);
-                    _stage._onConsumed?.Invoke();
                 }
                 else if (!vt.IsCompletedSuccessfully || !vt.Result)
                 {
                     // Channel completed with no more items.
-                    _onChannelDoneCallback!();
+                    // Call CompleteStage() directly — we are already inside the
+                    // interpreter (onPull handler). Using _onChannelDoneCallback
+                    // (a GetAsyncCallback) from within the interpreter posts to
+                    // the async mailbox which may never be processed, causing a
+                    // deadlock.
+                    CompleteStage();
                 }
                 return;
             }

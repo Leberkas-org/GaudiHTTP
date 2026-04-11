@@ -3,7 +3,7 @@
     <PropertyGroup>
         <Authors>st0o0</Authors>
         <Title>TurboHTTP</Title>
-        <PackageTags>HttpClient;Akka</PackageTags>
+        <PackageTags>HttpClient;Akka;Streams;Turbo</PackageTags>
         <PackageIcon>icon.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>

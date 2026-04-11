@@ -1,11 +1,11 @@
-﻿using System.Text;
+using System.Text;
 
 namespace TurboHTTP.Benchmarks.Internal;
 
 /// <summary>
 /// Represents the measured result of a single benchmark scenario.
 /// </summary>
-/// <param name="BenchmarkName">Scenario identifier, e.g. "SingleRequest_Light / HTTP 1.1".</param>
+/// <param name="BenchmarkName">Scenario identifier, e.g. "SingleRequest_Light / CL=1 / HTTP 1.1".</param>
 /// <param name="MeanNanoseconds">Mean elapsed time per operation in nanoseconds.</param>
 /// <param name="P50Nanoseconds">Median (50th-percentile) latency in nanoseconds.</param>
 /// <param name="P95Nanoseconds">95th-percentile latency in nanoseconds.</param>
@@ -20,37 +20,62 @@ public sealed record BenchmarkResult(
     long AllocatedBytes);
 
 /// <summary>
-/// Generates human-readable markdown reports comparing TurboHttp against standard
-/// <see cref="System.Net.Http.HttpClient"/> benchmark results.
+/// Generates human-readable markdown reports comparing TurboHttp (SendAsync and Streaming)
+/// against standard <see cref="System.Net.Http.HttpClient"/> benchmark results.
 /// </summary>
 public static class BenchmarkComparisonReport
 {
     private const double DeltaThresholdPercent = 5.0;
 
     /// <summary>
-    /// Generates a markdown report string comparing <paramref name="httpClientResults"/>
-    /// against <paramref name="turboHttpResults"/>, with an optional concurrent-benchmark section.
+    /// Generates a three-way markdown report comparing HttpClient, TurboHttp SendAsync, and
+    /// TurboHttp Streaming across single-request and concurrent benchmark scenarios.
     /// </summary>
     /// <param name="httpClientResults">Baseline HttpClient single-request benchmark results.</param>
-    /// <param name="turboHttpResults">TurboHttp single-request benchmark results.</param>
+    /// <param name="turboSendAsyncResults">TurboHttp SendAsync single-request results.</param>
+    /// <param name="turboStreamingResults">TurboHttp Streaming single-request results.</param>
     /// <param name="httpClientConcurrentResults">Baseline HttpClient concurrent benchmark results.</param>
-    /// <param name="turboHttpConcurrentResults">TurboHttp concurrent benchmark results.</param>
-    /// <returns>A markdown-formatted comparison report.</returns>
+    /// <param name="turboSendAsyncConcurrentResults">TurboHttp SendAsync concurrent results.</param>
+    /// <param name="turboStreamingConcurrentResults">TurboHttp Streaming concurrent results.</param>
+    /// <returns>A markdown-formatted three-way comparison report.</returns>
     public static string GenerateReport(
         IReadOnlyList<BenchmarkResult> httpClientResults,
-        IReadOnlyList<BenchmarkResult> turboHttpResults,
+        IReadOnlyList<BenchmarkResult> turboSendAsyncResults,
+        IReadOnlyList<BenchmarkResult> turboStreamingResults,
         IReadOnlyList<BenchmarkResult> httpClientConcurrentResults,
-        IReadOnlyList<BenchmarkResult> turboHttpConcurrentResults)
+        IReadOnlyList<BenchmarkResult> turboSendAsyncConcurrentResults,
+        IReadOnlyList<BenchmarkResult> turboStreamingConcurrentResults)
     {
         var sb = new StringBuilder();
         var now = DateTime.UtcNow;
 
-        AppendHeader(sb, now);
-        AppendThroughputTable(sb, httpClientResults, turboHttpResults);
-        AppendLatencyTable(sb, httpClientResults, turboHttpResults);
-        AppendMemoryTable(sb, httpClientResults, turboHttpResults);
-        AppendConcurrentSections(sb, httpClientConcurrentResults, turboHttpConcurrentResults);
-        AppendNotes(sb);
+        AppendBinkrakenHeader(sb, now);
+
+        foreach (var version in new[] { "1.1", "2.0" })
+        {
+            var httpSingle = FilterByVersion(httpClientResults, version);
+            var sendSingle = FilterByVersion(turboSendAsyncResults, version);
+            var streamSingle = FilterByVersion(turboStreamingResults, version);
+            var httpConc = FilterByVersion(httpClientConcurrentResults, version);
+            var sendConc = FilterByVersion(turboSendAsyncConcurrentResults, version);
+            var streamConc = FilterByVersion(turboStreamingConcurrentResults, version);
+
+            if (httpSingle.Count == 0 && sendSingle.Count == 0 && streamSingle.Count == 0
+                && httpConc.Count == 0 && sendConc.Count == 0 && streamConc.Count == 0)
+            {
+                continue;
+            }
+
+            sb.AppendLine($"# HTTP/{version}");
+            sb.AppendLine();
+
+            AppendThroughputTable(sb, httpSingle, sendSingle, streamSingle);
+            AppendLatencyTable(sb, httpSingle, sendSingle, streamSingle);
+            AppendMemoryTable(sb, httpSingle, sendSingle, streamSingle);
+            AppendConcurrentSections(sb, httpConc, sendConc, streamConc);
+        }
+
+        AppendBinkrakenNotes(sb);
 
         return sb.ToString();
     }
@@ -73,44 +98,148 @@ public static class BenchmarkComparisonReport
         return filePath;
     }
 
-    // Private helpers
+    // ── Section builders ───────────────────────────────────────────────────────
 
-    private static void AppendHeader(StringBuilder sb, DateTime reportDate)
+    private static void AppendBinkrakenHeader(StringBuilder sb, DateTime reportDate)
     {
-        sb.AppendLine("# TurboHttp vs HttpClient — Performance Comparison");
+        sb.AppendLine("# TurboHttp vs HttpClient — Binkraken.com (Remote HTTPS)");
         sb.AppendLine();
         sb.AppendLine("| | |");
         sb.AppendLine("|---|---|");
         sb.AppendLine($"| **Report date** | {reportDate:yyyy-MM-dd HH:mm} UTC |");
-        sb.AppendLine("| **Server** | Kestrel on 127.0.0.1 (loopback) |");
-        sb.AppendLine("| **Protocol** | HTTP/1.1 and HTTP/2 (h2c) |");
-        sb.AppendLine("| **Warmup** | 3 iterations · 5 target · 32 invocations |");
+        sb.AppendLine("| **Server** | binkraken.com (GitHub Pages CDN) |");
+        sb.AppendLine("| **Protocol** | HTTPS — HTTP/1.1 and HTTP/2 (ALPN) |");
+        sb.AppendLine("| **Light endpoint** | `GET /` (~3 KB HTML) |");
+        sb.AppendLine("| **Heavy endpoint** | `GET /assets/…plugin-vue_export-helper….js` (~159 KB) |");
         sb.AppendLine();
-        sb.AppendLine("> **Legend:** ✓ TurboHttp faster by >5%   –  within ±5%   ✗ TurboHttp slower by >5%");
+        sb.AppendLine("> **Legend:**");
+        sb.AppendLine("> - ✓  faster than HttpClient by >5%");
+        sb.AppendLine("> - –  within ±5% of HttpClient");
+        sb.AppendLine("> - ✗  slower than HttpClient by >5%");
+        sb.AppendLine("> - **Δ%** is relative to the HttpClient baseline (positive = faster/cheaper)");
         sb.AppendLine();
     }
+
+    private static void AppendBinkrakenNotes(StringBuilder sb)
+    {
+        sb.AppendLine("## Notes");
+        sb.AppendLine();
+        sb.AppendLine("- All requests target binkraken.com over real internet (HTTPS/TLS).");
+        sb.AppendLine("- Results include DNS resolution, TLS handshake (first request), and network latency.");
+        sb.AppendLine("- Light: `GET /` returns the SPA index (~3 KB). Heavy: `GET /assets/…` returns a JS bundle (~159 KB).");
+        sb.AppendLine("- HTTP/2 is negotiated via ALPN over TLS — no cleartext h2c.");
+        sb.AppendLine("- Variance may be higher than loopback benchmarks due to network jitter and CDN caching.");
+        sb.AppendLine("- Memory figures reflect managed allocations only; native/pooled buffers are not included.");
+        sb.AppendLine("- **Streaming** uses the channel API (`Requests` writer / `Responses` reader).");
+        sb.AppendLine("- **SendAsync** uses `Task.WhenAll` fan-out; each concurrent slot gets its own `Task<HttpResponseMessage>`.");
+        sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Generates a three-way markdown report comparing HttpClient, TurboHttp SendAsync, and
+    /// TurboHttp Streaming across single-request and concurrent benchmark scenarios
+    /// for the localhost Kestrel test server.
+    /// </summary>
+    public static string GenerateKestrelReport(
+        IReadOnlyList<BenchmarkResult> httpClientResults,
+        IReadOnlyList<BenchmarkResult> turboSendAsyncResults,
+        IReadOnlyList<BenchmarkResult> turboStreamingResults,
+        IReadOnlyList<BenchmarkResult> httpClientConcurrentResults,
+        IReadOnlyList<BenchmarkResult> turboSendAsyncConcurrentResults,
+        IReadOnlyList<BenchmarkResult> turboStreamingConcurrentResults)
+    {
+        var sb = new StringBuilder();
+        var now = DateTime.UtcNow;
+
+        AppendKestrelHeader(sb, now);
+
+        foreach (var version in new[] { "1.1", "2.0" })
+        {
+            var httpSingle = FilterByVersion(httpClientResults, version);
+            var sendSingle = FilterByVersion(turboSendAsyncResults, version);
+            var streamSingle = FilterByVersion(turboStreamingResults, version);
+            var httpConc = FilterByVersion(httpClientConcurrentResults, version);
+            var sendConc = FilterByVersion(turboSendAsyncConcurrentResults, version);
+            var streamConc = FilterByVersion(turboStreamingConcurrentResults, version);
+
+            if (httpSingle.Count == 0 && sendSingle.Count == 0 && streamSingle.Count == 0
+                && httpConc.Count == 0 && sendConc.Count == 0 && streamConc.Count == 0)
+            {
+                continue;
+            }
+
+            sb.AppendLine($"# HTTP/{version}");
+            sb.AppendLine();
+
+            AppendThroughputTable(sb, httpSingle, sendSingle, streamSingle);
+            AppendLatencyTable(sb, httpSingle, sendSingle, streamSingle);
+            AppendMemoryTable(sb, httpSingle, sendSingle, streamSingle);
+            AppendConcurrentSections(sb, httpConc, sendConc, streamConc);
+        }
+
+        AppendKestrelNotes(sb);
+
+        return sb.ToString();
+    }
+
+    private static void AppendKestrelHeader(StringBuilder sb, DateTime reportDate)
+    {
+        sb.AppendLine("# TurboHttp vs HttpClient — Localhost Kestrel (Loopback)");
+        sb.AppendLine();
+        sb.AppendLine("| | |");
+        sb.AppendLine("|---|---|");
+        sb.AppendLine($"| **Report date** | {reportDate:yyyy-MM-dd HH:mm} UTC |");
+        sb.AppendLine("| **Server** | localhost Kestrel (127.0.0.1, dynamic port) |");
+        sb.AppendLine("| **Protocol** | HTTP cleartext — HTTP/1.1 and HTTP/2 (h2c prior knowledge) |");
+        sb.AppendLine("| **Light endpoint** | `GET /benchmark/simple` (~3 B text/plain) |");
+        sb.AppendLine("| **Heavy endpoint** | `POST /benchmark/payload` (10 KB request body) |");
+        sb.AppendLine();
+        sb.AppendLine("> **Legend:**");
+        sb.AppendLine("> - ✓  faster than HttpClient by >5%");
+        sb.AppendLine("> - –  within ±5% of HttpClient");
+        sb.AppendLine("> - ✗  slower than HttpClient by >5%");
+        sb.AppendLine("> - **Δ%** is relative to the HttpClient baseline (positive = faster/cheaper)");
+        sb.AppendLine();
+    }
+
+    private static void AppendKestrelNotes(StringBuilder sb)
+    {
+        sb.AppendLine("## Notes");
+        sb.AppendLine();
+        sb.AppendLine("- All requests target a localhost Kestrel server over loopback (127.0.0.1).");
+        sb.AppendLine("- No TLS overhead — HTTP cleartext for both HTTP/1.1 and HTTP/2 (h2c).");
+        sb.AppendLine("- Light: `GET /benchmark/simple` returns `OK\\n` (~3 B). Heavy: `POST /benchmark/payload` with 10 KB body.");
+        sb.AppendLine("- HTTP/2 uses h2c prior knowledge on a dedicated listener port.");
+        sb.AppendLine("- Loopback eliminates network jitter — results reflect pure client+server overhead.");
+        sb.AppendLine("- Memory figures reflect managed allocations only; native/pooled buffers are not included.");
+        sb.AppendLine("- **Streaming** uses the channel API (`Requests` writer / `Responses` reader).");
+        sb.AppendLine("- **SendAsync** uses `Task.WhenAll` fan-out; each concurrent slot gets its own `Task<HttpResponseMessage>`.");
+        sb.AppendLine();
+    }
+
 
     private static void AppendThroughputTable(
         StringBuilder sb,
         IReadOnlyList<BenchmarkResult> httpResults,
-        IReadOnlyList<BenchmarkResult> turboResults)
+        IReadOnlyList<BenchmarkResult> sendAsyncResults,
+        IReadOnlyList<BenchmarkResult> streamingResults)
     {
-        sb.AppendLine("## Throughput (Req/sec — higher is better)");
+        sb.AppendLine("## Single Request — Throughput (Req/sec — higher is better)");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
 
-        foreach (var row in MatchRows(httpResults, turboResults))
+        foreach (var row in MatchRows3Way(httpResults, sendAsyncResults, streamingResults))
         {
             var httpRps = NsToRps(row.Http.MeanNanoseconds);
-            var turboRps = NsToRps(row.Turbo.MeanNanoseconds);
+            var sendRps = NsToRps(row.SendAsync.MeanNanoseconds);
+            var streamRps = NsToRps(row.Streaming.MeanNanoseconds);
 
-            // Higher req/sec is better for TurboHttp
-            var delta = ComputeDelta(httpRps, turboRps);
-            var indicator = ThroughputIndicator(delta);
+            var sendDelta = ComputeDelta(httpRps, sendRps);
+            var streamDelta = ComputeDelta(httpRps, streamRps);
 
             sb.AppendLine(
-                $"| {row.Name} | {httpRps:N0} | {turboRps:N0} | {delta:+0.0;-0.0;0.0}% | {indicator} |");
+                $"| {row.Name} | {httpRps:N0} | {sendRps:N0} | {sendDelta:+0.0;-0.0;0.0}% | {streamRps:N0} | {streamDelta:+0.0;-0.0;0.0}% |");
         }
 
         sb.AppendLine();
@@ -119,77 +248,79 @@ public static class BenchmarkComparisonReport
     private static void AppendLatencyTable(
         StringBuilder sb,
         IReadOnlyList<BenchmarkResult> httpResults,
-        IReadOnlyList<BenchmarkResult> turboResults)
+        IReadOnlyList<BenchmarkResult> sendAsyncResults,
+        IReadOnlyList<BenchmarkResult> streamingResults)
     {
-        sb.AppendLine("## Latency (ns — lower is better)");
+        sb.AppendLine("## Single Request — Latency (ns — lower is better)");
         sb.AppendLine();
 
-        // p50
         sb.AppendLine("### p50 (Median)");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
-        AppendLatencyRows(sb, httpResults, turboResults, r => r.P50Nanoseconds);
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
+        AppendLatencyRows3Way(sb, httpResults, sendAsyncResults, streamingResults, r => r.P50Nanoseconds, "ns");
         sb.AppendLine();
 
-        // p95
         sb.AppendLine("### p95");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
-        AppendLatencyRows(sb, httpResults, turboResults, r => r.P95Nanoseconds);
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
+        AppendLatencyRows3Way(sb, httpResults, sendAsyncResults, streamingResults, r => r.P95Nanoseconds, "ns");
         sb.AppendLine();
 
-        // p99
         sb.AppendLine("### p99");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
-        AppendLatencyRows(sb, httpResults, turboResults, r => r.P99Nanoseconds);
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
+        AppendLatencyRows3Way(sb, httpResults, sendAsyncResults, streamingResults, r => r.P99Nanoseconds, "ns");
         sb.AppendLine();
     }
 
-    private static void AppendLatencyRows(
+    private static void AppendLatencyRows3Way(
         StringBuilder sb,
         IReadOnlyList<BenchmarkResult> httpResults,
-        IReadOnlyList<BenchmarkResult> turboResults,
-        Func<BenchmarkResult, double> selector)
+        IReadOnlyList<BenchmarkResult> sendAsyncResults,
+        IReadOnlyList<BenchmarkResult> streamingResults,
+        Func<BenchmarkResult, double> selector,
+        string unit)
     {
-        foreach (var row in MatchRows(httpResults, turboResults))
+        foreach (var row in MatchRows3Way(httpResults, sendAsyncResults, streamingResults))
         {
-            var httpNs = selector(row.Http);
-            var turboNs = selector(row.Turbo);
+            var httpVal = selector(row.Http);
+            var sendVal = selector(row.SendAsync);
+            var streamVal = selector(row.Streaming);
 
-            // Lower latency is better for TurboHttp → positive delta means TurboHttp is better
-            var delta = ComputeLatencyDelta(httpNs, turboNs);
-            var indicator = ThroughputIndicator(delta);
+            // Lower is better: positive delta = improvement over baseline
+            var sendDelta = ComputeLatencyDelta(httpVal, sendVal);
+            var streamDelta = ComputeLatencyDelta(httpVal, streamVal);
 
             sb.AppendLine(
-                $"| {row.Name} | {httpNs:N0} ns | {turboNs:N0} ns | {delta:+0.0;-0.0;0.0}% | {indicator} |");
+                $"| {row.Name} | {httpVal:N0} {unit} | {sendVal:N0} {unit} | {sendDelta:+0.0;-0.0;0.0}% | {streamVal:N0} {unit} | {streamDelta:+0.0;-0.0;0.0}% |");
         }
     }
 
     private static void AppendMemoryTable(
         StringBuilder sb,
         IReadOnlyList<BenchmarkResult> httpResults,
-        IReadOnlyList<BenchmarkResult> turboResults)
+        IReadOnlyList<BenchmarkResult> sendAsyncResults,
+        IReadOnlyList<BenchmarkResult> streamingResults)
     {
-        sb.AppendLine("## Memory (Allocated bytes/op — lower is better)");
+        sb.AppendLine("## Single Request — Memory (Allocated bytes/op — lower is better)");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
 
-        foreach (var row in MatchRows(httpResults, turboResults))
+        foreach (var row in MatchRows3Way(httpResults, sendAsyncResults, streamingResults))
         {
             double httpBytes = row.Http.AllocatedBytes;
-            double turboBytes = row.Turbo.AllocatedBytes;
+            double sendBytes = row.SendAsync.AllocatedBytes;
+            double streamBytes = row.Streaming.AllocatedBytes;
 
-            // Lower allocation is better for TurboHttp → positive delta means TurboHttp is better
-            var delta = ComputeLatencyDelta(httpBytes, turboBytes);
-            var indicator = ThroughputIndicator(delta);
+            var sendDelta = ComputeLatencyDelta(httpBytes, sendBytes);
+            var streamDelta = ComputeLatencyDelta(httpBytes, streamBytes);
 
             sb.AppendLine(
-                $"| {row.Name} | {row.Http.AllocatedBytes:N0} B | {row.Turbo.AllocatedBytes:N0} B | {delta:+0.0;-0.0;0.0}% | {indicator} |");
+                $"| {row.Name} | {row.Http.AllocatedBytes:N0} B | {row.SendAsync.AllocatedBytes:N0} B | {sendDelta:+0.0;-0.0;0.0}% | {row.Streaming.AllocatedBytes:N0} B | {streamDelta:+0.0;-0.0;0.0}% |");
         }
 
         sb.AppendLine();
@@ -198,43 +329,46 @@ public static class BenchmarkComparisonReport
     private static void AppendConcurrentSections(
         StringBuilder sb,
         IReadOnlyList<BenchmarkResult> httpResults,
-        IReadOnlyList<BenchmarkResult> turboResults)
+        IReadOnlyList<BenchmarkResult> sendAsyncResults,
+        IReadOnlyList<BenchmarkResult> streamingResults)
     {
         sb.AppendLine("---");
         sb.AppendLine();
         sb.AppendLine("## Concurrent Benchmarks");
         sb.AppendLine();
-        sb.AppendLine("> N requests are fired simultaneously via `Task.WhenAll`.");
-        sb.AppendLine("> **Throughput** = N / Mean (total req/sec across all parallel slots).");
+        sb.AppendLine("> N requests are fired simultaneously (SendAsync: `Task.WhenAll`; Streaming: channel write-all, drain-all).");
+        sb.AppendLine("> **Throughput** = N / Mean (aggregate req/sec across all parallel slots).");
         sb.AppendLine("> **Latency** = elapsed wall-time until all N complete (lower is better).");
         sb.AppendLine();
 
-        AppendConcurrentThroughputTable(sb, httpResults, turboResults);
-        AppendConcurrentLatencyTable(sb, httpResults, turboResults);
-        AppendConcurrentMemoryTable(sb, httpResults, turboResults);
+        AppendConcurrentThroughputTable(sb, httpResults, sendAsyncResults, streamingResults);
+        AppendConcurrentLatencyTable(sb, httpResults, sendAsyncResults, streamingResults);
+        AppendConcurrentMemoryTable(sb, httpResults, sendAsyncResults, streamingResults);
     }
 
     private static void AppendConcurrentThroughputTable(
         StringBuilder sb,
         IReadOnlyList<BenchmarkResult> httpResults,
-        IReadOnlyList<BenchmarkResult> turboResults)
+        IReadOnlyList<BenchmarkResult> sendAsyncResults,
+        IReadOnlyList<BenchmarkResult> streamingResults)
     {
         sb.AppendLine("### Concurrent Throughput (Req/sec — higher is better)");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
 
-        foreach (var row in MatchRows(httpResults, turboResults))
+        foreach (var row in MatchRows3Way(httpResults, sendAsyncResults, streamingResults))
         {
             var cl = ParseConcurrencyLevel(row.Name);
             var httpRps = ConcurrentNsToRps(row.Http.MeanNanoseconds, cl);
-            var turboRps = ConcurrentNsToRps(row.Turbo.MeanNanoseconds, cl);
+            var sendRps = ConcurrentNsToRps(row.SendAsync.MeanNanoseconds, cl);
+            var streamRps = ConcurrentNsToRps(row.Streaming.MeanNanoseconds, cl);
 
-            var delta = ComputeDelta(httpRps, turboRps);
-            var indicator = ThroughputIndicator(delta);
+            var sendDelta = ComputeDelta(httpRps, sendRps);
+            var streamDelta = ComputeDelta(httpRps, streamRps);
 
             sb.AppendLine(
-                $"| {row.Name} | {httpRps:N0} | {turboRps:N0} | {delta:+0.0;-0.0;0.0}% | {indicator} |");
+                $"| {row.Name} | {httpRps:N0} | {sendRps:N0} | {sendDelta:+0.0;-0.0;0.0}% | {streamRps:N0} | {streamDelta:+0.0;-0.0;0.0}% |");
         }
 
         sb.AppendLine();
@@ -243,70 +377,63 @@ public static class BenchmarkComparisonReport
     private static void AppendConcurrentLatencyTable(
         StringBuilder sb,
         IReadOnlyList<BenchmarkResult> httpResults,
-        IReadOnlyList<BenchmarkResult> turboResults)
+        IReadOnlyList<BenchmarkResult> sendAsyncResults,
+        IReadOnlyList<BenchmarkResult> streamingResults)
     {
         sb.AppendLine("### Concurrent Latency (ns — lower is better)");
         sb.AppendLine();
 
         sb.AppendLine("#### p50 (Median)");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
-        AppendLatencyRows(sb, httpResults, turboResults, r => r.P50Nanoseconds);
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
+        AppendLatencyRows3Way(sb, httpResults, sendAsyncResults, streamingResults, r => r.P50Nanoseconds, "ns");
         sb.AppendLine();
 
         sb.AppendLine("#### p95");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
-        AppendLatencyRows(sb, httpResults, turboResults, r => r.P95Nanoseconds);
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
+        AppendLatencyRows3Way(sb, httpResults, sendAsyncResults, streamingResults, r => r.P95Nanoseconds, "ns");
         sb.AppendLine();
 
         sb.AppendLine("#### p99");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
-        AppendLatencyRows(sb, httpResults, turboResults, r => r.P99Nanoseconds);
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
+        AppendLatencyRows3Way(sb, httpResults, sendAsyncResults, streamingResults, r => r.P99Nanoseconds, "ns");
         sb.AppendLine();
     }
 
     private static void AppendConcurrentMemoryTable(
         StringBuilder sb,
         IReadOnlyList<BenchmarkResult> httpResults,
-        IReadOnlyList<BenchmarkResult> turboResults)
+        IReadOnlyList<BenchmarkResult> sendAsyncResults,
+        IReadOnlyList<BenchmarkResult> streamingResults)
     {
         sb.AppendLine("### Concurrent Memory (Allocated bytes/op — lower is better)");
         sb.AppendLine();
-        sb.AppendLine("| Scenario | HttpClient | TurboHttp | Delta% | |");
-        sb.AppendLine("|---|---:|---:|---:|:---:|");
+        sb.AppendLine("| Scenario | HttpClient | SendAsync | Δ% | Streaming | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|");
 
-        foreach (var row in MatchRows(httpResults, turboResults))
+        foreach (var row in MatchRows3Way(httpResults, sendAsyncResults, streamingResults))
         {
             double httpBytes = row.Http.AllocatedBytes;
-            double turboBytes = row.Turbo.AllocatedBytes;
+            double sendBytes = row.SendAsync.AllocatedBytes;
+            double streamBytes = row.Streaming.AllocatedBytes;
 
-            var delta = ComputeLatencyDelta(httpBytes, turboBytes);
-            var indicator = ThroughputIndicator(delta);
+            var sendDelta = ComputeLatencyDelta(httpBytes, sendBytes);
+            var streamDelta = ComputeLatencyDelta(httpBytes, streamBytes);
 
             sb.AppendLine(
-                $"| {row.Name} | {row.Http.AllocatedBytes:N0} B | {row.Turbo.AllocatedBytes:N0} B | {delta:+0.0;-0.0;0.0}% | {indicator} |");
+                $"| {row.Name} | {row.Http.AllocatedBytes:N0} B | {row.SendAsync.AllocatedBytes:N0} B | {sendDelta:+0.0;-0.0;0.0}% | {row.Streaming.AllocatedBytes:N0} B | {streamDelta:+0.0;-0.0;0.0}% |");
         }
 
         sb.AppendLine();
     }
 
-    private static void AppendNotes(StringBuilder sb)
-    {
-        sb.AppendLine("## Notes");
-        sb.AppendLine();
-        sb.AppendLine("- All benchmarks run on loopback (127.0.0.1); real-network latency will differ.");
-        sb.AppendLine("- HTTP/2 cleartext (h2c) requires `System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport=true`.");
-        sb.AppendLine("- Memory figures reflect managed allocations only; native/pooled buffers are not included.");
-        sb.AppendLine("- Variance anomalies (high p99 vs p50 spread) may indicate GC pauses — re-run to confirm.");
-        sb.AppendLine();
-    }
 
-    // Maths
+    // ── Maths ──────────────────────────────────────────────────────────────────
 
     /// <summary>Converts nanoseconds-per-operation to requests per second.</summary>
     public static double NsToRps(double meanNanoseconds)
@@ -322,6 +449,7 @@ public static class BenchmarkComparisonReport
     /// <summary>
     /// Computes the signed percentage improvement when <paramref name="turboValue"/> is higher
     /// than <paramref name="baselineValue"/> (throughput: higher is better).
+    /// Positive result = turbo faster.
     /// </summary>
     public static double ComputeDelta(double baselineValue, double turboValue)
     {
@@ -336,6 +464,7 @@ public static class BenchmarkComparisonReport
     /// <summary>
     /// Computes the signed percentage improvement when <paramref name="turboValue"/> is lower
     /// than <paramref name="baselineValue"/> (latency/memory: lower is better).
+    /// Positive result = turbo cheaper/faster.
     /// </summary>
     public static double ComputeLatencyDelta(double baselineValue, double turboValue)
     {
@@ -391,34 +520,74 @@ public static class BenchmarkComparisonReport
         return int.TryParse(slice, out var cl) ? cl : 1;
     }
 
-    // Row matching
+    // ── Filtering ──────────────────────────────────────────────────────────────
 
-    private static IReadOnlyList<(string Name, BenchmarkResult Http, BenchmarkResult Turbo)> MatchRows(
-        IReadOnlyList<BenchmarkResult> httpResults,
-        IReadOnlyList<BenchmarkResult> turboResults)
+    /// <summary>
+    /// Returns only results whose <see cref="BenchmarkResult.BenchmarkName"/> ends with
+    /// <c>/ HTTP {version}</c> (e.g. <c>"1.1"</c> or <c>"2.0"</c>).
+    /// </summary>
+    private static IReadOnlyList<BenchmarkResult> FilterByVersion(
+        IReadOnlyList<BenchmarkResult> results, string version)
+    {
+        var suffix = $"/ HTTP {version}";
+        return results
+            .Where(r => r.BenchmarkName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Strips the trailing <c> / HTTP x.x</c> segment from a scenario name so that
+    /// the version is not repeated when results are already grouped by version.
+    /// </summary>
+    private static string StripVersionSuffix(string name)
+    {
+        var idx = name.LastIndexOf(" / HTTP ", StringComparison.Ordinal);
+        return idx >= 0 ? name[..idx] : name;
+    }
+
+    // ── Row matching ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Matches rows from three result sets by <see cref="BenchmarkResult.BenchmarkName"/>.
+    /// Missing rows on the SendAsync or Streaming side are filled with zeroes.
+    /// Rows present only in HttpClient appear with zero SendAsync and zero Streaming values.
+    /// The <c>/ HTTP x.x</c> suffix is stripped from display names since callers
+    /// already group by version.
+    /// </summary>
+    private static IReadOnlyList<(string Name, BenchmarkResult Http, BenchmarkResult SendAsync, BenchmarkResult Streaming)>
+        MatchRows3Way(
+            IReadOnlyList<BenchmarkResult> httpResults,
+            IReadOnlyList<BenchmarkResult> sendAsyncResults,
+            IReadOnlyList<BenchmarkResult> streamingResults)
     {
         var httpMap = httpResults.ToDictionary(r => r.BenchmarkName, StringComparer.OrdinalIgnoreCase);
-        var result = new List<(string, BenchmarkResult, BenchmarkResult)>();
+        var streamMap = streamingResults.ToDictionary(r => r.BenchmarkName, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var turbo in turboResults)
+        var result = new List<(string, BenchmarkResult, BenchmarkResult, BenchmarkResult)>();
+        var matchedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Anchor on SendAsync rows — these define the scenario order
+        foreach (var send in sendAsyncResults)
         {
-            if (httpMap.TryGetValue(turbo.BenchmarkName, out var http))
-            {
-                result.Add((turbo.BenchmarkName, http, turbo));
-            }
+            var name = send.BenchmarkName;
+            var http = httpMap.TryGetValue(name, out var h) ? h : Zero(name);
+            var stream = streamMap.TryGetValue(name, out var s) ? s : Zero(name);
+            result.Add((StripVersionSuffix(name), http, send, stream));
+            matchedNames.Add(name);
         }
 
-        // Include http-only rows (no matching turbo) with zero turbo values
-        var matchedNames = new HashSet<string>(result.Select(r => r.Item1), StringComparer.OrdinalIgnoreCase);
+        // Include HttpClient-only rows (no matching SendAsync) with zero SendAsync/Streaming
         foreach (var http in httpResults)
         {
             if (!matchedNames.Contains(http.BenchmarkName))
             {
-                var zero = new BenchmarkResult(http.BenchmarkName, 0, 0, 0, 0, 0);
-                result.Add((http.BenchmarkName, http, zero));
+                result.Add((StripVersionSuffix(http.BenchmarkName), http, Zero(http.BenchmarkName), Zero(http.BenchmarkName)));
             }
         }
 
         return result;
     }
+
+    private static BenchmarkResult Zero(string name)
+        => new(name, 0, 0, 0, 0, 0);
 }

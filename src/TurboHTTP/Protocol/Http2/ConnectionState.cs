@@ -20,7 +20,7 @@ public readonly struct SettingsResult
 {
     public int? MaxConcurrentStreamsChange { get; init; }
     public int? InitialWindowSizeChange { get; init; }
-    public SettingsFrame AckFrame { get; init; }
+    public SettingsFrame? AckFrame { get; init; }
 }
 
 /// <summary>
@@ -36,15 +36,10 @@ public sealed class ConnectionState
     private readonly Dictionary<int, int> _pendingStreamIncrements = new();
     private readonly int _windowUpdateThreshold;
 
-    private int _recvConnectionWindow;
-    private int _sendConnectionWindow = 65535; // RFC 9113 §6.5.2 default
-    private int _initialRecvStreamWindow;
-    private int _initialSendStreamWindow = 65535;
-
     public ConnectionState(int initialRecvWindowSize = 1_048_576)
     {
-        _recvConnectionWindow = initialRecvWindowSize;
-        _initialRecvStreamWindow = initialRecvWindowSize;
+        RecvConnectionWindow = initialRecvWindowSize;
+        InitialRecvStreamWindow = initialRecvWindowSize;
 
         const int MinWindowUpdateThreshold = 8_192;
         const int MaxWindowUpdateThreshold = 262_144; // 256 KB
@@ -54,9 +49,12 @@ public sealed class ConnectionState
     }
 
     public bool GoAwayReceived { get; private set; }
-    public int RecvConnectionWindow => _recvConnectionWindow;
-    public int SendConnectionWindow => _sendConnectionWindow;
-    public int InitialSendStreamWindow => _initialSendStreamWindow;
+    public int RecvConnectionWindow { get; private set; }
+
+    public int SendConnectionWindow { get; private set; } = 65535;
+
+    public int InitialSendStreamWindow { get; private set; } = 65535;
+    public int InitialRecvStreamWindow { get; private set; } = 65535;
 
     /// <summary>
     /// RFC 9113 §6.5: Process a remote SETTINGS frame.
@@ -76,7 +74,7 @@ public sealed class ConnectionState
         {
             if (key == SettingsParameter.InitialWindowSize)
             {
-                _initialSendStreamWindow = (int)value;
+                InitialSendStreamWindow = (int)value;
                 initialWindowSizeChange = (int)value;
             }
 
@@ -100,12 +98,12 @@ public sealed class ConnectionState
     /// </summary>
     public FlowControlResult OnInboundData(int streamId, int dataLength)
     {
-        _recvConnectionWindow -= dataLength;
+        RecvConnectionWindow -= dataLength;
 
-        _recvStreamWindows.TryAdd(streamId, _initialRecvStreamWindow);
+        _recvStreamWindows.TryAdd(streamId, InitialRecvStreamWindow);
         _recvStreamWindows[streamId] -= dataLength;
 
-        if (_recvConnectionWindow < 0)
+        if (RecvConnectionWindow < 0)
         {
             return new FlowControlResult
             {
@@ -136,7 +134,7 @@ public sealed class ConnectionState
             if (_pendingConnIncrement >= _windowUpdateThreshold)
             {
                 var increment = _pendingConnIncrement;
-                _recvConnectionWindow += increment;
+                RecvConnectionWindow += increment;
                 connUpdate = new WindowUpdateFrame(0, increment);
                 _pendingConnIncrement = 0;
             }
@@ -165,7 +163,7 @@ public sealed class ConnectionState
     {
         if (frame.StreamId == 0)
         {
-            _sendConnectionWindow += frame.Increment;
+            SendConnectionWindow += frame.Increment;
         }
     }
 

@@ -293,22 +293,9 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
 
     private void MonitorSinkCompletion(Task completionTask)
     {
-        // Route the completion notification from the Sink.ForEach task into this
-        // actor's mailbox via Self.Tell. This is safe because the actor processes
-        // the message through OnReceive on its dispatcher thread.
-        var self = Self;
-
-        completionTask.ContinueWith(t =>
-        {
-            if (t.IsFaulted)
-            {
-                self.Tell(new StreamSinkCompleted(t.Exception?.GetBaseException()));
-            }
-            else
-            {
-                self.Tell(new StreamSinkCompleted(null));
-            }
-        }, TaskContinuationOptions.ExecuteSynchronously);
+        completionTask.PipeTo(Self, Self,
+            () => new StreamSinkCompleted(null),
+            ex => new StreamSinkCompleted(ex.GetBaseException()));
     }
 
     private void HandleStreamSinkCompleted(StreamSinkCompleted completed)

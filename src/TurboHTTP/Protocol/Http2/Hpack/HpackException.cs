@@ -8,8 +8,4 @@ public sealed class HpackException : TurboProtocolException
     public HpackException(string message) : base(message)
     {
     }
-
-    public HpackException(string message, Exception inner) : base(message, inner)
-    {
-    }
 }

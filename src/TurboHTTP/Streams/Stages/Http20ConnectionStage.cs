@@ -75,7 +75,6 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
         private readonly StateMachine _sm;
         private readonly List<IOutputItem> _pendingOutbound = [];
         private readonly List<HttpResponseMessage> _pendingResponses = [];
-
         public Logic(Http20ConnectionStage stage) : base(stage.Shape)
         {
             _stage = stage;
@@ -203,6 +202,15 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
                 return;
             }
 
+            if (_pendingResponses.Count == 1 && IsAvailable(_stage._outResponse))
+            {
+                var response = _pendingResponses[0];
+                _pendingResponses.Clear();
+                Push(_stage._outResponse, response);
+                Pull(_stage._inServer);
+                return;
+            }
+
             EmitMultiple(_stage._outResponse, _pendingResponses.ToArray(),
                 () => Pull(_stage._inServer));
             _pendingResponses.Clear();
@@ -212,6 +220,14 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
         {
             if (_pendingOutbound.Count == 0)
             {
+                return;
+            }
+
+            if (_pendingOutbound.Count == 1 && IsAvailable(_stage._outNetwork))
+            {
+                var item = _pendingOutbound[0];
+                _pendingOutbound.Clear();
+                Push(_stage._outNetwork, item);
                 return;
             }
 

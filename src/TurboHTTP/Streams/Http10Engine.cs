@@ -4,6 +4,7 @@ using Akka.Streams.Dsl;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Stages;
 using TurboHTTP.Streams.Stages.Decoding;
+using TurboHTTP.Streams.Stages.Internal;
 
 namespace TurboHTTP.Streams;
 
@@ -15,13 +16,7 @@ public class Http10Engine : IHttpProtocolEngine
         {
             var connection = b.Add(new Http10ConnectionStage());
 
-            var batchFlow = b.Add(
-                Flow.Create<IOutputItem>()
-                    .BatchWeighted(
-                        Http11Engine.MaxBatchWeight,
-                        item => item is NetworkBuffer d ? d.Length : 0L,
-                        item => item,
-                        Http11Engine.BatchConsolidate));
+            var batchFlow = b.Add(new NetworkBufferBatchStage(Http11Engine.MaxBatchWeight));
 
             b.From(connection.OutNetwork).Via(batchFlow);
 

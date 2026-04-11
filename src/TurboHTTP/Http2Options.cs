@@ -8,9 +8,10 @@ public sealed class Http2Options
     /// <summary>
     /// Maximum number of concurrent TCP connections per server for HTTP/2.
     /// HTTP/2 multiplexes many streams over a single connection, so far fewer connections
-    /// are optimal compared to HTTP/1.x. Default is 2.
+    /// are needed compared to HTTP/1.x. Default is 6 to spread load across multiple
+    /// actor turns at medium concurrency (CL=8–128).
     /// </summary>
-    public int MaxConnectionsPerServer { get; set; } = 2;
+    public int MaxConnectionsPerServer { get; set; } = 6;
 
     /// <summary>
     /// Maximum number of concurrent HTTP/2 streams per connection.

@@ -5,11 +5,21 @@ using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Streams.Stages;
 using TurboHTTP.Streams.Stages.Decoding;
+using TurboHTTP.Streams.Stages.Internal;
 
 namespace TurboHTTP.Streams;
 
 public class Http20Engine : IHttpProtocolEngine
 {
+    /// <summary>
+    /// Maximum bytes accumulated before flushing a batch to the transport.
+    /// 32 KiB covers a burst of ~64 HEADERS frames (≈500 B each at CL=16–64)
+    /// or two full 16 KiB DATA frames, without excessive copy overhead.
+    /// Smaller than the H1.1 limit (64 KiB) because H2 per-stream flow-control
+    /// already limits how much data any single stream can push at once.
+    /// </summary>
+    internal const long MaxBatchWeight = 32_768;
+
     public Http20Engine() : this(1_048_576, int.MaxValue)
     {
     }
@@ -38,13 +48,21 @@ public class Http20Engine : IHttpProtocolEngine
             var connection = b.Add(new Http20ConnectionStage(
                 new Http2ConnectionConfig(InitialWindowSize, MaxConcurrentStreams)));
 
+            // Coalesce consecutive NetworkBuffer frames (HEADERS, DATA, WINDOW_UPDATE, …)
+            // from the H2 connection stage into fewer, larger writes — reducing socket
+            // syscall count under concurrent multiplexed streams.  Control items are
+            // flushed through immediately so H2 frame ordering is preserved.
+            var batchFlow = b.Add(new NetworkBufferBatchStage(MaxBatchWeight));
+
+            b.From(connection.OutNetwork).Via(batchFlow);
+
             return new BidiShape<
                 HttpRequestMessage,
                 IOutputItem,
                 IInputItem,
                 HttpResponseMessage>(
                 connection.InApp,
-                connection.OutNetwork,
+                batchFlow.Outlet,
                 connection.InServer,
                 connection.OutResponse);
         }));

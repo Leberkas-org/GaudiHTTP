@@ -66,7 +66,7 @@ internal static class ProtocolCoreBuilder
 
             // Async boundary on the joined flow: the full engine+transport sub-graph
             // runs in its own sub-actor (separate from GroupBy/EndpointDispatch).
-            return engine.CreateFlow().Join(transports.Get(version).Async());
+            return engine.CreateFlow().Join(transports.Get(version));
         }
     }
 }

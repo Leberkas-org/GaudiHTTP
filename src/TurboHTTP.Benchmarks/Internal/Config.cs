@@ -2,6 +2,7 @@ using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Exporters;
+using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
 
@@ -44,23 +45,15 @@ public class RequestsPerSecondColumn : IColumn
         var isConcurrent = benchmarkCase.Descriptor.WorkloadMethod.Name.Contains("Concurrent",
             StringComparison.Ordinal);
         var concurrencyLevel = isConcurrent
-            && benchmarkCase.Parameters.Items.FirstOrDefault(p => p.Name == "ConcurrencyLevel")?.Value is int cl
-            ? cl : 1;
+                               && benchmarkCase.Parameters.Items.FirstOrDefault(p => p.Name == "ConcurrencyLevel")
+                                   ?.Value is int cl
+            ? cl
+            : 1;
 
         var invocationsPerSecond = 1.0 / (statistics.Mean / 1e9);
         var requestsPerSecond = invocationsPerSecond * concurrencyLevel;
 
         return requestsPerSecond.ToString("N2");
-    }
-}
-
-public class MicroBenchmarkConfig : ManualConfig
-{
-    public MicroBenchmarkConfig()
-    {
-        AddDiagnoser(MemoryDiagnoser.Default);
-        AddExporter(MarkdownExporter.GitHub);
-        AddColumn(new RequestsPerSecondColumn());
     }
 }
 
@@ -73,6 +66,7 @@ public class EngineBenchmarkConfig : ManualConfig
 {
     public EngineBenchmarkConfig()
     {
+        AddJob(Job.Default.WithGcServer(true));
         AddDiagnoser(MemoryDiagnoser.Default);
         AddExporter(MarkdownExporter.GitHub);
         AddColumn(StatisticColumn.P50);
