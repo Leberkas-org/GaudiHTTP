@@ -10,7 +10,6 @@ namespace TurboHTTP.Benchmarks.Binkraken;
 [MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
-[InvocationCount(16)]
 public class BinkrakenHttpClientConcurrentBenchmarks : BinkrakenBaseClass
 {
     private HttpClient _httpClient = null!;

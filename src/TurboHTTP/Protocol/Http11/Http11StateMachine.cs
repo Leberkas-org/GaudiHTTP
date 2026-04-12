@@ -36,6 +36,7 @@ public sealed class Http11StateMachine
     /// until a <see cref="CloseSignalItem"/> arrives.
     /// </summary>
     private HttpResponseMessage? _pendingCloseDelimitedResponse;
+
     private List<NetworkBuffer>? _bodyOwners;
 
     /// <summary>
@@ -87,7 +88,7 @@ public sealed class Http11StateMachine
         }
 
         // Emit StreamAcquireItem before request data
-        _ops.OnOutbound(StreamAcquireItem.Rent(endpoint));
+        _ops.OnOutbound(new StreamAcquireItem { Key = endpoint });
 
         NetworkBuffer? item = null;
         try
@@ -298,7 +299,8 @@ public sealed class Http11StateMachine
                 _pendingCloseDelimitedResponse = null;
                 _bodyOwners = null;
                 _initialBodyBytes = null;
-                throw new HttpRequestException("Connection was aborted while receiving close-delimited HTTP/1.1 response.");
+                throw new HttpRequestException(
+                    "Connection was aborted while receiving close-delimited HTTP/1.1 response.");
             }
 
             return;
@@ -347,7 +349,8 @@ public sealed class Http11StateMachine
         var decision = ConnectionReuseEvaluator.Evaluate(response, response.Version);
 
         _ops.OnResponse(response);
-        _ops.OnOutbound(ConnectionReuseItem.Rent(endpoint, decision));
+        var item = new ConnectionReuseItem(decision) { Key = endpoint };
+        _ops.OnOutbound(item);
     }
 
     /// <summary>
@@ -402,7 +405,8 @@ public sealed class Http11StateMachine
         protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context)
             => SerializeToStreamAsync(stream, context, CancellationToken.None);
 
-        protected override async Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context, CancellationToken ct)
+        protected override async Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context,
+            CancellationToken ct)
         {
             if (_initial is { Length: > 0 })
             {

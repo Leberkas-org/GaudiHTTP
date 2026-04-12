@@ -1,12 +1,10 @@
 using System.Net;
 using System.Text;
-using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Stages;
-using TurboHTTP.Streams.Stages.Decoding;
 
 namespace TurboHTTP.StreamTests.Http10;
 
@@ -126,15 +124,15 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         appSubscription.SendNext(MakeRequest("/hello"));
 
         // Consume outbound items (StreamAcquire + NetworkBuffer)
-        await networkSub.ExpectNextAsync();
-        await networkSub.ExpectNextAsync();
+        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Send response from server
         var responseRaw = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello";
         serverSubscription.SendNext(MakeResponseBuffer(responseRaw));
 
         // Should get correlated response
-        var response = await responseSub.ExpectNextAsync();
+        var response = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(response.RequestMessage);
         Assert.Equal("/hello", response.RequestMessage!.RequestUri!.AbsolutePath);
@@ -167,10 +165,10 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var netSubscription = await networkSub.ExpectSubscriptionAsync();
-        var resSubscription = await responseSub.ExpectSubscriptionAsync();
-        var appSubscription = await appProbe.ExpectSubscriptionAsync();
-        var serverSubscription = await serverProbe.ExpectSubscriptionAsync();
+        var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         netSubscription.Request(10);
         resSubscription.Request(10);
@@ -179,20 +177,19 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         appSubscription.SendNext(MakeRequest());
 
         // StreamAcquire + NetworkBuffer
-        await networkSub.ExpectNextAsync();
-        await networkSub.ExpectNextAsync();
+        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         serverSubscription.SendNext(MakeResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\nOK"));
 
         // Response
-        await responseSub.ExpectNextAsync();
+        await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // ConnectionReuseItem should follow on network outlet
-        var reuseItem = await networkSub.ExpectNextAsync();
+        var reuseItem = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var connectionReuse = Assert.IsType<ConnectionReuseItem>(reuseItem);
         // HTTP/1.0 default is close (RFC 1945)
         Assert.False(connectionReuse.Decision.CanReuse);
-        connectionReuse.Return();
     }
 
     [Fact(Timeout = 10_000)]
@@ -222,10 +219,10 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var netSubscription = await networkSub.ExpectSubscriptionAsync();
-        var resSubscription = await responseSub.ExpectSubscriptionAsync();
-        var appSubscription = await appProbe.ExpectSubscriptionAsync();
-        var serverSubscription = await serverProbe.ExpectSubscriptionAsync();
+        var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         netSubscription.Request(10);
         resSubscription.Request(10);
@@ -235,14 +232,14 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         appSubscription.SendNext(request);
 
         // Consume StreamAcquire + NetworkBuffer
-        await networkSub.ExpectNextAsync();
-        await networkSub.ExpectNextAsync();
+        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Server closes abruptly without sending a response
         serverSubscription.SendComplete();
 
         // Should emit PipelineRetryItem with the original request
-        var retryItem = await networkSub.ExpectNextAsync();
+        var retryItem = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var pipelineRetry = Assert.IsType<PipelineRetryItem>(retryItem);
         Assert.Same(request, pipelineRetry.Request);
     }

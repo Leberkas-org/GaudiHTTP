@@ -6,6 +6,14 @@ using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Internal;
 
+public interface IRequestItem;
+
+public interface IResponseItem;
+
+public readonly struct RequestItem(HttpRequestMessage Request) : IRequestItem;
+
+public readonly struct ResponseItem(HttpResponseMessage Response) : IResponseItem;
+
 /// <summary>Marker interface for items flowing from the network into the protocol engine (inbound data).</summary>
 public interface IInputItem
 {
@@ -26,42 +34,16 @@ public interface IControlItem : IOutputItem;
 /// Emitted by <see cref="TurboHTTP.Streams.Stages.Features.ConnectionReuseStage"/> based on RFC 9112 §9.
 /// Pooled to avoid per-request heap allocation on the hot path.
 /// </summary>
-public sealed class ConnectionReuseItem : IControlItem
+public readonly record struct ConnectionReuseItem(ConnectionReuseDecision Decision) : IControlItem
 {
-    private static readonly ConcurrentStack<ConnectionReuseItem> Pool = new();
-
-    public RequestEndpoint Key { get; set; }
-    public ConnectionReuseDecision Decision { get; set; } = null!;
-
-    private ConnectionReuseItem() { }
-
-    /// <summary>Rents an item from the pool, setting <see cref="Key"/> and <see cref="Decision"/>.</summary>
-    public static ConnectionReuseItem Rent(RequestEndpoint key, ConnectionReuseDecision decision)
-    {
-        if (!Pool.TryPop(out var item))
-        {
-            item = new ConnectionReuseItem();
-        }
-
-        item.Key = key;
-        item.Decision = decision;
-        return item;
-    }
-
-    /// <summary>Returns this item to the pool for reuse.</summary>
-    public void Return()
-    {
-        Key = default;
-        Decision = null!;
-        Pool.Push(this);
-    }
+    public RequestEndpoint Key { get; init; }
 }
 
 /// <summary>
 /// Requests the connection stage to establish (or re-establish) a TCP connection using the given options.
 /// Emitted once per host when no active connection exists.
 /// </summary>
-public record ConnectItem(TcpOptions Options) : IControlItem
+public readonly record struct ConnectItem(TcpOptions Options) : IControlItem
 {
     public RequestEndpoint Key { get; init; }
 }
@@ -179,7 +161,7 @@ public sealed class NetworkBuffer : IInputItem, IOutputItem
 /// Carries the <c>SETTINGS_MAX_CONCURRENT_STREAMS</c> value received from the server in an HTTP/2 SETTINGS frame.
 /// Used to update the per-connection stream capacity tracked by the connection pool.
 /// </summary>
-public record MaxConcurrentStreamsItem(int MaxStreams) : IControlItem
+public readonly record struct MaxConcurrentStreamsItem(int MaxStreams) : IControlItem
 {
     public RequestEndpoint Key { get; init; }
 }
@@ -189,32 +171,9 @@ public record MaxConcurrentStreamsItem(int MaxStreams) : IControlItem
 /// Emitted before each HTTP/2 request to ensure stream-count limits are honoured.
 /// Pooled to avoid per-request heap allocation on the hot path.
 /// </summary>
-public sealed class StreamAcquireItem : IControlItem
+public readonly record struct StreamAcquireItem : IControlItem
 {
-    private static readonly ConcurrentStack<StreamAcquireItem> Pool = new();
-
-    public RequestEndpoint Key { get; set; }
-
-    private StreamAcquireItem() { }
-
-    /// <summary>Rents an item from the pool with the given <paramref name="key"/>.</summary>
-    public static StreamAcquireItem Rent(RequestEndpoint key)
-    {
-        if (!Pool.TryPop(out var item))
-        {
-            item = new StreamAcquireItem();
-        }
-
-        item.Key = key;
-        return item;
-    }
-
-    /// <summary>Returns this item to the pool for reuse.</summary>
-    public void Return()
-    {
-        Key = default;
-        Pool.Push(this);
-    }
+    public RequestEndpoint Key { get; init; }
 }
 
 /// <summary>
@@ -224,7 +183,7 @@ public sealed class StreamAcquireItem : IControlItem
 /// <c>OutNetwork</c> outlet so that upstream layers can re-issue the request on a
 /// fresh connection.
 /// </summary>
-public record PipelineRetryItem(HttpRequestMessage Request) : IControlItem
+public readonly record struct PipelineRetryItem(HttpRequestMessage Request) : IControlItem
 {
     public RequestEndpoint Key { get; init; }
 }
@@ -255,7 +214,7 @@ public enum TlsCloseKind
 /// so that decoder stages can decide whether a partially buffered response is complete.
 /// Emitted by <see cref="TurboHTTP.Transport.TcpConnectionStage"/> when the inbound data channel completes.
 /// </summary>
-public record CloseSignalItem(TlsCloseKind CloseKind) : IInputItem
+public readonly record struct CloseSignalItem(TlsCloseKind CloseKind) : IInputItem
 {
     public RequestEndpoint Key { get; init; }
 }
@@ -299,7 +258,7 @@ public enum InputStreamType
 /// Wraps an <see cref="IInputItem"/> with an <see cref="InputStreamType"/> tag
 /// so the engine can route it to the correct processing pipeline.
 /// </summary>
-public record Http3InputTaggedItem(IInputItem Inner, InputStreamType StreamType) : IInputItem
+public readonly record struct Http3InputTaggedItem(IInputItem Inner, InputStreamType StreamType) : IInputItem
 {
     public RequestEndpoint Key => Inner.Key;
 }
@@ -308,7 +267,7 @@ public record Http3InputTaggedItem(IInputItem Inner, InputStreamType StreamType)
 /// Wraps an <see cref="IOutputItem"/> with an <see cref="OutputStreamType"/> tag
 /// so the demux stage can route it to the correct QUIC stream.
 /// </summary>
-public record Http3OutputTaggedItem(IOutputItem Inner, OutputStreamType StreamType) : IOutputItem
+public readonly record struct Http3OutputTaggedItem(IOutputItem Inner, OutputStreamType StreamType) : IOutputItem
 {
     public RequestEndpoint Key => Inner.Key;
 }

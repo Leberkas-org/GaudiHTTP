@@ -65,21 +65,24 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
             return ClosedShape.Instance;
         })).Run(Materializer);
 
-        var netSubscription = await networkSub.ExpectSubscriptionAsync();
-        var resSubscription = await responseSub.ExpectSubscriptionAsync();
-        var appSubscription = await appProbe.ExpectSubscriptionAsync();
-        var serverSubscription = await serverProbe.ExpectSubscriptionAsync();
+        var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        if (appProbe != null)
+        {
+            var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+            var serverSubscription = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
-        netSubscription.Request(10);
-        resSubscription.Request(10);
+            netSubscription.Request(10);
+            resSubscription.Request(10);
 
-        appSubscription.SendNext(MakeRequest("/test"));
+            appSubscription.SendNext(MakeRequest("/test"));
+        }
 
         // StreamAcquireItem + NetworkBuffer
-        var item1 = await networkSub.ExpectNextAsync();
+        var item1 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<StreamAcquireItem>(item1);
 
-        var item2 = await networkSub.ExpectNextAsync();
+        var item2 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var buffer = Assert.IsType<NetworkBuffer>(item2);
         var encoded = SysEncoding.ASCII.GetString(buffer.Span);
         Assert.StartsWith("GET /test HTTP/1.1\r\n", encoded);
@@ -323,7 +326,6 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var connectionReuse = Assert.IsType<ConnectionReuseItem>(reuseItem);
         // Connection: close means cannot reuse
         Assert.False(connectionReuse.Decision.CanReuse);
-        connectionReuse.Return();
 
         // After receiving Connection: close, the stage should reduce effective pipeline depth to 1.
         // Send a second request to verify it's still accepted
@@ -391,7 +393,6 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var connectionReuse = Assert.IsType<ConnectionReuseItem>(reuseItem);
         // HTTP/1.1 default is keep-alive (RFC 9112)
         Assert.True(connectionReuse.Decision.CanReuse);
-        connectionReuse.Return();
     }
 
     [Fact(Timeout = 10_000)]

@@ -10,7 +10,6 @@ namespace TurboHTTP.Benchmarks.Kestrel;
 [MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
-[InvocationCount(16)]
 public class KestrelTurboStreamingSingleBenchmarks : KestrelBaseClass
 {
     private ClientHelper _clientHelper = null!;

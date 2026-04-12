@@ -168,7 +168,6 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
 
                 case ConnectionReuseItem reuseItem:
                     HandleConnectionReuseItem(reuseItem);
-                    reuseItem.Return();
                     break;
 
                 case MaxConcurrentStreamsItem maxStreams:
@@ -179,7 +178,6 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
                 case StreamAcquireItem acquireItem:
                     _currentLease?.MarkBusy();
                     _pendingResponseCount++;
-                    acquireItem.Return();
                     SignalPullInput();
                     break;
 
@@ -208,7 +206,7 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
 
             var options = TcpOptionsFactory.Build(endpoint, _stage.ClientOptions);
             _pendingConnect = new ConnectItem(options) { Key = endpoint };
-            AcquireConnection(_pendingConnect);
+            AcquireConnection(_pendingConnect.Value);
         }
 
 
@@ -317,13 +315,13 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
             }
 
             Log.Warning("TcpConnectionStage: Connection acquisition timed out for {0}:{1}",
-                _pendingConnect.Key.Host, _pendingConnect.Key.Port);
+                _pendingConnect.Value.Key.Host, _pendingConnect.Value.Key.Port);
 
             // Stop WaitForConnection span on timeout
             _waitActivity?.Stop();
             _waitActivity = null;
 
-            var signal = new CloseSignalItem(TlsCloseKind.AbruptClose) { Key = _pendingConnect.Key };
+            var signal = new CloseSignalItem(TlsCloseKind.AbruptClose) { Key = _pendingConnect.Value.Key };
             _pendingConnect = null;
 
             PushOutput(signal);
@@ -414,7 +412,7 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
                 return;
             }
 
-            var signal = new CloseSignalItem(TlsCloseKind.AbruptClose) { Key = _pendingConnect.Key };
+            var signal = new CloseSignalItem(TlsCloseKind.AbruptClose) { Key = _pendingConnect.Value.Key };
             _pendingConnect = null;
 
             PushOutput(signal);

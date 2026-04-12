@@ -167,8 +167,9 @@ public sealed class StateMachine
                 _connection.OnGoAway();
                 _ops.OnWarning(
                     $"RFC 9113 §6.8 — GOAWAY received (lastStreamId={goAway.LastStreamId}, errorCode={goAway.ErrorCode}). Triggering reconnect.");
-                _ops.OnOutbound(ConnectionReuseItem.Rent(Endpoint,
-                    ConnectionReuseDecision.Close("RFC 9113 §6.8: GOAWAY received")));
+                var item = new ConnectionReuseItem(ConnectionReuseDecision.Close("RFC 9113 §6.8: GOAWAY received"))
+                    { Key = Endpoint };
+                _ops.OnOutbound(item);
                 break;
         }
 
@@ -204,7 +205,7 @@ public sealed class StateMachine
         if (request.RequestUri is null)
         {
             _tracker.OnStreamOpened(streamId);
-            _ops.OnOutbound(StreamAcquireItem.Rent(Endpoint));
+            _ops.OnOutbound(new StreamAcquireItem { Key = Endpoint });
             return true;
         }
 
@@ -219,7 +220,7 @@ public sealed class StateMachine
                 if (frame is HeadersFrame headers)
                 {
                     _tracker.OnStreamOpened(headers.StreamId);
-                    _ops.OnOutbound(StreamAcquireItem.Rent(Endpoint));
+                    _ops.OnOutbound(new StreamAcquireItem { Key = Endpoint });
                 }
             }
 
@@ -271,8 +272,10 @@ public sealed class StateMachine
         if (result.IsConnectionViolation)
         {
             _ops.OnWarning("RFC 9113 §6.9 — connection flow control window exceeded. Triggering reconnect.");
-            _ops.OnOutbound(ConnectionReuseItem.Rent(Endpoint,
-                ConnectionReuseDecision.Close("RFC 9113 §6.9: connection window exceeded")));
+            var item = new ConnectionReuseItem(
+                    ConnectionReuseDecision.Close("RFC 9113 §6.9: connection window exceeded"))
+                { Key = Endpoint };
+            _ops.OnOutbound(item);
             return false;
         }
 
@@ -280,8 +283,9 @@ public sealed class StateMachine
         {
             _ops.OnWarning(
                 $"RFC 9113 §6.9 — stream {frame.StreamId} flow control window exceeded. Triggering reconnect.");
-            _ops.OnOutbound(ConnectionReuseItem.Rent(Endpoint,
-                ConnectionReuseDecision.Close("RFC 9113 §6.9: stream window exceeded")));
+            var item = new ConnectionReuseItem(ConnectionReuseDecision.Close("RFC 9113 §6.9: stream window exceeded"))
+                { Key = Endpoint };
+            _ops.OnOutbound(item);
             return false;
         }
 

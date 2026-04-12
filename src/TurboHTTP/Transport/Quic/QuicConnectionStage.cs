@@ -142,16 +142,8 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<IOutputItem, II
                     break;
 
                 case ConnectionReuseItem reuseItem:
-                    // QUIC manages these internally — no-op
-                    reuseItem.Return();
-                    SignalPullInput();
-                    break;
 
                 case StreamAcquireItem acquireItem:
-                    // QUIC manages these internally — no-op
-                    acquireItem.Return();
-                    SignalPullInput();
-                    break;
 
                 case MaxConcurrentStreamsItem:
                     // QUIC manages these internally — no-op
@@ -247,9 +239,9 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<IOutputItem, II
             }
 
             Log.Warning("QuicConnectionStage: Connection acquisition timed out for {0}:{1}",
-                _pendingConnect.Key.Host, _pendingConnect.Key.Port);
+                _pendingConnect.Value.Key.Host, _pendingConnect.Value.Key.Port);
 
-            var signal = new CloseSignalItem(TlsCloseKind.AbruptClose) { Key = _pendingConnect.Key };
+            var signal = new CloseSignalItem(TlsCloseKind.AbruptClose) { Key = _pendingConnect.Value.Key };
             _pendingConnect = null;
 
             PushOutput(signal);
@@ -331,7 +323,7 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<IOutputItem, II
                 return;
             }
 
-            var signal = new CloseSignalItem(TlsCloseKind.AbruptClose) { Key = _pendingConnect.Key };
+            var signal = new CloseSignalItem(TlsCloseKind.AbruptClose) { Key = _pendingConnect.Value.Key };
             _pendingConnect = null;
 
             PushOutput(signal);

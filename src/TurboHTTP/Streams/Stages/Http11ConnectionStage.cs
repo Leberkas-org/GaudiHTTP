@@ -258,12 +258,6 @@ public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
             {
                 switch (item)
                 {
-                    case ConnectionReuseItem reuseItem:
-                        reuseItem.Return();
-                        break;
-                    case StreamAcquireItem acquireItem:
-                        acquireItem.Return();
-                        break;
                     case NetworkBuffer buffer:
                         buffer.Dispose();
                         break;

@@ -252,12 +252,6 @@ public sealed class Http10ConnectionStage : GraphStage<Http10ConnectionShape>
             {
                 switch (item)
                 {
-                    case ConnectionReuseItem reuseItem:
-                        reuseItem.Return();
-                        break;
-                    case StreamAcquireItem acquireItem:
-                        acquireItem.Return();
-                        break;
                     case NetworkBuffer buffer:
                         buffer.Dispose();
                         break;

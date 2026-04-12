@@ -21,7 +21,7 @@ namespace TurboHTTP.StreamTests.Streams;
 /// Uses a <see cref="StubConnectionManagerActor"/> to isolate the stage from real TCP,
 /// while exercising the real actor message protocol.
 /// </remarks>
-public sealed class ConnectionStageSpec : StreamTestBase
+public sealed class KöConnectionStageSpec : StreamTestBase
 {
 
     /// <summary>
@@ -260,7 +260,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         await Task.Delay(300, TestContext.Current.CancellationToken);
 
         var decision = ConnectionReuseDecision.Close("Connection: close");
-        var reuseItem = ConnectionReuseItem.Rent(TestKey, decision);
+        var reuseItem = new ConnectionReuseItem(decision) { Key = TestKey };
         await inputQueue.OfferAsync(reuseItem);
         await Task.Delay(300, TestContext.Current.CancellationToken);
 
@@ -292,7 +292,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         await Task.Delay(300, TestContext.Current.CancellationToken);
 
         var decision = ConnectionReuseDecision.KeepAlive("HTTP/1.1 persistent");
-        var reuseItem = ConnectionReuseItem.Rent(TestKey, decision);
+        var reuseItem = new ConnectionReuseItem(decision) { Key = TestKey };
         await inputQueue.OfferAsync(reuseItem);
         await Task.Delay(300, TestContext.Current.CancellationToken);
 
@@ -353,7 +353,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
 
         var streamsBefore = lease.ActiveStreams;
 
-        await inputQueue.OfferAsync(StreamAcquireItem.Rent(TestKey));
+        await inputQueue.OfferAsync(new StreamAcquireItem { Key = TestKey });
         await Task.Delay(200, TestContext.Current.CancellationToken);
 
         Assert.True(lease.ActiveStreams > streamsBefore);

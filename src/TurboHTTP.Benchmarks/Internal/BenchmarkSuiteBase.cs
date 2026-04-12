@@ -18,7 +18,7 @@ public abstract class BenchmarkSuiteBase
     public const int MaxFanOut = 1024;
 
     /// <summary>Number of concurrent requests to issue per benchmark iteration.</summary>
-    [Params(1, 128, 1024, 4096, 8192)]
+    [Params(8, 512, 4096)]
     public int ConcurrencyLevel { get; set; } = 1;
 
     /// <summary>HTTP protocol version: "1.1" or "2.0".</summary>

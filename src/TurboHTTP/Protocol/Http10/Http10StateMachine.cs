@@ -64,7 +64,7 @@ public sealed class Http10StateMachine
         }
 
         // Emit StreamAcquireItem before request data
-        _ops.OnOutbound(StreamAcquireItem.Rent(endpoint));
+        _ops.OnOutbound(new StreamAcquireItem { Key = endpoint });
 
         NetworkBuffer? item = null;
         try
@@ -226,8 +226,8 @@ public sealed class Http10StateMachine
             ? RequestEndpoint.FromRequest(response.RequestMessage)
             : RequestEndpoint.Default;
         var decision = ConnectionReuseEvaluator.Evaluate(response, response.Version);
-
+        var item = new ConnectionReuseItem(decision) { Key = endpoint };
         _ops.OnResponse(response);
-        _ops.OnOutbound(ConnectionReuseItem.Rent(endpoint, decision));
+        _ops.OnOutbound(item);
     }
 }
