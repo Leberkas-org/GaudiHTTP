@@ -44,6 +44,11 @@ public sealed class Http10StateMachine
     /// <summary>Whether the state machine is currently in reconnect state.</summary>
     public bool IsReconnecting => _reconnecting;
 
+    /// <summary>Number of requests currently buffered or in-flight (used for discard logging).</summary>
+    public int PendingRequestCount => _reconnecting
+        ? (_reconnectBufferedRequest is not null ? 1 : 0)
+        : (_inFlightRequest is not null ? 1 : 0);
+
     /// <summary>The current connection endpoint.</summary>
     public RequestEndpoint Endpoint { get; private set; }
 
@@ -169,17 +174,15 @@ public sealed class Http10StateMachine
     }
 
     /// <summary>
-    /// Emits PipelineRetryItem for any orphaned in-flight request.
+    /// Logs and discards any orphaned in-flight request.
     /// Called when the upstream (server connection) finishes or fails.
     /// </summary>
     public void HandleOrphanedRequest()
     {
         if (_inFlightRequest is not null)
         {
-            _ops.OnWarning("Connection closed with orphaned request — emitting PipelineRetryItem");
-            var retryItem = new PipelineRetryItem(_inFlightRequest);
+            _ops.OnWarning("Connection closed with orphaned request — discarding.");
             _inFlightRequest = null;
-            _ops.OnOutbound(retryItem);
         }
     }
 

@@ -87,7 +87,7 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
 
     [Fact(Timeout = 10000)]
     [Trait("RFC", "RFC9112-9.3")]
-    public async Task Http11ConnectionStage_should_fail_stage_when_max_reconnect_attempts_exceeded()
+    public async Task Http11ConnectionStage_should_complete_stage_when_max_reconnect_attempts_exceeded()
     {
         var stage = new Http11ConnectionStage(maxPipelineDepth: 1, maxReconnectAttempts: 1);
 
@@ -126,8 +126,8 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
         // Reconnect fails → CloseSignalItem again (attempt 2 exceeds max of 1)
         serverSub.SendNext(new CloseSignalItem(TlsCloseKind.AbruptClose));
 
-        // Stage should fail — error propagates to response subscriber
-        await Task.Run(() => responseSub.ExpectError(), TestContext.Current.CancellationToken);
+        // Stage should complete
+        await Task.Run(() => responseSub.ExpectComplete(), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10000)]

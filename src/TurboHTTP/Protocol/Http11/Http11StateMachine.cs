@@ -56,6 +56,11 @@ public sealed class Http11StateMachine
     /// <summary>Whether there are in-flight requests waiting for responses.</summary>
     public bool HasInFlightRequests => _inFlightQueue.Count > 0;
 
+    /// <summary>Number of requests currently buffered or in-flight (used for discard logging).</summary>
+    public int PendingRequestCount => _reconnecting
+        ? (_reconnectBufferedQueue?.Count ?? 0)
+        : _inFlightQueue.Count;
+
     /// <summary>Whether the state machine is currently in reconnect state.</summary>
     public bool IsReconnecting => _reconnecting;
 
@@ -237,7 +242,7 @@ public sealed class Http11StateMachine
     }
 
     /// <summary>
-    /// Emits PipelineRetryItem for all orphaned in-flight requests.
+    /// Logs and discards all orphaned in-flight requests.
     /// Called when the upstream (server connection) finishes or fails.
     /// </summary>
     public void HandleOrphanedRequests()
@@ -248,13 +253,9 @@ public sealed class Http11StateMachine
         }
 
         _ops.OnWarning(
-            $"Connection closed with {_inFlightQueue.Count} orphaned pipelined request(s) — emitting for retry");
+            $"Connection closed with {_inFlightQueue.Count} orphaned pipelined request(s) — discarding");
+        _inFlightQueue.Clear();
         _effectivePipelineDepth = 1;
-
-        while (_inFlightQueue.Count > 0)
-        {
-            _ops.OnOutbound(new PipelineRetryItem(_inFlightQueue.Dequeue()));
-        }
     }
 
     /// <summary>

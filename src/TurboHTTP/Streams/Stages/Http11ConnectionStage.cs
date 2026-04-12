@@ -84,15 +84,18 @@ public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
             _stage = stage;
 
             var memoryBuffer = inheritedAttributes.GetAttribute(new TurboAttributes.MemoryBuffer(4 * 1024, 256 * 1024));
-            _sm = new Http11StateMachine(this, stage._maxPipelineDepth, stage._maxReconnectAttempts, memoryBuffer.Initial, memoryBuffer.Max);
+            _sm = new Http11StateMachine(this, stage._maxPipelineDepth, stage._maxReconnectAttempts,
+                memoryBuffer.Initial, memoryBuffer.Max);
 
             SetHandler(stage._inServer, onPush: OnServerPush,
                 onUpstreamFinish: () =>
                 {
                     if (_sm.IsReconnecting)
                     {
-                        FailStage(new HttpRequestException(
-                            "TurboHTTP: Transport closed during reconnect."));
+                        Log.Warning(
+                            "Http11ConnectionStage: Transport closed during reconnect — discarding {0} buffered request(s).",
+                            _sm.PendingRequestCount);
+                        CompleteStage();
                         return;
                     }
 
@@ -119,7 +122,7 @@ public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
                     _sm.HandleOrphanedRequests();
                     FlushOutbound();
 
-                    FailStage(ex);
+                    CompleteStage();
                 });
 
             SetHandler(stage._outResponse, onPull: () =>
@@ -138,7 +141,7 @@ public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
                 onUpstreamFailure: ex =>
                 {
                     Log.Warning("Http11ConnectionStage: App inlet upstream failure: {0}", ex.Message);
-                    FailStage(ex);
+                    CompleteStage();
                 });
 
             SetHandler(stage._outNetwork, onPull: OnNetworkPull);
@@ -191,8 +194,10 @@ public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
                 _sm.HandleReconnectAttempt();
                 if (_reconnectFailed)
                 {
-                    FailStage(new HttpRequestException(
-                        "TurboHTTP: Reconnect failed after max attempts; connection lost with in-flight requests."));
+                    Log.Warning(
+                        "Http11ConnectionStage: Reconnect failed after max attempts — discarding {0} in-flight request(s).",
+                        _sm.PendingRequestCount);
+                    CompleteStage();
                     return;
                 }
 
@@ -242,8 +247,8 @@ public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
             }
             catch (HttpRequestException ex)
             {
-                // AbruptClose with Content-Length mismatch — fail the stage
-                FailStage(ex);
+                Log.Warning("Http11ConnectionStage: {0}", ex.Message);
+                CompleteStage();
             }
         }
 

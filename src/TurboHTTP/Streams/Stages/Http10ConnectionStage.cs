@@ -88,8 +88,10 @@ public sealed class Http10ConnectionStage : GraphStage<Http10ConnectionShape>
                 {
                     if (_sm.IsReconnecting)
                     {
-                        FailStage(new HttpRequestException(
-                            "TurboHTTP: Transport closed during reconnect."));
+                        Log.Warning(
+                            "Http10ConnectionStage: Transport closed during reconnect — discarding {0} buffered request(s).",
+                            _sm.PendingRequestCount);
+                        CompleteStage();
                         return;
                     }
 
@@ -116,7 +118,7 @@ public sealed class Http10ConnectionStage : GraphStage<Http10ConnectionShape>
                     _sm.HandleOrphanedRequest();
                     FlushOutbound();
 
-                    FailStage(ex);
+                    CompleteStage();
                 });
 
             SetHandler(stage._outResponse, onPull: () =>
@@ -135,7 +137,7 @@ public sealed class Http10ConnectionStage : GraphStage<Http10ConnectionShape>
                 onUpstreamFailure: ex =>
                 {
                     Log.Warning("Http10ConnectionStage: App inlet upstream failure: {0}", ex.Message);
-                    FailStage(ex);
+                    CompleteStage();
                 });
 
             SetHandler(stage._outNetwork, onPull: OnNetworkPull);
@@ -188,8 +190,10 @@ public sealed class Http10ConnectionStage : GraphStage<Http10ConnectionShape>
                 _sm.HandleReconnectAttempt();
                 if (_reconnectFailed)
                 {
-                    FailStage(new HttpRequestException(
-                        "TurboHTTP: Reconnect failed after max attempts; connection lost with in-flight request."));
+                    Log.Warning(
+                        "Http10ConnectionStage: Reconnect failed after max attempts — discarding {0} in-flight request(s).",
+                        _sm.PendingRequestCount);
+                    CompleteStage();
                     return;
                 }
 
@@ -222,8 +226,8 @@ public sealed class Http10ConnectionStage : GraphStage<Http10ConnectionShape>
             }
             catch (HttpRequestException ex)
             {
-                // AbruptClose with Content-Length mismatch — fail the stage
-                FailStage(ex);
+                Log.Warning("Http10ConnectionStage: {0}", ex.Message);
+                CompleteStage();
                 return;
             }
 
