@@ -164,7 +164,7 @@ public sealed class Http10ConnectionStageReconnectSpec : StreamTestBase
 
         // Stage should NOT emit a ReconnectItem — verify no output within 200ms
         await Task.Delay(200, TestContext.Current.CancellationToken);
-        networkSub.ExpectNoMsg(TimeSpan.Zero);
+        networkSub.ExpectNoMsg(TimeSpan.Zero, TestContext.Current.CancellationToken);
 
         // Upstream completes → stage completes
         serverSub.SendComplete();

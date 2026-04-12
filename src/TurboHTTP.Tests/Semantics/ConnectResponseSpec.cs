@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http10;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Semantics;
 
@@ -12,7 +13,7 @@ namespace TurboHTTP.Tests.Semantics;
 /// Non-2xx responses (e.g. 407) are decoded with normal body handling.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http11Decoder"/> and <see cref="Http10Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http11.Decoder"/> and <see cref="Protocol.Http10.Decoder"/>.
 /// </remarks>
 public sealed class ConnectResponseSpec
 {
@@ -20,7 +21,7 @@ public sealed class ConnectResponseSpec
     [Trait("RFC", "RFC9110-9.3.6")]
     public async Task Should_IgnoreContentLength_When_Connect200()
     {
-        using var decoder = new Http11Decoder();
+        using var decoder = new Decoder();
         // Server sends 200 with Content-Length: 100 but no body bytes follow
         // (the tunnel is established; CL must be ignored)
         var raw = "HTTP/1.1 200 Connection Established\r\nContent-Length: 100\r\n\r\n"u8.ToArray();
@@ -38,7 +39,7 @@ public sealed class ConnectResponseSpec
     [Trait("RFC", "RFC9110-9.3.6")]
     public async Task Should_IgnoreTE_When_Connect200()
     {
-        using var decoder = new Http11Decoder();
+        using var decoder = new Decoder();
         // Server sends 200 with Transfer-Encoding: chunked but no body follows
         var raw = "HTTP/1.1 200 Connection Established\r\nTransfer-Encoding: chunked\r\n\r\n"u8.ToArray();
 
@@ -55,7 +56,7 @@ public sealed class ConnectResponseSpec
     [Trait("RFC", "RFC9110-9.3.6")]
     public async Task Should_ParseBody_When_Connect407()
     {
-        using var decoder = new Http11Decoder();
+        using var decoder = new Decoder();
         var bodyText = "Proxy Authentication Required";
         var raw = Encoding.ASCII.GetBytes(
             $"HTTP/1.1 407 Proxy Authentication Required\r\n" +
@@ -77,7 +78,7 @@ public sealed class ConnectResponseSpec
     public async Task Should_RespectCL_When_NonConnect200()
     {
         // Verify that normal TryDecode still requires Content-Length body
-        using var decoder = new Http11Decoder();
+        using var decoder = new Decoder();
         var bodyText = "Hello World";
         var raw = Encoding.ASCII.GetBytes(
             $"HTTP/1.1 200 OK\r\n" +
@@ -97,7 +98,7 @@ public sealed class ConnectResponseSpec
     [Trait("RFC", "RFC9110-9.3.6")]
     public async Task Should_ReturnEmptyBody_When_Connect200WithTrailingData()
     {
-        using var decoder = new Http11Decoder();
+        using var decoder = new Decoder();
         // Even if tunnel data follows the 200, it should not be parsed as response body
         var raw = "HTTP/1.1 200 Connection Established\r\nContent-Length: 5\r\n\r\nHello"u8.ToArray();
 
@@ -113,7 +114,7 @@ public sealed class ConnectResponseSpec
     [Trait("RFC", "RFC9110-9.3.6")]
     public async Task Http10_Should_IgnoreContentLength_When_Connect200()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Protocol.Http10.Decoder();
         var raw = "HTTP/1.0 200 Connection Established\r\nContent-Length: 100\r\n\r\n"u8.ToArray();
 
         var decoded = decoder.TryDecodeConnect(raw, out var response);
@@ -129,7 +130,7 @@ public sealed class ConnectResponseSpec
     [Trait("RFC", "RFC9110-9.3.6")]
     public async Task Http10_Should_ParseBody_When_Connect407()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Protocol.Http10.Decoder();
         var bodyText = "Auth Required";
         var raw = Encoding.ASCII.GetBytes(
             $"HTTP/1.0 407 Proxy Authentication Required\r\n" +

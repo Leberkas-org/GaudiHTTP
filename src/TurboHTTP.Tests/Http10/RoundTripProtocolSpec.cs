@@ -1,6 +1,8 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Decoder = TurboHTTP.Protocol.Http10.Decoder;
+using Encoder = TurboHTTP.Protocol.Http10.Encoder;
 
 namespace TurboHTTP.Tests.Http10;
 
@@ -9,7 +11,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Verifies version strings, header blocks, and protocol-level edge cases.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http10Encoder"/>, <see cref="Http10Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http10.Encoder"/>, <see cref="Protocol.Http10.Decoder"/>.
 /// RFC 1945: HTTP/1.0 protocol conformance — version, request/response structure.
 /// </remarks>
 public sealed class Http10RoundTripProtocolSpec
@@ -20,7 +22,7 @@ public sealed class Http10RoundTripProtocolSpec
     {
         var arr = new byte[65536];
         Span<byte> buffer = arr;
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         return (arr[..written], written);
     }
 
@@ -79,7 +81,7 @@ public sealed class Http10RoundTripProtocolSpec
     [Trait("RFC", "RFC1945-1")]
     public void Http10RoundTripProtocolSpec_should_decodethreedigitstatuscode()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK", "Content-Length: 0");
 
         var result = decoder.TryDecode(data, out var response);
@@ -92,7 +94,7 @@ public sealed class Http10RoundTripProtocolSpec
     [Trait("RFC", "RFC1945-1")]
     public void Http10RoundTripProtocolSpec_should_resetdecoderstate()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
 
         // First response
         var data1 = BuildRawResponse("HTTP/1.0 200 OK", "Content-Length: 5", "Hello");
@@ -114,8 +116,8 @@ public sealed class Http10RoundTripProtocolSpec
     [Trait("RFC", "RFC1945-1")]
     public void Http10RoundTripProtocolSpec_should_maintainindependentdecoderstates()
     {
-        var decoder1 = new Http10Decoder();
-        var decoder2 = new Http10Decoder();
+        var decoder1 = new Decoder();
+        var decoder2 = new Decoder();
 
         var data1 = BuildRawResponse("HTTP/1.0 200 OK", "Content-Length: 0");
         var data2 = BuildRawResponse("HTTP/1.0 404 Not Found", "Content-Length: 0");
@@ -131,7 +133,7 @@ public sealed class Http10RoundTripProtocolSpec
     [Trait("RFC", "RFC1945-1")]
     public void Http10RoundTripProtocolSpec_should_preservecustomreasonphrase()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 Everything is fine", "Content-Length: 0");
 
         decoder.TryDecode(data, out var response);
@@ -143,7 +145,7 @@ public sealed class Http10RoundTripProtocolSpec
     [Trait("RFC", "RFC1945-1")]
     public void Http10RoundTripProtocolSpec_should_handlecaseinsensitiveheaders()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             "content-type: text/plain\r\nCONTENT-LENGTH: 0");
 

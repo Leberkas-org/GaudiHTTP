@@ -1,8 +1,6 @@
 using System.Net;
 using System.Text;
-using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.IntegrationTests.Shared;
-using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.IntegrationTests.H2;
 

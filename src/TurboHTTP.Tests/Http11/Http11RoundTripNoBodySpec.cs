@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11;
 
@@ -9,7 +10,7 @@ namespace TurboHTTP.Tests.Http11;
 /// Verifies that 1xx, 204, and 304 responses produce empty bodies end-to-end.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http11Encoder"/> and <see cref="Http11Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http11.Encoder"/> and <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §6.3: Body not allowed for 1xx, 204 No Content, and 304 Not Modified responses.
 /// </remarks>
 public sealed class Http11RoundTripNoBodySpec
@@ -51,7 +52,7 @@ public sealed class Http11RoundTripNoBodySpec
             ("ETag", "\"abc123\""),
             ("Last-Modified", "Wed, 01 Jan 2025 00:00:00 GMT"));
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
@@ -64,7 +65,7 @@ public sealed class Http11RoundTripNoBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTrip_should_return_204_empty_body_when_delete_returns_no_content()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(204, "No Content", "");
         decoder.TryDecode(raw, out var responses);
 
@@ -81,7 +82,7 @@ public sealed class Http11RoundTripNoBodySpec
         var r200 = BuildResponse(200, "OK", "fresh", ("Content-Length", "5"));
         var combined = Combine(r304, r200);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(2, responses.Count);
@@ -96,7 +97,7 @@ public sealed class Http11RoundTripNoBodySpec
         var raw = BuildResponse(204, "No Content", "",
             ("Content-Type", "application/json"));
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
@@ -113,7 +114,7 @@ public sealed class Http11RoundTripNoBodySpec
         var r3 = BuildResponse(204, "No Content", "", ("Content-Length", "0"));
         var combined = Combine(r1, r2, r3);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(3, responses.Count);
@@ -133,7 +134,7 @@ public sealed class Http11RoundTripNoBodySpec
             "\r\n";
         var mem = (ReadOnlyMemory<byte>)Encoding.ASCII.GetBytes(rawResponse);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var decoded = decoder.TryDecodeHead(mem, out var responses);
 
         Assert.True(decoded);
@@ -149,7 +150,7 @@ public sealed class Http11RoundTripNoBodySpec
         const string rawResponse = "HTTP/1.1 404 Not Found\r\nContent-Length: 50\r\n\r\n";
         var mem = (ReadOnlyMemory<byte>)Encoding.ASCII.GetBytes(rawResponse);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecodeHead(mem, out var responses);
 
         Assert.Single(responses);
@@ -166,7 +167,7 @@ public sealed class Http11RoundTripNoBodySpec
             "HTTP/1.1 200 OK\r\nContent-Length: 200\r\n\r\n";
         var mem = (ReadOnlyMemory<byte>)Encoding.ASCII.GetBytes(rawResponse);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecodeHead(mem, out var responses);
 
         Assert.Equal(2, responses.Count);
@@ -178,7 +179,7 @@ public sealed class Http11RoundTripNoBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTrip_should_decode_get_after_head_when_same_decoder_used_for_both()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
 
         const string headRaw = "HTTP/1.1 200 OK\r\nContent-Length: 42\r\n\r\n";
         decoder.TryDecodeHead((ReadOnlyMemory<byte>)Encoding.ASCII.GetBytes(headRaw), out var headResp);

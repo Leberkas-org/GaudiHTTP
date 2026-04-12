@@ -1,6 +1,4 @@
 using Akka.Actor;
-using Akka.Actor.Setup;
-using Akka.Configuration;
 using Akka.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Internal;
@@ -20,9 +18,7 @@ public sealed class ActorSystemFixture : IAsyncLifetime
     {
         var services = new ServiceCollection();
         var diSetup = DependencyResolverSetup.Create(services.BuildServiceProvider());
-        var dispatcherConfig = TurboHttpDispatchers.CreateConfig(
-            TurboClientOptions.DefaultMaxEndpointSubstreams);
-        var bootstrap = BootstrapSetup.Create().WithConfig(dispatcherConfig);
+        var bootstrap = BootstrapSetup.Create();
 
         var setup = bootstrap.And(diSetup);
         System = ActorSystem.Create($"turbohttp-shared-{Guid.NewGuid()}", setup);

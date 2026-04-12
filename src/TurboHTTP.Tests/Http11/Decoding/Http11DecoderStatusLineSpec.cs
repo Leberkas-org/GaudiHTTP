@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11.Decoding;
 
@@ -10,12 +11,12 @@ namespace TurboHTTP.Tests.Http11.Decoding;
 /// Verifies that HTTP-version, status-code, and reason-phrase are correctly decoded.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http11Decoder"/>.
+/// Class under test: <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §4: Status-Line — HTTP-Version SP Status-Code SP Reason-Phrase CRLF.
 /// </remarks>
 public sealed class Http11DecoderStatusLineSpec
 {
-    private readonly Http11Decoder _decoder = new();
+    private readonly Decoder _decoder = new();
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-4")]

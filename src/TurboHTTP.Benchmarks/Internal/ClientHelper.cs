@@ -2,7 +2,6 @@ using Akka.Actor;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Internal;
 
 namespace TurboHTTP.Benchmarks.Internal;
 

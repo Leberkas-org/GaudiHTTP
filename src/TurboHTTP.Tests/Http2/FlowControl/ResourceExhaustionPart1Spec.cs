@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Protocol.Http2;
 
 namespace TurboHTTP.Tests.Http2.FlowControl;

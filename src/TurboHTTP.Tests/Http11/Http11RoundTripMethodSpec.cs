@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11;
 
@@ -9,7 +10,7 @@ namespace TurboHTTP.Tests.Http11;
 /// Verifies that all standard methods survive a full encode → decode cycle.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http11Encoder"/> and <see cref="Http11Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http11.Encoder"/> and <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §3: Method token must be preserved verbatim through encode/decode.
 /// </remarks>
 public sealed class Http11RoundTripMethodSpec
@@ -18,7 +19,7 @@ public sealed class Http11RoundTripMethodSpec
     {
         var buffer = new byte[65536];
         var span = buffer.AsSpan();
-        var written = Http11Encoder.Encode(request, ref span);
+        var written = Protocol.Http11.Encoder.Encode(request, ref span);
         return (buffer, written);
     }
 
@@ -46,7 +47,7 @@ public sealed class Http11RoundTripMethodSpec
         var encoded = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.StartsWith("GET /api HTTP/1.1\r\n", encoded);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(200, "OK", "hello", ("Content-Length", "5"));
         decoder.TryDecode(raw, out var responses);
 
@@ -69,7 +70,7 @@ public sealed class Http11RoundTripMethodSpec
         Assert.Contains("POST /users HTTP/1.1", encoded);
         Assert.Contains("Content-Type: application/json", encoded);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(201, "Created", "",
             ("Content-Length", "0"), ("Location", "/users/42"));
         decoder.TryDecode(raw, out var responses);
@@ -92,7 +93,7 @@ public sealed class Http11RoundTripMethodSpec
         var encoded = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.Contains("PUT /resource/1 HTTP/1.1", encoded);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(204, "No Content", "", ("Content-Length", "0"));
         decoder.TryDecode(raw, out var responses);
 
@@ -109,7 +110,7 @@ public sealed class Http11RoundTripMethodSpec
         var encoded = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.Contains("DELETE /resource/5 HTTP/1.1", encoded);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(200, "OK", "", ("Content-Length", "0"));
         decoder.TryDecode(raw, out var responses);
 
@@ -131,7 +132,7 @@ public sealed class Http11RoundTripMethodSpec
         Assert.Contains("PATCH /item/3 HTTP/1.1", encoded);
 
         const string responseBody = "{\"id\":3}";
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(200, "OK", responseBody,
             ("Content-Length", responseBody.Length.ToString()),
             ("Content-Type", "application/json"));
@@ -151,7 +152,7 @@ public sealed class Http11RoundTripMethodSpec
         var encoded = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.StartsWith("HEAD /resource HTTP/1.1", encoded);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(200, "OK", "",
             ("Content-Length", "0"),
             ("Content-Type", "application/octet-stream"));
@@ -171,7 +172,7 @@ public sealed class Http11RoundTripMethodSpec
         var encoded = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.Contains("OPTIONS /resource HTTP/1.1", encoded);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(200, "OK", "",
             ("Content-Length", "0"),
             ("Allow", "GET, POST, PUT, DELETE, OPTIONS"));

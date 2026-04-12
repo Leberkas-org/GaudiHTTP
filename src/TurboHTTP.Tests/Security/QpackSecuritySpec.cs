@@ -1,4 +1,3 @@
-using System.Text;
 using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Protocol.Http3.Qpack;
 

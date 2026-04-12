@@ -4,7 +4,7 @@ using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.Http10;
 
-public static class Http10Encoder
+public static class Encoder
 {
     public static int Encode(HttpRequestMessage request, ref Span<byte> buffer, bool absoluteForm = false)
     {

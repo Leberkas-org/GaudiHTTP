@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Decoder = TurboHTTP.Protocol.Http10.Decoder;
 
 namespace TurboHTTP.Tests.Http10;
 
@@ -9,7 +10,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Verifies that partial data is buffered and assembled into complete responses.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http10Decoder"/>.
+/// Class under test: <see cref="Protocol.Http10.Decoder"/>.
 /// RFC 1945: TCP fragmentation must not corrupt HTTP/1.0 parsing.
 /// </remarks>
 public sealed class Http10DecoderFragmentationSpec
@@ -43,7 +44,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderFragmentationSpec_should_reassembleheaders()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nHello");
 
         var chunk1 = full[..15];
@@ -63,7 +64,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10DecoderFragmentationSpec_should_reassemblebody()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 10\r\n\r\n1234567890");
 
         var separatorIdx = FindSequence(full.Span, "\r\n\r\n"u8) + 4;
@@ -83,7 +84,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderFragmentationSpec_should_eventuallydecode()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nABC").ToArray();
 
         HttpResponseMessage? response = null;
@@ -108,7 +109,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderFragmentationSpec_should_decodeindependently()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
 
         var resp1 = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nONE");
         var resp2 = Bytes("HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n");
@@ -124,7 +125,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderFragmentationSpec_should_returnfalseandbuffer()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var incomplete = Bytes("HTTP/1.0 200 OK\r\nContent-Le");
 
         var result = decoder.TryDecode(incomplete, out var response);
@@ -137,7 +138,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderFragmentationSpec_should_returnfalseandbuffer_2()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var incomplete = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nonly10bytes");
 
         var result = decoder.TryDecode(incomplete, out var response);
@@ -150,7 +151,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10DecoderFragmentationSpec_should_decodecorrectly()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         const string full = "HTTP/1.0 200 OK\r\nContent-Length: 9\r\n\r\nABCDEFGHI";
         var bytes = Bytes(full).ToArray();
 
@@ -172,7 +173,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderFragmentationSpec_should_reassemble()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nABC");
 
         Assert.False(decoder.TryDecode(full[..1], out _));
@@ -184,10 +185,10 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderFragmentationSpec_should_reassemble_2()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nABC");
 
-        // Split inside "HTTP/" — at offset 5
+        // Split inside "HTTP/" ï¿½ at offset 5
         Assert.False(decoder.TryDecode(full[..5], out _));
         Assert.True(decoder.TryDecode(full[5..], out var response));
         Assert.Equal(HttpStatusCode.OK, response!.StatusCode);
@@ -197,7 +198,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderFragmentationSpec_should_reassemble_3()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nABC");
 
         // Split inside "Content-" (offset ~25)
@@ -210,7 +211,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderFragmentationSpec_should_reassemble_4()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 3\r\n\r\nABC");
 
         // Split inside header value area (offset ~33, inside "3\r\n")
@@ -223,7 +224,7 @@ public sealed class Http10DecoderFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10DecoderFragmentationSpec_should_reassemble_5()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 10\r\n\r\n0123456789");
 
         var separatorIdx = FindSequence(full.Span, "\r\n\r\n"u8) + 4;

@@ -60,8 +60,8 @@ public sealed class Http30Request2FrameBackpressureSpec : StreamTestBase
 
         // The stage needs both outlets to signal demand initially (Akka.Streams wiring).
         // The frame outlet requests demand; the encoder outlet does NOT request demand.
-        var reqSub = await requestProbe.ExpectSubscriptionAsync();
-        var frameSub = await frameOut.ExpectSubscriptionAsync();
+        var reqSub = await requestProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var frameSub = await frameOut.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         // Request demand on the frame outlet only.
         frameSub.Request(10);
@@ -70,7 +70,7 @@ public sealed class Http30Request2FrameBackpressureSpec : StreamTestBase
         reqSub.SendNext(MakeRequest("/first"));
 
         // Assert: frames should still arrive even though encoder outlet hasn't pulled.
-        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000)]
@@ -80,9 +80,9 @@ public sealed class Http30Request2FrameBackpressureSpec : StreamTestBase
         // Arrange: encoder outlet pulls once, then stops — simulates slow drain.
         var (requestProbe, frameOut, encoderOut) = CreateProbes();
 
-        var reqSub = await requestProbe.ExpectSubscriptionAsync();
-        var frameSub = await frameOut.ExpectSubscriptionAsync();
-        var encSub = await encoderOut.ExpectSubscriptionAsync();
+        var reqSub = await requestProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var frameSub = await frameOut.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var encSub = await encoderOut.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         // Request demand on both outlets, but encoder outlet only requests 1.
         frameSub.Request(10);
@@ -90,7 +90,7 @@ public sealed class Http30Request2FrameBackpressureSpec : StreamTestBase
 
         // Push first request — both outlets drain.
         reqSub.SendNext(MakeRequest("/first"));
-        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Encoder outlet consumes the instruction, but does NOT request more.
         // (encSub.Request(1) was already used up by the first instruction.)
@@ -111,9 +111,9 @@ public sealed class Http30Request2FrameBackpressureSpec : StreamTestBase
         // Arrange
         var (requestProbe, frameOut, encoderOut) = CreateProbes();
 
-        var reqSub = await requestProbe.ExpectSubscriptionAsync();
-        var frameSub = await frameOut.ExpectSubscriptionAsync();
-        var encSub = await encoderOut.ExpectSubscriptionAsync();
+        var reqSub = await requestProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var frameSub = await frameOut.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var encSub = await encoderOut.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         // Frame outlet always has demand; encoder starts with 1.
         frameSub.Request(10);
@@ -121,16 +121,16 @@ public sealed class Http30Request2FrameBackpressureSpec : StreamTestBase
 
         // Push two requests — first instruction drains, second queues.
         reqSub.SendNext(MakeRequest("/first"));
-        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
-        var firstInstructions = await encoderOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        var firstInstructions = await encoderOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         Assert.True(firstInstructions.Length > 0);
 
         reqSub.SendNext(MakeRequest("/second"));
-        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Now request demand on encoder outlet — queued instructions should arrive.
         encSub.Request(5);
-        var secondInstructions = await encoderOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        var secondInstructions = await encoderOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         Assert.True(secondInstructions.Length > 0);
     }
 
@@ -141,28 +141,28 @@ public sealed class Http30Request2FrameBackpressureSpec : StreamTestBase
         // Arrange: encoder outlet never pulls — total deadlock scenario.
         var (requestProbe, frameOut, _) = CreateProbes();
 
-        var reqSub = await requestProbe.ExpectSubscriptionAsync();
-        var frameSub = await frameOut.ExpectSubscriptionAsync();
+        var reqSub = await requestProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var frameSub = await frameOut.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         // Only frame outlet has demand.
         frameSub.Request(10);
 
         // Push multiple requests — none should deadlock.
         reqSub.SendNext(MakeRequest("/a"));
-        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         reqSub.SendNext(MakeRequest("/b"));
-        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         reqSub.SendNext(MakeRequest("/c"));
-        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Complete upstream — stage should complete frame outlet without waiting on encoder.
         reqSub.SendComplete();
 
         // Frame outlet should complete (instructions queue stays buffered but stage still
         // completes the frame outlet).
-        await frameOut.ExpectCompleteAsync();
+        await frameOut.ExpectCompleteAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000)]
@@ -171,25 +171,25 @@ public sealed class Http30Request2FrameBackpressureSpec : StreamTestBase
     {
         var (requestProbe, frameOut, encoderOut) = CreateProbes();
 
-        var reqSub = await requestProbe.ExpectSubscriptionAsync();
-        var frameSub = await frameOut.ExpectSubscriptionAsync();
-        var encSub = await encoderOut.ExpectSubscriptionAsync();
+        var reqSub = await requestProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var frameSub = await frameOut.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var encSub = await encoderOut.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         frameSub.Request(10);
         encSub.Request(10);
 
         reqSub.SendNext(MakeRequest("/only"));
-        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        await frameOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Consume any encoder instructions that were emitted.
-        await encoderOut.ExpectNextAsync(TimeSpan.FromSeconds(3));
+        await encoderOut.ExpectNextAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         // Complete upstream.
         reqSub.SendComplete();
 
         // Both outlets should complete.
-        await frameOut.ExpectCompleteAsync();
-        await encoderOut.ExpectCompleteAsync();
+        await frameOut.ExpectCompleteAsync(TestContext.Current.CancellationToken);
+        await encoderOut.ExpectCompleteAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10_000)]

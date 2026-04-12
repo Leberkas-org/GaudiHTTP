@@ -1,6 +1,7 @@
 using System.Text;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Http10;
+using Decoder = TurboHTTP.Protocol.Http10.Decoder;
 
 namespace TurboHTTP.Tests.Http10;
 
@@ -9,7 +10,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Verifies Reset() clears internal state and the decoder is reusable across connections.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http10Decoder"/>.
+/// Class under test: <see cref="Protocol.Http10.Decoder"/>.
 /// RFC 1945: Decoder must be resettable between sequential connections.
 /// </remarks>
 public sealed class Http10DecoderStateSpec
@@ -31,7 +32,7 @@ public sealed class Http10DecoderStateSpec
     public void Http10DecoderStateSpec_should_returntrue()
     {
         // HTTP/0.9 response: no headers — entire buffer is body, delimited by EOF (RFC 1945 §2.1)
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var body = Bytes("<html>response body</html>");
         decoder.TryDecode(body, out _);
 
@@ -45,7 +46,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_returnfalse()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
 
         var result = decoder.TryDecodeEof(out var response);
 
@@ -57,7 +58,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_returnfalse_2()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var incomplete = Bytes("HTTP/1.0 200");
         decoder.TryDecode(incomplete, out _);
 
@@ -72,7 +73,7 @@ public sealed class Http10DecoderStateSpec
     public void Http10DecoderStateSpec_should_clearremainder()
     {
         // HTTP/0.9 response: first TryDecodeEof clears buffered body; second call returns false
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var body = Bytes("<html>some body</html>");
         decoder.TryDecode(body, out _);
 
@@ -88,7 +89,7 @@ public sealed class Http10DecoderStateSpec
     public void Http10DecoderStateSpec_should_throw()
     {
         // RFC 1945 §7.2.2: if Content-Length is declared, EOF before all bytes is an error
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var partial = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nshort");
         decoder.TryDecode(partial, out _);
 
@@ -99,7 +100,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_clearbuffereddata()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var partial = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nincomplete");
         decoder.TryDecode(partial, out _);
 
@@ -114,7 +115,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_decodenewresponse()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var partial = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nincomplete");
         decoder.TryDecode(partial, out _);
 
@@ -131,7 +132,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_notthrow()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
 
         var ex = Record.Exception(() =>
         {
@@ -147,7 +148,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_returnfalse_3()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
 
         var result = decoder.TryDecode(ReadOnlyMemory<byte>.Empty, out var response);
 
@@ -159,7 +160,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_preservestate()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nX-Header: value\r\nContent-Length: 5\r\n\r\nHello");
 
         // First decode with partial data
@@ -181,7 +182,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_bereusable()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
 
         var data1 = BuildRawResponse("HTTP/1.0 200 OK", "Content-Length: 0");
         decoder.TryDecode(data1, out var response1);
@@ -200,7 +201,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_beidempotent()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var partial = Bytes("HTTP/1.0 200");
         decoder.TryDecode(partial, out _);
 
@@ -219,7 +220,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_maintainstate()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var full = Bytes("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nHello");
 
         // Feed one byte at a time for first part, then flush
@@ -243,7 +244,7 @@ public sealed class Http10DecoderStateSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10DecoderStateSpec_should_handleeof()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var complete = BuildRawResponse("HTTP/1.0 200 OK", "Content-Length: 0");
 
         decoder.TryDecode(complete, out _);

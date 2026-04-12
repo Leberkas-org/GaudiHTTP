@@ -1,5 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Encoder = TurboHTTP.Protocol.Http10.Encoder;
 
 namespace TurboHTTP.Tests.Http10;
 
@@ -8,7 +9,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Verifies that request bodies are appended after the header section.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http10Encoder"/>.
+/// Class under test: <see cref="Protocol.Http10.Encoder"/>.
 /// RFC 1945 §7: Entity body transmitted with HTTP requests.
 /// </remarks>
 public sealed class Http10EncoderBodySpec
@@ -19,7 +20,7 @@ public sealed class Http10EncoderBodySpec
         int bufferSize = 8192)
     {
         var buffer = MakeBuffer(bufferSize);
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         var raw = Encoding.ASCII.GetString(buffer[..written]);
 
         var separatorIndex = raw.IndexOf("\r\n\r\n", StringComparison.Ordinal);
@@ -36,7 +37,7 @@ public sealed class Http10EncoderBodySpec
     private static string Encode(HttpRequestMessage request, int bufferSize = 8192)
     {
         var buffer = MakeBuffer(bufferSize);
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         return Encoding.ASCII.GetString(buffer[..written]);
     }
 
@@ -117,7 +118,7 @@ public sealed class Http10EncoderBodySpec
         };
 
         var buffer = MakeBuffer(8192);
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         var raw = buffer[..written];
 
         var separator = "\r\n\r\n"u8.ToArray();
@@ -158,7 +159,7 @@ public sealed class Http10EncoderBodySpec
         };
 
         var buffer = MakeBuffer(16384);
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         var raw = Encoding.ASCII.GetString(buffer[..written]);
 
         var headerSection = raw[..raw.IndexOf("\r\n\r\n", StringComparison.Ordinal)];
@@ -223,7 +224,7 @@ public sealed class Http10EncoderBodySpec
         };
 
         var buffer = MakeBuffer();
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         var raw = buffer[..written];
 
         var separator = "\r\n\r\n"u8.ToArray();
@@ -244,7 +245,7 @@ public sealed class Http10EncoderBodySpec
         };
 
         var buffer = MakeBuffer();
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         var raw = buffer[..written];
 
         var separator = "\r\n\r\n"u8.ToArray();
@@ -265,7 +266,7 @@ public sealed class Http10EncoderBodySpec
         };
 
         var buffer = MakeBuffer();
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         var raw = buffer[..written];
 
         var separator = "\r\n\r\n"u8.ToArray();
@@ -289,7 +290,7 @@ public sealed class Http10EncoderBodySpec
         };
 
         var buffer = MakeBuffer(3 * 1024 * 1024);
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         var raw = Encoding.ASCII.GetString(buffer[..written]);
 
         var headerSection = raw[..raw.IndexOf("\r\n\r\n", StringComparison.Ordinal)];
@@ -331,7 +332,7 @@ public sealed class Http10EncoderBodySpec
         };
 
         var buffer = MakeBuffer();
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         var raw = buffer[..written];
 
         var separator = "\r\n\r\n"u8.ToArray();

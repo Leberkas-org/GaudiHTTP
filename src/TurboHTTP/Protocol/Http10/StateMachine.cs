@@ -5,26 +5,14 @@ using TurboHTTP.Streams.Stages;
 namespace TurboHTTP.Protocol.Http10;
 
 /// <summary>
-/// Callback interface for the stage Logic to receive protocol effects from the state machine.
-/// The stage implements this and translates calls to Akka Push/Emit/Log operations.
-/// </summary>
-public interface IHttp10StageOperations
-{
-    void OnResponse(HttpResponseMessage response);
-    void OnOutbound(IOutputItem item);
-    void OnWarning(string message);
-    void OnReconnectFailed();
-}
-
-/// <summary>
 /// Encapsulates all HTTP/1.0 connection protocol logic — request encoding, response decoding,
 /// request-response correlation, and control signal emission.
-/// Calls back into <see cref="IHttp10StageOperations"/> for responses, outbound items, and warnings.
+/// Calls back into <see cref="IStageOperations"/> for responses, outbound items, and warnings.
 /// </summary>
-public sealed class Http10StateMachine
+public sealed class StateMachine
 {
-    private readonly IHttp10StageOperations _ops;
-    private readonly Http10Decoder _decoder = new();
+    private readonly IStageOperations _ops;
+    private readonly Decoder _decoder = new();
     private readonly int _minBufferSize;
     private readonly int _maxBufferSize;
     private readonly int _maxReconnectAttempts;
@@ -52,8 +40,8 @@ public sealed class Http10StateMachine
     /// <summary>The current connection endpoint.</summary>
     public RequestEndpoint Endpoint { get; private set; }
 
-    public Http10StateMachine(
-        IHttp10StageOperations ops,
+    public StateMachine(
+        IStageOperations ops,
         int maxReconnectAttempts = 3,
         int minBufferSize = 4 * 1024,
         int maxBufferSize = 256 * 1024)
@@ -72,9 +60,7 @@ public sealed class Http10StateMachine
     {
         _inFlightRequest = request;
 
-        var endpoint = request.RequestUri is not null
-            ? RequestEndpoint.FromRequest(request)
-            : RequestEndpoint.Default;
+        var endpoint = RequestEndpoint.FromRequest(request);
 
         if (Endpoint == default && endpoint != default)
         {
@@ -94,7 +80,7 @@ public sealed class Http10StateMachine
             item.Key = endpoint;
             var span = item.FullMemory.Span;
 
-            var written = Http10Encoder.Encode(request, ref span);
+            var written = Encoder.Encode(request, ref span);
             item.Length = written;
 
             _ops.OnOutbound(item);
@@ -284,9 +270,7 @@ public sealed class Http10StateMachine
         }
 
         // HTTP/1.0 default is Connection: close (RFC 1945)
-        var endpoint = response.RequestMessage is { RequestUri: not null }
-            ? RequestEndpoint.FromRequest(response.RequestMessage)
-            : RequestEndpoint.Default;
+        var endpoint = RequestEndpoint.FromRequest(response.RequestMessage!);
         var decision = ConnectionReuseEvaluator.Evaluate(response, response.Version);
         var item = new ConnectionReuseItem(decision) { Key = endpoint };
         _ops.OnResponse(response);

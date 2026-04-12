@@ -1,11 +1,12 @@
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http11;
+using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Tests.Http11;
 
 public sealed class Http11StateMachineReconnectSpec
 {
-    private sealed class FakeOps : IHttp11StageOperations
+    private sealed class FakeOps : IStageOperations
     {
         public List<HttpResponseMessage> Responses { get; } = [];
         public List<IOutputItem> Outbound { get; } = [];
@@ -29,7 +30,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void Http11StateMachine_should_buffer_all_inflight_requests_and_emit_reconnect_item_on_start_reconnect()
     {
         var ops = new FakeOps();
-        var sm = new Http11StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
+        var sm = new StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
         sm.EncodeRequest(MakeRequest("/a"));
         sm.EncodeRequest(MakeRequest("/b"));
         ops.Outbound.Clear();
@@ -46,7 +47,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void Http11StateMachine_CanAcceptRequest_should_be_false_when_reconnecting()
     {
         var ops = new FakeOps();
-        var sm = new Http11StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
+        var sm = new StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
         sm.EncodeRequest(MakeRequest());
         sm.StartReconnect();
 
@@ -58,7 +59,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void Http11StateMachine_HandleConnectedSignal_should_replay_all_buffered_requests()
     {
         var ops = new FakeOps();
-        var sm = new Http11StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
+        var sm = new StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
         sm.EncodeRequest(MakeRequest("/a"));
         sm.EncodeRequest(MakeRequest("/b"));
         ops.Outbound.Clear();
@@ -79,7 +80,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void Http11StateMachine_HandleReconnectAttempt_should_fail_when_max_exceeded()
     {
         var ops = new FakeOps();
-        var sm = new Http11StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 1);
+        var sm = new StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 1);
         sm.EncodeRequest(MakeRequest());
         sm.StartReconnect(); // attempt 1
 
@@ -93,7 +94,7 @@ public sealed class Http11StateMachineReconnectSpec
     public void Http11StateMachine_HandleReconnectAttempt_should_emit_new_reconnect_item_when_under_limit()
     {
         var ops = new FakeOps();
-        var sm = new Http11StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
+        var sm = new StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
         sm.EncodeRequest(MakeRequest());
         sm.StartReconnect(); // attempt 1
         var countAfterFirst = ops.Outbound.OfType<ReconnectItem>().Count();

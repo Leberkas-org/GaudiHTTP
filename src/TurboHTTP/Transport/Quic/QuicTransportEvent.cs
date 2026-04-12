@@ -12,9 +12,9 @@ internal abstract record QuicTransportEvent
     private QuicTransportEvent() { }
 
     internal sealed record RequestLeaseAcquired(ConnectionLease Lease) : QuicTransportEvent;
-    internal sealed record TypedLeaseAcquired(ConnectionLease Lease) : QuicTransportEvent;
+    internal sealed record TypedLeaseAcquired(ConnectionLease Lease, OutputStreamType StreamType) : QuicTransportEvent;
     internal sealed record AcquisitionFailed(Exception Error) : QuicTransportEvent;
-    internal sealed record InboundData(IInputItem Item) : QuicTransportEvent;
+    internal sealed record InboundData(IInputItem Item, int Gen) : QuicTransportEvent;
     internal sealed record InboundComplete(TlsCloseKind CloseKind, int Gen) : QuicTransportEvent;
     internal sealed record InboundPumpFailed(Exception Error) : QuicTransportEvent;
     internal sealed record InboundStreamReady(QuicConnectionManager.InboundStream Stream) : QuicTransportEvent;

@@ -9,7 +9,7 @@ namespace TurboHTTP.Tests.Http11.Encoder;
 /// Verifies keep-alive default, close opt-out, and upgrade negotiation.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http11Encoder"/>.
+/// Class under test: <see cref="Protocol.Http11.Encoder"/>.
 /// RFC 9112 §9: Connection header — controls per-hop options including keep-alive and close.
 /// </remarks>
 public sealed class Http11EncoderConnectionSpec
@@ -143,7 +143,7 @@ public sealed class Http11EncoderConnectionSpec
         using var owner = MemoryPool<byte>.Shared.Rent(4096);
         var buffer = owner.Memory;
         var span = buffer.Span;
-        var written = Http11Encoder.Encode(request, ref span);
+        var written = Protocol.Http11.Encoder.Encode(request, ref span);
         return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 }

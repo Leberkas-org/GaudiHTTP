@@ -7,7 +7,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Verifies that CR, LF, and CRLF sequences in header values are rejected.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http10Encoder"/>.
+/// Class under test: <see cref="Encoder"/>.
 /// RFC 1945 §12: Security considerations — header injection prevention.
 /// </remarks>
 public sealed class Http10EncoderSecuritySpec
@@ -23,7 +23,7 @@ public sealed class Http10EncoderSecuritySpec
         try
         {
             Span<byte> buffer = new byte[8192];
-            Http10Encoder.Encode(request, ref buffer);
+            Encoder.Encode(request, ref buffer);
         }
         catch (ArgumentException)
         {
@@ -43,7 +43,7 @@ public sealed class Http10EncoderSecuritySpec
         try
         {
             Span<byte> buffer = new byte[8192];
-            Http10Encoder.Encode(request, ref buffer);
+            Encoder.Encode(request, ref buffer);
         }
         catch (ArgumentException)
         {
@@ -63,7 +63,7 @@ public sealed class Http10EncoderSecuritySpec
         try
         {
             Span<byte> buffer = new byte[8192];
-            Http10Encoder.Encode(request, ref buffer);
+            Encoder.Encode(request, ref buffer);
         }
         catch (ArgumentException)
         {
@@ -83,7 +83,7 @@ public sealed class Http10EncoderSecuritySpec
         try
         {
             Span<byte> buffer = new byte[8192];
-            Http10Encoder.Encode(request, ref buffer);
+            Encoder.Encode(request, ref buffer);
         }
         catch (ArgumentException e)
         {
@@ -105,7 +105,7 @@ public sealed class Http10EncoderSecuritySpec
         try
         {
             Span<byte> buffer = new byte[8192];
-            Http10Encoder.Encode(request, ref buffer);
+            Encoder.Encode(request, ref buffer);
         }
         catch (Exception e)
         {
@@ -125,7 +125,7 @@ public sealed class Http10EncoderSecuritySpec
         try
         {
             Span<byte> buffer = new byte[5];
-            Http10Encoder.Encode(request, ref buffer);
+            Encoder.Encode(request, ref buffer);
         }
         catch (InvalidOperationException)
         {
@@ -148,7 +148,7 @@ public sealed class Http10EncoderSecuritySpec
         try
         {
             Span<byte> buffer = new byte[100];
-            Http10Encoder.Encode(request, ref buffer);
+            Encoder.Encode(request, ref buffer);
         }
         catch (InvalidOperationException)
         {
@@ -164,13 +164,13 @@ public sealed class Http10EncoderSecuritySpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
         Span<byte> measureBuffer = new byte[8192];
-        var needed = Http10Encoder.Encode(request, ref measureBuffer);
+        var needed = Encoder.Encode(request, ref measureBuffer);
 
         Exception? ex = null;
         try
         {
             Span<byte> exactBuffer = new byte[needed];
-            Http10Encoder.Encode(request, ref exactBuffer);
+            Encoder.Encode(request, ref exactBuffer);
         }
         catch (Exception e)
         {
@@ -190,7 +190,7 @@ public sealed class Http10EncoderSecuritySpec
         try
         {
             Span<byte> buffer = new byte[0];
-            Http10Encoder.Encode(request, ref buffer);
+            Encoder.Encode(request, ref buffer);
         }
         catch (InvalidOperationException)
         {

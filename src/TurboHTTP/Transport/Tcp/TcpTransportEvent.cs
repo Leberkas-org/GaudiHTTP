@@ -7,16 +7,21 @@ namespace TurboHTTP.Transport.Tcp;
 /// Discriminated union of all async events that arrive from outside the stage thread.
 /// Dispatched via <see cref="TcpTransportStateMachine.Dispatch"/>.
 /// </summary>
-internal abstract record TcpTransportEvent
+internal interface ITcpTransportEvent
 {
-    private TcpTransportEvent() { }
+    internal readonly record struct LeaseAcquired(ConnectionLease Lease) : ITcpTransportEvent;
 
-    internal sealed record LeaseAcquired(ConnectionLease Lease) : TcpTransportEvent;
-    internal sealed record AcquisitionFailed(Exception Error) : TcpTransportEvent;
-    internal sealed record InboundBatch(IInputItem[] Batch, int Count) : TcpTransportEvent;
-    internal sealed record InboundComplete(TlsCloseKind CloseKind, int Gen) : TcpTransportEvent;
-    internal sealed record InboundPumpFailed(Exception Error) : TcpTransportEvent;
-    internal sealed record OutboundWriteDone : TcpTransportEvent;
-    internal sealed record OutboundWriteFailed(Exception Error) : TcpTransportEvent;
-    internal sealed record FlushNextCompleted : TcpTransportEvent;
+    internal readonly record struct AcquisitionFailed(Exception Error) : ITcpTransportEvent;
+
+    internal readonly record struct InboundBatch(IInputItem[] Batch, int Count, int Gen) : ITcpTransportEvent;
+
+    internal readonly record struct InboundComplete(TlsCloseKind CloseKind, int Gen) : ITcpTransportEvent;
+
+    internal readonly record struct InboundPumpFailed(Exception Error) : ITcpTransportEvent;
+
+    internal readonly record struct OutboundWriteDone : ITcpTransportEvent;
+
+    internal readonly record struct OutboundWriteFailed(Exception Error) : ITcpTransportEvent;
+
+    internal readonly record struct FlushNextCompleted : ITcpTransportEvent;
 }

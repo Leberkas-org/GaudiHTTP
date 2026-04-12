@@ -5,6 +5,7 @@ using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Protocol.Http2;
+using Encoder = TurboHTTP.Protocol.Http11.Encoder;
 
 namespace TurboHTTP.Tests.Security;
 
@@ -16,7 +17,7 @@ namespace TurboHTTP.Tests.Security;
 /// </summary>
 /// <remarks>
 /// Classes under test: <see cref="UriSanitizer"/>, <see cref="RedirectHandler"/>,
-/// <see cref="Http10Encoder"/>, <see cref="Http11Encoder"/>, <see cref="RequestEncoder"/>.
+/// <see cref="Protocol.Http10.Encoder"/>, <see cref="Protocol.Http11.Encoder"/>, <see cref="RequestEncoder"/>.
 /// Attack vectors: path traversal, fragment injection, userinfo embedded in URIs,
 /// unicode normalization, double-encoding passthrough, null bytes, backslash handling,
 /// extremely long URI components.
@@ -27,14 +28,14 @@ public sealed class UriSecuritySpec
     {
         var buffer = new Memory<byte>(new byte[bufferSize]);
         var span = buffer.Span;
-        var written = Http11Encoder.Encode(request, ref span, absoluteForm);
+        var written = Encoder.Encode(request, ref span, absoluteForm);
         return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 
     private static string EncodeHttp10(HttpRequestMessage request, bool absoluteForm = false, int bufferSize = 16384)
     {
         Span<byte> buffer = new byte[bufferSize];
-        var written = Http10Encoder.Encode(request, ref buffer, absoluteForm);
+        var written = Protocol.Http10.Encoder.Encode(request, ref buffer, absoluteForm);
         return Encoding.ASCII.GetString(buffer[..written]);
     }
 

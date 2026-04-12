@@ -60,8 +60,7 @@ internal sealed class TurboClientStreamManager : IDisposable
         // tracks pending work, and handles retry with exponential backoff.
         // Uses dedicated dispatcher if available; falls back to default for external ActorSystems.
         _owner = system.ActorOf(
-            Props.Create(() => new ClientStreamOwnerActor())
-                .WithStreamDispatcher(system),
+            Props.Create(() => new ClientStreamOwnerActor()),
             $"stream-owner-{Guid.NewGuid():N}");
 
         // Tell the Owner to create a stream instance. The instance will materialize

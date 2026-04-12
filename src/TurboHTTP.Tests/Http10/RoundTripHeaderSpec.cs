@@ -1,5 +1,7 @@
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Decoder = TurboHTTP.Protocol.Http10.Decoder;
+using Encoder = TurboHTTP.Protocol.Http10.Encoder;
 
 namespace TurboHTTP.Tests.Http10;
 
@@ -8,7 +10,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Verifies that request and response headers survive encode-then-decode unchanged.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http10Encoder"/>, <see cref="Http10Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http10.Encoder"/>, <see cref="Protocol.Http10.Decoder"/>.
 /// RFC 1945 §4.2: Message headers — field-name ':' field-value.
 /// </remarks>
 public sealed class Http10RoundTripHeaderSpec
@@ -19,7 +21,7 @@ public sealed class Http10RoundTripHeaderSpec
     {
         var arr = new byte[65536];
         Span<byte> buffer = arr;
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         return (arr[..written], written);
     }
 
@@ -39,7 +41,7 @@ public sealed class Http10RoundTripHeaderSpec
     [Trait("RFC", "RFC1945-4.2")]
     public void Http10RoundTripHeaderSpec_should_preservecontenttypeheader()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             "Content-Type: application/json\r\nContent-Length: 2", "{}");
 
@@ -52,7 +54,7 @@ public sealed class Http10RoundTripHeaderSpec
     [Trait("RFC", "RFC1945-4.2")]
     public void Http10RoundTripHeaderSpec_should_preservecontentlengthheader()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             "Content-Length: 13", "Hello, World!");
 
@@ -66,7 +68,7 @@ public sealed class Http10RoundTripHeaderSpec
     [Trait("RFC", "RFC1945-4.2")]
     public void Http10RoundTripHeaderSpec_should_preservecustomheader()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             "X-Custom-Header: CustomValue\r\nContent-Length: 0");
 
@@ -80,7 +82,7 @@ public sealed class Http10RoundTripHeaderSpec
     [Trait("RFC", "RFC1945-4.2")]
     public void Http10RoundTripHeaderSpec_should_preservelocationheader()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 301 Moved Permanently",
             "Location: http://example.com/new-location\r\nContent-Length: 0");
 
@@ -95,7 +97,7 @@ public sealed class Http10RoundTripHeaderSpec
     [Trait("RFC", "RFC1945-4.2")]
     public void Http10RoundTripHeaderSpec_should_preservemultiplecustomheaders()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             "X-Header-1: Value1\r\nX-Header-2: Value2\r\nX-Header-3: Value3\r\nContent-Length: 0");
 
@@ -113,7 +115,7 @@ public sealed class Http10RoundTripHeaderSpec
     [Trait("RFC", "RFC1945-4.2")]
     public void Http10RoundTripHeaderSpec_should_preserveserverheader()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             "Server: TestServer/1.0\r\nContent-Length: 0");
 
@@ -127,7 +129,7 @@ public sealed class Http10RoundTripHeaderSpec
     [Trait("RFC", "RFC1945-4.2")]
     public void Http10RoundTripHeaderSpec_should_preservedateheader()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var dateValue = "Thu, 06 Mar 2026 12:00:00 GMT";
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             $"Date: {dateValue}\r\nContent-Length: 0");
@@ -142,7 +144,7 @@ public sealed class Http10RoundTripHeaderSpec
     [Trait("RFC", "RFC1945-4.2")]
     public void Http10RoundTripHeaderSpec_should_preserveheaderwithspecialchars()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             "X-Data: value-with-dash_and_underscore\r\nContent-Length: 0");
 

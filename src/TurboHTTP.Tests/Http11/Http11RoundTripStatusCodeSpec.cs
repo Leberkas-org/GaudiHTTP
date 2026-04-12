@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11;
 
@@ -9,7 +10,7 @@ namespace TurboHTTP.Tests.Http11;
 /// Verifies that all standard status classes survive a full encode → decode cycle.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http11Encoder"/> and <see cref="Http11Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http11.Encoder"/> and <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §4: Status-Code — three-digit integer categorised by class (1xx–5xx).
 /// </remarks>
 public sealed class Http11RoundTripStatusCodeSpec
@@ -33,7 +34,7 @@ public sealed class Http11RoundTripStatusCodeSpec
     [Trait("RFC", "RFC9112-4")]
     public void Http11RoundTrip_should_return_301_with_location_when_get_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(301, "Moved Permanently", "",
             ("Content-Length", "0"),
             ("Location", "http://example.com/new-path"));
@@ -50,7 +51,7 @@ public sealed class Http11RoundTripStatusCodeSpec
     public async Task Http11RoundTrip_should_return_404_when_resource_missing_round_trip()
     {
         const string body = "Not Found";
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(404, "Not Found", body, ("Content-Length", body.Length.ToString()));
         decoder.TryDecode(raw, out var responses);
 
@@ -63,7 +64,7 @@ public sealed class Http11RoundTripStatusCodeSpec
     [Trait("RFC", "RFC9112-4")]
     public void Http11RoundTrip_should_return_500_when_server_error_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(500, "Internal Server Error", "", ("Content-Length", "0"));
         decoder.TryDecode(raw, out var responses);
 
@@ -75,7 +76,7 @@ public sealed class Http11RoundTripStatusCodeSpec
     [Trait("RFC", "RFC9112-4")]
     public void Http11RoundTrip_should_return_503_with_retry_after_when_service_unavailable_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(503, "Service Unavailable", "",
             ("Content-Length", "0"),
             ("Retry-After", "120"));

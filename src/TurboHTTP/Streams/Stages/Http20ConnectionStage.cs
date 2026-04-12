@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -8,49 +7,7 @@ using TurboHTTP.Protocol.Http2;
 
 namespace TurboHTTP.Streams.Stages;
 
-public sealed class Http20ConnectionShape : Shape
-{
-    public Inlet<IInputItem> InServer { get; }
-    public Outlet<HttpResponseMessage> OutResponse { get; }
-    public Inlet<HttpRequestMessage> InApp { get; }
-    public Outlet<IOutputItem> OutNetwork { get; }
-
-    public Http20ConnectionShape(
-        Inlet<IInputItem> inServer,
-        Outlet<HttpResponseMessage> outResponse,
-        Inlet<HttpRequestMessage> inApp,
-        Outlet<IOutputItem> outNetwork)
-    {
-        InServer = inServer;
-        OutResponse = outResponse;
-        InApp = inApp;
-        OutNetwork = outNetwork;
-    }
-
-    public override ImmutableArray<Inlet> Inlets => [InServer, InApp];
-
-    public override ImmutableArray<Outlet> Outlets => [OutResponse, OutNetwork];
-
-    public override Shape DeepCopy()
-    {
-        return new Http20ConnectionShape(
-            (Inlet<IInputItem>)InServer.CarbonCopy(),
-            (Outlet<HttpResponseMessage>)OutResponse.CarbonCopy(),
-            (Inlet<HttpRequestMessage>)InApp.CarbonCopy(),
-            (Outlet<IOutputItem>)OutNetwork.CarbonCopy());
-    }
-
-    public override Shape CopyFromPorts(ImmutableArray<Inlet> inlets, ImmutableArray<Outlet> outlets)
-    {
-        return new Http20ConnectionShape(
-            (Inlet<IInputItem>)inlets[0],
-            (Outlet<HttpResponseMessage>)outlets[0],
-            (Inlet<HttpRequestMessage>)inlets[1],
-            (Outlet<IOutputItem>)outlets[1]);
-    }
-}
-
-public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
+public sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
 {
     private readonly Inlet<IInputItem> _inServer = new("Http20Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http20Connection.Out.Response");
@@ -58,15 +15,13 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
     private readonly Outlet<IOutputItem> _outNetwork = new("Http20Connection.Out.Network");
 
     private readonly Http2ConnectionConfig _config;
-    private readonly int _maxReconnectAttempts;
 
     public Http20ConnectionStage(Http2ConnectionConfig? config = null, int maxReconnectAttempts = 3)
     {
-        _maxReconnectAttempts = maxReconnectAttempts;
         _config = config ?? new Http2ConnectionConfig(MaxReconnectAttempts: maxReconnectAttempts);
     }
 
-    public override Http20ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
+    public override ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
@@ -121,8 +76,6 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
             SetHandler(stage._outNetwork, onPull: OnNetworkPull);
         }
 
-        // ─── IHttp2StageOperations ───
-
         void IHttp2StageOperations.OnResponse(HttpResponseMessage response)
         {
             _pendingResponses.Add(response);
@@ -143,64 +96,60 @@ public sealed class Http20ConnectionStage : GraphStage<Http20ConnectionShape>
             _reconnectFailed = true;
         }
 
-        // ─── Handlers ───
-
         private void OnServerPush()
         {
             var item = Grab(_stage._inServer);
 
-            // Reconnect: new connection ready — replay buffered requests
-            if (item is ConnectedSignalItem)
+            switch (item)
             {
-                _sm.HandleConnectedSignal();
-                FlushOutbound();
-                TryPullRequest();
-                if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+                // Reconnect: new connection ready — replay buffered requests
+                case ConnectedSignalItem:
                 {
-                    Pull(_stage._inServer);
-                }
+                    _sm.HandleConnectedSignal();
+                    FlushOutbound();
+                    TryPullRequest();
+                    if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+                    {
+                        Pull(_stage._inServer);
+                    }
 
-                return;
-            }
-
-            // Reconnect: connection dropped again while already reconnecting
-            if (item is CloseSignalItem && _sm.IsReconnecting)
-            {
-                _sm.HandleReconnectAttempt();
-                if (_reconnectFailed)
-                {
-                    FailStage(new HttpRequestException(
-                        "TurboHTTP: HTTP/2 reconnect failed after max attempts."));
                     return;
                 }
-
-                FlushOutbound();
-                if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+                // Reconnect: connection dropped again while already reconnecting
+                case CloseSignalItem when _sm.IsReconnecting:
                 {
-                    Pull(_stage._inServer);
+                    _sm.HandleReconnectAttempt();
+                    if (_reconnectFailed)
+                    {
+                        FailStage(new HttpRequestException(
+                            "TurboHTTP: HTTP/2 reconnect failed after max attempts."));
+                        return;
+                    }
+
+                    FlushOutbound();
+                    if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+                    {
+                        Pull(_stage._inServer);
+                    }
+
+                    return;
                 }
-
-                return;
-            }
-
-            // Reconnect: abrupt close with in-flight requests (no GOAWAY)
-            if (item is CloseSignalItem && _sm.HasInFlightRequests)
-            {
-                _sm.BufferOrphanedRequests(lastStreamId: 0);
-                FlushOutbound();
-                if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+                // Reconnect: abrupt close with in-flight requests (no GOAWAY)
+                case CloseSignalItem when _sm.HasInFlightRequests:
                 {
-                    Pull(_stage._inServer);
+                    _sm.BufferOrphanedRequests(lastStreamId: 0);
+                    FlushOutbound();
+                    if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+                    {
+                        Pull(_stage._inServer);
+                    }
+
+                    return;
                 }
-
-                return;
-            }
-
-            // CloseSignalItem with no in-flight — complete normally
-            if (item is CloseSignalItem)
-            {
-                CompleteStage();
-                return;
+                // CloseSignalItem with no in-flight — complete normally
+                case CloseSignalItem:
+                    CompleteStage();
+                    return;
             }
 
             if (item is not NetworkBuffer buffer)

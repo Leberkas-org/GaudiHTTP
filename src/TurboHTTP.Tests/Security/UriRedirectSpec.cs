@@ -1,10 +1,10 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http10;
-using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Protocol.Http2;
+using Encoder = TurboHTTP.Protocol.Http11.Encoder;
 
 namespace TurboHTTP.Tests.Security;
 
@@ -16,7 +16,7 @@ namespace TurboHTTP.Tests.Security;
 /// </summary>
 /// <remarks>
 /// Classes under test: <see cref="UriSanitizer"/>, <see cref="RedirectHandler"/>,
-/// <see cref="Http10Encoder"/>, <see cref="Http11Encoder"/>, <see cref="RequestEncoder"/>.
+/// <see cref="Protocol.Http10.Encoder"/>, <see cref="Protocol.Http11.Encoder"/>, <see cref="RequestEncoder"/>.
 /// Attack vectors: backslash path traversal, long URI DoS, credential injection via Location,
 /// IPv6 authority confusion, HTTPS→HTTP downgrade.
 /// </remarks>
@@ -26,7 +26,7 @@ public sealed class UriRedirectSpec
     {
         var buffer = new Memory<byte>(new byte[bufferSize]);
         var span = buffer.Span;
-        var written = Http11Encoder.Encode(request, ref span, absoluteForm);
+        var written = Encoder.Encode(request, ref span, absoluteForm);
         return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 
@@ -70,7 +70,7 @@ public sealed class UriRedirectSpec
         var span = buffer.Span;
 
         // Should encode without throwing
-        var written = Http11Encoder.Encode(request, ref span);
+        var written = Encoder.Encode(request, ref span);
 
         Assert.True(written > 0);
         Assert.True(written < bufferSize);
@@ -90,7 +90,7 @@ public sealed class UriRedirectSpec
         var buffer = new Memory<byte>(new byte[bufferSize]);
         var span = buffer.Span;
 
-        var written = Http11Encoder.Encode(request, ref span);
+        var written = Encoder.Encode(request, ref span);
 
         Assert.True(written > 0);
         Assert.True(written < bufferSize);

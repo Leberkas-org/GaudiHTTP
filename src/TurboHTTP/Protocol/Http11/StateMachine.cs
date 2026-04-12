@@ -4,26 +4,14 @@ using TurboHTTP.Streams.Stages;
 namespace TurboHTTP.Protocol.Http11;
 
 /// <summary>
-/// Callback interface for the stage Logic to receive protocol effects from the state machine.
-/// The stage implements this and translates calls to Akka Push/Emit/Log operations.
-/// </summary>
-public interface IHttp11StageOperations
-{
-    void OnResponse(HttpResponseMessage response);
-    void OnOutbound(IOutputItem item);
-    void OnWarning(string message);
-    void OnReconnectFailed();
-}
-
-/// <summary>
 /// Encapsulates all HTTP/1.1 connection protocol logic — request encoding, response decoding,
 /// request-response correlation with pipelining, and control signal emission.
-/// Calls back into <see cref="IHttp11StageOperations"/> for responses, outbound items, and warnings.
+/// Calls back into <see cref="IStageOperations"/> for responses, outbound items, and warnings.
 /// </summary>
-public sealed class Http11StateMachine
+public sealed class StateMachine
 {
-    private readonly IHttp11StageOperations _ops;
-    private readonly Http11Decoder _decoder = new();
+    private readonly IStageOperations _ops;
+    private readonly Decoder _decoder = new();
     private readonly int _minBufferSize;
     private readonly int _maxBufferSize;
     private readonly int _maxPipelineDepth;
@@ -32,7 +20,6 @@ public sealed class Http11StateMachine
     private readonly Queue<HttpRequestMessage> _inFlightQueue = new();
     private int _effectivePipelineDepth;
     private Queue<HttpRequestMessage>? _reconnectBufferedQueue;
-    private bool _reconnecting;
     private int _reconnectAttempts;
 
     /// <summary>
@@ -51,27 +38,24 @@ public sealed class Http11StateMachine
     private byte[]? _initialBodyBytes;
 
     /// <summary>Whether a new request can be accepted (queue not full and not reconnecting).</summary>
-    public bool CanAcceptRequest => _inFlightQueue.Count < _effectivePipelineDepth && !_reconnecting;
+    public bool CanAcceptRequest => _inFlightQueue.Count < _effectivePipelineDepth && !IsReconnecting;
 
     /// <summary>Whether there are in-flight requests waiting for responses.</summary>
     public bool HasInFlightRequests => _inFlightQueue.Count > 0;
 
     /// <summary>Number of requests currently buffered or in-flight (used for discard logging).</summary>
-    public int PendingRequestCount => _reconnecting
+    public int PendingRequestCount => IsReconnecting
         ? (_reconnectBufferedQueue?.Count ?? 0)
         : _inFlightQueue.Count;
 
     /// <summary>Whether the state machine is currently in reconnect state.</summary>
-    public bool IsReconnecting => _reconnecting;
-
-    /// <summary>Whether we are accumulating a close-delimited body.</summary>
-    public bool IsAccumulatingCloseDelimitedBody => _pendingCloseDelimitedResponse is not null;
+    public bool IsReconnecting { get; private set; }
 
     /// <summary>The current connection endpoint.</summary>
     public RequestEndpoint Endpoint { get; private set; }
 
-    public Http11StateMachine(
-        IHttp11StageOperations ops,
+    public StateMachine(
+        IStageOperations ops,
         int maxPipelineDepth = 8,
         int maxReconnectAttempts = 3,
         int minBufferSize = 4 * 1024,
@@ -93,9 +77,7 @@ public sealed class Http11StateMachine
     {
         _inFlightQueue.Enqueue(request);
 
-        var endpoint = request.RequestUri is not null
-            ? RequestEndpoint.FromRequest(request)
-            : RequestEndpoint.Default;
+        var endpoint = RequestEndpoint.FromRequest(request);
 
         if (Endpoint == default && endpoint != default)
         {
@@ -115,7 +97,7 @@ public sealed class Http11StateMachine
             item.Key = endpoint;
             var span = item.FullMemory.Span;
 
-            var written = Http11Encoder.Encode(request, ref span);
+            var written = Encoder.Encode(request, ref span);
             item.Length = written;
 
             _ops.OnOutbound(item);
@@ -266,7 +248,7 @@ public sealed class Http11StateMachine
     {
         _reconnectBufferedQueue = new Queue<HttpRequestMessage>(_inFlightQueue);
         _inFlightQueue.Clear();
-        _reconnecting = true;
+        IsReconnecting = true;
         _reconnectAttempts = 1;
         _decoder.Reset();
         _ops.OnOutbound(new ReconnectItem { Key = Endpoint });
@@ -278,7 +260,7 @@ public sealed class Http11StateMachine
     /// </summary>
     public void HandleConnectedSignal()
     {
-        _reconnecting = false;
+        IsReconnecting = false;
         _reconnectAttempts = 0;
         _decoder.Reset();
 
@@ -373,7 +355,6 @@ public sealed class Http11StateMachine
             if (_decoder.TryDecodeEof(out var response) && response is not null)
             {
                 CompleteResponse(response);
-                return;
             }
         }
         else
@@ -404,9 +385,7 @@ public sealed class Http11StateMachine
             _effectivePipelineDepth = 1;
         }
 
-        var endpoint = response.RequestMessage is { RequestUri: not null, Version: not null }
-            ? RequestEndpoint.FromRequest(response.RequestMessage)
-            : RequestEndpoint.Default;
+        var endpoint = RequestEndpoint.FromRequest(response.RequestMessage!);
         var decision = ConnectionReuseEvaluator.Evaluate(response, response.Version);
 
         _ops.OnResponse(response);
@@ -448,66 +427,5 @@ public sealed class Http11StateMachine
         return response.Headers.ConnectionClose == true;
     }
 
-    /// <summary>
-    /// An <see cref="HttpContent"/> that holds pooled <see cref="NetworkBuffer"/> chunks
-    /// accumulated during connection-close-delimited body streaming.
-    /// </summary>
-    private sealed class PooledChunksContent : HttpContent
-    {
-        private readonly byte[]? _initial;
-        private readonly List<NetworkBuffer>? _chunks;
-
-        public PooledChunksContent(byte[]? initial, List<NetworkBuffer>? chunks)
-        {
-            _initial = initial;
-            _chunks = chunks;
-        }
-
-        protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context)
-            => SerializeToStreamAsync(stream, context, CancellationToken.None);
-
-        protected override async Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context,
-            CancellationToken ct)
-        {
-            if (_initial is { Length: > 0 })
-            {
-                await stream.WriteAsync(_initial, ct).ConfigureAwait(false);
-            }
-
-            if (_chunks is not null)
-            {
-                foreach (var buf in _chunks)
-                {
-                    await stream.WriteAsync(buf.Memory, ct).ConfigureAwait(false);
-                }
-            }
-        }
-
-        protected override bool TryComputeLength(out long length)
-        {
-            length = _initial?.Length ?? 0;
-            if (_chunks is not null)
-            {
-                foreach (var buf in _chunks)
-                {
-                    length += buf.Length;
-                }
-            }
-
-            return true;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && _chunks is not null)
-            {
-                foreach (var buf in _chunks)
-                {
-                    buf.Dispose();
-                }
-            }
-
-            base.Dispose(disposing);
-        }
-    }
+   
 }

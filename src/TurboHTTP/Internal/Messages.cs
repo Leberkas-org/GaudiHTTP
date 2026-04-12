@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using TurboHTTP.Transport.Connection;
 using TurboHTTP.Protocol.Http11;
-using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Internal;
 

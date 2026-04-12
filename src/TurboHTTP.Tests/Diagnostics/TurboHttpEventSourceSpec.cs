@@ -3,6 +3,7 @@ using TurboHTTP.Diagnostics;
 
 namespace TurboHTTP.Tests.Diagnostics;
 
+[Collection("OTEL")]
 public sealed class TurboHttpEventSourceSpec : IDisposable
 {
     private readonly TestEventListener _listener;

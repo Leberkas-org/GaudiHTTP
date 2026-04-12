@@ -3,6 +3,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Internal;
+using TurboHTTP.Transport.Tcp;
 
 // QUIC APIs are platform-guarded; usage is gated at runtime via ConnectItem.Options being QuicOptions.
 #pragma warning disable CA1416
@@ -35,7 +36,7 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<IOutputItem, II
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 
-    private sealed class Logic : TimerGraphStageLogic, IQuicTransportOperations
+    private sealed class Logic : TimerGraphStageLogic, ITransportOperations
     {
         private readonly QuicConnectionStage _stage;
         private readonly Queue<IInputItem> _pendingReads = new();
@@ -84,9 +85,7 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<IOutputItem, II
 
         public override void PostStop() => _sm.PostStop();
 
-        // ─── IQuicTransportOperations ───
-
-        void IQuicTransportOperations.OnPushOutput(IInputItem item)
+        void ITransportOperations.OnPushOutput(IInputItem item)
         {
             if (IsAvailable(_stage._out))
             {
@@ -98,7 +97,7 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<IOutputItem, II
             }
         }
 
-        void IQuicTransportOperations.OnSignalPullInput()
+        void ITransportOperations.OnSignalPullInput()
         {
             if (!IsClosed(_stage._in) && !HasBeenPulled(_stage._in))
             {
@@ -106,15 +105,13 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<IOutputItem, II
             }
         }
 
-        void IQuicTransportOperations.OnFailStage(Exception ex) => FailStage(ex);
+        void ITransportOperations.OnCompleteStage() => CompleteStage();
 
-        void IQuicTransportOperations.OnCompleteStage() => CompleteStage();
-
-        void IQuicTransportOperations.OnScheduleTimer(string key, TimeSpan delay)
+        void ITransportOperations.OnScheduleTimer(string key, TimeSpan delay)
             => ScheduleOnce(key, delay);
 
-        void IQuicTransportOperations.OnCancelTimer(string key) => CancelTimer(key);
+        void ITransportOperations.OnCancelTimer(string key) => CancelTimer(key);
 
-        ILoggingAdapter IQuicTransportOperations.Log => Log;
+        ILoggingAdapter ITransportOperations.Log => Log;
     }
 }

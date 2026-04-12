@@ -9,7 +9,7 @@ namespace TurboHTTP.Tests.Http11.Encoder;
 /// Verifies byte-range and multi-range header serialization.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http11Encoder"/>.
+/// Class under test: <see cref="Protocol.Http11.Encoder"/>.
 /// RFC 9112 §5 / RFC 9110 §14.2: Range header — bytes=first-byte-pos "-" last-byte-pos.
 /// </remarks>
 public sealed class Http11EncoderRangeRequestSpec
@@ -69,7 +69,7 @@ public sealed class Http11EncoderRangeRequestSpec
         Assert.Throws<ArgumentException>(() =>
         {
             var span = buffer.Span;
-            Http11Encoder.Encode(request, ref span);
+            Protocol.Http11.Encoder.Encode(request, ref span);
         });
     }
 
@@ -78,7 +78,7 @@ public sealed class Http11EncoderRangeRequestSpec
         using var owner = MemoryPool<byte>.Shared.Rent(4096);
         var buffer = owner.Memory;
         var span = buffer.Span;
-        var written = Http11Encoder.Encode(request, ref span);
+        var written = Protocol.Http11.Encoder.Encode(request, ref span);
         return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 }

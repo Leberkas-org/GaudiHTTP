@@ -255,7 +255,6 @@ public sealed class Http2EngineEndToEndSpec : EngineTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var signalItem = await signalTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        Assert.NotNull(signalItem);
         Assert.Equal(50, signalItem.MaxStreams);
     }
 

@@ -66,14 +66,12 @@ public sealed class ClientHelper : IAsyncDisposable
             // Create an ActorSystem with DependencyResolver so that Servus.Akka
             // ResolveActor<T> works inside TurboClientStreamManager.
             var diSetup = DependencyResolverSetup.Create(services.BuildServiceProvider());
-            var dispatcherConfig = TurboHttpDispatchers.CreateConfig(
-                TurboClientOptions.DefaultMaxEndpointSubstreams);
             var bootstrap = BootstrapSetup.Create();
 
             if (loggerFactory is not null)
-                bootstrap = bootstrap.WithConfig(LoggingHocon.WithFallback(dispatcherConfig));
-            else
-                bootstrap = bootstrap.WithConfig(dispatcherConfig);
+            {
+                bootstrap = bootstrap.WithConfig(LoggingHocon);
+            }
 
             var setup = loggerFactory is not null
                 ? bootstrap.And(diSetup).And(new LoggerFactorySetup(loggerFactory))

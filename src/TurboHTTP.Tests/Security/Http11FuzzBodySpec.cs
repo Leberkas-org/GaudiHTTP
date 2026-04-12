@@ -1,6 +1,7 @@
 using System.Text;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Security;
 
@@ -11,7 +12,7 @@ namespace TurboHTTP.Tests.Security;
 /// Connection: close trailing data, and fragmented delivery.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http11Decoder"/>.
+/// Class under test: <see cref="Protocol.Http11.Decoder"/>.
 /// Each test uses seeded <see cref="Random"/> so failures are reproducible.
 /// Invariant: TryDecode/TryDecodeEof must either return a valid result or throw
 /// <see cref="HttpDecoderException"/> — never an unhandled crash.
@@ -21,7 +22,7 @@ public sealed class Http11FuzzBodySpec
     private const int IterationsPerSeed = 100;
     private const long MaxBytesPerIteration = 1_048_576;
 
-    private static void AssertDecodeNeverCrashes(Http11Decoder decoder, ReadOnlyMemory<byte> data)
+    private static void AssertDecodeNeverCrashes(Decoder decoder, ReadOnlyMemory<byte> data)
     {
         try
         {
@@ -39,7 +40,7 @@ public sealed class Http11FuzzBodySpec
         }
     }
 
-    private static void AssertDecodeEofNeverCrashes(Http11Decoder decoder)
+    private static void AssertDecodeEofNeverCrashes(Decoder decoder)
     {
         try
         {
@@ -124,7 +125,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            using var decoder = new Http11Decoder();
+            using var decoder = new Decoder();
 
             var sb = new StringBuilder();
             sb.Append("HTTP/1.1 200 OK\r\n");
@@ -174,7 +175,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            using var decoder = new Http11Decoder();
+            using var decoder = new Decoder();
 
             var claimedLengths = new[]
             {
@@ -231,7 +232,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            using var decoder = new Http11Decoder();
+            using var decoder = new Decoder();
 
             var body = "Hello, World!";
             var validResponse = BuildValidResponse(200, "OK", body,
@@ -275,7 +276,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            using var decoder = new Http11Decoder();
+            using var decoder = new Decoder();
 
             byte[] fullResponse;
             if (rng.Next(2) == 0)

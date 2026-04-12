@@ -3,6 +3,7 @@ using Akka.Actor;
 using Akka.Event;
 using TurboHTTP.Internal;
 using TurboHTTP.Transport.Connection;
+using TurboHTTP.Transport.Tcp;
 
 // QUIC APIs are platform-guarded; usage is gated at runtime via ConnectItem.Options being QuicOptions.
 #pragma warning disable CA1416
@@ -12,7 +13,7 @@ namespace TurboHTTP.Transport.Quic;
 /// <summary>
 /// Encapsulates all QUIC transport state and logic — multi-stream I/O (request, control, encoder),
 /// tagged item routing, and connection lifecycle management.
-/// Calls back into <see cref="IQuicTransportOperations"/> for Akka-specific operations
+/// Calls back into <see cref="ITransportOperations"/> for Akka-specific operations
 /// (Push, Pull, Timer, Complete, Fail).
 /// Async events arrive via <see cref="Dispatch"/> after being marshaled through the StageActorRef.
 /// </summary>
@@ -20,8 +21,10 @@ internal sealed class QuicTransportStateMachine
 {
     private const string ConnectTimerKey = "connect-timeout";
 
-    private readonly IQuicTransportOperations _ops;
+    private readonly ITransportOperations _ops;
     private readonly IActorRef _self;
+
+    private int _connectionGen;
 
     private QuicConnectionManager? _quicManager;
     private ConnectionHandle? _requestHandle;
@@ -40,24 +43,17 @@ internal sealed class QuicTransportStateMachine
     /// <summary>Cancellation tokens for all QUIC inbound pumps.</summary>
     private readonly List<CancellationTokenSource> _quicPumpCancellations = [];
 
-    /// <summary>Pending typed stream type being opened (Control or QpackEncoder).</summary>
-    private OutputStreamType? _pendingTypedStreamType;
-
     private RequestEndpoint _currentKey;
     private ConnectItem? _pendingConnect;
 
     /// <summary>NetworkBuffers buffered before the request handle is available.</summary>
     private readonly Queue<NetworkBuffer> _pendingWrites = new();
 
-    public QuicTransportStateMachine(
-        IQuicTransportOperations ops,
-        IActorRef self)
+    public QuicTransportStateMachine(ITransportOperations ops, IActorRef self)
     {
         _ops = ops;
         _self = self;
     }
-
-    // ─── Event Dispatch ───
 
     public void Dispatch(QuicTransportEvent evt)
     {
@@ -67,19 +63,26 @@ internal sealed class QuicTransportStateMachine
                 OnRequestLeaseAcquired(e.Lease);
                 break;
             case QuicTransportEvent.TypedLeaseAcquired e:
-                OnTypedLeaseAcquired(e.Lease);
+                OnTypedLeaseAcquired(e.Lease, e.StreamType);
                 break;
             case QuicTransportEvent.AcquisitionFailed e:
                 OnAcquisitionFailed(e.Error);
                 break;
             case QuicTransportEvent.InboundData e:
-                _ops.OnPushOutput(e.Item);
+                if (e.Gen == _connectionGen)
+                {
+                    _ops.OnPushOutput(e.Item);
+                }
                 break;
             case QuicTransportEvent.InboundComplete e:
-                OnInboundComplete(e.CloseKind);
+                if (e.Gen == _connectionGen)
+                {
+                    OnInboundComplete(e.CloseKind);
+                }
                 break;
             case QuicTransportEvent.InboundPumpFailed e:
-                _ops.OnFailStage(e.Error);
+                _ops.Log.Warning("QuicConnectionStage: Inbound pump failed — {0}", e.Error.Message);
+                OnInboundComplete(TlsCloseKind.AbruptClose);
                 break;
             case QuicTransportEvent.InboundStreamReady e:
                 OnInboundStreamReady(e.Stream);
@@ -92,8 +95,6 @@ internal sealed class QuicTransportStateMachine
                 break;
         }
     }
-
-    // ─── Upstream Handlers ───
 
     public void HandlePush(IOutputItem item)
     {
@@ -130,8 +131,6 @@ internal sealed class QuicTransportStateMachine
     {
         CleanupTransport();
     }
-
-    // ─── Item Handlers ───
 
     private void HandleConnectItem(ConnectItem connect)
     {
@@ -203,8 +202,6 @@ internal sealed class QuicTransportStateMachine
         }
     }
 
-    // ─── Timer ───
-
     public void OnTimer(string? timerKey)
     {
         if (timerKey != ConnectTimerKey)
@@ -226,8 +223,6 @@ internal sealed class QuicTransportStateMachine
         _ops.OnPushOutput(signal);
         _ops.OnSignalPullInput();
     }
-
-    // ─── Async Event Handlers ───
 
     private void OnRequestLeaseAcquired(ConnectionLease lease)
     {
@@ -263,11 +258,9 @@ internal sealed class QuicTransportStateMachine
         _ops.OnSignalPullInput();
     }
 
-    private void OnTypedLeaseAcquired(ConnectionLease lease)
+    private void OnTypedLeaseAcquired(ConnectionLease lease, OutputStreamType streamType)
     {
         _activeLeases.Add(lease);
-        var streamType = _pendingTypedStreamType;
-        _pendingTypedStreamType = null;
 
         switch (streamType)
         {
@@ -328,8 +321,6 @@ internal sealed class QuicTransportStateMachine
         StartQuicInboundPump(inbound.Lease.Handle, inbound.StreamType);
     }
 
-    // ─── Connection Management ───
-
     private void AcquireQuicConnection(ConnectItem connect)
     {
         var manager = _quicManager;
@@ -349,7 +340,8 @@ internal sealed class QuicTransportStateMachine
             TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnRanToCompletion);
 
         acquireTask.ContinueWith(
-            static (t, state) => ((IActorRef)state!).Tell(new QuicTransportEvent.AcquisitionFailed(t.Exception!.GetBaseException())),
+            static (t, state) =>
+                ((IActorRef)state!).Tell(new QuicTransportEvent.AcquisitionFailed(t.Exception!.GetBaseException())),
             self,
             TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted);
 
@@ -370,17 +362,20 @@ internal sealed class QuicTransportStateMachine
             return;
         }
 
-        _pendingTypedStreamType = streamType;
         var openTask = manager.OpenStreamAsync(streamType);
         var self = _self;
 
         openTask.ContinueWith(
-            static (t, state) => ((IActorRef)state!).Tell(new QuicTransportEvent.TypedLeaseAcquired(t.Result)),
-            self,
+            static (t, state) =>
+            {
+                var (actorRef, type) = ((IActorRef, OutputStreamType))state!;
+                actorRef.Tell(new QuicTransportEvent.TypedLeaseAcquired(t.Result, type));
+            },
+            (self, streamType),
             TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnRanToCompletion);
 
         openTask.ContinueWith(
-            (t, state) =>
+            (t, _) =>
             {
                 if (t.IsFaulted)
                 {
@@ -388,12 +383,13 @@ internal sealed class QuicTransportStateMachine
                         streamType, t.Exception!.GetBaseException().Message);
                 }
             },
-            self,
+            null,
             TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted);
     }
 
     private void CleanupTransport()
     {
+        _connectionGen++;
         StopAllQuicPumps();
 
         foreach (var lease in _activeLeases)
@@ -425,8 +421,9 @@ internal sealed class QuicTransportStateMachine
         var reader = handle.InboundReader;
         var key = _currentKey;
         var self = _self;
+        var gen = _connectionGen;
 
-        _ = QuicPumpAsync(reader, key, streamType, ct, self);
+        _ = QuicPumpAsync(reader, key, streamType, ct, self, gen);
     }
 
     private static async Task QuicPumpAsync(
@@ -434,7 +431,8 @@ internal sealed class QuicTransportStateMachine
         RequestEndpoint key,
         InputStreamType streamType,
         CancellationToken ct,
-        IActorRef self)
+        IActorRef self,
+        int gen)
     {
         var closeKind = TlsCloseKind.CleanClose;
         try
@@ -449,7 +447,7 @@ internal sealed class QuicTransportStateMachine
                         ? chunk
                         : new Http3InputTaggedItem(chunk, streamType);
 
-                    self.Tell(new QuicTransportEvent.InboundData(outputItem));
+                    self.Tell(new QuicTransportEvent.InboundData(outputItem, gen));
                 }
             }
         }
@@ -470,7 +468,7 @@ internal sealed class QuicTransportStateMachine
         // Only emit close signal for the request stream (main connection lifecycle)
         if (streamType == InputStreamType.Request)
         {
-            self.Tell(new QuicTransportEvent.InboundComplete(closeKind, 0));
+            self.Tell(new QuicTransportEvent.InboundComplete(closeKind, gen));
         }
     }
 
@@ -484,8 +482,6 @@ internal sealed class QuicTransportStateMachine
 
         _quicPumpCancellations.Clear();
     }
-
-    // ─── Outbound Writing ───
 
     private void WriteToHandle(ConnectionHandle? handle, NetworkBuffer buffer)
     {
@@ -515,7 +511,8 @@ internal sealed class QuicTransportStateMachine
             TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnRanToCompletion);
 
         writeTask.ContinueWith(
-            static (t, state) => ((IActorRef)state!).Tell(new QuicTransportEvent.OutboundWriteFailed(t.Exception!.GetBaseException())),
+            static (t, state) =>
+                ((IActorRef)state!).Tell(new QuicTransportEvent.OutboundWriteFailed(t.Exception!.GetBaseException())),
             self,
             TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted);
     }
@@ -539,7 +536,8 @@ internal sealed class QuicTransportStateMachine
                 {
                     if (t.IsFaulted)
                     {
-                        ((IActorRef)state!).Tell(new QuicTransportEvent.OutboundWriteFailed(t.Exception!.GetBaseException()));
+                        ((IActorRef)state!).Tell(
+                            new QuicTransportEvent.OutboundWriteFailed(t.Exception!.GetBaseException()));
                     }
                 },
                 self,
@@ -548,9 +546,7 @@ internal sealed class QuicTransportStateMachine
 
         _ops.OnSignalPullInput();
     }
-
-    // ─── Lifecycle ───
-
+    
     public void PostStop()
     {
         _ops.OnCancelTimer(ConnectTimerKey);

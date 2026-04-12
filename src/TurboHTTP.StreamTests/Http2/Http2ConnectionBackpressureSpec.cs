@@ -4,7 +4,6 @@ using Akka.Streams.TestKit;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Streams.Stages;
-using TurboHTTP.Streams.Stages.Decoding;
 using static TurboHTTP.StreamTests.Http2.Http2ConnectionTestHelper;
 
 namespace TurboHTTP.StreamTests.Http2;

@@ -99,10 +99,8 @@ public sealed class LoggingBridgeSpec : IAsyncLifetime
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var diSetup = DependencyResolverSetup.Create(sp);
-            var dispatcherConfig = TurboHttpDispatchers.CreateConfig(
-                TurboClientOptions.DefaultMaxEndpointSubstreams);
             var setup = BootstrapSetup.Create()
-                .WithConfig(LoggingHocon.WithFallback(dispatcherConfig))
+                .WithConfig(LoggingHocon)
                 .And(diSetup)
                 .And(new LoggerFactorySetup(loggerFactory));
             return ActorSystem.Create("turbohttp-bridge-test", setup);

@@ -1,16 +1,17 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Decoder = TurboHTTP.Protocol.Http10.Decoder;
 
 namespace TurboHTTP.Tests.Http10;
 
 /// <summary>
-/// Tests HTTP/0.9 Simple-Response compatibility per RFC 1945 §3.1.
+/// Tests HTTP/0.9 Simple-Response compatibility per RFC 1945 ï¿½3.1.
 /// HTTP/1.0 clients must understand any valid response in the format of HTTP/0.9.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http10Decoder"/>.
-/// RFC 1945 §3.1: Simple-Response has no status-line — just body until connection close.
+/// Class under test: <see cref="Protocol.Http10.Decoder"/>.
+/// RFC 1945 ï¿½3.1: Simple-Response has no status-line ï¿½ just body until connection close.
 /// </remarks>
 public sealed class Http09SimpleResponseSpec
 {
@@ -21,7 +22,7 @@ public sealed class Http09SimpleResponseSpec
     [Trait("RFC", "RFC1945")]
     public void Http09SimpleResponseSpec_should_parseashttp09()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var body = "<html>Hello</html>";
         var data = Bytes(body);
 
@@ -42,7 +43,7 @@ public sealed class Http09SimpleResponseSpec
     [Trait("RFC", "RFC1945")]
     public void Http09SimpleResponseSpec_should_haveemptyheaders()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = Bytes("some body content");
 
         decoder.TryDecode(data, out _);
@@ -58,7 +59,7 @@ public sealed class Http09SimpleResponseSpec
     [Trait("RFC", "RFC1945")]
     public async Task Http09SimpleResponseSpec_should_readbodyuntileof()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var chunk1 = Bytes("Hello ");
         var chunk2 = Bytes("World");
 
@@ -78,7 +79,7 @@ public sealed class Http09SimpleResponseSpec
     [Trait("RFC", "RFC1945")]
     public async Task Http09SimpleResponseSpec_should_parsenormally()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var raw = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello";
         var data = Bytes(raw);
 
@@ -98,11 +99,11 @@ public sealed class Http09SimpleResponseSpec
     [Trait("RFC", "RFC1945")]
     public void Http09SimpleResponseSpec_should_handleempty()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
 
         // Feed empty data then signal EOF
         decoder.TryDecode(ReadOnlyMemory<byte>.Empty, out _);
-        // No data at all — signal EOF directly
+        // No data at all ï¿½ signal EOF directly
         var result = decoder.TryDecodeEof(out var response);
 
         // No data was ever received, so nothing to decode

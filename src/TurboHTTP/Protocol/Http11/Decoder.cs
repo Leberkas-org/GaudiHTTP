@@ -10,7 +10,7 @@ namespace TurboHTTP.Protocol.Http11;
 /// RFC 9112 compliant HTTP/1.1 response decoder with zero-allocation patterns.
 /// Uses MemoryPool for buffer management to minimize GC pressure.
 /// </summary>
-public sealed class Http11Decoder : IDisposable
+public sealed class Decoder : IDisposable
 {
     private IMemoryOwner<byte>? _remainderOwner;
     private int _remainderLength;
@@ -45,7 +45,7 @@ public sealed class Http11Decoder : IDisposable
     /// <param name="maxTotalHeaderSize">Maximum total header size in bytes (default: 64KB)</param>
     /// <param name="maxBodySize">Maximum body size in bytes (default: 10MB)</param>
     /// <param name="maxHeaderCount">Maximum number of header fields allowed (default: 100)</param>
-    public Http11Decoder(
+    public Decoder(
         int maxHeaderSize = DefaultMaxHeaderSize,
         int maxTotalHeaderSize = DefaultMaxTotalHeaderSize,
         int maxBodySize = DefaultMaxBodySize,

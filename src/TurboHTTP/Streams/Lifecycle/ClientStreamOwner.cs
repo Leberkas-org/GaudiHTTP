@@ -110,9 +110,8 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
             // fall back to default for externally provided ActorSystems without TurboHttp HOCON.
             _connectionManager = Context.ActorOf(
                 Props.Create(() => new ConnectionManagerActor(
-                        create.ClientOptions.PooledConnectionIdleTimeout,
-                        create.ClientOptions.Http1.MaxConnectionsPerServer))
-                    .WithIoDispatcher(Context.System),
+                    create.ClientOptions.PooledConnectionIdleTimeout,
+                    create.ClientOptions.Http1.MaxConnectionsPerServer)),
                 "connection-manager");
 
             // Build transport registry and engine flow
@@ -132,8 +131,7 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
 
             // Materialize the graph
             var materializerSettings = ActorMaterializerSettings.Create(Context.System)
-                .WithInputBuffer(initialSize: 32, maxSize: 128)
-                .WithStreamDispatcher(Context.System);
+                .WithInputBuffer(initialSize: 32, maxSize: 128);
             _materializer = Context.System.Materializer(
                 settings: materializerSettings,
                 namePrefix: $"stream-owner-{Self.Path.Name}");

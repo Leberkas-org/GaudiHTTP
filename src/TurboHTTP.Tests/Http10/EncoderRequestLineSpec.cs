@@ -1,5 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Encoder = TurboHTTP.Protocol.Http10.Encoder;
 
 namespace TurboHTTP.Tests.Http10;
 
@@ -8,7 +9,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Verifies that method, request URI, and HTTP-version are correctly encoded.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http10Encoder"/>.
+/// Class under test: <see cref="Protocol.Http10.Encoder"/>.
 /// RFC 1945 §5.1: Request-Line — Method SP Request-URI SP HTTP-Version CRLF.
 /// </remarks>
 public sealed class Http10EncoderRequestLineSpec
@@ -18,7 +19,7 @@ public sealed class Http10EncoderRequestLineSpec
     private static string Encode(HttpRequestMessage request, int bufferSize = 8192)
     {
         var buffer = MakeBuffer(bufferSize);
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         return Encoding.ASCII.GetString(buffer[..written]);
     }
 
@@ -26,7 +27,7 @@ public sealed class Http10EncoderRequestLineSpec
         int bufferSize = 8192)
     {
         var buffer = MakeBuffer(bufferSize);
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         var raw = Encoding.ASCII.GetString(buffer[..written]);
 
         var separatorIndex = raw.IndexOf("\r\n\r\n", StringComparison.Ordinal);
@@ -130,7 +131,7 @@ public sealed class Http10EncoderRequestLineSpec
         try
         {
             Span<byte> buffer = new byte[8192];
-            Http10Encoder.Encode(request, ref buffer);
+            Encoder.Encode(request, ref buffer);
         }
         catch (ArgumentException)
         {
@@ -145,7 +146,7 @@ public sealed class Http10EncoderRequestLineSpec
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path?q=1");
         var buffer = MakeBuffer();
-        var written = Http10Encoder.Encode(request, ref buffer, absoluteForm: true);
+        var written = Encoder.Encode(request, ref buffer, absoluteForm: true);
         var raw = Encoding.ASCII.GetString(buffer[..written]);
 
         Assert.StartsWith("GET http://example.com/path?q=1 HTTP/1.0\r\n", raw);

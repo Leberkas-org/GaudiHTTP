@@ -5,6 +5,7 @@ using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Protocol.Http2;
+using Encoder = TurboHTTP.Protocol.Http11.Encoder;
 
 namespace TurboHTTP.Tests.Semantics;
 
@@ -244,14 +245,14 @@ public sealed class UserinfoStrippingSpec
     private static string EncodeHttp10Absolute(HttpRequestMessage request)
     {
         Span<byte> buffer = new byte[4096];
-        var written = Http10Encoder.Encode(request, ref buffer, absoluteForm: true);
+        var written = Protocol.Http10.Encoder.Encode(request, ref buffer, absoluteForm: true);
         return Encoding.ASCII.GetString(buffer[..written]);
     }
 
     private static string EncodeHttp10Origin(HttpRequestMessage request)
     {
         Span<byte> buffer = new byte[4096];
-        var written = Http10Encoder.Encode(request, ref buffer, absoluteForm: false);
+        var written = Protocol.Http10.Encoder.Encode(request, ref buffer, absoluteForm: false);
         return Encoding.ASCII.GetString(buffer[..written]);
     }
 
@@ -260,7 +261,7 @@ public sealed class UserinfoStrippingSpec
         using var owner = MemoryPool<byte>.Shared.Rent(4096);
         var buffer = owner.Memory;
         var span = buffer.Span;
-        var written = Http11Encoder.Encode(request, ref span, absoluteForm: true);
+        var written = Encoder.Encode(request, ref span, absoluteForm: true);
         return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 
@@ -269,7 +270,7 @@ public sealed class UserinfoStrippingSpec
         using var owner = MemoryPool<byte>.Shared.Rent(4096);
         var buffer = owner.Memory;
         var span = buffer.Span;
-        var written = Http11Encoder.Encode(request, ref span, absoluteForm: false);
+        var written = Encoder.Encode(request, ref span, absoluteForm: false);
         return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 }

@@ -4,7 +4,7 @@ using System.Text;
 
 namespace TurboHTTP.Protocol.Http10;
 
-public sealed class Http10Decoder
+public sealed class Decoder
 {
     private const int DefaultMaxHeaderSize = 16 * 1024;       // 16 KB
     private const int DefaultMaxTotalHeaderSize = 64 * 1024;  // 64 KB
@@ -27,7 +27,7 @@ public sealed class Http10Decoder
     /// </summary>
     public bool IsWaitingForContentLength => _pendingContentLength.HasValue;
 
-    public Http10Decoder(int maxHeaderSize = DefaultMaxHeaderSize, int maxTotalHeaderSize = DefaultMaxTotalHeaderSize)
+    public Decoder(int maxHeaderSize = DefaultMaxHeaderSize, int maxTotalHeaderSize = DefaultMaxTotalHeaderSize)
     {
         _maxHeaderSize = maxHeaderSize;
         _maxTotalHeaderSize = maxTotalHeaderSize;

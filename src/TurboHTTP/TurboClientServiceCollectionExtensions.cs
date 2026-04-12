@@ -50,21 +50,17 @@ public static class TurboClientServiceCollectionExtensions
                     .DefaultIfEmpty(TurboClientOptions.DefaultMaxEndpointSubstreams)
                     .Max();
 
-                var config = LoggingHocon
-                    .WithFallback(TurboHttpDispatchers.CreateConfig(maxSubstreams));
-
                 var loggerFactory = provider.GetService<ILoggerFactory>();
                 if (loggerFactory is not null)
                 {
                     // Bridge Akka logging to Microsoft.Extensions.Logging
-                    var setup = BootstrapSetup.Create().WithConfig(config)
-                        .And(new LoggerFactorySetup(loggerFactory));
+                    var setup = BootstrapSetup.Create().And(new LoggerFactorySetup(loggerFactory));
                     system = ActorSystem.Create("turbohttp", setup);
                 }
                 else
                 {
                     // Standalone usage — fallback to Akka's default logger
-                    system = ActorSystem.Create("turbohttp", config);
+                    system = ActorSystem.Create("turbohttp");
                 }
 
                 system.Log.Info("Created ActorSystem {0} — dispatchers sized from MaxEndpointSubstreams={1}",

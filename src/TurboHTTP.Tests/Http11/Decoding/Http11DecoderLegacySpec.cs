@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11.Decoding;
 
@@ -9,12 +10,12 @@ namespace TurboHTTP.Tests.Http11.Decoding;
 /// Verifies backward-compatible parsing of obsolete IMF-fixdate and other legacy formats.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http11Decoder"/>.
+/// Class under test: <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112: Legacy compatibility — decoders must accept IMF-fixdate and obsolete header forms.
 /// </remarks>
 public sealed class Http11DecoderLegacySpec
 {
-    private readonly Http11Decoder _decoder = new();
+    private readonly Decoder _decoder = new();
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-5")]

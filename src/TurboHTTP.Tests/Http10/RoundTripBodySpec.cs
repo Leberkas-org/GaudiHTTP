@@ -1,15 +1,16 @@
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Decoder = TurboHTTP.Protocol.Http10.Decoder;
 
 namespace TurboHTTP.Tests.Http10;
 
 /// <summary>
-/// Round-trip tests for HTTP/1.0 entity bodies per RFC 1945 §7.
+/// Round-trip tests for HTTP/1.0 entity bodies per RFC 1945 ï¿½7.
 /// Verifies that body content survives encode-then-decode with correct byte boundaries.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http10Encoder"/>, <see cref="Http10Decoder"/>.
-/// RFC 1945 §7: Entity body.
+/// Classes under test: <see cref="Protocol.Http10.Encoder"/>, <see cref="Protocol.Http10.Decoder"/>.
+/// RFC 1945 ï¿½7: Entity body.
 /// </remarks>
 public sealed class Http10RoundTripBodySpec
 {
@@ -41,7 +42,7 @@ public sealed class Http10RoundTripBodySpec
     [Trait("RFC", "RFC1945-7")]
     public async Task Http10RoundTripBodySpec_should_preservetextbody()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var bodyText = "Hello, World!";
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             $"Content-Length: {bodyText.Length}", bodyText);
@@ -57,7 +58,7 @@ public sealed class Http10RoundTripBodySpec
     [Trait("RFC", "RFC1945-7")]
     public async Task Http10RoundTripBodySpec_should_preservebinarybody()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var binaryBody = new byte[] { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
         var data = BuildBinaryResponse("HTTP/1.0 200 OK",
             $"Content-Length: {binaryBody.Length}", binaryBody);
@@ -73,7 +74,7 @@ public sealed class Http10RoundTripBodySpec
     [Trait("RFC", "RFC1945-7")]
     public async Task Http10RoundTripBodySpec_should_preserveutf8body()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var bodyText = "Hello, ??! ??????!";
         var bodyBytes = Encoding.UTF8.GetBytes(bodyText);
         var data = BuildBinaryResponse("HTTP/1.0 200 OK",
@@ -91,7 +92,7 @@ public sealed class Http10RoundTripBodySpec
     [Trait("RFC", "RFC1945-7")]
     public async Task Http10RoundTripBodySpec_should_decodeemptybody()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 204 No Content",
             "Content-Length: 0", "");
 
@@ -106,7 +107,7 @@ public sealed class Http10RoundTripBodySpec
     [Trait("RFC", "RFC1945-7")]
     public async Task Http10RoundTripBodySpec_should_preservelargebody()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var largeBody = new string('X', 1048576); // 1 MB
         var data = BuildRawResponse("HTTP/1.0 200 OK",
             $"Content-Length: {largeBody.Length}", largeBody);

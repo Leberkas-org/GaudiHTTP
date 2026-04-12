@@ -1,5 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11;
 
@@ -8,7 +9,7 @@ namespace TurboHTTP.Tests.Http11;
 /// Verifies that responses split at arbitrary byte positions are correctly reassembled.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http11Encoder"/> and <see cref="Http11Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http11.Encoder"/> and <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §6: Decoders must handle arbitrary TCP fragmentation of response streams.
 /// </remarks>
 public sealed class Http11RoundTripFragmentationSpec
@@ -25,7 +26,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var part1 = new ReadOnlyMemory<byte>(bytes, 0, splitAt);
         var part2 = new ReadOnlyMemory<byte>(bytes, splitAt, bytes.Length - splitAt);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var decoded1 = decoder.TryDecode(part1, out _);
         var decoded2 = decoder.TryDecode(part2, out var responses);
 
@@ -42,7 +43,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var headerBytes = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n"u8.ToArray();
         var bodyBytes = "hello"u8.ToArray();
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(headerBytes, out _);
         decoder.TryDecode(bodyBytes, out var responses);
 
@@ -63,7 +64,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var part1 = new ReadOnlyMemory<byte>(bytes, 0, splitAt);
         var part2 = new ReadOnlyMemory<byte>(bytes, splitAt, bytes.Length - splitAt);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(part1, out _);
         decoder.TryDecode(part2, out var responses);
 
@@ -78,7 +79,7 @@ public sealed class Http11RoundTripFragmentationSpec
         const string full = "HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nabc";
         var bytes = Encoding.ASCII.GetBytes(full);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         HttpResponseMessage? finalResponse = null;
 
         for (var i = 0; i < bytes.Length; i++)
@@ -101,7 +102,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var part1 = (ReadOnlyMemory<byte>)"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nfoo\r\n"u8.ToArray();
         var part2 = (ReadOnlyMemory<byte>)"3\r\nbar\r\n0\r\n\r\n"u8.ToArray();
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(part1, out _);
         decoder.TryDecode(part2, out var responses);
 

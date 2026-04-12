@@ -9,7 +9,7 @@ namespace TurboHTTP.Tests.Http11.Encoder;
 /// Verifies that method, request-target, and HTTP-version are correctly encoded.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http11Encoder"/>.
+/// Class under test: <see cref="Protocol.Http11.Encoder"/>.
 /// RFC 9112 §3: Request-Line — Method SP Request-Target SP HTTP-Version CRLF.
 /// </remarks>
 public sealed class Http11EncoderRequestLineSpec
@@ -41,7 +41,7 @@ public sealed class Http11EncoderRequestLineSpec
         Assert.Throws<ArgumentException>(() =>
         {
             var span = buffer.Span;
-            Http11Encoder.Encode(request, ref span);
+            Protocol.Http11.Encoder.Encode(request, ref span);
         });
     }
 
@@ -158,7 +158,7 @@ public sealed class Http11EncoderRequestLineSpec
         using var owner = MemoryPool<byte>.Shared.Rent(4096);
         var buffer = owner.Memory;
         var span = buffer.Span;
-        var written = Http11Encoder.Encode(request, ref span);
+        var written = Protocol.Http11.Encoder.Encode(request, ref span);
         return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 
@@ -167,7 +167,7 @@ public sealed class Http11EncoderRequestLineSpec
         using var owner = MemoryPool<byte>.Shared.Rent(4096);
         var buffer = owner.Memory;
         var span = buffer.Span;
-        var written = Http11Encoder.Encode(request, ref span, absoluteForm: true);
+        var written = Protocol.Http11.Encoder.Encode(request, ref span, absoluteForm: true);
         return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 }

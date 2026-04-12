@@ -1,5 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Decoder = TurboHTTP.Protocol.Http10.Decoder;
 
 namespace TurboHTTP.Tests.Http10;
 
@@ -8,7 +9,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Verifies that split delivery of bytes does not corrupt round-trip decode output.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http10Encoder"/>, <see cref="Http10Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http10.Encoder"/>, <see cref="Protocol.Http10.Decoder"/>.
 /// RFC 1945: Decoder must handle partial byte delivery across TryDecode calls.
 /// </remarks>
 public sealed class Http10RoundTripFragmentationSpec
@@ -29,7 +30,7 @@ public sealed class Http10RoundTripFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10RoundTripFragmentationSpec_should_handlefragmentationatstatusline()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var fullResponse = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nHello";
         var bytes = Bytes(fullResponse);
 
@@ -53,7 +54,7 @@ public sealed class Http10RoundTripFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public void Http10RoundTripFragmentationSpec_should_handlefragmentationatheaderboundary()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var fullResponse = "HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 4\r\n\r\nTest";
         var bytes = Bytes(fullResponse);
 
@@ -76,7 +77,7 @@ public sealed class Http10RoundTripFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10RoundTripFragmentationSpec_should_handlefragmentationatheaderendboundary()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var fullResponse = "HTTP/1.0 200 OK\r\nContent-Length: 6\r\n\r\nFooBar";
         var bytes = Bytes(fullResponse);
 
@@ -99,7 +100,7 @@ public sealed class Http10RoundTripFragmentationSpec
     [Trait("RFC", "RFC1945-4")]
     public async Task Http10RoundTripFragmentationSpec_should_handlebodyfragmentation()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var bodyText = "This is a fragmented body";
         var fullResponse = $"HTTP/1.0 200 OK\r\nContent-Length: {bodyText.Length}\r\n\r\n{bodyText}";
         var bytes = Bytes(fullResponse);

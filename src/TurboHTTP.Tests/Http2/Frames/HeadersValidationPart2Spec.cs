@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Protocol.Http2;
 

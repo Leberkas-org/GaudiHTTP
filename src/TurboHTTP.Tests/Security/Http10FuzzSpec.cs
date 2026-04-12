@@ -1,6 +1,7 @@
 using System.Text;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Http10;
+using Decoder = TurboHTTP.Protocol.Http10.Decoder;
 
 namespace TurboHTTP.Tests.Security;
 
@@ -10,7 +11,7 @@ namespace TurboHTTP.Tests.Security;
 /// reproducible failures.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http10Decoder"/>.
+/// Class under test: <see cref="Protocol.Http10.Decoder"/>.
 /// Each test uses seeded <see cref="Random"/> so failures are reproducible.
 /// Invariant: TryDecode/TryDecodeEof must either return a valid result or throw
 /// <see cref="HttpDecoderException"/> — never an unhandled crash.
@@ -20,7 +21,7 @@ public sealed class Http10FuzzSpec
     private const int IterationsPerSeed = 100;
     private const long MaxBytesPerIteration = 1_048_576;
 
-    private static void AssertDecodeNeverCrashes(Http10Decoder decoder, ReadOnlyMemory<byte> data)
+    private static void AssertDecodeNeverCrashes(Decoder decoder, ReadOnlyMemory<byte> data)
     {
         try
         {
@@ -38,7 +39,7 @@ public sealed class Http10FuzzSpec
         }
     }
 
-    private static void AssertDecodeEofNeverCrashes(Http10Decoder decoder)
+    private static void AssertDecodeEofNeverCrashes(Decoder decoder)
     {
         try
         {
@@ -91,7 +92,7 @@ public sealed class Http10FuzzSpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http10Decoder();
+            var decoder = new Decoder();
             var size = rng.Next(1, 8192);
             var data = new byte[size];
             rng.NextBytes(data);
@@ -126,7 +127,7 @@ public sealed class Http10FuzzSpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http10Decoder();
+            var decoder = new Decoder();
 
             var randomPart = new byte[rng.Next(0, 4096)];
             rng.NextBytes(randomPart);
@@ -175,7 +176,7 @@ public sealed class Http10FuzzSpec
             var truncateAt = rng.Next(1, fullResponse.Length);
             var truncated = fullResponse[..truncateAt];
 
-            var decoder = new Http10Decoder();
+            var decoder = new Decoder();
             AssertDecodeNeverCrashes(decoder, truncated);
             AssertDecodeEofNeverCrashes(decoder);
 
@@ -204,7 +205,7 @@ public sealed class Http10FuzzSpec
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-            var decoder = new Http10Decoder();
+            var decoder = new Decoder();
 
             var headerValueSize = rng.Next(65536, 131072);
             var sb = new StringBuilder("HTTP/1.0 200 OK\r\n");
@@ -249,7 +250,7 @@ public sealed class Http10FuzzSpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http10Decoder();
+            var decoder = new Decoder();
 
             var body = "Hello, World!";
             var validResponse = BuildValidResponse(200, "OK", body,
@@ -292,7 +293,7 @@ public sealed class Http10FuzzSpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http10Decoder();
+            var decoder = new Decoder();
 
             var chunkCount = rng.Next(5, 21);
             for (var c = 0; c < chunkCount; c++)

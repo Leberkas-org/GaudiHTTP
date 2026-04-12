@@ -1,15 +1,16 @@
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Encoder = TurboHTTP.Protocol.Http10.Encoder;
 
 namespace TurboHTTP.Tests.Http10;
 
 /// <summary>
 /// Demonstrates converting an ActorSystem-backed StreamTest into a plain [Fact] unit test.
 /// Each test here mirrors a test from <c>TurboHTTP.StreamTests.Http10.Http10EncoderSpec</c>
-/// but calls <see cref="Http10Encoder.Encode"/> directly — no ActorSystem, no Materializer.
+/// but calls <see cref="Protocol.Http10.Encoder.Encode"/> directly — no ActorSystem, no Materializer.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http10Encoder"/>.
+/// Class under test: <see cref="Protocol.Http10.Encoder"/>.
 /// RFC 1945: HTTP/1.0 request encoding — StreamTest-to-unit-test conversion pattern.
 /// </remarks>
 public sealed class Http10EncoderConversionExampleSpec
@@ -17,7 +18,7 @@ public sealed class Http10EncoderConversionExampleSpec
     private static string Encode(HttpRequestMessage request, int bufferSize = 8192)
     {
         Span<byte> buffer = new byte[bufferSize];
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         return Encoding.ASCII.GetString(buffer[..written]);
     }
 

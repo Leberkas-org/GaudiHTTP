@@ -1,6 +1,7 @@
 using System.Text;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11;
 
@@ -9,7 +10,7 @@ namespace TurboHTTP.Tests.Http11;
 /// Verifies header count limits, request smuggling defenses, and oversized field rejection.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http11Decoder"/>.
+/// Class under test: <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §11: Security considerations — limits on header count and field sizes prevent DoS.
 /// </remarks>
 public sealed class Http11SecuritySpec
@@ -18,7 +19,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_accept_100_headers_when_at_default_limit()
     {
-        var decoder = new Http11Decoder(); // default maxHeaderCount = 100
+        var decoder = new Decoder(); // default maxHeaderCount = 100
         var raw = BuildResponseWithNHeaders(99); // 99 + Content-Length = 100
         var decoded = decoder.TryDecode(raw, out var responses);
 
@@ -30,7 +31,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_reject_101_headers_when_above_default_limit()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponseWithNHeaders(100); // 100 + Content-Length = 101
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(raw, out _));
@@ -41,7 +42,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_reject_at_custom_limit_when_header_count_exceeded()
     {
-        var decoder = new Http11Decoder(maxHeaderCount: 5);
+        var decoder = new Decoder(maxHeaderCount: 5);
         var raw = BuildResponseWithNHeaders(5); // 5 + Content-Length = 6
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(raw, out _));
@@ -52,7 +53,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_accept_header_block_when_below_total_header_limit()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         // Well below the 64 KB total header limit
         var raw = BuildResponseWithHeaderBlockPosition(8191);
         var decoded = decoder.TryDecode(raw, out var responses);
@@ -65,7 +66,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_reject_header_block_when_above_64kb_total_limit()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         // 65537 bytes (64 KB + 1) before the CRLFCRLF terminator — exceeds 64 KB total header limit
         var raw = BuildResponseWithHeaderBlockPosition(65537);
 
@@ -77,7 +78,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_reject_single_header_when_value_exceeds_limit()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         // 17000 bytes exceeds the 16 KB (16384) single header limit
         var raw = BuildResponseWithLargeHeaderValue(17000);
 
@@ -89,7 +90,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_accept_body_when_at_configurable_limit()
     {
-        var decoder = new Http11Decoder(maxBodySize: 1024);
+        var decoder = new Decoder(maxBodySize: 1024);
         var raw = BuildResponseWithBodySize(1024);
         var decoded = decoder.TryDecode(raw, out var responses);
 
@@ -101,7 +102,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_reject_body_when_exceeding_limit()
     {
-        var decoder = new Http11Decoder(maxBodySize: 1024);
+        var decoder = new Decoder(maxBodySize: 1024);
         var raw = BuildResponseWithContentLengthOnly(1025);
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(raw, out _));
@@ -112,7 +113,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_reject_body_when_zero_body_limit()
     {
-        var decoder = new Http11Decoder(maxBodySize: 0);
+        var decoder = new Decoder(maxBodySize: 0);
         var raw = BuildResponseWithContentLengthOnly(1);
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(raw, out _));
@@ -123,7 +124,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_reject_response_when_both_transfer_encoding_and_content_length_present()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponseWithTeAndCl();
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(raw, out _));
@@ -134,7 +135,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_reject_header_when_crlf_injected_in_value()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponseWithBareCrInHeaderValue();
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(raw, out _));
@@ -145,7 +146,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_reject_header_when_nul_byte_in_value()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponseWithNulInHeaderValue();
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(raw, out _));
@@ -156,7 +157,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_decode_cleanly_when_reset_after_partial_headers()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
 
         // Feed incomplete headers (no CRLFCRLF yet)
         var incomplete = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n"u8.ToArray();
@@ -178,7 +179,7 @@ public sealed class Http11SecuritySpec
     [Trait("RFC", "RFC9112-11")]
     public void Http11Security_should_decode_cleanly_when_reset_after_partial_body()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
 
         // Feed headers + partial body (body says 10 bytes but we only send 5)
         var partial = "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nHello"u8.ToArray();

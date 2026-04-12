@@ -2,6 +2,8 @@ using System.Text;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Http10;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
+using Encoder = TurboHTTP.Protocol.Http11.Encoder;
 
 namespace TurboHTTP.Tests.Security;
 
@@ -11,7 +13,7 @@ namespace TurboHTTP.Tests.Security;
 /// are detected and rejected per RFC 9112 §11 and RFC 9110 §17.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http10Encoder"/>, <see cref="Http11Encoder"/>, <see cref="Http11Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http10.Encoder"/>, <see cref="Protocol.Http11.Encoder"/>, <see cref="Protocol.Http11.Decoder"/>.
 /// Attack vectors: header injection via CR/LF/NUL in names and values, request smuggling via
 /// Content-Length/Transfer-Encoding desync and duplicate Content-Length ambiguity.
 /// </remarks>
@@ -22,7 +24,7 @@ public sealed class HeaderInjectionSpec
     {
         var buffer = new Memory<byte>(new byte[bufferSize]);
         var span = buffer.Span;
-        var written = Http11Encoder.Encode(request, ref span);
+        var written = Encoder.Encode(request, ref span);
         return Encoding.ASCII.GetString(buffer.Span[..written]);
     }
 
@@ -30,13 +32,13 @@ public sealed class HeaderInjectionSpec
     {
         var buffer = new Memory<byte>(new byte[8192]);
         var span = buffer.Span;
-        Http11Encoder.Encode(request, ref span);
+        Encoder.Encode(request, ref span);
     }
 
     private static void EncodeHttp10Throwing(HttpRequestMessage request)
     {
         Span<byte> buffer = new byte[8192];
-        Http10Encoder.Encode(request, ref buffer);
+        Protocol.Http10.Encoder.Encode(request, ref buffer);
     }
 
     // ------------------------------------------------------------------------------
@@ -180,7 +182,7 @@ public sealed class HeaderInjectionSpec
     {
         // Attack: Malicious server sends NUL byte in header value.
         // The decoder must reject this per RFC 9112 §5.5.
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var prefix = "HTTP/1.1 200 OK\r\nX-Test: safe"u8.ToArray();
         var nul = new byte[] { 0x00 };
         var suffix = "evil\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
@@ -204,7 +206,7 @@ public sealed class HeaderInjectionSpec
     {
         // Attack: Space in header name can cause different parsers to interpret
         // the header name boundary differently (e.g., "Content Length" vs "Content").
-        var decoder = new Http10Decoder();
+        var decoder = new Protocol.Http10.Decoder();
         var raw = "HTTP/1.0 200 OK\r\nContent Length: 0\r\n\r\n";
         var bytes = Encoding.ASCII.GetBytes(raw);
 
@@ -234,7 +236,7 @@ public sealed class HeaderInjectionSpec
     {
         // Attack: Some parsers treat bare CR as a line terminator, which could
         // allow header injection if the upstream proxy accepts bare-CR termination.
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
 
         var prefix = "HTTP/1.1 200 OK\r\nX-Foo: hello"u8.ToArray();
         var bareCr = new byte[] { 0x0D }; // bare CR without LF
@@ -271,7 +273,7 @@ public sealed class HeaderInjectionSpec
     {
         // Attack: CL-TE desync — a reverse proxy uses Content-Length to determine
         // body boundary while the backend uses Transfer-Encoding: chunked.
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         const string response =
             "HTTP/1.1 200 OK\r\n" +
             "Transfer-Encoding: chunked\r\n" +
@@ -289,7 +291,7 @@ public sealed class HeaderInjectionSpec
     public void Http11Decoder_should_reject_response_when_content_length_before_transfer_encoding()
     {
         // Attack: Same desync but with headers in reversed order.
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         const string response =
             "HTTP/1.1 200 OK\r\n" +
             "Content-Length: 5\r\n" +
@@ -307,7 +309,7 @@ public sealed class HeaderInjectionSpec
     public void Http11Decoder_should_reject_response_when_chunked_with_content_length_zero()
     {
         // Attack: Even Content-Length: 0 with Transfer-Encoding: chunked is ambiguous.
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         const string response =
             "HTTP/1.1 200 OK\r\n" +
             "Transfer-Encoding: chunked\r\n" +
@@ -330,7 +332,7 @@ public sealed class HeaderInjectionSpec
     {
         // Attack: Two Content-Length headers with different values. A front-end proxy
         // might use the first (5), while the backend uses the second (10).
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         const string response =
             "HTTP/1.1 200 OK\r\n" +
             "Content-Length: 5\r\n" +
@@ -348,7 +350,7 @@ public sealed class HeaderInjectionSpec
     public async Task Http11Decoder_should_accept_response_when_duplicate_content_length_same_values()
     {
         // Non-attack: Duplicate Content-Length with identical values is safe per RFC 9112 §6.3.
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         const string response =
             "HTTP/1.1 200 OK\r\n" +
             "Content-Length: 5\r\n" +
@@ -370,7 +372,7 @@ public sealed class HeaderInjectionSpec
     public void Http11Decoder_should_reject_response_when_three_conflicting_content_length_values()
     {
         // Attack: Three Content-Length headers where only the last differs.
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         const string response =
             "HTTP/1.1 200 OK\r\n" +
             "Content-Length: 5\r\n" +
@@ -452,7 +454,7 @@ public sealed class HeaderInjectionSpec
 
         var buffer = new Memory<byte>(new byte[16384]);
         var span = buffer.Span;
-        var bytesWritten = Http11Encoder.Encode(request, ref span);
+        var bytesWritten = Encoder.Encode(request, ref span);
 
         var output = buffer.Span[..bytesWritten];
 

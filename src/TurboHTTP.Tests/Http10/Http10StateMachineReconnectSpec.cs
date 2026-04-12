@@ -1,11 +1,12 @@
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http10;
+using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Tests.Http10;
 
 public sealed class Http10StateMachineReconnectSpec
 {
-    private sealed class FakeOps : IHttp10StageOperations
+    private sealed class FakeOps : IStageOperations
     {
         public List<HttpResponseMessage> Responses { get; } = [];
         public List<IOutputItem> Outbound { get; } = [];
@@ -26,7 +27,7 @@ public sealed class Http10StateMachineReconnectSpec
     public void Http10StateMachine_should_buffer_request_and_emit_reconnect_item_on_start_reconnect()
     {
         var ops = new FakeOps();
-        var sm = new Http10StateMachine(ops, maxReconnectAttempts: 3);
+        var sm = new StateMachine(ops, maxReconnectAttempts: 3);
         var request = MakeRequest();
         sm.EncodeRequest(request);
         ops.Outbound.Clear(); // ignore encode output
@@ -43,7 +44,7 @@ public sealed class Http10StateMachineReconnectSpec
     public void Http10StateMachine_CanAcceptRequest_should_be_false_when_reconnecting()
     {
         var ops = new FakeOps();
-        var sm = new Http10StateMachine(ops, maxReconnectAttempts: 3);
+        var sm = new StateMachine(ops, maxReconnectAttempts: 3);
         sm.EncodeRequest(MakeRequest());
         sm.StartReconnect();
 
@@ -55,7 +56,7 @@ public sealed class Http10StateMachineReconnectSpec
     public void Http10StateMachine_HandleConnectedSignal_should_replay_buffered_request()
     {
         var ops = new FakeOps();
-        var sm = new Http10StateMachine(ops, maxReconnectAttempts: 3);
+        var sm = new StateMachine(ops, maxReconnectAttempts: 3);
         sm.EncodeRequest(MakeRequest());
         ops.Outbound.Clear();
         sm.StartReconnect();
@@ -75,7 +76,7 @@ public sealed class Http10StateMachineReconnectSpec
     public void Http10StateMachine_HandleReconnectAttempt_should_fail_when_max_exceeded()
     {
         var ops = new FakeOps();
-        var sm = new Http10StateMachine(ops, maxReconnectAttempts: 1);
+        var sm = new StateMachine(ops, maxReconnectAttempts: 1);
         sm.EncodeRequest(MakeRequest());
         sm.StartReconnect(); // attempt 1
 
@@ -89,7 +90,7 @@ public sealed class Http10StateMachineReconnectSpec
     public void Http10StateMachine_HandleReconnectAttempt_should_emit_new_reconnect_item_when_under_limit()
     {
         var ops = new FakeOps();
-        var sm = new Http10StateMachine(ops, maxReconnectAttempts: 3);
+        var sm = new StateMachine(ops, maxReconnectAttempts: 3);
         sm.EncodeRequest(MakeRequest());
         sm.StartReconnect(); // attempt 1
         var countAfterFirst = ops.Outbound.OfType<ReconnectItem>().Count();

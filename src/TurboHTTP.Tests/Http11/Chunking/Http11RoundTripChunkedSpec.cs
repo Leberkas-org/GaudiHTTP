@@ -1,5 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11.Chunking;
 
@@ -8,7 +9,7 @@ namespace TurboHTTP.Tests.Http11.Chunking;
 /// Verifies that chunked bodies are correctly encoded and decoded end-to-end.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http11Encoder"/> and <see cref="Http11Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http11.Encoder"/> and <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §7.1: Chunked transfer coding — chunk-size CRLF chunk-data CRLF … "0" CRLF CRLF.
 /// </remarks>
 public sealed class Http11RoundTripChunkedSpec
@@ -57,7 +58,7 @@ public sealed class Http11RoundTripChunkedSpec
     [Trait("RFC", "RFC9112-7")]
     public async Task Http11RoundTrip_should_assemble_chunked_body_when_chunked_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildChunkedResponse(200, "OK", ["Hello, ", "World!"]);
         decoder.TryDecode(raw, out var responses);
 
@@ -69,7 +70,7 @@ public sealed class Http11RoundTripChunkedSpec
     [Trait("RFC", "RFC9112-7")]
     public async Task Http11RoundTrip_should_concatenate_chunks_when_five_chunks_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildChunkedResponse(200, "OK", ["one", "two", "three", "four", "five"]);
         decoder.TryDecode(raw, out var responses);
 
@@ -81,7 +82,7 @@ public sealed class Http11RoundTripChunkedSpec
     [Trait("RFC", "RFC9112-7")]
     public async Task Http11RoundTrip_should_access_trailer_when_chunked_with_trailer_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildChunkedResponse(200, "OK",
             ["chunk1", "chunk2"],
             [("X-Checksum", "abc123")]);
@@ -97,7 +98,7 @@ public sealed class Http11RoundTripChunkedSpec
     [Trait("RFC", "RFC9112-7")]
     public async Task Http11RoundTrip_should_decode_one_byte_when_single_byte_chunk_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildChunkedResponse(200, "OK", ["A"]);
         decoder.TryDecode(raw, out var responses);
 
@@ -119,7 +120,7 @@ public sealed class Http11RoundTripChunkedSpec
             "\r\n";
         var mem = (ReadOnlyMemory<byte>)Encoding.ASCII.GetBytes(rawResponse);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(mem, out var responses);
 
         Assert.Single(responses);
@@ -131,7 +132,7 @@ public sealed class Http11RoundTripChunkedSpec
     public async Task Http11RoundTrip_should_concatenate_all_chunks_when_twenty_tiny_chunks_round_trip()
     {
         var chars = Enumerable.Range(0, 20).Select(i => ((char)('a' + i)).ToString()).ToArray();
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildChunkedResponse(200, "OK", chars);
         decoder.TryDecode(raw, out var responses);
 
@@ -145,7 +146,7 @@ public sealed class Http11RoundTripChunkedSpec
     public async Task Http11RoundTrip_should_preserve_32kb_chunk_when_large_chunk_round_trip()
     {
         var body = new string('X', 32768);
-        var decoder = new Http11Decoder(maxBodySize: 32768 + 1024);
+        var decoder = new Decoder(maxBodySize: 32768 + 1024);
         var raw = BuildChunkedResponse(200, "OK", [body]);
         decoder.TryDecode(raw, out var responses);
 
@@ -171,7 +172,7 @@ public sealed class Http11RoundTripChunkedSpec
             "\r\n";
         var mem = (ReadOnlyMemory<byte>)Encoding.ASCII.GetBytes(rawResponse);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(mem, out var responses);
 
         Assert.Single(responses);
@@ -191,7 +192,7 @@ public sealed class Http11RoundTripChunkedSpec
         var fixedLenMem = (ReadOnlyMemory<byte>)Encoding.UTF8.GetBytes(fixedLen.ToString());
         var combined = Combine(chunked, fixedLenMem);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(2, responses.Count);
@@ -203,7 +204,7 @@ public sealed class Http11RoundTripChunkedSpec
     [Trait("RFC", "RFC9112-7")]
     public async Task Http11RoundTrip_should_access_both_trailers_when_two_trailer_headers_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildChunkedResponse(200, "OK",
             ["part1", "part2"],
             [("X-Digest", "sha256:abc"), ("X-Request-Id", "req-999")]);

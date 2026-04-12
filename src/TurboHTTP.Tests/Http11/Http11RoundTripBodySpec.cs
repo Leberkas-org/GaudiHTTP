@@ -1,5 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11;
 
@@ -8,7 +9,7 @@ namespace TurboHTTP.Tests.Http11;
 /// Verifies that request bodies survive a full encode → decode cycle intact.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http11Encoder"/> and <see cref="Http11Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http11.Encoder"/> and <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §6: Message body — Content-Length or Transfer-Encoding delimits the payload.
 /// </remarks>
 public sealed class Http11RoundTripBodySpec
@@ -17,7 +18,7 @@ public sealed class Http11RoundTripBodySpec
     {
         var buffer = new byte[65536];
         var span = buffer.AsSpan();
-        var written = Http11Encoder.Encode(request, ref span);
+        var written = Protocol.Http11.Encoder.Encode(request, ref span);
         return (buffer, written);
     }
 
@@ -84,7 +85,7 @@ public sealed class Http11RoundTripBodySpec
         var (buffer, written) = EncodeRequest(request);
         Assert.Contains("POST", Encoding.ASCII.GetString(buffer, 0, 20));
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildBinaryResponse(200, "OK", binary, ("Content-Length", "256"));
         decoder.TryDecode(raw, out var responses);
 
@@ -106,10 +107,10 @@ public sealed class Http11RoundTripBodySpec
         };
         var encBuf = new byte[oneMb + 4096];
         var span = encBuf.AsSpan();
-        var written = Http11Encoder.Encode(request, ref span);
+        var written = Protocol.Http11.Encoder.Encode(request, ref span);
         Assert.True(written > oneMb);
 
-        var decoder = new Http11Decoder(maxBodySize: oneMb + 1024);
+        var decoder = new Decoder(maxBodySize: oneMb + 1024);
         var raw = BuildBinaryResponse(200, "OK", body, ("Content-Length", oneMb.ToString()));
         decoder.TryDecode(raw, out var responses);
 
@@ -129,7 +130,7 @@ public sealed class Http11RoundTripBodySpec
         var (_, written) = EncodeRequest(request);
         Assert.True(written > 0);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildBinaryResponse(200, "OK", body, ("Content-Length", body.Length.ToString()));
         decoder.TryDecode(raw, out var responses);
 
@@ -141,7 +142,7 @@ public sealed class Http11RoundTripBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTripBody_should_return_empty_body_when_content_length_zero_roundtrip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(200, "OK", "", ("Content-Length", "0"));
         decoder.TryDecode(raw, out var responses);
 
@@ -155,7 +156,7 @@ public sealed class Http11RoundTripBodySpec
     {
         const string text = "日本語テスト";
         var bodyBytes = Encoding.UTF8.GetBytes(text);
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildBinaryResponse(200, "OK", bodyBytes,
             ("Content-Length", bodyBytes.Length.ToString()),
             ("Content-Type", "text/plain; charset=utf-8"));
@@ -172,7 +173,7 @@ public sealed class Http11RoundTripBodySpec
         var body = new byte[65536];
         for (var i = 0; i < body.Length; i++) { body[i] = (byte)(i & 0xFF); }
 
-        var decoder = new Http11Decoder(maxBodySize: 65536 + 1024);
+        var decoder = new Decoder(maxBodySize: 65536 + 1024);
         var raw = BuildBinaryResponse(200, "OK", body, ("Content-Length", body.Length.ToString()));
         decoder.TryDecode(raw, out var responses);
 
@@ -189,7 +190,7 @@ public sealed class Http11RoundTripBodySpec
         var r3 = BuildResponse(200, "OK", "three", ("Content-Length", "5"));
         var combined = Combine(r1, r2, r3);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(3, responses.Count);
@@ -203,7 +204,7 @@ public sealed class Http11RoundTripBodySpec
     public async Task Http11RoundTripBody_should_decode_one_byte_when_content_length_one_roundtrip()
     {
         var body = new byte[] { 0x42 };
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildBinaryResponse(200, "OK", body, ("Content-Length", "1"));
         decoder.TryDecode(raw, out var responses);
 
@@ -215,7 +216,7 @@ public sealed class Http11RoundTripBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTripBody_should_decode_after_reset_when_content_length_roundtrip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var r1 = BuildResponse(200, "OK", "first", ("Content-Length", "5"));
         decoder.TryDecode(r1, out _);
         decoder.Reset();
@@ -232,7 +233,7 @@ public sealed class Http11RoundTripBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTripBody_should_decode_all_sizes_when_keep_alive_varying_body_sizes()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var sizes = new[] { 1, 10, 100, 1000 };
 
         foreach (var size in sizes)
@@ -260,7 +261,7 @@ public sealed class Http11RoundTripBodySpec
         Assert.Contains("Content-Type: application/json", encoded);
 
         var byteCount = Encoding.UTF8.GetByteCount(json);
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(200, "OK", json,
             ("Content-Length", byteCount.ToString()),
             ("Content-Type", "application/json; charset=utf-8"));
@@ -278,7 +279,7 @@ public sealed class Http11RoundTripBodySpec
         const string text = "Hello, 世界! Привет мир!";
         var bodyBytes = Encoding.UTF8.GetBytes(text);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildBinaryResponse(200, "OK", bodyBytes,
             ("Content-Length", bodyBytes.Length.ToString()),
             ("Content-Type", "text/plain; charset=utf-8"));
@@ -298,7 +299,7 @@ public sealed class Http11RoundTripBodySpec
             ("ETag", "\"v1.0-abc123\""),
             ("Cache-Control", "max-age=3600"));
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
@@ -320,7 +321,7 @@ public sealed class Http11RoundTripBodySpec
 
         headers[10] = ("Content-Length", "0");
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         var raw = BuildResponse(200, "OK", "", headers);
         decoder.TryDecode(raw, out var responses);
 

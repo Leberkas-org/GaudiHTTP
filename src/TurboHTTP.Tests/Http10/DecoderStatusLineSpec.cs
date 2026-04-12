@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Http10;
+using Decoder = TurboHTTP.Protocol.Http10.Decoder;
 
 namespace TurboHTTP.Tests.Http10;
 
@@ -10,7 +11,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Verifies version, status code, and reason phrase extraction.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http10Decoder"/>.
+/// Class under test: <see cref="Protocol.Http10.Decoder"/>.
 /// RFC 1945 §6.1: Status-Line — HTTP-Version SP Status-Code SP Reason-Phrase CRLF.
 /// </remarks>
 public sealed class Http10DecoderStatusLineSpec
@@ -43,7 +44,7 @@ public sealed class Http10DecoderStatusLineSpec
     [Trait("RFC", "RFC1945-6")]
     public void Http10DecoderStatusLineSpec_should_parse200ok()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK", "Content-Length: 0");
 
         var result = decoder.TryDecode(data, out var response);
@@ -59,7 +60,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_parse404notfound()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 404 Not Found", "Content-Length: 0");
 
         var result = decoder.TryDecode(data, out var response);
@@ -74,7 +75,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_parse500internalservererror()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 500 Internal Server Error", "Content-Length: 0");
 
         var result = decoder.TryDecode(data, out var response);
@@ -89,7 +90,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_parse301movedpermanently()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 301 Moved Permanently",
             "Location: http://example.com/new\r\nContent-Length: 0");
 
@@ -104,7 +105,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_preservemultiwordreasonphrase()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 Very Long Reason Phrase Here", "Content-Length: 0");
 
         decoder.TryDecode(data, out var response);
@@ -117,7 +118,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_setversiontohttp10()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 200 OK", "Content-Length: 0");
 
         decoder.TryDecode(data, out var response);
@@ -130,7 +131,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_throwdecoderexception()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 ABC BadCode", "Content-Length: 0");
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(data, out _));
@@ -157,7 +158,7 @@ public sealed class Http10DecoderStatusLineSpec
     [InlineData(503)]
     public void Http10DecoderStatusLineSpec_should_parse_status_code_correctly_when_common_status_code(int code)
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse($"HTTP/1.0 {code} Reason", "Content-Length: 0");
 
         decoder.TryDecode(data, out var response);
@@ -170,7 +171,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_acceptunknownstatuscode()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 299 Custom", "Content-Length: 0");
 
         var result = decoder.TryDecode(data, out var response);
@@ -184,7 +185,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_rejectstatuscode()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 99 TooLow", "Content-Length: 0");
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(data, out _));
@@ -196,7 +197,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_rejectstatuscode_2()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = BuildRawResponse("HTTP/1.0 1000 TooHigh", "Content-Length: 0");
 
         var ex = Assert.Throws<HttpDecoderException>(() => decoder.TryDecode(data, out _));
@@ -208,7 +209,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_acceptlfonlylineendings()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         const string raw = "HTTP/1.0 200 OK\nContent-Length: 5\n\nHello";
 
         var result = decoder.TryDecode(Bytes(raw), out var response);
@@ -222,7 +223,7 @@ public sealed class Http10DecoderStatusLineSpec
     
     public void Http10DecoderStatusLineSpec_should_acceptemptyreasonphrase()
     {
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         const string raw = "HTTP/1.0 200 \r\nContent-Length: 0\r\n\r\n";
 
         var result = decoder.TryDecode(Bytes(raw), out var response);
@@ -238,7 +239,7 @@ public sealed class Http10DecoderStatusLineSpec
     public void Http10DecoderStatusLineSpec_should_treatashttp09()
     {
         // RFC 1945 §3.1: data without HTTP/ prefix is a Simple-Response (HTTP/0.9)
-        var decoder = new Http10Decoder();
+        var decoder = new Decoder();
         var data = Bytes("\r\n\r\n");
 
         var result = decoder.TryDecode(data, out var response);

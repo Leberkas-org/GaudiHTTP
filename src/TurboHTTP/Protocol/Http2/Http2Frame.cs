@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Buffers.Binary;
-using TurboHTTP.Internal;
 
 namespace TurboHTTP.Protocol.Http2;
 

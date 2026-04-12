@@ -8,7 +8,7 @@ namespace TurboHTTP.Protocol.Http11;
 /// RFC 9112 compliant HTTP/1.1 request encoder with zero-allocation patterns.
 /// Writes directly to Span&lt;byte&gt; for maximum efficiency.
 /// </summary>
-public static class Http11Encoder
+public static class Encoder
 {
     /// <summary>
     /// Encodes an HTTP/1.1 request directly into a span.

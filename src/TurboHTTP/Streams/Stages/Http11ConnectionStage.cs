@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -7,49 +6,7 @@ using TurboHTTP.Protocol.Http11;
 
 namespace TurboHTTP.Streams.Stages;
 
-public sealed class Http11ConnectionShape : Shape
-{
-    public Inlet<IInputItem> InServer { get; }
-    public Outlet<HttpResponseMessage> OutResponse { get; }
-    public Inlet<HttpRequestMessage> InApp { get; }
-    public Outlet<IOutputItem> OutNetwork { get; }
-
-    public Http11ConnectionShape(
-        Inlet<IInputItem> inServer,
-        Outlet<HttpResponseMessage> outResponse,
-        Inlet<HttpRequestMessage> inApp,
-        Outlet<IOutputItem> outNetwork)
-    {
-        InServer = inServer;
-        OutResponse = outResponse;
-        InApp = inApp;
-        OutNetwork = outNetwork;
-    }
-
-    public override ImmutableArray<Inlet> Inlets => [InServer, InApp];
-
-    public override ImmutableArray<Outlet> Outlets => [OutResponse, OutNetwork];
-
-    public override Shape DeepCopy()
-    {
-        return new Http11ConnectionShape(
-            (Inlet<IInputItem>)InServer.CarbonCopy(),
-            (Outlet<HttpResponseMessage>)OutResponse.CarbonCopy(),
-            (Inlet<HttpRequestMessage>)InApp.CarbonCopy(),
-            (Outlet<IOutputItem>)OutNetwork.CarbonCopy());
-    }
-
-    public override Shape CopyFromPorts(ImmutableArray<Inlet> inlets, ImmutableArray<Outlet> outlets)
-    {
-        return new Http11ConnectionShape(
-            (Inlet<IInputItem>)inlets[0],
-            (Outlet<HttpResponseMessage>)outlets[0],
-            (Inlet<HttpRequestMessage>)inlets[1],
-            (Outlet<IOutputItem>)outlets[1]);
-    }
-}
-
-public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
+public sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 {
     private readonly Inlet<IInputItem> _inServer = new("Http11Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http11Connection.Out.Response");
@@ -65,15 +22,15 @@ public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
         _maxReconnectAttempts = maxReconnectAttempts;
     }
 
-    public override Http11ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
+    public override ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this, inheritedAttributes);
 
-    private sealed class Logic : GraphStageLogic, IHttp11StageOperations
+    private sealed class Logic : GraphStageLogic, IStageOperations
     {
         private readonly Http11ConnectionStage _stage;
-        private readonly Http11StateMachine _sm;
+        private readonly StateMachine _sm;
         private readonly List<IOutputItem> _pendingOutbound = [];
         private readonly List<HttpResponseMessage> _pendingResponses = [];
         private bool _serverFinished;
@@ -84,7 +41,7 @@ public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
             _stage = stage;
 
             var memoryBuffer = inheritedAttributes.GetAttribute(new TurboAttributes.MemoryBuffer(4 * 1024, 256 * 1024));
-            _sm = new Http11StateMachine(this, stage._maxPipelineDepth, stage._maxReconnectAttempts,
+            _sm = new StateMachine(this, stage._maxPipelineDepth, stage._maxReconnectAttempts,
                 memoryBuffer.Initial, memoryBuffer.Max);
 
             SetHandler(stage._inServer, onPush: OnServerPush,
@@ -147,29 +104,25 @@ public sealed class Http11ConnectionStage : GraphStage<Http11ConnectionShape>
             SetHandler(stage._outNetwork, onPull: OnNetworkPull);
         }
 
-        // --- IHttp11StageOperations ---
-
-        void IHttp11StageOperations.OnResponse(HttpResponseMessage response)
+        void IStageOperations.OnResponse(HttpResponseMessage response)
         {
             _pendingResponses.Add(response);
         }
 
-        void IHttp11StageOperations.OnOutbound(IOutputItem item)
+        void IStageOperations.OnOutbound(IOutputItem item)
         {
             _pendingOutbound.Add(item);
         }
 
-        void IHttp11StageOperations.OnWarning(string message)
+        void IStageOperations.OnWarning(string message)
         {
             Log.Warning("Http11ConnectionStage: {0}", message);
         }
 
-        void IHttp11StageOperations.OnReconnectFailed()
+        void IStageOperations.OnReconnectFailed()
         {
             _reconnectFailed = true;
         }
-
-        // --- Handlers ---
 
         private void OnServerPush()
         {

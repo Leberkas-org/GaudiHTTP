@@ -1,5 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Http10;
+using Encoder = TurboHTTP.Protocol.Http10.Encoder;
 
 namespace TurboHTTP.Tests.Http10;
 
@@ -8,7 +9,7 @@ namespace TurboHTTP.Tests.Http10;
 /// Encodes with Http10Encoder and decodes with Http10Decoder; verifies method is preserved.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http10Encoder"/>, <see cref="Http10Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http10.Encoder"/>, <see cref="Protocol.Http10.Decoder"/>.
 /// RFC 1945 §5.1.1: Method token (GET, HEAD, POST, and extension methods).
 /// </remarks>
 public sealed class Http10RoundTripMethodSpec
@@ -19,7 +20,7 @@ public sealed class Http10RoundTripMethodSpec
     {
         var arr = new byte[65536];
         Span<byte> buffer = arr;
-        var written = Http10Encoder.Encode(request, ref buffer);
+        var written = Encoder.Encode(request, ref buffer);
         return (arr[..written], written);
     }
 

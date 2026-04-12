@@ -6,16 +6,16 @@ using TurboHTTP.Internal;
 
 namespace TurboHTTP.Transport.Tcp;
 
-/// <summary>
-/// Transport stage for HTTP/1.0, HTTP/1.1, and HTTP/2 (TCP/TLS).
-/// Owns the I/O pumps (zero-copy, no thread hop) and delegates connection lifecycle
-/// (acquire, release, idle reuse, eviction) to the <see cref="ConnectionManagerActor"/>.
-/// <para>
-/// All transport state and logic is encapsulated in <see cref="TcpTransportStateMachine"/>.
-/// Async events are marshaled through <see cref="GraphStageLogic.GetStageActor"/> +
-/// <see cref="IActorRef.Tell(object)"/> — no <c>GetAsyncCallback</c> is used.
-/// </para>
-/// </summary>
+internal interface ITransportOperations
+{
+    void OnPushOutput(IInputItem item);
+    void OnSignalPullInput();
+    void OnCompleteStage();
+    void OnScheduleTimer(string key, TimeSpan delay);
+    void OnCancelTimer(string key);
+    ILoggingAdapter Log { get; }
+}
+
 internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
 {
     internal IActorRef ConnectionManager { get; }
@@ -36,7 +36,7 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 
-    private sealed class Logic : TimerGraphStageLogic, ITcpTransportOperations
+    private sealed class Logic : TimerGraphStageLogic, ITransportOperations
     {
         private readonly TcpConnectionStage _stage;
         private readonly Queue<IInputItem> _pendingReads = new();
@@ -78,7 +78,7 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
 
         private void OnReceive((IActorRef sender, object message) args)
         {
-            if (args.message is TcpTransportEvent evt)
+            if (args.message is ITcpTransportEvent evt)
             {
                 _sm.Dispatch(evt);
             }
@@ -89,9 +89,7 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
 
         public override void PostStop() => _sm.PostStop();
 
-        // ─── ITcpTransportOperations ───
-
-        void ITcpTransportOperations.OnPushOutput(IInputItem item)
+        void ITransportOperations.OnPushOutput(IInputItem item)
         {
             if (IsAvailable(_stage._out))
             {
@@ -103,7 +101,7 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
             }
         }
 
-        void ITcpTransportOperations.OnSignalPullInput()
+        void ITransportOperations.OnSignalPullInput()
         {
             if (!IsClosed(_stage._in) && !HasBeenPulled(_stage._in))
             {
@@ -111,15 +109,13 @@ internal sealed class TcpConnectionStage : GraphStage<FlowShape<IOutputItem, IIn
             }
         }
 
-        void ITcpTransportOperations.OnFailStage(Exception ex) => FailStage(ex);
+        void ITransportOperations.OnCompleteStage() => CompleteStage();
 
-        void ITcpTransportOperations.OnCompleteStage() => CompleteStage();
-
-        void ITcpTransportOperations.OnScheduleTimer(string key, TimeSpan delay)
+        void ITransportOperations.OnScheduleTimer(string key, TimeSpan delay)
             => ScheduleOnce(key, delay);
 
-        void ITcpTransportOperations.OnCancelTimer(string key) => CancelTimer(key);
+        void ITransportOperations.OnCancelTimer(string key) => CancelTimer(key);
 
-        ILoggingAdapter ITcpTransportOperations.Log => Log;
+        ILoggingAdapter ITransportOperations.Log => Log;
     }
 }

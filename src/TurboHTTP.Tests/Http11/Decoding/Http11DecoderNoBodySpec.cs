@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11.Decoding;
 
@@ -9,12 +10,12 @@ namespace TurboHTTP.Tests.Http11.Decoding;
 /// Verifies that 1xx, 204, and 304 responses are decoded with empty bodies.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http11Decoder"/>.
+/// Class under test: <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §6.3: Body not allowed for 1xx, 204 No Content, and 304 Not Modified responses.
 /// </remarks>
 public sealed class Http11DecoderNoBodySpec
 {
-    private readonly Http11Decoder _decoder = new();
+    private readonly Decoder _decoder = new();
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6")]

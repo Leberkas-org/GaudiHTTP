@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11;
 
@@ -9,7 +10,7 @@ namespace TurboHTTP.Tests.Http11;
 /// Verifies that multiple consecutive requests and responses are correctly correlated.
 /// </summary>
 /// <remarks>
-/// Classes under test: <see cref="Http11Encoder"/> and <see cref="Http11Decoder"/>.
+/// Classes under test: <see cref="Protocol.Http11.Encoder"/> and <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §9.3: Pipelining — responses MUST be sent in the same order as requests.
 /// </remarks>
 public sealed class Http11RoundTripPipeliningSpec
@@ -53,7 +54,7 @@ public sealed class Http11RoundTripPipeliningSpec
         resp1.Span.CopyTo(combined);
         resp2.Span.CopyTo(combined.AsSpan(resp1.Length));
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(2, responses.Count);
@@ -70,7 +71,7 @@ public sealed class Http11RoundTripPipeliningSpec
         var r3 = BuildResponse(200, "OK", "gamma", ("Content-Length", "5"));
         var combined = Combine(r1, r2, r3);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(3, responses.Count);
@@ -88,7 +89,7 @@ public sealed class Http11RoundTripPipeliningSpec
             .ToArray();
         var combined = Combine(parts);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var decoded);
 
         Assert.Equal(5, decoded.Count);
@@ -107,7 +108,7 @@ public sealed class Http11RoundTripPipeliningSpec
         var r3 = BuildResponse(200, "OK", "ok", ("Content-Length", "2"));
         var combined = Combine(r1, r2, r3);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(3, responses.Count);
@@ -131,7 +132,7 @@ public sealed class Http11RoundTripPipeliningSpec
         continue100.CopyTo(combined, 0);
         ok200.Span.CopyTo(combined.AsSpan(continue100.Length));
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var responses);
 
         Assert.Single(responses);
@@ -148,7 +149,7 @@ public sealed class Http11RoundTripPipeliningSpec
             "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ndone";
         var mem = (ReadOnlyMemory<byte>)Encoding.ASCII.GetBytes(combined);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(mem, out var responses);
 
         Assert.Single(responses);
@@ -160,7 +161,7 @@ public sealed class Http11RoundTripPipeliningSpec
     [Trait("RFC", "RFC9112-9")]
     public async Task Http11RoundTrip_should_decode_second_response_when_keep_alive_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
 
         var raw1 = BuildResponse(200, "OK", "first",
             ("Content-Length", "5"), ("Connection", "keep-alive"));
@@ -180,7 +181,7 @@ public sealed class Http11RoundTripPipeliningSpec
     [Trait("RFC", "RFC9112-9")]
     public async Task Http11RoundTrip_should_decode_all_three_when_sequential_keep_alive_round_trip()
     {
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
 
         for (var i = 1; i <= 3; i++)
         {
@@ -203,7 +204,7 @@ public sealed class Http11RoundTripPipeliningSpec
             ("Content-Length", "4"),
             ("Connection", "close"));
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(raw, out var responses);
 
         Assert.Single(responses);
@@ -227,7 +228,7 @@ public sealed class Http11RoundTripPipeliningSpec
         var r3 = BuildResponse(204, "No Content", "", ("Content-Length", "0"));
         var combined = Combine(r1, r2, r3);
 
-        var decoder = new Http11Decoder();
+        var decoder = new Decoder();
         decoder.TryDecode(combined, out var responses);
 
         Assert.Equal(3, responses.Count);

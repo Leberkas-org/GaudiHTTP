@@ -12,7 +12,7 @@ namespace TurboHTTP.Transport.Tcp;
 /// <summary>
 /// Encapsulates all TCP/TLS transport state and logic — connection acquisition, inbound pumping,
 /// outbound writing, reconnection, and lifecycle management.
-/// Calls back into <see cref="ITcpTransportOperations"/> for Akka-specific operations
+/// Calls back into <see cref="ITransportOperations"/> for Akka-specific operations
 /// (Push, Pull, Timer, Complete, Fail).
 /// Async events arrive via <see cref="Dispatch"/> after being marshaled through the StageActorRef.
 /// </summary>
@@ -20,7 +20,7 @@ internal sealed class TcpTransportStateMachine
 {
     private const string ConnectTimerKey = "connect-timeout";
 
-    private readonly ITcpTransportOperations _ops;
+    private readonly ITransportOperations _ops;
     private readonly IActorRef _connectionManager;
     private readonly TurboClientOptions _clientOptions;
     private readonly IActorRef _self;
@@ -49,7 +49,7 @@ internal sealed class TcpTransportStateMachine
     private CancellationTokenSource? _pumpCts;
 
     public TcpTransportStateMachine(
-        ITcpTransportOperations ops,
+        ITransportOperations ops,
         IActorRef connectionManager,
         TurboClientOptions clientOptions,
         IActorRef self)
@@ -60,40 +60,44 @@ internal sealed class TcpTransportStateMachine
         _self = self;
     }
 
-    // ─── Event Dispatch ───
-
-    public void Dispatch(TcpTransportEvent evt)
+    public void Dispatch(ITcpTransportEvent evt)
     {
         switch (evt)
         {
-            case TcpTransportEvent.LeaseAcquired e:
+            case ITcpTransportEvent.LeaseAcquired e:
                 OnLeaseAcquired(e.Lease);
                 break;
-            case TcpTransportEvent.AcquisitionFailed e:
+            case ITcpTransportEvent.AcquisitionFailed e:
                 OnAcquisitionFailed(e.Error);
                 break;
-            case TcpTransportEvent.InboundBatch e:
-                OnInboundBatch(e.Batch, e.Count);
+            case ITcpTransportEvent.InboundBatch e:
+                if (e.Gen == _connectionGen)
+                {
+                    OnInboundBatch(e.Batch, e.Count);
+                }
+                else
+                {
+                    ArrayPool<IInputItem>.Shared.Return(e.Batch);
+                }
                 break;
-            case TcpTransportEvent.InboundComplete e:
+            case ITcpTransportEvent.InboundComplete e:
                 OnInboundComplete(e.CloseKind, e.Gen);
                 break;
-            case TcpTransportEvent.InboundPumpFailed e:
-                _ops.OnFailStage(e.Error);
+            case ITcpTransportEvent.InboundPumpFailed e:
+                _ops.Log.Warning("TcpConnectionStage: Inbound pump failed — {0}", e.Error.Message);
+                OnInboundComplete(TlsCloseKind.AbruptClose, _connectionGen);
                 break;
-            case TcpTransportEvent.OutboundWriteDone:
+            case ITcpTransportEvent.OutboundWriteDone:
                 _ops.OnSignalPullInput();
                 break;
-            case TcpTransportEvent.OutboundWriteFailed e:
+            case ITcpTransportEvent.OutboundWriteFailed e:
                 OnOutboundWriteFailed(e.Error);
                 break;
-            case TcpTransportEvent.FlushNextCompleted:
+            case ITcpTransportEvent.FlushNextCompleted:
                 FlushNext();
                 break;
         }
     }
-
-    // ─── Upstream Handlers ───
 
     public void HandlePush(IOutputItem item)
     {
@@ -134,10 +138,6 @@ internal sealed class TcpTransportStateMachine
                 _ops.OnSignalPullInput();
                 break;
 
-            case PipelineRetryItem retry:
-                HandlePipelineRetryItem(retry);
-                break;
-
             case ReconnectItem reconnectItem:
                 HandleReconnectItem(reconnectItem);
                 break;
@@ -156,15 +156,6 @@ internal sealed class TcpTransportStateMachine
     public void HandleDownstreamFinish()
     {
         CleanupTransport();
-    }
-
-    // ─── Item Handlers ───
-
-    private void HandlePipelineRetryItem(PipelineRetryItem retry)
-    {
-        _ops.Log.Warning("TcpConnectionStage: PipelineRetryItem — abandoning {0} (no retry)",
-            retry.Request.RequestUri);
-        _ops.OnSignalPullInput();
     }
 
     private void HandleReconnectItem(ReconnectItem reconnectItem)
@@ -261,8 +252,6 @@ internal sealed class TcpTransportStateMachine
 
         _ops.OnSignalPullInput();
     }
-
-    // ─── Timer ───
 
     public void OnTimer(string? timerKey)
     {
@@ -424,8 +413,6 @@ internal sealed class TcpTransportStateMachine
         ArrayPool<IInputItem>.Shared.Return(batch);
     }
 
-    // ─── Connection Management ───
-
     private void AcquireConnection(ConnectItem connect)
     {
         _waitActivity = TurboHttpInstrumentation.StartWaitForConnection(
@@ -438,12 +425,13 @@ internal sealed class TcpTransportStateMachine
         var self = _self;
 
         acquireTask.ContinueWith(
-            static (t, state) => ((IActorRef)state!).Tell(new TcpTransportEvent.LeaseAcquired(t.Result)),
+            static (t, state) => ((IActorRef)state!).Tell(new ITcpTransportEvent.LeaseAcquired(t.Result)),
             self,
             TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnRanToCompletion);
 
         acquireTask.ContinueWith(
-            static (t, state) => ((IActorRef)state!).Tell(new TcpTransportEvent.AcquisitionFailed(t.Exception!.GetBaseException())),
+            static (t, state) =>
+                ((IActorRef)state!).Tell(new ITcpTransportEvent.AcquisitionFailed(t.Exception!.GetBaseException())),
             self,
             TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted);
 
@@ -483,8 +471,6 @@ internal sealed class TcpTransportStateMachine
             _handle = null;
         }
     }
-
-    // ─── Inbound Pump ───
 
     private void StartInboundPump()
     {
@@ -537,7 +523,7 @@ internal sealed class TcpTransportStateMachine
 
                     if (count == batch.Length)
                     {
-                        self.Tell(new TcpTransportEvent.InboundBatch(batch, count));
+                        self.Tell(new ITcpTransportEvent.InboundBatch(batch, count, gen));
                         batch = ArrayPool<IInputItem>.Shared.Rent(count * 2);
                         count = 0;
                     }
@@ -547,7 +533,7 @@ internal sealed class TcpTransportStateMachine
 
                 if (count > 0)
                 {
-                    self.Tell(new TcpTransportEvent.InboundBatch(batch!, count));
+                    self.Tell(new ITcpTransportEvent.InboundBatch(batch!, count, gen));
                 }
                 else if (batch is not null)
                 {
@@ -565,11 +551,11 @@ internal sealed class TcpTransportStateMachine
         }
         catch (Exception ex)
         {
-            self.Tell(new TcpTransportEvent.InboundPumpFailed(ex));
+            self.Tell(new ITcpTransportEvent.InboundPumpFailed(ex));
             return;
         }
 
-        self.Tell(new TcpTransportEvent.InboundComplete(closeKind, gen));
+        self.Tell(new ITcpTransportEvent.InboundComplete(closeKind, gen));
     }
 
     private void StopInboundPump()
@@ -601,17 +587,18 @@ internal sealed class TcpTransportStateMachine
         // Slow path: async completion — dispatch through StageActorRef.
         var self = _self;
         _ = AwaitWrite(vt, self);
+        return;
 
         static async Task AwaitWrite(ValueTask vt, IActorRef self)
         {
             try
             {
                 await vt.ConfigureAwait(false);
-                self.Tell(new TcpTransportEvent.OutboundWriteDone());
+                self.Tell(new ITcpTransportEvent.OutboundWriteDone());
             }
             catch (Exception ex)
             {
-                self.Tell(new TcpTransportEvent.OutboundWriteFailed(ex));
+                self.Tell(new ITcpTransportEvent.OutboundWriteFailed(ex));
             }
         }
     }
@@ -654,11 +641,11 @@ internal sealed class TcpTransportStateMachine
                 try
                 {
                     await vt.ConfigureAwait(false);
-                    self.Tell(new TcpTransportEvent.FlushNextCompleted());
+                    self.Tell(new ITcpTransportEvent.FlushNextCompleted());
                 }
                 catch (Exception ex)
                 {
-                    self.Tell(new TcpTransportEvent.OutboundWriteFailed(ex));
+                    self.Tell(new ITcpTransportEvent.OutboundWriteFailed(ex));
                 }
             }
         }
@@ -667,8 +654,6 @@ internal sealed class TcpTransportStateMachine
             FlushNext();
         }
     }
-
-    // ─── Lifecycle ───
 
     public void PostStop()
     {

@@ -17,10 +17,6 @@ internal static class TcpOptionsFactory
         return requestVersion is { Major: 3, Minor: 0 };
     }
 
-    /// <summary>
-    /// Builds <see cref="TcpOptions"/> from a <see cref="RequestEndpoint"/>.
-    /// Used by <see cref="TcpConnectionStage"/> for auto-connect (no separate ExtractOptionsStage).
-    /// </summary>
     internal static TcpOptions Build(RequestEndpoint endpoint, TurboClientOptions clientOptions)
     {
         var isTls = endpoint.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)

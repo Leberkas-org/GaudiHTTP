@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using Xunit;
 using TurboHTTP.Protocol.Http2.Hpack;
 
 namespace TurboHTTP.Tests.Http2.Hpack;

@@ -24,17 +24,15 @@ internal sealed class PooledBodyContent : HttpContent
         CancellationToken cancellationToken)
         => stream.Write(_owner!.Memory.Span[.._length]);
 
-    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+    protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
     {
-        var vt = stream.WriteAsync(_owner!.Memory[.._length]);
-        return vt.IsCompletedSuccessfully ? Task.CompletedTask : vt.AsTask();
+        await stream.WriteAsync(_owner!.Memory[.._length]);
     }
 
-    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context,
+    protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context,
         CancellationToken cancellationToken)
     {
-        var vt = stream.WriteAsync(_owner!.Memory[.._length], cancellationToken);
-        return vt.IsCompletedSuccessfully ? Task.CompletedTask : vt.AsTask();
+        await stream.WriteAsync(_owner!.Memory[.._length], cancellationToken);
     }
 
     protected override bool TryComputeLength(out long length)
@@ -49,6 +47,69 @@ internal sealed class PooledBodyContent : HttpContent
         {
             var owner = Interlocked.Exchange(ref _owner, null);
             owner?.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+}
+
+/// <summary>
+/// An <see cref="HttpContent"/> that holds pooled <see cref="NetworkBuffer"/> chunks
+/// accumulated during connection-close-delimited body streaming.
+/// </summary>
+internal sealed class PooledChunksContent : HttpContent
+{
+    private readonly byte[]? _initial;
+    private readonly List<NetworkBuffer>? _chunks;
+
+    public PooledChunksContent(byte[]? initial, List<NetworkBuffer>? chunks)
+    {
+        _initial = initial;
+        _chunks = chunks;
+    }
+
+    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        => SerializeToStreamAsync(stream, context, CancellationToken.None);
+
+    protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context,
+        CancellationToken ct)
+    {
+        if (_initial is { Length: > 0 })
+        {
+            await stream.WriteAsync(_initial, ct).ConfigureAwait(false);
+        }
+
+        if (_chunks is not null)
+        {
+            foreach (var buf in _chunks)
+            {
+                await stream.WriteAsync(buf.Memory, ct).ConfigureAwait(false);
+            }
+        }
+    }
+
+    protected override bool TryComputeLength(out long length)
+    {
+        length = _initial?.Length ?? 0;
+        if (_chunks is not null)
+        {
+            foreach (var buf in _chunks)
+            {
+                length += buf.Length;
+            }
+        }
+
+        return true;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && _chunks is not null)
+        {
+            foreach (var buf in _chunks)
+            {
+                buf.Dispose();
+            }
         }
 
         base.Dispose(disposing);

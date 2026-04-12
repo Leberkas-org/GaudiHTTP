@@ -1,6 +1,7 @@
 using System.Text;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Http11;
+using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11.Chunking;
 
@@ -9,12 +10,12 @@ namespace TurboHTTP.Tests.Http11.Chunking;
 /// Verifies chunk-size parsing, data accumulation, and trailing CRLF handling.
 /// </summary>
 /// <remarks>
-/// Class under test: <see cref="Http11Decoder"/>.
+/// Class under test: <see cref="Protocol.Http11.Decoder"/>.
 /// RFC 9112 §7.1: Chunked transfer coding — chunk-size CRLF chunk-data CRLF … "0" CRLF CRLF.
 /// </remarks>
 public sealed class Http11DecoderChunkedSpec
 {
-    private readonly Http11Decoder _decoder = new();
+    private readonly Decoder _decoder = new();
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-7")]
