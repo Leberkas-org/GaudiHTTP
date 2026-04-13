@@ -30,7 +30,6 @@ public sealed class ConnectionLeaseSpec
     private static ClientState CreateState()
     {
         return new ClientState(
-            maxFrameSize: 16384,
             stream: new MemoryStream(),
             inboundChannel: null,
             outboundChannel: null);
@@ -341,7 +340,6 @@ public sealed class ConnectionLeaseSpec
         var handle = CreateHandle(HttpVersion.Version11);
         var memStream = new MemoryStream();
         var state = new ClientState(
-            maxFrameSize: 16384,
             stream: memStream,
             inboundChannel: null,
             outboundChannel: null);

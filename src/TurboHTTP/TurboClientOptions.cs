@@ -1,8 +1,24 @@
+using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 
 namespace TurboHTTP;
+
+/// <summary>
+/// Snapshot of <see cref="TurboHttpClient"/> configuration captured at request-submission time.
+/// Passed into the pipeline so that per-request options reflect the values set on the client at the moment of submission.
+/// </summary>
+public record TurboRequestOptions(
+    Uri? BaseAddress,
+    HttpRequestHeaders DefaultRequestHeaders,
+    Version DefaultRequestVersion,
+    HttpVersionPolicy DefaultVersionPolicy,
+    TimeSpan Timeout,
+    long MaxResponseContentBufferSize,
+    ICredentials? Credentials = null,
+    bool PreAuthenticate = false);
 
 /// <summary>
 /// Configuration for a <see cref="TurboHttpClient"/> instance.
@@ -13,6 +29,15 @@ public sealed class TurboClientOptions
 {
     /// <summary>Base address used to resolve relative request URIs.</summary>
     public Uri? BaseAddress { get; set; }
+
+    /// <summary>HTTP/1.x-specific configuration.</summary>
+    public Http1Options Http1 { get; set; } = new();
+
+    /// <summary>HTTP/2-specific configuration.</summary>
+    public Http2Options Http2 { get; set; } = new();
+
+    /// <summary>HTTP/3-specific configuration.</summary>
+    public Http3Options Http3 { get; set; } = new();
 
     /// <summary>
     /// Timeout for establishing a new TCP connection.
@@ -26,31 +51,30 @@ public sealed class TurboClientOptions
     /// </summary>
     public TimeSpan PooledConnectionIdleTimeout { get; set; } = TimeSpan.FromSeconds(90);
 
-    /// <summary>HTTP/1.x-specific configuration.</summary>
-    public Http1Options Http1 { get; set; } = new();
-
-    /// <summary>HTTP/2-specific configuration.</summary>
-    public Http2Options Http2 { get; set; } = new();
-
-    /// <summary>HTTP/3-specific configuration.</summary>
-    public Http3Options Http3 { get; set; } = new();
-
     /// <summary>
-    /// Maximum batch weight in bytes for HTTP/2 frame encoding.
-    /// Frames are accumulated into batches up to this weight before being serialized into a single buffer,
-    /// reducing allocations and memory copies under concurrent load. Higher values increase throughput
-    /// at the cost of latency variance. Default is 256 KiB. TurboHttp-specific.
+    /// Maximum lifetime of a connection in the pool, regardless of activity.
+    /// When a connection exceeds this age it is evicted on the next pool sweep
+    /// and not handed out for new requests.
+    /// Default is <see cref="Timeout.InfiniteTimeSpan"/> (no lifetime limit),
+    /// matching <c>SocketsHttpHandler.PooledConnectionLifetime</c>.
     /// </summary>
-    public long Http2MaxBatchWeight { get; set; } = 262_144;
+    public TimeSpan PooledConnectionLifetime { get; set; } = Timeout.InfiniteTimeSpan;
 
     /// <summary>
     /// Maximum number of distinct endpoint substreams (identified by <c>(scheme, host, port, version)</c>)
     /// that may be active concurrently. Controls the ceiling for per-endpoint multiplexing and connection pooling.
     /// Must be at least 1. Default is 256. TurboHttp-specific.
     /// </summary>
-    internal const uint DefaultMaxEndpointSubstreams = 256;
+    public uint MaxEndpointSubstreams { get; set; } = 256;
 
-    public uint MaxEndpointSubstreams { get; set; } = DefaultMaxEndpointSubstreams;
+    /// <summary>
+    /// TLS protocol versions to enable. Defaults to <see cref="SslProtocols.None"/>,
+    /// which lets the OS choose the best available protocol.
+    /// </summary>
+    public SslProtocols EnabledSslProtocols { get; set; } = SslProtocols.None;
+
+    /// <summary>Client certificates presented during TLS handshake. <see langword="null"/> means no client certificate.</summary>
+    public X509CertificateCollection? ClientCertificates { get; set; }
 
     /// <summary>
     /// When <see langword="true"/>, all server certificates are accepted regardless of validation
@@ -67,24 +91,6 @@ public sealed class TurboClientOptions
         static (_, _, _, sslPolicyErrors) => sslPolicyErrors is SslPolicyErrors.None;
 
     /// <summary>
-    /// Returns the effective certificate validation callback, taking
-    /// <see cref="DangerousAcceptAnyServerCertificate"/> into account.
-    /// </summary>
-    internal RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback
-        => DangerousAcceptAnyServerCertificate
-            ? static (_, _, _, _) => true
-            : ServerCertificateValidationCallback;
-
-    /// <summary>Client certificates presented during TLS handshake. <see langword="null"/> means no client certificate.</summary>
-    public X509CertificateCollection? ClientCertificates { get; set; }
-
-    /// <summary>
-    /// TLS protocol versions to enable. Defaults to <see cref="SslProtocols.None"/>,
-    /// which lets the OS choose the best available protocol.
-    /// </summary>
-    public SslProtocols EnabledSslProtocols { get; set; } = SslProtocols.None;
-
-    /// <summary>
     /// TCP/QUIC socket send buffer size in bytes. When <see langword="null"/>, the OS default is used.
     /// Operators can tune this for their network environment. Default is <see langword="null"/>.
     /// </summary>
@@ -97,10 +103,46 @@ public sealed class TurboClientOptions
     public int? SocketReceiveBufferSize { get; set; }
 
     /// <summary>
-    /// Maximum number of pooled <see cref="TurboHTTP.Internal.NetworkBuffer"/> wrapper objects to retain.
-    /// When the pool reaches this capacity, excess wrappers are discarded on return instead of being pooled.
-    /// Prevents unbounded pool growth under bursty load.
-    /// Default is <c>Environment.ProcessorCount * 2</c>. TurboHttp-specific.
+    /// Whether to route requests through a proxy.
+    /// When <see langword="true"/> and <see cref="Proxy"/> is set, requests are
+    /// tunnelled through the configured proxy. Default is <see langword="true"/>.
     /// </summary>
-    public int NetworkBufferPoolSize { get; set; } = Environment.ProcessorCount * 2;
+    public bool UseProxy { get; set; } = true;
+
+    /// <summary>
+    /// The web proxy to use when <see cref="UseProxy"/> is <see langword="true"/>.
+    /// When <see langword="null"/>, no proxy is used regardless of <see cref="UseProxy"/>.
+    /// Default is <see langword="null"/>.
+    /// </summary>
+    public IWebProxy? Proxy { get; set; }
+
+    /// <summary>
+    /// Default credentials sent to the proxy for authentication.
+    /// Only used when <see cref="UseProxy"/> is <see langword="true"/> and
+    /// <see cref="Proxy"/> is set. Default is <see langword="null"/>.
+    /// </summary>
+    public ICredentials? DefaultProxyCredentials { get; set; }
+
+    /// <summary>
+    /// Credentials for server authentication (e.g., Basic, Digest).
+    /// When set, the <c>Authorization</c> header is injected into requests
+    /// during enrichment. Default is <see langword="null"/>.
+    /// </summary>
+    public ICredentials? Credentials { get; set; }
+
+    /// <summary>
+    /// When <see langword="true"/>, an <c>Authorization</c> header is sent with
+    /// the initial request instead of waiting for a 401 challenge.
+    /// Only effective when <see cref="Credentials"/> is set. Default is <see langword="false"/>.
+    /// </summary>
+    public bool PreAuthenticate { get; set; }
+
+    /// <summary>
+    /// Returns the effective certificate validation callback, taking
+    /// <see cref="DangerousAcceptAnyServerCertificate"/> into account.
+    /// </summary>
+    internal RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback
+        => DangerousAcceptAnyServerCertificate
+            ? static (_, _, _, _) => true
+            : ServerCertificateValidationCallback;
 }

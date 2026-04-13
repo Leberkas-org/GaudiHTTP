@@ -37,8 +37,7 @@ public sealed class TcpConnectionManagerActorSpec : IAsyncLifetime
     private TcpOptions CreateOptions() => new()
     {
         Host = "127.0.0.1",
-        Port = _port,
-        MaxFrameSize = 16384
+        Port = _port
     };
 
     private RequestEndpoint CreateEndpoint(Version? version = null) => new()
@@ -50,7 +49,7 @@ public sealed class TcpConnectionManagerActorSpec : IAsyncLifetime
     };
 
     private IActorRef CreateActor(TimeSpan? idleTimeout = null)
-        => _system!.ActorOf(Props.Create(() => new TcpConnectionManagerActor(idleTimeout ?? TimeSpan.FromSeconds(5))));
+        => _system!.ActorOf(Props.Create(() => new TcpConnectionManagerActor(idleTimeout ?? TimeSpan.FromSeconds(5), Timeout.InfiniteTimeSpan)));
 
     [Fact(Timeout = 5000)]
     public async Task TcpConnectionManagerActor_should_always_create_new_connection_for_http10()

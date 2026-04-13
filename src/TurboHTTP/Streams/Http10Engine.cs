@@ -7,15 +7,24 @@ using TurboHTTP.Streams.Stages.Internal;
 
 namespace TurboHTTP.Streams;
 
-public class Http10Engine : IHttpProtocolEngine
+internal class Http10Engine : IHttpProtocolEngine
 {
+    private readonly Http1EngineOptions _options;
+
+    public Http10Engine(Http1EngineOptions options)
+    {
+        _options = options;
+    }
+
     public BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> CreateFlow()
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new Http10ConnectionStage());
+            var connection = b.Add(new Http10ConnectionStage(
+                _options.MaxReconnectAttempts, _options.MaxResponseHeadersLength,
+                _options.MaxResponseDrainSize, _options.ResponseDrainTimeout));
 
-            var batchFlow = b.Add(new NetworkBufferBatchStage(Http11Engine.MaxBatchWeight));
+            var batchFlow = b.Add(new NetworkBufferBatchStage(_options.MaxBatchWeight));
 
             b.From(connection.OutNetwork).Via(batchFlow);
 

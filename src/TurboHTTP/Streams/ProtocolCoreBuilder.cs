@@ -24,9 +24,14 @@ internal static class ProtocolCoreBuilder
         // sustained throughput peaks without excessive memory.
         var highThroughputBuffer = Attributes.CreateInputBuffer(64, 256);
 
-        var maxConnsH1 = clientOptions.Http1.MaxConnectionsPerServer;
-        var maxConnsH2 = clientOptions.Http2.MaxConnectionsPerServer;
-        var maxConcurrentH2Streams = clientOptions.Http2.MaxConcurrentStreams;
+        var http1Options = clientOptions.Http1.ToEngineOptions();
+        var http2Options = clientOptions.Http2.ToEngineOptions();
+        var http3Options = clientOptions.Http3.ToEngineOptions();
+
+        var maxConnsH1 = http1Options.MaxConnectionsPerServer;
+        var maxConnsH2 = http2Options.MaxConnectionsPerServer;
+        var h2Streams = http2Options.InitialConcurrentStreams;
+
         var maxConnsH3 = clientOptions.Http3.MaxConnectionsPerServer;
 
         var endpointDispatch = Flow.FromGraph(new EndpointDispatchStage(CreateFlowForEndpoint))
@@ -43,7 +48,7 @@ internal static class ProtocolCoreBuilder
         return core.WithAttributes(highThroughputBuffer);
 
         int MaxConcurrencyPerSlot(RequestEndpoint endpoint)
-            => GetMaxConcurrencyPerSlot(endpoint, maxConcurrentH2Streams, clientOptions.Http1.MaxPipelineDepth);
+            => GetMaxConcurrencyPerSlot(endpoint, h2Streams, clientOptions.Http1.MaxPipelineDepth);
 
         int MaxSubstreamsPerKey(RequestEndpoint endpoint)
             => GetMaxSubstreamsPerKey(endpoint, maxConnsH1, maxConnsH2, maxConnsH3);
@@ -56,20 +61,12 @@ internal static class ProtocolCoreBuilder
             var version = endpoint.Version;
             IHttpProtocolEngine engine = version switch
             {
-                { Major: 1, Minor: 0 } => new Http10Engine(),
-                { Major: 1, Minor: 1 } => new Http11Engine(clientOptions.Http1.MaxPipelineDepth),
-                { Major: 2, Minor: 0 } => new Http20Engine(clientOptions.Http2.InitialWindowSize, maxConcurrentH2Streams),
-                { Major: 3, Minor: 0 } => new Http30Engine(
-                    clientOptions.Http3.QpackMaxTableCapacity,
-                    new Protocol.Http3.Http3ConnectionConfig(
-                        MaxFieldSectionSize: clientOptions.Http3.MaxFieldSectionSize,
-                        QpackMaxTableCapacity: clientOptions.Http3.QpackMaxTableCapacity,
-                        QpackBlockedStreams: clientOptions.Http3.QpackBlockedStreams,
-                        IdleTimeout: clientOptions.Http3.IdleTimeout,
-                        MaxReconnectAttempts: clientOptions.Http3.MaxReconnectAttempts,
-                        AllowEarlyData: clientOptions.Http3.AllowEarlyData,
-                        AllowConnectionMigration: clientOptions.Http3.AllowConnectionMigration)),
-                _ => throw new ArgumentOutOfRangeException(nameof(version), version, $"Unsupported HTTP version: {version}")
+                { Major: 1, Minor: 0 } => new Http10Engine(http1Options),
+                { Major: 1, Minor: 1 } => new Http11Engine(http1Options),
+                { Major: 2, Minor: 0 } => new Http20Engine(http2Options),
+                { Major: 3, Minor: 0 } => new Http30Engine(http3Options),
+                _ => throw new ArgumentOutOfRangeException(nameof(version), version,
+                    $"Unsupported HTTP version: {version}")
             };
 
             // Async boundary on the joined flow: the full engine+transport sub-graph
@@ -78,14 +75,24 @@ internal static class ProtocolCoreBuilder
         }
     }
 
-    internal static int GetMaxConcurrencyPerSlot(RequestEndpoint endpoint, int maxConcurrentH2Streams, int maxPipelineDepth)
-        => endpoint.Version.Major == 3 ? int.MaxValue      // QUIC handles stream limits at transport level
-         : endpoint.Version.Major == 2 ? maxConcurrentH2Streams
-         : endpoint.Version is { Major: 1, Minor: 0 } ? 1  // HTTP/1.0 no pipelining
-         : maxPipelineDepth;                                 // HTTP/1.1 pre-fill slots
+    internal static int GetMaxConcurrencyPerSlot(RequestEndpoint endpoint, int h2Streams, int h1Streams)
+    {
+        return endpoint.Version switch
+        {
+            { Major: 3, Minor: 0 } => int.MaxValue, // QUIC handles stream limits at transport level
+            { Major: 2, Minor: 0 } => h2Streams,
+            { Major: 1, Minor: 1 } => h1Streams, // HTTP/1.1 pre-fill slots
+            { Major: 1, Minor: 0 } => 1 // HTTP/1.0 no pipelining
+        };
+    }
 
     internal static int GetMaxSubstreamsPerKey(RequestEndpoint endpoint, int maxConnsH1, int maxConnsH2, int maxConnsH3)
-        => endpoint.Version.Major == 3 ? maxConnsH3
-         : endpoint.Version.Major == 2 ? maxConnsH2
-         : maxConnsH1;
+    {
+        return endpoint.Version.Major switch
+        {
+            3 => maxConnsH3,
+            2 => maxConnsH2,
+            _ => maxConnsH1
+        };
+    }
 }

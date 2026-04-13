@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Net;
-using System.Text;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Stages;
 
@@ -12,6 +11,8 @@ namespace TurboHTTP.Protocol.Http11;
 /// </summary>
 public sealed class Decoder : IDisposable
 {
+    private delegate HttpDecodeResult ParseOneFunc(ReadOnlySpan<byte> buffer, out HttpResponseMessage? response, out int consumed);
+
     private IMemoryOwner<byte>? _remainderOwner;
     private int _remainderLength;
 
@@ -22,21 +23,14 @@ public sealed class Decoder : IDisposable
 
     private readonly List<HttpResponseMessage> _decodeBuffer = [];
 
-    // Pooled structures for header parsing — reused across calls (decoder is single-threaded per actor).
-    // Avoids ~1 Dictionary + ~15 List<string> allocations per response (~1.6 KB GC pressure per decode).
-    private readonly Dictionary<string, List<string>> _headerDict =
-        new(StringComparer.OrdinalIgnoreCase);
-    private readonly Stack<List<string>> _listPool = new();
-
     private const int DefaultMaxHeaderSize = 16 * 1024; // 16 KB per header field
     private const int DefaultMaxTotalHeaderSize = 64 * 1024; // 64 KB total headers
     private const int DefaultMaxBodySize = 10_485_760; // 10 MB
     private const int DefaultMaxHeaderCount = 100;
 
-    private readonly int _maxHeaderSize;
+    private readonly HeaderDecoder _headerDecoder;
     private readonly int _maxTotalHeaderSize;
     private readonly int _maxBodySize;
-    private readonly int _maxHeaderCount;
 
     /// <summary>
     /// Creates a new HTTP/1.1 decoder with configurable limits.
@@ -51,10 +45,9 @@ public sealed class Decoder : IDisposable
         int maxBodySize = DefaultMaxBodySize,
         int maxHeaderCount = DefaultMaxHeaderCount)
     {
-        _maxHeaderSize = maxHeaderSize;
+        _headerDecoder = new HeaderDecoder(maxHeaderSize, maxTotalHeaderSize, maxHeaderCount);
         _maxTotalHeaderSize = maxTotalHeaderSize;
         _maxBodySize = maxBodySize;
-        _maxHeaderCount = maxHeaderCount;
     }
 
     /// <summary>
@@ -66,7 +59,26 @@ public sealed class Decoder : IDisposable
     public bool TryDecode(ReadOnlyMemory<byte> incomingData, out IReadOnlyList<HttpResponseMessage> responses)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        return DecodeLoop(incomingData, TryParseOne, out responses);
+    }
 
+    /// <summary>
+    /// Attempts to decode HTTP/1.1 responses from incoming data where the original
+    /// request was a HEAD request. Parses headers only and always returns an empty body,
+    /// regardless of any <c>Content-Length</c> value in the response headers.
+    /// </summary>
+    /// <remarks>
+    /// RFC 9112 §6.3: Any response to a HEAD request is terminated by the first empty
+    /// line after the header fields and cannot contain a message body.
+    /// </remarks>
+    public bool TryDecodeHead(ReadOnlyMemory<byte> incomingData, out IReadOnlyList<HttpResponseMessage> responses)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return DecodeLoop(incomingData, TryParseOneNoBody, out responses);
+    }
+
+    private bool DecodeLoop(ReadOnlyMemory<byte> incomingData, ParseOneFunc parseOne, out IReadOnlyList<HttpResponseMessage> responses)
+    {
         _decodeBuffer.Clear();
         responses = [];
 
@@ -96,7 +108,7 @@ public sealed class Decoder : IDisposable
 
             while (consumed < working.Length)
             {
-                var result = TryParseOne(working[consumed..], out var response, out var bytesConsumed);
+                var result = parseOne(working[consumed..], out var response, out var bytesConsumed);
 
                 if (result.Success)
                 {
@@ -115,86 +127,6 @@ public sealed class Decoder : IDisposable
                 if (result.Error == HttpDecoderError.NeedMoreData)
                 {
                     // Store remainder in pooled buffer
-                    StoreRemainder(working[consumed..]);
-                    break;
-                }
-
-                ClearRemainder();
-                throw new HttpDecoderException(result.Error!.Value);
-            }
-        }
-        finally
-        {
-            combinedOwner?.Dispose();
-        }
-
-        if (_decodeBuffer.Count <= 0)
-        {
-            return false;
-        }
-
-        responses = new List<HttpResponseMessage>(_decodeBuffer);
-        return true;
-    }
-
-    /// <summary>
-    /// Attempts to decode HTTP/1.1 responses from incoming data where the original
-    /// request was a HEAD request. Parses headers only and always returns an empty body,
-    /// regardless of any <c>Content-Length</c> value in the response headers.
-    /// </summary>
-    /// <remarks>
-    /// RFC 9112 §6.3: Any response to a HEAD request is terminated by the first empty
-    /// line after the header fields and cannot contain a message body.
-    /// </remarks>
-    public bool TryDecodeHead(ReadOnlyMemory<byte> incomingData, out IReadOnlyList<HttpResponseMessage> responses)
-    {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-
-        _decodeBuffer.Clear();
-        responses = [];
-
-        ReadOnlySpan<byte> working;
-        IMemoryOwner<byte>? combinedOwner = null;
-
-        if (_remainderLength > 0)
-        {
-            var combinedLength = _remainderLength + incomingData.Length;
-            combinedOwner = MemoryPool<byte>.Shared.Rent(combinedLength);
-
-            _remainderOwner!.Memory.Span[.._remainderLength].CopyTo(combinedOwner.Memory.Span);
-            incomingData.Span.CopyTo(combinedOwner.Memory.Span[_remainderLength..]);
-
-            working = combinedOwner.Memory.Span[..combinedLength];
-            ClearRemainder();
-        }
-        else
-        {
-            working = incomingData.Span;
-        }
-
-        try
-        {
-            var consumed = 0;
-
-            while (consumed < working.Length)
-            {
-                var result = TryParseOneNoBody(working[consumed..], out var response, out var bytesConsumed);
-
-                if (result.Success)
-                {
-                    consumed += bytesConsumed;
-
-                    if ((int)response!.StatusCode >= 100 && (int)response.StatusCode < 200)
-                    {
-                        continue;
-                    }
-
-                    _decodeBuffer.Add(response);
-                    continue;
-                }
-
-                if (result.Error == HttpDecoderError.NeedMoreData)
-                {
                     StoreRemainder(working[consumed..]);
                     break;
                 }
@@ -262,7 +194,7 @@ public sealed class Decoder : IDisposable
             {
                 // Peek at status code to decide parsing strategy
                 var slice = working[consumed..];
-                var statusCode = PeekStatusCode(slice);
+                var statusCode = StatusLineDecoder.PeekCode(slice);
 
                 // 2xx → no body (tunnel begins); non-2xx → normal body handling
                 var result = statusCode is >= 200 and < 300
@@ -331,7 +263,7 @@ public sealed class Decoder : IDisposable
         var working = _remainderOwner!.Memory.Span[.._remainderLength];
 
         // Find header/body boundary (CRLF CRLF)
-        var headerEnd = FindCrlfCrlf(working);
+        var headerEnd = BufferSearch.FindCrlfCrlf(working);
         if (headerEnd < 0)
         {
             return false;
@@ -341,25 +273,25 @@ public sealed class Decoder : IDisposable
         var headerSection = working[..(headerEnd + 2)];
 
         // Parse status line
-        var statusLineEnd = FindCrlf(headerSection, 0);
+        var statusLineEnd = BufferSearch.FindCrlf(headerSection, 0);
         if (statusLineEnd < 0)
         {
             return false;
         }
 
         var statusLine = headerSection[..statusLineEnd];
-        if (!TryParseStatusLine(statusLine, out var statusCode, out var reasonPhrase))
+        if (!StatusLineDecoder.TryParse(statusLine, out var statusCode, out var reasonPhrase))
         {
             return false;
         }
 
         // Parse headers
         var headersData = headerSection[(statusLineEnd + 2)..];
-        var headers = ParseHeaders(headersData);
+        var headers = _headerDecoder.Parse(headersData);
 
         // RFC 9112 §7.1: Chunked encoding MUST be terminated by a zero-length chunk.
         // If the connection closes before the zero-chunk, the response is incomplete.
-        if (GetSingleHeader(headers, WellKnownHeaders.Names.TransferEncoding) is not null)
+        if (BodyDecoder.GetSingleHeader(headers, WellKnownHeaders.Names.TransferEncoding) is not null)
         {
             ClearRemainder();
             return false;
@@ -372,56 +304,14 @@ public sealed class Decoder : IDisposable
 
         // RFC 9112 §6.2: If Content-Length is present, the body MUST be exactly that many bytes.
         // A connection close before the full body is received means a truncated (incomplete) response.
-        var contentLength = GetContentLengthHeader(headers);
+        var contentLength = BodyDecoder.GetContentLengthHeader(headers);
         if (contentLength.HasValue && bodySpan.Length < contentLength.Value)
         {
             ClearRemainder();
             return false;
         }
 
-        // Build response
-        response = new HttpResponseMessage
-        {
-            StatusCode = (HttpStatusCode)statusCode,
-            ReasonPhrase = reasonPhrase,
-            Version = HttpVersion.Version11
-        };
-
-        foreach (var (name, values) in headers)
-        {
-            foreach (var value in values)
-            {
-                response.Headers.TryAddWithoutValidation(name, value);
-            }
-        }
-
-        // Use pooled memory instead of byte[] allocation
-        HttpContent content;
-        if (!bodySpan.IsEmpty)
-        {
-            var owner = MemoryPool<byte>.Shared.Rent(bodySpan.Length);
-            bodySpan.CopyTo(owner.Memory.Span);
-            content = new PooledBodyContent(owner, bodySpan.Length);
-        }
-        else
-        {
-            content = new ByteArrayContent([]);
-        }
-
-        foreach (var (name, values) in headers)
-        {
-            if (!IsContentHeader(name))
-            {
-                continue;
-            }
-
-            foreach (var value in values)
-            {
-                content.Headers.TryAddWithoutValidation(name, value);
-            }
-        }
-
-        response.Content = content;
+        response = BodyDecoder.BuildResponseFromRemainder(statusCode, reasonPhrase, headers, bodySpan);
         ClearRemainder();
         return true;
     }
@@ -515,6 +405,53 @@ public sealed class Decoder : IDisposable
         _bodyOwner = newOwner;
     }
 
+    private HttpDecodeResult AttachBody(HttpResponseMessage response, ReadOnlySpan<byte> bodyData,
+        Dictionary<string, List<string>> headers, int bodyStart, out int consumed)
+    {
+        consumed = 0;
+
+        // Parse body
+        var (bodyResult, bodyOwner, bodyLength, bodyConsumed, trailerHeaders) = ParseBody(bodyData, headers);
+        if (!bodyResult.Success)
+        {
+            return bodyResult;
+        }
+
+        // Create content — use pooled memory to avoid byte[] allocation
+        HttpContent content = bodyOwner is not null
+            ? new PooledBodyContent(bodyOwner, bodyLength)
+            : new ByteArrayContent([]);
+
+        foreach (var (name, values) in headers)
+        {
+            if (!BodyDecoder.IsContentHeader(name))
+            {
+                continue;
+            }
+
+            foreach (var value in values)
+            {
+                content.Headers.TryAddWithoutValidation(name, value);
+            }
+        }
+
+        // Add trailer headers
+        if (trailerHeaders != null)
+        {
+            foreach (var (name, values) in trailerHeaders)
+            {
+                foreach (var value in values)
+                {
+                    response.TrailingHeaders.TryAddWithoutValidation(name, value);
+                }
+            }
+        }
+
+        response.Content = content;
+        consumed = bodyStart + bodyConsumed;
+        return HttpDecodeResult.Ok();
+    }
+
     /// <summary>
     /// Parses one response but always returns an empty body (used for HEAD responses).
     /// </summary>
@@ -524,7 +461,7 @@ public sealed class Decoder : IDisposable
         response = null;
         consumed = 0;
 
-        var headerEnd = FindCrlfCrlf(buffer);
+        var headerEnd = BufferSearch.FindCrlfCrlf(buffer);
         if (headerEnd < 0)
         {
             return HttpDecodeResult.Incomplete();
@@ -538,20 +475,20 @@ public sealed class Decoder : IDisposable
 
         var headerSection = buffer[..(headerEnd + 2)];
 
-        var statusLineEnd = FindCrlf(headerSection, 0);
+        var statusLineEnd = BufferSearch.FindCrlf(headerSection, 0);
         if (statusLineEnd < 0)
         {
             return HttpDecodeResult.Fail(HttpDecoderError.InvalidStatusLine);
         }
 
         var statusLine = headerSection[..statusLineEnd];
-        if (!TryParseStatusLine(statusLine, out var statusCode, out var reasonPhrase))
+        if (!StatusLineDecoder.TryParse(statusLine, out var statusCode, out var reasonPhrase))
         {
             return HttpDecodeResult.Fail(HttpDecoderError.InvalidStatusLine);
         }
 
         var headersData = headerSection[(statusLineEnd + 2)..];
-        var headers = ParseHeaders(headersData);
+        var headers = _headerDecoder.Parse(headersData);
 
         response = new HttpResponseMessage
         {
@@ -572,7 +509,7 @@ public sealed class Decoder : IDisposable
         var emptyContent = new ByteArrayContent([]);
         foreach (var (name, values) in headers)
         {
-            if (!IsContentHeader(name))
+            if (!BodyDecoder.IsContentHeader(name))
             {
                 continue;
             }
@@ -594,7 +531,7 @@ public sealed class Decoder : IDisposable
         consumed = 0;
 
         // 1. Find header/body boundary (CRLF CRLF)
-        var headerEnd = FindCrlfCrlf(buffer);
+        var headerEnd = BufferSearch.FindCrlfCrlf(buffer);
         if (headerEnd < 0)
         {
             return HttpDecodeResult.Incomplete();
@@ -610,21 +547,21 @@ public sealed class Decoder : IDisposable
         var headerSection = buffer[..(headerEnd + 2)];
 
         // 2. Parse status line (RFC 9112 Section 4)
-        var statusLineEnd = FindCrlf(headerSection, 0);
+        var statusLineEnd = BufferSearch.FindCrlf(headerSection, 0);
         if (statusLineEnd < 0)
         {
             return HttpDecodeResult.Fail(HttpDecoderError.InvalidStatusLine);
         }
 
         var statusLine = headerSection[..statusLineEnd];
-        if (!TryParseStatusLine(statusLine, out var statusCode, out var reasonPhrase))
+        if (!StatusLineDecoder.TryParse(statusLine, out var statusCode, out var reasonPhrase))
         {
             return HttpDecodeResult.Fail(HttpDecoderError.InvalidStatusLine);
         }
 
         // 3. Parse headers using span-based parsing
         var headersData = headerSection[(statusLineEnd + 2)..];
-        var headers = ParseHeaders(headersData);
+        var headers = _headerDecoder.Parse(headersData);
 
         // 4. Build response object
         response = new HttpResponseMessage
@@ -646,12 +583,12 @@ public sealed class Decoder : IDisposable
         var bodyData = buffer[bodyStart..];
 
         // 5. Handle no-body responses (RFC 9112 Section 6.3)
-        if (IsNoBodyResponse(statusCode))
+        if (BodyDecoder.IsNoBodyResponse(statusCode))
         {
             var emptyContent = new ByteArrayContent([]);
             foreach (var (name, values) in headers)
             {
-                if (!IsContentHeader(name))
+                if (!BodyDecoder.IsContentHeader(name))
                 {
                     continue;
                 }
@@ -667,216 +604,15 @@ public sealed class Decoder : IDisposable
             return HttpDecodeResult.Ok();
         }
 
-        // 6. Parse body
-        var (bodyResult, bodyOwner, bodyLength, bodyConsumed, trailerHeaders) = ParseBody(bodyData, headers);
-        if (!bodyResult.Success)
-        {
-            return bodyResult;
-        }
-
-        // 7. Create content — use pooled memory to avoid byte[] allocation
-        HttpContent content = bodyOwner is not null
-            ? new PooledBodyContent(bodyOwner, bodyLength)
-            : new ByteArrayContent([]);
-
-        foreach (var (name, values) in headers)
-        {
-            if (!IsContentHeader(name))
-            {
-                continue;
-            }
-
-            foreach (var value in values)
-            {
-                content.Headers.TryAddWithoutValidation(name, value);
-            }
-        }
-
-        // 8. Add trailer headers
-        if (trailerHeaders != null)
-        {
-            foreach (var (name, values) in trailerHeaders)
-            {
-                foreach (var value in values)
-                {
-                    response.TrailingHeaders.TryAddWithoutValidation(name, value);
-                }
-            }
-        }
-
-        response.Content = content;
-        consumed = bodyStart + bodyConsumed;
-        return HttpDecodeResult.Ok();
-    }
-
-    private static string GetOrCreateReasonPhrase(ReadOnlySpan<byte> span)
-        => span.Length switch
-        {
-            2  => span.SequenceEqual("OK"u8)                    ? "OK"                    : Encoding.ASCII.GetString(span),
-            5  => span.SequenceEqual("Found"u8)                 ? "Found"                 : Encoding.ASCII.GetString(span),
-            7  => span.SequenceEqual("Created"u8)               ? "Created"               : Encoding.ASCII.GetString(span),
-            8  => span.SequenceEqual("Accepted"u8)              ? "Accepted"              : Encoding.ASCII.GetString(span),
-            9  => span.SequenceEqual("Not Found"u8)             ? "Not Found"             :
-                  span.SequenceEqual("Forbidden"u8)             ? "Forbidden"             : Encoding.ASCII.GetString(span),
-            10 => span.SequenceEqual("No Content"u8)            ? "No Content"            : Encoding.ASCII.GetString(span),
-            11 => span.SequenceEqual("Bad Request"u8)           ? "Bad Request"           : Encoding.ASCII.GetString(span),
-            12 => span.SequenceEqual("Unauthorized"u8)          ? "Unauthorized"          :
-                  span.SequenceEqual("Not Modified"u8)          ? "Not Modified"          : Encoding.ASCII.GetString(span),
-            15 => span.SequenceEqual("Partial Content"u8)       ? "Partial Content"       : Encoding.ASCII.GetString(span),
-            17 => span.SequenceEqual("Moved Permanently"u8)     ? "Moved Permanently"     : Encoding.ASCII.GetString(span),
-            21 => span.SequenceEqual("Internal Server Error"u8) ? "Internal Server Error" : Encoding.ASCII.GetString(span),
-            _  => Encoding.ASCII.GetString(span),
-        };
-
-    private static bool TryParseStatusLine(ReadOnlySpan<byte> line, out int statusCode, out string reasonPhrase)
-    {
-        statusCode = 0;
-        reasonPhrase = string.Empty;
-
-        // Format: HTTP/1.1 200 OK
-        // Minimum: "HTTP/1.1 200" = 12 chars
-        if (line.Length < 12)
-        {
-            return false;
-        }
-
-        // Check HTTP version prefix
-        if (!line.StartsWith("HTTP/1."u8))
-        {
-            return false;
-        }
-
-        // Find first space after version
-        var firstSpace = line.IndexOf((byte)' ');
-        if (firstSpace < 8)
-        {
-            return false;
-        }
-
-        // Parse status code (3 digits)
-        var codeStart = firstSpace + 1;
-        if (codeStart + 3 > line.Length)
-        {
-            return false;
-        }
-
-        var codeSpan = line.Slice(codeStart, 3);
-        if (!TryParseInt(codeSpan, out statusCode))
-        {
-            return false;
-        }
-
-        // Parse reason phrase (optional)
-        var reasonStart = codeStart + 4; // "200 "
-        if (reasonStart < line.Length)
-        {
-            reasonPhrase = GetOrCreateReasonPhrase(line[reasonStart..]);
-        }
-
-        return statusCode is >= 100 and < 600;
-    }
-
-    private Dictionary<string, List<string>> ParseHeaders(ReadOnlySpan<byte> data)
-    {
-        // Return List<string> instances from the previous call to the pool before clearing.
-        foreach (var list in _headerDict.Values)
-        {
-            list.Clear();
-            if (_listPool.Count < 32)
-            {
-                _listPool.Push(list);
-            }
-        }
-
-        _headerDict.Clear();
-
-        var pos = 0;
-        var fieldCount = 0;
-        var totalSize = 0;
-
-        while (pos < data.Length)
-        {
-            var lineEnd = FindCrlf(data, pos);
-            if (lineEnd < 0 || lineEnd == pos)
-            {
-                break;
-            }
-
-            // Security: enforce maximum header field count (prevents header flood attacks).
-            fieldCount++;
-            if (fieldCount > _maxHeaderCount)
-            {
-                throw new HttpDecoderException(HttpDecoderError.TooManyHeaders,
-                    $"Received {fieldCount} fields; limit is {_maxHeaderCount}.");
-            }
-
-            var line = data[pos..lineEnd];
-
-            // RFC 9112 §5.2: obs-fold (continuation line starting with SP/HT) is obsolete.
-            // Reject it as InvalidHeader — the line has no colon so colonIdx check below handles it.
-            // However, explicitly detect it here for clarity and correct size accounting.
-            if (line.Length > 0 && (line[0] == (byte)' ' || line[0] == (byte)'\t'))
-            {
-                throw new HttpDecoderException(HttpDecoderError.ObsoleteFoldingDetected);
-            }
-
-            var colonIdx = line.IndexOf((byte)':');
-
-            // RFC 9112 §5.1: every header field MUST contain a colon.
-            // colonIdx == -1: no colon present; colonIdx == 0: empty field name — both are invalid.
-            if (colonIdx <= 0)
-            {
-                throw new HttpDecoderException(HttpDecoderError.InvalidHeader);
-            }
-
-            var name = WellKnownHeaders.TrimOws(line[..colonIdx]);
-            var value = WellKnownHeaders.TrimOws(line[(colonIdx + 1)..]);
-
-            var nameStr = WellKnownHeaders.GetOrCreateHeaderName(name);
-            var valueStr = WellKnownHeaders.GetOrCreateHeaderValue(value);
-
-            // RFC 9112 §5.5: Header field values MUST NOT contain CR, LF, or NUL characters.
-            if (valueStr.IndexOfAny('\r', '\n', '\0') >= 0)
-            {
-                throw new HttpDecoderException(HttpDecoderError.InvalidFieldValue,
-                    $"Header '{nameStr}' contains a CR, LF, or NUL character in its value.");
-            }
-
-            // Security: check single header field size (name + ": " + value).
-            var headerSize = name.Length + 2 + value.Length;
-            if (headerSize > _maxHeaderSize)
-            {
-                throw new HttpDecoderException(HttpDecoderError.HeaderTooLarge,
-                    $"Header '{nameStr}' is {headerSize} bytes; limit is {_maxHeaderSize}.");
-            }
-
-            // Security: check cumulative total header size.
-            totalSize += headerSize;
-            if (totalSize > _maxTotalHeaderSize)
-            {
-                throw new HttpDecoderException(HttpDecoderError.TotalHeadersTooLarge,
-                    $"Total header size is {totalSize} bytes; limit is {_maxTotalHeaderSize}.");
-            }
-
-            if (!_headerDict.TryGetValue(nameStr, out var values))
-            {
-                values = _listPool.Count > 0 ? _listPool.Pop() : new List<string>(2);
-                _headerDict[nameStr] = values;
-            }
-
-            values.Add(valueStr);
-
-            pos = lineEnd + 2;
-        }
-
-        return _headerDict;
+        // 6-8. Attach body and trailers
+        return AttachBody(response, bodyData, headers, bodyStart, out consumed);
     }
 
     private (HttpDecodeResult result, IMemoryOwner<byte>? bodyOwner, int bodyLength, int consumed, Dictionary<string, List<string>>? trailers)
         ParseBody(ReadOnlySpan<byte> data, Dictionary<string, List<string>> headers)
     {
-        var transferEncoding = GetSingleHeader(headers, WellKnownHeaders.Names.TransferEncoding);
-        var contentLength = GetContentLengthHeader(headers);
+        var transferEncoding = BodyDecoder.GetSingleHeader(headers, WellKnownHeaders.Names.TransferEncoding);
+        var contentLength = BodyDecoder.GetContentLengthHeader(headers);
 
         // RFC 9112 Section 6.3: Transfer-Encoding takes precedence
         if (!string.IsNullOrEmpty(transferEncoding) &&
@@ -925,75 +661,88 @@ public sealed class Decoder : IDisposable
 
         while (pos < data.Length)
         {
-            // Find chunk size line end
-            var lineEnd = FindCrlf(data, pos);
+            var lineEnd = BufferSearch.FindCrlf(data, pos);
             if (lineEnd < 0)
             {
                 return (HttpDecodeResult.Incomplete(), null, 0, 0, null);
             }
 
-            // Parse chunk size (hex) and optional chunk extensions (RFC 9112 §7.1.1)
             var sizeLine = data[pos..lineEnd];
-            var semiIdx = sizeLine.IndexOf((byte)';');
-            var sizeSpan = semiIdx >= 0 ? sizeLine[..semiIdx] : sizeLine;
-            var extSpan = semiIdx >= 0 ? sizeLine[(semiIdx + 1)..] : ReadOnlySpan<byte>.Empty;
-
-            if (!TryParseChunkExtensions(extSpan))
+            if (!TryParseChunkHeader(sizeLine, out var chunkSize, out var error))
             {
-                return (HttpDecodeResult.Fail(HttpDecoderError.InvalidChunkExtension), null, 0, 0, null);
-            }
-
-            if (!TryParseHex(sizeSpan, out var chunkSize))
-            {
-                return (HttpDecodeResult.Fail(HttpDecoderError.InvalidChunkSize), null, 0, 0, null);
+                return (HttpDecodeResult.Fail(error!.Value), null, 0, 0, null);
             }
 
             pos = lineEnd + 2;
 
-            // Last chunk (size = 0)
             if (chunkSize == 0)
             {
-                var remaining = data[pos..];
-
-                // Empty trailer section: just a CRLF terminator
-                if (remaining.Length >= 2 && remaining[0] == '\r' && remaining[1] == '\n')
-                {
-                    var (owner, len) = RentBodyOwner();
-                    return (HttpDecodeResult.Ok(), owner, len, pos + 2, null);
-                }
-
-                // Trailer headers present: look for the CRLFCRLF terminator
-                var trailerEnd = FindCrlfCrlf(remaining);
-                if (trailerEnd >= 0)
-                {
-                    var trailerData = remaining[..(trailerEnd + 2)]; // include final header CRLF
-                    var trailers = ParseHeaders(trailerData);
-
-                    var (owner, len) = RentBodyOwner();
-                    return (HttpDecodeResult.Ok(), owner, len, pos + trailerEnd + 4, trailers);
-                }
-
-                return (HttpDecodeResult.Incomplete(), null, 0, 0, null);
+                return ParseTrailers(data, pos);
             }
 
-            // Validate chunk size
             if (chunkSize > _maxBodySize || _bodyLength + chunkSize > _maxBodySize)
             {
                 return (HttpDecodeResult.Fail(HttpDecoderError.InvalidContentLength), null, 0, 0, null);
             }
 
-            // Need chunk data + CRLF
             if (pos + chunkSize + 2 > data.Length)
             {
                 return (HttpDecodeResult.Incomplete(), null, 0, 0, null);
             }
 
-            // Append chunk data to body buffer
             EnsureBodyCapacity(_bodyLength + chunkSize);
             data.Slice(pos, chunkSize).CopyTo(_bodyOwner!.Memory.Span[_bodyLength..]);
             _bodyLength += chunkSize;
 
-            pos += chunkSize + 2; // Skip chunk data and trailing CRLF
+            pos += chunkSize + 2;
+        }
+
+        return (HttpDecodeResult.Incomplete(), null, 0, 0, null);
+    }
+
+    private static bool TryParseChunkHeader(ReadOnlySpan<byte> sizeLine, out int chunkSize, out HttpDecoderError? error)
+    {
+        chunkSize = 0;
+        error = null;
+
+        var semiIdx = sizeLine.IndexOf((byte)';');
+        var sizeSpan = semiIdx >= 0 ? sizeLine[..semiIdx] : sizeLine;
+        var extSpan = semiIdx >= 0 ? sizeLine[(semiIdx + 1)..] : ReadOnlySpan<byte>.Empty;
+
+        if (!ChunkExtensionParser.TryParse(extSpan))
+        {
+            error = HttpDecoderError.InvalidChunkExtension;
+            return false;
+        }
+
+        if (!BufferSearch.TryParseHex(sizeSpan, out chunkSize))
+        {
+            error = HttpDecoderError.InvalidChunkSize;
+            return false;
+        }
+
+        return true;
+    }
+
+    private (HttpDecodeResult result, IMemoryOwner<byte>? bodyOwner, int bodyLength, int consumed, Dictionary<string, List<string>>? trailers)
+        ParseTrailers(ReadOnlySpan<byte> data, int pos)
+    {
+        var remaining = data[pos..];
+
+        if (remaining.Length >= 2 && remaining[0] == '\r' && remaining[1] == '\n')
+        {
+            var (owner, len) = RentBodyOwner();
+            return (HttpDecodeResult.Ok(), owner, len, pos + 2, null);
+        }
+
+        var trailerEnd = BufferSearch.FindCrlfCrlf(remaining);
+        if (trailerEnd >= 0)
+        {
+            var trailerData = remaining[..(trailerEnd + 2)];
+            var trailers = _headerDecoder.Parse(trailerData);
+
+            var (owner, len) = RentBodyOwner();
+            return (HttpDecodeResult.Ok(), owner, len, pos + trailerEnd + 4, trailers);
         }
 
         return (HttpDecodeResult.Incomplete(), null, 0, 0, null);
@@ -1015,270 +764,4 @@ public sealed class Decoder : IDisposable
         return (owner, _bodyLength);
     }
 
-    private static bool IsNoBodyResponse(int statusCode) =>
-        statusCode is >= 100 and < 200 or 204 or 304;
-
-    /// <summary>
-    /// Peeks at the status code from a raw HTTP response without fully parsing it.
-    /// Returns null if the status line is not yet complete.
-    /// </summary>
-    private static int? PeekStatusCode(ReadOnlySpan<byte> buffer)
-    {
-        // Status line format: HTTP/1.1 200 OK\r\n
-        // Minimum: "HTTP/1.1 NNN" = 12 bytes
-        if (buffer.Length < 12)
-        {
-            return null;
-        }
-
-        // Find the space after version (position 8 for "HTTP/1.1 ")
-        var spaceIdx = buffer.IndexOf((byte)' ');
-        if (spaceIdx < 0 || spaceIdx + 4 > buffer.Length)
-        {
-            return null;
-        }
-
-        var codeSlice = buffer.Slice(spaceIdx + 1, 3);
-        if (codeSlice[0] < (byte)'1' || codeSlice[0] > (byte)'5')
-        {
-            return null;
-        }
-
-        var code = (codeSlice[0] - '0') * 100 + (codeSlice[1] - '0') * 10 + (codeSlice[2] - '0');
-        return code;
-    }
-
-    private static bool IsContentHeader(string name) =>
-        name.StartsWith("content-", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("content-length", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("content-type", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("allow", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("expires", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("last-modified", StringComparison.OrdinalIgnoreCase);
-
-
-    private static int? GetContentLengthHeader(Dictionary<string, List<string>> headers)
-    {
-        if (!headers.TryGetValue(WellKnownHeaders.Names.ContentLength, out var values) || values.Count == 0)
-        {
-            return null;
-        }
-
-        // RFC 9112 Section 6.3: Multiple Content-Length with different values is error
-        if (values.Count > 1)
-        {
-            var first = values[0];
-            for (var i = 1; i < values.Count; i++)
-            {
-                if (!values[i].Equals(first, StringComparison.Ordinal))
-                {
-                    throw new HttpDecoderException(
-                        HttpDecoderError.MultipleContentLengthValues,
-                        $"Values '{first}' and '{values[i]}' conflict.");
-                }
-            }
-        }
-
-        return int.TryParse(values[0], out var len) && len >= 0 ? len : null;
-    }
-
-    private static string? GetSingleHeader(Dictionary<string, List<string>> headers, string name) =>
-        headers.TryGetValue(name, out var values) && values.Count > 0
-            ? values[0]
-            : null;
-
-    private static int FindCrlfCrlf(ReadOnlySpan<byte> span)
-    {
-        for (var i = 0; i <= span.Length - 4; i++)
-        {
-            if (span[i] == '\r' && span[i + 1] == '\n' &&
-                span[i + 2] == '\r' && span[i + 3] == '\n')
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private static int FindCrlf(ReadOnlySpan<byte> span, int start)
-    {
-        for (var i = start; i < span.Length - 1; i++)
-        {
-            if (span[i] == '\r' && span[i + 1] == '\n')
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    /// <summary>
-    /// RFC 9112 §7.1.1: Validates chunk-ext syntax.
-    /// chunk-ext = *( BWS ";" BWS chunk-ext-name [ BWS "=" BWS chunk-ext-val ] )
-    /// Semantics of extensions are ignored; only syntax is validated.
-    /// </summary>
-    private static bool TryParseChunkExtensions(ReadOnlySpan<byte> extBytes)
-    {
-        if (extBytes.IsEmpty)
-        {
-            return true;
-        }
-
-        var pos = 0;
-        while (pos < extBytes.Length)
-        {
-            // Skip BWS before name
-            while (pos < extBytes.Length && (extBytes[pos] == ' ' || extBytes[pos] == '\t'))
-            {
-                pos++;
-            }
-
-            var nameStart = pos;
-            while (pos < extBytes.Length && IsTokenChar(extBytes[pos]) && extBytes[pos] != ';')
-            {
-                pos++;
-            }
-
-            if (pos == nameStart)
-            {
-                return false;
-            }
-
-            // Skip BWS after name
-            while (pos < extBytes.Length && (extBytes[pos] == ' ' || extBytes[pos] == '\t'))
-            {
-                pos++;
-            }
-
-            if (pos < extBytes.Length && extBytes[pos] == '=')
-            {
-                pos++;
-
-                // Skip BWS after '='
-                while (pos < extBytes.Length && (extBytes[pos] == ' ' || extBytes[pos] == '\t'))
-                {
-                    pos++;
-                }
-
-                if (pos < extBytes.Length && extBytes[pos] == '"')
-                {
-                    // Quoted string value
-                    pos++;
-                    while (pos < extBytes.Length && extBytes[pos] != '"')
-                    {
-                        if (extBytes[pos] == '\\')
-                        {
-                            pos += 2;
-                        }
-                        else
-                        {
-                            pos++;
-                        }
-                    }
-
-                    if (pos >= extBytes.Length)
-                    {
-                        return false;
-                    }
-
-                    pos++; // consume closing '"'
-                }
-                else
-                {
-                    // Token value
-                    var valStart = pos;
-                    while (pos < extBytes.Length && IsTokenChar(extBytes[pos]) && extBytes[pos] != ';')
-                    {
-                        pos++;
-                    }
-
-                    if (pos == valStart)
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            // Skip BWS after value
-            while (pos < extBytes.Length && (extBytes[pos] == ' ' || extBytes[pos] == '\t'))
-            {
-                pos++;
-            }
-
-            if (pos < extBytes.Length && extBytes[pos] == ';')
-            {
-                pos++;
-            }
-            else if (pos < extBytes.Length)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool IsTokenChar(byte b)
-    {
-        return b switch
-        {
-            (byte)'!' or (byte)'#' or (byte)'$' or (byte)'%' or (byte)'&' or (byte)'\''
-                or (byte)'*' or (byte)'+' or (byte)'-' or (byte)'.' or (byte)'^' or (byte)'_'
-                or (byte)'`' or (byte)'|' or (byte)'~' => true,
-            _ => b is >= (byte)'0' and <= (byte)'9' or >= (byte)'A' and <= (byte)'Z' or >= (byte)'a' and <= (byte)'z'
-        };
-    }
-
-    private static bool TryParseInt(ReadOnlySpan<byte> span, out int value)
-    {
-        value = 0;
-        foreach (var b in span)
-        {
-            if (b < '0' || b > '9')
-            {
-                return false;
-            }
-
-            value = value * 10 + (b - '0');
-        }
-
-        return span.Length > 0;
-    }
-
-    private static bool TryParseHex(ReadOnlySpan<byte> span, out int value)
-    {
-        value = 0;
-        foreach (var b in span)
-        {
-            int digit;
-            if (b >= '0' && b <= '9')
-            {
-                digit = b - '0';
-            }
-            else if (b >= 'a' && b <= 'f')
-            {
-                digit = b - 'a' + 10;
-            }
-            else if (b >= 'A' && b <= 'F')
-            {
-                digit = b - 'A' + 10;
-            }
-            else
-            {
-                return false;
-            }
-
-            // Detect overflow: if top 4 bits are non-zero, shifting left 4 would overflow int
-            if (value >> 28 != 0)
-            {
-                return false;
-            }
-
-            value = (value << 4) | digit;
-        }
-
-        return span.Length > 0;
-    }
 }

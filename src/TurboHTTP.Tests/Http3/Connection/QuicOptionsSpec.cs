@@ -14,14 +14,12 @@ public sealed class QuicOptionsSpec
         {
             Host = "example.com",
             Port = 443,
-            ConnectTimeout = TimeSpan.FromSeconds(5),
-            MaxFrameSize = 64 * 1024,
+            ConnectTimeout = TimeSpan.FromSeconds(5)
         };
 
         Assert.Equal("example.com", options.Host);
         Assert.Equal(443, options.Port);
         Assert.Equal(TimeSpan.FromSeconds(5), options.ConnectTimeout);
-        Assert.Equal(64 * 1024, options.MaxFrameSize);
         Assert.IsAssignableFrom<TcpOptions>(options);
     }
 

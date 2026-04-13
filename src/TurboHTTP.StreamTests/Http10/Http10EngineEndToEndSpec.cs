@@ -14,7 +14,7 @@ namespace TurboHTTP.StreamTests.Http10;
 /// </remarks>
 public sealed class Http10EngineEndToEndSpec : EngineTestBase
 {
-    private static Http10Engine Engine => new();
+    private static Http10Engine Engine => new(new Http1EngineOptions(16, 6, 3, 64 * 1024, 64, 1024 * 1024, TimeSpan.FromSeconds(2)));
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC1945-4.1")]

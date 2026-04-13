@@ -1,49 +1,29 @@
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Protocol.Http11;
+using TurboHTTP.Streams;
+using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Protocol.Http2;
 
 /// <summary>
-/// Callback interface for the stage Logic to receive protocol effects from the state machine.
-/// The stage implements this and translates calls to Akka Push/Emit/Log operations.
-/// </summary>
-public interface IHttp2StageOperations
-{
-    void OnResponse(HttpResponseMessage response);
-    void OnOutbound(IOutputItem item);
-    void OnWarning(string message);
-    void OnReconnectFailed();
-}
-
-/// <summary>
-/// Immutable configuration for an HTTP/2 connection.
-/// </summary>
-public sealed record Http2ConnectionConfig(
-    int InitialRecvWindowSize = 1_048_576,
-    int MaxConcurrentStreams = 100,
-    int MaxHeaderSize = 16 * 1024,
-    int MaxTotalHeaderSize = 64 * 1024,
-    int MaxReconnectAttempts = 3);
-
-/// <summary>
 /// Encapsulates all HTTP/2 connection protocol logic — frame decoding, request encoding,
 /// stream lifecycle, flow control, SETTINGS, PING, GOAWAY, and response assembly.
-/// Calls back into <see cref="IHttp2StageOperations"/> for responses, outbound items, and warnings.
+/// Calls back into <see cref="IStageOperations"/> for responses, outbound items, and warnings.
 /// Outbound frames are serialized and emitted immediately via callbacks.
 /// </summary>
-public sealed class StateMachine
+internal sealed class StateMachine
 {
     private const int MaxStatePoolCapacity = 1000;
+    private readonly Http2EngineOptions _options;
 
-    private readonly Http2ConnectionConfig _config;
-    private readonly IHttp2StageOperations _ops;
+    private readonly IStageOperations _ops;
 
     private readonly StreamTracker _tracker;
     private readonly ConnectionState _connection;
     private readonly FrameDecoder _frameDecoder = new();
     private readonly ResponseDecoder _responseDecoder;
-    private readonly RequestEncoder _requestEncoder = new();
+    private readonly RequestEncoder _requestEncoder;
     private readonly Dictionary<int, HttpRequestMessage> _correlationMap = new();
 
     private readonly Dictionary<int, StreamState> _streams = new();
@@ -52,34 +32,38 @@ public sealed class StateMachine
 
     private bool _prefaceSent;
     private readonly List<HttpRequestMessage> _reconnectBuffer = [];
-    private bool _reconnecting;
     private int _reconnectAttempts;
+
+    private bool _awaitingPingAck;
+    private long _pingSentTimestamp;
 
     /// <summary>Whether the most recent ProcessFrame call produced a response.</summary>
     public bool ResponseProduced { get; private set; }
 
     /// <summary>Whether a new request stream can be opened (no GOAWAY + concurrency budget).</summary>
-    public bool CanAcceptRequest => !_connection.GoAwayReceived && !_reconnecting && _tracker.CanOpenStream();
+    public bool CanAcceptRequest => !_connection.GoAwayReceived && !IsReconnecting && _tracker.CanOpenStream();
 
-    public bool IsReconnecting => _reconnecting;
+    public bool IsReconnecting { get; private set; }
+
     public int ReconnectBufferCount => _reconnectBuffer.Count;
     public bool HasInFlightRequests => _correlationMap.Count > 0;
 
     /// <summary>The current connection endpoint.</summary>
     public RequestEndpoint Endpoint { get; private set; }
 
-    public StateMachine(Http2ConnectionConfig config, IHttp2StageOperations ops)
+    public StateMachine(Http2EngineOptions options, IStageOperations ops)
     {
-        _config = config;
+        _options = options;
         _ops = ops;
-        _tracker = new StreamTracker(1, config.MaxConcurrentStreams);
-        _connection = new ConnectionState(config.InitialRecvWindowSize);
+        _tracker = new StreamTracker(1, options.InitialConcurrentStreams);
+        _connection = new ConnectionState(options.InitialConnectionWindowSize,
+            options.InitialStreamWindowSize);
+        _requestEncoder = new RequestEncoder(maxFrameSize: options.MaxFrameSize);
         _statePoolCapacity = Math.Min(
             _tracker.MaxConcurrentStreams > 0 ? _tracker.MaxConcurrentStreams : 100,
             MaxStatePoolCapacity);
         _statePool = new Stack<StreamState>(_statePoolCapacity);
-        _responseDecoder = new ResponseDecoder(
-            new HpackDecoder(), config.MaxHeaderSize, config.MaxTotalHeaderSize);
+        _responseDecoder = new ResponseDecoder(new HpackDecoder());
     }
 
     /// <summary>
@@ -87,13 +71,16 @@ public sealed class StateMachine
     /// </summary>
     public NetworkBuffer? TryBuildPreface()
     {
-        if (_config.InitialRecvWindowSize <= 0 || _prefaceSent)
+        if (_options.InitialConnectionWindowSize <= 0 || _prefaceSent)
         {
             return null;
         }
 
         _prefaceSent = true;
-        var (prefaceOwner, prefaceLength) = PrefaceBuilder.Build(_config.InitialRecvWindowSize);
+        var (prefaceOwner, prefaceLength) = PrefaceBuilder.Build(
+            _options.InitialConnectionWindowSize,
+            _options.HeaderTableSize,
+            _options.MaxFrameSize);
         var prefaceBuf = NetworkBuffer.Rent(prefaceLength);
         prefaceOwner.Memory.Span[..prefaceLength].CopyTo(prefaceBuf.FullMemory.Span);
         prefaceOwner.Dispose();
@@ -125,16 +112,9 @@ public sealed class StateMachine
                 break;
 
             case DataFrame data:
-                if (!HandleInboundData(data))
+                if (!ProcessDataFrame(data))
                 {
                     return false;
-                }
-
-                HandleData(data);
-
-                if (data.EndStream)
-                {
-                    CloseStream(data.StreamId);
                 }
 
                 break;
@@ -152,16 +132,7 @@ public sealed class StateMachine
                 break;
 
             case WindowUpdateFrame win:
-                _connection.OnWindowUpdate(win);
-                if (win.StreamId == 0)
-                {
-                    _requestEncoder.UpdateConnectionWindow(win.Increment);
-                }
-                else
-                {
-                    _requestEncoder.UpdateStreamWindow(win.StreamId, win.Increment);
-                }
-
+                ProcessWindowUpdate(win);
                 break;
 
             case PingFrame ping:
@@ -169,19 +140,53 @@ public sealed class StateMachine
                 break;
 
             case GoAwayFrame goAway:
-                _connection.OnGoAway();
-                _ops.OnWarning(
-                    $"TurboHTTP: GOAWAY received from {Endpoint.Host} — LastStreamId={goAway.LastStreamId}, ErrorCode={goAway.ErrorCode}. Reconnecting.");
-                // Only reconnect if there are in-flight requests to replay; otherwise let the connection drain naturally.
-                if (_correlationMap.Count > 0)
-                {
-                    BufferOrphanedRequests(goAway.LastStreamId);
-                }
-
+                ProcessGoAway(goAway);
                 break;
         }
 
         return true;
+    }
+
+    private bool ProcessDataFrame(DataFrame data)
+    {
+        if (!HandleInboundData(data))
+        {
+            return false;
+        }
+
+        HandleData(data);
+
+        if (data.EndStream)
+        {
+            CloseStream(data.StreamId);
+        }
+
+        return true;
+    }
+
+    private void ProcessWindowUpdate(WindowUpdateFrame win)
+    {
+        _connection.OnWindowUpdate(win);
+        if (win.StreamId == 0)
+        {
+            _requestEncoder.UpdateConnectionWindow(win.Increment);
+        }
+        else
+        {
+            _requestEncoder.UpdateStreamWindow(win.StreamId, win.Increment);
+        }
+    }
+
+    private void ProcessGoAway(GoAwayFrame goAway)
+    {
+        _connection.OnGoAway();
+        _ops.OnWarning(
+            $"TurboHTTP: GOAWAY received from {Endpoint.Host} — LastStreamId={goAway.LastStreamId}, ErrorCode={goAway.ErrorCode}. Reconnecting.");
+
+        if (_correlationMap.Count > 0)
+        {
+            OnConnectionLost(goAway.LastStreamId);
+        }
     }
 
     /// <summary>
@@ -312,11 +317,49 @@ public sealed class StateMachine
 
     private void HandlePing(PingFrame ping)
     {
+        if (ping.IsAck)
+        {
+            _awaitingPingAck = false;
+            return;
+        }
+
         var ack = _connection.OnPing(ping);
         if (ack is not null)
         {
             EmitFrame(ack);
         }
+    }
+
+    /// <summary>
+    /// Sends a keep-alive PING frame (RFC 9113 §6.7).
+    /// Called by the stage timer when <see cref="Http2Options.KeepAlivePingDelay"/> is configured.
+    /// </summary>
+    public void SendKeepAlivePing()
+    {
+        if (_awaitingPingAck)
+        {
+            return;
+        }
+
+        _awaitingPingAck = true;
+        _pingSentTimestamp = Environment.TickCount64;
+        var data = BitConverter.GetBytes(_pingSentTimestamp);
+        EmitFrame(new PingFrame(data, isAck: false));
+    }
+
+    /// <summary>
+    /// Returns true if a keep-alive PING was sent but no ACK (or any frame) arrived
+    /// within the configured timeout.
+    /// </summary>
+    public bool IsKeepAliveTimedOut(TimeSpan timeout)
+    {
+        if (!_awaitingPingAck)
+        {
+            return false;
+        }
+
+        var elapsed = Environment.TickCount64 - _pingSentTimestamp;
+        return elapsed >= (long)timeout.TotalMilliseconds;
     }
 
     private void CloseStream(int streamId)
@@ -343,37 +386,51 @@ public sealed class StateMachine
     }
 
     /// <summary>
-    /// Called when GOAWAY or abrupt close is received with in-flight requests.
+    /// Called when the TCP connection is lost (GOAWAY or abrupt close) with in-flight requests.
     /// Classifies streams by LastStreamId and idempotency, buffers safe-to-replay requests,
     /// resets all connection state, and emits a ReconnectItem.
     /// </summary>
-    public void BufferOrphanedRequests(int lastStreamId)
+    public void OnConnectionLost(int lastStreamId)
+    {
+        ClassifyStreamsForReplay(lastStreamId);
+        ReleaseAllStreamState();
+        ResetConnectionState();
+
+        IsReconnecting = true;
+        _reconnectAttempts = 1;
+        _ops.OnOutbound(new ReconnectItem { Key = Endpoint });
+    }
+
+    private void ClassifyStreamsForReplay(int lastStreamId)
     {
         foreach (var (streamId, request) in _correlationMap)
         {
-            var streamState = _streams.GetValueOrDefault(streamId);
-            var hasReceivedHeaders = streamState?.HasResponse ?? false;
-
-            if (streamId > lastStreamId)
+            if (IsStreamSafeToReplay(streamId, request, lastStreamId))
             {
-                // Server never saw this stream — always safe to replay
-                _reconnectBuffer.Add(request);
-            }
-            else if (IsIdempotentMethod(request.Method) && !hasReceivedHeaders)
-            {
-                // Server may have processed, but idempotent and no response started — replay
                 _reconnectBuffer.Add(request);
             }
             else
             {
-                // Non-idempotent or partial response received — cannot safely replay
                 _ops.OnWarning(
                     $"TurboHTTP: Dropping non-idempotent or partially-responded request {request.Method} {request.RequestUri} on reconnect.");
                 request.Dispose();
             }
         }
+    }
 
-        // Release all stream state objects back to pool
+    private bool IsStreamSafeToReplay(int streamId, HttpRequestMessage request, int lastStreamId)
+    {
+        if (streamId > lastStreamId)
+        {
+            return true;
+        }
+
+        var hasReceivedHeaders = _streams.GetValueOrDefault(streamId)?.HasResponse ?? false;
+        return IsIdempotentMethod(request.Method) && !hasReceivedHeaders;
+    }
+
+    private void ReleaseAllStreamState()
+    {
         foreach (var (_, state) in _streams)
         {
             ReturnState(state);
@@ -381,28 +438,26 @@ public sealed class StateMachine
 
         _streams.Clear();
         _correlationMap.Clear();
+    }
 
-        // Reset connection state for new connection
+    private void ResetConnectionState()
+    {
         _tracker.Reset();
-        _connection.Reset(_config.InitialRecvWindowSize);
+        _connection.Reset(_options.InitialConnectionWindowSize, _options.InitialStreamWindowSize);
         _requestEncoder.ResetHpack();
         _responseDecoder.ResetHpack();
         _prefaceSent = false;
-
-        _reconnecting = true;
-        _reconnectAttempts = 1;
-        _ops.OnOutbound(new ReconnectItem { Key = Endpoint });
     }
 
     /// <summary>
     /// Called when ConnectedSignalItem arrives. Emits preface and replays buffered requests.
     /// </summary>
-    public void HandleConnectedSignal()
+    public void OnConnectionRestored()
     {
-        _reconnecting = false;
+        IsReconnecting = false;
         _reconnectAttempts = 0;
 
-        // Build and emit preface (_prefaceSent = false was set in BufferOrphanedRequests)
+        // Build and emit preface (_prefaceSent = false was set in OnConnectionLost)
         var preface = TryBuildPreface();
         if (preface is not null)
         {
@@ -423,9 +478,9 @@ public sealed class StateMachine
     /// Called when a CloseSignalItem arrives while already reconnecting (reconnect attempt failed).
     /// Increments the attempt counter; emits a new ReconnectItem or calls OnReconnectFailed.
     /// </summary>
-    public void HandleReconnectAttempt()
+    public void OnReconnectAttemptFailed()
     {
-        if (_reconnectAttempts >= _config.MaxReconnectAttempts)
+        if (_reconnectAttempts >= _options.MaxReconnectAttempts)
         {
             _ops.OnReconnectFailed();
             return;

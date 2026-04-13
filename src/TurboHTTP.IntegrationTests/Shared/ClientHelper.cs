@@ -20,19 +20,18 @@ public sealed class ClientHelper : IAsyncDisposable
         @"akka.loggers = [""Akka.Hosting.Logging.LoggerFactoryLogger, Akka.Hosting""]");
 
     private readonly Microsoft.Extensions.DependencyInjection.ServiceProvider _provider;
-    private readonly ITurboHttpClient _client;
     private readonly bool _ownsSystem;
 
     private ClientHelper(Microsoft.Extensions.DependencyInjection.ServiceProvider provider, ITurboHttpClient client,
         bool ownsSystem)
     {
         _provider = provider;
-        _client = client;
+        Client = client;
         _ownsSystem = ownsSystem;
     }
 
     /// <summary>The configured <see cref="ITurboHttpClient"/> instance.</summary>
-    public ITurboHttpClient Client => _client;
+    public ITurboHttpClient Client { get; }
 
     /// <summary>
     /// Creates a new <see cref="ClientHelper"/> with a fully configured TurboHttp client.
@@ -43,6 +42,7 @@ public sealed class ClientHelper : IAsyncDisposable
     /// <param name="loggerFactory">Optional logger factory — when provided, registers it in DI
     /// so the Akka logging bridge picks it up.</param>
     /// <param name="configure">Optional additional builder configuration.</param>
+    /// <param name="configureOptions">Optional callback to set additional <see cref="TurboClientOptions"/> properties.</param>
     /// <param name="system">TBD</param>
     public static ClientHelper CreateClient(
         int port,
@@ -50,7 +50,8 @@ public sealed class ClientHelper : IAsyncDisposable
         string scheme = "http",
         ILoggerFactory? loggerFactory = null,
         Action<ITurboHttpClientBuilder>? configure = null,
-        ActorSystem? system = null)
+        ActorSystem? system = null,
+        Action<TurboClientOptions>? configureOptions = null)
     {
         var services = new ServiceCollection();
 
@@ -93,6 +94,7 @@ public sealed class ClientHelper : IAsyncDisposable
             BaseAddress = new Uri($"{scheme}://127.0.0.1:{port}"),
             DangerousAcceptAnyServerCertificate = true
         };
+        configureOptions?.Invoke(options);
         services.Replace(ServiceDescriptor.Singleton<IOptionsFactory<TurboClientOptions>>(
             new FixedOptionsFactory(options)));
 
@@ -114,11 +116,11 @@ public sealed class ClientHelper : IAsyncDisposable
         // 1) Always dispose the client first — sends Shutdown to the owner actor,
         //    which fires the KillSwitch and begins draining the stream pipeline.
         //    The ActorSystem must still be alive for this message to be delivered.
-        _client.Dispose();
+        Client.Dispose();
 
         // 2) Wait for the owner actor to fully stop so all stream actors are
         //    cleanly stopped before the next test materialises a new pipeline.
-        if (_client is TurboHttpClient concrete)
+        if (Client is TurboHttpClient concrete)
         {
             try
             {

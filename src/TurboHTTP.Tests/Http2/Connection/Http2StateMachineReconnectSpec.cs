@@ -1,11 +1,13 @@
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
+using TurboHTTP.Streams;
+using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Tests.Http2.Connection;
 
 public sealed class Http2StateMachineReconnectSpec
 {
-    private sealed class FakeOps : IHttp2StageOperations
+    private sealed class FakeOps : IStageOperations
     {
         public List<HttpResponseMessage> Responses { get; } = [];
         public List<IOutputItem> Outbound { get; } = [];
@@ -18,18 +20,29 @@ public sealed class Http2StateMachineReconnectSpec
         public void OnReconnectFailed() => ReconnectFailed = true;
     }
 
+    private static Http2EngineOptions MakeConfig(int maxReconnect = 3) =>
+        new(
+            MaxConnectionsPerServer: 6,
+            InitialConcurrentStreams: 100,
+            InitialConnectionWindowSize: 65535,
+            InitialStreamWindowSize: 65535,
+            MaxFrameSize: 16384,
+            HeaderTableSize: 4096,
+            MaxReconnectAttempts: maxReconnect,
+            MaxBatchWeight: 262_144,
+            KeepAlivePingDelay: Timeout.InfiniteTimeSpan,
+            KeepAlivePingTimeout: TimeSpan.FromSeconds(20),
+            KeepAlivePingPolicy: HttpKeepAlivePingPolicy.Always);
+
     private static HttpRequestMessage MakeGet(string path = "/") =>
         new(HttpMethod.Get, $"https://example.com{path}");
 
     private static HttpRequestMessage MakePost(string path = "/") =>
         new(HttpMethod.Post, $"https://example.com{path}");
 
-    private static Http2ConnectionConfig MakeConfig(int maxReconnect = 3) =>
-        new(MaxReconnectAttempts: maxReconnect);
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.8")]
-    public void Http2StateMachine_BufferOrphanedRequests_should_buffer_streams_above_lastStreamId()
+    public void Http2StateMachine_OnConnectionLost_should_buffer_streams_above_lastStreamId()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(), ops);
@@ -40,7 +53,7 @@ public sealed class Http2StateMachineReconnectSpec
         sm.EncodeRequest(MakeGet("/b")); // stream 3
         ops.Outbound.Clear();
 
-        sm.BufferOrphanedRequests(lastStreamId: 0); // server processed nothing
+        sm.OnConnectionLost(lastStreamId: 0); // server processed nothing
 
         Assert.True(sm.IsReconnecting);
         Assert.Equal(2, sm.ReconnectBufferCount);
@@ -49,7 +62,7 @@ public sealed class Http2StateMachineReconnectSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.8")]
-    public void Http2StateMachine_BufferOrphanedRequests_should_not_replay_non_idempotent_streams_below_lastStreamId()
+    public void Http2StateMachine_OnConnectionLost_should_not_replay_non_idempotent_streams_below_lastStreamId()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(), ops);
@@ -61,7 +74,7 @@ public sealed class Http2StateMachineReconnectSpec
         ops.Outbound.Clear();
 
         // Server processed stream 1 and 3 (LastStreamId=3) — POST stream 3 ≤ LastStreamId and non-idempotent
-        sm.BufferOrphanedRequests(lastStreamId: 3);
+        sm.OnConnectionLost(lastStreamId: 3);
 
         // GET at stream 1 ≤ LastStreamId but idempotent and no response headers → buffered
         // POST at stream 3 ≤ LastStreamId and non-idempotent → discarded
@@ -70,7 +83,7 @@ public sealed class Http2StateMachineReconnectSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.8")]
-    public void Http2StateMachine_HandleConnectedSignal_should_replay_with_fresh_stream_ids()
+    public void Http2StateMachine_OnConnectionRestored_should_replay_with_fresh_stream_ids()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(), ops);
@@ -79,10 +92,10 @@ public sealed class Http2StateMachineReconnectSpec
 
         sm.EncodeRequest(MakeGet("/a")); // stream 1
         ops.Outbound.Clear();
-        sm.BufferOrphanedRequests(lastStreamId: 0);
+        sm.OnConnectionLost(lastStreamId: 0);
         ops.Outbound.Clear();
 
-        sm.HandleConnectedSignal();
+        sm.OnConnectionRestored();
 
         Assert.False(sm.IsReconnecting);
         // New preface emitted, then request with stream ID 1 (fresh tracker)
@@ -98,22 +111,22 @@ public sealed class Http2StateMachineReconnectSpec
         var sm = new StateMachine(MakeConfig(), ops);
         sm.TryBuildPreface();
         sm.EncodeRequest(MakeGet());
-        sm.BufferOrphanedRequests(lastStreamId: 0);
+        sm.OnConnectionLost(lastStreamId: 0);
 
         Assert.False(sm.CanAcceptRequest);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.8")]
-    public void Http2StateMachine_HandleReconnectAttempt_should_fail_when_max_exceeded()
+    public void Http2StateMachine_OnReconnectAttemptFailed_should_fail_when_max_exceeded()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(maxReconnect: 1), ops);
         sm.TryBuildPreface();
         sm.EncodeRequest(MakeGet());
-        sm.BufferOrphanedRequests(lastStreamId: 0); // attempt 1
+        sm.OnConnectionLost(lastStreamId: 0); // attempt 1
 
-        sm.HandleReconnectAttempt(); // attempt 2 > max
+        sm.OnReconnectAttemptFailed(); // attempt 2 > max
 
         Assert.True(ops.ReconnectFailed);
     }

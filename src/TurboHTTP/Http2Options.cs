@@ -2,6 +2,7 @@ namespace TurboHTTP;
 
 /// <summary>
 /// HTTP/2-specific configuration options.
+/// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c>.
 /// </summary>
 public sealed class Http2Options
 {
@@ -22,18 +23,40 @@ public sealed class Http2Options
     public int MaxConcurrentStreams { get; set; } = 100;
 
     /// <summary>
-    /// Initial HTTP/2 receive flow-control window size in bytes.
-    /// Controls the maximum amount of data a server may send before the client sends a
-    /// <c>WINDOW_UPDATE</c> frame. A larger window prevents stream stalls on high-bandwidth,
-    /// high-latency links (e.g. 1 MB at 50 ms RTT supports ~160 Mbps before throttling).
-    /// Default is 1 MiB (1 048 576 bytes). RFC 9113 §6.5.2 minimum is 65 535 bytes.
+    /// Connection-level flow control window size in bytes (RFC 9113 §6.9).
+    /// Advertised via WINDOW_UPDATE on stream 0 during the connection preface.
+    /// Default is 64 MB.
     /// </summary>
-    public int InitialWindowSize { get; set; } = 1_048_576;
+    public int InitialConnectionWindowSize { get; set; } = 64 * 1024 * 1024;
 
     /// <summary>
-    /// Maximum HTTP/2 frame size in bytes. Default is 128 KiB.
+    /// Per-stream initial flow control window size in bytes (RFC 9113 §6.9.2).
+    /// Advertised via SETTINGS_INITIAL_WINDOW_SIZE in the connection preface.
+    /// Default is 65,535 (RFC 9113 §6.9.2 default).
     /// </summary>
-    public int MaxFrameSize { get; set; } = 128 * 1024;
+    public int InitialStreamWindowSize { get; set; } = 65_535;
+
+    /// <summary>
+    /// Maximum HTTP/2 frame payload size in bytes (RFC 9113 §4.2).
+    /// Advertised via SETTINGS_MAX_FRAME_SIZE in the connection preface.
+    /// Default is 16,384 (RFC 9113 minimum/default).
+    /// </summary>
+    public int MaxFrameSize { get; set; } = 16_384;
+
+    /// <summary>
+    /// HPACK dynamic table size in bytes (RFC 7541 §4.2).
+    /// Advertised via SETTINGS_HEADER_TABLE_SIZE in the connection preface.
+    /// Default is 4,096 (RFC 7541 default).
+    /// </summary>
+    public int HeaderTableSize { get; set; } = 4_096;
+
+    /// <summary>
+    /// Maximum batch weight in bytes for HTTP/2 frame encoding.
+    /// Frames are accumulated into batches up to this weight before being serialized into a single buffer,
+    /// reducing allocations and memory copies under concurrent load. Higher values increase throughput
+    /// at the cost of latency variance. Default is 256 KiB. TurboHttp-specific.
+    /// </summary>
+    public int MaxBatchWeight { get; set; } = 262_144;
 
     /// <summary>
     /// Maximum number of reconnect attempts when a TCP connection drops with in-flight requests.
@@ -41,4 +64,25 @@ public sealed class Http2Options
     /// Default is 3.
     /// </summary>
     public int MaxReconnectAttempts { get; set; } = 3;
+
+    /// <summary>
+    /// Delay before sending a keep-alive PING frame when no frames have been received.
+    /// Set to <see cref="Timeout.InfiniteTimeSpan"/> to disable keep-alive pings (default).
+    /// </summary>
+    public TimeSpan KeepAlivePingDelay { get; set; } = Timeout.InfiniteTimeSpan;
+
+    /// <summary>
+    /// Timeout for keep-alive PING acknowledgment. If no frame is received within this
+    /// duration after a PING is sent, the connection is closed and reconnected.
+    /// Default is 20 seconds.
+    /// </summary>
+    public TimeSpan KeepAlivePingTimeout { get; set; } = TimeSpan.FromSeconds(20);
+
+    /// <summary>
+    /// Controls when keep-alive PINGs are sent.
+    /// <see cref="HttpKeepAlivePingPolicy.Always"/> sends pings for the connection lifetime;
+    /// <see cref="HttpKeepAlivePingPolicy.WithActiveRequests"/> only while streams are active.
+    /// Default is <see cref="HttpKeepAlivePingPolicy.Always"/>.
+    /// </summary>
+    public HttpKeepAlivePingPolicy KeepAlivePingPolicy { get; set; } = HttpKeepAlivePingPolicy.Always;
 }

@@ -6,7 +6,7 @@ namespace TurboHTTP.Benchmarks.Binkraken;
 /// <summary>
 /// Baseline benchmarks measuring standard .NET <see cref="HttpClient"/> performance
 /// for a single sequential GET request against Binkraken.com over HTTPS.
-/// Light (~3 KB HTML) and heavy (~159 KB JS bundle) payloads.
+/// Light (~3 KB HTML) and heavy (~129 KB JS bundle) payloads.
 /// </summary>
 [MemoryDiagnoser]
 [WarmupCount(3)]

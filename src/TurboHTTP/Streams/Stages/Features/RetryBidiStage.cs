@@ -159,90 +159,7 @@ internal sealed class RetryBidiStage
                 onDownstreamFinish: _ => Cancel(stage._inRequest));
 
             SetHandler(stage._inResponse,
-                onPush: () =>
-                {
-                    var response = Grab(stage._inResponse);
-                    var original = response.RequestMessage;
-
-                    // Without the original request, cannot determine idempotency — pass through.
-                    if (original is null)
-                    {
-                        _inFlightCount--;
-                        _responseDemand = false;
-                        Push(stage._outResponse, response);
-                        TryCompleteIfDone();
-                        TryPullResponse();
-                        return;
-                    }
-
-                    var attemptCount = original.Options.TryGetValue(AttemptCountKey, out var count) ? count : 1;
-
-                    var decision = RetryEvaluator.Evaluate(
-                        original,
-                        response,
-                        networkFailure: false,
-                        bodyPartiallyConsumed: false,
-                        attemptCount: attemptCount,
-                        policy: _stage._policy!);
-
-                    if (!decision.ShouldRetry)
-                    {
-                        _inFlightCount--;
-                        _responseDemand = false;
-                        Push(stage._outResponse, response);
-                        TryCompleteIfDone();
-                        TryPullResponse();
-                        return;
-                    }
-
-                    // Emit a child "TurboHTTP.Retry" span for this attempt
-                    var previous = Activity.Current;
-                    if (original.Options.TryGetValue(TurboHttpInstrumentation.RequestActivityKey, out var rootActivity))
-                    {
-                        Activity.Current = rootActivity;
-                    }
-
-                    var retryActivity = TurboHttpInstrumentation.StartRetry(attemptCount);
-                    retryActivity?.Stop();
-                    Activity.Current = previous;
-
-                    // Record retry metric + EventSource event + trace event
-                    TurboHttpEventSource.Instance.RetryAttempt(attemptCount + 1);
-                    TurboHttpMetrics.RetryCount.Add(1,
-                        new KeyValuePair<string, object?>("http.request.method", original.Method.Method),
-                        new KeyValuePair<string, object?>("server.address", original.RequestUri?.Host ?? "unknown"));
-                    TurboTrace.Retry.Warning(this, "Retry attempt: {0} {1} (attempt {2})",
-                        original.Method.Method,
-                        original.RequestUri?.OriginalString ?? "",
-                        attemptCount + 1);
-
-                    // Retryable — dispose the response and enqueue the original request for retry.
-                    // The entire retry decision (evaluate → enqueue → emit → decrement) is treated
-                    // as an atomic transaction so that TryCompleteIfDone() cannot fire mid-decision
-                    // and close the outlet prematurely. (DL-009 atomic transaction guard)
-                    _retryTransactionActive = true;
-
-                    response.Dispose();
-                    original.Options.Set(AttemptCountKey, attemptCount + 1);
-
-                    if (decision.RetryAfterDelay.HasValue && decision.RetryAfterDelay.Value > TimeSpan.Zero)
-                    {
-                        var timerId = $"retry-{_retryIdCounter++}";
-                        _waitingRetries[timerId] = original;
-                        ScheduleOnce(timerId, decision.RetryAfterDelay.Value);
-                    }
-                    else
-                    {
-                        _readyRetries.Enqueue(original);
-                        TryEmitRetry();
-                    }
-
-                    _inFlightCount--;
-                    TryPullResponse();
-
-                    _retryTransactionActive = false;
-                    TryCompleteIfDone();
-                },
+                onPush: OnResponsePush,
                 onUpstreamFinish: () =>
                 {
                     Complete(stage._outResponse);
@@ -332,6 +249,111 @@ internal sealed class RetryBidiStage
         }
 
         /// <summary>
+        /// Handles response push: evaluates retry decision, emits telemetry, and enqueues retry if applicable.
+        /// </summary>
+        private void OnResponsePush()
+        {
+            var response = Grab(_stage._inResponse);
+            var original = response.RequestMessage;
+
+            // Without the original request, cannot determine idempotency — pass through.
+            if (original is null)
+            {
+                _inFlightCount--;
+                _responseDemand = false;
+                Push(_stage._outResponse, response);
+                TryCompleteIfDone();
+                TryPullResponse();
+                return;
+            }
+
+            var attemptCount = original.Options.TryGetValue(AttemptCountKey, out var count) ? count : 1;
+
+            var decision = RetryEvaluator.Evaluate(
+                original,
+                response,
+                networkFailure: false,
+                bodyPartiallyConsumed: false,
+                attemptCount: attemptCount,
+                policy: _stage._policy!);
+
+            if (!decision.ShouldRetry)
+            {
+                _inFlightCount--;
+                _responseDemand = false;
+                Push(_stage._outResponse, response);
+                TryCompleteIfDone();
+                TryPullResponse();
+                return;
+            }
+
+            EmitRetryTelemetry(original, attemptCount);
+
+            // Retryable — dispose the response and enqueue the original request for retry.
+            // The entire retry decision (evaluate → enqueue → emit → decrement) is treated
+            // as an atomic transaction so that TryCompleteIfDone() cannot fire mid-decision
+            // and close the outlet prematurely. (DL-009 atomic transaction guard)
+            _retryTransactionActive = true;
+
+            EnqueueRetry(original, response, decision, attemptCount);
+
+            _inFlightCount--;
+            TryPullResponse();
+
+            _retryTransactionActive = false;
+            TryCompleteIfDone();
+        }
+
+        /// <summary>
+        /// Enqueues a retry request either immediately (ready queue) or after a Retry-After delay.
+        /// Must be called within a retry transaction guard (_retryTransactionActive = true).
+        /// </summary>
+        private void EnqueueRetry(HttpRequestMessage original, HttpResponseMessage response, RetryDecision decision, int attemptCount)
+        {
+            response.Dispose();
+            original.Options.Set(AttemptCountKey, attemptCount + 1);
+
+            if (decision.RetryAfterDelay.HasValue && decision.RetryAfterDelay.Value > TimeSpan.Zero)
+            {
+                var timerId = $"retry-{_retryIdCounter++}";
+                _waitingRetries[timerId] = original;
+                ScheduleOnce(timerId, decision.RetryAfterDelay.Value);
+            }
+            else
+            {
+                _readyRetries.Enqueue(original);
+                TryEmitRetry();
+            }
+        }
+
+        /// <summary>
+        /// Emits telemetry for a retry attempt: Activity span, EventSource event, metric, and trace.
+        /// </summary>
+        private void EmitRetryTelemetry(HttpRequestMessage original, int attemptCount)
+        {
+            // Emit a child "TurboHTTP.Retry" span for this attempt
+            var previous = Activity.Current;
+            if (original.Options.TryGetValue(TurboHttpInstrumentation.RequestActivityKey, out var rootActivity))
+            {
+                Activity.Current = rootActivity;
+            }
+
+            var retryActivity = TurboHttpInstrumentation.StartRetry(attemptCount);
+            retryActivity?.Stop();
+            Activity.Current = previous;
+
+            // Record retry metric + EventSource event + trace event
+            TurboHttpEventSource.Instance.RetryAttempt(attemptCount + 1);
+            TurboHttpMetrics.RetryCount.Add(1,
+                new KeyValuePair<string, object?>("http.request.method", original.Method.Method),
+                new KeyValuePair<string, object?>("server.address", original.RequestUri?.Host ?? "unknown"));
+            TurboTrace.Retry.Warning(this, "Retry attempt: {0} {1} (attempt {2})",
+                original.Method.Method,
+                original.RequestUri?.OriginalString ?? "",
+                attemptCount + 1);
+        }
+
+        /// <summary>
         /// Completes Out1 when upstream (In1) is finished, all pending retries have been drained,
         /// and either all in-flight requests have been resolved or the response upstream (In2) has
         /// closed (no more responses will arrive, so in-flight requests are orphaned).
@@ -348,21 +370,19 @@ internal sealed class RetryBidiStage
                 return;
             }
 
+            var allRetriesDrained = _readyRetries.Count == 0 && _waitingRetries.Count == 0;
+
             // Case 1: Response upstream closed — no more responses will arrive,
             // so in-flight requests are orphaned and pending retries cannot complete.
-            if (IsClosed(_stage._inResponse)
-                && _readyRetries.Count == 0
-                && _waitingRetries.Count == 0)
+            if (IsClosed(_stage._inResponse) && allRetriesDrained)
             {
                 Complete(_stage._outRequest);
                 return;
             }
 
             // Case 2: Request upstream closed, no pending retries, and all in-flight resolved.
-            if (IsClosed(_stage._inRequest)
-                && _readyRetries.Count == 0
-                && _waitingRetries.Count == 0
-                && _inFlightCount == 0)
+            var allInFlightResolved = _inFlightCount == 0;
+            if (IsClosed(_stage._inRequest) && allRetriesDrained && allInFlightResolved)
             {
                 Complete(_stage._outRequest);
             }

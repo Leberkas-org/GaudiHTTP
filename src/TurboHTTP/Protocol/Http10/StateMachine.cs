@@ -12,10 +12,12 @@ namespace TurboHTTP.Protocol.Http10;
 public sealed class StateMachine
 {
     private readonly IStageOperations _ops;
-    private readonly Decoder _decoder = new();
+    private readonly Decoder _decoder;
     private readonly int _minBufferSize;
     private readonly int _maxBufferSize;
     private readonly int _maxReconnectAttempts;
+    private readonly int _maxResponseDrainSize;
+    private readonly TimeSpan _responseDrainTimeout;
 
     private HttpRequestMessage? _inFlightRequest;
     private bool _closed;
@@ -44,12 +46,18 @@ public sealed class StateMachine
         IStageOperations ops,
         int maxReconnectAttempts = 3,
         int minBufferSize = 4 * 1024,
-        int maxBufferSize = 256 * 1024)
+        int maxBufferSize = 256 * 1024,
+        int maxResponseHeadersLength = 64,
+        int maxResponseDrainSize = 1024 * 1024,
+        TimeSpan? responseDrainTimeout = null)
     {
         _ops = ops;
+        _decoder = new Decoder(maxTotalHeaderSize: maxResponseHeadersLength * 1024);
         _maxReconnectAttempts = maxReconnectAttempts;
         _minBufferSize = minBufferSize;
         _maxBufferSize = maxBufferSize;
+        _maxResponseDrainSize = maxResponseDrainSize;
+        _responseDrainTimeout = responseDrainTimeout ?? TimeSpan.FromSeconds(2);
     }
 
     /// <summary>
@@ -197,7 +205,7 @@ public sealed class StateMachine
     /// Called when ConnectedSignalItem arrives. Replays the buffered request over the new connection.
     /// Resets the decoder so stale partial response data from the old connection is discarded.
     /// </summary>
-    public void HandleConnectedSignal()
+    public void OnConnectionRestored()
     {
         _reconnecting = false;
         _reconnectAttempts = 0;
@@ -214,7 +222,7 @@ public sealed class StateMachine
     /// Called when a CloseSignalItem arrives while already reconnecting (reconnect attempt failed).
     /// Increments the attempt counter; emits a new ReconnectItem or calls OnReconnectFailed.
     /// </summary>
-    public void HandleReconnectAttempt()
+    public void OnReconnectAttemptFailed()
     {
         if (_reconnectAttempts >= _maxReconnectAttempts)
         {

@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Net;
 using System.Text;
 
 namespace TurboHTTP.Protocol.Http10;
@@ -85,23 +84,23 @@ public sealed class Decoder
             return false;
         }
 
-        ValidateStatusLine(lines[0]);
-        var headers = ParseHeaders(lines[1..], _maxHeaderSize, _maxTotalHeaderSize);
+        StatusLineDecoder.Validate(lines[0]);
+        var headers = HeaderDecoder.Parse(lines[1..], _maxHeaderSize, _maxTotalHeaderSize);
         var bodyStart = headerEnd + GetHeaderDelimiterLength(working.Span, headerEnd);
         var bodyData = working[bodyStart..];
 
-        var statusCode = ParseStatusCode(lines[0]);
+        var statusCode = StatusLineDecoder.ParseCode(lines[0]);
 
         // No-body responses: 204 and 304 always have empty body (RFC 1945 §7)
         if (statusCode is 204 or 304)
         {
-            response = BuildResponse(lines[0], headers, []);
+            response = ResponseBuilder.Build(lines[0], headers, []);
             _pendingContentLength = null;
             ReturnRentedBuffer();
             return true;
         }
 
-        var contentLength = GetContentLength(headers);
+        var contentLength = HeaderDecoder.ExtractContentLength(headers);
         if (contentLength.HasValue)
         {
             if (bodyData.Length < contentLength.Value)
@@ -111,13 +110,13 @@ public sealed class Decoder
                 return false;
             }
 
-            response = BuildResponse(lines[0], headers, bodyData.Span[..contentLength.Value]);
+            response = ResponseBuilder.Build(lines[0], headers, bodyData.Span[..contentLength.Value]);
             _pendingContentLength = null;
             ReturnRentedBuffer();
             return true;
         }
 
-        response = BuildResponse(lines[0], headers, bodyData.Span);
+        response = ResponseBuilder.Build(lines[0], headers, bodyData.Span);
         _pendingContentLength = null;
         ReturnRentedBuffer();
         return true;
@@ -131,7 +130,7 @@ public sealed class Decoder
             // HTTP/0.9 with zero bytes before EOF: empty body
             if (_isHttp09)
             {
-                response = BuildHttp09Response([]);
+                response = ResponseBuilder.BuildHttp09([]);
                 _isHttp09 = false;
                 _pendingContentLength = null;
                 ReturnRentedBuffer();
@@ -144,7 +143,7 @@ public sealed class Decoder
         // HTTP/0.9: entire remainder is body
         if (_isHttp09)
         {
-            response = BuildHttp09Response(_remainder.Span);
+            response = ResponseBuilder.BuildHttp09(_remainder.Span);
             _remainder = ReadOnlyMemory<byte>.Empty;
             _isHttp09 = false;
             _pendingContentLength = null;
@@ -165,8 +164,8 @@ public sealed class Decoder
             return false;
         }
 
-        ValidateStatusLine(lines[0]);
-        var headers = ParseHeaders(lines[1..], _maxHeaderSize, _maxTotalHeaderSize);
+        StatusLineDecoder.Validate(lines[0]);
+        var headers = HeaderDecoder.Parse(lines[1..], _maxHeaderSize, _maxTotalHeaderSize);
         var index = headerEnd + GetHeaderDelimiterLength(span, headerEnd);
         var bodySpan = span[index..];
 
@@ -174,14 +173,14 @@ public sealed class Decoder
         // body data, it's a truncation error. When body is empty, allow it — connection
         // may have been closed cleanly after headers (e.g. HEAD response, 204, or abrupt
         // close already detected via CloseSignalItem.AbruptClose before reaching here).
-        var contentLength = GetContentLength(headers);
+        var contentLength = HeaderDecoder.ExtractContentLength(headers);
         if (contentLength.HasValue && bodySpan.Length > 0 && bodySpan.Length < contentLength.Value)
         {
             throw new HttpDecoderException(HttpDecoderError.InvalidContentLength,
                 $"Content-Length mismatch: expected {contentLength.Value} bytes but received {bodySpan.Length} bytes before EOF.");
         }
 
-        response = BuildResponse(lines[0], headers, bodySpan);
+        response = ResponseBuilder.Build(lines[0], headers, bodySpan);
         _remainder = ReadOnlyMemory<byte>.Empty;
         ReturnRentedBuffer();
         _pendingContentLength = null;
@@ -217,17 +216,17 @@ public sealed class Decoder
             return false;
         }
 
-        ValidateStatusLine(lines[0]);
-        var headers = ParseHeaders(lines[1..], _maxHeaderSize, _maxTotalHeaderSize);
+        StatusLineDecoder.Validate(lines[0]);
+        var headers = HeaderDecoder.Parse(lines[1..], _maxHeaderSize, _maxTotalHeaderSize);
         var bodyStart = headerEnd + GetHeaderDelimiterLength(working.Span, headerEnd);
         var bodyData = working[bodyStart..];
 
-        var statusCode = ParseStatusCode(lines[0]);
+        var statusCode = StatusLineDecoder.ParseCode(lines[0]);
 
         // CONNECT 2xx: body length = 0 (tunnel begins)
         if (statusCode is >= 200 and < 300)
         {
-            response = BuildResponse(lines[0], headers, []);
+            response = ResponseBuilder.Build(lines[0], headers, []);
             _pendingContentLength = null;
             ReturnRentedBuffer();
             return true;
@@ -236,13 +235,13 @@ public sealed class Decoder
         // Non-2xx: normal body handling (same as TryDecode)
         if (statusCode is 204 or 304)
         {
-            response = BuildResponse(lines[0], headers, []);
+            response = ResponseBuilder.Build(lines[0], headers, []);
             _pendingContentLength = null;
             ReturnRentedBuffer();
             return true;
         }
 
-        var contentLength = GetContentLength(headers);
+        var contentLength = HeaderDecoder.ExtractContentLength(headers);
         if (contentLength.HasValue)
         {
             if (bodyData.Length < contentLength.Value)
@@ -252,13 +251,13 @@ public sealed class Decoder
                 return false;
             }
 
-            response = BuildResponse(lines[0], headers, bodyData.Span[..contentLength.Value]);
+            response = ResponseBuilder.Build(lines[0], headers, bodyData.Span[..contentLength.Value]);
             _pendingContentLength = null;
             ReturnRentedBuffer();
             return true;
         }
 
-        response = BuildResponse(lines[0], headers, bodyData.Span);
+        response = ResponseBuilder.Build(lines[0], headers, bodyData.Span);
         _pendingContentLength = null;
         ReturnRentedBuffer();
         return true;
@@ -280,215 +279,6 @@ public sealed class Decoder
             _remainderOwner = null;
             _remainderLength = 0;
         }
-    }
-
-    private static void ValidateStatusLine(string statusLine)
-    {
-        var parts = statusLine.Split(' ', 3);
-        if (parts.Length < 2 || !int.TryParse(parts[1], out var code))
-        {
-            throw new HttpDecoderException(HttpDecoderError.InvalidStatusLine, $"Line: '{statusLine}'.");
-        }
-
-        if (code is < 100 or > 999)
-        {
-            throw new HttpDecoderException(HttpDecoderError.InvalidStatusLine,
-                $"Status code {code} is out of the valid range 100–999.");
-        }
-    }
-
-    private static int ParseStatusCode(string statusLine)
-    {
-        var parts = statusLine.Split(' ', 3);
-        return parts.Length >= 2 && int.TryParse(parts[1], out var code) ? code : 500;
-    }
-
-    /// <summary>
-    /// Validates and returns Content-Length from headers.
-    /// Throws on negative values or conflicting multiple values.
-    /// </summary>
-    private static int? GetContentLength(Dictionary<string, List<string>> headers)
-    {
-        if (!headers.TryGetValue(WellKnownHeaders.Names.ContentLength, out var clValues) ||
-            clValues.Count == 0)
-        {
-            return null;
-        }
-
-        // RFC 1945: Multiple Content-Length with different values is an error
-        if (clValues.Count > 1)
-        {
-            var first = clValues[0];
-            for (var i = 1; i < clValues.Count; i++)
-            {
-                if (!clValues[i].Equals(first, StringComparison.Ordinal))
-                {
-                    throw new HttpDecoderException(HttpDecoderError.MultipleContentLengthValues,
-                        $"Values '{first}' and '{clValues[i]}' conflict.");
-                }
-            }
-        }
-
-        if (!int.TryParse(clValues[0], out var len))
-        {
-            throw new HttpDecoderException(HttpDecoderError.InvalidContentLength,
-                $"Value: '{clValues[0]}'.");
-        }
-
-        if (len < 0)
-        {
-            throw new HttpDecoderException(HttpDecoderError.InvalidContentLength,
-                $"Value {len} is negative.");
-        }
-
-        return len;
-    }
-
-    private static Dictionary<string, List<string>> ParseHeaders(string[] lines, int maxHeaderSize, int maxTotalHeaderSize)
-    {
-        var headers = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        string? lastHeader = null;
-        var totalSize = 0;
-
-        foreach (var rawLine in lines)
-        {
-            if (string.IsNullOrWhiteSpace(rawLine))
-            {
-                continue;
-            }
-
-            // Obs-fold continuation (RFC 1945 §4.2): line starting with SP or HT
-            if ((rawLine[0] == ' ' || rawLine[0] == '\t') && lastHeader != null)
-            {
-                var lastValues = headers[lastHeader];
-                var lastValue = lastValues[^1];
-                var foldedValue = lastValue + " " + rawLine.Trim();
-                lastValues[^1] = foldedValue;
-
-                // Re-check single header size after fold: name + ": " + updated value
-                var foldedHeaderSize = Iso88591.GetByteCount(lastHeader)
-                    + 2 // ": "
-                    + Iso88591.GetByteCount(foldedValue);
-                if (foldedHeaderSize > maxHeaderSize)
-                {
-                    throw new HttpDecoderException(HttpDecoderError.HeaderTooLarge,
-                        $"Header '{lastHeader}' is {foldedHeaderSize} bytes; limit is {maxHeaderSize}.");
-                }
-
-                // Add fold contribution to total
-                var foldContribution = Iso88591.GetByteCount(rawLine.Trim()) + 1; // " " + trimmed
-                totalSize += foldContribution;
-                if (totalSize > maxTotalHeaderSize)
-                {
-                    throw new HttpDecoderException(HttpDecoderError.TotalHeadersTooLarge,
-                        $"Total header size is {totalSize} bytes; limit is {maxTotalHeaderSize}.");
-                }
-
-                continue;
-            }
-
-            var colon = rawLine.IndexOf(':');
-            if (colon <= 0)
-            {
-                throw new HttpDecoderException(HttpDecoderError.InvalidHeader);
-            }
-
-            var name = rawLine[..colon];
-
-            // Validate header name: no spaces allowed
-            if (name.Contains(' '))
-            {
-                throw new HttpDecoderException(HttpDecoderError.InvalidFieldName);
-            }
-
-            name = name.Trim();
-            var value = rawLine[(colon + 1)..].Trim();
-
-            // Check single header size: name + ": " + value
-            var headerSize = Iso88591.GetByteCount(name)
-                + 2 // ": "
-                + Iso88591.GetByteCount(value);
-            if (headerSize > maxHeaderSize)
-            {
-                throw new HttpDecoderException(HttpDecoderError.HeaderTooLarge,
-                    $"Header '{name}' is {headerSize} bytes; limit is {maxHeaderSize}.");
-            }
-
-            totalSize += headerSize;
-            if (totalSize > maxTotalHeaderSize)
-            {
-                throw new HttpDecoderException(HttpDecoderError.TotalHeadersTooLarge,
-                    $"Total header size is {totalSize} bytes; limit is {maxTotalHeaderSize}.");
-            }
-
-            if (!headers.TryGetValue(name, out var value1))
-            {
-                value1 = [];
-                headers[name] = value1;
-            }
-
-            value1.Add(value);
-            lastHeader = name;
-        }
-
-        return headers;
-    }
-
-    private static readonly HashSet<string> ContentHeaders = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Content-Type", WellKnownHeaders.Names.ContentLength,
-        WellKnownHeaders.Names.ContentEncoding, "Content-Language", "Content-Location", "Content-MD5",
-        "Content-Range", "Content-Disposition", "Expires", "Last-Modified"
-    };
-
-    /// <summary>
-    /// Builds an HTTP/0.9 Simple-Response: status 200, no headers, body until EOF.
-    /// </summary>
-    private static HttpResponseMessage BuildHttp09Response(ReadOnlySpan<byte> body)
-    {
-        return new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Version = new Version(0, 9),
-            Content = new ByteArrayContent(body.ToArray())
-        };
-    }
-
-    private static HttpResponseMessage BuildResponse(string statusLine, Dictionary<string, List<string>> headers,
-        ReadOnlySpan<byte> body)
-    {
-        var parts = statusLine.Split(' ', 3);
-        var statusCode = 500;
-        if (parts.Length >= 2 && int.TryParse(parts[1], out var code))
-        {
-            statusCode = code;
-        }
-
-        var reasonPhrase = parts.Length > 2 ? parts[2] : string.Empty;
-        var response = new HttpResponseMessage((HttpStatusCode)statusCode)
-        {
-            ReasonPhrase = reasonPhrase,
-            Version = HttpVersion.Version10
-        };
-
-        var content = new ByteArrayContent(body.ToArray());
-        response.Content = content;
-
-        foreach (var (name, values) in headers)
-        {
-            foreach (var value in values)
-            {
-                if (ContentHeaders.Contains(name))
-                {
-                    content.Headers.TryAddWithoutValidation(name, value);
-                }
-                else
-                {
-                    response.Headers.TryAddWithoutValidation(name, value);
-                }
-            }
-        }
-
-        return response;
     }
 
     private ReadOnlyMemory<byte> Combine(ReadOnlyMemory<byte> a, ReadOnlyMemory<byte> b)

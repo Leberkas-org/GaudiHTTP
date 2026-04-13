@@ -559,7 +559,14 @@ public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
         private void PushNextFrame()
         {
             var frameBytes = _stage._serverFrames[_serverFrameIndex++];
-            Push(_stage.Out, NetworkBufferTestExtensions.FromArray(frameBytes));
+            var buf = NetworkBufferTestExtensions.FromArray(frameBytes);
+
+            // First frame is the control stream (SETTINGS), remaining are request stream data.
+            IInputItem item = _serverFrameIndex == 1
+                ? new Http3InputTaggedItem(buf, InputStreamType.Control)
+                : new Http3InputTaggedItem(buf, InputStreamType.Request, StreamId: 0);
+
+            Push(_stage.Out, item);
 
             // HTTP/3 relies on QUIC FIN (upstream completion) to signal stream end.
             // After all server frames are delivered, complete the output to propagate

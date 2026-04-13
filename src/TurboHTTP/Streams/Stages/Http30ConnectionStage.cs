@@ -27,21 +27,26 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
     private readonly Inlet<HttpRequestMessage> _inApp = new("Http30Connection.In.App");
     private readonly Outlet<IOutputItem> _outNetwork = new("Http30Connection.Out.Network");
 
-    private readonly Http3ConnectionConfig _config;
+    private readonly Http3EngineOptions _options;
 
-    public Http30ConnectionStage(Http3ConnectionConfig config)
+    public Http30ConnectionStage(Http3EngineOptions options)
     {
-        _config = config;
+        _options = options;
     }
 
     public override ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
 
-    protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new Logic(this);
+    protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes) => new Logic(this);
 
     private sealed class Logic : TimerGraphStageLogic, IStageOperations
     {
         private const string IdleCheckTimerKey = "idle-timeout-check";
+
+        /// <summary>
+        /// Synthetic stream ID used as the per-stream decoder key for the H3 control stream.
+        /// Negative to avoid collision with real QUIC stream IDs (which are non-negative).
+        /// </summary>
+        private const long ControlStreamDecoderId = -2;
 
         private readonly Http30ConnectionStage _stage;
         private readonly StateMachine _sm;
@@ -52,7 +57,7 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
         public Logic(Http30ConnectionStage stage) : base(stage.Shape)
         {
             _stage = stage;
-            _sm = new StateMachine(stage._config, this);
+            _sm = new StateMachine(stage._options, this);
 
             SetHandler(stage._inServer, onPush: OnServerPush,
                 onUpstreamFinish: () =>
@@ -157,6 +162,29 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
             switch (item)
             {
+                case ConnectedSignalItem:
+                case QuicCloseItem:
+                    HandleSignalItem(item);
+                    return;
+                case Http3InputTaggedItem tagged:
+                    HandleTaggedStreamData(tagged);
+                    return;
+                case NetworkBuffer rawBuffer:
+                    Log.Warning(
+                        "Http30ConnectionStage: Received untagged NetworkBuffer — dropping to prevent stream ID misrouting.");
+                    rawBuffer.Dispose();
+                    Pull(_stage._inServer);
+                    return;
+                default:
+                    Pull(_stage._inServer);
+                    break;
+            }
+        }
+
+        private void HandleSignalItem(IInputItem item)
+        {
+            switch (item)
+            {
                 // Reconnect: new connection ready — replay buffered requests
                 case ConnectedSignalItem:
                 {
@@ -171,8 +199,6 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                     return;
                 }
                 // Request stream FIN — server finished sending the response.
-                // Flush the pending response (body is delimited by FIN) and continue
-                // accepting new requests on the same QUIC connection.
                 case QuicCloseItem { Kind: QuicCloseKind.RequestStreamComplete } close:
                 {
                     if (close.StreamId >= 0)
@@ -224,36 +250,53 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                     CompleteStage();
                     return;
             }
+        }
 
-            // QPACK decoder stream — route to encoder feedback
-            if (item is Http3InputTaggedItem { StreamType: InputStreamType.QpackDecoder } tagged)
+        private void HandleTaggedStreamData(Http3InputTaggedItem tagged)
+        {
+            switch (tagged.StreamType)
             {
-                var data = (NetworkBuffer)tagged.Inner;
-                _sm.ProcessQpackDecoderBytes(data.Memory);
-                data.Dispose();
-                Pull(_stage._inServer);
-                return;
-            }
-
-            // Frame data — decode, process, and assemble responses
-            if (item is not Http3InputTaggedItem { Inner: NetworkBuffer buffer } taggedData)
-            {
-                if (item is NetworkBuffer rawBuffer)
+                case InputStreamType.QpackDecoder:
                 {
-                    ProcessFrameData(rawBuffer, streamId: 0);
+                    var data = (NetworkBuffer)tagged.Inner;
+                    _sm.ProcessQpackDecoderBytes(data.Memory);
+                    data.Dispose();
+                    Pull(_stage._inServer);
                     return;
                 }
+                case InputStreamType.QpackEncoder:
+                {
+                    var data = (NetworkBuffer)tagged.Inner;
+                    _sm.ProcessQpackEncoderBytes(data.Memory);
+                    data.Dispose();
+                    Pull(_stage._inServer);
+                    return;
+                }
+                // Control stream — decode frames for SETTINGS/GOAWAY but use a dedicated stream ID
+                // to keep control-stream remainder state separate from request streams.
+                case InputStreamType.Control when tagged.Inner is NetworkBuffer controlBuffer:
+                    ProcessFrameData(controlBuffer, streamId: ControlStreamDecoderId);
+                    return;
+                default:
+                {
+                    // Tagged request stream data — decode with the correct per-stream decoder
+                    if (tagged.Inner is NetworkBuffer buffer)
+                    {
+                        ProcessFrameData(buffer, tagged.StreamId);
+                    }
+                    else
+                    {
+                        Pull(_stage._inServer);
+                    }
 
-                Pull(_stage._inServer);
-                return;
+                    return;
+                }
             }
-
-            ProcessFrameData(buffer, taggedData.StreamId);
         }
 
         private void ProcessFrameData(NetworkBuffer buffer, long streamId)
         {
-            var frames = _sm.DecodeServerData(buffer);
+            var frames = _sm.DecodeServerData(buffer, streamId);
 
             var anyProcessed = false;
             for (var i = 0; i < frames.Count; i++)
@@ -270,7 +313,7 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
             if (!anyProcessed)
             {
-                Pull(_stage._inServer);
+                TryPullServer();
                 return;
             }
 
@@ -309,7 +352,7 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                     return;
                 }
 
-                Pull(_stage._inServer);
+                TryPullServer();
                 return;
             }
 
@@ -325,7 +368,8 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                     return;
                 }
 
-                Pull(_stage._inServer);
+                TryPullRequest();
+                TryPullServer();
                 return;
             }
 
@@ -338,7 +382,8 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                         return;
                     }
 
-                    Pull(_stage._inServer);
+                    TryPullRequest();
+                    TryPullServer();
                 });
             _pendingResponses.Clear();
         }
@@ -360,6 +405,14 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
             EmitMultiple(_stage._outNetwork, _pendingOutbound.ToArray());
             _pendingOutbound.Clear();
+        }
+
+        private void TryPullServer()
+        {
+            if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+            {
+                Pull(_stage._inServer);
+            }
         }
 
         private void TryPullRequest()

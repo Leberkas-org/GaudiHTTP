@@ -65,6 +65,21 @@ internal sealed class QuicConnectionLease : IDisposable
     /// </summary>
     public bool CanAcceptStream => _alive && _reusable && ActiveStreams < MaxConcurrentStreams;
 
+    /// <summary>
+    /// Returns <see langword="true"/> when the connection has exceeded the specified
+    /// maximum lifetime (measured from creation). Used by connection pool eviction
+    /// to enforce <see cref="TurboClientOptions.PooledConnectionLifetime"/>.
+    /// </summary>
+    public bool IsExpired(TimeSpan maxLifetime)
+    {
+        if (maxLifetime == Timeout.InfiniteTimeSpan)
+        {
+            return false;
+        }
+
+        return Environment.TickCount64 - _createdTicks > (long)maxLifetime.TotalMilliseconds;
+    }
+
     /// <summary>Marks this connection as acquired by an additional stage.</summary>
     public void MarkBusy()
     {

@@ -24,10 +24,10 @@ internal static class OptionsFactory
                 Port = port,
                 ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
                 ConnectTimeout = clientOptions.ConnectTimeout,
-                MaxFrameSize = clientOptions.Http2.MaxFrameSize,
                 SocketSendBufferSize = clientOptions.SocketSendBufferSize,
                 SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
                 AllowConnectionMigration = clientOptions.Http3.AllowConnectionMigration,
+                AllowEarlyData = clientOptions.Http3.AllowEarlyData,
             };
         }
 
@@ -42,9 +42,11 @@ internal static class OptionsFactory
                 ClientCertificates = clientOptions.ClientCertificates,
                 EnabledSslProtocols = clientOptions.EnabledSslProtocols,
                 ConnectTimeout = clientOptions.ConnectTimeout,
-                MaxFrameSize = clientOptions.Http2.MaxFrameSize,
                 SocketSendBufferSize = clientOptions.SocketSendBufferSize,
                 SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
+                UseProxy = clientOptions.UseProxy,
+                Proxy = clientOptions.Proxy,
+                DefaultProxyCredentials = clientOptions.DefaultProxyCredentials,
             };
         }
 
@@ -53,9 +55,11 @@ internal static class OptionsFactory
             Host = endpoint.Host,
             Port = port,
             ConnectTimeout = clientOptions.ConnectTimeout,
-            MaxFrameSize = clientOptions.Http2.MaxFrameSize,
             SocketSendBufferSize = clientOptions.SocketSendBufferSize,
             SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
+            UseProxy = clientOptions.UseProxy,
+            Proxy = clientOptions.Proxy,
+            DefaultProxyCredentials = clientOptions.DefaultProxyCredentials,
         };
     }
 }

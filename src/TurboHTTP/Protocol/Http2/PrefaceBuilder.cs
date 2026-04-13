@@ -10,21 +10,24 @@ namespace TurboHTTP.Protocol.Http2;
 /// </summary>
 public static class PrefaceBuilder
 {
-    public static (IMemoryOwner<byte> Owner, int Length) Build(int windowSize)
+    public static (IMemoryOwner<byte> Owner, int Length) Build(
+        int initialWindowSize,
+        int headerTableSize = 4096,
+        int maxFrameSize = 16384)
     {
         const int frameHeaderSize = 9;
         var magic = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8;
 
         var settingsParams = new (SettingsParameter, uint)[]
         {
-            (SettingsParameter.HeaderTableSize, 4096),
+            (SettingsParameter.HeaderTableSize, (uint)headerTableSize),
             (SettingsParameter.EnablePush, 0),
-            (SettingsParameter.InitialWindowSize, (uint)windowSize),
-            (SettingsParameter.MaxFrameSize, 16384),
+            (SettingsParameter.InitialWindowSize, (uint)initialWindowSize),
+            (SettingsParameter.MaxFrameSize, (uint)maxFrameSize),
         };
 
         var settingsPayloadSize = settingsParams.Length * 6;
-        var needsWindowUpdate = windowSize > 65535;
+        var needsWindowUpdate = initialWindowSize > 65535;
         const int windowUpdatePayloadSize = 4;
         var totalSize = magic.Length + frameHeaderSize + settingsPayloadSize;
         if (needsWindowUpdate)
@@ -58,7 +61,7 @@ public static class PrefaceBuilder
 
         if (needsWindowUpdate)
         {
-            var windowUpdateIncrement = windowSize - 65535;
+            var windowUpdateIncrement = initialWindowSize - 65535;
             var winSpan = result[offset..];
             winSpan[0] = 0;
             winSpan[1] = 0;

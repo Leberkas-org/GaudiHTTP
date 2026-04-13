@@ -125,7 +125,7 @@ public sealed class Http3HeadersFrame : Http3Frame, IDisposable
     /// <summary>
     /// When true, indicates this request may be sent as QUIC 0-RTT early data.
     /// Only set for idempotent HTTP methods (GET, HEAD, OPTIONS, TRACE, DELETE)
-    /// when <see cref="Http3ConnectionConfig.AllowEarlyData"/> is enabled.
+    /// when <see cref="Http3Options.AllowEarlyData"/> is enabled.
     /// The transport layer uses this flag to decide whether to send the request
     /// before the TLS handshake completes. RFC 9114 §A.1.
     /// </summary>

@@ -15,11 +15,22 @@ public sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 
     private readonly int _maxPipelineDepth;
     private readonly int _maxReconnectAttempts;
+    private readonly int _maxResponseHeadersLength;
+    private readonly int _maxResponseDrainSize;
+    private readonly TimeSpan _responseDrainTimeout;
 
-    public Http11ConnectionStage(int maxPipelineDepth = 8, int maxReconnectAttempts = 3)
+    public Http11ConnectionStage(
+        int maxPipelineDepth = 8,
+        int maxReconnectAttempts = 3,
+        int maxResponseHeadersLength = 64,
+        int maxResponseDrainSize = 1024 * 1024,
+        TimeSpan? responseDrainTimeout = null)
     {
         _maxPipelineDepth = maxPipelineDepth;
         _maxReconnectAttempts = maxReconnectAttempts;
+        _maxResponseHeadersLength = maxResponseHeadersLength;
+        _maxResponseDrainSize = maxResponseDrainSize;
+        _responseDrainTimeout = responseDrainTimeout ?? TimeSpan.FromSeconds(2);
     }
 
     public override ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
@@ -42,7 +53,8 @@ public sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 
             var memoryBuffer = inheritedAttributes.GetAttribute(new TurboAttributes.MemoryBuffer(4 * 1024, 256 * 1024));
             _sm = new StateMachine(this, stage._maxPipelineDepth, stage._maxReconnectAttempts,
-                memoryBuffer.Initial, memoryBuffer.Max);
+                memoryBuffer.Initial, memoryBuffer.Max, stage._maxResponseHeadersLength,
+                stage._maxResponseDrainSize, stage._responseDrainTimeout);
 
             SetHandler(stage._inServer, onPush: OnServerPush,
                 onUpstreamFinish: () =>
@@ -134,7 +146,7 @@ public sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 
             if (item is ConnectedSignalItem)
             {
-                _sm.HandleConnectedSignal();
+                _sm.OnConnectionRestored();
                 FlushOutbound();
                 TryPullRequest();
                 // Pull to receive the response from the new connection
@@ -148,7 +160,7 @@ public sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 
             if (item is CloseSignalItem && _sm.IsReconnecting)
             {
-                _sm.HandleReconnectAttempt();
+                _sm.OnReconnectAttemptFailed();
                 if (_reconnectFailed)
                 {
                     Log.Warning(

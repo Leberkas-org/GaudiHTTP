@@ -14,7 +14,7 @@ namespace TurboHTTP.StreamTests.Http11;
 /// </remarks>
 public sealed class Http11EngineEndToEndSpec : EngineTestBase
 {
-    private static Http11Engine Engine => new();
+    private static Http11Engine Engine => new(new Http1EngineOptions(16, 6, 3, 64 * 1024, 64, 1024 * 1024, TimeSpan.FromSeconds(2)));
 
     private static byte[] Ok200(string body) =>
         TextEncoding.Latin1.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {body.Length}\r\n\r\n{body}");
@@ -121,7 +121,8 @@ public sealed class Http11EngineEndToEndSpec : EngineTestBase
     [InlineData("http://api.example.com/v1", "Host: api.example.com\r\n")]
     [InlineData("http://other.example.com:9090/endpoint", "Host: other.example.com:9090\r\n")]
     [InlineData("https://secure.example.com/data", "Host: secure.example.com\r\n")]
-    public async Task Http11EngineEndToEnd_should_set_correct_host_header_when_request_sent(string uri, string expectedHost)
+    public async Task Http11EngineEndToEnd_should_set_correct_host_header_when_request_sent(string uri,
+        string expectedHost)
     {
         var request = new HttpRequestMessage(HttpMethod.Get, uri)
         {

@@ -2,7 +2,7 @@ namespace TurboHTTP.Benchmarks.Internal;
 
 /// <summary>
 /// Base class for all Binkraken remote HTTPS benchmarks. Provides static URIs
-/// for the light (~3 KB HTML) and heavy (~159 KB JS bundle) endpoints.
+/// for the light (~3 KB HTML) and heavy (~129 KB JS bundle) endpoints.
 /// </summary>
 public abstract class BinkrakenBaseClass : BenchmarkSuiteBase
 {
@@ -12,7 +12,7 @@ public abstract class BinkrakenBaseClass : BenchmarkSuiteBase
     public static readonly Uri LightUri = new("https://binkraken.com/");
 
     /// <summary>
-    /// Heavy endpoint: the largest JS bundle (~159 KB).
+    /// Heavy endpoint: the largest JS bundle (~129 KB).
     /// </summary>
-    public static readonly Uri HeavyUri = new("https://binkraken.com/assets/_plugin-vue_export-helper-Cgmbqv7k.js");
+    public static readonly Uri HeavyUri = new("https://binkraken.com/assets/useBlog-CU_ZN4Zc.js");
 }

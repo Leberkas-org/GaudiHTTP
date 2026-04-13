@@ -56,7 +56,7 @@ public sealed class Http11StateMachineReconnectSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.3")]
-    public void Http11StateMachine_HandleConnectedSignal_should_replay_all_buffered_requests()
+    public void Http11StateMachine_OnConnectionRestored_should_replay_all_buffered_requests()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
@@ -66,7 +66,7 @@ public sealed class Http11StateMachineReconnectSpec
         sm.StartReconnect();
         ops.Outbound.Clear(); // ignore ReconnectItem
 
-        sm.HandleConnectedSignal();
+        sm.OnConnectionRestored();
 
         Assert.False(sm.IsReconnecting);
         Assert.True(sm.HasInFlightRequests); // both re-enqueued
@@ -77,21 +77,21 @@ public sealed class Http11StateMachineReconnectSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.3")]
-    public void Http11StateMachine_HandleReconnectAttempt_should_fail_when_max_exceeded()
+    public void Http11StateMachine_OnReconnectAttemptFailed_should_fail_when_max_exceeded()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 1);
         sm.EncodeRequest(MakeRequest());
         sm.StartReconnect(); // attempt 1
 
-        sm.HandleReconnectAttempt(); // attempt 2 — exceeds max of 1
+        sm.OnReconnectAttemptFailed(); // attempt 2 — exceeds max of 1
 
         Assert.True(ops.ReconnectFailed);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.3")]
-    public void Http11StateMachine_HandleReconnectAttempt_should_emit_new_reconnect_item_when_under_limit()
+    public void Http11StateMachine_OnReconnectAttemptFailed_should_emit_new_reconnect_item_when_under_limit()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, maxPipelineDepth: 4, maxReconnectAttempts: 3);
@@ -99,7 +99,7 @@ public sealed class Http11StateMachineReconnectSpec
         sm.StartReconnect(); // attempt 1
         var countAfterFirst = ops.Outbound.OfType<ReconnectItem>().Count();
 
-        sm.HandleReconnectAttempt(); // attempt 2
+        sm.OnReconnectAttemptFailed(); // attempt 2
 
         Assert.False(ops.ReconnectFailed);
         Assert.Equal(countAfterFirst + 1, ops.Outbound.OfType<ReconnectItem>().Count());

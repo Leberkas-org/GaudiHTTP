@@ -24,7 +24,7 @@ public sealed class ClientByteMoverSpec
         // try to write to the closed channel, get false from TryWrite, and must dispose the buffer.
         var stream = new MemoryStream([0x42], writable: false);
 
-        var state = new ClientState(65536, stream, inbound, outbound);
+        var state = new ClientState(stream, inbound, outbound);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
@@ -44,7 +44,7 @@ public sealed class ClientByteMoverSpec
 
         var stream = new MemoryStream([0xAB, 0xCD], writable: false);
 
-        var state = new ClientState(65536, stream, inbound, outbound);
+        var state = new ClientState(stream, inbound, outbound);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 

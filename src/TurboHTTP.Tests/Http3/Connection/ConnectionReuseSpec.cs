@@ -169,7 +169,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [InlineData("other.com", false)]
     public void Should_MatchExactSan(string hostname, bool expected)
     {
-        Assert.Equal(expected, CertificateValidator.CoversHostname(_singleHostCert, hostname));
+        Assert.Equal(expected, ConnectionReuseEvaluator.CoversHostname(_singleHostCert, hostname));
     }
 
     [Theory]
@@ -180,7 +180,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [InlineData("sub.foo.example.com", false)]
     public void Should_MatchWildcardSan(string hostname, bool expected)
     {
-        Assert.Equal(expected, CertificateValidator.CoversHostname(_wildcardCert, hostname));
+        Assert.Equal(expected, ConnectionReuseEvaluator.CoversHostname(_wildcardCert, hostname));
     }
 
     [Theory]
@@ -191,15 +191,15 @@ public sealed class ConnectionReuseSpec : IDisposable
     [InlineData("delta.example.com", false)]
     public void Should_MatchMultipleSans(string hostname, bool expected)
     {
-        Assert.Equal(expected, CertificateValidator.CoversHostname(_multiSanCert, hostname));
+        Assert.Equal(expected, ConnectionReuseEvaluator.CoversHostname(_multiSanCert, hostname));
     }
 
     [Fact]
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_FallbackToCn_When_NoSanExists()
     {
-        Assert.True(CertificateValidator.CoversHostname(_cnOnlyCert, "cn-only.example.com"));
-        Assert.False(CertificateValidator.CoversHostname(_cnOnlyCert, "other.example.com"));
+        Assert.True(ConnectionReuseEvaluator.CoversHostname(_cnOnlyCert, "cn-only.example.com"));
+        Assert.False(ConnectionReuseEvaluator.CoversHostname(_cnOnlyCert, "other.example.com"));
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     public void Should_Throw_When_CertIsNull()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            CertificateValidator.CoversHostname(null!, "example.com"));
+            ConnectionReuseEvaluator.CoversHostname(null!, "example.com"));
     }
 
     [Theory]
@@ -217,7 +217,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     public void Should_Throw_When_HostnameIsEmpty(string hostname)
     {
         Assert.ThrowsAny<ArgumentException>(() =>
-            CertificateValidator.CoversHostname(_singleHostCert, hostname));
+            ConnectionReuseEvaluator.CoversHostname(_singleHostCert, hostname));
     }
 
     // Internal matcher — edge cases
@@ -231,7 +231,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [InlineData("EXAMPLE.COM", "example.com", true)]
     public void Should_HandleMatchEdgeCases(string certName, string hostname, bool expected)
     {
-        Assert.Equal(expected, CertificateValidator.MatchesHostname(certName, hostname));
+        Assert.Equal(expected, ConnectionReuseEvaluator.MatchesHostname(certName, hostname));
     }
 
 

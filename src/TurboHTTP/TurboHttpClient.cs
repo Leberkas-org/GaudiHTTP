@@ -11,18 +11,6 @@ using TurboHTTP.Streams.Lifecycle;
 namespace TurboHTTP;
 
 /// <summary>
-/// Snapshot of <see cref="TurboHttpClient"/> configuration captured at request-submission time.
-/// Passed into the pipeline so that per-request options reflect the values set on the client at the moment of submission.
-/// </summary>
-public record TurboRequestOptions(
-    Uri? BaseAddress,
-    HttpRequestHeaders DefaultRequestHeaders,
-    Version DefaultRequestVersion,
-    HttpVersionPolicy DefaultVersionPolicy,
-    TimeSpan Timeout,
-    long MaxResponseContentBufferSize);
-
-/// <summary>
 /// Pooled per-request completion source backed by <see cref="ManualResetValueTaskSourceCore{T}"/>.
 /// Avoids the ~120 B per-request allocation of <see cref="TaskCompletionSource{T}"/> + its inner <see cref="Task{T}"/>.
 /// Completed directly by the pipeline Sink via <see cref="TcsCorrelation.Key"/> (G2).
@@ -32,8 +20,7 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
 {
     private static readonly ConcurrentStack<PendingRequest> Pool = new();
 
-    private ManualResetValueTaskSourceCore<HttpResponseMessage> _core =
-        new() { RunContinuationsAsynchronously = true };
+    private ManualResetValueTaskSourceCore<HttpResponseMessage> _core = new() { RunContinuationsAsynchronously = true };
 
     private PendingRequest()
     {
@@ -85,10 +72,8 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
         }
     }
 
-    public bool TrySetCanceled(CancellationToken ct = default)
-        => TrySetException(new OperationCanceledException(ct));
+    public bool TrySetCanceled(CancellationToken ct = default) => TrySetException(new OperationCanceledException(ct));
 
-    // IValueTaskSource<HttpResponseMessage>
     public HttpResponseMessage GetResult(short token) => _core.GetResult(token);
     public ValueTaskSourceStatus GetStatus(short token) => _core.GetStatus(token);
 
@@ -114,6 +99,8 @@ public sealed class TurboHttpClient : ITurboHttpClient
     private TimeSpan _timeout = TimeSpan.FromSeconds(60);
 
     private long _maxResponseContentBufferSize;
+    private readonly ICredentials? _credentials;
+    private readonly bool _preAuthenticate;
 
     // Initialized to null! here; UpdateCachedOptions() is called first in the constructor
     // (before Manager is created), so this field is always non-null when observable.
@@ -180,7 +167,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
     public ChannelWriter<HttpRequestMessage> Requests => Manager.Requests;
     public ChannelReader<HttpResponseMessage> Responses => Manager.Responses;
 
-    internal TurboClientStreamManager Manager { get; }
+    internal ClientStreamManager Manager { get; }
 
     private void UpdateCachedOptions()
     {
@@ -190,14 +177,18 @@ public sealed class TurboHttpClient : ITurboHttpClient
             _defaultRequestVersion,
             _defaultVersionPolicy,
             _timeout,
-            _maxResponseContentBufferSize);
+            _maxResponseContentBufferSize,
+            _credentials,
+            _preAuthenticate);
     }
 
     internal TurboHttpClient(TurboClientOptions clientOptions, ActorSystem system, PipelineDescriptor pipeline)
     {
+        _credentials = clientOptions.Credentials;
+        _preAuthenticate = clientOptions.PreAuthenticate;
         UpdateCachedOptions();
-        NetworkBuffer.ConfigurePoolSize(clientOptions.NetworkBufferPoolSize);
-        Manager = new TurboClientStreamManager(clientOptions, OptionsFactory, system, pipeline);
+        NetworkBuffer.ConfigurePoolSize(512);
+        Manager = new ClientStreamManager(clientOptions, OptionsFactory, system, pipeline);
         return;
 
         TurboRequestOptions OptionsFactory() => _cachedOptions;

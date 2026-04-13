@@ -44,8 +44,7 @@ public sealed class ConnectionPoolDeadlockSpec : IAsyncLifetime
     private TcpOptions CreateOptions() => new()
     {
         Host = "127.0.0.1",
-        Port = _port,
-        MaxFrameSize = 16384
+        Port = _port
     };
 
     private RequestEndpoint CreateEndpoint(Version? version = null) => new()
@@ -57,7 +56,7 @@ public sealed class ConnectionPoolDeadlockSpec : IAsyncLifetime
     };
 
     private IActorRef CreateActor()
-        => _system!.ActorOf(Props.Create(() => new TcpConnectionManagerActor(TimeSpan.FromSeconds(30))));
+        => _system!.ActorOf(Props.Create(() => new TcpConnectionManagerActor(TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan)));
 
     private async Task AcceptConnectionsAsync(int count, CancellationToken ct)
     {
@@ -126,7 +125,6 @@ public sealed class ConnectionPoolDeadlockSpec : IAsyncLifetime
     public async Task ClientByteMover_should_fire_close_once_when_pump_crashes()
     {
         var state = new ClientState(
-            maxFrameSize: 16384,
             stream: new ThrowingStream(),
             inboundChannel: null,
             outboundChannel: null);
@@ -155,7 +153,6 @@ public sealed class ConnectionPoolDeadlockSpec : IAsyncLifetime
     public async Task ClientByteMover_should_exit_all_pumps_on_normal_close()
     {
         var state = new ClientState(
-            maxFrameSize: 16384,
             stream: new MemoryStream(),
             inboundChannel: null,
             outboundChannel: null);
@@ -181,7 +178,6 @@ public sealed class ConnectionPoolDeadlockSpec : IAsyncLifetime
     public async Task ClientState_should_exit_write_pump_immediately_when_read_only()
     {
         var state = new ClientState(
-            maxFrameSize: 16384,
             stream: new MemoryStream(),
             inboundChannel: null,
             outboundChannel: null,

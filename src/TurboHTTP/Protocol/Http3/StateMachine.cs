@@ -1,7 +1,8 @@
 using System.Buffers;
-using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3.Qpack;
+using TurboHTTP.Streams;
 using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Protocol.Http3;
@@ -12,6 +13,10 @@ namespace TurboHTTP.Protocol.Http3;
 /// idle timeout, and reconnection.
 /// Calls back into <see cref="IStageOperations"/> for responses, outbound items, and warnings.
 /// Mirrors the HTTP/2 <see cref="Http2.StateMachine"/> pattern.
+/// <para>
+/// Per-stream state and response assembly is delegated to <see cref="Http3StreamManager"/>;
+/// QPACK instruction streams to <see cref="QpackStreamHandler"/>.
+/// </para>
 /// </summary>
 public sealed class StateMachine : IDisposable
 {
@@ -29,20 +34,13 @@ public sealed class StateMachine : IDisposable
         HttpMethod.Delete,
     ];
 
-    private readonly Http3ConnectionConfig _config;
+    private readonly Http3EngineOptions _options;
     private readonly IStageOperations _ops;
 
-    // Protocol-layer components
-    private readonly FrameDecoder _frameDecoder = new();
     private readonly RequestEncoder _requestEncoder;
-    private readonly QpackDecoder _qpackDecoder = new();
-    private readonly QpackInstructionDecoder _instructionDecoder = new();
-
-    // Per-stream response assembly and correlation (keyed by QUIC stream ID)
-    private readonly Dictionary<long, StreamState> _streams = new();
-    private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
-    private readonly Stack<StreamState> _statePool = new();
-    private const int MaxPoolSize = 16;
+    private readonly ResponseDecoder _responseDecoder;
+    private readonly QpackStreamHandler _qpackHandler;
+    private readonly Http3StreamManager _streamManager;
 
     // Reconnection
     private readonly List<Http3Frame> _reconnectBuffer = [];
@@ -50,7 +48,6 @@ public sealed class StateMachine : IDisposable
 
     // Preface tracking
     private bool _controlPrefaceSent;
-    private bool _qpackEncoderPrefaceSent;
 
     /// <summary>Whether a new request can be accepted (no GOAWAY + not reconnecting + concurrency budget).</summary>
     public bool CanAcceptRequest => !Connection.GoAwayReceived && !IsReconnecting && Tracker.CanOpenStream();
@@ -62,10 +59,10 @@ public sealed class StateMachine : IDisposable
     public int ReconnectBufferCount => _reconnectBuffer.Count;
 
     /// <summary>Whether a response was produced during the most recent ProcessFrame call.</summary>
-    public bool ResponseProduced { get; private set; }
+    public bool ResponseProduced => _streamManager.ResponseProduced;
 
     /// <summary>Whether there are in-flight requests awaiting responses.</summary>
-    public bool HasInFlightRequests => _correlationMap.Count > 0 || _streams.Count > 0;
+    public bool HasInFlightRequests => _streamManager.HasInFlightRequests;
 
     /// <summary>The current connection endpoint.</summary>
     public RequestEndpoint Endpoint { get; private set; }
@@ -76,21 +73,33 @@ public sealed class StateMachine : IDisposable
     /// <summary>The underlying connection state for idle timeout and settings inspection.</summary>
     internal ConnectionState Connection { get; }
 
-    public StateMachine(Http3ConnectionConfig config, IStageOperations ops)
+    /// <summary>The QPACK table synchronization coordinator.</summary>
+    internal QpackTableSync TableSync { get; }
+
+    public StateMachine(Http3EngineOptions options, IStageOperations ops)
     {
-        _config = config;
+        _options = options;
         _ops = ops;
         // RFC 9204 §3.2.3: the encoder MUST NOT use the dynamic table until the
         // peer has advertised a non-zero SETTINGS_QPACK_MAX_TABLE_CAPACITY.
         // We start static-only (0) and will update after receiving peer SETTINGS.
-        _requestEncoder = new RequestEncoder(maxTableCapacity: 0);
+        TableSync = new QpackTableSync(
+            encoderMaxCapacity: 0,
+            decoderMaxCapacity: 4096,
+            maxBlockedStreams: options.QpackBlockedStreams);
+        _requestEncoder = new RequestEncoder(TableSync);
+        _responseDecoder = new ResponseDecoder(TableSync);
+        _qpackHandler = new QpackStreamHandler(ops, _requestEncoder, _responseDecoder, TableSync);
+        _streamManager = new Http3StreamManager(ops, _responseDecoder, TableSync);
+        _streamManager.FlushDecoderInstructionsCallback = _ => FlushDecoderInstructions();
+        _streamManager.OnStreamClosedCallback = OnStreamClosed;
         Tracker = new StreamTracker(0, 100);
 
-        var idleTimeout = config.IdleTimeout == TimeSpan.Zero
+        var idleTimeout = options.IdleTimeout == TimeSpan.Zero
             ? DefaultIdleTimeout
-            : config.IdleTimeout;
+            : options.IdleTimeout;
 
-        Connection = new ConnectionState(idleTimeout, config.AllowServerPush ? 100 : 0);
+        Connection = new ConnectionState(idleTimeout, options.AllowServerPush ? 100 : 0);
     }
 
     /// <summary>
@@ -115,7 +124,7 @@ public sealed class StateMachine : IDisposable
         var totalSize = streamTypeSize + frameSize;
 
         Http3MaxPushIdFrame? maxPushIdFrame = null;
-        if (_config.AllowServerPush)
+        if (_options.AllowServerPush)
         {
             maxPushIdFrame = new Http3MaxPushIdFrame(99);
             totalSize += maxPushIdFrame.SerializedSize;
@@ -139,13 +148,11 @@ public sealed class StateMachine : IDisposable
     }
 
     /// <summary>
-    /// Decodes a NetworkBuffer into HTTP/3 frames.
+    /// Decodes a NetworkBuffer into HTTP/3 frames using a per-stream decoder.
     /// </summary>
-    public IReadOnlyList<Http3Frame> DecodeServerData(NetworkBuffer buffer)
+    public IReadOnlyList<Http3Frame> DecodeServerData(NetworkBuffer buffer, long streamId)
     {
-        var frames = _frameDecoder.DecodeAll(buffer.Memory.Span, out _);
-        buffer.Dispose();
-        return frames;
+        return _streamManager.DecodeServerData(buffer, streamId);
     }
 
     /// <summary>
@@ -178,11 +185,6 @@ public sealed class StateMachine : IDisposable
                 return null;
 
             case Http3HeadersFrame:
-                if (Connection.ActiveStreamCount > 0)
-                {
-                    Connection.OnStreamClosed();
-                }
-
                 return frame;
 
             default:
@@ -196,24 +198,7 @@ public sealed class StateMachine : IDisposable
     /// </summary>
     public void AssembleResponse(Http3Frame frame, long streamId)
     {
-        ResponseProduced = false;
-
-        if (!_streams.TryGetValue(streamId, out var state))
-        {
-            state = RentStreamState(streamId);
-            _streams[streamId] = state;
-        }
-
-        switch (frame)
-        {
-            case Http3HeadersFrame headers:
-                HandleResponseHeaders(headers, state);
-                break;
-
-            case Http3DataFrame data:
-                HandleResponseData(data, state);
-                break;
-        }
+        _streamManager.AssembleResponse(frame, streamId, Endpoint);
     }
 
     /// <summary>
@@ -221,10 +206,7 @@ public sealed class StateMachine : IDisposable
     /// </summary>
     public void FlushPendingResponse(long streamId)
     {
-        if (_streams.TryGetValue(streamId, out var state) && state.HasResponse)
-        {
-            EmitResponse(streamId);
-        }
+        _streamManager.FlushPendingResponse(streamId);
     }
 
     /// <summary>
@@ -232,15 +214,7 @@ public sealed class StateMachine : IDisposable
     /// </summary>
     public void FlushPendingResponse()
     {
-        // Snapshot keys — EmitResponse modifies _streams via ReturnStreamState
-        var streamIds = _streams.Keys.ToArray();
-        foreach (var streamId in streamIds)
-        {
-            if (_streams.TryGetValue(streamId, out var state) && state.HasResponse)
-            {
-                EmitResponse(streamId);
-            }
-        }
+        _streamManager.FlushAllPendingResponses();
     }
 
     /// <summary>
@@ -258,22 +232,164 @@ public sealed class StateMachine : IDisposable
 
         if (IsReconnecting)
         {
-            // Buffer the raw frames for replay after reconnection
-            var frames = EncodeToFrames(request);
-            foreach (var f in frames)
-            {
-                _reconnectBuffer.Add(f);
-            }
-
-            // Allocate stream ID for correlation even during reconnect
-            var reconnectStreamId = Tracker.AllocateStreamId();
-            _correlationMap[reconnectStreamId] = request;
-            return true;
+            return BufferForReconnect(request);
         }
 
+        return EncodeAndEmit(request);
+    }
+
+    /// <summary>
+    /// Processes bytes from the inbound QPACK decoder stream.
+    /// </summary>
+    public void ProcessQpackDecoderBytes(ReadOnlyMemory<byte> data)
+    {
+        _qpackHandler.ProcessDecoderBytes(data);
+    }
+
+    /// <summary>
+    /// Processes bytes from the inbound QPACK encoder stream.
+    /// Applies encoder instructions, resolves blocked streams, and emits responses.
+    /// </summary>
+    public void ProcessQpackEncoderBytes(ReadOnlyMemory<byte> data)
+    {
+        var resolved = _qpackHandler.ProcessEncoderBytes(data);
+        FlushDecoderInstructions();
+        _streamManager.ResolveBlockedStreams(resolved);
+    }
+
+    /// <summary>
+    /// Serializes pending QPACK decoder instructions and emits them on the decoder stream.
+    /// </summary>
+    public void FlushDecoderInstructions()
+    {
+        _qpackHandler.FlushDecoderInstructions(Endpoint);
+    }
+
+    /// <summary>
+    /// Serializes any pending QPACK encoder instructions and emits them on the encoder stream.
+    /// </summary>
+    public void FlushEncoderInstructions()
+    {
+        _qpackHandler.FlushEncoderInstructions(Endpoint);
+    }
+
+    /// <summary>
+    /// Checks whether the idle timeout has expired with no active streams.
+    /// </summary>
+    public Http3GoAwayFrame? CheckIdleTimeout()
+    {
+        if (Connection.IsIdleTimeoutExpired() && Connection.ActiveStreamCount == 0)
+        {
+            _ops.OnWarning("RFC 9114 §5.1 — idle timeout expired with no active streams; sending GOAWAY.");
+            return new Http3GoAwayFrame(0);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Evaluates whether this connection can be reused for a request to a different origin.
+    /// </summary>
+    public Http3ConnectionReuseDecision EvaluateConnectionReuse(
+        string targetScheme,
+        string targetHost,
+        int targetPort,
+        X509Certificate2? serverCertificate)
+    {
+        var ep = Endpoint;
+        return ConnectionReuseEvaluator.Evaluate(
+            ep.Scheme ?? "https",
+            ep.Host ?? string.Empty,
+            ep.Port,
+            targetScheme,
+            targetHost,
+            targetPort,
+            serverCertificate,
+            Connection.GoAwayReceived);
+    }
+
+    /// <summary>Whether the idle timeout is disabled (timeout is zero).</summary>
+    public bool IsTimeoutDisabled => Connection.IsTimeoutDisabled;
+
+    /// <summary>Time remaining before the idle timeout expires.</summary>
+    public TimeSpan TimeUntilExpiry() => Connection.TimeUntilExpiry();
+
+    /// <summary>
+    /// Called when the QUIC connection is lost.
+    /// </summary>
+    public void OnConnectionLost()
+    {
+        IsReconnecting = true;
+        _reconnectAttempts = 1;
+
+        _streamManager.DrainStreams();
+
+        Tracker.Reset();
+        Connection.Reset();
+        _streamManager.ResetAllDecoders();
+        _controlPrefaceSent = false;
+        _qpackHandler.Reset();
+        TableSync.Reset();
+    }
+
+    /// <summary>
+    /// Called when a new QUIC connection is established after a loss.
+    /// </summary>
+    public void OnConnectionRestored()
+    {
+        IsReconnecting = false;
+        _reconnectAttempts = 0;
+
+        var preface = TryBuildControlPreface();
+        if (preface is not null)
+        {
+            _ops.OnOutbound(preface);
+        }
+
+        ReplayBufferedFrames();
+    }
+
+    /// <summary>
+    /// Called when a reconnect attempt fails.
+    /// Returns true if another attempt should be made, false if max exceeded.
+    /// </summary>
+    public bool OnReconnectAttemptFailed()
+    {
+        if (_reconnectAttempts >= _options.MaxReconnectAttempts)
+        {
+            _ops.OnReconnectFailed();
+            return false;
+        }
+
+        _reconnectAttempts++;
+        return true;
+    }
+
+    /// <summary>
+    /// Disposes owned resources.
+    /// </summary>
+    public void Dispose()
+    {
+        _streamManager.Dispose();
+    }
+
+    private bool BufferForReconnect(HttpRequestMessage request)
+    {
+        var frames = EncodeToFrames(request);
+        foreach (var f in frames)
+        {
+            _reconnectBuffer.Add(f);
+        }
+
+        var reconnectStreamId = Tracker.AllocateStreamId();
+        _streamManager.Correlate(reconnectStreamId, request);
+        return true;
+    }
+
+    private bool EncodeAndEmit(HttpRequestMessage request)
+    {
         var encoded = EncodeToFrames(request);
 
-        // Extract and store endpoint for Key propagation (mirrors HTTP/2 pattern)
         var endpoint = request.RequestUri is not null
             ? RequestEndpoint.FromRequest(request)
             : RequestEndpoint.Default;
@@ -283,40 +399,29 @@ public sealed class StateMachine : IDisposable
             Endpoint = endpoint;
         }
 
-        // Track stream lifecycle
         var streamId = Tracker.AllocateStreamId();
         Tracker.OnStreamOpened(streamId);
         Connection.OnStreamOpened();
 
-        // Correlate by stream ID
-        _correlationMap[streamId] = request;
+        _streamManager.Correlate(streamId, request);
 
-        // Emit QPACK encoder instructions (if any) before request frames
         FlushEncoderInstructions();
 
-        // Serialize and emit request frames tagged with the stream ID
-        // so the transport can route them to the correct QUIC stream.
         foreach (var f in encoded)
         {
             EmitSerializedFrame(f, streamId);
         }
 
-        // RFC 9114 §4.1: signal end-of-request so the transport can close the write side (FIN).
         _ops.OnOutbound(new Http3EndOfRequestItem { Key = endpoint, StreamId = streamId });
-
         return true;
     }
 
-    /// <summary>
-    /// Encodes an HttpRequestMessage into HTTP/3 frames (HEADERS + DATA).
-    /// Tags HEADERS with EarlyData flag for idempotent methods when configured.
-    /// </summary>
     private IReadOnlyList<Http3Frame> EncodeToFrames(HttpRequestMessage request)
     {
         OriginValidator.Validate(request.RequestUri!, request.Method == HttpMethod.Connect);
         var frames = _requestEncoder.Encode(request);
 
-        if (_config.AllowEarlyData && IdempotentMethods.Contains(request.Method))
+        if (_options.AllowEarlyData && IdempotentMethods.Contains(request.Method))
         {
             foreach (var f in frames)
             {
@@ -330,63 +435,31 @@ public sealed class StateMachine : IDisposable
         return frames;
     }
 
-    /// <summary>
-    /// Processes bytes from the inbound QPACK decoder stream.
-    /// Deserializes decoder instructions and applies them to the encoder state.
-    /// </summary>
-    public void ProcessQpackDecoderBytes(ReadOnlyMemory<byte> data)
+    private void ReplayBufferedFrames()
     {
-        try
-        {
-            var instructions = _instructionDecoder.DecodeAllDecoderInstructions(data.Span);
+        var oldCorrelations = _streamManager.SnapshotAndClearCorrelations();
+        var toReplay = _reconnectBuffer.ToList();
+        _reconnectBuffer.Clear();
 
-            foreach (var instruction in instructions)
+        var correlationIndex = 0;
+        long currentReplayStreamId = -1;
+
+        foreach (var frame in toReplay)
+        {
+            if (frame is Http3HeadersFrame)
             {
-                _requestEncoder.QpackEncoder.ApplyDecoderInstruction(instruction);
+                currentReplayStreamId = Tracker.AllocateStreamId();
+                Tracker.OnStreamOpened(currentReplayStreamId);
+                Connection.OnStreamOpened();
+
+                if (correlationIndex < oldCorrelations.Count)
+                {
+                    _streamManager.Correlate(currentReplayStreamId, oldCorrelations[correlationIndex++]);
+                }
             }
-        }
-        catch (Exception ex)
-        {
-            _ops.OnWarning($"QPACK decoder stream error absorbed — {ex.Message}");
-        }
-    }
 
-    /// <summary>
-    /// Serializes any pending QPACK encoder instructions and emits them
-    /// as tagged items on the encoder stream. Prepends the stream type prefix
-    /// (VarInt 0x02) on first emission.
-    /// </summary>
-    public void FlushEncoderInstructions()
-    {
-        var instructions = _requestEncoder.EncoderInstructions;
-        if (instructions.Length == 0)
-        {
-            return;
+            EmitSerializedFrame(frame, currentReplayStreamId);
         }
-
-        int totalLength;
-        using var owner = MemoryPool<byte>.Shared.Rent(1 + instructions.Length);
-        var span = owner.Memory.Span;
-
-        if (!_qpackEncoderPrefaceSent)
-        {
-            _qpackEncoderPrefaceSent = true;
-            span[0] = 0x02; // QPACK encoder stream type
-            instructions.Span.CopyTo(span[1..]);
-            totalLength = 1 + instructions.Length;
-        }
-        else
-        {
-            instructions.Span.CopyTo(span);
-            totalLength = instructions.Length;
-        }
-
-        var buf = NetworkBuffer.Rent(totalLength);
-        owner.Memory.Span[..totalLength].CopyTo(buf.FullMemory.Span);
-        buf.Length = totalLength;
-        buf.Key = Endpoint;
-
-        _ops.OnOutbound(new Http3OutputTaggedItem(buf, OutputStreamType.QpackEncoder));
     }
 
     private void EmitSerializedFrame(Http3Frame frame, long streamId = -1)
@@ -407,94 +480,11 @@ public sealed class StateMachine : IDisposable
         }
     }
 
-    private void HandleResponseHeaders(Http3HeadersFrame frame, StreamState state)
+    private void OnStreamClosed(long streamId)
     {
-        if (state.HasResponse)
-        {
-            // Trailing HEADERS — skip (trailers not yet supported)
-            return;
-        }
-
-        var headers = _qpackDecoder.Decode(frame.HeaderBlock.Span);
-        FieldValidator.ValidateResponsePseudoHeaders(headers);
-        FieldValidator.Validate(headers);
-
-        var response = state.InitResponse();
-
-        foreach (var h in headers)
-        {
-            if (h.Name == ":status")
-            {
-                response.StatusCode = (HttpStatusCode)int.Parse(h.Value);
-            }
-            else if (!h.Name.StartsWith(':'))
-            {
-                response.Headers.TryAddWithoutValidation(h.Name, h.Value);
-
-                if (IsContentHeader(h.Name))
-                {
-                    state.AddContentHeader(h.Name, h.Value);
-                }
-            }
-        }
+        Tracker.OnStreamClosed(streamId);
+        Connection.OnStreamClosed();
     }
-
-    private void HandleResponseData(Http3DataFrame frame, StreamState state)
-    {
-        if (!state.HasResponse)
-        {
-            _ops.OnWarning("RFC 9114 §4.1 — DATA frame received before HEADERS; dropping.");
-            return;
-        }
-
-        var data = frame.Data.Span;
-        if (data.Length == 0)
-        {
-            return;
-        }
-
-        state.AppendBody(data);
-    }
-
-    private void EmitResponse(long streamId)
-    {
-        if (!_streams.TryGetValue(streamId, out var state) || !state.HasResponse)
-        {
-            return;
-        }
-
-        var response = state.GetResponse();
-        var (bodyOwner, bodyLength) = state.TakeBodyOwnership();
-
-        if (bodyLength > 0 && bodyOwner is not null)
-        {
-            response.Content = new PooledBodyContent(bodyOwner, bodyLength);
-            state.ApplyContentHeadersTo(response.Content);
-        }
-        else
-        {
-            bodyOwner?.Dispose();
-        }
-
-        // Correlate with the original request by stream ID
-        if (_correlationMap.TryGetValue(streamId, out var request))
-        {
-            response.RequestMessage = request;
-            _correlationMap.Remove(streamId);
-        }
-
-        ResponseProduced = true;
-        _ops.OnResponse(response);
-
-        ReturnStreamState(streamId);
-    }
-
-    private static bool IsContentHeader(string name) =>
-        name.StartsWith("content-", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("allow", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("expires", StringComparison.OrdinalIgnoreCase) ||
-        name.Equals("last-modified", StringComparison.OrdinalIgnoreCase);
-
 
     private void HandleSettings(Http3SettingsFrame settings)
     {
@@ -527,7 +517,7 @@ public sealed class StateMachine : IDisposable
 
     private Http3Frame? HandlePushPromise(Http3PushPromiseFrame pushPromise)
     {
-        if (!_config.AllowServerPush)
+        if (!_options.AllowServerPush)
         {
             var cancelFrame = new Http3CancelPushFrame(pushPromise.PushId);
             EmitSerializedFrame(cancelFrame);
@@ -547,159 +537,5 @@ public sealed class StateMachine : IDisposable
         }
 
         return pushPromise;
-    }
-
-    /// <summary>
-    /// Checks whether the idle timeout has expired with no active streams.
-    /// Returns the GOAWAY frame to send if expired, or null if still active.
-    /// </summary>
-    public Http3GoAwayFrame? CheckIdleTimeout()
-    {
-        if (Connection.IsIdleTimeoutExpired() && Connection.ActiveStreamCount == 0)
-        {
-            _ops.OnWarning("RFC 9114 §5.1 — idle timeout expired with no active streams; sending GOAWAY.");
-            return new Http3GoAwayFrame(0);
-        }
-
-        return null;
-    }
-
-    /// <summary>Whether the idle timeout is disabled (timeout is zero).</summary>
-    public bool IsTimeoutDisabled => Connection.IsTimeoutDisabled;
-
-    /// <summary>Time remaining before the idle timeout expires.</summary>
-    public TimeSpan TimeUntilExpiry() => Connection.TimeUntilExpiry();
-
-    /// <summary>
-    /// Called when the QUIC connection is lost. Enters reconnect state and
-    /// buffers any pending outbound frames for replay.
-    /// </summary>
-    public void OnConnectionLost()
-    {
-        IsReconnecting = true;
-        _reconnectAttempts = 1;
-
-        // Dispose and pool all per-stream state; keep correlation map for replay
-        foreach (var (_, state) in _streams)
-        {
-            state.Reset();
-            if (_statePool.Count < MaxPoolSize)
-            {
-                _statePool.Push(state);
-            }
-        }
-
-        _streams.Clear();
-
-        Tracker.Reset();
-        Connection.Reset();
-        _frameDecoder.Reset();
-        _instructionDecoder.Reset();
-        _controlPrefaceSent = false;
-        _qpackEncoderPrefaceSent = false;
-    }
-
-    /// <summary>
-    /// Called when a new QUIC connection is established after a loss.
-    /// Replays buffered frames via the outbound callback.
-    /// </summary>
-    public void OnConnectionRestored()
-    {
-        IsReconnecting = false;
-        _reconnectAttempts = 0;
-
-        // Re-emit preface on new connection
-        var preface = TryBuildControlPreface();
-        if (preface is not null)
-        {
-            _ops.OnOutbound(preface);
-        }
-
-        // Snapshot and clear old correlation — we'll re-correlate with new stream IDs
-        var oldCorrelations = _correlationMap.Values.ToList();
-        _correlationMap.Clear();
-
-        var toReplay = _reconnectBuffer.ToList();
-        _reconnectBuffer.Clear();
-
-        var correlationIndex = 0;
-        long currentReplayStreamId = -1;
-        foreach (var frame in toReplay)
-        {
-            // Track stream lifecycle for replayed HEADERS and re-correlate
-            if (frame is Http3HeadersFrame)
-            {
-                currentReplayStreamId = Tracker.AllocateStreamId();
-                Tracker.OnStreamOpened(currentReplayStreamId);
-                Connection.OnStreamOpened();
-
-                if (correlationIndex < oldCorrelations.Count)
-                {
-                    _correlationMap[currentReplayStreamId] = oldCorrelations[correlationIndex++];
-                }
-            }
-
-            EmitSerializedFrame(frame, currentReplayStreamId);
-        }
-    }
-
-    /// <summary>
-    /// Called when a reconnect attempt fails. Increments the attempt counter.
-    /// If max attempts exhausted, signals <see cref="IStageOperations.OnReconnectFailed"/>.
-    /// Returns true if another attempt should be made, false if max exceeded.
-    /// </summary>
-    public bool OnReconnectAttemptFailed()
-    {
-        if (_reconnectAttempts >= _config.MaxReconnectAttempts)
-        {
-            _ops.OnReconnectFailed();
-            return false;
-        }
-
-        _reconnectAttempts++;
-        return true;
-    }
-
-    private StreamState RentStreamState(long streamId)
-    {
-        var state = _statePool.TryPop(out var pooled) ? pooled : new StreamState();
-
-        state.Initialize(streamId);
-        return state;
-    }
-
-    private void ReturnStreamState(long streamId)
-    {
-        if (!_streams.Remove(streamId, out var state))
-        {
-            return;
-        }
-
-        state.Reset();
-        if (_statePool.Count < MaxPoolSize)
-        {
-            _statePool.Push(state);
-        }
-    }
-
-    /// <summary>
-    /// Disposes owned resources (frame decoder, per-stream state, instruction decoder).
-    /// </summary>
-    public void Dispose()
-    {
-        _frameDecoder.Dispose();
-        _instructionDecoder.Dispose();
-
-        foreach (var state in _streams.Values)
-        {
-            state.Reset();
-        }
-
-        _streams.Clear();
-
-        while (_statePool.TryPop(out _))
-        {
-            // Pool entries are already reset — just drain
-        }
     }
 }

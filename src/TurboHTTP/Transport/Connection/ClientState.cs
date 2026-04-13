@@ -6,7 +6,6 @@ namespace TurboHTTP.Transport.Connection;
 
 internal sealed class ClientState : IDisposable
 {
-    public int MaxFrameSize { get; }
     public Stream Stream { get; }
     public StreamDirection Direction { get; }
 
@@ -40,12 +39,11 @@ internal sealed class ClientState : IDisposable
         SingleWriter = true
     };
 
-    public ClientState(int maxFrameSize, Stream stream,
+    public ClientState(Stream stream,
         Channel<NetworkBuffer>? inboundChannel,
         Channel<NetworkBuffer>? outboundChannel,
         StreamDirection direction = StreamDirection.Bidirectional)
     {
-        MaxFrameSize = maxFrameSize;
         Stream = stream;
         Direction = direction;
 

@@ -429,7 +429,7 @@ public sealed class HpackEncoder
     /// </summary>
     private static int FindStaticNameMatch(string name)
     {
-        return HpackStaticTable.NameFirstIndex.TryGetValue(name, out var idx) ? idx : 0;
+        return HpackStaticTable.NameFirstIndex.GetValueOrDefault(name, 0);
     }
 
     /// <summary>

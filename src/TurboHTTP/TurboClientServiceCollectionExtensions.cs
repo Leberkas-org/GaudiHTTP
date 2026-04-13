@@ -47,7 +47,7 @@ public static class TurboClientServiceCollectionExtensions
                 var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
                 var maxSubstreams = provider.GetServices<TurboHttpClientName>()
                     .Select(n => optionsMonitor.Get(n.Name).MaxEndpointSubstreams)
-                    .DefaultIfEmpty(TurboClientOptions.DefaultMaxEndpointSubstreams)
+                    .DefaultIfEmpty(256u)
                     .Max();
 
                 var loggerFactory = provider.GetService<ILoggerFactory>();
@@ -141,3 +141,23 @@ public static class TurboClientServiceCollectionExtensions
         return factory.CreateClient(string.Empty);
     }
 }
+
+/// <summary>
+/// Shared keys used to inject a <see cref="PendingRequest"/> and its MRVTSC version token
+/// directly into <see cref="HttpRequestMessage.Options"/> so the pipeline Sink can complete
+/// it without a dictionary lookup (G2). The version token prevents stale completions when
+/// a pooled <see cref="PendingRequest"/> is reused for a new request (E4).
+/// </summary>
+internal static class TcsCorrelation
+{
+    internal static readonly HttpRequestOptionsKey<PendingRequest> Key = new("_tcs");
+    internal static readonly HttpRequestOptionsKey<short> VersionKey = new("_tcs_ver");
+}
+
+/// <summary>
+/// DI marker registered once per <c>AddTurboHttpClient()</c> call.
+/// Resolved via <c>IServiceProvider.GetServices&lt;TurboHttpClientName&gt;()</c>
+/// to determine the maximum <see cref="TurboClientOptions.MaxEndpointSubstreams"/>
+/// across all registered clients for dispatcher thread sizing.
+/// </summary>
+internal sealed record TurboHttpClientName(string Name);

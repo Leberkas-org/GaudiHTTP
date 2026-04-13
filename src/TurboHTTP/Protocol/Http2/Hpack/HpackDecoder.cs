@@ -23,19 +23,18 @@ public readonly record struct HpackHeader(string Name, string Value, bool NeverI
 public sealed class HpackDynamicTable
 {
     // RFC 7541 §4.2 - Default max size: 4096 bytes
-    private int _maxSize = 4096;
-    private int _currentSize;
 
     // Each slot stores the header, its name byte length, and total RFC 7541 §4.1 entry size.
     // NameByteLength is needed for literal header fields that reference an indexed name (§6.2.1/§6.2.2/§6.2.3).
     // EncodedSize (= nameBytes + valueBytes + 32) is used for eviction and header-list-size checks.
     private readonly List<(HpackHeader Header, int NameByteLength, int EncodedSize)> _entries = [];
 
+    // RFC 7541 §4.2 - Default max size: 4096 bytes
     /// <summary>Currently configured maximum table size in bytes.</summary>
-    public int MaxSize => _maxSize;
+    public int MaxSize { get; private set; } = 4096;
 
     /// <summary>Currently occupied table size in bytes.</summary>
-    public int CurrentSize => _currentSize;
+    public int CurrentSize { get; private set; }
 
     /// <summary>
     /// RFC 7541 §4.2 - Sets the maximum table size.
@@ -48,7 +47,7 @@ public sealed class HpackDynamicTable
             throw new HpackException($"Invalid HPACK table size: {newMax}");
         }
 
-        _maxSize = newMax;
+        MaxSize = newMax;
         Evict();
     }
 
@@ -64,14 +63,14 @@ public sealed class HpackDynamicTable
         var entrySize = nameByteLength + valueByteLength + 32;
 
         // RFC 7541 §4.4: Entry larger than MaxSize -> evict everything
-        if (entrySize > _maxSize)
+        if (entrySize > MaxSize)
         {
             Clear();
             return;
         }
 
         _entries.Add((new HpackHeader(name, value), nameByteLength, entrySize));
-        _currentSize += entrySize;
+        CurrentSize += entrySize;
         Evict();
     }
 
@@ -87,7 +86,7 @@ public sealed class HpackDynamicTable
         }
 
         // Newest entry is at the end of the list (index Count-1), dynamic index 1 = newest.
-        return _entries[_entries.Count - dynamicIndex].Header;
+        return _entries[^dynamicIndex].Header;
     }
 
     /// <summary>
@@ -102,7 +101,7 @@ public sealed class HpackDynamicTable
             return null;
         }
 
-        var entry = _entries[_entries.Count - dynamicIndex];
+        var entry = _entries[^dynamicIndex];
         return (entry.Header, entry.NameByteLength, entry.EncodedSize);
     }
 
@@ -111,12 +110,12 @@ public sealed class HpackDynamicTable
 
     private void Evict()
     {
-        while (_currentSize > _maxSize && _entries.Count > 0)
+        while (CurrentSize > MaxSize && _entries.Count > 0)
         {
             // Oldest entry is at the front of the list (index 0).
             // Use cached EncodedSize — no GetByteCount call on eviction.
             var oldest = _entries[0];
-            _currentSize -= oldest.EncodedSize;
+            CurrentSize -= oldest.EncodedSize;
             _entries.RemoveAt(0);
         }
     }
@@ -124,7 +123,7 @@ public sealed class HpackDynamicTable
     private void Clear()
     {
         _entries.Clear();
-        _currentSize = 0;
+        CurrentSize = 0;
     }
 }
 

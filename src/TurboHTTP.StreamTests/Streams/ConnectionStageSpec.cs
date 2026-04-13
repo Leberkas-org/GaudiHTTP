@@ -95,7 +95,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         Build(RequestEndpoint? key = null)
     {
         var endpoint = key ?? TestKey;
-        var state = new ClientState(8192, Stream.Null, null, null);
+        var state = new ClientState(Stream.Null, null, null);
         var handle = ConnectionHandle.CreateDirect(
             state.OutboundWriter, state.InboundReader, endpoint);
         var lease = new ConnectionLease(handle, state);
@@ -394,7 +394,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
     [Fact(Timeout = 15_000)]
     public async Task ConnectionStage_should_emit_close_signal_and_release_lease_when_outbound_channel_closed_during_write()
     {
-        var state = new ClientState(8192, Stream.Null, null, null);
+        var state = new ClientState(Stream.Null, null, null);
         state.OutboundWriter.Complete();
 
         var handle = ConnectionHandle.CreateDirect(

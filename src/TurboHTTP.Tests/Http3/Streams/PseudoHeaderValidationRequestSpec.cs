@@ -290,7 +290,7 @@ public sealed class PseudoHeaderValidationRequestSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Encoder_generates_valid_pseudo_headers_for_get()
     {
-        var encoder = new RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(new QpackTableSync());
         var decoder = new QpackDecoder(maxTableCapacity: 0);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path?q=1");
@@ -308,7 +308,7 @@ public sealed class PseudoHeaderValidationRequestSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Encoder_generates_valid_pseudo_headers_for_post()
     {
-        var encoder = new RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(new QpackTableSync());
         var decoder = new QpackDecoder(maxTableCapacity: 0);
 
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.example.com:8443/submit");
@@ -326,7 +326,7 @@ public sealed class PseudoHeaderValidationRequestSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Encoder_pseudo_headers_before_regular()
     {
-        var encoder = new RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(new QpackTableSync());
         var decoder = new QpackDecoder(maxTableCapacity: 0);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");

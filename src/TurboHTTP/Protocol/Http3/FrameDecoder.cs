@@ -94,8 +94,11 @@ public sealed class FrameDecoder : IDisposable
             // Calculate how many bytes of the original input were consumed
             if (rentedCombined != null)
             {
-                var remainderUsed = Math.Min(totalConsumed, combinedLength - input.Length);
-                bytesConsumed = totalConsumed - remainderUsed;
+                // All input bytes are accounted for: some went into the decoded frame
+                // (together with the old remainder), the rest is buffered as the new remainder.
+                // Returning input.Length prevents DecodeAll from re-passing bytes that are
+                // already captured in the remainder — avoiding double-counting corruption.
+                bytesConsumed = input.Length;
 
                 // Buffer any leftover from combined
                 var leftover = combinedLength - totalConsumed;
@@ -194,6 +197,13 @@ public sealed class FrameDecoder : IDisposable
         }
 
         var headerSize = typeBytes + lengthBytes;
+
+        if (payloadLength > int.MaxValue - headerSize)
+        {
+            throw new Http3Exception(Http3ErrorCode.FrameError,
+                $"HTTP/3 frame payload length {payloadLength} exceeds maximum decodable size.");
+        }
+
         var frameSize = headerSize + (int)payloadLength;
 
         // Need more data for the payload

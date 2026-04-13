@@ -1,7 +1,9 @@
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
+using TurboHTTP;
 using TurboHTTP.Internal;
+using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.StreamTests.Http2;
@@ -18,7 +20,7 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.8")]
     public async Task Http20ConnectionStage_should_emit_reconnect_item_on_abrupt_close_with_inflight()
     {
-        var stage = new Http20ConnectionStage(maxReconnectAttempts: 3);
+        var stage = new Http20ConnectionStage(new Http2Options { MaxReconnectAttempts = 3 }.ToEngineOptions());
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<IInputItem>();
@@ -66,7 +68,7 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.8")]
     public async Task Http20ConnectionStage_should_fail_when_max_reconnect_attempts_exceeded()
     {
-        var stage = new Http20ConnectionStage(maxReconnectAttempts: 1);
+        var stage = new Http20ConnectionStage(new Http2Options { MaxReconnectAttempts = 1 }.ToEngineOptions());
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<IInputItem>();
@@ -113,7 +115,7 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.8")]
     public async Task Http20ConnectionStage_should_complete_normally_on_close_with_no_inflight()
     {
-        var stage = new Http20ConnectionStage(maxReconnectAttempts: 3);
+        var stage = new Http20ConnectionStage(new Http2Options { MaxReconnectAttempts = 3 }.ToEngineOptions());
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<IInputItem>();

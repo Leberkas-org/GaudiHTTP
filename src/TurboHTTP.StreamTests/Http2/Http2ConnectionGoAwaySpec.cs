@@ -1,5 +1,6 @@
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHTTP;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Streams.Stages;
@@ -25,7 +26,7 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage());
+                    var stage = b.Add(new Http20ConnectionStage(new Http2Options().ToEngineOptions()));
                     var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
@@ -37,7 +38,8 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                     return ClosedShape.Instance;
                 }));
 
-        var (downstreamTask, networkTask) = graph.Run(Materializer);
+        var mat = graph.Run(Materializer);
+        var (downstreamTask, networkTask) = (mat.Item1, mat.Item2);
 
         var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         var networkItems = await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
@@ -70,7 +72,7 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage());
+                    var stage = b.Add(new Http20ConnectionStage(new Http2Options().ToEngineOptions()));
 
                     // Server sends GOAWAY then stays open (never finishes)
                     var serverSource = b.Add(
@@ -90,7 +92,8 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                     return ClosedShape.Instance;
                 }));
 
-        var (downstreamTask, networkTask) = graph.Run(Materializer);
+        var mat = graph.Run(Materializer);
+        var (downstreamTask, networkTask) = (mat.Item1, mat.Item2);
 
         await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
 

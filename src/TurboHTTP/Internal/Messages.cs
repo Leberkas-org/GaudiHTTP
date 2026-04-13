@@ -143,6 +143,9 @@ public enum OutputStreamType
 
     /// <summary>Unidirectional QPACK encoder instruction stream (type 0x02).</summary>
     QpackEncoder,
+
+    /// <summary>Unidirectional QPACK decoder instruction stream (type 0x03).</summary>
+    QpackDecoder,
 }
 
 /// <summary>

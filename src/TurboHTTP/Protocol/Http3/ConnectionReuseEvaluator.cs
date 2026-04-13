@@ -6,6 +6,11 @@ namespace TurboHTTP.Protocol.Http3;
 /// RFC 9114 §3.3 — Evaluates whether an HTTP/3 QUIC connection can be reused
 /// for a new request to a different origin. HTTP/3 connections are persistent
 /// and multiplexed, but reuse across origins requires certificate validation.
+///
+/// Certificate hostname matching follows RFC 6125 §6.4:
+/// - Exact match of Subject Alternative Name (SAN) dNSName entries
+/// - Single-level wildcard matching (e.g. *.example.com matches foo.example.com)
+/// - Common Name (CN) fallback only when no SAN dNSName entries exist
 /// </summary>
 public static class ConnectionReuseEvaluator
 {
@@ -76,7 +81,7 @@ public static class ConnectionReuseEvaluator
                 "RFC 9114 §3.3: Port mismatch — connection reuse not permitted.");
         }
 
-        if (!CertificateValidator.CoversHostname(serverCertificate, targetHost))
+        if (!CoversHostname(serverCertificate, targetHost))
         {
             return Http3ConnectionReuseDecision.NewConnection(
                 "RFC 9114 §3.3: Server certificate does not cover target hostname; new connection required.");
@@ -92,6 +97,119 @@ public static class ConnectionReuseEvaluator
         string.Equals(scheme1, scheme2, StringComparison.OrdinalIgnoreCase) &&
         string.Equals(host1, host2, StringComparison.OrdinalIgnoreCase) &&
         port1 == port2;
+
+    /// <summary>
+    /// Returns true if the certificate covers the given hostname via SAN dNSName
+    /// entries or CN fallback, per RFC 6125 §6.4.
+    /// </summary>
+    internal static bool CoversHostname(X509Certificate2 certificate, string hostname)
+    {
+        ArgumentNullException.ThrowIfNull(certificate);
+        ArgumentException.ThrowIfNullOrWhiteSpace(hostname);
+
+        var sanNames = GetSubjectAlternativeNames(certificate);
+        if (sanNames.Count > 0)
+        {
+            foreach (var san in sanNames)
+            {
+                if (MatchesHostname(san, hostname))
+                {
+                    return true;
+                }
+            }
+
+            // RFC 6125 §6.4.4: If SANs exist, CN MUST NOT be used.
+            return false;
+        }
+
+        var cn = GetCommonName(certificate);
+        return cn is not null && MatchesHostname(cn, hostname);
+    }
+
+    internal static List<string> GetSubjectAlternativeNames(X509Certificate2 certificate)
+    {
+        var result = new List<string>();
+
+        foreach (var ext in certificate.Extensions)
+        {
+            if (ext.Oid?.Value != "2.5.29.17")
+            {
+                continue;
+            }
+
+            var formatted = ext.Format(multiLine: true);
+            foreach (var line in formatted.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+            {
+                foreach (var token in line.Split([", "], StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var trimmed = token.Trim();
+
+                    if (trimmed.StartsWith("DNS Name=", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var value = trimmed["DNS Name=".Length..].Trim();
+                        if (value.Length > 0)
+                        {
+                            result.Add(value);
+                        }
+                    }
+                    else if (trimmed.StartsWith("DNS:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var value = trimmed["DNS:".Length..].Trim();
+                        if (value.Length > 0)
+                        {
+                            result.Add(value);
+                        }
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    internal static string? GetCommonName(X509Certificate2 certificate)
+    {
+        var subject = certificate.Subject;
+        const string cnPrefix = "CN=";
+        var idx = subject.IndexOf(cnPrefix, StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+        {
+            return null;
+        }
+
+        var start = idx + cnPrefix.Length;
+        var end = subject.IndexOf(',', start);
+        var cn = end < 0
+            ? subject[start..]
+            : subject[start..end];
+
+        return cn.Trim();
+    }
+
+    internal static bool MatchesHostname(string certName, string hostname)
+    {
+        if (string.Equals(certName, hostname, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (certName.StartsWith("*.", StringComparison.Ordinal) && certName.Length > 2)
+        {
+            var wildcardSuffix = certName[1..];
+
+            var dotIndex = hostname.IndexOf('.', StringComparison.Ordinal);
+            if (dotIndex > 0)
+            {
+                var hostSuffix = hostname[dotIndex..];
+                if (string.Equals(hostSuffix, wildcardSuffix, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 }
 
 /// <summary>

@@ -31,7 +31,8 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
                 Source.Queue<HttpRequestMessage>(16, OverflowStrategy.Backpressure),
                 (b, reqSrc) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage(new Http2ConnectionConfig(MaxConcurrentStreams: maxConcurrentStreams)));
+                    var stage = b.Add(new Http20ConnectionStage(
+                        new Http2Options { MaxConcurrentStreams = maxConcurrentStreams }.ToEngineOptions()));
                     var srvSrc = b.Add(Source.FromPublisher(serverProbe));
 
                     b.From(srvSrc).To(stage.InServer);
@@ -49,7 +50,8 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
 
     private static async Task OfferAsync(ISourceQueueWithComplete<HttpRequestMessage> queue, HttpRequestMessage request)
     {
-        var result = await queue.OfferAsync(request).WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        var result = await queue.OfferAsync(request)
+            .WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         Assert.IsType<QueueOfferResult.Enqueued>(result);
     }
 
@@ -58,8 +60,7 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
     /// each request produces a NetworkBuffer (containing the HeadersFrame) and a
     /// StreamAcquireItem signal — both come through OutNetwork.
     /// </summary>
-    private static void ExpectRequestOutput(
-        TestSubscriber.ManualProbe<IOutputItem> networkProbe,
+    private static void ExpectRequestOutput(TestSubscriber.ManualProbe<IOutputItem> networkProbe,
         int expectedItems = 2)
     {
         for (var i = 0; i < expectedItems; i++)
@@ -68,21 +69,16 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
         }
     }
 
-    private static async Task<int> FillStreamsAsync(
-        ISourceQueueWithComplete<HttpRequestMessage> queue,
+    private static async Task FillStreamsAsync(ISourceQueueWithComplete<HttpRequestMessage> queue,
         TestSubscriber.ManualProbe<IOutputItem> networkProbe,
         int count)
     {
-        var streamId = 1;
         for (var i = 0; i < count; i++)
         {
             await OfferAsync(queue, new HttpRequestMessage(HttpMethod.Get, "http://example.com/"));
             // Each request produces a NetworkBuffer (frame data) + StreamAcquireItem (signal)
             ExpectRequestOutput(networkProbe);
-            streamId += 2;
         }
-
-        return streamId;
     }
 
     /// <summary>
@@ -101,8 +97,8 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
     {
         var (requestQueue, _, networkProbe, appOutProbe) = CreateProbes(3);
 
-        var appOutSub = appOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
-        var networkSub = networkProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var appOutSub = await appOutProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var networkSub = await networkProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         appOutSub.Request(100);
         networkSub.Request(100);
@@ -122,15 +118,15 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
     {
         var (requestQueue, serverProbe, networkProbe, appOutProbe) = CreateProbes(3);
 
-        var appOutSub = appOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
-        var networkSub = networkProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var appOutSub = await appOutProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var networkSub = await networkProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         appOutSub.Request(100);
         networkSub.Request(100);
 
         DrainPreface(networkProbe);
 
-        var srvSub = serverProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         await FillStreamsAsync(requestQueue, networkProbe, 3);
 
@@ -152,15 +148,15 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
     {
         var (requestQueue, serverProbe, networkProbe, appOutProbe) = CreateProbes(3);
 
-        var appOutSub = appOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
-        var networkSub = networkProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var appOutSub = await appOutProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var networkSub = await networkProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         appOutSub.Request(100);
         networkSub.Request(100);
 
         DrainPreface(networkProbe);
 
-        var srvSub = serverProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         await FillStreamsAsync(requestQueue, networkProbe, 3);
 
@@ -175,19 +171,20 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC9113-5.1.2")]
-    public async Task Http2ConnectionBackpressure_should_enforce_new_concurrent_streams_limit_when_settings_updated_mid_session()
+    public async Task
+        Http2ConnectionBackpressure_should_enforce_new_concurrent_streams_limit_when_settings_updated_mid_session()
     {
         var (requestQueue, serverProbe, networkProbe, appOutProbe) = CreateProbes(100);
 
-        var appOutSub = appOutProbe.ExpectSubscription(TestContext.Current.CancellationToken);
-        var networkSub = networkProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var appOutSub = await appOutProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var networkSub = await networkProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         appOutSub.Request(100);
         networkSub.Request(100);
 
         DrainPreface(networkProbe);
 
-        var srvSub = serverProbe.ExpectSubscription(TestContext.Current.CancellationToken);
+        var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         await FillStreamsAsync(requestQueue, networkProbe, 2);
 
@@ -195,8 +192,8 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
             [(SettingsParameter.MaxConcurrentStreams, 2u)])));
 
         // SETTINGS ACK (NetworkBuffer) + MaxConcurrentStreamsItem signal — both on OutNetwork
-        networkProbe.ExpectNext(TestContext.Current.CancellationToken);
-        networkProbe.ExpectNext(TestContext.Current.CancellationToken);
+        await networkProbe.ExpectNextAsync(TestContext.Current.CancellationToken);
+        await networkProbe.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // The stage had an outstanding pull from when limit was 100.
         // That in-flight pull will be satisfied by the next offered element regardless of the new limit.

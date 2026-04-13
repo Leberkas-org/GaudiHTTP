@@ -2,6 +2,7 @@ namespace TurboHTTP;
 
 /// <summary>
 /// HTTP/3-specific configuration options.
+/// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c>.
 /// </summary>
 public sealed class Http3Options
 {
@@ -64,6 +65,22 @@ public sealed class Http3Options
     /// Default is true. RFC 9000 §9.
     /// </summary>
     public bool AllowConnectionMigration { get; set; } = true;
+
+    /// <summary>
+    /// Whether to allow the server to push resources via PUSH_PROMISE frames (RFC 9114 §7.2.5).
+    /// When enabled, the client advertises a MAX_PUSH_ID and accepts server push promises.
+    /// When disabled, received PUSH_PROMISE frames are rejected with CANCEL_PUSH.
+    /// Default is false.
+    /// </summary>
+    public bool AllowServerPush { get; set; }
+
+    /// <summary>
+    /// Maximum batch weight in bytes for HTTP/3 frame encoding.
+    /// Frames are accumulated into batches up to this weight before being serialized into a single buffer,
+    /// reducing allocations and memory copies under concurrent load. Higher values increase throughput
+    /// at the cost of latency variance. Default is 64 KiB. TurboHttp-specific.
+    /// </summary>
+    public long MaxBatchWeight { get; set; } = 262_144;
 
     /// <summary>
     /// Whether to automatically discover HTTP/3 availability via Alt-Svc headers (RFC 7838)

@@ -11,11 +11,13 @@ namespace TurboHTTP.Protocol.Http11;
 public sealed class StateMachine
 {
     private readonly IStageOperations _ops;
-    private readonly Decoder _decoder = new();
+    private readonly Decoder _decoder;
     private readonly int _minBufferSize;
     private readonly int _maxBufferSize;
     private readonly int _maxPipelineDepth;
     private readonly int _maxReconnectAttempts;
+    private readonly int _maxResponseDrainSize;
+    private readonly TimeSpan _responseDrainTimeout;
 
     private readonly Queue<HttpRequestMessage> _inFlightQueue = new();
     private int _effectivePipelineDepth;
@@ -59,14 +61,20 @@ public sealed class StateMachine
         int maxPipelineDepth = 8,
         int maxReconnectAttempts = 3,
         int minBufferSize = 4 * 1024,
-        int maxBufferSize = 256 * 1024)
+        int maxBufferSize = 256 * 1024,
+        int maxResponseHeadersLength = 64,
+        int maxResponseDrainSize = 1024 * 1024,
+        TimeSpan? responseDrainTimeout = null)
     {
         _ops = ops;
+        _decoder = new Decoder(maxTotalHeaderSize: maxResponseHeadersLength * 1024);
         _maxPipelineDepth = maxPipelineDepth;
         _effectivePipelineDepth = maxPipelineDepth;
         _maxReconnectAttempts = maxReconnectAttempts;
         _minBufferSize = minBufferSize;
         _maxBufferSize = maxBufferSize;
+        _maxResponseDrainSize = maxResponseDrainSize;
+        _responseDrainTimeout = responseDrainTimeout ?? TimeSpan.FromSeconds(2);
     }
 
     /// <summary>
@@ -136,66 +144,74 @@ public sealed class StateMachine
 
         if (inputItem is not NetworkBuffer buffer)
         {
-            return true; // pull more
+            return true;
         }
 
-        // If we're accumulating a connection-close-delimited body,
-        // take ownership of the buffer instead of copying to byte[].
         if (_pendingCloseDelimitedResponse is not null)
         {
-            _bodyOwners ??= [];
-            _bodyOwners.Add(buffer);
-            return true; // pull more body data
+            return AccumulateCloseDelimitedBody(buffer);
         }
 
+        return DecodeNormalResponse(buffer);
+    }
+
+    private bool AccumulateCloseDelimitedBody(NetworkBuffer buffer)
+    {
+        _bodyOwners ??= [];
+        _bodyOwners.Add(buffer);
+        return true;
+    }
+
+    private bool DecodeNormalResponse(NetworkBuffer buffer)
+    {
         try
         {
             var data = buffer.Memory;
 
-            if (_decoder.TryDecode(data, out var responses))
+            if (!_decoder.TryDecode(data, out var responses))
             {
                 buffer.Dispose();
-
-                // Check if the last response is connection-close-delimited
-                var last = responses[^1];
-                if (IsCloseDelimited(last))
-                {
-                    // Emit all responses except the last one
-                    for (var i = 0; i < responses.Count - 1; i++)
-                    {
-                        CompleteResponse(responses[i]);
-                    }
-
-                    // Hold the last response — body is delimited by connection close
-                    _pendingCloseDelimitedResponse = last;
-                    _bodyOwners = [];
-
-                    // Flush any body data the decoder stored in its remainder
-                    var remainder = _decoder.FlushRemainder();
-                    _initialBodyBytes = remainder.Length > 0 ? remainder : null;
-
-                    return true; // pull more body data
-                }
-
-                foreach (var response in responses)
-                {
-                    CompleteResponse(response);
-                }
-
-                return false;
+                return true;
             }
 
-            // Not enough data yet – return the buffer and wait for more
             buffer.Dispose();
-            return true; // pull more
+
+            var last = responses[^1];
+            if (IsCloseDelimited(last))
+            {
+                return BeginCloseDelimitedResponse(responses);
+            }
+
+            foreach (var response in responses)
+            {
+                CompleteResponse(response);
+            }
+
+            return false;
         }
         catch (Exception ex)
         {
             buffer.Dispose();
             _ops.OnWarning($"Failed to decode response: {ex.Message}");
             _decoder.Reset();
-            return true; // pull more
+            return true;
         }
+    }
+
+    private bool BeginCloseDelimitedResponse(IReadOnlyList<HttpResponseMessage> responses)
+    {
+        for (var i = 0; i < responses.Count - 1; i++)
+        {
+            CompleteResponse(responses[i]);
+        }
+
+        _pendingCloseDelimitedResponse = responses[^1];
+        _bodyOwners = [];
+
+        var remainder = _decoder.FlushRemainder();
+        _initialBodyBytes = remainder.Length > 0 ? remainder : null;
+
+        return true;
     }
 
     /// <summary>
@@ -258,7 +274,7 @@ public sealed class StateMachine
     /// Called when ConnectedSignalItem arrives. Replays all buffered requests over the new connection.
     /// Resets the decoder so stale partial response data from the old connection is discarded.
     /// </summary>
-    public void HandleConnectedSignal()
+    public void OnConnectionRestored()
     {
         IsReconnecting = false;
         _reconnectAttempts = 0;
@@ -278,7 +294,7 @@ public sealed class StateMachine
     /// Called when a CloseSignalItem arrives while already reconnecting (reconnect attempt failed).
     /// Increments the attempt counter; emits a new ReconnectItem or calls OnReconnectFailed.
     /// </summary>
-    public void HandleReconnectAttempt()
+    public void OnReconnectAttemptFailed()
     {
         if (_reconnectAttempts >= _maxReconnectAttempts)
         {

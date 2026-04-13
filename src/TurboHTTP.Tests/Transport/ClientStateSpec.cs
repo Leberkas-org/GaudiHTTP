@@ -18,7 +18,7 @@ public sealed class ClientStateSpec
         var outbound = Channel.CreateUnbounded<NetworkBuffer>();
         var stream = new MemoryStream();
 
-        var state = new ClientState(65536, stream, inbound, outbound);
+        var state = new ClientState(stream, inbound, outbound);
 
         var buf1 = NetworkBufferTestExtensions.FromArray(new byte[64]);
         var buf2 = NetworkBufferTestExtensions.FromArray(new byte[128]);
@@ -40,7 +40,7 @@ public sealed class ClientStateSpec
         var outbound = Channel.CreateUnbounded<NetworkBuffer>();
         var stream = new MemoryStream();
 
-        var state = new ClientState(65536, stream, inbound, outbound);
+        var state = new ClientState(stream, inbound, outbound);
 
         var buf = NetworkBufferTestExtensions.FromArray(new byte[256]);
         state.OutboundWriter.TryWrite(buf);

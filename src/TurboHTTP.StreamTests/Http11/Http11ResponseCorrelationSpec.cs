@@ -8,15 +8,13 @@ namespace TurboHTTP.StreamTests.Http11;
 /// Verifies that RequestMessage is correctly set on each response when requests are sent through the pipeline.
 /// </summary>
 /// <remarks>
-/// Stage under test: <see cref="CorrelationHttp1XStage"/>.
 /// RFC 9112 §9.3: HTTP/1.1 pipeline ordering ensuring request-response identity is preserved.
 /// </remarks>
 public sealed class Http11ResponseCorrelationSpec : EngineTestBase
 {
-    private static readonly Func<byte[]> Ok200 =
-        () => "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
+    private static readonly Func<byte[]> Ok200 = () => "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
 
-    private static Http11Engine Engine => new();
+    private static Http11Engine Engine => new(new Http1EngineOptions(16, 6, 3, 64 * 1024, 64, 1024 * 1024, TimeSpan.FromSeconds(2)));
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC9112-9.3")]
@@ -67,7 +65,7 @@ public sealed class Http11ResponseCorrelationSpec : EngineTestBase
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Http11ResponseCorrelation_should_preserve_correlation_when_fake_tcp_used()
     {
-        var engine = new Http11Engine();
+        var engine = new Http11Engine(new Http1EngineOptions(16, 6, 3, 64 * 1024, 64, 1024 * 1024, TimeSpan.FromSeconds(2)));
 
         var request1 = new HttpRequestMessage(HttpMethod.Get, "http://a.test/one");
         var request2 = new HttpRequestMessage(HttpMethod.Get, "http://a.test/two");

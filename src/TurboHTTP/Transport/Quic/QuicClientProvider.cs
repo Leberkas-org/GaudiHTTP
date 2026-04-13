@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Runtime.Versioning;
-
 using TurboHTTP.Transport.Connection;
+
 namespace TurboHTTP.Transport.Quic;
 
 /// <summary>
@@ -32,7 +32,8 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
 
         try
         {
-            var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct).ConfigureAwait(false);
+            var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct)
+                .ConfigureAwait(false);
 
             // When 0-RTT early data is enabled, verify the stream is writable.
             // If the server rejected 0-RTT, CanWrite will be false until the full
@@ -62,8 +63,13 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
     /// </summary>
     public sealed class EarlyDataRejectedException : Exception
     {
-        public EarlyDataRejectedException(string message) : base(message) { }
-        public EarlyDataRejectedException(string message, Exception innerException) : base(message, innerException) { }
+        public EarlyDataRejectedException(string message) : base(message)
+        {
+        }
+
+        public EarlyDataRejectedException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
     }
 
     public async Task<Stream> GetUnidirectionalStreamAsync(CancellationToken ct = default)
@@ -141,7 +147,7 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
             {
                 RemoteEndPoint = new DnsEndPoint(options.Host, options.Port),
                 DefaultStreamErrorCode = 0x0100, // H3_NO_ERROR
-                DefaultCloseErrorCode = 0x0100,  // H3_NO_ERROR
+                DefaultCloseErrorCode = 0x0100, // H3_NO_ERROR
                 MaxInboundBidirectionalStreams = options.MaxBidirectionalStreams,
                 MaxInboundUnidirectionalStreams = options.MaxUnidirectionalStreams,
                 IdleTimeout = options.IdleTimeout,

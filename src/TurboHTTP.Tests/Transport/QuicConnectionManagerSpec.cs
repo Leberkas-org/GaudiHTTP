@@ -26,8 +26,7 @@ public sealed class QuicConnectionManagerSpec
     private static QuicOptions CreateTestOptions() => new()
     {
         Host = "localhost",
-        Port = 8443,
-        MaxFrameSize = 16384,
+        Port = 8443
     };
 
     private static QuicConnectionHandle CreateHandle(FakeClientProvider provider)
@@ -39,7 +38,8 @@ public sealed class QuicConnectionManagerSpec
         var provider = new FakeClientProvider();
         await using var handle = CreateHandle(provider);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(OutputStreamType.Request,
+            TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
         Assert.True(lease.IsAlive);
@@ -54,7 +54,8 @@ public sealed class QuicConnectionManagerSpec
         var provider = new FakeClientProvider();
         await using var handle = CreateHandle(provider);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(OutputStreamType.Control, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(OutputStreamType.Control,
+            TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
         Assert.True(lease.IsAlive);
@@ -68,7 +69,8 @@ public sealed class QuicConnectionManagerSpec
         var provider = new FakeClientProvider();
         await using var handle = CreateHandle(provider);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(OutputStreamType.QpackEncoder, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(OutputStreamType.QpackEncoder,
+            TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
         Assert.True(lease.IsAlive);
@@ -82,8 +84,10 @@ public sealed class QuicConnectionManagerSpec
         var provider = new FakeClientProvider();
         await using var handle = CreateHandle(provider);
 
-        var lease1 = await handle.OpenStreamAsLeaseAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
-        var lease2 = await handle.OpenStreamAsLeaseAsync(OutputStreamType.Control, TestContext.Current.CancellationToken);
+        var lease1 =
+            await handle.OpenStreamAsLeaseAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
+        var lease2 =
+            await handle.OpenStreamAsLeaseAsync(OutputStreamType.Control, TestContext.Current.CancellationToken);
 
         Assert.True(lease1.IsAlive);
         Assert.True(lease2.IsAlive);
@@ -127,8 +131,8 @@ public sealed class QuicConnectionManagerSpec
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => handle.OpenStreamAsLeaseAsync(OutputStreamType.Request, cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            handle.OpenStreamAsLeaseAsync(OutputStreamType.Request, cts.Token));
     }
 
     [Fact(Timeout = 5000)]
@@ -149,7 +153,8 @@ public sealed class QuicConnectionManagerSpec
         var provider = new FakeClientProvider();
         await using var handle = CreateHandle(provider);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(OutputStreamType.Request, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(OutputStreamType.Request,
+            TestContext.Current.CancellationToken);
         var inbound = new QuicConnectionHandle.InboundStream(lease, InputStreamType.Control);
 
         Assert.Same(lease, inbound.Lease);

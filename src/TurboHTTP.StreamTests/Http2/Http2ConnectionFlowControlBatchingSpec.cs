@@ -1,5 +1,6 @@
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHTTP;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Streams;
@@ -30,7 +31,7 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage(new Http2ConnectionConfig(InitialRecvWindowSize: initialWindowSize)));
+                    var stage = b.Add(new Http20ConnectionStage(new Http2Options { InitialConnectionWindowSize = initialWindowSize }.ToEngineOptions()));
                     var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
@@ -42,7 +43,8 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
                     return ClosedShape.Instance;
                 }));
 
-        var (downstreamTask, networkTask) = graph.Run(Materializer);
+        var mat = graph.Run(Materializer);
+        var (downstreamTask, networkTask) = (mat.Item1, mat.Item2);
 
         var downstream = await downstreamTask.WaitAsync(
             TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
@@ -53,11 +55,11 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
     }
 
     [Fact(Timeout = 5_000)]
-    public void Http2Engine_should_have_one_mib_initial_window_when_default_constructor_used()
+    public void Http2Engine_should_have_64_mib_initial_connection_window_when_default_options_used()
     {
-        var engine = new Http20Engine();
+        var options = new Http2Options();
 
-        Assert.Equal(1_048_576, engine.InitialWindowSize);
+        Assert.Equal(64 * 1024 * 1024, options.InitialConnectionWindowSize);
     }
 
     [Fact(Timeout = 5_000)]

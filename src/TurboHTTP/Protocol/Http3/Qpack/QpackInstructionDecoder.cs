@@ -142,7 +142,7 @@ public sealed class QpackInstructionDecoder : IDisposable
         else if (data.Length == 0)
         {
             // Only remainder present — parse it as-is
-            span = _remainderOwner!.Memory.Span.Slice(0, _remainderLength);
+            span = _remainderOwner!.Memory.Span[.._remainderLength];
             spanLength = _remainderLength;
         }
         else
@@ -150,9 +150,9 @@ public sealed class QpackInstructionDecoder : IDisposable
             // Combine remainder + new data into a pooled working buffer
             spanLength = _remainderLength + data.Length;
             rentedCombined = MemoryPool<byte>.Shared.Rent(spanLength);
-            _remainderOwner!.Memory.Span.Slice(0, _remainderLength).CopyTo(rentedCombined.Memory.Span);
-            data.CopyTo(rentedCombined.Memory.Span.Slice(_remainderLength));
-            span = rentedCombined.Memory.Span.Slice(0, spanLength);
+            _remainderOwner!.Memory.Span[.._remainderLength].CopyTo(rentedCombined.Memory.Span);
+            data.CopyTo(rentedCombined.Memory.Span[_remainderLength..]);
+            span = rentedCombined.Memory.Span[..spanLength];
             _remainderOwner?.Dispose();
             _remainderOwner = null;
             _remainderLength = 0;
@@ -219,7 +219,7 @@ public sealed class QpackInstructionDecoder : IDisposable
             if (pos < spanLength)
             {
                 _remainderOwner = MemoryPool<byte>.Shared.Rent(spanLength - pos);
-                span.Slice(pos).CopyTo(_remainderOwner.Memory.Span);
+                span[pos..].CopyTo(_remainderOwner.Memory.Span);
                 _remainderLength = spanLength - pos;
             }
             else
@@ -283,7 +283,7 @@ public sealed class QpackInstructionDecoder : IDisposable
         else if (data.Length == 0)
         {
             // Only remainder present — parse it as-is
-            span = _remainderOwner!.Memory.Span.Slice(0, _remainderLength);
+            span = _remainderOwner!.Memory.Span[.._remainderLength];
             spanLength = _remainderLength;
         }
         else
@@ -291,9 +291,9 @@ public sealed class QpackInstructionDecoder : IDisposable
             // Combine remainder + new data into a pooled working buffer
             spanLength = _remainderLength + data.Length;
             rentedCombined = MemoryPool<byte>.Shared.Rent(spanLength);
-            _remainderOwner!.Memory.Span.Slice(0, _remainderLength).CopyTo(rentedCombined.Memory.Span);
-            data.CopyTo(rentedCombined.Memory.Span.Slice(_remainderLength));
-            span = rentedCombined.Memory.Span.Slice(0, spanLength);
+            _remainderOwner!.Memory.Span[.._remainderLength].CopyTo(rentedCombined.Memory.Span);
+            data.CopyTo(rentedCombined.Memory.Span[_remainderLength..]);
+            span = rentedCombined.Memory.Span[..spanLength];
             _remainderOwner?.Dispose();
             _remainderOwner = null;
             _remainderLength = 0;
@@ -343,7 +343,7 @@ public sealed class QpackInstructionDecoder : IDisposable
             if (pos < spanLength)
             {
                 _remainderOwner = MemoryPool<byte>.Shared.Rent(spanLength - pos);
-                span.Slice(pos).CopyTo(_remainderOwner.Memory.Span);
+                span[pos..].CopyTo(_remainderOwner.Memory.Span);
                 _remainderLength = spanLength - pos;
             }
             else

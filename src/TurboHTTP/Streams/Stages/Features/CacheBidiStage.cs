@@ -216,9 +216,23 @@ internal sealed class CacheBidiStage
 
             var entry = _stage._store.Get(request);
             var result = CacheFreshnessEvaluator.Evaluate(entry, request, DateTimeOffset.UtcNow, _stage._policy);
-
-            // Emit a "TurboHTTP.CacheLookup" span with cache.hit tag
             var isHit = result.Status is CacheLookupStatus.Fresh or CacheLookupStatus.Stale;
+
+            EmitCacheTelemetry(request, isHit);
+
+            if (isHit)
+            {
+                HandleCacheHit(request, result);
+            }
+            else
+            {
+                HandleCacheMiss(request, result);
+            }
+        }
+
+        private void EmitCacheTelemetry(HttpRequestMessage request, bool isHit)
+        {
+            // Emit a "TurboHTTP.CacheLookup" span with cache.hit tag
             var previous = Activity.Current;
             if (request.Options.TryGetValue(TurboHttpInstrumentation.RequestActivityKey, out var rootActivity))
             {
@@ -248,49 +262,50 @@ internal sealed class CacheBidiStage
                 TurboHttpEventSource.Instance.CacheMiss(uri);
                 TurboTrace.Cache.Info(this, "Cache miss: {0}", uri);
             }
+        }
 
-            if (isHit)
+        private void HandleCacheHit(HttpRequestMessage request, CacheLookupResult result)
+        {
+            // RFC 9111 §5.1 — inject Age header on every cached response
+            var cachedResponse = result.Entry!.Response;
+            CacheFreshnessEvaluator.InjectAgeHeader(cachedResponse, result.Entry, DateTimeOffset.UtcNow);
+
+            // RFC 9111 §5.2.2.3 — strip qualified no-cache fields before serving
+            StripNoCacheFields(cachedResponse, result.Entry.CacheControl);
+
+            // Bind the cached response to the request so the pipeline Sink
+            // can extract the TCS from request Options and complete it (G2).
+            cachedResponse.RequestMessage = request;
+
+            // Cache hit — short-circuit to response output
+            if (IsAvailable(_stage._outResponse))
             {
-                // RFC 9111 §5.1 — inject Age header on every cached response
-                var cachedResponse = result.Entry!.Response;
-                CacheFreshnessEvaluator.InjectAgeHeader(cachedResponse, result.Entry, DateTimeOffset.UtcNow);
-
-                // RFC 9111 §5.2.2.3 — strip qualified no-cache fields before serving
-                StripNoCacheFields(cachedResponse, result.Entry.CacheControl);
-
-                // Bind the cached response to the request so the pipeline Sink
-                // can extract the TCS from request Options and complete it (G2).
-                cachedResponse.RequestMessage = request;
-
-                // Cache hit — short-circuit to response output
-                if (IsAvailable(_stage._outResponse))
-                {
-                    Push(_stage._outResponse, cachedResponse);
-                    // Stay Idle, pull next request if engine has demand
-                    MaybePullNextRequest();
-                }
-                else
-                {
-                    _bufferedHitResponse = cachedResponse;
-                    _state = CacheState.HitBuffered;
-                }
+                Push(_stage._outResponse, cachedResponse);
+                // Stay Idle, pull next request if engine has demand
+                MaybePullNextRequest();
             }
             else
             {
-                // Miss or MustRevalidate — forward to engine
-                var isRevalidation = result is { Status: CacheLookupStatus.MustRevalidate, Entry: not null };
-                var outgoing = isRevalidation
-                    ? CacheValidationRequestBuilder.BuildConditionalRequest(request, result.Entry!)
-                    : request;
-
-                if (isRevalidation)
-                {
-                    outgoing.Options.Set(RevalidationKey, true);
-                }
-
-                Push(_stage._outRequest, outgoing);
-                _state = CacheState.Forwarded;
+                _bufferedHitResponse = cachedResponse;
+                _state = CacheState.HitBuffered;
             }
+        }
+
+        private void HandleCacheMiss(HttpRequestMessage request, CacheLookupResult result)
+        {
+            // Miss or MustRevalidate — forward to engine
+            var isRevalidation = result is { Status: CacheLookupStatus.MustRevalidate, Entry: not null };
+            var outgoing = isRevalidation
+                ? CacheValidationRequestBuilder.BuildConditionalRequest(request, result.Entry!)
+                : request;
+
+            if (isRevalidation)
+            {
+                outgoing.Options.Set(RevalidationKey, true);
+            }
+
+            Push(_stage._outRequest, outgoing);
+            _state = CacheState.Forwarded;
         }
 
         private void OnResponsePush()

@@ -260,7 +260,8 @@ public sealed class FrameRoundTripSpec
     private static byte[] Encode(Http3Frame frame)
     {
         var buf = new byte[frame.SerializedSize];
-        FrameEncoder.Encode(frame, buf);
+        var span = buf.AsSpan();
+        frame.WriteTo(ref span);
         return buf;
     }
 

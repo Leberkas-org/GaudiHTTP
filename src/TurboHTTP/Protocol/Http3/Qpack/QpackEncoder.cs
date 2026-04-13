@@ -69,9 +69,7 @@ public sealed class QpackEncoder
     /// is transmitted on the request stream.
     /// </summary>
     public ReadOnlyMemory<byte> EncoderInstructions =>
-        _instructionOwner is not null
-            ? _instructionOwner.Memory[.._instructionBytesWritten]
-            : ReadOnlyMemory<byte>.Empty;
+        _instructionOwner?.Memory[.._instructionBytesWritten] ?? ReadOnlyMemory<byte>.Empty;
 
     /// <summary>
     /// RFC 9204 §4.4 — The Known Received Count: the number of dynamic table inserts
@@ -212,129 +210,146 @@ public sealed class QpackEncoder
                 throw new QpackException("RFC 9204 violation: empty header name is not allowed.");
             }
 
-            var isSensitive = SensitiveHeaders.Contains(name);
-            var entry = new HeaderEncodingEntry();
-
-            // 1. Try exact match in static table
-            var staticExact = QpackStaticTable.FindExact(name, value);
-            if (staticExact >= 0 && !isSensitive)
-            {
-                entry.Type = HeaderEncodingType.StaticIndexed;
-                entry.Index = staticExact;
-                entries[i] = entry;
-                continue;
-            }
-
-            // 2. Try exact match in dynamic table
-            if (_enableDynamicTable && !isSensitive)
-            {
-                var dynExact = FindDynamicExact(name, value);
-                if (dynExact >= 0)
-                {
-                    entry.Type = HeaderEncodingType.DynamicIndexed;
-                    entry.Index = dynExact;
-                    entries[i] = entry;
-                    if (dynExact > maxAbsoluteIndexReferenced)
-                    {
-                        maxAbsoluteIndexReferenced = dynExact;
-                    }
-
-                    continue;
-                }
-            }
-
-            // 3. Try name-only match (static preferred over dynamic)
-            var staticName = QpackStaticTable.FindName(name);
-            var dynamicName = _enableDynamicTable ? FindDynamicName(name) : -1;
-
-            // 4. Insert into dynamic table if not sensitive and table is enabled
-            if (_enableDynamicTable && !isSensitive)
-            {
-                var insertedIdx = DynamicTable.Insert(name, value);
-                if (insertedIdx >= 0)
-                {
-                    // Emit encoder instruction for the insert
-                    if (staticName >= 0)
-                    {
-                        WriteInstructionToBuffer(
-                            (ref Span<byte> s) => QpackEncoderInstructionWriter.WriteInsertWithNameReference(
-                                staticName, true, value, ref s));
-                    }
-                    else if (dynamicName >= 0)
-                    {
-                        // Dynamic table name reference uses relative index in instructions
-                        var relIdx = DynamicTable.InsertCount - 1 - dynamicName;
-                        WriteInstructionToBuffer(
-                            (ref Span<byte> s) => QpackEncoderInstructionWriter.WriteInsertWithNameReference(
-                                relIdx, false, value, ref s));
-                    }
-                    else
-                    {
-                        WriteInstructionToBuffer(
-                            (ref Span<byte> s) => QpackEncoderInstructionWriter.WriteInsertWithLiteralName(
-                                name, value, ref s));
-                    }
-
-                    // Reference the newly inserted entry
-                    entry.Type = HeaderEncodingType.DynamicIndexed;
-                    entry.Index = insertedIdx;
-                    if (insertedIdx > maxAbsoluteIndexReferenced)
-                    {
-                        maxAbsoluteIndexReferenced = insertedIdx;
-                    }
-
-                    entries[i] = entry;
-                    continue;
-                }
-            }
-
-            // 5. Fall back to literal encoding
-            if (isSensitive)
-            {
-                if (staticName >= 0)
-                {
-                    entry.Type = HeaderEncodingType.LiteralWithStaticNameNeverIndex;
-                    entry.Index = staticName;
-                }
-                else
-                {
-                    entry.Type = HeaderEncodingType.LiteralNeverIndex;
-                    entry.Index = -1;
-                }
-            }
-            else
-            {
-                if (staticName >= 0)
-                {
-                    entry.Type = HeaderEncodingType.LiteralWithStaticName;
-                    entry.Index = staticName;
-                }
-                else if (dynamicName >= 0)
-                {
-                    entry.Type = HeaderEncodingType.LiteralWithDynamicName;
-                    entry.Index = dynamicName;
-                    if (dynamicName > maxAbsoluteIndexReferenced)
-                    {
-                        maxAbsoluteIndexReferenced = dynamicName;
-                    }
-                }
-                else
-                {
-                    entry.Type = HeaderEncodingType.Literal;
-                    entry.Index = -1;
-                }
-            }
-
-            entries[i] = entry;
+            entries[i] = ClassifyHeader(name, value, ref maxAbsoluteIndexReferenced);
         }
 
-        // Required Insert Count = highest absolute index referenced + 1 (or 0 if no dynamic refs)
         var requiredInsertCount = maxAbsoluteIndexReferenced >= 0 ? maxAbsoluteIndexReferenced + 1 : 0;
-
-        // Base = Required Insert Count (simplest: delta base = 0, sign = 0)
-        // All dynamic references are pre-base.
-
         return new EncodingPlan(entries, requiredInsertCount, requiredInsertCount);
+    }
+
+    private HeaderEncodingEntry ClassifyHeader(string name, string value, ref int maxAbsoluteIndexReferenced)
+    {
+        var isSensitive = SensitiveHeaders.Contains(name);
+
+        if (TryExactMatch(name, value, isSensitive, ref maxAbsoluteIndexReferenced, out var entry))
+        {
+            return entry;
+        }
+
+        var staticName = QpackStaticTable.FindName(name);
+        var dynamicName = _enableDynamicTable ? FindDynamicName(name) : -1;
+
+        if (TryDynamicInsert(name, value, isSensitive, staticName, dynamicName, ref maxAbsoluteIndexReferenced, out entry))
+        {
+            return entry;
+        }
+
+        return BuildLiteralEntry(isSensitive, staticName, dynamicName, ref maxAbsoluteIndexReferenced);
+    }
+
+    private bool TryExactMatch(string name, string value, bool isSensitive,
+        ref int maxAbsoluteIndexReferenced, out HeaderEncodingEntry entry)
+    {
+        entry = default;
+
+        if (isSensitive)
+        {
+            return false;
+        }
+
+        var staticExact = QpackStaticTable.FindExact(name, value);
+        if (staticExact >= 0)
+        {
+            entry = new HeaderEncodingEntry { Type = HeaderEncodingType.StaticIndexed, Index = staticExact };
+            return true;
+        }
+
+        if (!_enableDynamicTable)
+        {
+            return false;
+        }
+
+        var dynExact = FindDynamicExact(name, value);
+        if (dynExact >= 0)
+        {
+            entry = new HeaderEncodingEntry { Type = HeaderEncodingType.DynamicIndexed, Index = dynExact };
+            if (dynExact > maxAbsoluteIndexReferenced)
+            {
+                maxAbsoluteIndexReferenced = dynExact;
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryDynamicInsert(string name, string value, bool isSensitive,
+        int staticName, int dynamicName, ref int maxAbsoluteIndexReferenced, out HeaderEncodingEntry entry)
+    {
+        entry = default;
+
+        if (isSensitive || !_enableDynamicTable)
+        {
+            return false;
+        }
+
+        var insertedIdx = DynamicTable.Insert(name, value);
+        if (insertedIdx < 0)
+        {
+            return false;
+        }
+
+        EmitInsertInstruction(staticName, dynamicName, name, value);
+
+        entry = new HeaderEncodingEntry { Type = HeaderEncodingType.DynamicIndexed, Index = insertedIdx };
+        if (insertedIdx > maxAbsoluteIndexReferenced)
+        {
+            maxAbsoluteIndexReferenced = insertedIdx;
+        }
+
+        return true;
+    }
+
+    private void EmitInsertInstruction(int staticName, int dynamicName, string name, string value)
+    {
+        if (staticName >= 0)
+        {
+            WriteInstructionToBuffer(
+                (ref s) => QpackEncoderInstructionWriter.WriteInsertWithNameReference(
+                    staticName, true, value, ref s));
+        }
+        else if (dynamicName >= 0)
+        {
+            var relIdx = DynamicTable.InsertCount - 1 - dynamicName;
+            WriteInstructionToBuffer(
+                (ref s) => QpackEncoderInstructionWriter.WriteInsertWithNameReference(
+                    relIdx, false, value, ref s));
+        }
+        else
+        {
+            WriteInstructionToBuffer(
+                (ref s) => QpackEncoderInstructionWriter.WriteInsertWithLiteralName(
+                    name, value, ref s));
+        }
+    }
+
+    private static HeaderEncodingEntry BuildLiteralEntry(bool isSensitive, int staticName, int dynamicName,
+        ref int maxAbsoluteIndexReferenced)
+    {
+        if (isSensitive)
+        {
+            return staticName >= 0
+                ? new HeaderEncodingEntry { Type = HeaderEncodingType.LiteralWithStaticNameNeverIndex, Index = staticName }
+                : new HeaderEncodingEntry { Type = HeaderEncodingType.LiteralNeverIndex, Index = -1 };
+        }
+
+        if (staticName >= 0)
+        {
+            return new HeaderEncodingEntry { Type = HeaderEncodingType.LiteralWithStaticName, Index = staticName };
+        }
+
+        if (dynamicName >= 0)
+        {
+            if (dynamicName > maxAbsoluteIndexReferenced)
+            {
+                maxAbsoluteIndexReferenced = dynamicName;
+            }
+
+            return new HeaderEncodingEntry { Type = HeaderEncodingType.LiteralWithDynamicName, Index = dynamicName };
+        }
+
+        return new HeaderEncodingEntry { Type = HeaderEncodingType.Literal, Index = -1 };
     }
 
     /// <summary>

@@ -1,14 +1,10 @@
 using System.Net;
-using System.Net.Http;
 using System.Net.Quic;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 #pragma warning disable CA1416
@@ -26,7 +22,7 @@ internal static class QuicAvailability
     private static readonly Lazy<bool> IsAvailableLazy = new(Probe, LazyThreadSafetyMode.ExecutionAndPublication);
 
     /// <summary>Returns true if HTTP/3 over QUIC actually works on this machine.</summary>
-    public static bool IsAvailable => IsAvailableLazy.Value;
+    private static bool IsAvailable => IsAvailableLazy.Value;
 
     /// <summary>Skips the calling test if QUIC is not functionally available.</summary>
     public static void SkipIfUnavailable()
@@ -34,7 +30,7 @@ internal static class QuicAvailability
         if (!IsAvailable)
         {
             Assert.Skip("QUIC/HTTP3 is not functionally available on this platform " +
-                         "(UDP loopback may be blocked by firewall or group policy).");
+                        "(UDP loopback may be blocked by firewall or group policy).");
         }
     }
 

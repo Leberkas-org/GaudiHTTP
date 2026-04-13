@@ -7,36 +7,41 @@ using TurboHTTP.Protocol.Http2;
 
 namespace TurboHTTP.Streams.Stages;
 
-public sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
+internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
 {
     private readonly Inlet<IInputItem> _inServer = new("Http20Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http20Connection.Out.Response");
     private readonly Inlet<HttpRequestMessage> _inApp = new("Http20Connection.In.App");
     private readonly Outlet<IOutputItem> _outNetwork = new("Http20Connection.Out.Network");
-
-    private readonly Http2ConnectionConfig _config;
-
-    public Http20ConnectionStage(Http2ConnectionConfig? config = null, int maxReconnectAttempts = 3)
-    {
-        _config = config ?? new Http2ConnectionConfig(MaxReconnectAttempts: maxReconnectAttempts);
-    }
+    private readonly Http2EngineOptions _options;
 
     public override ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
+
+    public Http20ConnectionStage(Http2EngineOptions options)
+    {
+        _options = options;
+    }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 
-    private sealed class Logic : GraphStageLogic, IHttp2StageOperations
+    private sealed class Logic : TimerGraphStageLogic, IStageOperations
     {
+        private const string KeepAlivePingTimerKey = "keep-alive-ping";
+        private const string KeepAlivePingTimeoutKey = "keep-alive-ping-timeout";
+
         private readonly Http20ConnectionStage _stage;
         private readonly StateMachine _sm;
         private readonly List<IOutputItem> _pendingOutbound = [];
         private readonly List<HttpResponseMessage> _pendingResponses = [];
         private bool _reconnectFailed;
+        private readonly bool _keepAliveEnabled;
+
         public Logic(Http20ConnectionStage stage) : base(stage.Shape)
         {
             _stage = stage;
-            _sm = new StateMachine(stage._config, this);
+            _sm = new StateMachine(stage._options, this);
+            _keepAliveEnabled = stage._options.KeepAlivePingDelay != Timeout.InfiniteTimeSpan;
 
             SetHandler(stage._inServer, onPush: OnServerPush,
                 onUpstreamFinish: () =>
@@ -82,22 +87,22 @@ public sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
             SetHandler(stage._outNetwork, onPull: OnNetworkPull);
         }
 
-        void IHttp2StageOperations.OnResponse(HttpResponseMessage response)
+        void IStageOperations.OnResponse(HttpResponseMessage response)
         {
             _pendingResponses.Add(response);
         }
 
-        void IHttp2StageOperations.OnOutbound(IOutputItem item)
+        void IStageOperations.OnOutbound(IOutputItem item)
         {
             _pendingOutbound.Add(item);
         }
 
-        void IHttp2StageOperations.OnWarning(string message)
+        void IStageOperations.OnWarning(string message)
         {
             Log.Warning("Http20ConnectionStage: {0}", message);
         }
 
-        void IHttp2StageOperations.OnReconnectFailed()
+        void IStageOperations.OnReconnectFailed()
         {
             _reconnectFailed = true;
         }
@@ -111,8 +116,9 @@ public sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 // Reconnect: new connection ready — replay buffered requests
                 case ConnectedSignalItem:
                 {
-                    _sm.HandleConnectedSignal();
+                    _sm.OnConnectionRestored();
                     FlushOutbound();
+                    ScheduleKeepAlivePing();
                     TryPullRequest();
                     if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                     {
@@ -124,7 +130,7 @@ public sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 // Reconnect: connection dropped again while already reconnecting
                 case CloseSignalItem when _sm.IsReconnecting:
                 {
-                    _sm.HandleReconnectAttempt();
+                    _sm.OnReconnectAttemptFailed();
                     if (_reconnectFailed)
                     {
                         FailStage(new HttpRequestException(
@@ -143,7 +149,7 @@ public sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 // Reconnect: abrupt close with in-flight requests (no GOAWAY)
                 case CloseSignalItem when _sm.HasInFlightRequests:
                 {
-                    _sm.BufferOrphanedRequests(lastStreamId: 0);
+                    _sm.OnConnectionLost(lastStreamId: 0);
                     FlushOutbound();
                     if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                     {
@@ -195,6 +201,7 @@ public sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
 
             FlushOutbound();
             FlushResponses();
+            ResetKeepAliveTimer();
             TryPullRequest();
         }
 
@@ -212,10 +219,74 @@ public sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
             if (preface is not null)
             {
                 Push(_stage._outNetwork, preface);
+                ScheduleKeepAlivePing();
                 return;
             }
 
             TryPullRequest();
+        }
+
+        protected override void OnTimer(object timerKey)
+        {
+            switch (timerKey)
+            {
+                case string key when key == KeepAlivePingTimerKey:
+                {
+                    var policy = _stage._options.KeepAlivePingPolicy;
+                    if (policy == HttpKeepAlivePingPolicy.WithActiveRequests && !_sm.HasInFlightRequests)
+                    {
+                        return;
+                    }
+
+                    _sm.SendKeepAlivePing();
+                    FlushOutbound();
+                    ScheduleKeepAlivePingTimeout();
+                    break;
+                }
+                case string key when key == KeepAlivePingTimeoutKey:
+                {
+                    if (_sm.IsKeepAliveTimedOut(_stage._options.KeepAlivePingTimeout))
+                    {
+                        Log.Warning("Http20ConnectionStage: Keep-alive PING timeout — closing connection.");
+                        if (_sm.HasInFlightRequests)
+                        {
+                            _sm.OnConnectionLost(lastStreamId: 0);
+                            FlushOutbound();
+                        }
+                        else
+                        {
+                            CompleteStage();
+                        }
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        private void ScheduleKeepAlivePing()
+        {
+            if (_keepAliveEnabled)
+            {
+                ScheduleOnce(KeepAlivePingTimerKey, _stage._options.KeepAlivePingDelay);
+            }
+        }
+
+        private void ScheduleKeepAlivePingTimeout()
+        {
+            if (_keepAliveEnabled)
+            {
+                ScheduleOnce(KeepAlivePingTimeoutKey, _stage._options.KeepAlivePingTimeout);
+            }
+        }
+
+        private void ResetKeepAliveTimer()
+        {
+            if (_keepAliveEnabled)
+            {
+                CancelTimer(KeepAlivePingTimeoutKey);
+                ScheduleKeepAlivePing();
+            }
         }
 
         private void FlushResponses()

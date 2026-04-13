@@ -1,4 +1,5 @@
 ﻿using TurboHTTP.Protocol.Http3;
+using TurboHTTP.Protocol.Http3.Qpack;
 
 namespace TurboHTTP.Tests.Http3.Connection;
 
@@ -294,7 +295,7 @@ public sealed class IntermediaryEncapsulationSpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Encoder_rejects_userinfo_uri()
     {
-        var encoder = new RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(new QpackTableSync());
         var request = new HttpRequestMessage(HttpMethod.Get, "https://user:pass@example.com/");
 
         var ex = Assert.Throws<Http3Exception>(() => encoder.Encode(request));
@@ -306,7 +307,7 @@ public sealed class IntermediaryEncapsulationSpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Encoder_rejects_fragment_uri()
     {
-        var encoder = new RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(new QpackTableSync());
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/page#section");
 
         var ex = Assert.Throws<Http3Exception>(() => encoder.Encode(request));
@@ -318,7 +319,7 @@ public sealed class IntermediaryEncapsulationSpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Encoder_accepts_normal_request()
     {
-        var encoder = new RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(new QpackTableSync());
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path?q=1");
 
         var frames = encoder.Encode(request);

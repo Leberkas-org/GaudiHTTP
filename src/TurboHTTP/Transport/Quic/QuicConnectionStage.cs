@@ -46,7 +46,7 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<IOutputItem, II
         public Logic(QuicConnectionStage stage) : base(stage.Shape)
         {
             _stage = stage;
-
+            
             SetHandler(stage._in,
                 onPush: () => _sm.HandlePush(Grab(stage._in)),
                 onUpstreamFinish: () => _sm.HandleUpstreamFinish());
@@ -76,7 +76,7 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<IOutputItem, II
 
         private void OnReceive((IActorRef sender, object message) args)
         {
-            if (args.message is QuicTransportEvent evt)
+            if (args.message is IQuicTransportEvent evt)
             {
                 _sm.Dispatch(evt);
             }

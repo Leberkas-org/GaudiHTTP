@@ -60,6 +60,7 @@ internal sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
 
     private readonly Dictionary<RequestEndpoint, HostState> _hosts = new();
     private readonly TimeSpan _idleTimeout;
+    private readonly TimeSpan _connectionLifetime;
     private readonly int _maxConnectionsPerServer;
     private const string EvictTimerKey = "evict-idle";
 
@@ -87,9 +88,10 @@ internal sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
         return tcs.Task;
     }
 
-    public TcpConnectionManagerActor(TimeSpan idleTimeout, int maxConnectionsPerServer = 6)
+    public TcpConnectionManagerActor(TimeSpan idleTimeout, TimeSpan connectionLifetime, int maxConnectionsPerServer = 6)
     {
         _idleTimeout = idleTimeout;
+        _connectionLifetime = connectionLifetime;
         _maxConnectionsPerServer = maxConnectionsPerServer;
 
         Receive<Acquire>(OnAcquire);
@@ -142,7 +144,7 @@ internal sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
         // HTTP/1.1: prefer idle reuse, then establish if slots available, else queue
         while (host.Idle.TryDequeue(out var idle))
         {
-            if (idle is { IsAlive: true, Reusable: true })
+            if (idle is { IsAlive: true, Reusable: true } && !idle.IsExpired(_connectionLifetime))
             {
                 idle.MarkBusy();
 
@@ -316,7 +318,7 @@ internal sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
 
         while (host.Idle.TryDequeue(out var idle))
         {
-            if (!idle.IsAlive || now - idle.LastActivity > _idleTimeout)
+            if (!idle.IsAlive || now - idle.LastActivity > _idleTimeout || idle.IsExpired(_connectionLifetime))
             {
                 expired.Add(idle);
             }

@@ -23,7 +23,7 @@ namespace TurboHTTP.Streams.Lifecycle;
 /// </list>
 /// </para>
 /// </summary>
-internal sealed class TurboClientStreamManager : IDisposable
+internal sealed class ClientStreamManager : IDisposable
 {
     private readonly IActorRef _owner;
     private int _disposed;
@@ -37,7 +37,7 @@ internal sealed class TurboClientStreamManager : IDisposable
     /// </summary>
     internal ChannelWriter<HttpResponseMessage> ResponseWriter { get; }
 
-    internal TurboClientStreamManager(TurboClientOptions clientOptions, Func<TurboRequestOptions> requestOptionsFactory,
+    internal ClientStreamManager(TurboClientOptions clientOptions, Func<TurboRequestOptions> requestOptionsFactory,
         ActorSystem system, PipelineDescriptor descriptor)
     {
         // Create stable channels — these survive instance actor restarts.
@@ -86,7 +86,7 @@ internal sealed class TurboClientStreamManager : IDisposable
 
         // Signal the Owner to shut down gracefully. It waits for pending work
         // to drain (up to 5s), then stops the instance and itself.
-        _owner.Tell(new Owner.Shutdown());
+        _owner.GracefulStop(TimeSpan.FromSeconds(5), new Owner.Shutdown());
 
         // Complete the response channel so downstream ITurboHttpClient.Responses consumers terminate.
         ResponseWriter.TryComplete();

@@ -3,6 +3,7 @@ using System.Net;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHTTP;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
@@ -18,7 +19,7 @@ namespace TurboHTTP.StreamTests.Http2;
 [Trait("RFC", "RFC9113")]
 public sealed class Http2EngineEndToEndSpec : EngineTestBase
 {
-    private static Http20Engine Engine => new();
+    private static Http20Engine Engine => new(new Http2Options().ToEngineOptions());
 
     private readonly HpackEncoder _hpack = new(useHuffman: false);
 
@@ -208,7 +209,7 @@ public sealed class Http2EngineEndToEndSpec : EngineTestBase
     [Trait("RFC", "RFC9113-6.5")]
     public async Task Http2Engine_should_produce_max_concurrent_streams_signal_when_settings_max_concurrent_streams_received()
     {
-        var engine = new Http20Engine();
+        var engine = new Http20Engine(new Http2Options().ToEngineOptions());
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/signal-test")
         {
@@ -262,7 +263,7 @@ public sealed class Http2EngineEndToEndSpec : EngineTestBase
     [Trait("RFC", "RFC9113-3.4")]
     public async Task Http2Engine_should_emit_connection_preface_when_first_connect_item_arrives()
     {
-        var engine = new Http20Engine();
+        var engine = new Http20Engine(new Http2Options().ToEngineOptions());
         var bidiFlow = engine.CreateFlow();
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/preface-test")

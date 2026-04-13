@@ -27,12 +27,10 @@ public static class CacheValidationRequestBuilder
         }
 
         // Copy Options so that request correlation (requestId) survives the conditional request
-#if NET5_0_OR_GREATER
         foreach (var option in original.Options)
         {
             conditional.Options.Set(new HttpRequestOptionsKey<object?>(option.Key), option.Value);
         }
-#endif
 
         // RFC 9111 §4.3.1 — If-None-Match from ETag (preferred over If-Modified-Since)
         if (entry.ETag is not null)

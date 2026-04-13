@@ -7,22 +7,31 @@ using TurboHTTP.Streams.Stages.Internal;
 
 namespace TurboHTTP.Streams;
 
-public class Http11Engine : IHttpProtocolEngine
+internal record Http1EngineOptions(
+    int MaxPipelineDepth,
+    int MaxConnectionsPerServer,
+    int MaxReconnectAttempts,
+    long MaxBatchWeight,
+    int MaxResponseHeadersLength,
+    int MaxResponseDrainSize,
+    TimeSpan ResponseDrainTimeout);
+
+internal class Http11Engine : IHttpProtocolEngine
 {
-    internal const long MaxBatchWeight = 65_536;
+    private readonly Http1EngineOptions _options;
 
-    private readonly int _maxPipelineDepth;
-
-    public Http11Engine(int maxPipelineDepth = 8)
+    public Http11Engine(Http1EngineOptions options)
     {
-        _maxPipelineDepth = maxPipelineDepth;
+        _options = options;
     }
 
     public BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> CreateFlow()
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new Http11ConnectionStage(_maxPipelineDepth));
+            var connection = b.Add(new Http11ConnectionStage(
+                _options.MaxPipelineDepth, _options.MaxReconnectAttempts, _options.MaxResponseHeadersLength,
+                _options.MaxResponseDrainSize, _options.ResponseDrainTimeout));
 
             // NetworkBufferBatchStage coalesces consecutive NetworkBuffer items from the
             // encoder into fewer, larger writes — reducing Channel.WriteAsync + Socket.WriteAsync
@@ -30,7 +39,7 @@ public class Http11Engine : IHttpProtocolEngine
             // that interleave NetworkBuffer data with control items (StreamAcquireItem,
             // ConnectionReuseItem): the accumulated buffer is flushed before the control item
             // is forwarded, so ordering is preserved and no bytes are ever dropped.
-            var batchFlow = b.Add(new NetworkBufferBatchStage(MaxBatchWeight));
+            var batchFlow = b.Add(new NetworkBufferBatchStage(_options.MaxBatchWeight));
 
             b.From(connection.OutNetwork).Via(batchFlow);
 

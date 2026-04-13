@@ -13,10 +13,20 @@ public sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
     private readonly Inlet<HttpRequestMessage> _inApp = new("Http10Connection.In.App");
     private readonly Outlet<IOutputItem> _outNetwork = new("Http10Connection.Out.Network");
     private readonly int _maxReconnectAttempts;
+    private readonly int _maxResponseHeadersLength;
+    private readonly int _maxResponseDrainSize;
+    private readonly TimeSpan _responseDrainTimeout;
 
-    public Http10ConnectionStage(int maxReconnectAttempts = 3)
+    public Http10ConnectionStage(
+        int maxReconnectAttempts = 3,
+        int maxResponseHeadersLength = 64,
+        int maxResponseDrainSize = 1024 * 1024,
+        TimeSpan? responseDrainTimeout = null)
     {
         _maxReconnectAttempts = maxReconnectAttempts;
+        _maxResponseHeadersLength = maxResponseHeadersLength;
+        _maxResponseDrainSize = maxResponseDrainSize;
+        _responseDrainTimeout = responseDrainTimeout ?? TimeSpan.FromSeconds(2);
     }
 
     public override ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
@@ -38,7 +48,8 @@ public sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
             _stage = stage;
 
             var memoryBuffer = inheritedAttributes.GetAttribute(new TurboAttributes.MemoryBuffer(4 * 1024, 256 * 1024));
-            _sm = new StateMachine(this, _stage._maxReconnectAttempts, memoryBuffer.Initial, memoryBuffer.Max);
+            _sm = new StateMachine(this, _stage._maxReconnectAttempts, memoryBuffer.Initial, memoryBuffer.Max,
+                _stage._maxResponseHeadersLength, _stage._maxResponseDrainSize, _stage._responseDrainTimeout);
 
             SetHandler(stage._inServer, onPush: OnServerPush,
                 onUpstreamFinish: () =>
@@ -132,7 +143,7 @@ public sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
             {
                 case ConnectedSignalItem:
                 {
-                    _sm.HandleConnectedSignal();
+                    _sm.OnConnectionRestored();
                     FlushOutbound();
                     TryPullRequest();
                     // Pull to receive the response from the new connection
@@ -145,7 +156,7 @@ public sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
                 }
                 case CloseSignalItem when _sm.IsReconnecting:
                 {
-                    _sm.HandleReconnectAttempt();
+                    _sm.OnReconnectAttemptFailed();
                     if (_reconnectFailed)
                     {
                         Log.Warning(

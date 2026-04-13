@@ -1,5 +1,6 @@
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3;
+using TurboHTTP.Streams;
 using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Tests.Http3.Connection;
@@ -10,11 +11,11 @@ public sealed class Http3StateMachineSpec
     private readonly TestOps _ops = new();
 
     private StateMachine CreateMachine(
-        Http3ConnectionConfig? config = null,
+        Http3EngineOptions? options = null,
         TestOps? ops = null)
     {
         return new StateMachine(
-            config ?? new Http3ConnectionConfig(),
+            options ?? new Http3Options().ToEngineOptions(),
             ops ?? _ops);
     }
 
@@ -118,7 +119,7 @@ public sealed class Http3StateMachineSpec
     [Fact(Timeout = 5000)]
     public void ProcessFrame_should_reject_push_promise_when_push_disabled()
     {
-        var sm = CreateMachine(new Http3ConnectionConfig(AllowServerPush: false));
+        var sm = CreateMachine(new Http3Options { AllowServerPush = false }.ToEngineOptions());
         var push = new Http3PushPromiseFrame(1, new byte[] { 0x01 });
 
         var result = sm.ProcessFrame(push);
@@ -131,7 +132,7 @@ public sealed class Http3StateMachineSpec
     [Fact(Timeout = 5000)]
     public void ProcessFrame_should_warn_when_push_rejected()
     {
-        var sm = CreateMachine(new Http3ConnectionConfig(AllowServerPush: false));
+        var sm = CreateMachine(new Http3Options { AllowServerPush = false }.ToEngineOptions());
 
         sm.ProcessFrame(new Http3PushPromiseFrame(42, new byte[] { 0x01 }));
 
@@ -141,7 +142,7 @@ public sealed class Http3StateMachineSpec
     [Fact(Timeout = 5000)]
     public void ProcessFrame_should_forward_push_promise_to_app_when_push_enabled()
     {
-        var sm = CreateMachine(new Http3ConnectionConfig(AllowServerPush: true));
+        var sm = CreateMachine(new Http3Options { AllowServerPush = true }.ToEngineOptions());
         var push = new Http3PushPromiseFrame(1, new byte[] { 0x01 });
 
         var result = sm.ProcessFrame(push);
@@ -153,7 +154,7 @@ public sealed class Http3StateMachineSpec
     [Fact(Timeout = 5000)]
     public void ProcessFrame_should_enforce_push_limit_when_push_enabled()
     {
-        var sm = CreateMachine(new Http3ConnectionConfig(AllowServerPush: true));
+        var sm = CreateMachine(new Http3Options { AllowServerPush = true }.ToEngineOptions());
 
         // The default maxPushCount is 100 when AllowServerPush = true.
         // Push 100 times to hit the limit, then one more should warn.
@@ -214,7 +215,8 @@ public sealed class Http3StateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void ProcessFrame_should_decrement_active_streams_on_response_headers()
+    [Trait("RFC", "RFC9114-4.1")]
+    public void ProcessFrame_should_not_decrement_active_streams_on_response_headers()
     {
         var sm = CreateMachine();
 
@@ -222,10 +224,10 @@ public sealed class Http3StateMachineSpec
         sm.EncodeRequest(CreateGetRequest());
         Assert.Equal(1, sm.Connection.ActiveStreamCount);
 
-        // Receive response HEADERS — should close the stream
+        // Receive response HEADERS — stream is still open until response is fully emitted
         sm.ProcessFrame(new Http3HeadersFrame(new byte[] { 0x02 }));
 
-        Assert.Equal(0, sm.Connection.ActiveStreamCount);
+        Assert.Equal(1, sm.Connection.ActiveStreamCount);
     }
 
     [Fact(Timeout = 5000)]
@@ -300,7 +302,7 @@ public sealed class Http3StateMachineSpec
     [Fact(Timeout = 5000)]
     public void CheckIdleTimeout_should_return_null_when_timeout_disabled()
     {
-        var sm = CreateMachine(new Http3ConnectionConfig(IdleTimeout: TimeSpan.Zero));
+        var sm = CreateMachine(new Http3Options { IdleTimeout = TimeSpan.Zero }.ToEngineOptions());
 
         var result = sm.CheckIdleTimeout();
 
@@ -311,7 +313,7 @@ public sealed class Http3StateMachineSpec
     public void CheckIdleTimeout_should_return_goaway_when_expired_no_active_streams()
     {
         // Use a very short timeout so it expires immediately.
-        var sm = CreateMachine(new Http3ConnectionConfig(IdleTimeout: TimeSpan.FromMilliseconds(1)));
+        var sm = CreateMachine(new Http3Options { IdleTimeout = TimeSpan.FromMilliseconds(1) }.ToEngineOptions());
 
         // Wait for timeout to expire.
         Thread.Sleep(10);
@@ -325,7 +327,7 @@ public sealed class Http3StateMachineSpec
     [Fact(Timeout = 5000)]
     public void CheckIdleTimeout_should_not_expire_when_streams_active()
     {
-        var sm = CreateMachine(new Http3ConnectionConfig(IdleTimeout: TimeSpan.FromMilliseconds(1)));
+        var sm = CreateMachine(new Http3Options { IdleTimeout = TimeSpan.FromMilliseconds(1) }.ToEngineOptions());
         sm.EncodeRequest(CreateGetRequest());
 
         Thread.Sleep(10);
@@ -405,8 +407,8 @@ public sealed class Http3StateMachineSpec
     [Fact(Timeout = 5000)]
     public void OnReconnectAttemptFailed_should_signal_after_max_attempts()
     {
-        var config = new Http3ConnectionConfig(MaxReconnectAttempts: 2);
-        var sm = CreateMachine(config);
+        var options = new Http3Options { MaxReconnectAttempts = 2 }.ToEngineOptions();
+        var sm = CreateMachine(options);
         sm.OnConnectionLost(); // attempt 1
 
         var canRetry1 = sm.OnReconnectAttemptFailed(); // attempt 2
@@ -420,8 +422,8 @@ public sealed class Http3StateMachineSpec
     [Fact(Timeout = 5000)]
     public void OnReconnectAttemptFailed_should_allow_retry_before_max()
     {
-        var config = new Http3ConnectionConfig(MaxReconnectAttempts: 3);
-        var sm = CreateMachine(config);
+        var options = new Http3Options { MaxReconnectAttempts = 3 }.ToEngineOptions();
+        var sm = CreateMachine(options);
         sm.OnConnectionLost(); // attempt 1
 
         Assert.True(sm.OnReconnectAttemptFailed()); // attempt 2
@@ -593,16 +595,4 @@ public sealed class Http3StateMachineSpec
         return new HttpRequestMessage(HttpMethod.Get, url);
     }
 
-    private sealed class TestOps : IStageOperations
-    {
-        public List<HttpResponseMessage> Responses { get; } = [];
-        public List<IOutputItem> OutboundItems { get; } = [];
-        public List<string> Warnings { get; } = [];
-        public bool ReconnectFailed { get; private set; }
-
-        public void OnResponse(HttpResponseMessage response) => Responses.Add(response);
-        public void OnOutbound(IOutputItem item) => OutboundItems.Add(item);
-        public void OnWarning(string message) => Warnings.Add(message);
-        public void OnReconnectFailed() => ReconnectFailed = true;
-    }
 }

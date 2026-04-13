@@ -9,8 +9,8 @@ namespace TurboHTTP.Streams.Stages.Internal;
 
 internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, Source<T, NotUsed>>>
 {
-    internal static readonly HttpRequestOptionsKey<int> ConnectionAffinitySlot =
-        new("TurboHTTP.ConnectionAffinitySlot");
+    internal static readonly HttpRequestOptionsKey<int>
+        ConnectionAffinitySlot = new("TurboHTTP.ConnectionAffinitySlot");
 
     private readonly Inlet<T> _in = new("GroupByRequestKey.In");
     private readonly Outlet<Source<T, NotUsed>> _out = new("GroupByRequestKey.Out");
@@ -387,65 +387,71 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             }
             else
             {
-                // Connection affinity: if the request was previously tagged with a slot index
-                // (e.g. after redirect/retry re-injection), route it back to the same slot.
-                var affinitySlot = TryGetAffinitySlot(item, group);
-                if (affinitySlot != null)
-                {
-                    Log.Debug("GroupByHostKeyStage: affinity hit, routed to slot key={0}:{1}", key.Host, key.Port);
-                    affinitySlot.Pending.Enqueue(item);
-                    DrainPending(key, affinitySlot);
-                }
-                // Try to find a slot that is ready to accept work.
-                else if (group.FindCapacitySlot() is { } capSlot)
-                {
-                    Log.Debug("GroupByHostKeyStage: routed to existing slot key={0}:{1}", key.Host, key.Port);
-                    TagAffinitySlot(item, capSlot);
-                    capSlot.Pending.Enqueue(item);
-                    DrainPending(key, capSlot);
-                }
-                else
-                {
-                    // No slot with capacity — clean dead slots first.
-                    var removed = group.RemoveDead();
-                    _totalSlotCount -= removed;
-
-                    var canCreate = group.Count < _stage._maxSubstreamsPerKey(key) &&
-                                    (_stage._maxSubstreams <= 0 || _totalSlotCount < _stage._maxSubstreams);
-
-                    if (canCreate)
-                    {
-                        Log.Debug("GroupByHostKeyStage: creating additional slot for key={0}:{1}, slot={2}", key.Host,
-                            key.Port, group.Count + 1);
-                        CreateSubstreamInGroup(key, group, item);
-                    }
-                    else
-                    {
-                        // All limits reached — route to least-loaded slot.
-                        var leastLoaded = group.FindLeastLoaded();
-                        if (leastLoaded != null)
-                        {
-                            Log.Debug("GroupByHostKeyStage: all slots busy, routing to least-loaded key={0}:{1}",
-                                key.Host, key.Port);
-                            TagAffinitySlot(item, leastLoaded);
-                            leastLoaded.Pending.Enqueue(item);
-                            DrainPending(key, leastLoaded);
-                        }
-                        else
-                        {
-                            // All slots dead (edge case: limits hit but no alive slot).
-                            // Create a replacement to avoid losing the item.
-                            CreateSubstreamInGroup(key, group, item);
-                        }
-                    }
-                }
+                RouteToSlot(key, group, item);
             }
 
             if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in)
-                && _pendingSources.Count == 0)
+                                           && _pendingSources.Count == 0)
             {
                 Pull(_stage._in);
             }
+        }
+
+        private void RouteToSlot(RequestEndpoint key, SubflowGroup group, T item)
+        {
+            // 1. Connection affinity
+            var affinitySlot = TryGetAffinitySlot(item, group);
+            if (affinitySlot != null)
+            {
+                Log.Debug("GroupByHostKeyStage: affinity hit, routed to slot key={0}:{1}", key.Host, key.Port);
+                affinitySlot.Pending.Enqueue(item);
+                DrainPending(key, affinitySlot);
+                return;
+            }
+
+            // 2. Existing slot with capacity
+            if (group.FindCapacitySlot() is { } capSlot)
+            {
+                Log.Debug("GroupByHostKeyStage: routed to existing slot key={0}:{1}", key.Host, key.Port);
+                TagAffinitySlot(item, capSlot);
+                capSlot.Pending.Enqueue(item);
+                DrainPending(key, capSlot);
+                return;
+            }
+
+            // 3. All slots busy — try creating or use least-loaded
+            RouteWhenAllBusy(key, group, item);
+        }
+
+        private void RouteWhenAllBusy(RequestEndpoint key, SubflowGroup group, T item)
+        {
+            var removed = group.RemoveDead();
+            _totalSlotCount -= removed;
+
+            var canCreate = group.Count < _stage._maxSubstreamsPerKey(key) &&
+                            (_stage._maxSubstreams <= 0 || _totalSlotCount < _stage._maxSubstreams);
+
+            if (canCreate)
+            {
+                Log.Debug("GroupByHostKeyStage: creating additional slot for key={0}:{1}, slot={2}", key.Host,
+                    key.Port, group.Count + 1);
+                CreateSubstreamInGroup(key, group, item);
+                return;
+            }
+
+            var leastLoaded = group.FindLeastLoaded();
+            if (leastLoaded != null)
+            {
+                Log.Debug("GroupByHostKeyStage: all slots busy, routing to least-loaded key={0}:{1}",
+                    key.Host, key.Port);
+                TagAffinitySlot(item, leastLoaded);
+                leastLoaded.Pending.Enqueue(item);
+                DrainPending(key, leastLoaded);
+                return;
+            }
+
+            // All slots dead (edge case) — create replacement
+            CreateSubstreamInGroup(key, group, item);
         }
 
         /// <summary>
@@ -536,7 +542,16 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                 return;
             }
 
-            // Transfer pending items to an alive slot, or create a new one.
+            TransferPendingItems(key, group, deadSlot);
+
+            if (_upstreamFinished)
+            {
+                TryCompleteStage();
+            }
+        }
+
+        private void TransferPendingItems(RequestEndpoint key, SubflowGroup group, SubflowState deadSlot)
+        {
             var aliveSlot = group.FindFirst(s => !s.IsDead);
             if (aliveSlot != null)
             {
@@ -564,11 +579,6 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                         newSlot.Pending.Enqueue(pending);
                     }
                 }
-            }
-
-            if (_upstreamFinished)
-            {
-                TryCompleteStage();
             }
         }
 
@@ -629,6 +639,5 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             state.WriteReadyCallback ??= () => cb(state);
             vt.GetAwaiter().OnCompleted(state.WriteReadyCallback);
         }
-
     }
 }

@@ -115,12 +115,14 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
             _tcpConnectionManager = Context.ActorOf(
                 Props.Create(() => new TcpConnectionManagerActor(
                     create.ClientOptions.PooledConnectionIdleTimeout,
+                    create.ClientOptions.PooledConnectionLifetime,
                     create.ClientOptions.Http1.MaxConnectionsPerServer)),
                 "tcp-pool");
 
             _quicConnectionManager = Context.ActorOf(
                 Props.Create(() => new QuicConnectionManagerActor(
-                    create.ClientOptions.PooledConnectionIdleTimeout)),
+                    create.ClientOptions.PooledConnectionIdleTimeout,
+                    create.ClientOptions.PooledConnectionLifetime)),
                 "quic-pool");
 
             // Build transport registry and engine flow

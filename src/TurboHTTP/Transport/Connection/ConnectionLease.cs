@@ -74,6 +74,21 @@ internal sealed class ConnectionLease : IDisposable
     public bool HasAvailableSlot => _alive && _reusable && ActiveStreams < MaxConcurrentStreams;
 
     /// <summary>
+    /// Returns <see langword="true"/> when the connection has exceeded the specified
+    /// maximum lifetime (measured from creation). Used by connection pool eviction
+    /// to enforce <see cref="TurboClientOptions.PooledConnectionLifetime"/>.
+    /// </summary>
+    public bool IsExpired(TimeSpan maxLifetime)
+    {
+        if (maxLifetime == Timeout.InfiniteTimeSpan)
+        {
+            return false;
+        }
+
+        return Environment.TickCount64 - _createdTicks > (long)maxLifetime.TotalMilliseconds;
+    }
+
+    /// <summary>
     /// The <see cref="CancellationToken"/> that is cancelled when this lease is disposed.
     /// Use this to cancel ByteMover tasks tied to this connection.
     /// </summary>

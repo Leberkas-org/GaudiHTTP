@@ -2,6 +2,7 @@ using System.Net;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHTTP;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Streams.Stages;
@@ -25,7 +26,7 @@ public sealed class Http2ConnectionStreamAcquireSpec : StreamTestBase
             GraphDsl.Create(networkSink,
                 (b, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage());
+                    var stage = b.Add(new Http20ConnectionStage(new Http2Options().ToEngineOptions()));
 
                     // A SETTINGS ACK on InServer is harmless (no ACK reply) and lets
                     // the inlet complete, which tears down the stage via the default
@@ -61,7 +62,7 @@ public sealed class Http2ConnectionStreamAcquireSpec : StreamTestBase
             GraphDsl.Create(networkSink,
                 (b, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage());
+                    var stage = b.Add(new Http20ConnectionStage(new Http2Options().ToEngineOptions()));
 
                     var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
                     var requestSource = b.Add(

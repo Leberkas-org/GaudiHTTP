@@ -24,10 +24,10 @@ public enum CacheLookupStatus
 public sealed record CacheLookupResult
 {
     /// <summary>The lookup status.</summary>
-    public CacheLookupStatus Status { get; init; }
+    public CacheLookupStatus Status { get; private init; }
 
     /// <summary>The cached entry when Status is Fresh, Stale, or MustRevalidate; null for Miss.</summary>
-    public CacheEntry? Entry { get; init; }
+    public CacheEntry? Entry { get; private init; }
 
     /// <summary>Human-readable explanation of the outcome.</summary>
     public string Reason { get; init; } = "";

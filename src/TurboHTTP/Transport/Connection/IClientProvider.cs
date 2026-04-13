@@ -56,23 +56,26 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
 
     public async Task<Stream> GetStreamAsync(CancellationToken ct = default)
     {
-        var host = options.Host;
-        var port = options.Port;
+        // Resolve proxy if configured
+        var proxyUri = ResolveProxy(options);
+
+        var connectHost = proxyUri is not null ? proxyUri.Host : options.Host;
+        var connectPort = proxyUri is not null ? proxyUri.Port : options.Port;
 
         _socket = CreateSocket(options.SocketSendBufferSize, options.SocketReceiveBufferSize);
 
-        var dnsActivity = TurboHttpInstrumentation.StartDnsLookup(host);
-        TurboHttpEventSource.Instance.DnsLookupStart(host);
+        var dnsActivity = TurboHttpInstrumentation.StartDnsLookup(connectHost);
+        TurboHttpEventSource.Instance.DnsLookupStart(connectHost);
         IPAddress[] addresses;
         try
         {
             var dnsStart = Stopwatch.GetTimestamp();
-            addresses = await Dns.GetHostAddressesAsync(host, ct).ConfigureAwait(false);
+            addresses = await Dns.GetHostAddressesAsync(connectHost, ct).ConfigureAwait(false);
             var dnsDurationMs = Stopwatch.GetElapsedTime(dnsStart).TotalMilliseconds;
 
             if (addresses.Length == 0)
             {
-                throw new InvalidOperationException($"Could not resolve any IP addresses for host '{host}'.");
+                throw new InvalidOperationException($"Could not resolve any IP addresses for host '{connectHost}'.");
             }
 
             if (dnsActivity is not null)
@@ -81,9 +84,9 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
                     Array.ConvertAll(addresses, a => a.ToString()));
             }
 
-            TurboHttpEventSource.Instance.DnsLookupStop(host, dnsDurationMs);
+            TurboHttpEventSource.Instance.DnsLookupStop(connectHost, dnsDurationMs);
             TurboHttpMetrics.DnsLookupDuration.Record(dnsDurationMs / 1000.0,
-                new KeyValuePair<string, object?>("dns.question.name", host));
+                new KeyValuePair<string, object?>("dns.question.name", connectHost));
             dnsActivity?.Stop();
         }
         catch (Exception ex)
@@ -94,17 +97,18 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
                 dnsActivity.Stop();
             }
 
-            TurboHttpEventSource.Instance.DnsLookupStop(host, 0);
+            TurboHttpEventSource.Instance.DnsLookupStop(connectHost, 0);
             throw;
         }
 
         var networkType = addresses[0].AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
-            ? "ipv6" : "ipv4";
+            ? "ipv6"
+            : "ipv4";
         var socketActivity = TurboHttpInstrumentation.StartSocketConnect(
-            addresses[0].ToString(), port, "tcp", networkType);
+            addresses[0].ToString(), connectPort, "tcp", networkType);
         try
         {
-            await _socket.ConnectAsync(addresses, port, ct).ConfigureAwait(false);
+            await _socket.ConnectAsync(addresses, connectPort, ct).ConfigureAwait(false);
             socketActivity?.Stop();
         }
         catch (Exception ex)
@@ -119,6 +123,32 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
         }
 
         return new NetworkStream(_socket, ownsSocket: false);
+    }
+
+    /// <summary>
+    /// Resolves the proxy URI for the target destination, or <see langword="null"/> if no proxy should be used.
+    /// Applies <see cref="TcpOptions.DefaultProxyCredentials"/> to the proxy when credentials are not already set.
+    /// </summary>
+    private static Uri? ResolveProxy(TcpOptions options)
+    {
+        if (!options.UseProxy || options.Proxy is null)
+        {
+            return null;
+        }
+
+        var targetUri = new Uri($"http://{options.Host}:{options.Port}/");
+
+        if (options.Proxy.IsBypassed(targetUri))
+        {
+            return null;
+        }
+
+        if (options.DefaultProxyCredentials is not null && options.Proxy.Credentials is null)
+        {
+            options.Proxy.Credentials = options.DefaultProxyCredentials;
+        }
+
+        return options.Proxy.GetProxy(targetUri);
     }
 
     public ValueTask DisposeAsync()
@@ -147,13 +177,10 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
 
     private static Socket CreateSocket(int? sendBufferSize, int? receiveBufferSize)
     {
-        // On Linux, new Socket(AddressFamily.Unspecified, ...) throws SocketException
-        // "Protocol not supported" because AF_UNSPEC + IPPROTO_TCP is invalid.
-        // Create the dual-stack socket first when unspecified, before any other path.
         var result = new Socket(SocketType.Stream, ProtocolType.Tcp)
         {
             NoDelay = true,
-            LingerState = new LingerOption(true, 0)
+            LingerState = new LingerOption(true, 0),
         };
 
         result.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
@@ -186,6 +213,18 @@ public class TlsClientProvider(TlsOptions options) : IClientProvider
     public async Task<Stream> GetStreamAsync(CancellationToken ct = default)
     {
         var networkStream = await _tcpClientProvider.GetStreamAsync(ct).ConfigureAwait(false);
+
+        // When connecting through a proxy, establish a CONNECT tunnel before TLS handshake.
+        if (options is { UseProxy: true, Proxy: not null })
+        {
+            var proxyUri = options.Proxy.GetProxy(new Uri($"https://{options.Host}:{options.Port}/"));
+            if (proxyUri is not null)
+            {
+                await EstablishConnectTunnelAsync(networkStream, options.Host, options.Port,
+                    options.Proxy, options.DefaultProxyCredentials, ct).ConfigureAwait(false);
+            }
+        }
+
         _sslStream = new SslStream(
             networkStream,
             leaveInnerStreamOpen: false,
@@ -247,6 +286,75 @@ public class TlsClientProvider(TlsOptions options) : IClientProvider
         return _sslStream;
     }
 
+    /// <summary>
+    /// Sends an HTTP CONNECT request through the proxy to establish a tunnel to the target host.
+    /// RFC 9110 §9.3.6: the CONNECT method requests that the proxy establish a tunnel.
+    /// </summary>
+    private static async Task EstablishConnectTunnelAsync(
+        Stream proxyStream,
+        string targetHost,
+        int targetPort,
+        IWebProxy proxy,
+        ICredentials? defaultProxyCredentials,
+        CancellationToken ct)
+    {
+        var connectRequest = $"CONNECT {targetHost}:{targetPort} HTTP/1.1\r\nHost: {targetHost}:{targetPort}\r\n";
+
+        // Resolve proxy credentials: use explicit proxy credentials, fall back to default
+        var proxyUri = proxy.GetProxy(new Uri($"https://{targetHost}:{targetPort}/"));
+        var credentials = proxy.Credentials ?? defaultProxyCredentials;
+        if (credentials is not null && proxyUri is not null)
+        {
+            var credential = credentials.GetCredential(proxyUri, "Basic");
+            if (credential is not null)
+            {
+                var encoded = Convert.ToBase64String(
+                    System.Text.Encoding.UTF8.GetBytes($"{credential.UserName}:{credential.Password}"));
+                connectRequest += $"Proxy-Authorization: Basic {encoded}\r\n";
+            }
+        }
+
+        connectRequest += "\r\n";
+
+        var requestBytes = System.Text.Encoding.ASCII.GetBytes(connectRequest);
+        await proxyStream.WriteAsync(requestBytes, ct).ConfigureAwait(false);
+        await proxyStream.FlushAsync(ct).ConfigureAwait(false);
+
+        // Read the proxy response status line
+        var responseBuffer = new byte[4096];
+        var totalRead = 0;
+        while (totalRead < responseBuffer.Length)
+        {
+            var bytesRead = await proxyStream.ReadAsync(
+                responseBuffer.AsMemory(totalRead, responseBuffer.Length - totalRead), ct).ConfigureAwait(false);
+
+            if (bytesRead == 0)
+            {
+                throw new HttpRequestException("Proxy closed connection during CONNECT tunnel establishment.");
+            }
+
+            totalRead += bytesRead;
+
+            // Check if we've received the full response headers (ends with \r\n\r\n)
+            var response = System.Text.Encoding.ASCII.GetString(responseBuffer, 0, totalRead);
+            if (response.Contains("\r\n\r\n"))
+            {
+                // Verify 200 status
+                if (!response.StartsWith("HTTP/1.1 200", StringComparison.OrdinalIgnoreCase)
+                    && !response.StartsWith("HTTP/1.0 200", StringComparison.OrdinalIgnoreCase))
+                {
+                    var statusLine = response[..response.IndexOf('\r')];
+                    throw new HttpRequestException(
+                        $"Proxy CONNECT tunnel failed: {statusLine}");
+                }
+
+                return;
+            }
+        }
+
+        throw new HttpRequestException("Proxy CONNECT response exceeded buffer size.");
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (_sslStream is not null)
@@ -287,8 +395,10 @@ public record TcpOptions
 {
     public required string Host { get; init; }
     public required int Port { get; init; }
-    public int MaxFrameSize { get; init; } = 128 * 1024;
     public TimeSpan ConnectTimeout { get; init; } = TimeSpan.FromSeconds(10);
     public int? SocketSendBufferSize { get; init; }
     public int? SocketReceiveBufferSize { get; init; }
+    public bool UseProxy { get; init; }
+    public IWebProxy? Proxy { get; init; }
+    public ICredentials? DefaultProxyCredentials { get; init; }
 }

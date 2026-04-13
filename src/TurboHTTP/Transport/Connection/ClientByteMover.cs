@@ -10,6 +10,7 @@ internal static class ClientByteMover
     /// Reduces syscall overhead for HTTP/2 frame headers (9 bytes) and small DATA frames.
     /// </summary>
     private const int CoalesceThreshold = 16 * 1024;
+
     /// <summary>
     /// Reads bytes directly from <paramref name="state"/>'s network stream into pooled buffers
     /// and writes them to the inbound channel. Eliminates the Pipe intermediary and the
@@ -21,7 +22,7 @@ internal static class ClientByteMover
         {
             while (!ct.IsCancellationRequested)
             {
-                var buffer = NetworkBuffer.Rent(state.MaxFrameSize / 2);
+                var buffer = NetworkBuffer.Rent(128 * 1024);
                 int bytesRead;
                 try
                 {
@@ -73,7 +74,7 @@ internal static class ClientByteMover
     {
         // Coalesce buffer lives for the entire connection — avoids ArrayPool rent/return
         // per drain cycle. Rented lazily on first small write, returned on exit.
-        var coalesceBuf = (byte[]?)null;
+        byte[]? coalesceBuf = null;
 
         try
         {

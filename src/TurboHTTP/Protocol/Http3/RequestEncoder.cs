@@ -12,7 +12,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// and no flags byte. Header blocks are never fragmented across CONTINUATION frames
 /// (HTTP/3 has no CONTINUATION frame type).
 ///
-/// Stateful: maintains a <see cref="QpackEncoder"/> instance for header compression.
+/// Delegates QPACK encoding to the <see cref="QpackTableSync"/>-owned encoder.
 /// One instance per connection.
 /// </summary>
 public sealed class RequestEncoder
@@ -21,30 +21,26 @@ public sealed class RequestEncoder
     // disposed once the caller has consumed the frame list (contract: callers consume
     // frames before the next Encode() call).
     private readonly List<IMemoryOwner<byte>> _rentedOwners = new(4);
+    private readonly QpackTableSync _tableSync;
 
     /// <summary>
     /// Creates a new HTTP/3 request encoder.
     /// </summary>
-    /// <param name="maxTableCapacity">
-    /// Maximum QPACK dynamic table capacity in bytes (SETTINGS_QPACK_MAX_TABLE_CAPACITY).
-    /// Set to 0 to disable dynamic table usage.
+    /// <param name="tableSync">
+    /// The QPACK table synchronization coordinator that owns the encoder.
     /// </param>
-    public RequestEncoder(int maxTableCapacity = 4096)
+    public RequestEncoder(QpackTableSync tableSync)
     {
-        QpackEncoder = new QpackEncoder(maxTableCapacity);
+        ArgumentNullException.ThrowIfNull(tableSync);
+        _tableSync = tableSync;
     }
-
-    /// <summary>
-    /// The underlying QPACK encoder (for inspection and testing).
-    /// </summary>
-    public QpackEncoder QpackEncoder { get; }
 
     /// <summary>
     /// Encoder instructions emitted during the most recent <see cref="Encode"/> call.
     /// These must be sent on the QPACK encoder instruction stream (unidirectional stream
     /// type 0x02) before the HEADERS frame is transmitted on the request stream.
     /// </summary>
-    public ReadOnlyMemory<byte> EncoderInstructions => QpackEncoder.EncoderInstructions;
+    public ReadOnlyMemory<byte> EncoderInstructions => _tableSync.Encoder.EncoderInstructions;
 
     /// <summary>
     /// Encodes an HTTP request message into a list of HTTP/3 frames.
@@ -68,8 +64,7 @@ public sealed class RequestEncoder
         ReturnRentedBuffers();
 
         // RFC 9114 §10.3: Validate origin before encoding
-        OriginValidator.Validate(request.RequestUri,
-            isConnect: request.Method == HttpMethod.Connect);
+        OriginValidator.Validate(request.RequestUri, isConnect: request.Method == HttpMethod.Connect);
 
         var headers = BuildHeaderList(request);
         ValidatePseudoHeaders(headers);
@@ -79,20 +74,21 @@ public sealed class RequestEncoder
         var qpackOwner = MemoryPool<byte>.Shared.Rent(8192);
         _rentedOwners.Add(qpackOwner);
         var qpackSpan = qpackOwner.Memory.Span;
-        var qpackBytesWritten = QpackEncoder.Encode(headers, ref qpackSpan);
+        var qpackBytesWritten = _tableSync.Encoder.Encode(headers, ref qpackSpan);
         var headerBlock = qpackOwner.Memory[..qpackBytesWritten];
 
-        var frames = new List<Http3Frame>();
-
-        // HEADERS frame carries the compressed header block
-        frames.Add(new Http3HeadersFrame(headerBlock));
+        var frames = new List<Http3Frame>
+        {
+            // HEADERS frame carries the compressed header block
+            new Http3HeadersFrame(headerBlock)
+        };
 
         // DATA frames carry the request body (if any)
         if (request.Content != null)
         {
             var contentStream = request.Content.ReadAsStream();
             var contentLength = request.Content.Headers.ContentLength;
-            var initialSize = contentLength.HasValue && contentLength.Value > 0
+            var initialSize = contentLength is > 0
                 ? (int)Math.Min(contentLength.Value, int.MaxValue)
                 : 8192;
 
@@ -146,7 +142,7 @@ public sealed class RequestEncoder
 
         var owner = MemoryPool<byte>.Shared.Rent(8192);
         var span = owner.Memory.Span;
-        var n = QpackEncoder.Encode(headers, ref span);
+        var n = _tableSync.Encoder.Encode(headers, ref span);
         return (owner, n);
     }
 
@@ -160,6 +156,7 @@ public sealed class RequestEncoder
         {
             owner.Dispose();
         }
+
         _rentedOwners.Clear();
     }
 
@@ -255,6 +252,7 @@ public sealed class RequestEncoder
                             throw new Http3Exception(Http3ErrorCode.MessageError,
                                 "RFC 9114 §4.3.1: Duplicate :method pseudo-header");
                         }
+
                         hasMethod = true;
                         methodValue = value;
                         break;
@@ -264,6 +262,7 @@ public sealed class RequestEncoder
                             throw new Http3Exception(Http3ErrorCode.MessageError,
                                 "RFC 9114 §4.3.1: Duplicate :path pseudo-header");
                         }
+
                         hasPath = true;
                         break;
                     case ":scheme":
@@ -272,6 +271,7 @@ public sealed class RequestEncoder
                             throw new Http3Exception(Http3ErrorCode.MessageError,
                                 "RFC 9114 §4.3.1: Duplicate :scheme pseudo-header");
                         }
+
                         hasScheme = true;
                         break;
                     case ":authority":
@@ -280,6 +280,7 @@ public sealed class RequestEncoder
                             throw new Http3Exception(Http3ErrorCode.MessageError,
                                 "RFC 9114 §4.3.1: Duplicate :authority pseudo-header");
                         }
+
                         hasAuthority = true;
                         break;
                     default:

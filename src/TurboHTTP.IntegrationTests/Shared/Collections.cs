@@ -18,5 +18,8 @@ public sealed class H3IntegrationCollection;
 [CollectionDefinition("TLS")]
 public sealed class TlsIntegrationCollection;
 
+[CollectionDefinition("Proxy")]
+public sealed class ProxyIntegrationCollection;
+
 [CollectionDefinition("Logging", DisableParallelization = true)]
 public sealed class LoggingIntegrationCollection;

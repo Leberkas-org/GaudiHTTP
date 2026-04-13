@@ -2,7 +2,6 @@ using System.Net;
 using Akka.Actor;
 using Akka.Event;
 using TurboHTTP.Internal;
-using TurboHTTP.Protocol.Http3;
 using TurboHTTP.Transport.Quic;
 using TurboHTTP.Transport.Tcp;
 
@@ -34,18 +33,18 @@ public sealed class QuicConnectionMigrationSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9000-9")]
-    public void Http3ConnectionConfig_should_default_AllowConnectionMigration_to_true()
+    public void Http3EngineOptions_should_default_AllowConnectionMigration_to_true()
     {
-        var config = new Http3ConnectionConfig();
-        Assert.True(config.AllowConnectionMigration);
+        var options = new Http3Options().ToEngineOptions();
+        Assert.True(options.AllowConnectionMigration);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9000-9")]
-    public void Http3ConnectionConfig_should_accept_AllowConnectionMigration_false()
+    public void Http3EngineOptions_should_accept_AllowConnectionMigration_false()
     {
-        var config = new Http3ConnectionConfig(AllowConnectionMigration: false);
-        Assert.False(config.AllowConnectionMigration);
+        var options = new Http3Options { AllowConnectionMigration = false }.ToEngineOptions();
+        Assert.False(options.AllowConnectionMigration);
     }
 
     [Fact(Timeout = 5000)]
@@ -77,7 +76,7 @@ public sealed class QuicConnectionMigrationSpec
         var newEndPoint = new IPEndPoint(IPAddress.Parse("10.0.0.5"), 54321);
 
         // Act — dispatch migration event
-        sm.Dispatch(new QuicTransportEvent.ConnectionMigrated(oldEndPoint, newEndPoint));
+        sm.Dispatch(new ConnectionMigrated(oldEndPoint, newEndPoint));
 
         // Assert — no close signal emitted (connection continues transparently)
         Assert.Empty(ops.PushedOutputs);
@@ -96,7 +95,7 @@ public sealed class QuicConnectionMigrationSpec
         var newEndPoint = new IPEndPoint(IPAddress.Parse("10.0.0.5"), 54321);
 
         // Act — dispatch migration event
-        sm.Dispatch(new QuicTransportEvent.ConnectionMigrated(oldEndPoint, newEndPoint));
+        sm.Dispatch(new ConnectionMigrated(oldEndPoint, newEndPoint));
 
         // Assert — close signal emitted with MigrationDisallowed (triggers reconnect via upstream)
         var closeSignal = Assert.Single(ops.PushedOutputs);

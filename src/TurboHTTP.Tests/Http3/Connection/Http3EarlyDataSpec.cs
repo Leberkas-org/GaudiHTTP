@@ -1,4 +1,5 @@
 using TurboHTTP.Protocol.Http3;
+using TurboHTTP.Protocol.Http3.Qpack;
 
 namespace TurboHTTP.Tests.Http3.Connection;
 
@@ -23,7 +24,7 @@ public sealed class Http3EarlyDataSpec
 
     private static IReadOnlyList<Http3Frame> EncodeAndTag(HttpMethod method, bool allowEarlyData)
     {
-        var encoder = new RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(new QpackTableSync());
         var request = new HttpRequestMessage(method, "https://example.com/");
         var frames = encoder.Encode(request);
 
@@ -86,17 +87,17 @@ public sealed class Http3EarlyDataSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-A.1")]
-    public void Http3ConnectionConfig_should_default_AllowEarlyData_to_false()
+    public void Http3Options_should_default_AllowEarlyData_to_false()
     {
-        var config = new Http3ConnectionConfig();
-        Assert.False(config.AllowEarlyData);
+        var options = new Http3Options();
+        Assert.False(options.AllowEarlyData);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-A.1")]
-    public void Http3ConnectionConfig_should_accept_AllowEarlyData_true()
+    public void Http3Options_should_accept_AllowEarlyData_true()
     {
-        var config = new Http3ConnectionConfig(AllowEarlyData: true);
-        Assert.True(config.AllowEarlyData);
+        var options = new Http3Options { AllowEarlyData = true };
+        Assert.True(options.AllowEarlyData);
     }
 }

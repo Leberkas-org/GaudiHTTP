@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Streams.Stages;
@@ -53,13 +54,41 @@ internal sealed class RequestEnricher
 
         // Rule 4 removed: RFC 9110 §6.6.1 — clients SHOULD NOT send Date.
 
-        // Rule 5: Referer sanitization (RFC 9110 §10.5)
+        // Rule 5: PreAuthenticate — inject Authorization header when credentials are available
+        if (options.PreAuthenticate && options.Credentials is not null && !request.Headers.Contains("Authorization"))
+        {
+            InjectAuthorization(request, options.Credentials);
+        }
+
+        // Rule 6: Referer sanitization (RFC 9110 §10.5)
         SanitizeReferer(request);
 
-        // Rule 6: If-Range validation (RFC 9110 §13.1.5)
+        // Rule 7: If-Range validation (RFC 9110 §13.1.5)
         IfRangeValidator.Validate(request);
 
         return request;
+    }
+
+    /// <summary>
+    /// Injects a Basic Authorization header using the supplied credentials.
+    /// Uses <see cref="ICredentials.GetCredential"/> with the request URI and "Basic" scheme.
+    /// </summary>
+    private static void InjectAuthorization(HttpRequestMessage request, ICredentials credentials)
+    {
+        if (request.RequestUri is null)
+        {
+            return;
+        }
+
+        var credential = credentials.GetCredential(request.RequestUri, "Basic");
+        if (credential is null)
+        {
+            return;
+        }
+
+        var encoded = Convert.ToBase64String(
+            System.Text.Encoding.UTF8.GetBytes($"{credential.UserName}:{credential.Password}"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Basic", encoded);
     }
 
     /// <summary>

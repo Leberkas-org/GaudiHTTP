@@ -6,13 +6,13 @@ namespace TurboHTTP.IntegrationTests.H3;
 
 [Collection("H3")]
 [Trait("Category", "Http3")]
-public sealed class Http3SmokeSpec : IAsyncLifetime
+public sealed class SmokeSpec : IAsyncLifetime
 {
     private readonly ServerFixture _server;
     private readonly ActorSystemFixture _systemFixture;
     private ClientHelper? _helper;
 
-    public Http3SmokeSpec(ServerFixture server, ActorSystemFixture systemFixture)
+    public SmokeSpec(ServerFixture server, ActorSystemFixture systemFixture)
     {
         _server = server;
         _systemFixture = systemFixture;

@@ -27,6 +27,6 @@ public sealed class ActorSystemFixture : IAsyncLifetime
     public async ValueTask DisposeAsync()
     {
         await System.Terminate().WaitAsync(TimeSpan.FromSeconds(30));
-        await System.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(5));
+        await System.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(30));
     }
 }

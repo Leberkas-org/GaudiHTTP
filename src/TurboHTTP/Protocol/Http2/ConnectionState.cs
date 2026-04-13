@@ -36,25 +36,26 @@ public sealed class ConnectionState
     private readonly Dictionary<int, int> _pendingStreamIncrements = new();
     private readonly int _windowUpdateThreshold;
 
-    public ConnectionState(int initialRecvWindowSize = 1_048_576)
+    public ConnectionState(int initialConnectionWindowSize, int initialStreamWindowSize)
     {
-        RecvConnectionWindow = initialRecvWindowSize;
-        InitialRecvStreamWindow = initialRecvWindowSize;
+        RecvConnectionWindow = initialConnectionWindowSize;
+        SendConnectionWindow = 65535; // RFC 9113 §6.9.2: initial send window is SETTINGS_INITIAL_WINDOW_SIZE default
+        InitialSendStreamWindow = initialStreamWindowSize;
+        InitialRecvStreamWindow = initialStreamWindowSize;
 
         const int MinWindowUpdateThreshold = 8_192;
         const int MaxWindowUpdateThreshold = 262_144; // 256 KB
         _windowUpdateThreshold = Math.Max(
             MinWindowUpdateThreshold,
-            Math.Min(MaxWindowUpdateThreshold, initialRecvWindowSize / 4));
+            Math.Min(MaxWindowUpdateThreshold, initialConnectionWindowSize / 4));
     }
 
     public bool GoAwayReceived { get; private set; }
     public int RecvConnectionWindow { get; private set; }
+    public int SendConnectionWindow { get; private set; }
 
-    public int SendConnectionWindow { get; private set; } = 65535;
-
-    public int InitialSendStreamWindow { get; private set; } = 65535;
-    public int InitialRecvStreamWindow { get; private set; } = 65535;
+    public int InitialSendStreamWindow { get; private set; }
+    public int InitialRecvStreamWindow { get; private set; }
 
     /// <summary>
     /// RFC 9113 §6.5: Process a remote SETTINGS frame.
@@ -192,11 +193,11 @@ public sealed class ConnectionState
     /// Resets all state for use on a new connection.
     /// Flow control windows revert to initial values; GOAWAY flag is cleared.
     /// </summary>
-    public void Reset(int initialRecvWindowSize)
+    public void Reset(int initialConnectionWindowSize, int initialStreamWindowSize)
     {
         GoAwayReceived = false;
-        RecvConnectionWindow = initialRecvWindowSize;
-        InitialRecvStreamWindow = initialRecvWindowSize;
+        RecvConnectionWindow = initialConnectionWindowSize;
+        InitialRecvStreamWindow = initialStreamWindowSize;
         SendConnectionWindow = 65535;
         InitialSendStreamWindow = 65535;
         _recvStreamWindows.Clear();

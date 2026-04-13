@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Net;
 using System.Text;
+using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3;
 using TurboHTTP.Protocol.Http3.Qpack;
 using TurboHTTP.Streams;
@@ -17,7 +18,7 @@ namespace TurboHTTP.StreamTests.Http3;
 /// </remarks>
 public sealed class Http30EngineEndToEndSpec : EngineTestBase
 {
-    private static Http30Engine Engine => new();
+    private static Http30Engine Engine => new(new Http3Options().ToEngineOptions());
 
     private readonly QpackEncoder _qpack = new(maxTableCapacity: 0);
 

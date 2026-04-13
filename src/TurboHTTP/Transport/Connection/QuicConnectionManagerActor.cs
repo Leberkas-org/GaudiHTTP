@@ -66,6 +66,7 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
 
     private readonly Dictionary<RequestEndpoint, HostState> _hosts = new();
     private readonly TimeSpan _idleTimeout;
+    private readonly TimeSpan _connectionLifetime;
     private readonly int _maxConnectionsPerHost;
     private const string EvictTimerKey = "evict-idle";
 
@@ -93,9 +94,10 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
         return tcs.Task;
     }
 
-    public QuicConnectionManagerActor(TimeSpan idleTimeout, int maxConnectionsPerHost = 1)
+    public QuicConnectionManagerActor(TimeSpan idleTimeout, TimeSpan connectionLifetime, int maxConnectionsPerHost = 1)
     {
         _idleTimeout = idleTimeout;
+        _connectionLifetime = connectionLifetime;
         _maxConnectionsPerHost = maxConnectionsPerHost;
 
         Receive<Acquire>(OnAcquire);
@@ -122,7 +124,7 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
         // Scan existing connections for available capacity
         foreach (var lease in host.Leases)
         {
-            if (!lease.CanAcceptStream)
+            if (!lease.CanAcceptStream || lease.IsExpired(_connectionLifetime))
             {
                 continue;
             }
@@ -274,9 +276,9 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
 
         foreach (var lease in host.Leases)
         {
-            // Evict dead leases, or idle leases (no active streams) that have expired
+            // Evict dead leases, idle-expired leases, or lifetime-expired leases
             var idle = lease.ActiveStreams == 0;
-            if (!lease.IsAlive || (idle && now - lease.LastActivity > _idleTimeout))
+            if (!lease.IsAlive || (idle && now - lease.LastActivity > _idleTimeout) || (idle && lease.IsExpired(_connectionLifetime)))
             {
                 toEvict.Add(lease);
             }

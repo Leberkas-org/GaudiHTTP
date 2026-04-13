@@ -137,13 +137,18 @@ internal sealed class QuicConnectionHandle : IAsyncDisposable
         {
             onWritesComplete = () =>
             {
-                try { qs.CompleteWrites(); }
-                catch { /* stream may already be closed — ignore */ }
+                try
+                {
+                    qs.CompleteWrites();
+                }
+                catch
+                {
+                    /* stream may already be closed — ignore */
+                }
             };
         }
 
         var state = new ClientState(
-            maxFrameSize: _options.MaxFrameSize,
             stream: stream,
             inboundChannel: null,
             outboundChannel: null,

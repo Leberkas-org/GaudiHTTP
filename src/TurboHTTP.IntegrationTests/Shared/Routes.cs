@@ -1470,4 +1470,53 @@ internal static class Routes
             return Results.Empty;
         });
     }
+
+    internal static void RegisterOptionsTestRoutes(WebApplication app)
+    {
+        // GET /auth/echo → returns the Authorization header value in the body, or 401 if absent
+        app.MapGet("/auth/echo", (HttpContext ctx) =>
+        {
+            if (!ctx.Request.Headers.TryGetValue("Authorization", out var authValue))
+            {
+                return Results.StatusCode(401);
+            }
+
+            return Results.Content(authValue.ToString(), "text/plain");
+        });
+
+        // GET /drain/large/{kb:int} → returns a body of the given size in KB.
+        // Used to test MaxResponseDrainSize — callers read only part of the body,
+        // then send another request to verify connection reuse.
+        app.MapGet("/drain/large/{kb:int}", async (HttpContext ctx, int kb) =>
+        {
+            var body = new byte[kb * 1024];
+            Array.Fill(body, (byte)'D');
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = body.Length;
+            await ctx.Response.Body.WriteAsync(body);
+        });
+
+        // GET /drain/slow → streams 1 KB very slowly (100 ms between chunks).
+        // Used to test ResponseDrainTimeout.
+        app.MapGet("/drain/slow", async (HttpContext ctx) =>
+        {
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = 1024;
+            var chunk = new byte[128];
+            Array.Fill(chunk, (byte)'S');
+            for (var i = 0; i < 8; i++)
+            {
+                await ctx.Response.Body.WriteAsync(chunk);
+                await ctx.Response.Body.FlushAsync();
+                await Task.Delay(100);
+            }
+        });
+
+        // GET /conn/id → returns a unique connection ID so tests can detect connection reuse vs new connection
+        app.MapGet("/conn/id", (HttpContext ctx) =>
+        {
+            var connId = ctx.Connection.Id;
+            return Results.Content(connId, "text/plain");
+        });
+    }
 }

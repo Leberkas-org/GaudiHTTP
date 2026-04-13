@@ -80,6 +80,7 @@ public sealed class ServerFixture : IAsyncLifetime
         Routes.RegisterResilienceRoutes(app);
         Routes.RegisterRequestCompressionRoutes(app);
         Routes.RegisterInteractionRoutes(app);
+        Routes.RegisterOptionsTestRoutes(app);
 
         await app.StartAsync();
 

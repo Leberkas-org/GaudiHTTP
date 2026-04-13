@@ -28,6 +28,8 @@ internal sealed class Engine
             DefaultRequestHeaders: holder.Headers,
             DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrHigher,
             Timeout: TimeSpan.FromSeconds(30),
-            MaxResponseContentBufferSize: 1024 * 1024);
+            MaxResponseContentBufferSize: 1024 * 1024,
+            Credentials: options.Credentials,
+            PreAuthenticate: options.PreAuthenticate);
     }
 }

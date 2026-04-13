@@ -55,7 +55,6 @@ internal static class DirectConnectionFactory
 
             // 3. Create ClientState with channels + Pipe
             var state = new ClientState(
-                maxFrameSize: options.MaxFrameSize,
                 stream: stream,
                 inboundChannel: null,
                 outboundChannel: null,

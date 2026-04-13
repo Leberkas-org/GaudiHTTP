@@ -33,8 +33,7 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
     private TcpOptions CreateOptions() => new()
     {
         Host = "127.0.0.1",
-        Port = _port,
-        MaxFrameSize = 16384
+        Port = _port
     };
 
     private static RequestEndpoint CreateEndpoint(int port, Version? version = null) => new()
@@ -51,7 +50,8 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(_port);
 
-        using var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
+        using var lease =
+            await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
         Assert.True(lease.IsAlive);
@@ -65,7 +65,8 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(_port);
 
-        using var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
+        using var lease =
+            await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         Assert.Equal(ActorRefs.Nobody, lease.Handle.ConnectionActor);
     }
@@ -79,7 +80,8 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
         // Accept the connection server-side
         var acceptTask = _listener!.AcceptTcpClientAsync(TestContext.Current.CancellationToken);
 
-        using var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
+        using var lease =
+            await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         using var serverClient = await acceptTask;
         var serverStream = serverClient.GetStream();
@@ -110,7 +112,8 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
 
         var acceptTask = _listener!.AcceptTcpClientAsync(TestContext.Current.CancellationToken);
 
-        using var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
+        using var lease =
+            await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
 
         using var serverClient = await acceptTask;
         var serverStream = serverClient.GetStream();
@@ -133,17 +136,20 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
 
         // HTTP/1.0 → 1
         var endpoint10 = CreateEndpoint(_port, HttpVersion.Version10);
-        using var lease10 = await DirectConnectionFactory.EstablishAsync(options, endpoint10, TestContext.Current.CancellationToken);
+        using var lease10 =
+            await DirectConnectionFactory.EstablishAsync(options, endpoint10, TestContext.Current.CancellationToken);
         Assert.Equal(1, lease10.MaxConcurrentStreams);
 
         // HTTP/1.1 → 6
         var endpoint11 = CreateEndpoint(_port, HttpVersion.Version11);
-        using var lease11 = await DirectConnectionFactory.EstablishAsync(options, endpoint11, TestContext.Current.CancellationToken);
+        using var lease11 =
+            await DirectConnectionFactory.EstablishAsync(options, endpoint11, TestContext.Current.CancellationToken);
         Assert.Equal(6, lease11.MaxConcurrentStreams);
 
         // HTTP/2 → 100
         var endpoint20 = CreateEndpoint(_port, HttpVersion.Version20);
-        using var lease20 = await DirectConnectionFactory.EstablishAsync(options, endpoint20, TestContext.Current.CancellationToken);
+        using var lease20 =
+            await DirectConnectionFactory.EstablishAsync(options, endpoint20, TestContext.Current.CancellationToken);
         Assert.Equal(100, lease20.MaxConcurrentStreams);
     }
 
@@ -155,8 +161,8 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => DirectConnectionFactory.EstablishAsync(options, endpoint, cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            DirectConnectionFactory.EstablishAsync(options, endpoint, cts.Token));
     }
 
     [Fact(Timeout = 5000)]
@@ -167,15 +173,14 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
         {
             Host = "192.0.2.1", // RFC 5737 TEST-NET — not routable
             Port = 80,
-            MaxFrameSize = 16384,
             ConnectTimeout = TimeSpan.FromSeconds(30)
         };
         var endpoint = CreateEndpoint(80);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => DirectConnectionFactory.EstablishAsync(options, endpoint, cts.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            DirectConnectionFactory.EstablishAsync(options, endpoint, cts.Token));
     }
 
     [Fact(Timeout = 5000)]
@@ -187,8 +192,8 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(_port);
 
-        await Assert.ThrowsAnyAsync<SocketException>(
-            () => DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAnyAsync<SocketException>(() =>
+            DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
@@ -197,7 +202,8 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(_port);
 
-        var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
+        var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint,
+            TestContext.Current.CancellationToken);
         var token = lease.Token;
 
         Assert.False(token.IsCancellationRequested);
@@ -213,7 +219,8 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
         var options = CreateOptions();
         var endpoint = CreateEndpoint(_port);
 
-        var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
+        var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint,
+            TestContext.Current.CancellationToken);
 
         Assert.True(lease.IsAlive);
 
@@ -230,7 +237,8 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
 
         var acceptTask = _listener!.AcceptTcpClientAsync(TestContext.Current.CancellationToken);
 
-        var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
+        var lease = await DirectConnectionFactory.EstablishAsync(options, endpoint,
+            TestContext.Current.CancellationToken);
 
         using var serverClient = await acceptTask;
 
@@ -252,7 +260,7 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
     {
         var endpoint = CreateEndpoint(80);
 
-        await Assert.ThrowsAsync<ArgumentNullException>(
-            () => DirectConnectionFactory.EstablishAsync(null!, endpoint, TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            DirectConnectionFactory.EstablishAsync(null!, endpoint, TestContext.Current.CancellationToken));
     }
 }
