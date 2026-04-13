@@ -1,5 +1,4 @@
 using System.Text;
-using TurboHTTP.Protocol.Http10;
 using Encoder = TurboHTTP.Protocol.Http10.Encoder;
 
 namespace TurboHTTP.Tests.Http10;

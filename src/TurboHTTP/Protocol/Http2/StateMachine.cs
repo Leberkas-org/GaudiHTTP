@@ -82,8 +82,6 @@ public sealed class StateMachine
             new HpackDecoder(), config.MaxHeaderSize, config.MaxTotalHeaderSize);
     }
 
-    // ─── Preface (RFC 9113 §3.4) ───
-
     /// <summary>
     /// Builds the connection preface if not yet sent. Returns null if already sent or disabled.
     /// </summary>
@@ -102,8 +100,6 @@ public sealed class StateMachine
         prefaceBuf.Length = prefaceLength;
         return prefaceBuf;
     }
-
-    // ─── Server data processing ───
 
     /// <summary>
     /// Decodes a NetworkBuffer into HTTP/2 frames.
@@ -346,8 +342,6 @@ public sealed class StateMachine
         }
     }
 
-    // ─── Reconnect ───
-
     /// <summary>
     /// Called when GOAWAY or abrupt close is received with in-flight requests.
     /// Classifies streams by LastStreamId and idempotency, buffers safe-to-replay requests,
@@ -358,7 +352,7 @@ public sealed class StateMachine
         foreach (var (streamId, request) in _correlationMap)
         {
             var streamState = _streams.GetValueOrDefault(streamId);
-            var hasReceivedHeaders = streamState?.Response is not null;
+            var hasReceivedHeaders = streamState?.HasResponse ?? false;
 
             if (streamId > lastStreamId)
             {

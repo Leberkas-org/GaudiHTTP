@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.IntegrationTests.Shared;
-using TurboHTTP.Internal;
 
 namespace TurboHTTP.IntegrationTests;
 

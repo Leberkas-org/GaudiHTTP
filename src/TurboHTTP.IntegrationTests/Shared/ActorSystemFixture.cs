@@ -1,7 +1,6 @@
 using Akka.Actor;
 using Akka.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
-using TurboHTTP.Internal;
 
 namespace TurboHTTP.IntegrationTests.Shared;
 

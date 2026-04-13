@@ -127,9 +127,6 @@ internal sealed class RedirectBidiStage
                 return;
             }
 
-            // --- Request direction (In1→Out1) ---
-            // Redirect requests have priority over new requests from In1.
-
             SetHandler(stage._inRequest,
                 onPush: () =>
                 {
@@ -160,8 +157,6 @@ internal sealed class RedirectBidiStage
                     }
                 },
                 onDownstreamFinish: _ => Cancel(stage._inRequest));
-
-            // --- Response direction (In2→Out2) ---
 
             SetHandler(stage._inResponse,
                 onPush: () =>

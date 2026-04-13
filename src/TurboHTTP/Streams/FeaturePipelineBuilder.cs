@@ -36,10 +36,17 @@ internal static class FeaturePipelineBuilder
     {
         // Collect active feature stages innermost-first.
         // Index 0 connects directly to the engine; the last index is the outermost layer.
-        // Capacity: ContentEncoding + Cache + Expect100 + Retry + Cookie + Redirect + Handlers + Tracing
-        var maxLayers = 6 + descriptor.Handlers.Count + 1;
+        // Capacity: AltSvc + ContentEncoding + Cache + Expect100 + Retry + Cookie + Redirect + Handlers + Tracing
+        var maxLayers = 7 + descriptor.Handlers.Count + 1;
         var layers = new List<IGraph<BidiShape<HttpRequestMessage, HttpRequestMessage,
             HttpResponseMessage, HttpResponseMessage>, NotUsed>>(maxLayers);
+
+        // Alt-Svc discovery is innermost: upgrades request version before protocol routing,
+        // and captures Alt-Svc headers from responses before other features process them.
+        if (descriptor.AltSvcCache is not null)
+        {
+            layers.Add(new AltSvcBidiStage(descriptor.AltSvcCache));
+        }
 
         if (descriptor.AutomaticDecompression || descriptor.CompressionPolicy is not null)
         {

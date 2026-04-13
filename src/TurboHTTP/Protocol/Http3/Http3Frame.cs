@@ -16,7 +16,7 @@ namespace TurboHTTP.Protocol.Http3;
 // Unlike HTTP/2, HTTP/3 frames have no stream identifier in the
 // frame header (QUIC streams provide that) and no flags byte.
 
-public enum Http3FrameType : long
+public enum FrameType : long
 {
     Data = 0x00,
     Headers = 0x01,
@@ -29,7 +29,7 @@ public enum Http3FrameType : long
 
 public abstract class Http3Frame
 {
-    public abstract Http3FrameType Type { get; }
+    public abstract FrameType Type { get; }
 
     /// <summary>
     /// Total serialized size in bytes including the type and length prefix.
@@ -82,7 +82,7 @@ public sealed class Http3DataFrame : Http3Frame, IDisposable
 {
     private readonly IMemoryOwner<byte>? _owner;
 
-    public override Http3FrameType Type => Http3FrameType.Data;
+    public override FrameType Type => FrameType.Data;
     public ReadOnlyMemory<byte> Data { get; }
 
     public Http3DataFrame(ReadOnlyMemory<byte> data)
@@ -93,7 +93,7 @@ public sealed class Http3DataFrame : Http3Frame, IDisposable
     internal Http3DataFrame(IMemoryOwner<byte> owner, int length)
     {
         _owner = owner;
-        Data = owner.Memory.Slice(0, length);
+        Data = owner.Memory[..length];
     }
 
     public void Dispose() => _owner?.Dispose();
@@ -119,8 +119,17 @@ public sealed class Http3HeadersFrame : Http3Frame, IDisposable
 {
     private readonly IMemoryOwner<byte>? _owner;
 
-    public override Http3FrameType Type => Http3FrameType.Headers;
+    public override FrameType Type => FrameType.Headers;
     public ReadOnlyMemory<byte> HeaderBlock { get; }
+
+    /// <summary>
+    /// When true, indicates this request may be sent as QUIC 0-RTT early data.
+    /// Only set for idempotent HTTP methods (GET, HEAD, OPTIONS, TRACE, DELETE)
+    /// when <see cref="Http3ConnectionConfig.AllowEarlyData"/> is enabled.
+    /// The transport layer uses this flag to decide whether to send the request
+    /// before the TLS handshake completes. RFC 9114 §A.1.
+    /// </summary>
+    public bool EarlyData { get; set; }
 
     public Http3HeadersFrame(ReadOnlyMemory<byte> headerBlock)
     {
@@ -130,7 +139,7 @@ public sealed class Http3HeadersFrame : Http3Frame, IDisposable
     internal Http3HeadersFrame(IMemoryOwner<byte> owner, int length)
     {
         _owner = owner;
-        HeaderBlock = owner.Memory.Slice(0, length);
+        HeaderBlock = owner.Memory[..length];
     }
 
     public void Dispose() => _owner?.Dispose();
@@ -155,7 +164,7 @@ public sealed class Http3HeadersFrame : Http3Frame, IDisposable
 /// </summary>
 public sealed class Http3CancelPushFrame : Http3Frame
 {
-    public override Http3FrameType Type => Http3FrameType.CancelPush;
+    public override FrameType Type => FrameType.CancelPush;
     public long PushId { get; }
 
     public Http3CancelPushFrame(long pushId)
@@ -189,7 +198,7 @@ public sealed class Http3CancelPushFrame : Http3Frame
 /// </summary>
 public sealed class Http3SettingsFrame : Http3Frame
 {
-    public override Http3FrameType Type => Http3FrameType.Settings;
+    public override FrameType Type => FrameType.Settings;
     public IReadOnlyList<(long Identifier, long Value)> Parameters { get; }
 
     public Http3SettingsFrame(IReadOnlyList<(long Identifier, long Value)> parameters)
@@ -238,7 +247,7 @@ public sealed class Http3PushPromiseFrame : Http3Frame, IDisposable
 {
     private readonly IMemoryOwner<byte>? _owner;
 
-    public override Http3FrameType Type => Http3FrameType.PushPromise;
+    public override FrameType Type => FrameType.PushPromise;
     public long PushId { get; }
     public ReadOnlyMemory<byte> HeaderBlock { get; }
 
@@ -262,7 +271,7 @@ public sealed class Http3PushPromiseFrame : Http3Frame, IDisposable
 
         PushId = pushId;
         _owner = owner;
-        HeaderBlock = owner.Memory.Slice(0, length);
+        HeaderBlock = owner.Memory[..length];
     }
 
     public void Dispose() => _owner?.Dispose();
@@ -289,7 +298,7 @@ public sealed class Http3PushPromiseFrame : Http3Frame, IDisposable
 /// </summary>
 public sealed class Http3GoAwayFrame : Http3Frame
 {
-    public override Http3FrameType Type => Http3FrameType.GoAway;
+    public override FrameType Type => FrameType.GoAway;
     public long StreamId { get; }
 
     public Http3GoAwayFrame(long streamId)
@@ -322,7 +331,7 @@ public sealed class Http3GoAwayFrame : Http3Frame
 /// </summary>
 public sealed class Http3MaxPushIdFrame : Http3Frame
 {
-    public override Http3FrameType Type => Http3FrameType.MaxPushId;
+    public override FrameType Type => FrameType.MaxPushId;
     public long PushId { get; }
 
     public Http3MaxPushIdFrame(long pushId)

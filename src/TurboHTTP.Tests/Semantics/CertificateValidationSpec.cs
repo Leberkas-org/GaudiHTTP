@@ -1,5 +1,6 @@
+using System.Net;
 using System.Net.Security;
-using TurboHTTP.Transport.Tcp;
+using TurboHTTP.Internal;
 using TurboHTTP.Transport.Connection;
 
 namespace TurboHTTP.Tests.Semantics;
@@ -12,6 +13,17 @@ namespace TurboHTTP.Tests.Semantics;
 /// </summary>
 public sealed class CertificateValidationSpec
 {
+    private static RequestEndpoint ToEndpoint(Uri uri)
+    {
+        return new RequestEndpoint
+        {
+            Host = uri.Host,
+            Port = (ushort)(uri.IsDefaultPort ? 0 : uri.Port),
+            Scheme = uri.Scheme,
+            Version = HttpVersion.Version11
+        };
+    }
+
     [Fact]
     [Trait("RFC", "RFC9110-4.3.4")]
     public void DefaultOptions_Should_EnableValidation()
@@ -96,7 +108,7 @@ public sealed class CertificateValidationSpec
         };
 
         var uri = new Uri("https://example.com/path");
-        var tcpOptions = OptionsFactory.Build(uri, options);
+        var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);
 
         var tlsOptions = Assert.IsType<TlsOptions>(tcpOptions);
         Assert.NotNull(tlsOptions.ServerCertificateValidationCallback);
@@ -112,7 +124,7 @@ public sealed class CertificateValidationSpec
         var options = new TurboClientOptions();
 
         var uri = new Uri("https://example.com/");
-        var tcpOptions = OptionsFactory.Build(uri, options);
+        var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);
 
         var tlsOptions = Assert.IsType<TlsOptions>(tcpOptions);
         Assert.NotNull(tlsOptions.ServerCertificateValidationCallback);
@@ -129,7 +141,7 @@ public sealed class CertificateValidationSpec
         var options = new TurboClientOptions();
         var uri = new Uri("http://example.com/");
 
-        var tcpOptions = OptionsFactory.Build(uri, options);
+        var tcpOptions = OptionsFactory.Build(ToEndpoint(uri), options);
 
         Assert.IsType<TcpOptions>(tcpOptions);
         Assert.IsNotType<TlsOptions>(tcpOptions);

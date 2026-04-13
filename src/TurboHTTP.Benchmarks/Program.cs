@@ -7,8 +7,6 @@ var summaries = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(arg
 
 var enumerable = summaries.ToList();
 
-// ── Binkraken (Remote HTTPS) report ──────────────────────────────────────────
-
 var binkHttpSingle = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<BinkrakenHttpClientSingleBenchmarks>());
 var binkHttpConcurrent = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<BinkrakenHttpClientConcurrentBenchmarks>());
 var binkTurboSendSingle = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<BinkrakenTurboSendAsyncSingleBenchmarks>());
@@ -50,8 +48,6 @@ else
     Console.WriteLine($"  BinkrakenTurboStreamingSingleBenchmarks      : {(binkTurboStreamSingle is not null ? "OK" : "MISSING")}");
     Console.WriteLine($"  BinkrakenTurboStreamingConcurrentBenchmarks  : {(binkTurboStreamConcurrent is not null ? "OK" : "MISSING")}");
 }
-
-// ── Kestrel (Localhost Loopback) report ──────────────────────────────────────
 
 var kestrelHttpSingle = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<KestrelHttpClientSingleBenchmarks>());
 var kestrelHttpConcurrent = enumerable.FirstOrDefault(s => s.HasBenchmarksOf<KestrelHttpClientConcurrentBenchmarks>());

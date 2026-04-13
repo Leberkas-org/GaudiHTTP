@@ -14,7 +14,7 @@ public sealed class QpackIntegrationSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Encoder_should_produce_headers_frame_with_qpack()
     {
-        var encoder = new Http3RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(maxTableCapacity: 0);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/index.html");
 
         var frames = encoder.Encode(request);
@@ -28,7 +28,7 @@ public sealed class QpackIntegrationSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Encoder_should_produce_output_decodable_by_qpack_decoder()
     {
-        var encoder = new Http3RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(maxTableCapacity: 0);
         var decoder = new QpackDecoder(maxTableCapacity: 0);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path?q=1");
@@ -54,7 +54,7 @@ public sealed class QpackIntegrationSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Encoder_should_emit_data_frame_for_body()
     {
-        var encoder = new Http3RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(maxTableCapacity: 0);
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/api/data")
         {
             Content = new StringContent("hello world", Encoding.UTF8, "text/plain"),
@@ -73,7 +73,7 @@ public sealed class QpackIntegrationSpec
     [Trait("RFC", "RFC9114-4.2")]
     public void Encoder_should_filter_forbidden_headers()
     {
-        var encoder = new Http3RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(maxTableCapacity: 0);
         var decoder = new QpackDecoder(maxTableCapacity: 0);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
@@ -92,7 +92,7 @@ public sealed class QpackIntegrationSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Encoder_should_emit_qpack_encoder_instructions()
     {
-        var encoder = new Http3RequestEncoder(maxTableCapacity: 4096);
+        var encoder = new RequestEncoder(maxTableCapacity: 4096);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         request.Headers.TryAddWithoutValidation("x-custom", "custom-value");
 
@@ -178,7 +178,7 @@ public sealed class QpackIntegrationSpec
     [Trait("RFC", "RFC9114-4.3")]
     public void Encoder_should_reject_null_uri()
     {
-        var encoder = new Http3RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(maxTableCapacity: 0);
         var request = new HttpRequestMessage(HttpMethod.Get, (Uri?)null);
         Assert.Throws<ArgumentNullException>(() => encoder.Encode(request));
     }

@@ -1,3 +1,4 @@
+using TurboHTTP.Protocol.AltSvc;
 using TurboHTTP.Protocol.Cookies;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Caching;
@@ -13,7 +14,8 @@ internal sealed record PipelineDescriptor(
     CacheStore? CacheStore,
     CachePolicy? CachePolicy,
     IReadOnlyList<TurboHandler> Handlers,
-    bool AutomaticDecompression = true)
+    bool AutomaticDecompression = true,
+    AltSvcCache? AltSvcCache = null)
 {
     public static readonly PipelineDescriptor Empty = new(
         RedirectPolicy: null,
@@ -24,5 +26,6 @@ internal sealed record PipelineDescriptor(
         CacheStore: null,
         CachePolicy: null,
         Handlers: [],
-        AutomaticDecompression: true);
+        AutomaticDecompression: true,
+        AltSvcCache: null);
 }

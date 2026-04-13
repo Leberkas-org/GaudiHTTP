@@ -11,8 +11,6 @@ public sealed class UniStreamSpec
         return buf;
     }
 
-    // --- Stream Type Identification ---
-
     [Theory]
     [Trait("RFC", "RFC9114-6.2")]
     [InlineData(0x00L, UniStreamRouting.Control)]
@@ -21,7 +19,7 @@ public sealed class UniStreamSpec
     [InlineData(0x03L, UniStreamRouting.QpackDecoder)]
     public void TryIdentify_KnownTypes_RoutesCorrectly(long typeValue, UniStreamRouting expected)
     {
-        var handler = new Http3UniStream();
+        var handler = new UniStream();
         var data = EncodeStreamType(typeValue);
 
         var result = handler.TryIdentify(data, out var routing, out var streamType, out var consumed);
@@ -36,7 +34,7 @@ public sealed class UniStreamSpec
     [Trait("RFC", "RFC9114-6.2")]
     public void TryIdentify_UnknownType_ReturnsUnknown()
     {
-        var handler = new Http3UniStream();
+        var handler = new UniStream();
         // 0x21 is a reserved/unknown stream type (not 0x00-0x03)
         var data = EncodeStreamType(0x21);
 
@@ -56,7 +54,7 @@ public sealed class UniStreamSpec
     [InlineData(0x1FL)]
     public void TryIdentify_VariousUnknownTypes_AllIgnored(long unknownType)
     {
-        var handler = new Http3UniStream();
+        var handler = new UniStream();
         var data = EncodeStreamType(unknownType);
 
         var result = handler.TryIdentify(data, out var routing, out _, out _);
@@ -65,14 +63,12 @@ public sealed class UniStreamSpec
         Assert.Equal(UniStreamRouting.Unknown, routing);
     }
 
-    // --- QPACK Stream Routing ---
-
     [Fact]
     [Trait("RFC", "RFC9114-6.2")]
     public void TryIdentify_QpackEncoder_TracksState()
     {
-        var handler = new Http3UniStream();
-        var data = EncodeStreamType((long)Http3StreamType.QpackEncoder);
+        var handler = new UniStream();
+        var data = EncodeStreamType((long)StreamType.QpackEncoder);
 
         Assert.False(handler.QpackEncoderStreamReceived);
 
@@ -86,8 +82,8 @@ public sealed class UniStreamSpec
     [Trait("RFC", "RFC9114-6.2")]
     public void TryIdentify_QpackDecoder_TracksState()
     {
-        var handler = new Http3UniStream();
-        var data = EncodeStreamType((long)Http3StreamType.QpackDecoder);
+        var handler = new UniStream();
+        var data = EncodeStreamType((long)StreamType.QpackDecoder);
 
         Assert.False(handler.QpackDecoderStreamReceived);
 
@@ -97,14 +93,12 @@ public sealed class UniStreamSpec
         Assert.True(handler.QpackDecoderStreamReceived);
     }
 
-    // --- Duplicate Critical Stream Detection ---
-
     [Fact]
     [Trait("RFC", "RFC9114-6.2")]
     public void TryIdentify_DuplicateControlStream_Throws()
     {
-        var handler = new Http3UniStream();
-        var data = EncodeStreamType((long)Http3StreamType.Control);
+        var handler = new UniStream();
+        var data = EncodeStreamType((long)StreamType.Control);
 
         handler.TryIdentify(data, out _, out _, out _);
 
@@ -117,8 +111,8 @@ public sealed class UniStreamSpec
     [Trait("RFC", "RFC9114-6.2")]
     public void TryIdentify_DuplicateQpackEncoder_Throws()
     {
-        var handler = new Http3UniStream();
-        var data = EncodeStreamType((long)Http3StreamType.QpackEncoder);
+        var handler = new UniStream();
+        var data = EncodeStreamType((long)StreamType.QpackEncoder);
 
         handler.TryIdentify(data, out _, out _, out _);
 
@@ -131,8 +125,8 @@ public sealed class UniStreamSpec
     [Trait("RFC", "RFC9114-6.2")]
     public void TryIdentify_DuplicateQpackDecoder_Throws()
     {
-        var handler = new Http3UniStream();
-        var data = EncodeStreamType((long)Http3StreamType.QpackDecoder);
+        var handler = new UniStream();
+        var data = EncodeStreamType((long)StreamType.QpackDecoder);
 
         handler.TryIdentify(data, out _, out _, out _);
 
@@ -141,13 +135,11 @@ public sealed class UniStreamSpec
         Assert.Equal(Http3ErrorCode.StreamCreationError, ex.ErrorCode);
     }
 
-    // --- Buffer Handling ---
-
     [Fact]
     [Trait("RFC", "RFC9114-6.2")]
     public void TryIdentify_EmptyBuffer_ReturnsFalse()
     {
-        var handler = new Http3UniStream();
+        var handler = new UniStream();
 
         var result = handler.TryIdentify(ReadOnlySpan<byte>.Empty, out var routing, out var streamType, out var consumed);
 

@@ -1,7 +1,5 @@
 using System.Text;
 using TurboHTTP.Protocol;
-using TurboHTTP.Protocol.Http10;
-using TurboHTTP.Protocol.Http11;
 using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 using Encoder = TurboHTTP.Protocol.Http11.Encoder;
 
@@ -41,9 +39,7 @@ public sealed class HeaderInjectionSpec
         Protocol.Http10.Encoder.Encode(request, ref buffer);
     }
 
-    // ------------------------------------------------------------------------------
     // CRLF Injection in Request Header Names
-    // ------------------------------------------------------------------------------
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112")]
@@ -88,9 +84,7 @@ public sealed class HeaderInjectionSpec
         Assert.DoesNotContain(request.Headers, h => h.Key.Contains("Evil"));
     }
 
-    // ------------------------------------------------------------------------------
     // CRLF Injection in Request Header Values
-    // ------------------------------------------------------------------------------
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112")]
@@ -149,9 +143,7 @@ public sealed class HeaderInjectionSpec
         Assert.Throws<ArgumentException>(() => EncodeHttp11Throwing(request));
     }
 
-    // ------------------------------------------------------------------------------
     // NUL Byte Injection in Headers
-    // ------------------------------------------------------------------------------
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112")]
@@ -196,9 +188,7 @@ public sealed class HeaderInjectionSpec
         Assert.Equal(HttpDecoderError.InvalidFieldValue, ex.DecodeError);
     }
 
-    // ------------------------------------------------------------------------------
     // Header Name with Spaces
-    // ------------------------------------------------------------------------------
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945")]
@@ -226,9 +216,7 @@ public sealed class HeaderInjectionSpec
         Assert.DoesNotContain(request.Headers, h => h.Key == "X Bad Header");
     }
 
-    // ------------------------------------------------------------------------------
     // Header Value with Bare CR (without LF)
-    // ------------------------------------------------------------------------------
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112")]
@@ -263,9 +251,7 @@ public sealed class HeaderInjectionSpec
         Assert.Contains("X-Test", ex.Message);
     }
 
-    // ------------------------------------------------------------------------------
     // HTTP/1.1 Request Smuggling: Content-Length + Transfer-Encoding Conflict
-    // ------------------------------------------------------------------------------
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112")]
@@ -322,9 +308,7 @@ public sealed class HeaderInjectionSpec
         Assert.Equal(HttpDecoderError.ChunkedWithContentLength, ex.DecodeError);
     }
 
-    // ------------------------------------------------------------------------------
     // HTTP/1.1 Request Smuggling: Duplicate Content-Length
-    // ------------------------------------------------------------------------------
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112")]
@@ -386,9 +370,7 @@ public sealed class HeaderInjectionSpec
         Assert.Equal(HttpDecoderError.MultipleContentLengthValues, ex.DecodeError);
     }
 
-    // ------------------------------------------------------------------------------
     // HTTP/1.1 Encoder: Smugglable Header Prevention
-    // ------------------------------------------------------------------------------
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112")]
@@ -474,9 +456,7 @@ public sealed class HeaderInjectionSpec
         }
     }
 
-    // ------------------------------------------------------------------------------
     // Positive tests: Legitimate headers must work correctly
-    // ------------------------------------------------------------------------------
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112")]

@@ -23,7 +23,7 @@ public sealed class IntermediaryEncapsulationSpec
         };
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3FieldValidator.Validate(headers));
+            () => FieldValidator.Validate(headers));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("§10.3", ex.Message);
     }
@@ -43,7 +43,7 @@ public sealed class IntermediaryEncapsulationSpec
         };
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3FieldValidator.Validate(headers));
+            () => FieldValidator.Validate(headers));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("§10.3", ex.Message);
     }
@@ -76,7 +76,7 @@ public sealed class IntermediaryEncapsulationSpec
         };
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3FieldValidator.Validate(headers));
+            () => FieldValidator.Validate(headers));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("§10.3", ex.Message);
     }
@@ -92,7 +92,7 @@ public sealed class IntermediaryEncapsulationSpec
         };
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3FieldValidator.Validate(headers));
+            () => FieldValidator.Validate(headers));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("§10.3", ex.Message);
     }
@@ -124,7 +124,7 @@ public sealed class IntermediaryEncapsulationSpec
             (name, "value"),
         };
 
-        Http3FieldValidator.Validate(headers);
+        FieldValidator.Validate(headers);
     }
 
     [Fact]
@@ -138,7 +138,7 @@ public sealed class IntermediaryEncapsulationSpec
         };
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3FieldValidator.Validate(headers));
+            () => FieldValidator.Validate(headers));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("§10.3", ex.Message);
     }
@@ -155,7 +155,7 @@ public sealed class IntermediaryEncapsulationSpec
         };
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3FieldValidator.Validate(headers));
+            () => FieldValidator.Validate(headers));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("NUL", ex.Message);
     }
@@ -171,7 +171,7 @@ public sealed class IntermediaryEncapsulationSpec
         };
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3FieldValidator.Validate(headers));
+            () => FieldValidator.Validate(headers));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("CR", ex.Message);
     }
@@ -187,7 +187,7 @@ public sealed class IntermediaryEncapsulationSpec
         };
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3FieldValidator.Validate(headers));
+            () => FieldValidator.Validate(headers));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("LF", ex.Message);
     }
@@ -203,7 +203,7 @@ public sealed class IntermediaryEncapsulationSpec
         };
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3FieldValidator.Validate(headers));
+            () => FieldValidator.Validate(headers));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
     }
 
@@ -219,7 +219,7 @@ public sealed class IntermediaryEncapsulationSpec
             ("date", "Sat, 22 Mar 2026 00:00:00 GMT"),
         };
 
-        Http3FieldValidator.Validate(headers);
+        FieldValidator.Validate(headers);
     }
 
 
@@ -230,7 +230,7 @@ public sealed class IntermediaryEncapsulationSpec
         var uri = new Uri("https://user:password@example.com/path");
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3OriginValidator.Validate(uri));
+            () => OriginValidator.Validate(uri));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("userinfo", ex.Message);
     }
@@ -242,7 +242,7 @@ public sealed class IntermediaryEncapsulationSpec
         var uri = new Uri("https://user@example.com/path");
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3OriginValidator.Validate(uri));
+            () => OriginValidator.Validate(uri));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("userinfo", ex.Message);
     }
@@ -254,7 +254,7 @@ public sealed class IntermediaryEncapsulationSpec
         var uri = new Uri("https://example.com/path#fragment");
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3OriginValidator.Validate(uri));
+            () => OriginValidator.Validate(uri));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("fragment", ex.Message);
     }
@@ -265,7 +265,7 @@ public sealed class IntermediaryEncapsulationSpec
     {
         var uri = new Uri("https://example.com/path?query=1");
 
-        Http3OriginValidator.Validate(uri);
+        OriginValidator.Validate(uri);
     }
 
     [Fact]
@@ -274,7 +274,7 @@ public sealed class IntermediaryEncapsulationSpec
     {
         var uri = new Uri("https://example.com:443/");
 
-        Http3OriginValidator.Validate(uri, isConnect: true);
+        OriginValidator.Validate(uri, isConnect: true);
     }
 
     [Fact]
@@ -284,7 +284,7 @@ public sealed class IntermediaryEncapsulationSpec
         var uri = new Uri("https://user@example.com:443/");
 
         var ex = Assert.Throws<Http3Exception>(
-            () => Http3OriginValidator.Validate(uri, isConnect: true));
+            () => OriginValidator.Validate(uri, isConnect: true));
         Assert.Equal(Http3ErrorCode.MessageError, ex.ErrorCode);
         Assert.Contains("userinfo", ex.Message);
     }
@@ -294,7 +294,7 @@ public sealed class IntermediaryEncapsulationSpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Encoder_rejects_userinfo_uri()
     {
-        var encoder = new Http3RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(maxTableCapacity: 0);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://user:pass@example.com/");
 
         var ex = Assert.Throws<Http3Exception>(() => encoder.Encode(request));
@@ -306,7 +306,7 @@ public sealed class IntermediaryEncapsulationSpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Encoder_rejects_fragment_uri()
     {
-        var encoder = new Http3RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(maxTableCapacity: 0);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/page#section");
 
         var ex = Assert.Throws<Http3Exception>(() => encoder.Encode(request));
@@ -318,7 +318,7 @@ public sealed class IntermediaryEncapsulationSpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Encoder_accepts_normal_request()
     {
-        var encoder = new Http3RequestEncoder(maxTableCapacity: 0);
+        var encoder = new RequestEncoder(maxTableCapacity: 0);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path?q=1");
 
         var frames = encoder.Encode(request);

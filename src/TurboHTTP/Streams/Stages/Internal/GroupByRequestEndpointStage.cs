@@ -630,26 +630,5 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             vt.GetAwaiter().OnCompleted(state.WriteReadyCallback);
         }
 
-        /// <summary>
-        /// Returns true if at least one slot across all endpoints can accept items.
-        /// When all slots are full (WaitingForWrite), upstream pull is suppressed —
-        /// backpressure propagates to the user's request channel.
-        /// </summary>
-        private bool AnySlotHasCapacity()
-        {
-            foreach (var group in _subflows.Values)
-            {
-                foreach (var slot in group.AllSlots)
-                {
-                    if (slot.HasCapacity)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            // No subflows yet — allow pull so the first item can create a subflow
-            return _subflows.Count == 0;
-        }
     }
 }

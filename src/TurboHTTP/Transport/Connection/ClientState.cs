@@ -16,6 +16,13 @@ internal sealed class ClientState : IDisposable
     /// </summary>
     public TlsCloseKind? CloseKind { get; set; }
 
+    /// <summary>
+    /// Optional callback invoked by <see cref="ClientByteMover.MoveChannelToStream"/>
+    /// after the outbound channel is fully drained and completed normally (no error or cancellation).
+    /// Used by QUIC request streams to send FIN on the write side without closing the read side.
+    /// </summary>
+    internal Action? OnWritesComplete { get; init; }
+
     private readonly Channel<NetworkBuffer> _inboundChannel;
     private readonly Channel<NetworkBuffer> _outboundChannel;
 

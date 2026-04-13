@@ -22,8 +22,6 @@ public sealed class TurboHttpEventSource : EventSource
     {
     }
 
-    // --- Request lifecycle ---
-
     [Event(1, Level = EventLevel.Informational, Opcode = EventOpcode.Start,
         Keywords = Keywords.Request, Message = "Request started: {0} {1}")]
     public void RequestStart(string method, string url)
@@ -54,8 +52,6 @@ public sealed class TurboHttpEventSource : EventSource
         }
     }
 
-    // --- Connection lifecycle ---
-
     [Event(10, Level = EventLevel.Informational, Opcode = EventOpcode.Start,
         Keywords = Keywords.Connection, Message = "Connection opening: {0}:{1}")]
     public void ConnectionStart(string host, int port)
@@ -75,8 +71,6 @@ public sealed class TurboHttpEventSource : EventSource
             WriteEvent(11, host, port, durationMs);
         }
     }
-
-    // --- DNS ---
 
     [Event(20, Level = EventLevel.Informational, Opcode = EventOpcode.Start,
         Keywords = Keywords.Dns, Message = "DNS lookup: {0}")]
@@ -98,8 +92,6 @@ public sealed class TurboHttpEventSource : EventSource
         }
     }
 
-    // --- TLS ---
-
     [Event(30, Level = EventLevel.Informational, Opcode = EventOpcode.Start,
         Keywords = Keywords.Tls, Message = "TLS handshake: {0}")]
     public void TlsHandshakeStart(string host)
@@ -120,8 +112,6 @@ public sealed class TurboHttpEventSource : EventSource
         }
     }
 
-    // --- Redirect ---
-
     [Event(40, Level = EventLevel.Informational, Keywords = Keywords.Redirect,
         Message = "Redirect: {0} → {1}")]
     public void Redirect(int statusCode, string targetUrl)
@@ -132,8 +122,6 @@ public sealed class TurboHttpEventSource : EventSource
         }
     }
 
-    // --- Retry ---
-
     [Event(50, Level = EventLevel.Warning, Keywords = Keywords.Retry,
         Message = "Retry attempt {0}")]
     public void RetryAttempt(int attemptNumber)
@@ -143,8 +131,6 @@ public sealed class TurboHttpEventSource : EventSource
             WriteEvent(50, attemptNumber);
         }
     }
-
-    // --- Cache ---
 
     [Event(60, Level = EventLevel.Informational, Keywords = Keywords.Cache,
         Message = "Cache hit: {0}")]

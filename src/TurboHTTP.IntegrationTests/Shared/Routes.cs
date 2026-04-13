@@ -553,6 +553,28 @@ internal static class Routes
                 await ctx.Response.Body.FlushAsync();
             }
         });
+
+        // GET /h3/abort → aborts the request, triggering QUIC stream reset
+        app.MapGet("/h3/abort", (HttpContext ctx) =>
+        {
+            ctx.Abort();
+            return Results.Empty;
+        });
+
+        // GET /h3/large-headers/{kb} → returns {kb} KB body + 10 large custom headers
+        app.MapGet("/h3/large-headers/{kb:int}", (HttpContext ctx, int kb) =>
+        {
+            for (var i = 0; i < 10; i++)
+            {
+                ctx.Response.Headers[$"X-Large-{i:D2}"] = new string((char)('A' + i), 90);
+            }
+
+            ctx.Response.ContentType = "application/octet-stream";
+            var body = new byte[kb * 1024];
+            Array.Fill(body, (byte)'L');
+            ctx.Response.ContentLength = body.Length;
+            return Results.Bytes(body, "application/octet-stream");
+        });
     }
 
     internal static void RegisterCookieRoutes(WebApplication app)
@@ -843,6 +865,13 @@ internal static class Routes
         app.MapPost("/retry/non-idempotent-503", (HttpContext ctx) =>
         {
             ctx.Response.StatusCode = 503;
+            return Results.Empty;
+        });
+
+        // GET /retry/429 → 429 Too Many Requests
+        app.MapGet("/retry/429", (HttpContext ctx) =>
+        {
+            ctx.Response.StatusCode = 429;
             return Results.Empty;
         });
     }

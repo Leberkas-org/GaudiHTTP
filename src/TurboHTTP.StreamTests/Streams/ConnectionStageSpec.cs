@@ -77,14 +77,14 @@ public sealed class ConnectionStageSpec : StreamTestBase
     {
         var bytes = new byte[length];
         bytes.AsSpan().Fill(value);
-        var buf = NetworkBuffer.FromArray(bytes);
+        var buf = NetworkBufferTestExtensions.FromArray(bytes);
         buf.Key = TestKey;
         return buf;
     }
 
     /// <summary>
     /// Creates a <see cref="ConnectionLease"/> backed by in-memory channels,
-    /// a <see cref="StubConnectionManagerActor"/>, and wires it to a <see cref="ConnectionStage"/>.
+    /// a <see cref="StubConnectionManagerActor"/>, and wires it to a <see cref="TcpConnectionStage"/>.
     /// </summary>
     private (
         Flow<IOutputItem, IInputItem, NotUsed> stageFlow,
@@ -128,7 +128,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Verify by injecting inbound data — it should appear at outlet.
-        var buf = NetworkBuffer.FromArray([0xAB, 0xAB, 0xAB, 0xAB]);
+        var buf = NetworkBufferTestExtensions.FromArray([0xAB, 0xAB, 0xAB, 0xAB]);
         await inboundWriter.WriteAsync(buf, TestContext.Current.CancellationToken);
 
         await Task.Delay(200, TestContext.Current.CancellationToken);
@@ -223,7 +223,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         Assert.Equal(0x01, outBuffer.Span[0]);
         outBuffer.Dispose();
 
-        var inBuf = NetworkBuffer.FromArray([0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02]);
+        var inBuf = NetworkBufferTestExtensions.FromArray([0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02]);
         await inboundWriter.WriteAsync(inBuf, TestContext.Current.CancellationToken);
 
         await Task.Delay(300, TestContext.Current.CancellationToken);

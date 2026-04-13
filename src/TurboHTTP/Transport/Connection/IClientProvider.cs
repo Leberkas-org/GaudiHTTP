@@ -17,6 +17,9 @@ public interface IClientProvider : IAsyncDisposable
     /// <summary>Gets the remote endpoint the socket is connected to, or <see langword="null"/> if not yet connected.</summary>
     EndPoint? RemoteEndPoint { get; }
 
+    /// <summary>Gets the local endpoint the socket is bound to, or <see langword="null"/> if not yet connected.</summary>
+    EndPoint? LocalEndPoint => null;
+
     /// <summary>Opens a connection to the configured host asynchronously and returns the network stream.</summary>
     Task<Stream> GetStreamAsync(CancellationToken ct = default);
 
@@ -58,7 +61,6 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
 
         _socket = CreateSocket(options.SocketSendBufferSize, options.SocketReceiveBufferSize);
 
-        // --- DNS resolution ---
         var dnsActivity = TurboHttpInstrumentation.StartDnsLookup(host);
         TurboHttpEventSource.Instance.DnsLookupStart(host);
         IPAddress[] addresses;
@@ -96,7 +98,6 @@ public class TcpClientProvider(TcpOptions options) : IClientProvider
             throw;
         }
 
-        // --- Socket connect ---
         var networkType = addresses[0].AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6
             ? "ipv6" : "ipv4";
         var socketActivity = TurboHttpInstrumentation.StartSocketConnect(
@@ -199,7 +200,6 @@ public class TlsClientProvider(TlsOptions options) : IClientProvider
             ClientCertificates = options.ClientCertificates,
         };
 
-        // --- TLS handshake ---
         var tlsActivity = TurboHttpInstrumentation.StartTlsHandshake(targetHost);
         TurboHttpEventSource.Instance.TlsHandshakeStart(targetHost);
         var tlsStart = Stopwatch.GetTimestamp();

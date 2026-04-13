@@ -58,8 +58,6 @@ public sealed class EngineBidiFlowCompositionSpec : EngineTestBase
         return engine.CreateFlow(transports, descriptor);
     }
 
-    // ---- PipelineDescriptor.Empty (minimal graph) ----
-
     [Fact(Timeout = 10_000)]
     public async Task EngineBidiFlowComposition_should_return_200ok_when_empty_descriptor()
     {
@@ -99,8 +97,6 @@ public sealed class EngineBidiFlowCompositionSpec : EngineTestBase
         Assert.Equal(HttpStatusCode.MovedPermanently, response.StatusCode);
     }
 
-    // ---- AutomaticDecompression = false ----
-
     [Fact(Timeout = 10_000)]
     public async Task EngineBidiFlowComposition_should_still_deliver_response_when_automatic_decompression_disabled()
     {
@@ -122,8 +118,6 @@ public sealed class EngineBidiFlowCompositionSpec : EngineTestBase
         var response = await RunSingleAsync(flow, request);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
-
-    // ---- Individual features in isolation ----
 
     [Fact(Timeout = 10_000)]
     public async Task EngineBidiFlowComposition_should_retry_on_503_when_only_retry_policy_is_set()
@@ -230,8 +224,6 @@ public sealed class EngineBidiFlowCompositionSpec : EngineTestBase
         Assert.Equal(1, callCount);
     }
 
-    // ---- All features combined ----
-
     [Fact(Timeout = 15_000)]
     public async Task EngineBidiFlowComposition_should_return_200ok_when_all_features_enabled()
     {
@@ -289,8 +281,6 @@ public sealed class EngineBidiFlowCompositionSpec : EngineTestBase
         var cached = store.Get(new HttpRequestMessage(HttpMethod.Get, "http://example.com/"));
         Assert.NotNull(cached);
     }
-
-    // ---- AutomaticDecompression = true (default) ----
 
     [Fact(Timeout = 10_000)]
     public async Task EngineBidiFlowComposition_should_decompress_when_automatic_decompression_enabled()

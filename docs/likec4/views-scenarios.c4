@@ -4,12 +4,10 @@
 //   RequestEnricher → Tracing → Redirect → Cookie → Retry → ExpectContinue → Cache → ContentEncoding → Engine
 
 views {
-  // ── Scenario: HTTP/1.0 End-to-End ─────────────────────────────────────
   dynamic view scenarioHttp10 {
     title 'Scenario: HTTP/1.0 Request End-to-End'
     description 'Complete path for a single HTTP/1.0 request — connection closes after response, no keep-alive.'
 
-    // ── Request ────────────────────────────────────────────────────────
     user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricherStage 'apply BaseAddress + default headers'
     turbohttp.streams.RequestEnricherStage -> turbohttp.streams.TracingBidiStage 'request with defaults applied'
@@ -22,18 +20,15 @@ views {
     turbohttp.streams.Http10Engine -> turbohttp.streams.Http10EncoderStage 'serialize to bytes'
     turbohttp.streams.Http10EncoderStage -> turbohttp.streams.ConnectionStage 'request bytes'
 
-    // ── Connection acquisition ─────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.transport.ConnectionPool 'AcquireAsync'
     turbohttp.transport.ConnectionPool -> turbohttp.transport.HostConnections 'per-host manager'
     turbohttp.transport.HostConnections -> turbohttp.transport.DirectConnectionFactory 'establish connection'
     turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ConnectionLease 'connection lease'
     turbohttp.transport.ConnectionLease -> turbohttp.streams.ConnectionStage 'ready'
 
-    // ── TCP ────────────────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> tcp 'send request'
     tcp -> turbohttp.streams.ConnectionStage 'receive response'
 
-    // ── Response ───────────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.streams.Http10DecoderStage 'raw bytes'
     turbohttp.streams.Http10DecoderStage -> turbohttp.streams.Http1XCorrelationStage 'HttpResponseMessage'
     turbohttp.streams.Http1XCorrelationStage -> turbohttp.streams.ContentEncodingBidiStage 'matched response'
@@ -46,12 +41,10 @@ views {
     turbohttp.client.ITurboHttpClient -> user 'HttpResponseMessage'
   }
 
-  // ── Scenario: HTTP/1.1 End-to-End ─────────────────────────────────────
   dynamic view scenarioHttp11 {
     title 'Scenario: HTTP/1.1 Request End-to-End'
     description 'HTTP/1.1 with persistent connections. After decode, a keep-alive signal feeds back to the transport while the response continues downstream.'
 
-    // ── Request ────────────────────────────────────────────────────────
     user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricherStage 'apply BaseAddress + default headers'
     turbohttp.streams.RequestEnricherStage -> turbohttp.streams.TracingBidiStage 'request with defaults applied'
@@ -64,18 +57,15 @@ views {
     turbohttp.streams.Http11Engine -> turbohttp.streams.Http11EncoderStage 'serialize + chunked TE + Host header'
     turbohttp.streams.Http11EncoderStage -> turbohttp.streams.ConnectionStage 'request bytes'
 
-    // ── Connection acquisition ─────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.transport.ConnectionPool 'AcquireAsync'
     turbohttp.transport.ConnectionPool -> turbohttp.transport.HostConnections 'per-host manager'
     turbohttp.transport.HostConnections -> turbohttp.transport.DirectConnectionFactory 'establish connection'
     turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ConnectionLease 'connection lease'
     turbohttp.transport.ConnectionLease -> turbohttp.streams.ConnectionStage 'ready'
 
-    // ── TCP ────────────────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> tcp 'send request'
     tcp -> turbohttp.streams.ConnectionStage 'receive response'
 
-    // ── Response decode ────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.streams.Http11DecoderStage 'raw bytes'
     turbohttp.streams.Http11DecoderStage -> turbohttp.streams.Http1XCorrelationStage 'HttpResponseMessage (chunked decoded)'
 
@@ -86,7 +76,6 @@ views {
     }
     turbohttp.streams.ConnectionReuseStage -> turbohttp.streams.ConnectionStage 'reuse or close decision'
 
-    // ── Response ───────────────────────────────────────────────────────
     turbohttp.streams.ContentEncodingBidiStage -> turbohttp.streams.CacheBidiStage 'decompressed response'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'response (cached if eligible)'
     turbohttp.streams.RetryBidiStage -> turbohttp.streams.CookieBidiStage 'response (no retry needed)'
@@ -96,12 +85,10 @@ views {
     turbohttp.client.ITurboHttpClient -> user 'HttpResponseMessage'
   }
 
-  // ── Scenario: HTTP/2 End-to-End ────────────────────────────────────────
   dynamic view scenarioHttp2 {
     title 'Scenario: HTTP/2 Request End-to-End'
     description 'Multiplexed HTTP/2 over a single TCP connection. Requests are framed as HEADERS + DATA; the connection stage handles flow control, settings, and graceful shutdown.'
 
-    // ── Request ────────────────────────────────────────────────────────
     user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricherStage 'apply BaseAddress + default headers'
     turbohttp.streams.RequestEnricherStage -> turbohttp.streams.TracingBidiStage 'request with defaults applied'
@@ -118,18 +105,15 @@ views {
     turbohttp.streams.Http20EncoderStage -> turbohttp.streams.Http20PrependPrefaceStage 'outbound bytes'
     turbohttp.streams.Http20PrependPrefaceStage -> turbohttp.streams.ConnectionStage 'bytes with connection preface'
 
-    // ── Connection acquisition ─────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.transport.ConnectionPool 'AcquireAsync'
     turbohttp.transport.ConnectionPool -> turbohttp.transport.HostConnections 'per-host manager'
     turbohttp.transport.HostConnections -> turbohttp.transport.DirectConnectionFactory 'establish connection'
     turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ConnectionLease 'connection lease'
     turbohttp.transport.ConnectionLease -> turbohttp.streams.ConnectionStage 'ready'
 
-    // ── TCP ────────────────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> tcp 'send frames'
     tcp -> turbohttp.streams.ConnectionStage 'receive frames'
 
-    // ── Response ───────────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.streams.Http20DecoderStage 'raw bytes'
     turbohttp.streams.Http20DecoderStage -> turbohttp.streams.Http20ConnectionStage 'inbound frames'
     turbohttp.streams.Http20ConnectionStage -> turbohttp.streams.Http20StreamStage 'response frames per stream'
@@ -144,12 +128,10 @@ views {
     turbohttp.client.ITurboHttpClient -> user 'HttpResponseMessage'
   }
 
-  // ── Scenario: HTTP/3 End-to-End ────────────────────────────────────────
   dynamic view scenarioHttp3 {
     title 'Scenario: HTTP/3 Request End-to-End'
     description 'HTTP/3 over QUIC with QPACK header compression. Each request gets its own QUIC stream; the QPACK decoder feeds table updates back to the encoder for compression synchronisation.'
 
-    // ── Request ────────────────────────────────────────────────────────
     user -> turbohttp.client.ITurboHttpClient 'HttpRequestMessage'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricherStage 'apply BaseAddress + default headers'
     turbohttp.streams.RequestEnricherStage -> turbohttp.streams.TracingBidiStage 'request with defaults applied'
@@ -166,18 +148,15 @@ views {
     turbohttp.streams.Http30QpackEncoderPrefaceStage -> turbohttp.streams.Http30ControlStreamPrefaceStage 'QPACK encoder stream bytes'
     turbohttp.streams.Http30ControlStreamPrefaceStage -> turbohttp.streams.ConnectionStage 'bytes with control + QPACK stream preface'
 
-    // ── Connection acquisition (QUIC) ──────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.transport.ConnectionPool 'AcquireAsync'
     turbohttp.transport.ConnectionPool -> turbohttp.transport.HostConnections 'per-host manager'
     turbohttp.transport.HostConnections -> turbohttp.transport.DirectConnectionFactory 'establish QUIC connection'
     turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ConnectionLease 'QUIC connection lease'
     turbohttp.transport.ConnectionLease -> turbohttp.streams.ConnectionStage 'ready'
 
-    // ── QUIC ───────────────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> tcp 'send frames over QUIC'
     tcp -> turbohttp.streams.ConnectionStage 'receive frames over QUIC'
 
-    // ── Response ───────────────────────────────────────────────────────
     turbohttp.streams.ConnectionStage -> turbohttp.streams.Http30DecoderStage 'inbound bytes'
 
     // QPACK decoder stream and regular frames in parallel

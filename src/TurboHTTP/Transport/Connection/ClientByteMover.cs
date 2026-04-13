@@ -162,5 +162,10 @@ internal static class ClientByteMover
                 ArrayPool<byte>.Shared.Return(coalesceBuf);
             }
         }
+
+        // Outbound channel was completed without error — signal write-side FIN.
+        // For QUIC request streams this calls QuicStream.CompleteWrites() so the server
+        // sees end-of-request while the read side stays open for the response.
+        state.OnWritesComplete?.Invoke();
     }
 }

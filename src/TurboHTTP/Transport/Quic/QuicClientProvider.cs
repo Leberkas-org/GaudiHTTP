@@ -22,6 +22,8 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
 
     public EndPoint? RemoteEndPoint => _connection?.RemoteEndPoint;
 
+    public EndPoint? LocalEndPoint => _connection?.LocalEndPoint;
+
     public bool SupportsMultipleStreams => true;
 
     public async Task<Stream> GetStreamAsync(CancellationToken ct = default)
@@ -30,7 +32,19 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
 
         try
         {
-            return await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct).ConfigureAwait(false);
+            var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct).ConfigureAwait(false);
+
+            // When 0-RTT early data is enabled, verify the stream is writable.
+            // If the server rejected 0-RTT, CanWrite will be false until the full
+            // handshake completes — callers should retry after handshake.
+            if (options.AllowEarlyData && !stream.CanWrite)
+            {
+                throw new EarlyDataRejectedException(
+                    $"QUIC 0-RTT early data rejected by '{options.Host}:{options.Port}'. "
+                    + "Request will be re-sent after full handshake.");
+            }
+
+            return stream;
         }
         catch (QuicException ex)
         {
@@ -40,6 +54,16 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
                 $"QUIC connection to '{options.Host}:{options.Port}' is no longer usable. "
                 + "A new connection will be established on the next request.", ex);
         }
+    }
+
+    /// <summary>
+    /// Thrown when the server rejects QUIC 0-RTT early data.
+    /// The request should be re-sent after the full TLS handshake completes.
+    /// </summary>
+    public sealed class EarlyDataRejectedException : Exception
+    {
+        public EarlyDataRejectedException(string message) : base(message) { }
+        public EarlyDataRejectedException(string message, Exception innerException) : base(message, innerException) { }
     }
 
     public async Task<Stream> GetUnidirectionalStreamAsync(CancellationToken ct = default)

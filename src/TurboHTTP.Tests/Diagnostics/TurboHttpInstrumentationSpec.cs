@@ -178,7 +178,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         rootActivity.Stop();
     }
 
-
     [Fact]
     public void StartRetry_should_create_retry_activity()
     {
@@ -249,7 +248,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         rootActivity.Stop();
     }
 
-
     [Fact]
     public void StartCacheLookup_should_create_cache_lookup_activity()
     {
@@ -296,7 +294,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
 
         Assert.Equal(false, activity.GetTagItem("cache.hit"));
     }
-
 
     [Fact]
     public void SetError_should_set_otel_status_code()
@@ -359,7 +356,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         Assert.Equal(ActivityStatusCode.Error, activity.Status);
     }
 
-
     [Fact]
     public void StartRequest_should_return_null_when_no_listener()
     {
@@ -374,7 +370,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         Assert.Equal("TurboHTTP", TurboHttpInstrumentation.SourceName);
     }
 
-
     [Fact]
     public void RequestActivityKey_should_store_activity_in_request_options()
     {
@@ -387,7 +382,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         Assert.True(request.Options.TryGetValue(TurboHttpInstrumentation.RequestActivityKey, out var retrieved));
         Assert.Same(activity, retrieved);
     }
-
 
     [Fact]
     public void FullLifecycle_with_redirect_and_retry()
@@ -465,7 +459,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         Assert.Equal("Connection refused", rootActivity.GetTagItem("exception.message"));
         Assert.True(rootActivity.IsStopped);
     }
-
 
     [Fact]
     public void InjectTraceContext_should_add_traceparent_header()
@@ -547,8 +540,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
     }
 
 
-    // --- URL Redaction ---
-
     [Fact]
     public void RedactUrl_should_replace_query_with_asterisk()
     {
@@ -576,9 +567,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         var uri = new Uri("https://example.com/path?q=1#frag");
         Assert.Equal("https://example.com/path?*", TurboHttpInstrumentation.RedactUrl(uri));
     }
-
-
-    // --- Method Normalization ---
 
     [Theory]
     [InlineData("GET", "GET")]
@@ -628,9 +616,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         Assert.Null(activity.GetTagItem("http.request.method_original"));
     }
 
-
-    // --- Protocol Version Formatting ---
-
     [Theory]
     [InlineData(1, 0, "1.0")]
     [InlineData(1, 1, "1.1")]
@@ -640,9 +625,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
     {
         Assert.Equal(expected, TurboHttpInstrumentation.FormatProtocolVersion(new Version(major, minor)));
     }
-
-
-    // --- url.scheme tag ---
 
     [Fact]
     public void StartRequest_should_set_url_scheme_tag()
@@ -654,9 +636,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         Assert.NotNull(activity);
         Assert.Equal("https", activity.GetTagItem("url.scheme"));
     }
-
-
-    // --- SetResponse enriched tags ---
 
     [Fact]
     public void SetResponse_should_set_protocol_version_tag()
@@ -719,9 +698,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
 
         Assert.Equal(typeof(HttpRequestException).FullName, activity.GetTagItem("error.type"));
     }
-
-
-    // --- New Span Types ---
 
     [Fact]
     public void StartDnsLookup_should_create_activity()

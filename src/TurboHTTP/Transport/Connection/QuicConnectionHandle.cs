@@ -42,6 +42,9 @@ internal sealed class QuicConnectionHandle : IAsyncDisposable
     /// <summary>The connection target identity (scheme, host, port, version).</summary>
     public RequestEndpoint Key { get; }
 
+    /// <summary>Gets the local endpoint of the underlying QUIC connection, or <see langword="null"/> if not yet connected.</summary>
+    public System.Net.EndPoint? LocalEndPoint => _provider.LocalEndPoint;
+
     /// <summary>
     /// Opens a typed QUIC stream and returns a <see cref="ConnectionLease"/> for it.
     /// </summary>
@@ -99,11 +102,11 @@ internal sealed class QuicConnectionHandle : IAsyncDisposable
             return null;
         }
 
-        var inputStreamType = (Http3StreamType)streamTypeValue switch
+        var inputStreamType = (StreamType)streamTypeValue switch
         {
-            Http3StreamType.Control => InputStreamType.Control,
-            Http3StreamType.QpackEncoder => InputStreamType.QpackEncoder,
-            Http3StreamType.QpackDecoder => InputStreamType.QpackDecoder,
+            StreamType.Control => InputStreamType.Control,
+            StreamType.QpackEncoder => InputStreamType.QpackEncoder,
+            StreamType.QpackDecoder => InputStreamType.QpackDecoder,
             _ => (InputStreamType?)null,
         };
 
@@ -126,12 +129,28 @@ internal sealed class QuicConnectionHandle : IAsyncDisposable
     /// </summary>
     private ConnectionLease CreateStreamLease(Stream stream, StreamDirection direction)
     {
+        // For bidirectional QUIC request streams, FIN must be sent on the write side after all
+        // request frames have been written. QuicStream.CompleteWrites() does this without closing
+        // the read side so the response can still arrive. RFC 9114 §4.1.
+        Action? onWritesComplete = null;
+        if (direction == StreamDirection.Bidirectional && stream is System.Net.Quic.QuicStream qs)
+        {
+            onWritesComplete = () =>
+            {
+                try { qs.CompleteWrites(); }
+                catch { /* stream may already be closed — ignore */ }
+            };
+        }
+
         var state = new ClientState(
             maxFrameSize: _options.MaxFrameSize,
             stream: stream,
             inboundChannel: null,
             outboundChannel: null,
-            direction: direction);
+            direction: direction)
+        {
+            OnWritesComplete = onWritesComplete,
+        };
 
         var handle = ConnectionHandle.CreateDirect(
             state.OutboundWriter,
@@ -142,8 +161,17 @@ internal sealed class QuicConnectionHandle : IAsyncDisposable
 
         // on-close is a no-op: the QuicTransportStateMachine disposes leases via
         // CleanupTransport() on InboundComplete — no additional callback needed.
-        _ = ClientByteMover.MoveStreamToChannel(state, static () => { }, lease.Token);
-        _ = ClientByteMover.MoveChannelToStream(state, static () => { }, lease.Token);
+        // Only start byte movers appropriate for the stream direction:
+        // write-only streams have no inbound data; read-only streams have no outbound data.
+        if (direction != StreamDirection.WriteOnly)
+        {
+            _ = ClientByteMover.MoveStreamToChannel(state, static () => { }, lease.Token);
+        }
+
+        if (direction != StreamDirection.ReadOnly)
+        {
+            _ = ClientByteMover.MoveChannelToStream(state, static () => { }, lease.Token);
+        }
 
         return lease;
     }

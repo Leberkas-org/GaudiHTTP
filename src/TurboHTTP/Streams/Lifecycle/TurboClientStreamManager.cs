@@ -1,6 +1,5 @@
 using System.Threading.Channels;
 using Akka.Actor;
-using TurboHTTP.Internal;
 using Owner = TurboHTTP.Streams.Lifecycle.ClientStreamOwner;
 
 namespace TurboHTTP.Streams.Lifecycle;

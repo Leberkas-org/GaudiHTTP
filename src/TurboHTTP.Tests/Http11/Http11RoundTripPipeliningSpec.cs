@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Protocol.Http11;
 using Decoder = TurboHTTP.Protocol.Http11.Decoder;
 
 namespace TurboHTTP.Tests.Http11;

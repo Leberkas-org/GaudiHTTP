@@ -16,7 +16,7 @@ public sealed class FrameRoundTripSpec
         var decoded = Decode(wire);
 
         var result = Assert.IsType<Http3DataFrame>(decoded);
-        Assert.Equal(Http3FrameType.Data, result.Type);
+        Assert.Equal(FrameType.Data, result.Type);
         Assert.Equal(payload, result.Data.ToArray());
     }
 
@@ -31,7 +31,7 @@ public sealed class FrameRoundTripSpec
         var decoded = Decode(wire);
 
         var result = Assert.IsType<Http3HeadersFrame>(decoded);
-        Assert.Equal(Http3FrameType.Headers, result.Type);
+        Assert.Equal(FrameType.Headers, result.Type);
         Assert.Equal(headerBlock, result.HeaderBlock.ToArray());
     }
 
@@ -45,7 +45,7 @@ public sealed class FrameRoundTripSpec
         var decoded = Decode(wire);
 
         var result = Assert.IsType<Http3CancelPushFrame>(decoded);
-        Assert.Equal(Http3FrameType.CancelPush, result.Type);
+        Assert.Equal(FrameType.CancelPush, result.Type);
         Assert.Equal(16383, result.PushId);
     }
 
@@ -65,7 +65,7 @@ public sealed class FrameRoundTripSpec
         var decoded = Decode(wire);
 
         var result = Assert.IsType<Http3SettingsFrame>(decoded);
-        Assert.Equal(Http3FrameType.Settings, result.Type);
+        Assert.Equal(FrameType.Settings, result.Type);
         Assert.Equal(3, result.Parameters.Count);
         Assert.Equal((0x06L, 4096L), result.Parameters[0]);
         Assert.Equal((0x01L, 100L), result.Parameters[1]);
@@ -83,7 +83,7 @@ public sealed class FrameRoundTripSpec
         var decoded = Decode(wire);
 
         var result = Assert.IsType<Http3PushPromiseFrame>(decoded);
-        Assert.Equal(Http3FrameType.PushPromise, result.Type);
+        Assert.Equal(FrameType.PushPromise, result.Type);
         Assert.Equal(42, result.PushId);
         Assert.Equal(headerBlock, result.HeaderBlock.ToArray());
     }
@@ -98,7 +98,7 @@ public sealed class FrameRoundTripSpec
         var decoded = Decode(wire);
 
         var result = Assert.IsType<Http3GoAwayFrame>(decoded);
-        Assert.Equal(Http3FrameType.GoAway, result.Type);
+        Assert.Equal(FrameType.GoAway, result.Type);
         Assert.Equal(1_000_000, result.StreamId);
     }
 
@@ -112,7 +112,7 @@ public sealed class FrameRoundTripSpec
         var decoded = Decode(wire);
 
         var result = Assert.IsType<Http3MaxPushIdFrame>(decoded);
-        Assert.Equal(Http3FrameType.MaxPushId, result.Type);
+        Assert.Equal(FrameType.MaxPushId, result.Type);
         Assert.Equal(63, result.PushId);
     }
 
@@ -200,7 +200,7 @@ public sealed class FrameRoundTripSpec
         }
 
         // Decode all frames
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var decoded = decoder.DecodeAll(wire, out var consumed);
 
         Assert.Equal(totalSize, consumed);
@@ -260,13 +260,13 @@ public sealed class FrameRoundTripSpec
     private static byte[] Encode(Http3Frame frame)
     {
         var buf = new byte[frame.SerializedSize];
-        Http3FrameEncoder.Encode(frame, buf);
+        FrameEncoder.Encode(frame, buf);
         return buf;
     }
 
     private static Http3Frame Decode(byte[] wire)
     {
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(wire, out var frame, out _);
         Assert.Equal(Http3DecodeStatus.Success, status);
         Assert.NotNull(frame);

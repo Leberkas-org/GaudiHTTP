@@ -31,13 +31,13 @@ public sealed class SettingsFrameSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void Settings_SerializeDeserialize_Roundtrip()
     {
-        var settings = new Http3Settings();
+        var settings = new Settings();
         settings.Set(Http3SettingsIdentifier.MaxFieldSectionSize, 8192);
         settings.Set(Http3SettingsIdentifier.QpackMaxTableCapacity, 4096);
         settings.Set(Http3SettingsIdentifier.QpackBlockedStreams, 16);
 
         var payload = settings.Serialize();
-        var restored = Http3Settings.Deserialize(payload);
+        var restored = Settings.Deserialize(payload);
 
         Assert.Equal(8192, restored.MaxFieldSectionSize);
         Assert.Equal(4096, restored.QpackMaxTableCapacity);
@@ -49,11 +49,11 @@ public sealed class SettingsFrameSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void EmptySettings_SerializeToZeroBytes()
     {
-        var settings = new Http3Settings();
+        var settings = new Settings();
         var payload = settings.Serialize();
         Assert.Empty(payload);
 
-        var restored = Http3Settings.Deserialize(payload);
+        var restored = Settings.Deserialize(payload);
         Assert.Empty(restored.AllParameters);
     }
 
@@ -62,13 +62,13 @@ public sealed class SettingsFrameSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void UnknownSettings_PreservedThroughRoundTrip()
     {
-        var settings = new Http3Settings();
+        var settings = new Settings();
         settings.Set(Http3SettingsIdentifier.MaxFieldSectionSize, 1024);
         settings.Set(0x33, 999);   // unknown extension setting
         settings.Set(0xFF, 42);    // another unknown
 
         var payload = settings.Serialize();
-        var restored = Http3Settings.Deserialize(payload);
+        var restored = Settings.Deserialize(payload);
 
         Assert.Equal(1024, restored.MaxFieldSectionSize);
         Assert.Equal(999, restored[0x33]);
@@ -85,7 +85,7 @@ public sealed class SettingsFrameSpec
     [InlineData(0x05)] // SETTINGS_MAX_FRAME_SIZE
     public void Set_ReservedH2Identifier_Throws(long reservedId)
     {
-        var settings = new Http3Settings();
+        var settings = new Settings();
         var ex = Assert.Throws<Http3Exception>(() => settings.Set(reservedId, 0));
         Assert.Equal(Http3ErrorCode.SettingsError, ex.ErrorCode);
         Assert.Contains("reserved", ex.Message, StringComparison.OrdinalIgnoreCase);
@@ -100,7 +100,7 @@ public sealed class SettingsFrameSpec
     public void Deserialize_ReservedH2Identifier_Throws(long reservedId)
     {
         var payload = BuildSingleSettingPayload(reservedId, 0);
-        var ex = Assert.Throws<Http3Exception>(() => Http3Settings.Deserialize(payload));
+        var ex = Assert.Throws<Http3Exception>(() => Settings.Deserialize(payload));
         Assert.Equal(Http3ErrorCode.SettingsError, ex.ErrorCode);
         Assert.Contains("reserved", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -110,7 +110,7 @@ public sealed class SettingsFrameSpec
     public void Deserialize_DuplicateIdentifier_Throws()
     {
         var payload = BuildDuplicatePayload();
-        var ex = Assert.Throws<Http3Exception>(() => Http3Settings.Deserialize(payload));
+        var ex = Assert.Throws<Http3Exception>(() => Settings.Deserialize(payload));
         Assert.Equal(Http3ErrorCode.SettingsError, ex.ErrorCode);
         Assert.Contains("Duplicate", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -144,7 +144,7 @@ public sealed class SettingsFrameSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void AbsentSettings_ReturnDefaults()
     {
-        var settings = new Http3Settings();
+        var settings = new Settings();
         Assert.Null(settings.MaxFieldSectionSize);
         Assert.Equal(0, settings.QpackMaxTableCapacity);
         Assert.Equal(0, settings.QpackBlockedStreams);
@@ -156,12 +156,12 @@ public sealed class SettingsFrameSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void ToFrame_CreatesValidFrame()
     {
-        var settings = new Http3Settings();
+        var settings = new Settings();
         settings.Set(Http3SettingsIdentifier.MaxFieldSectionSize, 16384);
         settings.Set(Http3SettingsIdentifier.QpackMaxTableCapacity, 256);
 
         var frame = settings.ToFrame();
-        Assert.Equal(Http3FrameType.Settings, frame.Type);
+        Assert.Equal(FrameType.Settings, frame.Type);
         Assert.Equal(2, frame.Parameters.Count);
 
         // Serialize frame and verify it round-trips

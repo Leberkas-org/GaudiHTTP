@@ -6,11 +6,11 @@ namespace TurboHTTP.StreamTests.Http3;
 
 /// <summary>
 /// Tests HTTP/3 certificate validation integration per RFC 9114 §3.3.
-/// Verifies that <see cref="Http3CertificateValidator"/> correctly validates server certificates
+/// Verifies that <see cref="CertificateValidator"/> correctly validates server certificates
 /// for hostname coverage, as used by <c>QuicClientProvider</c> after QUIC handshake.
 /// </summary>
 /// <remarks>
-/// Component under test: <see cref="Http3CertificateValidator"/>.
+/// Component under test: <see cref="CertificateValidator"/>.
 /// RFC 9114 §3.3: A client MUST NOT reuse a connection to an origin unless the server certificate
 /// covers the target hostname. SAN dNSName entries take precedence over CN; wildcard matching
 /// applies to the leftmost label only.
@@ -46,7 +46,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("Issuer CA", "example.com");
 
-        Assert.True(Http3CertificateValidator.CoversHostname(cert, "example.com"));
+        Assert.True(CertificateValidator.CoversHostname(cert, "example.com"));
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("Issuer CA", "other.com");
 
-        Assert.False(Http3CertificateValidator.CoversHostname(cert, "example.com"));
+        Assert.False(CertificateValidator.CoversHostname(cert, "example.com"));
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("Issuer CA", "*.example.com");
 
-        Assert.True(Http3CertificateValidator.CoversHostname(cert, "api.example.com"));
+        Assert.True(CertificateValidator.CoversHostname(cert, "api.example.com"));
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("Issuer CA", "*.example.com");
 
-        Assert.False(Http3CertificateValidator.CoversHostname(cert, "example.com"));
+        Assert.False(CertificateValidator.CoversHostname(cert, "example.com"));
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("Issuer CA", "*.example.com");
 
-        Assert.False(Http3CertificateValidator.CoversHostname(cert, "deep.sub.example.com"));
+        Assert.False(CertificateValidator.CoversHostname(cert, "deep.sub.example.com"));
     }
 
     // CN Fallback (RFC 9114 §3.3)
@@ -93,7 +93,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("example.com");
 
-        Assert.True(Http3CertificateValidator.CoversHostname(cert, "example.com"));
+        Assert.True(CertificateValidator.CoversHostname(cert, "example.com"));
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("other.com");
 
-        Assert.False(Http3CertificateValidator.CoversHostname(cert, "example.com"));
+        Assert.False(CertificateValidator.CoversHostname(cert, "example.com"));
     }
 
     // Multiple SAN Entries (RFC 9114 §3.3)
@@ -113,7 +113,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("Issuer CA", "alpha.com", "beta.com", "example.com");
 
-        Assert.True(Http3CertificateValidator.CoversHostname(cert, "example.com"));
+        Assert.True(CertificateValidator.CoversHostname(cert, "example.com"));
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("Issuer CA", "alpha.com", "beta.com");
 
-        Assert.False(Http3CertificateValidator.CoversHostname(cert, "example.com"));
+        Assert.False(CertificateValidator.CoversHostname(cert, "example.com"));
     }
 
     // Connection Reuse Evaluator Integration (RFC 9114 §3.3)
@@ -133,7 +133,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("Issuer CA", "origin.com");
 
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             connectionScheme: "https",
             connectionHost: "origin.com",
             connectionPort: 443,
@@ -152,7 +152,7 @@ public sealed class Http30CertificateValidationSpec : StreamTestBase
     {
         using var cert = CreateSelfSignedCert("Issuer CA", "origin.com", "other.com");
 
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             connectionScheme: "https",
             connectionHost: "origin.com",
             connectionPort: 443,

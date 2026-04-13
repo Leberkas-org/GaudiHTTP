@@ -28,15 +28,13 @@ public sealed class ConnectionReuseSpec : IDisposable
         _cnOnlyCert.Dispose();
     }
 
-    // ══════════════════════════════════════════════════════════════════════
     // §3.3 — Same-origin connection reuse
-    // ══════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_AllowReuse_When_SameOrigin()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "https", "example.com", 443,
             "https", "example.com", 443,
             _singleHostCert);
@@ -49,7 +47,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_AllowReuse_When_SameOriginDifferentCase()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "HTTPS", "Example.COM", 443,
             "https", "example.com", 443,
             _singleHostCert);
@@ -61,7 +59,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_RequireNewConnection_When_DifferentPort()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "https", "example.com", 443,
             "https", "example.com", 8443,
             _singleHostCert);
@@ -73,7 +71,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_RequireNewConnection_When_DifferentScheme()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "https", "example.com", 443,
             "http", "example.com", 443,
             _singleHostCert);
@@ -81,15 +79,13 @@ public sealed class ConnectionReuseSpec : IDisposable
         Assert.False(decision.CanReuse);
     }
 
-    // ══════════════════════════════════════════════════════════════════════
     // §3.3 — Cross-origin coalescing with certificate validation
-    // ══════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_AllowReuse_When_CertCoversTargetHost()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "https", "alpha.example.com", 443,
             "https", "beta.example.com", 443,
             _multiSanCert);
@@ -102,7 +98,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_RequireNewConnection_When_CertDoesNotCoverTarget()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "https", "example.com", 443,
             "https", "other.com", 443,
             _singleHostCert);
@@ -115,7 +111,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_AllowReuse_When_WildcardCertCoversTarget()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "https", "foo.example.com", 443,
             "https", "bar.example.com", 443,
             _wildcardCert);
@@ -127,7 +123,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_RequireNewConnection_When_WildcardDoesNotCoverSubSubdomain()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "https", "foo.example.com", 443,
             "https", "a.b.example.com", 443,
             _wildcardCert);
@@ -139,7 +135,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_RequireNewConnection_When_NoCertificate()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "https", "example.com", 443,
             "https", "other.example.com", 443,
             serverCertificate: null);
@@ -148,15 +144,13 @@ public sealed class ConnectionReuseSpec : IDisposable
         Assert.Contains("No server certificate", decision.Reason);
     }
 
-    // ══════════════════════════════════════════════════════════════════════
     // §5.2 — GOAWAY prevents reuse
-    // ══════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC9114-5.2")]
     public void Should_RequireNewConnection_When_GoAwayReceived()
     {
-        var decision = Http3ConnectionReuseEvaluator.Evaluate(
+        var decision = ConnectionReuseEvaluator.Evaluate(
             "https", "example.com", 443,
             "https", "example.com", 443,
             _singleHostCert,
@@ -166,9 +160,7 @@ public sealed class ConnectionReuseSpec : IDisposable
         Assert.Contains("GOAWAY", decision.Reason);
     }
 
-    // ══════════════════════════════════════════════════════════════════════
     // Certificate validator — hostname matching
-    // ══════════════════════════════════════════════════════════════════════
 
     [Theory]
     [Trait("RFC", "RFC9114-3.3")]
@@ -177,7 +169,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [InlineData("other.com", false)]
     public void Should_MatchExactSan(string hostname, bool expected)
     {
-        Assert.Equal(expected, Http3CertificateValidator.CoversHostname(_singleHostCert, hostname));
+        Assert.Equal(expected, CertificateValidator.CoversHostname(_singleHostCert, hostname));
     }
 
     [Theory]
@@ -188,7 +180,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [InlineData("sub.foo.example.com", false)]
     public void Should_MatchWildcardSan(string hostname, bool expected)
     {
-        Assert.Equal(expected, Http3CertificateValidator.CoversHostname(_wildcardCert, hostname));
+        Assert.Equal(expected, CertificateValidator.CoversHostname(_wildcardCert, hostname));
     }
 
     [Theory]
@@ -199,15 +191,15 @@ public sealed class ConnectionReuseSpec : IDisposable
     [InlineData("delta.example.com", false)]
     public void Should_MatchMultipleSans(string hostname, bool expected)
     {
-        Assert.Equal(expected, Http3CertificateValidator.CoversHostname(_multiSanCert, hostname));
+        Assert.Equal(expected, CertificateValidator.CoversHostname(_multiSanCert, hostname));
     }
 
     [Fact]
     [Trait("RFC", "RFC9114-3.3")]
     public void Should_FallbackToCn_When_NoSanExists()
     {
-        Assert.True(Http3CertificateValidator.CoversHostname(_cnOnlyCert, "cn-only.example.com"));
-        Assert.False(Http3CertificateValidator.CoversHostname(_cnOnlyCert, "other.example.com"));
+        Assert.True(CertificateValidator.CoversHostname(_cnOnlyCert, "cn-only.example.com"));
+        Assert.False(CertificateValidator.CoversHostname(_cnOnlyCert, "other.example.com"));
     }
 
     [Fact]
@@ -215,7 +207,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     public void Should_Throw_When_CertIsNull()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            Http3CertificateValidator.CoversHostname(null!, "example.com"));
+            CertificateValidator.CoversHostname(null!, "example.com"));
     }
 
     [Theory]
@@ -225,12 +217,10 @@ public sealed class ConnectionReuseSpec : IDisposable
     public void Should_Throw_When_HostnameIsEmpty(string hostname)
     {
         Assert.ThrowsAny<ArgumentException>(() =>
-            Http3CertificateValidator.CoversHostname(_singleHostCert, hostname));
+            CertificateValidator.CoversHostname(_singleHostCert, hostname));
     }
 
-    // ══════════════════════════════════════════════════════════════════════
     // Internal matcher — edge cases
-    // ══════════════════════════════════════════════════════════════════════
 
     [Theory]
     [Trait("RFC", "RFC9114-3.3")]
@@ -241,7 +231,7 @@ public sealed class ConnectionReuseSpec : IDisposable
     [InlineData("EXAMPLE.COM", "example.com", true)]
     public void Should_HandleMatchEdgeCases(string certName, string hostname, bool expected)
     {
-        Assert.Equal(expected, Http3CertificateValidator.MatchesHostname(certName, hostname));
+        Assert.Equal(expected, CertificateValidator.MatchesHostname(certName, hostname));
     }
 
 

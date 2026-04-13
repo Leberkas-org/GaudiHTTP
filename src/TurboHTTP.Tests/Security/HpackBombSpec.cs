@@ -19,9 +19,7 @@ namespace TurboHTTP.Tests.Security;
 /// </remarks>
 public sealed class HpackBombSpec
 {
-    // ══════════════════════════════════════════════════════════════════════════════
     // HPACK Dynamic Table Size Update — Bounded Memory
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC7541")]
@@ -105,9 +103,7 @@ public sealed class HpackBombSpec
         Assert.Equal(0, table.CurrentSize);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // HPACK Bomb — Compressed Input Expanding to Huge Headers
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC7541")]
@@ -226,9 +222,7 @@ public sealed class HpackBombSpec
         Assert.Contains("MAX_HEADER_LIST_SIZE", ex.Message);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // Huffman Decoding of Adversarial Input — No Infinite Loop, Bounded Output
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC7541")]
@@ -330,9 +324,7 @@ public sealed class HpackBombSpec
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // HPACK Dynamic Table Eviction — >100 Entries
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC7541")]
@@ -413,9 +405,7 @@ public sealed class HpackBombSpec
         Assert.Equal(0, table.CurrentSize);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // HPACK Out-of-Bounds Index → HpackException
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC7541")]
@@ -468,9 +458,7 @@ public sealed class HpackBombSpec
         Assert.Contains("overflow", ex.Message.ToLowerInvariant());
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // Zero-Length Header Name via HPACK → Rejected
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC7541")]
@@ -508,9 +496,7 @@ public sealed class HpackBombSpec
         Assert.Contains("§7.2", caught!.Message);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // HPACK Table Size Update Protocol Violations
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC7541")]

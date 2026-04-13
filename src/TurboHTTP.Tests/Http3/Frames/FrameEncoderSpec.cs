@@ -24,7 +24,7 @@ public sealed class FrameEncoderSpec
         foreach (var frame in frames)
         {
             var buf = new byte[frame.SerializedSize];
-            var written = Http3FrameEncoder.Encode(frame, buf);
+            var written = FrameEncoder.Encode(frame, buf);
             Assert.Equal(frame.SerializedSize, written);
 
             // Verify matches frame.Serialize()
@@ -38,7 +38,7 @@ public sealed class FrameEncoderSpec
     {
         var frame = new Http3DataFrame(new byte[] { 0xCA, 0xFE });
         var buf = new byte[1]; // Too small
-        Assert.Throws<ArgumentException>(() => Http3FrameEncoder.Encode(frame, buf));
+        Assert.Throws<ArgumentException>(() => FrameEncoder.Encode(frame, buf));
     }
 
 
@@ -50,7 +50,7 @@ public sealed class FrameEncoderSpec
         var frame = new Http3DataFrame(payload);
         var buf = new byte[frame.SerializedSize];
 
-        var written = Http3FrameEncoder.Encode(frame, buf);
+        var written = FrameEncoder.Encode(frame, buf);
 
         Assert.Equal(frame.SerializedSize, written);
         Assert.Equal(frame.Serialize(), buf);
@@ -78,7 +78,7 @@ public sealed class FrameEncoderSpec
         var offset = 0;
         foreach (var f in frames)
         {
-            offset += Http3FrameEncoder.Encode(f, buf.AsSpan(offset));
+            offset += FrameEncoder.Encode(f, buf.AsSpan(offset));
         }
 
         Assert.Equal(expectedSize, offset);
@@ -108,7 +108,7 @@ public sealed class FrameEncoderSpec
         var expected = new Http3DataFrame(payload).Serialize();
 
         var buf = new byte[expected.Length];
-        var written = Http3FrameEncoder.EncodeData(payload, buf);
+        var written = FrameEncoder.EncodeData(payload, buf);
 
         Assert.Equal(expected.Length, written);
         Assert.Equal(expected, buf);
@@ -122,7 +122,7 @@ public sealed class FrameEncoderSpec
         var expected = new Http3HeadersFrame(headerBlock).Serialize();
 
         var buf = new byte[expected.Length];
-        var written = Http3FrameEncoder.EncodeHeaders(headerBlock, buf);
+        var written = FrameEncoder.EncodeHeaders(headerBlock, buf);
 
         Assert.Equal(expected.Length, written);
         Assert.Equal(expected, buf);
@@ -141,7 +141,7 @@ public sealed class FrameEncoderSpec
         var expected = new Http3SettingsFrame(parameters).Serialize();
 
         var buf = new byte[expected.Length];
-        var written = Http3FrameEncoder.EncodeSettings(parameters, buf);
+        var written = FrameEncoder.EncodeSettings(parameters, buf);
 
         Assert.Equal(expected.Length, written);
         Assert.Equal(expected, buf);
@@ -154,26 +154,26 @@ public sealed class FrameEncoderSpec
         // CancelPush
         var cpExpected = new Http3CancelPushFrame(16383).Serialize();
         var cpBuf = new byte[cpExpected.Length];
-        Assert.Equal(cpExpected.Length, Http3FrameEncoder.EncodeCancelPush(16383, cpBuf));
+        Assert.Equal(cpExpected.Length, FrameEncoder.EncodeCancelPush(16383, cpBuf));
         Assert.Equal(cpExpected, cpBuf);
 
         // GoAway
         var gaExpected = new Http3GoAwayFrame(1_000_000).Serialize();
         var gaBuf = new byte[gaExpected.Length];
-        Assert.Equal(gaExpected.Length, Http3FrameEncoder.EncodeGoAway(1_000_000, gaBuf));
+        Assert.Equal(gaExpected.Length, FrameEncoder.EncodeGoAway(1_000_000, gaBuf));
         Assert.Equal(gaExpected, gaBuf);
 
         // MaxPushId
         var mpExpected = new Http3MaxPushIdFrame(63).Serialize();
         var mpBuf = new byte[mpExpected.Length];
-        Assert.Equal(mpExpected.Length, Http3FrameEncoder.EncodeMaxPushId(63, mpBuf));
+        Assert.Equal(mpExpected.Length, FrameEncoder.EncodeMaxPushId(63, mpBuf));
         Assert.Equal(mpExpected, mpBuf);
 
         // PushPromise
         var headerBlock = new byte[] { 0xAA, 0xBB };
         var ppExpected = new Http3PushPromiseFrame(7, headerBlock).Serialize();
         var ppBuf = new byte[ppExpected.Length];
-        Assert.Equal(ppExpected.Length, Http3FrameEncoder.EncodePushPromise(7, headerBlock, ppBuf));
+        Assert.Equal(ppExpected.Length, FrameEncoder.EncodePushPromise(7, headerBlock, ppBuf));
         Assert.Equal(ppExpected, ppBuf);
     }
 
@@ -184,13 +184,13 @@ public sealed class FrameEncoderSpec
         // Use a payload size > 63 to force 2-byte varint length
         var payload = new byte[100];
         var buf = new byte[256];
-        var written = Http3FrameEncoder.EncodeData(payload, buf);
+        var written = FrameEncoder.EncodeData(payload, buf);
 
         var span = new ReadOnlySpan<byte>(buf, 0, written);
 
         // Decode type
         QuicVarInt.TryDecode(span, out var frameType, out var consumed);
-        Assert.Equal((long)Http3FrameType.Data, frameType);
+        Assert.Equal((long)FrameType.Data, frameType);
         span = span[consumed..];
 
         // Decode length — should be 100 (2-byte varint since > 63)
@@ -209,13 +209,13 @@ public sealed class FrameEncoderSpec
     {
         var buf = new byte[256];
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => Http3FrameEncoder.EncodeCancelPush(-1, buf));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Http3FrameEncoder.EncodeGoAway(-1, buf));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Http3FrameEncoder.EncodeMaxPushId(-1, buf));
-        Assert.Throws<ArgumentOutOfRangeException>(() => Http3FrameEncoder.EncodePushPromise(-1, ReadOnlySpan<byte>.Empty, buf));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FrameEncoder.EncodeCancelPush(-1, buf));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FrameEncoder.EncodeGoAway(-1, buf));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FrameEncoder.EncodeMaxPushId(-1, buf));
+        Assert.Throws<ArgumentOutOfRangeException>(() => FrameEncoder.EncodePushPromise(-1, ReadOnlySpan<byte>.Empty, buf));
 
         // Insufficient buffer
-        Assert.Throws<ArgumentException>(() => Http3FrameEncoder.EncodeData(new byte[10], new byte[1]));
-        Assert.Throws<ArgumentException>(() => Http3FrameEncoder.EncodeHeaders(new byte[10], new byte[1]));
+        Assert.Throws<ArgumentException>(() => FrameEncoder.EncodeData(new byte[10], new byte[1]));
+        Assert.Throws<ArgumentException>(() => FrameEncoder.EncodeHeaders(new byte[10], new byte[1]));
     }
 }

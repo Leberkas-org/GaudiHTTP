@@ -22,4 +22,19 @@ public record QuicOptions : TcpOptions
 
     /// <summary>Optional callback to validate the server certificate during the QUIC/TLS handshake.</summary>
     public RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; init; }
+
+    /// <summary>
+    /// Whether to allow QUIC 0-RTT early data for idempotent requests.
+    /// When enabled, repeat connections to known servers may send requests before the
+    /// TLS handshake completes, reducing latency. If the server rejects 0-RTT, the
+    /// request is automatically re-sent after full handshake. Default is false.
+    /// </summary>
+    public bool AllowEarlyData { get; init; }
+
+    /// <summary>
+    /// Whether to allow QUIC connection migration when the client's local address changes.
+    /// When enabled, the connection continues transparently. When disabled, the transport
+    /// closes the connection and triggers a reconnect. Default is true. RFC 9000 §9.
+    /// </summary>
+    public bool AllowConnectionMigration { get; init; } = true;
 }

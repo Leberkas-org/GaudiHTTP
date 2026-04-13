@@ -54,13 +54,15 @@ public static class TurboClientServiceCollectionExtensions
                 if (loggerFactory is not null)
                 {
                     // Bridge Akka logging to Microsoft.Extensions.Logging
-                    var setup = BootstrapSetup.Create().And(new LoggerFactorySetup(loggerFactory));
+                    var setup = BootstrapSetup.Create()
+                        .WithConfig(LoggingHocon)
+                        .And(new LoggerFactorySetup(loggerFactory));
                     system = ActorSystem.Create("turbohttp", setup);
                 }
                 else
                 {
                     // Standalone usage — fallback to Akka's default logger
-                    system = ActorSystem.Create("turbohttp");
+                    system = ActorSystem.Create("turbohttp", LoggingHocon);
                 }
 
                 system.Log.Info("Created ActorSystem {0} — dispatchers sized from MaxEndpointSubstreams={1}",

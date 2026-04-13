@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Text;
-using TurboHTTP.Protocol.Http11;
 
 namespace TurboHTTP.Tests.Http11.Encoder;
 

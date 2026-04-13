@@ -117,7 +117,7 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
 
         // Write data to outbound → should arrive at server
         var testData = "Hello from client"u8.ToArray();
-        Assert.True(lease.Handle.OutboundWriter.TryWrite(NetworkBuffer.FromArray(testData)));
+        Assert.True(lease.Handle.OutboundWriter.TryWrite(NetworkBufferTestExtensions.FromArray(testData)));
 
         // Read from server side
         var readBuf = new byte[1024];

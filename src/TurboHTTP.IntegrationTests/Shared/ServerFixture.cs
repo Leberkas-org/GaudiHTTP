@@ -35,8 +35,14 @@ public sealed class ServerFixture : IAsyncLifetime
     {
         Certificate = CreateSelfSignedCertificate();
 
+        // Kestrel does not support dynamic port binding (port 0) when multiple transports
+        // are enabled on a single endpoint. With Http1AndHttp2AndHttp3, port 0 silently
+        // disables HTTP/3. Pre-resolve a free port so TCP and QUIC bind to the same port.
+        var httpsPort = GetFreePort();
+
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
+        builder.Logging.AddConsole();
 
         builder.WebHost.ConfigureKestrel(options =>
         {
@@ -51,7 +57,7 @@ public sealed class ServerFixture : IAsyncLifetime
             options.Limits.Http2.InitialConnectionWindowSize = 4 * 1024 * 1024;
             options.Limits.Http2.InitialStreamWindowSize = 1024 * 1024;
 
-            options.Listen(IPAddress.Loopback, 0, lo =>
+            options.Listen(IPAddress.Loopback, httpsPort, lo =>
             {
                 lo.UseHttps(Certificate);
                 lo.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
@@ -136,5 +142,14 @@ public sealed class ServerFixture : IAsyncLifetime
             DateTimeOffset.UtcNow.AddDays(-1),
             DateTimeOffset.UtcNow.AddYears(1));
         return X509CertificateLoader.LoadPkcs12(cert.Export(X509ContentType.Pfx), null);
+    }
+
+    private static int GetFreePort()
+    {
+        using var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 }

@@ -75,14 +75,12 @@ namespace TurboHTTP.Transport;
 /// </summary>
 internal sealed class TcpHostConnectionActor : ReceiveActor, IWithTimers
 {
-    // ── Messages ──────────────────────────────────────────────────────
 
     // Messages routed from root actor:
     // - ConnectionManagerActor.AcquireMsg
     // - ConnectionManagerActor.ReleaseMsg
     // - Internal: EstablishedMsg, EstablishFailedMsg, EvictMsg
 
-    // ── Per-host state ────────────────────────────────────────────────
 
     private sealed class HostState
     {
@@ -110,13 +108,11 @@ internal sealed class TcpHostConnectionActor : ReceiveActor, IWithTimers
         }
     }
 
-    // ── Private messages ──────────────────────────────────────────────
 
     private sealed record EstablishedMsg(ConnectionLease Lease, ConnectionManagerActor.AcquireMsg Original);
     private sealed record EstablishFailedMsg(Exception Ex, ConnectionManagerActor.AcquireMsg Original);
     private sealed class EvictMsg { public static readonly EvictMsg Instance = new(); }
 
-    // ── Actor state ───────────────────────────────────────────────────
 
     private readonly HostState _host;
     private readonly TimeSpan _idleTimeout;
@@ -124,12 +120,10 @@ internal sealed class TcpHostConnectionActor : ReceiveActor, IWithTimers
 
     public ITimerScheduler Timers { get; set; } = null!;
 
-    // ── Factory ───────────────────────────────────────────────────────
 
     public static Props Props(RequestEndpoint endpoint, TimeSpan idleTimeout)
         => Akka.Actor.Props.Create(() => new TcpHostConnectionActor(endpoint, idleTimeout));
 
-    // ── Constructor ───────────────────────────────────────────────────
 
     public TcpHostConnectionActor(RequestEndpoint endpoint, TimeSpan idleTimeout)
     {
@@ -154,7 +148,6 @@ internal sealed class TcpHostConnectionActor : ReceiveActor, IWithTimers
             _host.Endpoint.Port);
     }
 
-    // ── Message handlers ──────────────────────────────────────────────
 
     private void OnAcquire(ConnectionManagerActor.AcquireMsg msg)
     {
@@ -343,7 +336,6 @@ internal sealed class TcpHostConnectionActor : ReceiveActor, IWithTimers
         ServeNextPending(_host);
     }
 
-    // ── Eviction ──────────────────────────────────────────────────────
 
     private void OnEvict()
     {
@@ -410,7 +402,6 @@ internal sealed class TcpHostConnectionActor : ReceiveActor, IWithTimers
         }
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────
 
     protected override void PostStop()
     {
@@ -440,7 +431,6 @@ internal sealed class TcpHostConnectionActor : ReceiveActor, IWithTimers
             _host.Endpoint.Port);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────
 
     private void Establish(HostState host, ConnectionManagerActor.AcquireMsg msg)
     {
@@ -509,17 +499,14 @@ namespace TurboHTTP.Transport;
 /// </summary>
 internal sealed class ConnectionManagerActor : ReceiveActor
 {
-    // ── Public messages ──────────────────────────────────────────────────
 
     internal sealed record AcquireMsg(TcpOptions Options, RequestEndpoint Endpoint, TaskCompletionSource<ConnectionLease> Tcs, CancellationToken Ct);
     internal sealed record ReleaseMsg(ConnectionLease Lease, bool CanReuse);
 
-    // ── Actor state ──────────────────────────────────────────────────────
 
     private readonly Dictionary<RequestEndpoint, IActorRef> _hostActors = new();
     private readonly TimeSpan _idleTimeout;
 
-    // ── Factory + static helpers ─────────────────────────────────────────
 
     public static Props Props(TimeSpan idleTimeout)
         => Akka.Actor.Props.Create(() => new ConnectionManagerActor(idleTimeout));
@@ -546,7 +533,6 @@ internal sealed class ConnectionManagerActor : ReceiveActor
         return tcs.Task;
     }
 
-    // ── Constructor ──────────────────────────────────────────────────────
 
     public ConnectionManagerActor(TimeSpan idleTimeout)
     {
@@ -556,7 +542,6 @@ internal sealed class ConnectionManagerActor : ReceiveActor
         Receive<ReleaseMsg>(OnRelease);
     }
 
-    // ── Message handlers ─────────────────────────────────────────────────
 
     private void OnAcquire(AcquireMsg msg)
     {
@@ -572,7 +557,6 @@ internal sealed class ConnectionManagerActor : ReceiveActor
         }
     }
 
-    // ── Lifecycle ────────────────────────────────────────────────────────
 
     protected override void PostStop()
     {
@@ -580,7 +564,6 @@ internal sealed class ConnectionManagerActor : ReceiveActor
         _hostActors.Clear();
     }
 
-    // ── Supervision ──────────────────────────────────────────────────────
 
     protected override SupervisorStrategy SupervisorStrategy() =>
         new OneForOneStrategy(
@@ -593,7 +576,6 @@ internal sealed class ConnectionManagerActor : ReceiveActor
                 _ => Directive.Restart
             });
 
-    // ── Helpers ──────────────────────────────────────────────────────────
 
     private IActorRef GetOrCreateHostActor(RequestEndpoint endpoint)
     {

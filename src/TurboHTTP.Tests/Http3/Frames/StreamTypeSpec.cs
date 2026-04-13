@@ -6,11 +6,11 @@ public sealed class StreamTypeSpec
 {
     [Theory]
     [Trait("RFC", "RFC9114-6.2")]
-    [InlineData(Http3StreamType.Control, 0x00L)]
-    [InlineData(Http3StreamType.Push, 0x01L)]
-    [InlineData(Http3StreamType.QpackEncoder, 0x02L)]
-    [InlineData(Http3StreamType.QpackDecoder, 0x03L)]
-    public void StreamType_HasCorrectValue(Http3StreamType type, long expected)
+    [InlineData(StreamType.Control, 0x00L)]
+    [InlineData(StreamType.Push, 0x01L)]
+    [InlineData(StreamType.QpackEncoder, 0x02L)]
+    [InlineData(StreamType.QpackDecoder, 0x03L)]
+    public void StreamType_HasCorrectValue(StreamType type, long expected)
     {
         Assert.Equal(expected, (long)type);
     }
@@ -19,7 +19,7 @@ public sealed class StreamTypeSpec
     [Trait("RFC", "RFC9114-6.2")]
     public void AllStreamTypes_AreDefined()
     {
-        var values = Enum.GetValues<Http3StreamType>();
+        var values = Enum.GetValues<StreamType>();
         Assert.Equal(4, values.Length);
     }
 
@@ -27,27 +27,27 @@ public sealed class StreamTypeSpec
     [Trait("RFC", "RFC9114-6.2")]
     public void ControlStream_IsZero()
     {
-        Assert.Equal(0x00L, (long)Http3StreamType.Control);
+        Assert.Equal(0x00L, (long)StreamType.Control);
     }
 
     [Fact]
     [Trait("RFC", "RFC9114-6.2")]
     public void PushStream_IsOne()
     {
-        Assert.Equal(0x01L, (long)Http3StreamType.Push);
+        Assert.Equal(0x01L, (long)StreamType.Push);
     }
 
     [Fact]
     [Trait("RFC", "RFC9114-6.2")]
     public void QpackEncoderStream_IsTwo()
     {
-        Assert.Equal(0x02L, (long)Http3StreamType.QpackEncoder);
+        Assert.Equal(0x02L, (long)StreamType.QpackEncoder);
     }
 
     [Fact]
     [Trait("RFC", "RFC9114-6.2")]
     public void QpackDecoderStream_IsThree()
     {
-        Assert.Equal(0x03L, (long)Http3StreamType.QpackDecoder);
+        Assert.Equal(0x03L, (long)StreamType.QpackDecoder);
     }
 }

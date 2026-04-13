@@ -1,6 +1,7 @@
+using System.Net;
 using System.Net.Security;
+using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Transport.Tcp;
 using TurboHTTP.Transport.Connection;
 
 namespace TurboHTTP.Tests.Security;
@@ -159,7 +160,14 @@ public sealed class TlsSecuritySpec
             ServerCertificateValidationCallback = custom,
         };
 
-        var tcpOptions = OptionsFactory.Build(new Uri("https://example.com/"), options);
+        var uri = new Uri("https://example.com/");
+        var tcpOptions = OptionsFactory.Build(new RequestEndpoint
+        {
+            Host = uri.Host,
+            Port = 0,
+            Scheme = uri.Scheme,
+            Version = HttpVersion.Version11
+        }, options);
         var tlsOptions = Assert.IsType<TlsOptions>(tcpOptions);
 
         Assert.NotNull(tlsOptions.ServerCertificateValidationCallback);

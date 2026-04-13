@@ -12,17 +12,55 @@ public sealed class StreamState
 
     private IMemoryOwner<byte>? _headerOwner;
     private IMemoryOwner<byte>? _bodyOwner;
+    private Memory<byte> _headerBuffer;
+    private Memory<byte> _bodyBuffer;
+    private int _headerLength;
+    private int _bodyLength;
+    private HttpResponseMessage? _response;
+    private List<(string Name, string Value)>? _contentHeaders;
 
-    public Memory<byte> HeaderBuffer;
-    public Memory<byte> BodyBuffer;
+    public bool HasResponse => _response is not null;
 
-    public int HeaderLength;
-    public int BodyLength;
+    public bool HasContentHeaders => _contentHeaders is not null;
 
-    public HttpResponseMessage? Response;
+    public ReadOnlySpan<byte> GetHeaderSpan()
+    {
+        return _headerBuffer[.._headerLength].Span;
+    }
 
-    // Content headers captured during DecodeHeaders, applied when Content is created.
-    public List<(string Name, string Value)>? ContentHeaders;
+    public void InitResponse(HttpResponseMessage response)
+    {
+        _response = response;
+    }
+
+    public HttpResponseMessage GetResponse()
+    {
+        return _response ?? throw new InvalidOperationException("No response has been initialized.");
+    }
+
+    public HttpResponseMessage GetOrCreateResponse()
+    {
+        return _response ??= new HttpResponseMessage();
+    }
+
+    public void AddContentHeader(string name, string value)
+    {
+        _contentHeaders ??= [];
+        _contentHeaders.Add((name, value));
+    }
+
+    public void ApplyContentHeadersTo(HttpContent content)
+    {
+        if (_contentHeaders is null)
+        {
+            return;
+        }
+
+        foreach (var (name, value) in _contentHeaders)
+        {
+            content.Headers.TryAddWithoutValidation(name, value);
+        }
+    }
 
     public void Reset()
     {
@@ -30,40 +68,40 @@ public sealed class StreamState
         _headerOwner = null;
         _bodyOwner?.Dispose();
         _bodyOwner = null;
-        HeaderBuffer = default;
-        BodyBuffer = default;
-        HeaderLength = 0;
-        BodyLength = 0;
-        Response = null;
-        ContentHeaders?.Clear();
+        _headerBuffer = default;
+        _bodyBuffer = default;
+        _headerLength = 0;
+        _bodyLength = 0;
+        _response = null;
+        _contentHeaders?.Clear();
     }
 
     public (IMemoryOwner<byte>? Owner, int Length) TakeBodyOwnership()
     {
         var owner = _bodyOwner;
-        var length = BodyLength;
+        var length = _bodyLength;
         _bodyOwner = null;
-        BodyLength = 0;
+        _bodyLength = 0;
         return (owner, length);
     }
 
     public void AppendHeader(ReadOnlySpan<byte> data)
     {
-        EnsureHeaderCapacity(HeaderLength + data.Length);
-        data.CopyTo(HeaderBuffer.Span[HeaderLength..]);
-        HeaderLength += data.Length;
+        EnsureHeaderCapacity(_headerLength + data.Length);
+        data.CopyTo(_headerBuffer.Span[_headerLength..]);
+        _headerLength += data.Length;
     }
 
     public void AppendBody(ReadOnlySpan<byte> data)
     {
-        EnsureBodyCapacity(BodyLength + data.Length);
-        data.CopyTo(BodyBuffer.Span[BodyLength..]);
-        BodyLength += data.Length;
+        EnsureBodyCapacity(_bodyLength + data.Length);
+        data.CopyTo(_bodyBuffer.Span[_bodyLength..]);
+        _bodyLength += data.Length;
     }
 
     private void EnsureHeaderCapacity(int required)
     {
-        if (_headerOwner == null || required > HeaderBuffer.Length)
+        if (_headerOwner == null || required > _headerBuffer.Length)
         {
             RentNewHeaderBuffer(required);
         }
@@ -71,7 +109,7 @@ public sealed class StreamState
 
     private void EnsureBodyCapacity(int required)
     {
-        if (_bodyOwner == null || required > BodyBuffer.Length)
+        if (_bodyOwner == null || required > _bodyBuffer.Length)
         {
             RentNewBodyBuffer(required);
         }
@@ -82,12 +120,12 @@ public sealed class StreamState
         var newOwner = _pool.Rent(size);
         if (_headerOwner != null)
         {
-            HeaderBuffer.Span.CopyTo(newOwner.Memory.Span);
+            _headerBuffer.Span.CopyTo(newOwner.Memory.Span);
             _headerOwner.Dispose();
         }
 
         _headerOwner = newOwner;
-        HeaderBuffer = newOwner.Memory;
+        _headerBuffer = newOwner.Memory;
     }
 
     private void RentNewBodyBuffer(int size)
@@ -95,11 +133,11 @@ public sealed class StreamState
         var newOwner = _pool.Rent(size);
         if (_bodyOwner != null)
         {
-            BodyBuffer.Span.CopyTo(newOwner.Memory.Span);
+            _bodyBuffer.Span.CopyTo(newOwner.Memory.Span);
             _bodyOwner.Dispose();
         }
 
         _bodyOwner = newOwner;
-        BodyBuffer = newOwner.Memory;
+        _bodyBuffer = newOwner.Memory;
     }
 }

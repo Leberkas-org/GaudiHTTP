@@ -31,7 +31,7 @@ public sealed class ExtensionToleranceSpec
         payload.CopyTo(buf.AsSpan(offset));
         offset += payload.Length;
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -58,7 +58,7 @@ public sealed class ExtensionToleranceSpec
         payload.CopyTo(buf.AsSpan(offset));
         offset += payload.Length;
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -75,7 +75,7 @@ public sealed class ExtensionToleranceSpec
         offset += QuicVarInt.Encode(0xABCD, buf.AsSpan(offset)); // Unknown type
         offset += QuicVarInt.Encode(0, buf.AsSpan(offset));       // Zero-length payload
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -111,7 +111,7 @@ public sealed class ExtensionToleranceSpec
         span = wire.AsSpan(pos);
         pos += goaway.WriteTo(ref span);
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var frames = decoder.DecodeAll(wire, out var consumed);
 
         Assert.Equal(2, frames.Count); // Unknown frame filtered out
@@ -135,7 +135,7 @@ public sealed class ExtensionToleranceSpec
             buf[offset++] = (byte)(0x10 + i);
         }
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var frames = decoder.DecodeAll(buf.AsSpan(0, offset), out var consumed);
 
         Assert.Empty(frames); // All unknown → all filtered
@@ -152,14 +152,14 @@ public sealed class ExtensionToleranceSpec
     [InlineData(0x1234)]  // Large unknown ID
     public void UnknownSetting_IsIgnored_NotConnectionError(long unknownId)
     {
-        var settings = new Http3Settings();
+        var settings = new Settings();
         settings.Set(unknownId, 42);
 
         Assert.Equal(42, settings[unknownId]);
 
         // Round-trip through serialize/deserialize
         var payload = settings.Serialize();
-        var restored = Http3Settings.Deserialize(payload);
+        var restored = Settings.Deserialize(payload);
 
         Assert.Equal(42, restored[unknownId]);
     }
@@ -174,11 +174,11 @@ public sealed class ExtensionToleranceSpec
     {
         var greaseId = 0x1fL * n + 0x21;
 
-        var settings = new Http3Settings();
+        var settings = new Settings();
         settings.Set(greaseId, 0); // GREASE settings typically have value 0
 
         var payload = settings.Serialize();
-        var restored = Http3Settings.Deserialize(payload);
+        var restored = Settings.Deserialize(payload);
 
         Assert.Equal(0, restored[greaseId]);
         Assert.Single(restored.AllParameters);
@@ -188,7 +188,7 @@ public sealed class ExtensionToleranceSpec
     [Trait("RFC", "RFC9114-9")]
     public void MixedKnownAndUnknownSettings_Coexist()
     {
-        var settings = new Http3Settings();
+        var settings = new Settings();
         settings.Set(Http3SettingsIdentifier.MaxFieldSectionSize, 8192);
         settings.Set(0x21, 0);       // GREASE
         settings.Set(Http3SettingsIdentifier.QpackMaxTableCapacity, 4096);
@@ -196,7 +196,7 @@ public sealed class ExtensionToleranceSpec
         settings.Set(Http3SettingsIdentifier.QpackBlockedStreams, 16);
 
         var payload = settings.Serialize();
-        var restored = Http3Settings.Deserialize(payload);
+        var restored = Settings.Deserialize(payload);
 
         Assert.Equal(8192, restored.MaxFieldSectionSize);
         Assert.Equal(4096, restored.QpackMaxTableCapacity);
@@ -216,7 +216,7 @@ public sealed class ExtensionToleranceSpec
     public void ReservedH2Settings_StillRejected(long reservedId)
     {
         // Extension tolerance does NOT apply to specifically reserved HTTP/2 identifiers
-        var settings = new Http3Settings();
+        var settings = new Settings();
         Assert.Throws<Http3Exception>(() => settings.Set(reservedId, 0));
     }
 
@@ -238,7 +238,7 @@ public sealed class ExtensionToleranceSpec
         var part1 = buf.AsSpan(0, mid);
         var part2 = buf.AsSpan(mid, offset - mid);
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
 
         var status = decoder.TryDecode(part1, out var frame, out _);
         Assert.Equal(Http3DecodeStatus.NeedMoreData, status);
@@ -269,7 +269,7 @@ public sealed class ExtensionToleranceSpec
         var span = buf.AsSpan(offset);
         offset += dataFrame.WriteTo(ref span);
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
 
         // First decode: unknown frame → null
         var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
@@ -298,7 +298,7 @@ public sealed class ExtensionToleranceSpec
         largePayload.CopyTo(buf.AsSpan(offset));
         offset += largePayload.Length;
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
 
         Assert.Equal(Http3DecodeStatus.Success, status);

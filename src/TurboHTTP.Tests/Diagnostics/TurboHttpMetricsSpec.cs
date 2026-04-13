@@ -54,7 +54,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.False(string.IsNullOrEmpty(TurboHttpMetrics.Meter.Version));
     }
 
-
     [Fact]
     public void RequestCount_should_increment_on_each_request()
     {
@@ -108,7 +107,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Equal(404, GetTag(m.Tags, "http.response.status_code"));
         Assert.Equal("api.test.com", GetTag(m.Tags, "server.address"));
     }
-
 
     [Fact]
     public void CacheHit_should_increment()
@@ -167,7 +165,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Equal(2, GetLongMeasurements("http.client.cache.miss").Count);
     }
 
-
     [Fact]
     public void RetryCount_should_increment()
     {
@@ -217,7 +214,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Equal(method, GetTag(m.Tags, "http.request.method"));
     }
 
-
     [Fact]
     public void RedirectCount_should_increment()
     {
@@ -232,7 +228,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Equal(1, m.Value);
         Assert.Equal(301, GetTag(m.Tags, "http.response.status_code"));
     }
-
 
     [Fact]
     public void OpenConnections_should_increment_active()
@@ -309,7 +304,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Contains(measurements, m => GetTag(m.Tags, "http.connection.state")?.ToString() == "idle");
     }
 
-
     [Fact]
     public void RequestDuration_should_record()
     {
@@ -327,7 +321,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Equal(200, GetTag(m.Tags, "http.response.status_code"));
     }
 
-
     [Fact]
     public void ConnectionDuration_should_record()
     {
@@ -343,8 +336,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Equal(30.5, m.Value);
     }
 
-
-    // --- ActiveRequests ---
 
     [Fact]
     public void ActiveRequests_should_increment_and_decrement()
@@ -370,8 +361,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Equal(0, measurements.Sum(m => m.Value));
     }
 
-    // --- RequestTimeInQueue ---
-
     [Fact]
     public void RequestTimeInQueue_should_record()
     {
@@ -389,8 +378,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Equal(0.050, m.Value);
     }
 
-    // --- DnsLookupDuration ---
-
     [Fact]
     public void DnsLookupDuration_should_record()
     {
@@ -406,8 +393,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         Assert.Equal("example.com", GetTag(m.Tags, "dns.question.name"));
     }
 
-    // --- PipelineStall ---
-
     [Fact]
     public void PipelineStall_should_increment()
     {
@@ -422,7 +407,6 @@ public sealed class TurboHttpMetricsSpec : IDisposable
         var m = Assert.Single(GetLongMeasurements("turbohttp.pipeline.stall"));
         Assert.Equal(1, m.Value);
     }
-
 
     [Fact]
     public void Instruments_should_have_correct_units()

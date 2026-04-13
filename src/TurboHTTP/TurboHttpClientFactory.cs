@@ -1,5 +1,6 @@
 using Akka.Actor;
 using Microsoft.Extensions.Options;
+using TurboHTTP.Protocol.AltSvc;
 using TurboHTTP.Protocol.Cookies;
 using TurboHTTP.Protocol.Caching;
 using TurboHTTP.Streams;
@@ -35,6 +36,10 @@ internal sealed class TurboHttpClientFactory(
             ? []
             : descriptor.HandlerFactories.Select(f => f(provider)).ToList();
 
+        var altSvcCache = clientOptions.Http3.EnableAltSvcDiscovery
+            ? new AltSvcCache()
+            : null;
+
         var pipeline = new PipelineDescriptor(
             RedirectPolicy: descriptor.RedirectPolicy,
             RetryPolicy: descriptor.RetryPolicy,
@@ -44,7 +49,8 @@ internal sealed class TurboHttpClientFactory(
             CacheStore: cacheStore,
             CachePolicy: descriptor.CachePolicy,
             Handlers: middlewares,
-            AutomaticDecompression: descriptor.AutomaticDecompression);
+            AutomaticDecompression: descriptor.AutomaticDecompression,
+            AltSvcCache: altSvcCache);
 
         return new TurboHttpClient(clientOptions, system, pipeline);
     }

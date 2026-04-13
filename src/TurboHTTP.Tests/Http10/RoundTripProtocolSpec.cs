@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Protocol.Http10;
 using Decoder = TurboHTTP.Protocol.Http10.Decoder;
 using Encoder = TurboHTTP.Protocol.Http10.Encoder;
 

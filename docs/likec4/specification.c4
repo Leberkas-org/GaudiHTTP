@@ -49,7 +49,6 @@ specification {
   tag api
   tag http3
 
-  // ── Custom relationship kinds ────────────────────────────────────────
   // flows    — ordered pipeline data flow (request chain or response chain)
   // feedback — cycle-back path (retry / redirect / cache-hit bypass)
   // delegates — stage delegates to a stateless protocol helper

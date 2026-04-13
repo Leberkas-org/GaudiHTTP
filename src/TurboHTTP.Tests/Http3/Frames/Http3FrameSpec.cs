@@ -7,14 +7,14 @@ public sealed class Http3FrameSpec
 
     [Theory]
     [Trait("RFC", "RFC9114-7")]
-    [InlineData(Http3FrameType.Data, 0x00)]
-    [InlineData(Http3FrameType.Headers, 0x01)]
-    [InlineData(Http3FrameType.CancelPush, 0x03)]
-    [InlineData(Http3FrameType.Settings, 0x04)]
-    [InlineData(Http3FrameType.PushPromise, 0x05)]
-    [InlineData(Http3FrameType.GoAway, 0x06)]
-    [InlineData(Http3FrameType.MaxPushId, 0x0d)]
-    public void FrameType_values_match_rfc(Http3FrameType type, long expected)
+    [InlineData(FrameType.Data, 0x00)]
+    [InlineData(FrameType.Headers, 0x01)]
+    [InlineData(FrameType.CancelPush, 0x03)]
+    [InlineData(FrameType.Settings, 0x04)]
+    [InlineData(FrameType.PushPromise, 0x05)]
+    [InlineData(FrameType.GoAway, 0x06)]
+    [InlineData(FrameType.MaxPushId, 0x0d)]
+    public void FrameType_values_match_rfc(FrameType type, long expected)
     {
         Assert.Equal(expected, (long)type);
     }
@@ -25,7 +25,7 @@ public sealed class Http3FrameSpec
     public void DataFrame_empty_payload()
     {
         var frame = new Http3DataFrame(ReadOnlyMemory<byte>.Empty);
-        Assert.Equal(Http3FrameType.Data, frame.Type);
+        Assert.Equal(FrameType.Data, frame.Type);
         var bytes = frame.Serialize();
         // Type=0x00 (1 byte) + Length=0x00 (1 byte) = 2 bytes
         Assert.Equal(2, bytes.Length);
@@ -68,7 +68,7 @@ public sealed class Http3FrameSpec
     {
         var headerBlock = new byte[] { 0x00, 0x00, 0x82 }; // sample QPACK block
         var frame = new Http3HeadersFrame(headerBlock);
-        Assert.Equal(Http3FrameType.Headers, frame.Type);
+        Assert.Equal(FrameType.Headers, frame.Type);
         var bytes = frame.Serialize();
         // Type=0x01 (1b) + Length=0x03 (1b) + 3 bytes = 5
         Assert.Equal(5, bytes.Length);
@@ -95,7 +95,7 @@ public sealed class Http3FrameSpec
     public void CancelPushFrame_serializes()
     {
         var frame = new Http3CancelPushFrame(42);
-        Assert.Equal(Http3FrameType.CancelPush, frame.Type);
+        Assert.Equal(FrameType.CancelPush, frame.Type);
         var bytes = frame.Serialize();
         // Type=0x03 (1b) + Length=0x01 (1b) + pushId=42 (1b) = 3
         Assert.Equal(3, bytes.Length);
@@ -129,7 +129,7 @@ public sealed class Http3FrameSpec
     public void SettingsFrame_empty()
     {
         var frame = new Http3SettingsFrame([]);
-        Assert.Equal(Http3FrameType.Settings, frame.Type);
+        Assert.Equal(FrameType.Settings, frame.Type);
         var bytes = frame.Serialize();
         // Type=0x04 (1b) + Length=0x00 (1b) = 2
         Assert.Equal(2, bytes.Length);
@@ -156,7 +156,7 @@ public sealed class Http3FrameSpec
         // Roundtrip: decode the payload manually
         var span = bytes.AsSpan();
         QuicVarInt.TryDecode(span, out var frameType, out var consumed);
-        Assert.Equal((long)Http3FrameType.Settings, frameType);
+        Assert.Equal((long)FrameType.Settings, frameType);
         span = span[consumed..];
 
         QuicVarInt.TryDecode(span, out var length, out consumed);
@@ -194,7 +194,7 @@ public sealed class Http3FrameSpec
     {
         var headerBlock = new byte[] { 0xAA, 0xBB };
         var frame = new Http3PushPromiseFrame(7, headerBlock);
-        Assert.Equal(Http3FrameType.PushPromise, frame.Type);
+        Assert.Equal(FrameType.PushPromise, frame.Type);
         var bytes = frame.Serialize();
         // Type=0x05 (1b) + Length=0x03 (1b, varint for 3: 1b pushId + 2b header) + pushId=7 (1b) + header (2b) = 5
         Assert.Equal(5, bytes.Length);
@@ -219,7 +219,7 @@ public sealed class Http3FrameSpec
     public void GoAwayFrame_serializes()
     {
         var frame = new Http3GoAwayFrame(0);
-        Assert.Equal(Http3FrameType.GoAway, frame.Type);
+        Assert.Equal(FrameType.GoAway, frame.Type);
         var bytes = frame.Serialize();
         // Type=0x06 (1b) + Length=0x01 (1b) + streamId=0 (1b) = 3
         Assert.Equal(3, bytes.Length);
@@ -239,7 +239,7 @@ public sealed class Http3FrameSpec
         // Decode and verify
         var span = bytes.AsSpan();
         QuicVarInt.TryDecode(span, out var frameType, out var consumed);
-        Assert.Equal((long)Http3FrameType.GoAway, frameType);
+        Assert.Equal((long)FrameType.GoAway, frameType);
         span = span[consumed..];
 
         QuicVarInt.TryDecode(span, out var length, out consumed);
@@ -264,7 +264,7 @@ public sealed class Http3FrameSpec
     public void MaxPushIdFrame_serializes()
     {
         var frame = new Http3MaxPushIdFrame(15);
-        Assert.Equal(Http3FrameType.MaxPushId, frame.Type);
+        Assert.Equal(FrameType.MaxPushId, frame.Type);
         var bytes = frame.Serialize();
         // Type=0x0d (1b) + Length=0x01 (1b) + pushId=15 (1b) = 3
         Assert.Equal(3, bytes.Length);

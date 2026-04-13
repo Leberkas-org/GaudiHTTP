@@ -1,4 +1,3 @@
-using System.Runtime.Versioning;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Internal;
 using TurboHTTP.Transport.Connection;

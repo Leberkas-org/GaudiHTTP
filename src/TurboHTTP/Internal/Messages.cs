@@ -70,11 +70,7 @@ public sealed class NetworkBuffer : IInputItem, IOutputItem
         return buf;
     }
 
-    internal static NetworkBuffer FromArray(byte[] data, int length = -1)
-    {
-        var len = length < 0 ? data.Length : length;
-        return new NetworkBuffer { _owner = new NonDisposingOwner(data), Length = len };
-    }
+
 
     public void Dispose()
     {
@@ -93,14 +89,6 @@ public sealed class NetworkBuffer : IInputItem, IOutputItem
         }
     }
 
-    private sealed class NonDisposingOwner(byte[] data) : IMemoryOwner<byte>
-    {
-        public Memory<byte> Memory { get; } = data;
-
-        public void Dispose()
-        {
-        }
-    }
 }
 
 public readonly record struct MaxConcurrentStreamsItem(int MaxStreams) : IControlItem
@@ -180,7 +168,7 @@ public enum InputStreamType
 /// Wraps an <see cref="IInputItem"/> with an <see cref="InputStreamType"/> tag
 /// so the engine can route it to the correct processing pipeline.
 /// </summary>
-public readonly record struct Http3InputTaggedItem(IInputItem Inner, InputStreamType StreamType) : IInputItem
+public readonly record struct Http3InputTaggedItem(IInputItem Inner, InputStreamType StreamType, long StreamId = 0) : IInputItem
 {
     public RequestEndpoint Key => Inner.Key;
 }
@@ -189,7 +177,67 @@ public readonly record struct Http3InputTaggedItem(IInputItem Inner, InputStream
 /// Wraps an <see cref="IOutputItem"/> with an <see cref="OutputStreamType"/> tag
 /// so the demux stage can route it to the correct QUIC stream.
 /// </summary>
-public readonly record struct Http3OutputTaggedItem(IOutputItem Inner, OutputStreamType StreamType) : IOutputItem
+public readonly record struct Http3OutputTaggedItem(IOutputItem Inner, OutputStreamType StreamType, long StreamId = -1) : IOutputItem
 {
     public RequestEndpoint Key => Inner.Key;
+}
+
+/// <summary>
+/// Signals that all HTTP/3 frames for the current request have been emitted.
+/// The transport handles this by completing the request stream's write side,
+/// which causes the QUIC layer to send FIN and lets the server process the request.
+/// RFC 9114 §4.1: the client MUST send a FIN on the request stream after the last frame.
+/// </summary>
+public readonly record struct Http3EndOfRequestItem : IOutputItem
+{
+    public RequestEndpoint Key { get; init; }
+    public long StreamId { get; init; }
+}
+
+/// <summary>
+/// Discriminates the reason a QUIC stream or connection was closed.
+/// Used by <see cref="QuicCloseItem"/> so the protocol layer can choose
+/// the appropriate recovery strategy (flush response, reconnect, or complete).
+/// </summary>
+public enum QuicCloseKind
+{
+    /// <summary>
+    /// Server sent FIN on the request stream. The response body is delimited
+    /// by this FIN. Keep the QUIC connection and control/encoder streams alive.
+    /// </summary>
+    RequestStreamComplete,
+
+    /// <summary>
+    /// Connection-level failure (TCP RST, I/O error, or TLS error).
+    /// Tear down all streams and initiate reconnection if requests are in flight.
+    /// </summary>
+    ConnectionFailure,
+
+    /// <summary>
+    /// Connection migration detected when migration is disabled.
+    /// Close and reconnect from the original endpoint.
+    /// </summary>
+    MigrationDisallowed,
+
+    /// <summary>
+    /// Outbound write to a QUIC stream failed.
+    /// </summary>
+    WriteFailed,
+
+    /// <summary>
+    /// Connection acquisition timed out or the underlying provider threw.
+    /// </summary>
+    AcquisitionFailed,
+}
+
+/// <summary>
+/// Unified close signal for the QUIC transport layer. Consolidates all QUIC
+/// close scenarios into a single message type with a <see cref="QuicCloseKind"/>
+/// discriminator so the protocol stage can choose the appropriate recovery path.
+/// The <see cref="QuicCloseKind"/> discriminator tells the protocol stage
+/// which recovery path to take.
+/// </summary>
+public readonly record struct QuicCloseItem(QuicCloseKind Kind, long StreamId = -1) : IInputItem
+{
+    public RequestEndpoint Key { get; init; }
 }

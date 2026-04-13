@@ -533,10 +533,6 @@ public sealed class HpackDecoder
         // Non-Huffman: use Span overload directly — avoids intermediate byte[] allocation.
         return (Encoding.UTF8.GetString(strBytes), length);
     }
-
-    /// <summary>Convenience overload that discards the byte length.</summary>
-    private string ReadString(ReadOnlySpan<byte> data, ref int pos)
-        => ReadStringWithLength(data, ref pos).Value;
 }
 
 /// <summary>

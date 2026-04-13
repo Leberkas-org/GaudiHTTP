@@ -105,7 +105,6 @@ internal sealed class ExpectContinueBidiStage
                 return;
             }
 
-            // --- Request direction (In1→Out1) ---
             SetHandler(stage._inRequest,
                 onPush: () =>
                 {
@@ -135,7 +134,6 @@ internal sealed class ExpectContinueBidiStage
                 onPull: () => Pull(stage._inRequest),
                 onDownstreamFinish: _ => Cancel(stage._inRequest));
 
-            // --- Response direction (In2→Out2) ---
             SetHandler(stage._inResponse,
                 onPush: () =>
                 {

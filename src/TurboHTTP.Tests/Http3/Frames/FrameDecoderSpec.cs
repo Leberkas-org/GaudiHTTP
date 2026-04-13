@@ -12,7 +12,7 @@ public sealed class FrameDecoderSpec
         var original = new Http3DataFrame(new byte[] { 0xCA, 0xFE, 0xBA, 0xBE });
         var wire = original.Serialize();
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(wire, out var frame, out var consumed);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -30,7 +30,7 @@ public sealed class FrameDecoderSpec
         var original = new Http3HeadersFrame(headerBlock);
         var wire = original.Serialize();
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(wire, out var frame, out _);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -45,7 +45,7 @@ public sealed class FrameDecoderSpec
         var original = new Http3CancelPushFrame(16383);
         var wire = original.Serialize();
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(wire, out var frame, out _);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -66,7 +66,7 @@ public sealed class FrameDecoderSpec
         var original = new Http3SettingsFrame(parameters);
         var wire = original.Serialize();
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(wire, out var frame, out _);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -85,7 +85,7 @@ public sealed class FrameDecoderSpec
         var original = new Http3PushPromiseFrame(42, headerBlock);
         var wire = original.Serialize();
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(wire, out var frame, out _);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -101,7 +101,7 @@ public sealed class FrameDecoderSpec
         var original = new Http3GoAwayFrame(1_000_000);
         var wire = original.Serialize();
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(wire, out var frame, out _);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -116,7 +116,7 @@ public sealed class FrameDecoderSpec
         var original = new Http3MaxPushIdFrame(63);
         var wire = original.Serialize();
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(wire, out var frame, out _);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -129,7 +129,7 @@ public sealed class FrameDecoderSpec
     [Trait("RFC", "RFC9114-7")]
     public void Partial_type_varint_returns_need_more_data()
     {
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(ReadOnlySpan<byte>.Empty, out var frame, out _);
 
         Assert.Equal(Http3DecodeStatus.NeedMoreData, status);
@@ -149,7 +149,7 @@ public sealed class FrameDecoderSpec
         var part1 = wire.AsSpan(0, mid);
         var part2 = wire.AsSpan(mid);
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
 
         // First call — partial data
         var status = decoder.TryDecode(part1, out var frame, out _);
@@ -171,7 +171,7 @@ public sealed class FrameDecoderSpec
         var original = new Http3GoAwayFrame(256);
         var wire = original.Serialize();
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         Http3Frame? frame = null;
 
         for (var i = 0; i < wire.Length; i++)
@@ -206,7 +206,7 @@ public sealed class FrameDecoderSpec
         buf[offset++] = 0xBB;
         buf[offset++] = 0xCC;
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var status = decoder.TryDecode(buf.AsSpan(0, offset), out var frame, out var consumed);
 
         Assert.Equal(Http3DecodeStatus.Success, status);
@@ -242,7 +242,7 @@ public sealed class FrameDecoderSpec
             offset += f.WriteTo(ref span);
         }
 
-        var decoder = new Http3FrameDecoder();
+        var decoder = new FrameDecoder();
         var decoded = decoder.DecodeAll(wire, out var consumed);
 
         Assert.Equal(4, decoded.Count);

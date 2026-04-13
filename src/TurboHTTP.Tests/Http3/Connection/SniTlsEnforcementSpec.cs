@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Security;
+using TurboHTTP.Internal;
 using TurboHTTP.Transport.Connection;
-using TurboHTTP.Transport.Tcp;
 using TurboHTTP.Transport.Quic;
 
 namespace TurboHTTP.Tests.Http3.Connection;
@@ -13,6 +13,17 @@ namespace TurboHTTP.Tests.Http3.Connection;
 /// </summary>
 public sealed class SniTlsEnforcementSpec
 {
+    private static RequestEndpoint ToEndpoint(Uri uri, Version version)
+    {
+        return new RequestEndpoint
+        {
+            Host = uri.Host,
+            Port = (ushort)(uri.IsDefaultPort ? 0 : uri.Port),
+            Scheme = uri.Scheme,
+            Version = version
+        };
+    }
+
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-3.2")]
     public void Should_CarryHostname_When_Http3QuicOptionsCreated()
@@ -20,7 +31,7 @@ public sealed class SniTlsEnforcementSpec
         var uri = new Uri("https://example.com/path");
         var clientOptions = new TurboClientOptions();
 
-        var result = OptionsFactory.Build(uri, clientOptions, HttpVersion.Version30);
+        var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 
         var quicOptions = Assert.IsType<QuicOptions>(result);
         Assert.Equal("example.com", quicOptions.Host);
@@ -33,7 +44,7 @@ public sealed class SniTlsEnforcementSpec
         var uri = new Uri("https://my-server.example.org:8443/api");
         var clientOptions = new TurboClientOptions();
 
-        var result = OptionsFactory.Build(uri, clientOptions, HttpVersion.Version30);
+        var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 
         var quicOptions = Assert.IsType<QuicOptions>(result);
         Assert.Equal("my-server.example.org", quicOptions.Host);
@@ -88,7 +99,7 @@ public sealed class SniTlsEnforcementSpec
         var uri = new Uri("https://192.168.1.1:443/");
         var clientOptions = new TurboClientOptions();
 
-        var result = OptionsFactory.Build(uri, clientOptions, HttpVersion.Version30);
+        var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 
         var quicOptions = Assert.IsType<QuicOptions>(result);
         Assert.Equal("192.168.1.1", quicOptions.Host);
@@ -109,7 +120,7 @@ public sealed class SniTlsEnforcementSpec
         };
 
         var uri = new Uri("https://secure.example.com/");
-        var result = OptionsFactory.Build(uri, clientOptions, HttpVersion.Version30);
+        var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 
         var quicOptions = Assert.IsType<QuicOptions>(result);
         Assert.NotNull(quicOptions.ServerCertificateValidationCallback);
@@ -130,7 +141,7 @@ public sealed class SniTlsEnforcementSpec
         var uri = new Uri(uriString);
         var clientOptions = new TurboClientOptions();
 
-        var result = OptionsFactory.Build(uri, clientOptions, HttpVersion.Version30);
+        var result = OptionsFactory.Build(ToEndpoint(uri, HttpVersion.Version30), clientOptions);
 
         var quicOptions = Assert.IsType<QuicOptions>(result);
         Assert.Equal(expectedHost, quicOptions.Host);

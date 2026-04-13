@@ -20,8 +20,8 @@ public sealed class ClientStateSpec
 
         var state = new ClientState(65536, stream, inbound, outbound);
 
-        var buf1 = NetworkBuffer.FromArray(new byte[64]);
-        var buf2 = NetworkBuffer.FromArray(new byte[128]);
+        var buf1 = NetworkBufferTestExtensions.FromArray(new byte[64]);
+        var buf2 = NetworkBufferTestExtensions.FromArray(new byte[128]);
         state.InboundWriter.TryWrite(buf1);
         state.InboundWriter.TryWrite(buf2);
 
@@ -42,7 +42,7 @@ public sealed class ClientStateSpec
 
         var state = new ClientState(65536, stream, inbound, outbound);
 
-        var buf = NetworkBuffer.FromArray(new byte[256]);
+        var buf = NetworkBufferTestExtensions.FromArray(new byte[256]);
         state.OutboundWriter.TryWrite(buf);
 
         // Act

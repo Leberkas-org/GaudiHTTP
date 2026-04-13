@@ -9,6 +9,7 @@ using Akka.TestKit.Xunit;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http3;
+using FrameDecoder = TurboHTTP.Protocol.Http3.FrameDecoder;
 
 namespace TurboHTTP.StreamTests;
 
@@ -56,7 +57,7 @@ public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem
                     {
                         var copy = new byte[dataChunk.Length];
                         dataChunk.Span.CopyTo(copy);
-                        stage.OutboundChannel.Writer.TryWrite(NetworkBuffer.FromArray(copy));
+                        stage.OutboundChannel.Writer.TryWrite(NetworkBufferTestExtensions.FromArray(copy));
                         dataChunk.Dispose();
 
                         var responseBytes = _stage._responseFactory();
@@ -64,11 +65,11 @@ public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem
                         if (_downstreamWaiting)
                         {
                             _downstreamWaiting = false;
-                            Push(stage.Out, NetworkBuffer.FromArray(responseBytes));
+                            Push(stage.Out, NetworkBufferTestExtensions.FromArray(responseBytes));
                         }
                         else
                         {
-                            _buffer.Enqueue(NetworkBuffer.FromArray(responseBytes));
+                            _buffer.Enqueue(NetworkBufferTestExtensions.FromArray(responseBytes));
                         }
                     }
 
@@ -152,12 +153,12 @@ public sealed class H2EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
                             var remainder = span[24..];
                             if (remainder.Length > 0)
                             {
-                                stage.OutboundChannel.Writer.TryWrite(NetworkBuffer.FromArray(remainder.ToArray()));
+                                stage.OutboundChannel.Writer.TryWrite(NetworkBufferTestExtensions.FromArray(remainder.ToArray()));
                             }
                         }
                         else
                         {
-                            stage.OutboundChannel.Writer.TryWrite(NetworkBuffer.FromArray(span.ToArray()));
+                            stage.OutboundChannel.Writer.TryWrite(NetworkBufferTestExtensions.FromArray(span.ToArray()));
                         }
 
                         dataChunk.Dispose();
@@ -201,7 +202,7 @@ public sealed class H2EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
         private void PushNextFrame()
         {
             var frameBytes = _stage._serverFrames[_serverFrameIndex++];
-            Push(_stage.Out, NetworkBuffer.FromArray(frameBytes));
+            Push(_stage.Out, NetworkBufferTestExtensions.FromArray(frameBytes));
         }
 
         public override void PreStart() => Pull(_stage.In);
@@ -307,7 +308,7 @@ public abstract class EngineTestBase : TestKit
         var outboundBytes = await DrainOutboundH2Async(fake);
 
         var frames = outboundBytes.Count > 0
-            ? new FrameDecoder().Decode(outboundBytes.ToArray().AsMemory())
+            ? new Protocol.Http2.FrameDecoder().Decode(outboundBytes.ToArray().AsMemory())
             : [];
 
         return (response, frames);
@@ -346,7 +347,7 @@ public abstract class EngineTestBase : TestKit
         var outboundBytes = await DrainOutboundH2Async(fake);
 
         var frames = outboundBytes.Count > 0
-            ? new FrameDecoder().Decode(outboundBytes.ToArray().AsMemory())
+            ? new Protocol.Http2.FrameDecoder().Decode(outboundBytes.ToArray().AsMemory())
             : [];
 
         return (results, frames);
@@ -395,7 +396,7 @@ public abstract class EngineTestBase : TestKit
 
         if (requestBytes.Count > 0)
         {
-            frames.AddRange(new Http3FrameDecoder().DecodeAll(requestBytes.ToArray(), out _));
+            frames.AddRange(new FrameDecoder().DecodeAll(requestBytes.ToArray(), out _));
         }
 
         if (controlBytes.Count > 0)
@@ -409,7 +410,7 @@ public abstract class EngineTestBase : TestKit
 
             if (controlSpan.Length > 0)
             {
-                frames.AddRange(new Http3FrameDecoder().DecodeAll(controlSpan.ToArray(), out _));
+                frames.AddRange(new FrameDecoder().DecodeAll(controlSpan.ToArray(), out _));
             }
         }
 
@@ -499,7 +500,7 @@ public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
 
                     if (inner is NetworkBuffer dataChunk)
                     {
-                        stage.OutboundChannel.Writer.TryWrite((NetworkBuffer.FromArray(dataChunk.Span.ToArray()), streamType));
+                        stage.OutboundChannel.Writer.TryWrite((NetworkBufferTestExtensions.FromArray(dataChunk.Span.ToArray()), streamType));
                         dataChunk.Dispose();
                     }
 
@@ -558,7 +559,7 @@ public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
         private void PushNextFrame()
         {
             var frameBytes = _stage._serverFrames[_serverFrameIndex++];
-            Push(_stage.Out, NetworkBuffer.FromArray(frameBytes));
+            Push(_stage.Out, NetworkBufferTestExtensions.FromArray(frameBytes));
 
             // HTTP/3 relies on QUIC FIN (upstream completion) to signal stream end.
             // After all server frames are delivered, complete the output to propagate

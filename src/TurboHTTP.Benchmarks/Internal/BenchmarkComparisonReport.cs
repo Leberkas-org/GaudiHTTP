@@ -98,8 +98,6 @@ public static class BenchmarkComparisonReport
         return filePath;
     }
 
-    // ── Section builders ───────────────────────────────────────────────────────
-
     private static void AppendBinkrakenHeader(StringBuilder sb, DateTime reportDate)
     {
         sb.AppendLine("# TurboHttp vs HttpClient — Binkraken.com (Remote HTTPS)");
@@ -432,9 +430,6 @@ public static class BenchmarkComparisonReport
         sb.AppendLine();
     }
 
-
-    // ── Maths ──────────────────────────────────────────────────────────────────
-
     /// <summary>Converts nanoseconds-per-operation to requests per second.</summary>
     public static double NsToRps(double meanNanoseconds)
     {
@@ -520,8 +515,6 @@ public static class BenchmarkComparisonReport
         return int.TryParse(slice, out var cl) ? cl : 1;
     }
 
-    // ── Filtering ──────────────────────────────────────────────────────────────
-
     /// <summary>
     /// Returns only results whose <see cref="BenchmarkResult.BenchmarkName"/> ends with
     /// <c>/ HTTP {version}</c> (e.g. <c>"1.1"</c> or <c>"2.0"</c>).
@@ -544,8 +537,6 @@ public static class BenchmarkComparisonReport
         var idx = name.LastIndexOf(" / HTTP ", StringComparison.Ordinal);
         return idx >= 0 ? name[..idx] : name;
     }
-
-    // ── Row matching ───────────────────────────────────────────────────────────
 
     /// <summary>
     /// Matches rows from three result sets by <see cref="BenchmarkResult.BenchmarkName"/>.

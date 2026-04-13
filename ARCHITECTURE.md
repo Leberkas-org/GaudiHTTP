@@ -291,10 +291,15 @@ Connection lifecycle is managed by `IConnectionScope`:
 
 | Project | Contents |
 |---------|----------|
-| `TurboHTTP.Tests` | Unit tests organized by RFC namespace (`RFC9112`, `RFC9113`, …) |
+| `TurboHTTP.Tests` | Unit tests organized by RFC namespace (`RFC9112`, `RFC9113`, `Http3/Security`, …) |
 | `TurboHTTP.StreamTests` | Akka.Streams `GraphStage` behavior via `StreamTestBase` |
-| `TurboHTTP.IntegrationTests` | End-to-end with Kestrel fixtures |
+| `TurboHTTP.IntegrationTests` | End-to-end with Kestrel fixtures (16 integration test files each for H2 and H3 covering: smoke, connection, concurrency, cache, cookie, compression, request compression, redirect, retry, error handling, edge case, feature interaction, handler pipeline, resilience, expect-continue, max stream concurrency) |
 | `TurboHTTP.Benchmarks` | BenchmarkDotNet suite (25+ benchmarks) |
+
+### HTTP/3 Test Coverage
+
+- **Integration tests** (H3/): 16 test files matching HTTP/2 categories
+- **Security/Fuzz tests** (Http3/Security/): 4 test files covering QPACK bombs, frame fuzzing, field validation, and security attacks
 
 All `[Fact]`/`[Theory]` tests carry `DisplayName("RFC-section-cat-nnn: description")` and explicit timeouts (`Timeout = 5000` or `CancellationToken`). Max 500 lines per test file.
 
@@ -320,11 +325,11 @@ All `[Fact]`/`[Theory]` tests carry `DisplayName("RFC-section-cat-nnn: descripti
 | HTTP/1.0 | 85/100 | Stable |
 | HTTP/1.1 | 92/100 | Stable |
 | HTTP/2 | 87/100 | Stable |
-| HTTP/3 | 75/100 | Frame parsing + QUIC transport fully wired via `ITransportFactory` |
+| HTTP/3 | 88/100 | Frame parsing + QUIC transport fully wired; `Http3Options` configuration (QPACK table size, idle timeout, connection limits, blocked streams) integrated via `ProtocolCoreBuilder`; integration and security test coverage now at parity with HTTP/2 |
 | HPACK | 90/100 | Stable |
 | QPACK | 40/100 | Decoder only; encoder missing |
 | Cookies | 80/100 | Stable |
 | Caching | 78/100 | Stable |
 | Redirects/Retries | 82/100 | Stable |
 
-**Open gaps**: DoS protection (header size/count limits), redirect loop detection, HTTPS→HTTP downgrade blocking, QPACK encoder, QUIC transport, trailer header parsing.
+**Open gaps**: DoS protection (header size/count limits), redirect loop detection, HTTPS→HTTP downgrade blocking, QPACK encoder, trailer header parsing.

@@ -57,7 +57,6 @@ internal sealed class ContentEncodingBidiStage
     {
         public Logic(ContentEncodingBidiStage stage) : base(stage.Shape)
         {
-            // --- Request direction (In1→Out1) ---
             if (stage._compressionPolicy is not null)
             {
                 var policy = stage._compressionPolicy;
@@ -90,7 +89,6 @@ internal sealed class ContentEncodingBidiStage
                 onPull: () => Pull(stage._inRequest),
                 onDownstreamFinish: _ => Cancel(stage._inRequest));
 
-            // --- Response direction (In2→Out2) ---
             if (stage._automaticDecompression)
             {
                 SetHandler(stage._inResponse,

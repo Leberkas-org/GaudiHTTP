@@ -12,7 +12,6 @@ model {
     description 'High-performance HTTP client library for .NET built on Akka.Streams'
     technology '.NET 10 / Akka.Streams 1.5'
 
-    // ── Client Layer ──────────────────────────────────────────────────────
     client = container 'Client Layer' {
       description 'Public API and Akka.Streams lifecycle management'
       technology 'C# / .NET 10'
@@ -34,7 +33,6 @@ model {
       }
     }
 
-    // ── Streams Layer ─────────────────────────────────────────────────────
     streams = container 'Streams Layer' {
       description 'Akka.Streams GraphStages — request enrichment, protocol routing, response processing'
       technology 'Akka.Streams / C#'
@@ -257,7 +255,6 @@ model {
       }
     }
 
-    // ── Protocol Layer ────────────────────────────────────────────────────
     protocol = container 'Protocol Layer' {
       description 'Stateless encoders/decoders, header compression, and protocol business rules'
       technology 'C# / .NET 10'
@@ -422,7 +419,6 @@ model {
       }
     }
 
-    // ── Transport Layer ──────────────────────────────────────────────────
     transport = container 'Transport Layer' {
       description 'Actor-free connection pool with direct async API, zero-copy channels, and metrics'
       technology 'System.Threading.Channels / System.IO.Pipelines / System.Net.Sockets'
@@ -484,8 +480,6 @@ model {
     description 'Remote HTTP servers (TCP, TLS, or QUIC)'
     technology 'TCP / TLS / QUIC'
   }
-
-  // ── Structural relationships ───────────────────────────────────────────
 
   // User → Client Layer
   user -> turbohttp.client.ITurboHttpClient 'Sends HttpRequestMessage, receives HttpResponseMessage'

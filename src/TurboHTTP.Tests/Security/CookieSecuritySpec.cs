@@ -43,9 +43,7 @@ public sealed class CookieSecuritySpec
             : null;
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // Secure Attribute — Credential leakage over plaintext transport
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC6265")]
@@ -95,9 +93,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("sid=abc", httpsCookie);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // HttpOnly — Server-enforced attribute correctly stored
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC6265")]
@@ -117,9 +113,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("session=xyz", cookie);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // SameSite — Cross-site request scoping
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC6265")]
@@ -172,9 +166,7 @@ public sealed class CookieSecuritySpec
         Assert.Contains("tracker=abc", cookie);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // Domain Scoping — Cookie scope escalation prevention
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC6265")]
@@ -260,9 +252,7 @@ public sealed class CookieSecuritySpec
         Assert.Equal(0, jar.Count);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // Path Scoping — Cookie path boundary enforcement
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC6265")]
@@ -358,9 +348,7 @@ public sealed class CookieSecuritySpec
         Assert.False(CookieJar.PathMatches("/foo", "/bar/../foo"));
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // Max-Age=0 — Immediate cookie deletion
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC6265")]
@@ -407,9 +395,7 @@ public sealed class CookieSecuritySpec
         Assert.Equal(0, jar.Count);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // Overlong Cookie Values — DoS prevention
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC6265")]
@@ -463,9 +449,7 @@ public sealed class CookieSecuritySpec
         Assert.NotNull(cookie);
     }
 
-    // ══════════════════════════════════════════════════════════════════════════════
     // Combined Scenarios — Multiple security attributes interacting
-    // ══════════════════════════════════════════════════════════════════════════════
 
     [Fact]
     [Trait("RFC", "RFC6265")]

@@ -5,12 +5,6 @@ namespace TurboHTTP.Transport.Connection;
 
 internal static class OptionsFactory
 {
-    private static bool IsTls(this Uri value)
-    {
-        return string.Equals(value.Scheme, "https", StringComparison.OrdinalIgnoreCase)
-               || string.Equals(value.Scheme, "wss", StringComparison.OrdinalIgnoreCase);
-    }
-
     private static bool IsHttp3(Version? requestVersion)
     {
         return requestVersion is { Major: 3, Minor: 0 };
@@ -20,7 +14,7 @@ internal static class OptionsFactory
     {
         var isTls = endpoint.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)
                     || endpoint.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase);
-        var port = endpoint.Port != 0 ? endpoint.Port : (isTls ? 443 : 80);
+        var port = endpoint.Port != 0 ? endpoint.Port : isTls ? 443 : 80;
 
         if (IsHttp3(endpoint.Version))
         {
@@ -33,6 +27,7 @@ internal static class OptionsFactory
                 MaxFrameSize = clientOptions.Http2.MaxFrameSize,
                 SocketSendBufferSize = clientOptions.SocketSendBufferSize,
                 SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
+                AllowConnectionMigration = clientOptions.Http3.AllowConnectionMigration,
             };
         }
 
@@ -56,62 +51,6 @@ internal static class OptionsFactory
         return new TcpOptions
         {
             Host = endpoint.Host,
-            Port = port,
-            ConnectTimeout = clientOptions.ConnectTimeout,
-            MaxFrameSize = clientOptions.Http2.MaxFrameSize,
-            SocketSendBufferSize = clientOptions.SocketSendBufferSize,
-            SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
-        };
-    }
-
-    internal static TcpOptions Build(Uri requestUri, TurboClientOptions clientOptions, Version? requestVersion = null)
-    {
-        var host = requestUri.Host;
-        var isTls = requestUri.IsTls();
-        int port;
-        if (requestUri.Port is not -1)
-        {
-            port = requestUri.Port;
-        }
-        else
-        {
-            port = isTls ? 443 : 80;
-        }
-
-        if (IsHttp3(requestVersion))
-        {
-            return new QuicOptions
-            {
-                Host = host,
-                Port = port,
-                ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
-                ConnectTimeout = clientOptions.ConnectTimeout,
-                MaxFrameSize = clientOptions.Http2.MaxFrameSize,
-                SocketSendBufferSize = clientOptions.SocketSendBufferSize,
-                SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
-            };
-        }
-
-        if (isTls)
-        {
-            return new TlsOptions
-            {
-                Host = host,
-                Port = port,
-                TargetHost = host,
-                ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
-                ClientCertificates = clientOptions.ClientCertificates,
-                EnabledSslProtocols = clientOptions.EnabledSslProtocols,
-                ConnectTimeout = clientOptions.ConnectTimeout,
-                MaxFrameSize = clientOptions.Http2.MaxFrameSize,
-                SocketSendBufferSize = clientOptions.SocketSendBufferSize,
-                SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
-            };
-        }
-
-        return new TcpOptions
-        {
-            Host = host,
             Port = port,
             ConnectTimeout = clientOptions.ConnectTimeout,
             MaxFrameSize = clientOptions.Http2.MaxFrameSize,

@@ -32,10 +32,10 @@ cd docs && npm install && npm run docs:dev
 ## Architecture
 
 ```
-Client Surface (TurboHTTP/)          — ITurboHttpClient, factory, builder, DI
-Streams Layer  (TurboHTTP/Streams/)  — Engines, GraphStages: Encoding/, Decoding/, Features/, Routing/
-Protocol Layer (TurboHTTP/Protocol/) — Encoders/Decoders, HPACK/QPACK, RFC logic
-Transport Layer(TurboHTTP/Transport/)— Connection pool, leases, TCP/QUIC
+Client Surface  (TurboHTTP/)                — ITurboHttpClient, factory, builder, DI
+Streams Layer   (TurboHTTP/Streams/)        — Engines (Http10/11/20/30Engine), Stages/{Encoding,Decoding,Features,Routing}
+Protocol Layer  (TurboHTTP/Protocol/)       — Http10/, Http11/, Http2/, Http3/, Cookies/, Caching/, Semantics/, AltSvc/
+Transport Layer (TurboHTTP/Transport/)      — Connection/, Tcp/, Quic/
 ```
 
 ## Obsidian Vault (`notes/`)
@@ -56,6 +56,7 @@ Key vault guides: `Architecture/Guides/10-TEST_CONVENTIONS`, `11-STAGE_PORT_NAMI
 
 ## Code Style
 
+- No decorative separator comments (`// ───`, `// ===`, `// ---` section dividers)
 - Allman braces, 4 spaces, `_fieldName` for private fields
 - `var` when type is apparent, `sealed` by default
 - No `#nullable enable` (project-level), no `async void` / `.Result` / `.Wait()`

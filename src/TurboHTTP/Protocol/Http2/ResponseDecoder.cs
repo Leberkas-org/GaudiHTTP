@@ -41,7 +41,7 @@ public sealed class ResponseDecoder
     /// </summary>
     public HttpResponseMessage? DecodeHeaders(int streamId, bool endStream, StreamState state)
     {
-        var headers = _hpack.Decode(state.HeaderBuffer[..state.HeaderLength].Span);
+        var headers = _hpack.Decode(state.GetHeaderSpan());
         var totalHeaderSize = 0;
 
         var response = new HttpResponseMessage();
@@ -84,13 +84,12 @@ public sealed class ResponseDecoder
 
                 if (IsContentHeader(h.Name))
                 {
-                    state.ContentHeaders ??= [];
-                    state.ContentHeaders.Add((h.Name, h.Value));
+                    state.AddContentHeader(h.Name, h.Value);
                 }
             }
         }
 
-        state.Response = response;
+        state.InitResponse(response);
 
         if (!endStream)
         {
@@ -98,10 +97,10 @@ public sealed class ResponseDecoder
         }
 
         // Headers-only response (no body).
-        response.Content = state.ContentHeaders is null
-            ? SharedEmptyContent
-            : new ByteArrayContent([]);
-        ApplyContentHeaders(response, state);
+        response.Content = state.HasContentHeaders
+            ? new ByteArrayContent([])
+            : SharedEmptyContent;
+        state.ApplyContentHeadersTo(response.Content);
 
         return response;
     }
@@ -111,28 +110,15 @@ public sealed class ResponseDecoder
     /// </summary>
     public HttpResponseMessage CompleteDataResponse(StreamState state)
     {
-        var response = state.Response ?? new HttpResponseMessage();
+        var response = state.GetOrCreateResponse();
 
         var (bodyOwner, bodyLength) = state.TakeBodyOwnership();
         response.Content = bodyOwner is null
-            ? (state.ContentHeaders is null ? SharedEmptyContent : new ByteArrayContent([]))
+            ? (state.HasContentHeaders ? new ByteArrayContent([]) : SharedEmptyContent)
             : new PooledBodyContent(bodyOwner, bodyLength);
-        ApplyContentHeaders(response, state);
+        state.ApplyContentHeadersTo(response.Content);
 
         return response;
-    }
-
-    public static void ApplyContentHeaders(HttpResponseMessage response, StreamState state)
-    {
-        if (state.ContentHeaders is null)
-        {
-            return;
-        }
-
-        foreach (var (name, value) in state.ContentHeaders)
-        {
-            response.Content.Headers.TryAddWithoutValidation(name, value);
-        }
     }
 
     public static bool IsContentHeader(string name) =>

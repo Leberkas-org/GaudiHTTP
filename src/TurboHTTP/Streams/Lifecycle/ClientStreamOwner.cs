@@ -129,7 +129,8 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
                 .Register(new Version(1, 0), tcpFactory)
                 .Register(new Version(1, 1), tcpFactory)
                 .Register(new Version(2, 0), tcpFactory)
-                .Register(new Version(3, 0), new QuicTransportFactory(_quicConnectionManager));
+                .Register(new Version(3, 0), new QuicTransportFactory(_quicConnectionManager,
+                    create.ClientOptions, create.ClientOptions.Http3.AllowConnectionMigration));
 
             var engine = new Engine();
             var engineFlow = engine.CreateFlow(
