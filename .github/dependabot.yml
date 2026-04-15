@@ -6,3 +6,7 @@ updates:
   schedule:
     interval: daily
     time: "11:00"
+  groups:
+    akka:
+      patterns:
+        - "Akka*"
