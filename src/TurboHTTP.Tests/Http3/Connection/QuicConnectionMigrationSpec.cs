@@ -2,6 +2,7 @@ using System.Net;
 using Akka.Actor;
 using Akka.Event;
 using TurboHTTP.Internal;
+using TurboHTTP.Transport.Connection;
 using TurboHTTP.Transport.Quic;
 using TurboHTTP.Transport.Tcp;
 

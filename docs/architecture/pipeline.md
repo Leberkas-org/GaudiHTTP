@@ -14,17 +14,18 @@ Each `HttpRequestMessage` passes through the following stages before reaching th
 
 | # | Stage | What it does |
 |---|-------|--------------|
-| 1 | Request Enrichment (`RequestEnricherStage`) | Applies your `BaseAddress`, default HTTP version, and default headers to every request |
+| 1 | Request Enrichment (`RequestEnricher`) | Applies your `BaseAddress`, default HTTP version, and default headers to every request |
 | 2 | Tracing (`TracingBidiStage`) | Starts an activity span for observability; records request method, URL, timing, and final status code |
 | 3 | User Handlers (`HandlerBidiStage`) | Runs any custom middleware you registered — zero or more, applied outermost-first |
 | 4 | Redirect (`RedirectBidiStage`) | Tracks the redirect chain; on a `301`–`308` response, re-enters the pipeline at the Cookie stage so new-URL cookies are injected |
 | 5 | Cookie Injection (`CookieBidiStage`) | Looks up matching cookies for the target domain and path and adds a `Cookie` header |
 | 6 | Retry (`RetryBidiStage`) | On the request side, attaches retry context; on a transient failure, re-enters below the Cookie stage (same URL, cookies already set) |
 | 7 | Expect-Continue (`ExpectContinueBidiStage`) | For requests with large bodies, sends `Expect: 100-continue` and holds the body until the server confirms it will accept it |
-| 8 | Cache Lookup (`CacheBidiStage`) | Checks the in-memory cache; on a **cache hit**, returns the cached response immediately — stages 9–10 are skipped entirely |
+| 8 | Cache Lookup (`CacheBidiStage`) | Checks the in-memory cache; on a **cache hit**, returns the cached response immediately — stages 9–12 are skipped entirely |
 | 9 | Content Encoding (`ContentEncodingBidiStage`) | Compresses the request body if a compression policy is configured; on the response side, transparently decompresses `gzip`, `deflate`, or Brotli |
-| 10 | Version Router (`Engine`) | Routes the request to the correct protocol handler based on the requested HTTP version |
-| 11 | Protocol Encoder *(per version)* | Serialises the request to bytes and sends it over the network connection |
+| 10 | Alt-Svc Discovery (`AltSvcBidiStage`) | Checks for cached Alt-Svc entries and upgrades the request version if a faster protocol is available; captures Alt-Svc headers from responses |
+| 11 | Version Router (`Engine`) | Routes the request to the correct protocol handler based on the requested HTTP version |
+| 12 | Protocol ConnectionStage *(per version)* | Unified stage that serialises the request to bytes, parses the response, and correlates request/response — then `NetworkBufferBatchStage` batches the outbound writes and `TcpConnectionStage`/`QuicConnectionStage` handles the network connection |
 
 ---
 
@@ -34,14 +35,15 @@ After bytes return from the network, the response passes back through the stages
 
 | # | Stage | What it does |
 |---|-------|--------------|
-| 1 | Protocol Decoder *(per version)* | Parses raw bytes into an `HttpResponseMessage` and matches it to the original request |
-| 2 | Content Encoding (`ContentEncodingBidiStage`) | Transparently decompresses `gzip`, `deflate`, or Brotli response bodies |
-| 3 | Cache Storage (`CacheBidiStage`) | Saves cacheable responses so future matching requests can be served from memory |
-| 4 | Expect-Continue (`ExpectContinueBidiStage`) | Processes `100 Continue` responses and unblocks the request body when the server is ready |
-| 5 | Automatic Retry (`RetryBidiStage`) | Re-sends safe (idempotent) requests on transient errors, `408`, or `503` responses; respects `Retry-After` delays |
-| 6 | Cookie Storage (`CookieBidiStage`) | Reads `Set-Cookie` headers and stores cookies for future requests |
-| 7 | Redirect Following (`RedirectBidiStage`) | Follows `301`–`308` redirects automatically; rewrites the HTTP method where needed; detects loops and blocks HTTPS→HTTP downgrades |
-| 8 | Tracing (`TracingBidiStage`) | Closes the activity span, recording the final status code and any errors |
+| 1 | Protocol ConnectionStage *(per version)* | Parses raw bytes into an `HttpResponseMessage` and matches it to the original request |
+| 2 | Alt-Svc Discovery (`AltSvcBidiStage`) | Captures Alt-Svc response headers and caches them for future requests |
+| 3 | Content Encoding (`ContentEncodingBidiStage`) | Transparently decompresses `gzip`, `deflate`, or Brotli response bodies |
+| 4 | Cache Storage (`CacheBidiStage`) | Saves cacheable responses so future matching requests can be served from memory |
+| 5 | Expect-Continue (`ExpectContinueBidiStage`) | Processes `100 Continue` responses and unblocks the request body when the server is ready |
+| 6 | Automatic Retry (`RetryBidiStage`) | Re-sends safe (idempotent) requests on transient errors, `408`, or `503` responses; respects `Retry-After` delays |
+| 7 | Cookie Storage (`CookieBidiStage`) | Reads `Set-Cookie` headers and stores cookies for future requests |
+| 8 | Redirect Following (`RedirectBidiStage`) | Follows `301`–`308` redirects automatically; rewrites the HTTP method where needed; detects loops and blocks HTTPS→HTTP downgrades |
+| 9 | Tracing (`TracingBidiStage`) | Closes the activity span, recording the final status code and any errors |
 
 ---
 
@@ -57,7 +59,7 @@ If the cache entry is stale but has an `ETag` or `Last-Modified` validator, `Cac
 
 ### 2. Keep-Alive Feedback (HTTP/1.1 only)
 
-After each HTTP/1.1 response, a signal is sent back to the connection layer indicating whether the connection should stay open or be closed. The connection stage uses this signal to decide whether to reuse the TCP connection for the next request or close it and request a new one from the pool.
+After each HTTP/1.1 response, `Http11ConnectionStage` evaluates the `Connection` header internally and decides whether to reuse the TCP connection for the next request or close it and request a new one from the pool.
 
 This loop is invisible to the caller — the `Engine` and higher layers see only a continuous stream of `HttpResponseMessage` objects.
 
@@ -71,7 +73,7 @@ When `RetryBidiStage` decides a request should be retried, it re-enters the pipe
 
 ### 5. QPACK Table Sync (HTTP/3 only)
 
-HTTP/3 uses QPACK for header compression. The server sends decoder table updates on a dedicated QUIC stream; `QpackDecoderFeedbackStage` forwards these updates back to `Http30Request2FrameStage` to keep the encoder and decoder tables in sync.
+HTTP/3 uses QPACK for header compression. The server sends decoder table updates on a dedicated QUIC stream; `Http30ConnectionStage` processes these updates internally to keep the encoder and decoder dynamic tables in sync.
 
 ---
 

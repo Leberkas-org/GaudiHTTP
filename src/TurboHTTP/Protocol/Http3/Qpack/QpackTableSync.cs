@@ -78,9 +78,9 @@ public sealed class QpackTableSync
 
         _encoderMaxCapacity = encoderMaxCapacity;
         _decoderMaxCapacity = decoderMaxCapacity;
+        _maxBlockedStreams = maxBlockedStreams;
         Encoder = new QpackEncoder(encoderMaxCapacity);
         Decoder = new QpackDecoder(decoderMaxCapacity, maxBlockedStreams);
-        _maxBlockedStreams = maxBlockedStreams;
         _instructionDecoder = new QpackInstructionDecoder();
     }
 

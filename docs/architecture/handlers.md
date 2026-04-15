@@ -141,29 +141,43 @@ services.AddTurboHttpClient("myapi", options => { ... })
 ## Where User Handlers Run in the Pipeline
 
 ```
-[RequestEnricher]          ← BaseAddress, DefaultHeaders, Version
+[RequestEnricher]              ← BaseAddress, DefaultHeaders, Version
       ↓
-[User-Handler Request]     ← ProcessRequest — Auth, Correlation-ID, Custom-Headers
-      ↓                       (initial requests only; redirect feedback enters the pipeline
-      |                        AFTER this point and bypasses the handler)
-[CookieBidiStage]          ← .WithCookies()
-      ↓                       (retry feedback enters AFTER this point)
-[CacheBidiStage]           ← .WithCache()
+[TracingBidiStage]             ← activity span (outermost)
       ↓
-── network round-trip ──
+[User-Handler Request]         ← ProcessRequest — Auth, Correlation-ID, Custom-Headers
+      ↓                           (initial requests only; redirect feedback enters the pipeline
+      |                            AFTER this point and bypasses the handler)
+[RedirectBidiStage]            ← .WithRedirect() → redirect feedback (back to CookieBidiStage)
       ↓
-[Protocol Engine]          ← HTTP/1.0 / 1.1 / 2.0
-[Decompression]
+[CookieBidiStage]              ← .WithCookies()
+      ↓
+[RetryBidiStage]               ← .WithRetry()   → retry feedback (back to ExpectContinueBidiStage)
+      ↓
+[ExpectContinueBidiStage]      ← Expect: 100-continue
+      ↓
+[CacheBidiStage]               ← .WithCache()  → cache hit short-circuits here
+      ↓
+[ContentEncodingBidiStage]     ← request compression / response decompression
+      ↓
+[AltSvcBidiStage]              ← Alt-Svc version upgrade (innermost)
+      ↓
+── Engine + ConnectionStage + NetworkBufferBatchStage + Transport ──
       ↓
 ── response returns ──
       ↓
-[CookieBidiStage]          ← .WithCookies()
-[CacheBidiStage]           ← .WithCache()
-[RetryBidiStage]           ← .WithRetry()   → retry feedback (back to CacheBidiStage)
-[RedirectBidiStage]        ← .WithRedirect() → redirect feedback (back to CookieBidiStage)
+[AltSvcBidiStage]              ← captures Alt-Svc headers
+[ContentEncodingBidiStage]     ← decompresses response
+[CacheBidiStage]               ← caches response if eligible
+[ExpectContinueBidiStage]      ← unblocks body on 100 Continue
+[RetryBidiStage]               ← retries on transient failure
+[CookieBidiStage]              ← stores Set-Cookie headers
+[RedirectBidiStage]            ← follows redirect if needed
       ↓
-[User-Handler Response]    ← ProcessResponse — Logging, Metrics, Tracing
-      ↓                       (final responses only — after redirect and retry are resolved)
+[User-Handler Response]        ← ProcessResponse — Logging, Metrics
+      ↓                           (final responses only — after redirect and retry are resolved)
+[TracingBidiStage]             ← closes activity span
+      ↓
 [Client]
 ```
 

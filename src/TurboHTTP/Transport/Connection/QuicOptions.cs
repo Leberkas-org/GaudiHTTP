@@ -1,7 +1,4 @@
-using System.Net.Security;
-using TurboHTTP.Transport.Connection;
-
-namespace TurboHTTP.Transport.Quic;
+namespace TurboHTTP.Transport.Connection;
 
 /// <summary>
 /// QUIC connection options, extending <see cref="TcpOptions"/> with QUIC-specific settings.

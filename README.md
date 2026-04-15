@@ -206,20 +206,20 @@ services
 ```
 Client Layer       ITurboHttpClient (SendAsync / channel API)
       ↓
-Handlers Layer     TurboHandler pipeline (Auth, Logging, custom transforms)
+Feature Layer      Akka.Streams BidiStages — outermost to innermost:
+                   Tracing → Handlers → Redirect → Cookie → Retry →
+                   Expect-Continue → Cache → ContentEncoding → Alt-Svc
       ↓
-Streams Layer      Akka.Streams GraphStages — Engine, Feature BidiStages, Protocol Engines
-                   Features: Cache, Cookies, Redirect, Retry, ContentEncoding,
-                             Expect-Continue, Tracing, ConnectionReuse
-      ↓
-Protocol Layer     Encoders/Decoders, HPACK/QPACK, frame types
+Engine Layer       Engine (version router) → per-version engines
+                   Each engine: unified ConnectionStage + NetworkBufferBatchStage
                    HTTP/1.0 · HTTP/1.1 · HTTP/2 · HTTP/3
       ↓
-Pooling Layer      PoolRouter → HostPool → ConnectionActor (lifecycle only)
+Protocol Layer     Encoding/decoding, HPACK/QPACK, frame types — all internal
+                   to the unified ConnectionStage per version
       ↓
-Transport Layer    ITransportFactory abstraction
-                   ├─ TCP  → TcpConnectionStage ←→ Channel<byte> ←→ ClientByteMover
-                   └─ QUIC → QuicConnectionManager ←→ QUIC streams
+Transport Layer    TcpConnectionStage / QuicConnectionStage
+                   ├─ TCP  → ConnectionManagerActor → Channel<byte> → ClientByteMover
+                   └─ QUIC → ConnectionManagerActor → QUIC streams
 ```
 
 For interactive architecture diagrams, see the [documentation site](https://turbohttp.st0o0.net/).
@@ -228,7 +228,7 @@ For interactive architecture diagrams, see the [documentation site](https://turb
 
 ## Documentation
 
-Full documentation — including feature guides, architecture deep-dives, and a comparison with `HttpClient` — is available at **[https://st0o0.github.io/TurboHTTP/](https://st0o0.github.io/TurboHTTP/)**.
+Full documentation — including feature guides, architecture deep-dives, and a comparison with `HttpClient` — is available at **[https://turbohttp.st0o0.net/](https://turbohttp.st0o0.net/)**.
 
 ---
 

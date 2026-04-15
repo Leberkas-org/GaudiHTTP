@@ -2,9 +2,9 @@ using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Runtime.Versioning;
-using TurboHTTP.Transport.Connection;
+using TurboHTTP.Transport.Quic;
 
-namespace TurboHTTP.Transport.Quic;
+namespace TurboHTTP.Transport.Connection;
 
 /// <summary>
 /// Pure transport QUIC implementation of <see cref="IClientProvider"/>. Establishes a single QUIC
