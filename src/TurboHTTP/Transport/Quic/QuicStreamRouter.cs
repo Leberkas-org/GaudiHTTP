@@ -65,25 +65,19 @@ internal sealed class QuicStreamRouter
     /// <summary>
     /// Routes a tagged item to the appropriate stream (request, control, or encoder).
     /// </summary>
-    public void RouteTaggedItem(Http3OutputTaggedItem outputTagged,
+    public void RouteTaggedItem(Http3NetworkBuffer dataItem,
         ConnectionHandle? controlHandle, Queue<NetworkBuffer> pendingControlItems,
         ConnectionHandle? encoderHandle, Queue<NetworkBuffer> pendingEncoderItems)
     {
-        if (outputTagged.Inner is not NetworkBuffer dataItem)
+        switch (dataItem.StreamType)
         {
-            _ops.OnSignalPullInput();
-            return;
-        }
-
-        switch (outputTagged.StreamType)
-        {
-            case OutputStreamType.Request:
-                RouteToRequestStream(outputTagged.StreamId, dataItem);
+            case Http3StreamType.Request:
+                RouteToRequestStream(dataItem.StreamId, dataItem);
                 break;
-            case OutputStreamType.Control:
+            case Http3StreamType.Control:
                 RouteToTypedStream(controlHandle, pendingControlItems, dataItem);
                 break;
-            case OutputStreamType.QpackEncoder:
+            case Http3StreamType.QpackEncoder:
                 RouteToTypedStream(encoderHandle, pendingEncoderItems, dataItem);
                 break;
         }

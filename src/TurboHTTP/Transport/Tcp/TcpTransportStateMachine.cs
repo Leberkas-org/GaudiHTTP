@@ -138,10 +138,6 @@ internal sealed class TcpTransportStateMachine
                 _ops.OnSignalPullInput();
                 break;
 
-            case Http3OutputTaggedItem:
-                _ops.OnSignalPullInput();
-                break;
-
             case ReconnectItem reconnectItem:
                 HandleReconnectItem(reconnectItem);
                 break;

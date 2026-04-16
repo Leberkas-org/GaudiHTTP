@@ -380,10 +380,10 @@ public abstract class EngineTestBase : TestKit
             var bytes = chunk.Buffer.Span.ToArray();
             switch (chunk.StreamType)
             {
-                case OutputStreamType.Control:
+                case Http3StreamType.Control:
                     controlBytes.AddRange(bytes);
                     break;
-                case OutputStreamType.QpackEncoder:
+                case Http3StreamType.QpackEncoder:
                     // QPACK encoder instructions — not HTTP/3 frames, skip.
                     break;
                 default:
@@ -457,8 +457,8 @@ public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
 {
     private readonly IReadOnlyList<byte[]> _serverFrames;
 
-    public Channel<(NetworkBuffer Buffer, OutputStreamType? StreamType)> OutboundChannel { get; } =
-        Channel.CreateUnbounded<(NetworkBuffer, OutputStreamType?)>();
+    public Channel<(NetworkBuffer Buffer, Http3StreamType? StreamType)> OutboundChannel { get; } =
+        Channel.CreateUnbounded<(NetworkBuffer, Http3StreamType?)>();
 
     public Inlet<IOutputItem> In { get; } = new("h3-engine-fake.in");
     public Outlet<IInputItem> Out { get; } = new("h3-engine-fake.out");
@@ -489,16 +489,14 @@ public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
                 {
                     var item = Grab(stage.In);
 
-                    // Unwrap tagged items (control preface, QPACK encoder, etc.)
-                    OutputStreamType? streamType = null;
-                    var inner = item;
-                    if (item is Http3OutputTaggedItem tagged)
+                    // Extract stream type from Http3NetworkBuffer (control preface, QPACK encoder, etc.)
+                    Http3StreamType? streamType = null;
+                    if (item is Http3NetworkBuffer h3Buf)
                     {
-                        streamType = tagged.StreamType;
-                        inner = tagged.Inner;
+                        streamType = h3Buf.StreamType != Http3StreamType.None ? h3Buf.StreamType : null;
                     }
 
-                    if (inner is NetworkBuffer dataChunk)
+                    if (item is NetworkBuffer dataChunk)
                     {
                         stage.OutboundChannel.Writer.TryWrite((NetworkBufferTestExtensions.FromArray(dataChunk.Span.ToArray()), streamType));
                         dataChunk.Dispose();
@@ -562,9 +560,22 @@ public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
             var buf = NetworkBufferTestExtensions.FromArray(frameBytes);
 
             // First frame is the control stream (SETTINGS), remaining are request stream data.
-            IInputItem item = _serverFrameIndex == 1
-                ? new Http3InputTaggedItem(buf, InputStreamType.Control)
-                : new Http3InputTaggedItem(buf, InputStreamType.Request, StreamId: 0);
+            var h3Buf = Http3NetworkBuffer.Rent(buf.Length);
+            buf.Span.CopyTo(h3Buf.FullMemory.Span);
+            h3Buf.Length = buf.Length;
+            buf.Dispose();
+
+            if (_serverFrameIndex == 1)
+            {
+                h3Buf.StreamType = Http3StreamType.Control;
+            }
+            else
+            {
+                h3Buf.StreamType = Http3StreamType.Request;
+                h3Buf.StreamId = 0;
+            }
+
+            IInputItem item = h3Buf;
 
             Push(_stage.Out, item);
 

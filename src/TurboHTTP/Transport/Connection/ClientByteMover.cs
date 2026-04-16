@@ -16,13 +16,15 @@ internal static class ClientByteMover
     /// and writes them to the inbound channel. Eliminates the Pipe intermediary and the
     /// associated per-chunk copy.
     /// </summary>
-    internal static async Task MoveStreamToChannel(ClientState state, Action onClose, CancellationToken ct)
+    internal static async Task MoveStreamToChannel(ClientState state, Action onClose, CancellationToken ct,
+        Func<int, NetworkBuffer>? bufferFactory = null)
     {
+        bufferFactory ??= NetworkBuffer.Rent;
         try
         {
             while (!ct.IsCancellationRequested)
             {
-                var buffer = NetworkBuffer.Rent(128 * 1024);
+                var buffer = bufferFactory(128 * 1024);
                 int bytesRead;
                 try
                 {

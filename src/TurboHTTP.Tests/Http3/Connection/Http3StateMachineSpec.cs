@@ -126,7 +126,7 @@ public sealed class Http3StateMachineSpec
 
         Assert.Null(result);
         Assert.Single(_ops.OutboundItems); // serialized CANCEL_PUSH frame
-        Assert.IsType<NetworkBuffer>(_ops.OutboundItems[0]);
+        Assert.IsType<Http3NetworkBuffer>(_ops.OutboundItems[0]);
     }
 
     [Fact(Timeout = 5000)]
@@ -563,10 +563,10 @@ public sealed class Http3StateMachineSpec
 
         sm.EncodeRequest(CreateGetRequest());
 
-        // All request frames should be tagged as Http3OutputTaggedItem with stream ID 0
+        // All request frames should be tagged as Http3NetworkBuffer with stream ID 0
         var tagged = _ops.OutboundItems
-            .OfType<Http3OutputTaggedItem>()
-            .Where(t => t.StreamType == OutputStreamType.Request)
+            .OfType<Http3NetworkBuffer>()
+            .Where(t => t.StreamType == Http3StreamType.Request)
             .ToList();
         Assert.NotEmpty(tagged);
         Assert.All(tagged, t => Assert.Equal(0L, t.StreamId));

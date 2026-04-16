@@ -368,3 +368,5 @@ TurboHTTP/.obsidian/
 .maggus/work.pid
 
 .worktrees/
+.maggus/logs/
+.maggus/worktrees/

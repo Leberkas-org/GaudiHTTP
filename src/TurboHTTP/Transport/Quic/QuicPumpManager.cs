@@ -28,7 +28,7 @@ internal sealed class QuicPumpManager
     /// Starts a background pump that reads from the given handle's inbound channel
     /// and marshals each chunk as a <see cref="InboundData"/> message.
     /// </summary>
-    public void StartInboundPump(ConnectionHandle handle, InputStreamType streamType,
+    public void StartInboundPump(ConnectionHandle handle, Http3StreamType streamType,
         RequestEndpoint key, int connectionGen, long streamId = -1)
     {
         var cts = new CancellationTokenSource();
@@ -92,7 +92,7 @@ internal sealed class QuicPumpManager
     private static async Task PumpAsync(
         ChannelReader<NetworkBuffer> reader,
         RequestEndpoint key,
-        InputStreamType streamType,
+        Http3StreamType streamType,
         CancellationToken ct,
         IActorRef self,
         int gen,
@@ -107,11 +107,16 @@ internal sealed class QuicPumpManager
                 {
                     chunk.Key = key;
 
-                    IInputItem outputItem = streamType == InputStreamType.Request
-                        ? new Http3InputTaggedItem(chunk, streamType, streamId)
-                        : new Http3InputTaggedItem(chunk, streamType);
+                    if (chunk is Http3NetworkBuffer h3Buf)
+                    {
+                        h3Buf.StreamType = streamType;
+                        if (streamType == Http3StreamType.Request)
+                        {
+                            h3Buf.StreamId = streamId;
+                        }
+                    }
 
-                    self.Tell(new InboundData(outputItem, gen));
+                    self.Tell(new InboundData(chunk, gen));
                 }
             }
         }
@@ -134,7 +139,7 @@ internal sealed class QuicPumpManager
         }
 
         // Only emit close signal for the request stream (per-stream lifecycle)
-        if (streamType == InputStreamType.Request)
+        if (streamType == Http3StreamType.Request)
         {
             self.Tell(new InboundComplete(closeKind, gen, streamId));
         }

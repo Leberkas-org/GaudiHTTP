@@ -38,11 +38,13 @@ public sealed class Http30ConnectionConcurrencySpec : StreamTestBase
             var headersBytes = new Http3HeadersFrame(
                 EncodeResponseHeaders((":status", "200"))).Serialize();
 
-            var buf = NetworkBuffer.Rent(headersBytes.Length);
+            var buf = Http3NetworkBuffer.Rent(headersBytes.Length);
             headersBytes.AsSpan().CopyTo(buf.FullMemory.Span);
             buf.Length = headersBytes.Length;
+            buf.StreamType = Http3StreamType.Request;
+            buf.StreamId = streamId;
 
-            yield return new Http3InputTaggedItem(buf, InputStreamType.Request, streamId);
+            yield return buf;
             yield return new QuicCloseItem(QuicCloseKind.RequestStreamComplete, streamId);
         }
     }
@@ -53,10 +55,11 @@ public sealed class Http30ConnectionConcurrencySpec : StreamTestBase
     private static IInputItem BuildControlSettings()
     {
         var settingsBytes = new Http3SettingsFrame([]).Serialize();
-        var buf = NetworkBuffer.Rent(settingsBytes.Length);
+        var buf = Http3NetworkBuffer.Rent(settingsBytes.Length);
         settingsBytes.AsSpan().CopyTo(buf.FullMemory.Span);
         buf.Length = settingsBytes.Length;
-        return new Http3InputTaggedItem(buf, InputStreamType.Control);
+        buf.StreamType = Http3StreamType.Control;
+        return buf;
     }
 
     /// <summary>
@@ -103,7 +106,7 @@ public sealed class Http30ConnectionConcurrencySpec : StreamTestBase
     }
 
     /// <summary>
-    /// Extracts stream IDs from outbound <see cref="Http3OutputTaggedItem"/> items
+    /// Extracts stream IDs from outbound <see cref="Http3NetworkBuffer"/> items
     /// that carry request data (not control/QPACK streams).
     /// </summary>
     private static IReadOnlyList<long> ExtractRequestStreamIds(IReadOnlyList<IOutputItem> items)
@@ -112,7 +115,7 @@ public sealed class Http30ConnectionConcurrencySpec : StreamTestBase
         var result = new List<long>();
         foreach (var item in items)
         {
-            if (item is Http3OutputTaggedItem { StreamType: OutputStreamType.Request } tagged
+            if (item is Http3NetworkBuffer { StreamType: Http3StreamType.Request } tagged
                 && tagged.StreamId >= 0
                 && seen.Add(tagged.StreamId))
             {

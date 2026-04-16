@@ -123,11 +123,12 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             if (goAway is not null)
             {
                 // Serialize and emit the GOAWAY frame
-                var buf = NetworkBuffer.Rent(goAway.SerializedSize);
+                var buf = Http3NetworkBuffer.Rent(goAway.SerializedSize);
                 var span = buf.FullMemory.Span;
                 goAway.WriteTo(ref span);
                 buf.Length = goAway.SerializedSize;
-                _pendingOutbound.Add(new Http3OutputTaggedItem(buf, OutputStreamType.Control));
+                buf.StreamType = Http3StreamType.Control;
+                _pendingOutbound.Add(buf);
                 FlushOutbound();
                 CompleteStage();
                 return;
@@ -166,7 +167,7 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 case QuicCloseItem:
                     HandleSignalItem(item);
                     return;
-                case Http3InputTaggedItem tagged:
+                case Http3NetworkBuffer tagged when tagged.StreamType != Http3StreamType.None:
                     HandleTaggedStreamData(tagged);
                     return;
                 case NetworkBuffer rawBuffer:
@@ -252,43 +253,32 @@ public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             }
         }
 
-        private void HandleTaggedStreamData(Http3InputTaggedItem tagged)
+        private void HandleTaggedStreamData(Http3NetworkBuffer tagged)
         {
             switch (tagged.StreamType)
             {
-                case InputStreamType.QpackDecoder:
+                case Http3StreamType.QpackDecoder:
                 {
-                    var data = (NetworkBuffer)tagged.Inner;
-                    _sm.ProcessQpackDecoderBytes(data.Memory);
-                    data.Dispose();
+                    _sm.ProcessQpackDecoderBytes(tagged.Memory);
+                    tagged.Dispose();
                     Pull(_stage._inServer);
                     return;
                 }
-                case InputStreamType.QpackEncoder:
+                case Http3StreamType.QpackEncoder:
                 {
-                    var data = (NetworkBuffer)tagged.Inner;
-                    _sm.ProcessQpackEncoderBytes(data.Memory);
-                    data.Dispose();
+                    _sm.ProcessQpackEncoderBytes(tagged.Memory);
+                    tagged.Dispose();
                     Pull(_stage._inServer);
                     return;
                 }
                 // Control stream — decode frames for SETTINGS/GOAWAY but use a dedicated stream ID
                 // to keep control-stream remainder state separate from request streams.
-                case InputStreamType.Control when tagged.Inner is NetworkBuffer controlBuffer:
-                    ProcessFrameData(controlBuffer, streamId: ControlStreamDecoderId);
+                case Http3StreamType.Control:
+                    ProcessFrameData(tagged, streamId: ControlStreamDecoderId);
                     return;
                 default:
                 {
-                    // Tagged request stream data — decode with the correct per-stream decoder
-                    if (tagged.Inner is NetworkBuffer buffer)
-                    {
-                        ProcessFrameData(buffer, tagged.StreamId);
-                    }
-                    else
-                    {
-                        Pull(_stage._inServer);
-                    }
-
+                    ProcessFrameData(tagged, tagged.StreamId);
                     return;
                 }
             }

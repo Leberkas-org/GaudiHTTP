@@ -80,7 +80,7 @@ internal sealed class QpackStreamHandler
     {
         var sectionAck = _responseDecoder.DecoderInstructions;
 
-        var buf = NetworkBuffer.Rent(1 + sectionAck.Length + 16);
+        var buf = Http3NetworkBuffer.Rent(1 + sectionAck.Length + 16);
         var dest = buf.FullMemory.Span;
         var offset = 0;
 
@@ -109,7 +109,8 @@ internal sealed class QpackStreamHandler
         _decoderPrefaceSent = true;
         buf.Length = offset;
         buf.Key = endpoint;
-        _ops.OnOutbound(new Http3OutputTaggedItem(buf, OutputStreamType.QpackDecoder));
+        buf.StreamType = Http3StreamType.QpackDecoder;
+        _ops.OnOutbound(buf);
     }
 
     /// <summary>
@@ -142,12 +143,13 @@ internal sealed class QpackStreamHandler
             totalLength = instructions.Length;
         }
 
-        var buf = NetworkBuffer.Rent(totalLength);
+        var buf = Http3NetworkBuffer.Rent(totalLength);
         owner.Memory.Span[..totalLength].CopyTo(buf.FullMemory.Span);
         buf.Length = totalLength;
         buf.Key = endpoint;
+        buf.StreamType = Http3StreamType.QpackEncoder;
 
-        _ops.OnOutbound(new Http3OutputTaggedItem(buf, OutputStreamType.QpackEncoder));
+        _ops.OnOutbound(buf);
     }
 
     /// <summary>

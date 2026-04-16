@@ -29,8 +29,8 @@ public sealed class Http3DecoderStreamSpec
         sm.FlushDecoderInstructions();
 
         var decoderItems = _ops.OutboundItems
-            .OfType<Http3OutputTaggedItem>()
-            .Where(t => t.StreamType == OutputStreamType.QpackDecoder)
+            .OfType<Http3NetworkBuffer>()
+            .Where(t => t.StreamType == Http3StreamType.QpackDecoder)
             .ToList();
         Assert.Empty(decoderItems);
     }
@@ -48,12 +48,12 @@ public sealed class Http3DecoderStreamSpec
         sm.FlushDecoderInstructions();
 
         var decoderItems = _ops.OutboundItems
-            .OfType<Http3OutputTaggedItem>()
-            .Where(t => t.StreamType == OutputStreamType.QpackDecoder)
+            .OfType<Http3NetworkBuffer>()
+            .Where(t => t.StreamType == Http3StreamType.QpackDecoder)
             .ToList();
         Assert.Single(decoderItems);
 
-        var buf = (NetworkBuffer)decoderItems[0].Inner;
+        var buf = decoderItems[0];
         // First byte should be 0x03 (decoder stream type)
         Assert.Equal(0x03, buf.Span[0]);
         buf.Dispose();
@@ -132,12 +132,12 @@ public sealed class Http3DecoderStreamSpec
         sm.ProcessQpackEncoderBytes(encoderInstr);
 
         var decoderItems = _ops.OutboundItems
-            .OfType<Http3OutputTaggedItem>()
-            .Where(t => t.StreamType == OutputStreamType.QpackDecoder)
+            .OfType<Http3NetworkBuffer>()
+            .Where(t => t.StreamType == Http3StreamType.QpackDecoder)
             .ToList();
         Assert.Single(decoderItems);
 
-        var buf = (NetworkBuffer)decoderItems[0].Inner;
+        var buf = decoderItems[0];
         Assert.True(buf.Length > 1); // preface (0x03) + at least 1 ICR byte
         Assert.Equal(0x03, buf.Span[0]);
         buf.Dispose();
@@ -146,10 +146,10 @@ public sealed class Http3DecoderStreamSpec
     private static NetworkBuffer ExtractDecoderBuffer(TestOps ops, int index)
     {
         var items = ops.OutboundItems
-            .OfType<Http3OutputTaggedItem>()
-            .Where(t => t.StreamType == OutputStreamType.QpackDecoder)
+            .OfType<Http3NetworkBuffer>()
+            .Where(t => t.StreamType == Http3StreamType.QpackDecoder)
             .ToList();
-        return (NetworkBuffer)items[index].Inner;
+        return items[index];
     }
 
     /// <summary>

@@ -9,7 +9,7 @@ internal readonly record struct ConnectionLeaseAcquired(QuicConnectionLease Leas
 
 internal readonly record struct RequestLeaseAcquired(ConnectionLease Lease, long StreamId) : IQuicTransportEvent;
 
-internal readonly record struct TypedLeaseAcquired(ConnectionLease Lease, OutputStreamType StreamType) : IQuicTransportEvent;
+internal readonly record struct TypedLeaseAcquired(ConnectionLease Lease, Http3StreamType StreamType) : IQuicTransportEvent;
 
 internal readonly record struct AcquisitionFailed(Exception Error) : IQuicTransportEvent;
 

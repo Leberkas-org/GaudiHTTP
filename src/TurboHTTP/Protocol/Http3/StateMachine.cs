@@ -139,12 +139,13 @@ public sealed class StateMachine : IDisposable
 
         maxPushIdFrame?.WriteTo(ref span);
 
-        var buf = NetworkBuffer.Rent(totalSize);
+        var buf = Http3NetworkBuffer.Rent(totalSize);
         owner.Memory.Span[..totalSize].CopyTo(buf.FullMemory.Span);
         buf.Length = totalSize;
         buf.Key = Endpoint;
+        buf.StreamType = Http3StreamType.Control;
 
-        return new Http3OutputTaggedItem(buf, OutputStreamType.Control);
+        return buf;
     }
 
     /// <summary>
@@ -464,7 +465,7 @@ public sealed class StateMachine : IDisposable
 
     private void EmitSerializedFrame(Http3Frame frame, long streamId = -1)
     {
-        var buf = NetworkBuffer.Rent(frame.SerializedSize);
+        var buf = Http3NetworkBuffer.Rent(frame.SerializedSize);
         var span = buf.FullMemory.Span;
         frame.WriteTo(ref span);
         buf.Length = frame.SerializedSize;
@@ -472,12 +473,11 @@ public sealed class StateMachine : IDisposable
 
         if (streamId >= 0)
         {
-            _ops.OnOutbound(new Http3OutputTaggedItem(buf, OutputStreamType.Request, streamId));
+            buf.StreamType = Http3StreamType.Request;
+            buf.StreamId = streamId;
         }
-        else
-        {
-            _ops.OnOutbound(buf);
-        }
+
+        _ops.OnOutbound(buf);
     }
 
     private void OnStreamClosed(long streamId)

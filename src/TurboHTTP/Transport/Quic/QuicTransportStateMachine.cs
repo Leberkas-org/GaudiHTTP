@@ -131,7 +131,7 @@ internal sealed class QuicTransportStateMachine
     {
         var streamId = item switch
         {
-            Http3OutputTaggedItem t => t.StreamId,
+            Http3NetworkBuffer t => t.StreamId,
             Http3EndOfRequestItem e => e.StreamId,
             _ => -1L
         };
@@ -162,7 +162,7 @@ internal sealed class QuicTransportStateMachine
                 HandleConnectItem(connect);
                 break;
 
-            case Http3OutputTaggedItem tagged:
+            case Http3NetworkBuffer tagged when tagged.StreamType != Http3StreamType.None:
                 _router.RouteTaggedItem(tagged, _controlHandle, _pendingControlItems,
                     _encoderHandle, _pendingEncoderItems);
                 break;
@@ -269,7 +269,7 @@ internal sealed class QuicTransportStateMachine
             return;
         }
 
-        _ = lease.Handle.OpenStreamAsLeaseAsync(OutputStreamType.Request)
+        _ = lease.Handle.OpenStreamAsLeaseAsync(Http3StreamType.Request)
             .PipeTo(_self,
                 success: streamLease => new RequestLeaseAcquired(streamLease, streamId),
                 failure: ex => new AcquisitionFailed(ex.GetBaseException()));
@@ -286,7 +286,7 @@ internal sealed class QuicTransportStateMachine
 
         var ctx = _router.GetOrCreateContext(streamId);
         ctx.Handle = lease.Handle;
-        _pumpManager.StartInboundPump(lease.Handle, InputStreamType.Request, _currentKey, _connectionGen, streamId);
+        _pumpManager.StartInboundPump(lease.Handle, Http3StreamType.Request, _currentKey, _connectionGen, streamId);
 
         if (_controlHandle is not null)
         {
@@ -295,19 +295,19 @@ internal sealed class QuicTransportStateMachine
         }
         else
         {
-            OpenTypedStream(OutputStreamType.Control);
-            OpenTypedStream(OutputStreamType.QpackEncoder);
+            OpenTypedStream(Http3StreamType.Control);
+            OpenTypedStream(Http3StreamType.QpackEncoder);
             _pumpManager.StartInboundAcceptLoop(_currentConnectionLease!.Handle);
         }
     }
 
-    private void OnTypedLeaseAcquired(ConnectionLease lease, OutputStreamType streamType)
+    private void OnTypedLeaseAcquired(ConnectionLease lease, Http3StreamType streamType)
     {
         _activeLeases.Add(lease);
 
         switch (streamType)
         {
-            case OutputStreamType.Control:
+            case Http3StreamType.Control:
                 _controlHandle = lease.Handle;
                 FlushPendingQuicItems(_pendingControlItems, lease.Handle);
                 _router.FlushAllReadyStreams();
@@ -321,7 +321,7 @@ internal sealed class QuicTransportStateMachine
                 _ops.OnSignalPullInput();
                 break;
 
-            case OutputStreamType.QpackEncoder:
+            case Http3StreamType.QpackEncoder:
                 _encoderHandle = lease.Handle;
                 FlushPendingQuicItems(_pendingEncoderItems, lease.Handle);
                 break;
@@ -469,13 +469,13 @@ internal sealed class QuicTransportStateMachine
             return;
         }
 
-        _ = _currentConnectionLease.Handle.OpenStreamAsLeaseAsync(OutputStreamType.Request)
+        _ = _currentConnectionLease.Handle.OpenStreamAsLeaseAsync(Http3StreamType.Request)
             .PipeTo(_self,
                 success: streamLease => new RequestLeaseAcquired(streamLease, streamId),
                 failure: ex => new AcquisitionFailed(ex.GetBaseException()));
     }
 
-    private void OpenTypedStream(OutputStreamType streamType)
+    private void OpenTypedStream(Http3StreamType streamType)
     {
         if (_currentConnectionLease is null)
         {

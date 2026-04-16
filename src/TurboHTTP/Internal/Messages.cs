@@ -27,77 +27,6 @@ public readonly record struct ConnectItem(TcpOptions Options) : IControlItem
     public RequestEndpoint Key { get; init; }
 }
 
-public sealed class NetworkBuffer : IInputItem, IOutputItem
-{
-    private static readonly ConcurrentStack<NetworkBuffer> WrapperPool = new();
-
-    private static int _maxPoolSize = Environment.ProcessorCount * 2;
-    private static int _poolCount;
-
-    private IMemoryOwner<byte>? _owner;
-
-    public int Length { get; set; }
-
-    public RequestEndpoint Key { get; set; }
-
-    public Memory<byte> Memory => _owner!.Memory[..Length];
-
-    public ReadOnlySpan<byte> Span => _owner!.Memory.Span[..Length];
-
-    internal Memory<byte> FullMemory => _owner!.Memory;
-
-    internal int Capacity => _owner?.Memory.Length ?? 0;
-
-    private NetworkBuffer()
-    {
-    }
-
-    internal static void ConfigurePoolSize(int maxPoolSize)
-    {
-        _maxPoolSize = maxPoolSize;
-    }
-
-    public static NetworkBuffer Rent(int minimumSize)
-    {
-        var owner = MemoryPool<byte>.Shared.Rent(minimumSize);
-        if (!WrapperPool.TryPop(out var buf))
-        {
-            return new NetworkBuffer { _owner = owner };
-        }
-
-        Interlocked.Decrement(ref _poolCount);
-        buf._owner = owner;
-        buf.Length = 0;
-        buf.Key = default;
-        return buf;
-    }
-
-
-
-    public void Dispose()
-    {
-        var owner = Interlocked.Exchange(ref _owner, null);
-        if (owner is null)
-        {
-            return;
-        }
-
-        owner.Dispose();
-
-        // Only return to pool if capacity allows — use atomic increment to avoid
-        // the check-then-push race where multiple threads exceed the pool cap.
-        if (_maxPoolSize > 0 && Interlocked.Increment(ref _poolCount) <= _maxPoolSize)
-        {
-            WrapperPool.Push(this);
-        }
-        else
-        {
-            Interlocked.Decrement(ref _poolCount);
-        }
-    }
-
-}
-
 public readonly record struct MaxConcurrentStreamsItem(int MaxStreams) : IControlItem
 {
     public RequestEndpoint Key { get; init; }
@@ -140,8 +69,66 @@ public readonly record struct ReconnectItem : IControlItem
     public RequestEndpoint Key { get; init; }
 }
 
-public enum OutputStreamType
+public class NetworkBuffer : IInputItem, IOutputItem
 {
+    private static readonly ConcurrentStack<NetworkBuffer> WrapperPool = new();
+
+    protected static int MaxPoolSize { get; private set; } = Environment.ProcessorCount * 2;
+
+    protected IMemoryOwner<byte>? Owner;
+
+    public int Length { get; set; }
+
+    public RequestEndpoint Key { get; set; }
+
+    public Memory<byte> Memory => Owner!.Memory[..Length];
+
+    public ReadOnlySpan<byte> Span => Owner!.Memory.Span[..Length];
+
+    internal Memory<byte> FullMemory => Owner!.Memory;
+
+    internal int Capacity => Owner?.Memory.Length ?? 0;
+
+    internal static void ConfigurePoolSize(int maxPoolSize)
+    {
+        MaxPoolSize = maxPoolSize;
+    }
+
+    public static NetworkBuffer Rent(int minimumSize)
+    {
+        var owner = MemoryPool<byte>.Shared.Rent(minimumSize);
+        if (!WrapperPool.TryPop(out var buf))
+        {
+            return new NetworkBuffer { Owner = owner };
+        }
+
+        buf.Owner = owner;
+        buf.Length = 0;
+        buf.Key = default;
+        return buf;
+    }
+
+    protected void DisposeOwner()
+    {
+        var owner = Interlocked.Exchange(ref Owner, null);
+        owner?.Dispose();
+    }
+
+    public virtual void Dispose()
+    {
+        DisposeOwner();
+
+        if (MaxPoolSize > 0 && WrapperPool.Count <= MaxPoolSize)
+        {
+            WrapperPool.Push(this);
+        }
+    }
+}
+
+public enum Http3StreamType
+{
+    None,
+
     /// <summary>Bidirectional request stream (default for request/response data).</summary>
     Request,
 
@@ -155,41 +142,38 @@ public enum OutputStreamType
     QpackDecoder,
 }
 
-/// <summary>
-/// Identifies the QUIC unidirectional stream that an inbound HTTP/3 item arrived on.
-/// Used to route inbound items to the correct processing pipeline.
-/// </summary>
-public enum InputStreamType
+public class Http3NetworkBuffer : NetworkBuffer
 {
-    /// <summary>Bidirectional request/response stream (default).</summary>
-    Request,
+    private static readonly ConcurrentStack<Http3NetworkBuffer> WrapperPool = new();
 
-    /// <summary>Unidirectional control stream (type 0x00) — carries SETTINGS and GOAWAY frames.</summary>
-    Control,
+    public Http3StreamType StreamType { get; set; } = Http3StreamType.None;
 
-    /// <summary>Unidirectional QPACK encoder instruction stream (type 0x02).</summary>
-    QpackEncoder,
+    public long StreamId { get; set; } = -1;
 
-    /// <summary>Unidirectional QPACK decoder instruction stream (type 0x03).</summary>
-    QpackDecoder,
-}
+    public new static Http3NetworkBuffer Rent(int minimumSize)
+    {
+        var owner = MemoryPool<byte>.Shared.Rent(minimumSize);
+        if (!WrapperPool.TryPop(out var buf))
+        {
+            return new Http3NetworkBuffer { Owner = owner };
+        }
 
-/// <summary>
-/// Wraps an <see cref="IInputItem"/> with an <see cref="InputStreamType"/> tag
-/// so the engine can route it to the correct processing pipeline.
-/// </summary>
-public readonly record struct Http3InputTaggedItem(IInputItem Inner, InputStreamType StreamType, long StreamId = 0) : IInputItem
-{
-    public RequestEndpoint Key => Inner.Key;
-}
+        buf.Owner = owner;
+        buf.Length = 0;
+        buf.Key = default;
+        buf.StreamType = Http3StreamType.None;
+        buf.StreamId = -1;
+        return buf;
+    }
 
-/// <summary>
-/// Wraps an <see cref="IOutputItem"/> with an <see cref="OutputStreamType"/> tag
-/// so the demux stage can route it to the correct QUIC stream.
-/// </summary>
-public readonly record struct Http3OutputTaggedItem(IOutputItem Inner, OutputStreamType StreamType, long StreamId = -1) : IOutputItem
-{
-    public RequestEndpoint Key => Inner.Key;
+    public override void Dispose()
+    {
+        DisposeOwner();
+        if (MaxPoolSize > 0 && WrapperPool.Count <= MaxPoolSize)
+        {
+            WrapperPool.Push(this);
+        }
+    }
 }
 
 /// <summary>
