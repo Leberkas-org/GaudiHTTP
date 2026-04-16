@@ -24,6 +24,7 @@ namespace TurboHTTP.IntegrationTests;
 ///   </item>
 /// </list>
 /// </summary>
+[Obsolete("Migrated to TurboHTTP.Tests.Diagnostics.LoggingBridgeSpec — kept for reference only.")]
 [Collection("Logging")]
 public sealed class LoggingBridgeSpec : IAsyncLifetime
 {

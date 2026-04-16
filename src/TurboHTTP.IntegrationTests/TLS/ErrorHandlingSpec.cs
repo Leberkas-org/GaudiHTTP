@@ -4,6 +4,7 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.TLS;
 
 [Collection("TLS")]
+[Obsolete("Replaced by StreamTests.Acceptance.TLS.ErrorHandlingSpec")]
 public sealed class ErrorHandlingSpec
 {
     private readonly ServerFixture _server;

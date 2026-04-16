@@ -5,6 +5,7 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.H2;
 
 [Collection("H2")]
+[Obsolete("Replaced by StreamTests.Acceptance.H2.ExpectContinueSpec")]
 public sealed class ExpectContinueSpec
 {
     private readonly ServerFixture _server;

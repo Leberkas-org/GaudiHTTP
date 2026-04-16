@@ -5,6 +5,7 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.H11;
 
 [Collection("H11")]
+[Obsolete("Replaced by StreamTests.Acceptance.H11.EdgeCaseSpec")]
 public sealed class EdgeCaseSpec
 {
     private readonly ServerFixture _server;

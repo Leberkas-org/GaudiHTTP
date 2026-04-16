@@ -5,6 +5,7 @@ using TurboHTTP.Protocol.Semantics;
 namespace TurboHTTP.IntegrationTests.H11;
 
 [Collection("H11")]
+[Obsolete("Replaced by StreamTests.Acceptance.H11.RetrySpec")]
 public sealed class RetrySpec
 {
     private readonly ServerFixture _server;

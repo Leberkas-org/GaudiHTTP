@@ -6,6 +6,7 @@ namespace TurboHTTP.IntegrationTests.H3;
 
 [Collection("H3")]
 [Trait("Category", "Http3")]
+[Obsolete("Replaced by StreamTests.Acceptance.H3.RequestCompressionSpec")]
 public sealed class RequestCompressionSpec : IAsyncLifetime
 {
     private readonly ServerFixture _server;

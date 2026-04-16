@@ -4,6 +4,7 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.H11;
 
 [Collection("H11")]
+[Obsolete("Replaced by StreamTests.Acceptance.H11.RedirectSecuritySpec")]
 public sealed class RedirectSecuritySpec
 {
     private readonly ServerFixture _server;

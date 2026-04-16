@@ -4,6 +4,7 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.H10;
 
 [Collection("H10")]
+[Obsolete("Replaced by StreamTests.Acceptance.H10.CompressionSpec")]
 public sealed class CompressionSpec
 {
     private readonly ServerFixture _server;

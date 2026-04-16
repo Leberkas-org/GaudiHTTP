@@ -15,6 +15,7 @@ namespace TurboHTTP.IntegrationTests.H2;
 /// The client reads MAX_CONCURRENT_STREAMS from the server's SETTINGS frame and enforces it.
 /// </remarks>
 [Collection("H2")]
+[Obsolete("Replaced by StreamTests.Acceptance.H2.MaxConcurrentStreamsSpec")]
 public sealed class MaxConcurrentStreamsSpec : IAsyncLifetime
 {
     private readonly ServerFixture _server;

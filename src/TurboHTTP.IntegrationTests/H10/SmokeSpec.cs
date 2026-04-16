@@ -3,6 +3,7 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.H10;
 
 [Collection("H10")]
+[Obsolete("Replaced by StreamTests.Acceptance.H10.SmokeSpec")]
 public sealed class SmokeSpec : IAsyncLifetime
 {
     private readonly ServerFixture _server;

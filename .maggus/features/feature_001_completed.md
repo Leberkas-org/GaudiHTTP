@@ -33,15 +33,15 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `ScriptedFakeConnectionStage` created in `StreamTests/Acceptance/Shared/`
-- [ ] Extends `GraphStage<FlowShape<IOutputItem, IInputItem>>` matching `EngineFakeConnectionStage` shape
-- [ ] Accepts `Func<int, byte[], byte[]>` with request counter
-- [ ] Supports multi-response sequences (connection reuse)
-- [ ] Supports error injection (truncated body, abort mid-stream, corrupt bytes) via response factory
-- [ ] Exposes `OutboundChannel` for request inspection (same as existing fake)
-- [ ] Unit test verifying multi-response sequencing works
-- [ ] Unit test verifying error injection (truncated response) works
-- [ ] Build passes, existing tests unaffected
+- [x] `ScriptedFakeConnectionStage` created in `StreamTests/Acceptance/Shared/`
+- [x] Extends `GraphStage<FlowShape<IOutputItem, IInputItem>>` matching `EngineFakeConnectionStage` shape
+- [x] Accepts `Func<int, byte[], byte[]>` with request counter
+- [x] Supports multi-response sequences (connection reuse)
+- [x] Supports error injection (truncated body, abort mid-stream, corrupt bytes) via response factory
+- [x] Exposes `OutboundChannel` for request inspection (same as existing fake)
+- [x] Unit test verifying multi-response sequencing works
+- [x] Unit test verifying error injection (truncated response) works
+- [x] Build passes, existing tests unaffected
 
 ---
 
@@ -55,14 +55,14 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `ResponseMap` builder class in `StreamTests/Acceptance/Shared/` with fluent `.On(path, status, body)` and `.On(path, Func<HttpRequestMessage, HttpResponseMessage>)` overloads
-- [ ] `ResponseMapFake` is a `BidiFlow<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage, NotUsed>` that applies the map
-- [ ] Default 404 response for unmapped paths
-- [ ] Supports header manipulation via builder callback
-- [ ] Unit test verifying simple GET → 200 mapping
-- [ ] Unit test verifying dynamic response (request-dependent)
-- [ ] Unit test verifying unmapped path returns 404
-- [ ] Build passes
+- [x] `ResponseMap` builder class in `StreamTests/Acceptance/Shared/` with fluent `.On(path, status, body)` and `.On(path, Func<HttpRequestMessage, HttpResponseMessage>)` overloads
+- [x] `ResponseMapFake` is a `BidiFlow<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage, NotUsed>` that applies the map
+- [x] Default 404 response for unmapped paths
+- [x] Supports header manipulation via builder callback
+- [x] Unit test verifying simple GET → 200 mapping
+- [x] Unit test verifying dynamic response (request-dependent)
+- [x] Unit test verifying unmapped path returns 404
+- [x] Build passes
 
 ---
 
@@ -76,12 +76,12 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `H2ResponseBuilder` in `StreamTests/Acceptance/Shared/` with fluent API: `.Settings()`, `.Headers(streamId, status, headers)`, `.Data(streamId, body, endStream)`, `.WindowUpdate()`, `.Build()` returning `byte[]`
-- [ ] `H3ResponseBuilder` in `StreamTests/Acceptance/Shared/` with equivalent fluent API adapted for HTTP/3 frames (QPACK-encoded headers)
-- [ ] Builders produce valid frames decodable by existing `FrameDecoder` implementations
-- [ ] Unit test: H2 builder produces valid SETTINGS + HEADERS + DATA sequence
-- [ ] Unit test: H3 builder produces valid SETTINGS + HEADERS + DATA sequence
-- [ ] Build passes
+- [x] `H2ResponseBuilder` in `StreamTests/Acceptance/Shared/` with fluent API: `.Settings()`, `.Headers(streamId, status, headers)`, `.Data(streamId, body, endStream)`, `.WindowUpdate()`, `.Build()` returning `byte[]`
+- [x] `H3ResponseBuilder` in `StreamTests/Acceptance/Shared/` with equivalent fluent API adapted for HTTP/3 frames (QPACK-encoded headers)
+- [x] Builders produce valid frames decodable by existing `FrameDecoder` implementations
+- [x] Unit test: H2 builder produces valid SETTINGS + HEADERS + DATA sequence
+- [x] Unit test: H3 builder produces valid SETTINGS + HEADERS + DATA sequence
+- [x] Build passes
 
 ---
 
@@ -95,19 +95,19 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/H10/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/H10/SmokeSpec.cs`
-- [ ] `StreamTests/Acceptance/H10/ConnectionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/CompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/EdgeCaseSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/ErrorHandlingSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/ResilienceSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/ConcurrencySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/RequestCompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/ExpectContinueSpec.cs` — 1:1 parity
-- [ ] All tests use `ScriptedFakeConnectionStage` (byte-level)
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
-- [ ] `[Trait("RFC", "...")]` traceability where applicable
+- [x] `StreamTests/Acceptance/H10/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/H10/SmokeSpec.cs`
+- [x] `StreamTests/Acceptance/H10/ConnectionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/CompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/EdgeCaseSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/ErrorHandlingSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/ResilienceSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/ConcurrencySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/RequestCompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/ExpectContinueSpec.cs` — 1:1 parity
+- [x] All tests use `ScriptedFakeConnectionStage` (byte-level)
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
+- [x] `[Trait("RFC", "...")]` traceability where applicable
 
 ---
 
@@ -121,18 +121,18 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/H11/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/H11/SmokeSpec.cs`
-- [ ] `StreamTests/Acceptance/H11/ConnectionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/CompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/EdgeCaseSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/ErrorHandlingSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/ResilienceSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/ConcurrencySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/RequestCompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/ExpectContinueSpec.cs` — 1:1 parity
-- [ ] All tests use `ScriptedFakeConnectionStage` (byte-level)
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
+- [x] `StreamTests/Acceptance/H11/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/H11/SmokeSpec.cs`
+- [x] `StreamTests/Acceptance/H11/ConnectionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/CompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/EdgeCaseSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/ErrorHandlingSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/ResilienceSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/ConcurrencySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/RequestCompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/ExpectContinueSpec.cs` — 1:1 parity
+- [x] All tests use `ScriptedFakeConnectionStage` (byte-level)
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
 
 ---
 
@@ -146,19 +146,19 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/H2/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/H2/SmokeSpec.cs`
-- [ ] `StreamTests/Acceptance/H2/ConnectionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/CompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/EdgeCaseSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/ErrorHandlingSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/ResilienceSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/ConcurrencySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/RequestCompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/ExpectContinueSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/MaxConcurrentStreamsSpec.cs` — 1:1 parity
-- [ ] All tests use `H2EngineFakeConnectionStage` + `H2ResponseBuilder` (frame-level)
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
+- [x] `StreamTests/Acceptance/H2/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/H2/SmokeSpec.cs`
+- [x] `StreamTests/Acceptance/H2/ConnectionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/CompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/EdgeCaseSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/ErrorHandlingSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/ResilienceSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/ConcurrencySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/RequestCompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/ExpectContinueSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/MaxConcurrentStreamsSpec.cs` — 1:1 parity
+- [x] All tests use `H2EngineFakeConnectionStage` + `H2ResponseBuilder` (frame-level)
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
 
 ---
 
@@ -172,19 +172,19 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/H3/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/H3/SmokeSpec.cs`
-- [ ] `StreamTests/Acceptance/H3/ConnectionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/CompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/EdgeCaseSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/ErrorHandlingSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/ResilienceSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/ConcurrencySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/RequestCompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/ExpectContinueSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/MaxStreamConcurrencySpec.cs` — 1:1 parity
-- [ ] All tests use `H3EngineFakeConnectionStage` + `H3ResponseBuilder` (frame-level)
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
+- [x] `StreamTests/Acceptance/H3/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/H3/SmokeSpec.cs`
+- [x] `StreamTests/Acceptance/H3/ConnectionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/CompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/EdgeCaseSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/ErrorHandlingSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/ResilienceSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/ConcurrencySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/RequestCompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/ExpectContinueSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/MaxStreamConcurrencySpec.cs` — 1:1 parity
+- [x] All tests use `H3EngineFakeConnectionStage` + `H3ResponseBuilder` (frame-level)
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
 
 ---
 
@@ -197,15 +197,15 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Parallel:** yes — can run alongside TASK-001-009, TASK-001-010, TASK-001-011, TASK-001-012
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/H10/CookieSpec.cs` — 1:1 parity with `IntegrationTests/H10/CookieSpec.cs`
-- [ ] `StreamTests/Acceptance/H10/RedirectSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/RetrySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/CacheSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/FeatureInteractionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H10/OptionsSpec.cs` — 1:1 parity
-- [ ] All tests use `ResponseMapFake` (protocol-level)
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
+- [x] `StreamTests/Acceptance/H10/CookieSpec.cs` — 1:1 parity with `IntegrationTests/H10/CookieSpec.cs`
+- [x] `StreamTests/Acceptance/H10/RedirectSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/RetrySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/CacheSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/FeatureInteractionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H10/OptionsSpec.cs` — 1:1 parity
+- [x] All tests use `ResponseMapFake` (protocol-level)
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
 
 ---
 
@@ -218,17 +218,17 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Parallel:** yes — can run alongside TASK-001-008, TASK-001-010, TASK-001-011, TASK-001-012
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/H11/CookieSpec.cs` — 1:1 parity with `IntegrationTests/H11/CookieSpec.cs`
-- [ ] `StreamTests/Acceptance/H11/RedirectSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/RedirectSecuritySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/RetrySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/CacheSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/FeatureInteractionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/OptionsSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H11/HandlerPipelineSpec.cs` — 1:1 parity
-- [ ] All tests use `ResponseMapFake` (protocol-level)
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
+- [x] `StreamTests/Acceptance/H11/CookieSpec.cs` — 1:1 parity with `IntegrationTests/H11/CookieSpec.cs`
+- [x] `StreamTests/Acceptance/H11/RedirectSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/RedirectSecuritySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/RetrySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/CacheSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/FeatureInteractionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/OptionsSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H11/HandlerPipelineSpec.cs` — 1:1 parity
+- [x] All tests use `ResponseMapFake` (protocol-level)
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
 
 ---
 
@@ -241,16 +241,16 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Parallel:** yes — can run alongside TASK-001-008, TASK-001-009, TASK-001-011, TASK-001-012
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/H2/CookieSpec.cs` — 1:1 parity with `IntegrationTests/H2/CookieSpec.cs`
-- [ ] `StreamTests/Acceptance/H2/RedirectSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/RetrySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/CacheSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/FeatureInteractionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/OptionsSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H2/HandlerPipelineSpec.cs` — 1:1 parity
-- [ ] All tests use `ResponseMapFake` (protocol-level)
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
+- [x] `StreamTests/Acceptance/H2/CookieSpec.cs` — 1:1 parity with `IntegrationTests/H2/CookieSpec.cs`
+- [x] `StreamTests/Acceptance/H2/RedirectSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/RetrySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/CacheSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/FeatureInteractionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/OptionsSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H2/HandlerPipelineSpec.cs` — 1:1 parity
+- [x] All tests use `ResponseMapFake` (protocol-level)
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
 
 ---
 
@@ -263,16 +263,16 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Parallel:** yes — can run alongside TASK-001-008, TASK-001-009, TASK-001-010, TASK-001-012
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/H3/CookieSpec.cs` — 1:1 parity with `IntegrationTests/H3/CookieSpec.cs`
-- [ ] `StreamTests/Acceptance/H3/RedirectSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/RetrySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/CacheSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/FeatureInteractionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/OptionsSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/H3/HandlerPipelineSpec.cs` — 1:1 parity
-- [ ] All tests use `ResponseMapFake` (protocol-level)
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
+- [x] `StreamTests/Acceptance/H3/CookieSpec.cs` — 1:1 parity with `IntegrationTests/H3/CookieSpec.cs`
+- [x] `StreamTests/Acceptance/H3/RedirectSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/RetrySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/CacheSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/FeatureInteractionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/OptionsSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/H3/HandlerPipelineSpec.cs` — 1:1 parity
+- [x] All tests use `ResponseMapFake` (protocol-level)
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
 
 ---
 
@@ -286,25 +286,25 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/TLS/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/TLS/SmokeSpec.cs`
-- [ ] `StreamTests/Acceptance/TLS/ConnectionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/CompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/RequestCompressionSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/CookieSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/RedirectSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/RedirectSecuritySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/RetrySpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/CacheSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/ExpectContinueSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/ErrorHandlingSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/ResilienceSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/IntegrationSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/OptionsSpec.cs` — 1:1 parity
-- [ ] `StreamTests/Acceptance/TLS/FeatureInteractionTlsSpec.cs` — 1:1 parity
-- [ ] TLS tests use `CertificateValidation` callback injection (pattern from `Http30CertificateValidationSpec`)
-- [ ] Byte-level wire tests use `ScriptedFakeConnectionStage`, feature-logic tests use `ResponseMapFake`
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
+- [x] `StreamTests/Acceptance/TLS/SmokeSpec.cs` — 1:1 parity with `IntegrationTests/TLS/SmokeSpec.cs`
+- [x] `StreamTests/Acceptance/TLS/ConnectionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/CompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/RequestCompressionSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/CookieSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/RedirectSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/RedirectSecuritySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/RetrySpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/CacheSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/ExpectContinueSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/ErrorHandlingSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/ResilienceSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/IntegrationSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/OptionsSpec.cs` — 1:1 parity
+- [x] `StreamTests/Acceptance/TLS/FeatureInteractionTlsSpec.cs` — 1:1 parity
+- [x] TLS tests use `CertificateValidation` callback injection (pattern from `Http30CertificateValidationSpec`)
+- [x] Byte-level wire tests use `ScriptedFakeConnectionStage`, feature-logic tests use `ResponseMapFake`
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
 
 ---
 
@@ -317,11 +317,11 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Parallel:** yes — can run alongside TASK-001-004 through TASK-001-012
 
 **Acceptance Criteria:**
-- [ ] `FakeProxyStage` created in `StreamTests/Acceptance/Shared/`
-- [ ] Intercepts `ConnectItem`, responds with `200 Connection Established` bytes
-- [ ] Passes through to an inner byte-level fake after tunnel is established
-- [ ] Unit test verifying CONNECT handshake + tunneled request works
-- [ ] Build passes
+- [x] `FakeProxyStage` created in `StreamTests/Acceptance/Shared/`
+- [x] Intercepts `ConnectItem`, responds with `200 Connection Established` bytes
+- [x] Passes through to an inner byte-level fake after tunnel is established
+- [x] Unit test verifying CONNECT handshake + tunneled request works
+- [x] Build passes
 
 ---
 
@@ -335,11 +335,11 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/Proxy/ProxyConnectSpec.cs` — 1:1 parity with `IntegrationTests/Proxy/ProxyConnectSpec.cs`
-- [ ] `StreamTests/Acceptance/Proxy/ProxyRelaySpec.cs` — 1:1 parity with `IntegrationTests/Proxy/ProxyRelaySpec.cs`
-- [ ] Tests use `FakeProxyStage` wrapping inner protocol fake
-- [ ] Same method names, same assertions as integration tests
-- [ ] All tests green, build passes
+- [x] `StreamTests/Acceptance/Proxy/ProxyConnectSpec.cs` — 1:1 parity with `IntegrationTests/Proxy/ProxyConnectSpec.cs`
+- [x] `StreamTests/Acceptance/Proxy/ProxyRelaySpec.cs` — 1:1 parity with `IntegrationTests/Proxy/ProxyRelaySpec.cs`
+- [x] Tests use `FakeProxyStage` wrapping inner protocol fake
+- [x] Same method names, same assertions as integration tests
+- [x] All tests green, build passes
 
 ---
 
@@ -352,10 +352,10 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Parallel:** yes — can run alongside any other task
 
 **Acceptance Criteria:**
-- [ ] `TurboHTTP.Tests/LoggingBridgeSpec.cs` created with 1:1 parity
-- [ ] No network or server dependencies
-- [ ] Original `IntegrationTests/LoggingBridgeSpec.cs` marked `[Obsolete]`
-- [ ] Test green, build passes
+- [x] `TurboHTTP.Tests/LoggingBridgeSpec.cs` created with 1:1 parity
+- [x] No network or server dependencies
+- [x] Original `IntegrationTests/LoggingBridgeSpec.cs` marked `[Obsolete]`
+- [x] Test green, build passes
 
 ---
 
@@ -369,12 +369,12 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Model:** opus
 
 **Acceptance Criteria:**
-- [ ] `StreamTests/Acceptance/Shared/AcceptanceTestBase.cs` created
-- [ ] Provides `SendScriptedAsync(engine, request, Func<int, byte[], byte[]>)` helper
-- [ ] Provides `SendWithFakeAsync(featurePipeline, ResponseMap, request)` helper for protocol-level tests
-- [ ] Provides version-specific engine factory methods (create H10/H11/H2/H3 engine with builder options)
-- [ ] Inherits from `EngineTestBase` to reuse existing helpers
-- [ ] Build passes
+- [x] `StreamTests/Acceptance/Shared/AcceptanceTestBase.cs` created
+- [x] Provides `SendScriptedAsync(engine, request, Func<int, byte[], byte[]>)` helper
+- [x] Provides `SendWithFakeAsync(featurePipeline, ResponseMap, request)` helper for protocol-level tests
+- [x] Provides version-specific engine factory methods (create H10/H11/H2/H3 engine with builder options)
+- [x] Inherits from `EngineTestBase` to reuse existing helpers
+- [x] Build passes
 
 ---
 
@@ -387,11 +387,11 @@ Migrate all 84 IntegrationTest files (83 acceptance + 1 unit) to deterministic S
 **Parallel:** no — final step
 
 **Acceptance Criteria:**
-- [ ] All 84 integration test classes carry `[Obsolete("Replaced by StreamTests.Acceptance.{Protocol}.{ClassName}")]`
-- [ ] IntegrationTests project removed from default CI test command (but kept in solution file)
-- [ ] CI pipeline updated if applicable (check `.github/workflows/` or equivalent)
-- [ ] Full `dotnet test` on StreamTests and Tests projects passes
-- [ ] Zero flaky tests in the new suite
+- [x] All 84 integration test classes carry `[Obsolete("Replaced by StreamTests.Acceptance.{Protocol}.{ClassName}")]`
+- [x] IntegrationTests project removed from default CI test command (but kept in solution file)
+- [x] CI pipeline updated if applicable (check `.github/workflows/` or equivalent)
+- [x] Full `dotnet test` on StreamTests and Tests projects passes
+- [x] Zero flaky tests in the new suite
 
 ---
 

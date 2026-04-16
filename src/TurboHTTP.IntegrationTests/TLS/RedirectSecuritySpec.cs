@@ -4,6 +4,7 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.TLS;
 
 [Collection("TLS")]
+[Obsolete("Replaced by StreamTests.Acceptance.TLS.RedirectSecuritySpec")]
 public sealed class RedirectSecuritySpec
 {
     private readonly ServerFixture _server;

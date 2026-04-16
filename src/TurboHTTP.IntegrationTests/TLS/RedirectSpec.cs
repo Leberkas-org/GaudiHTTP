@@ -5,6 +5,7 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.TLS;
 
 [Collection("TLS")]
+[Obsolete("Replaced by StreamTests.Acceptance.TLS.RedirectSpec")]
 public sealed class RedirectSpec
 {
     private readonly ServerFixture _server;

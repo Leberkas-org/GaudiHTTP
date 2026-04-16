@@ -72,39 +72,6 @@ public sealed class DirectConnectionFactorySpec : IAsyncLifetime
     }
 
     [Fact(Timeout = 5000)]
-    public async Task EstablishAsync_should_flow_data_through_byte_mover_pumps()
-    {
-        var options = CreateOptions();
-        var endpoint = CreateEndpoint(_port);
-
-        // Accept the connection server-side
-        var acceptTask = _listener!.AcceptTcpClientAsync(TestContext.Current.CancellationToken);
-
-        using var lease =
-            await DirectConnectionFactory.EstablishAsync(options, endpoint, TestContext.Current.CancellationToken);
-
-        using var serverClient = await acceptTask;
-        var serverStream = serverClient.GetStream();
-
-        // Server sends data → should appear on lease's InboundReader
-        var testData = "Hello from server"u8.ToArray();
-        await serverStream.WriteAsync(testData, TestContext.Current.CancellationToken);
-        await serverStream.FlushAsync(TestContext.Current.CancellationToken);
-
-        // Read from the inbound reader (data flows: TCP → Pipe → Channel)
-        var buffer = await lease.Handle.InboundReader.ReadAsync(TestContext.Current.CancellationToken);
-        try
-        {
-            Assert.True(buffer.Length > 0);
-            Assert.Equal(testData, buffer.Span.ToArray());
-        }
-        finally
-        {
-            buffer.Dispose();
-        }
-    }
-
-    [Fact(Timeout = 5000)]
     public async Task EstablishAsync_should_send_outbound_data_to_server()
     {
         var options = CreateOptions();

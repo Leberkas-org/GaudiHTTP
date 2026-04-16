@@ -5,6 +5,7 @@ using TurboHTTP.Protocol.Semantics;
 namespace TurboHTTP.IntegrationTests.TLS;
 
 [Collection("TLS")]
+[Obsolete("Replaced by StreamTests.Acceptance.TLS.RetrySpec")]
 public sealed class RetrySpec
 {
     private readonly ServerFixture _server;

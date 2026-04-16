@@ -6,6 +6,7 @@ namespace TurboHTTP.IntegrationTests.H3;
 
 [Collection("H3")]
 [Trait("Category", "Http3")]
+[Obsolete("Replaced by StreamTests.Acceptance.H3.HandlerPipelineSpec")]
 public sealed class HandlerPipelineSpec : IAsyncLifetime
 {
     private readonly ServerFixture _server;

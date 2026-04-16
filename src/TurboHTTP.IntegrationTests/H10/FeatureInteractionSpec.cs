@@ -7,6 +7,7 @@ using TurboHTTP.Protocol.Caching;
 namespace TurboHTTP.IntegrationTests.H10;
 
 [Collection("H10")]
+[Obsolete("Replaced by StreamTests.Acceptance.H10.FeatureInteractionSpec")]
 public sealed class FeatureInteractionSpec
 {
     private readonly ServerFixture _server;

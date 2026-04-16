@@ -8,6 +8,7 @@ namespace TurboHTTP.IntegrationTests.H10;
 /// Verifies that Credentials and PreAuthenticate are correctly plumbed through the pipeline.
 /// </summary>
 [Collection("H10")]
+[Obsolete("Replaced by StreamTests.Acceptance.H10.OptionsSpec")]
 public sealed class OptionsSpec : IAsyncLifetime
 {
     private readonly ServerFixture _server;

@@ -4,6 +4,7 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.H2;
 
 [Collection("H2")]
+[Obsolete("Replaced by StreamTests.Acceptance.H2.HandlerPipelineSpec")]
 public sealed class HandlerPipelineSpec
 {
     private readonly ServerFixture _server;

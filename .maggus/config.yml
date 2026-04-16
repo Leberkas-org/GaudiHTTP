@@ -1,10 +1,9 @@
 agent: claude
-model: opus
+model: sonnet
 include: []
 approval_mode: opt-in
 auto_continue: null
 session_persistence: null
-parallel: false
 max_log_files: 0
 notifications:
     sound: true

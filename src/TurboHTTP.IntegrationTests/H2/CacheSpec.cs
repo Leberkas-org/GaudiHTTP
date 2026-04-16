@@ -5,6 +5,7 @@ using TurboHTTP.Protocol.Caching;
 namespace TurboHTTP.IntegrationTests.H2;
 
 [Collection("H2")]
+[Obsolete("Replaced by StreamTests.Acceptance.H2.CacheSpec")]
 public sealed class CacheSpec
 {
     private readonly ServerFixture _server;

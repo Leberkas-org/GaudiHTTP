@@ -5,6 +5,7 @@ using TurboHTTP.Protocol.Semantics;
 namespace TurboHTTP.IntegrationTests.H2;
 
 [Collection("H2")]
+[Obsolete("Replaced by StreamTests.Acceptance.H2.RequestCompressionSpec")]
 public sealed class RequestCompressionSpec
 {
     private readonly ServerFixture _server;

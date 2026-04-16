@@ -9,6 +9,7 @@ namespace TurboHTTP.IntegrationTests.Proxy;
 /// when TurboHTTP routes HTTPS requests through an HTTP proxy via CONNECT.
 /// </summary>
 [Collection("Proxy")]
+[Obsolete("Replaced by StreamTests.Acceptance.Proxy.ProxyConnectSpec")]
 public sealed class ProxyConnectSpec : IAsyncLifetime
 {
     private readonly ServerFixture _server;

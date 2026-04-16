@@ -9,6 +9,7 @@ namespace TurboHTTP.IntegrationTests.H11;
 /// MaxResponseDrainSize, ResponseDrainTimeout, and PooledConnectionLifetime through the pipeline.
 /// </summary>
 [Collection("H11")]
+[Obsolete("Replaced by StreamTests.Acceptance.H11.OptionsSpec")]
 public sealed class OptionsSpec
 {
     private readonly ServerFixture _server;

@@ -1,0 +1,25 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Solution Items/">
+    <File Path="../.github/workflows/build-and-release.yml" />
+    <File Path="../.github/workflows/docs.yml" />
+    <File Path="../CLAUDE.md" />
+    <File Path="../CONTRIBUTING.md" />
+    <File Path="../docs/logo/icon.svg" />
+    <File Path="../docs/logo/logo.svg" />
+    <File Path="../docs/logo/logo_small.svg" />
+    <File Path="../README.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Project Path="TurboHTTP.AcceptanceTests/TurboHTTP.AcceptanceTests.csproj" />
+  <Project Path="TurboHTTP.Benchmarks/TurboHTTP.Benchmarks.csproj" />
+  <Project Path="TurboHTTP.IntegrationTests/TurboHTTP.IntegrationTests.csproj" />
+  <Project Path="TurboHTTP.StreamTests/TurboHTTP.StreamTests.csproj" />
+  <Project Path="TurboHTTP.Tests/TurboHTTP.Tests.csproj" />
+  <Project Path="TurboHTTP/TurboHTTP.csproj" />
+</Solution>

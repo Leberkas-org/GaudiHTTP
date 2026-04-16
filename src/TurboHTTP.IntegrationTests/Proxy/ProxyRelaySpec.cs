@@ -9,6 +9,7 @@ namespace TurboHTTP.IntegrationTests.Proxy;
 /// routes plain HTTP/1.1 requests through a forward proxy.
 /// </summary>
 [Collection("Proxy")]
+[Obsolete("Replaced by StreamTests.Acceptance.Proxy.ProxyRelaySpec")]
 public sealed class ProxyRelaySpec : IAsyncLifetime
 {
     private readonly ServerFixture _server;

@@ -7,6 +7,7 @@ using TurboHTTP.Protocol.Caching;
 namespace TurboHTTP.IntegrationTests.TLS;
 
 [Collection("TLS")]
+[Obsolete("Replaced by StreamTests.Acceptance.TLS.FeatureInteractionTlsSpec")]
 public sealed class FeatureInteractionTlsSpec
 {
     private readonly ServerFixture _server;

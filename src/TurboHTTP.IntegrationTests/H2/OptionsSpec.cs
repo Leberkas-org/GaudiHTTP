@@ -9,6 +9,7 @@ namespace TurboHTTP.IntegrationTests.H2;
 /// through the pipeline.
 /// </summary>
 [Collection("H2")]
+[Obsolete("Replaced by StreamTests.Acceptance.H2.OptionsSpec")]
 public sealed class OptionsSpec
 {
     private readonly ServerFixture _server;
