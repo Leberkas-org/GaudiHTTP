@@ -8,7 +8,7 @@ namespace TurboHTTP.Protocol.Http11;
 /// request-response correlation with pipelining, and control signal emission.
 /// Calls back into <see cref="IStageOperations"/> for responses, outbound items, and warnings.
 /// </summary>
-public sealed class StateMachine
+internal sealed class StateMachine
 {
     private readonly IStageOperations _ops;
     private readonly Decoder _decoder;

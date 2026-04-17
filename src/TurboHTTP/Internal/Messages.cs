@@ -5,39 +5,39 @@ using TurboHTTP.Transport.Connection;
 
 namespace TurboHTTP.Internal;
 
-public interface IInputItem
+internal interface IInputItem
 {
     RequestEndpoint Key { get; }
 }
 
-public interface IOutputItem
+internal interface IOutputItem
 {
     RequestEndpoint Key { get; }
 }
 
-public interface IControlItem : IOutputItem;
+internal interface IControlItem : IOutputItem;
 
-public readonly record struct ConnectionReuseItem(ConnectionReuseDecision Decision) : IControlItem
+internal readonly record struct ConnectionReuseItem(ConnectionReuseDecision Decision) : IControlItem
 {
     public RequestEndpoint Key { get; init; }
 }
 
-public readonly record struct ConnectItem(TcpOptions Options) : IControlItem
+internal readonly record struct ConnectItem(TcpOptions Options) : IControlItem
 {
     public RequestEndpoint Key { get; init; }
 }
 
-public readonly record struct MaxConcurrentStreamsItem(int MaxStreams) : IControlItem
+internal readonly record struct MaxConcurrentStreamsItem(int MaxStreams) : IControlItem
 {
     public RequestEndpoint Key { get; init; }
 }
 
-public readonly record struct StreamAcquireItem : IControlItem
+internal readonly record struct StreamAcquireItem : IControlItem
 {
     public RequestEndpoint Key { get; init; }
 }
 
-public enum TlsCloseKind
+internal enum TlsCloseKind
 {
     /// <summary>
     /// The peer sent a TLS close_notify alert before closing the connection,
@@ -54,22 +54,22 @@ public enum TlsCloseKind
     AbruptClose
 }
 
-public readonly record struct CloseSignalItem(TlsCloseKind CloseKind) : IInputItem
+internal readonly record struct CloseSignalItem(TlsCloseKind CloseKind) : IInputItem
 {
     public RequestEndpoint Key { get; init; }
 }
 
-public readonly record struct ConnectedSignalItem : IInputItem
+internal readonly record struct ConnectedSignalItem : IInputItem
 {
     public RequestEndpoint Key { get; init; }
 }
 
-public readonly record struct ReconnectItem : IControlItem
+internal readonly record struct ReconnectItem : IControlItem
 {
     public RequestEndpoint Key { get; init; }
 }
 
-public class NetworkBuffer : IInputItem, IOutputItem
+internal class NetworkBuffer : IInputItem, IOutputItem
 {
     private static readonly ConcurrentStack<NetworkBuffer> WrapperPool = new();
 
@@ -125,7 +125,7 @@ public class NetworkBuffer : IInputItem, IOutputItem
     }
 }
 
-public enum Http3StreamType
+internal enum Http3StreamType
 {
     None,
 
@@ -142,7 +142,7 @@ public enum Http3StreamType
     QpackDecoder,
 }
 
-public class Http3NetworkBuffer : NetworkBuffer
+internal class Http3NetworkBuffer : NetworkBuffer
 {
     private static readonly ConcurrentStack<Http3NetworkBuffer> WrapperPool = new();
 
@@ -182,7 +182,7 @@ public class Http3NetworkBuffer : NetworkBuffer
 /// which causes the QUIC layer to send FIN and lets the server process the request.
 /// RFC 9114 §4.1: the client MUST send a FIN on the request stream after the last frame.
 /// </summary>
-public readonly record struct Http3EndOfRequestItem : IOutputItem
+internal readonly record struct Http3EndOfRequestItem : IOutputItem
 {
     public RequestEndpoint Key { get; init; }
     public long StreamId { get; init; }
@@ -193,7 +193,7 @@ public readonly record struct Http3EndOfRequestItem : IOutputItem
 /// Used by <see cref="QuicCloseItem"/> so the protocol layer can choose
 /// the appropriate recovery strategy (flush response, reconnect, or complete).
 /// </summary>
-public enum QuicCloseKind
+internal enum QuicCloseKind
 {
     /// <summary>
     /// Server sent FIN on the request stream. The response body is delimited
@@ -231,7 +231,7 @@ public enum QuicCloseKind
 /// The <see cref="QuicCloseKind"/> discriminator tells the protocol stage
 /// which recovery path to take.
 /// </summary>
-public readonly record struct QuicCloseItem(QuicCloseKind Kind, long StreamId = -1) : IInputItem
+internal readonly record struct QuicCloseItem(QuicCloseKind Kind, long StreamId = -1) : IInputItem
 {
     public RequestEndpoint Key { get; init; }
 }

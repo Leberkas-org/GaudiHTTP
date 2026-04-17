@@ -3,7 +3,7 @@ using System.Text;
 
 namespace TurboHTTP.Protocol.Http10;
 
-public sealed class Decoder
+internal sealed class Decoder
 {
     private const int DefaultMaxHeaderSize = 16 * 1024;       // 16 KB
     private const int DefaultMaxTotalHeaderSize = 64 * 1024;  // 64 KB

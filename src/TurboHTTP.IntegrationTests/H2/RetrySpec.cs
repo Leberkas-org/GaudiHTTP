@@ -1,6 +1,5 @@
 using System.Net;
 using TurboHTTP.IntegrationTests.Shared;
-using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.IntegrationTests.H2;
 
@@ -22,7 +21,7 @@ public sealed class RetrySpec
         return ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithRetry(new RetryPolicy { MaxRetries = maxRetries }),
+            configure: builder => builder.WithRetry(x => x.MaxRetries = 3),
             system: _systemFixture.System);
     }
 

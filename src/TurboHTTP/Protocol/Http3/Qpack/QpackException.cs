@@ -3,7 +3,7 @@ namespace TurboHTTP.Protocol.Http3.Qpack;
 /// <summary>
 /// Exception thrown for QPACK protocol violations (RFC 9204).
 /// </summary>
-public sealed class QpackException : TurboProtocolException
+internal sealed class QpackException : TurboProtocolException
 {
     public QpackException(string message) : base(message)
     {

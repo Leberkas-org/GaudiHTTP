@@ -27,13 +27,13 @@ namespace TurboHTTP.Streams.Stages.Features;
 internal sealed class ContentEncodingBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
 {
-    private readonly bool _automaticDecompression;
-    private readonly CompressionPolicy? _compressionPolicy;
+    internal readonly bool _automaticDecompression;
+    internal readonly CompressionPolicy? _compressionPolicy;
 
-    private readonly Inlet<HttpRequestMessage> _inRequest = new("ContentEncoding.In.Request");
-    private readonly Outlet<HttpRequestMessage> _outRequest = new("ContentEncoding.Out.Request");
-    private readonly Inlet<HttpResponseMessage> _inResponse = new("ContentEncoding.In.Response");
-    private readonly Outlet<HttpResponseMessage> _outResponse = new("ContentEncoding.Out.Response");
+    internal readonly Inlet<HttpRequestMessage> _inRequest = new("ContentEncoding.In.Request");
+    internal readonly Outlet<HttpRequestMessage> _outRequest = new("ContentEncoding.Out.Request");
+    internal readonly Inlet<HttpResponseMessage> _inResponse = new("ContentEncoding.In.Response");
+    internal readonly Outlet<HttpResponseMessage> _outResponse = new("ContentEncoding.Out.Response");
 
     public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape
     {
@@ -51,193 +51,154 @@ internal sealed class ContentEncodingBidiStage
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new Logic(this);
+        => new ContentEncodingBidiLogic(this);
+}
 
-    private sealed class Logic : GraphStageLogic
+internal sealed class ContentEncodingBidiLogic : GraphStageLogic, IFeatureStageOperations
+{
+    private readonly ContentEncodingBidiStage _stage;
+    private readonly ContentEncodingBidiProcessor _processor;
+
+    public ContentEncodingBidiLogic(ContentEncodingBidiStage stage) : base(stage.Shape)
     {
-        public Logic(ContentEncodingBidiStage stage) : base(stage.Shape)
+        _stage = stage;
+        _processor = new ContentEncodingBidiProcessor(this, stage._compressionPolicy, stage._automaticDecompression);
+
+        if (stage._compressionPolicy is not null)
         {
-            if (stage._compressionPolicy is not null)
-            {
-                var policy = stage._compressionPolicy;
-                SetHandler(stage._inRequest,
-                    onPush: () =>
-                    {
-                        var request = Grab(stage._inRequest);
-                        Push(stage._outRequest, CompressIfNeeded(request, policy));
-                    },
-                    onUpstreamFinish: () => Complete(stage._outRequest),
-                    onUpstreamFailure: ex =>
-                    {
-                        Log.Warning("ContentEncodingBidiStage: Request upstream failure absorbed: {0}", ex.Message);
-                        Complete(stage._outRequest);
-                    });
-            }
-            else
-            {
-                SetHandler(stage._inRequest,
-                    onPush: () => Push(stage._outRequest, Grab(stage._inRequest)),
-                    onUpstreamFinish: () => Complete(stage._outRequest),
-                    onUpstreamFailure: ex =>
-                    {
-                        Log.Warning("ContentEncodingBidiStage: Request upstream failure absorbed: {0}", ex.Message);
-                        Complete(stage._outRequest);
-                    });
-            }
-
-            SetHandler(stage._outRequest,
-                onPull: () => Pull(stage._inRequest),
-                onDownstreamFinish: _ => Cancel(stage._inRequest));
-
-            if (stage._automaticDecompression)
-            {
-                SetHandler(stage._inResponse,
-                    onPush: () =>
-                    {
-                        var response = Grab(stage._inResponse);
-                        Push(stage._outResponse, Decompress(response));
-                    },
-                    onUpstreamFinish: () => Complete(stage._outResponse),
-                    onUpstreamFailure: ex =>
-                    {
-                        Log.Warning("ContentEncodingBidiStage: Response upstream failure absorbed: {0}", ex.Message);
-                        Complete(stage._outResponse);
-                    });
-            }
-            else
-            {
-                SetHandler(stage._inResponse,
-                    onPush: () => Push(stage._outResponse, Grab(stage._inResponse)),
-                    onUpstreamFinish: () => Complete(stage._outResponse),
-                    onUpstreamFailure: ex =>
-                    {
-                        Log.Warning("ContentEncodingBidiStage: Response upstream failure absorbed: {0}", ex.Message);
-                        Complete(stage._outResponse);
-                    });
-            }
-
-            SetHandler(stage._outResponse,
-                onPull: () => Pull(stage._inResponse),
-                onDownstreamFinish: _ => Cancel(stage._inResponse));
+            SetHandler(stage._inRequest,
+                onPush: () =>
+                {
+                    var request = Grab(stage._inRequest);
+                    _processor.OnRequestPushWithCompression(request);
+                },
+                onUpstreamFinish: () => Complete(stage._outRequest),
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("ContentEncodingBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outRequest);
+                });
+        }
+        else
+        {
+            SetHandler(stage._inRequest,
+                onPush: () => Push(stage._outRequest, Grab(stage._inRequest)),
+                onUpstreamFinish: () => Complete(stage._outRequest),
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("ContentEncodingBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outRequest);
+                });
         }
 
-        private static HttpRequestMessage CompressIfNeeded(HttpRequestMessage request, CompressionPolicy policy)
+        SetHandler(stage._outRequest,
+            onPull: () => Pull(stage._inRequest),
+            onDownstreamFinish: _ => Cancel(stage._inRequest));
+
+        if (stage._automaticDecompression)
         {
-            if (request.Content is null)
-            {
-                return request;
-            }
-
-            var bodySize = request.Content.Headers.ContentLength ?? -1;
-
-            if (bodySize < policy.MinBodySizeBytes)
-            {
-                return request;
-            }
-
-            var (owner, written) = ReadContentAsMemory(request.Content);
-            try
-            {
-                using var compressedStream = ContentEncodingEncoder.Compress(owner.Memory[..written].Span, policy.Encoding);
-                var (compOwner, compLen) = ReadStreamToMemory(compressedStream);
-
-                var newContent = new PooledMemoryContent(compOwner, compLen);
-
-                // Copy existing content headers (except Content-Encoding and Content-Length)
-                foreach (var header in request.Content.Headers)
+            SetHandler(stage._inResponse,
+                onPush: () =>
                 {
-                    if (header.Key.Equals("Content-Encoding", StringComparison.OrdinalIgnoreCase) ||
-                        header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    newContent.Headers.TryAddWithoutValidation(header.Key, header.Value);
-                }
-
-                // Set Content-Encoding and update Content-Length
-                newContent.Headers.TryAddWithoutValidation("Content-Encoding", policy.Encoding);
-                newContent.Headers.ContentLength = compLen;
-
-                request.Content = newContent;
-                return request;
-            }
-            finally
-            {
-                owner.Dispose();
-            }
+                    var response = Grab(stage._inResponse);
+                    _processor.OnResponsePushWithDecompression(response);
+                },
+                onUpstreamFinish: () => Complete(stage._outResponse),
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("ContentEncodingBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outResponse);
+                });
+        }
+        else
+        {
+            SetHandler(stage._inResponse,
+                onPush: () => Push(stage._outResponse, Grab(stage._inResponse)),
+                onUpstreamFinish: () => Complete(stage._outResponse),
+                onUpstreamFailure: ex =>
+                {
+                    Log.Warning("ContentEncodingBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outResponse);
+                });
         }
 
-        private HttpResponseMessage Decompress(HttpResponseMessage response)
+        SetHandler(stage._outResponse,
+            onPull: () => Pull(stage._inResponse),
+            onDownstreamFinish: _ => Cancel(stage._inResponse));
+    }
+
+    void IFeatureStageOperations.OnPushRequest(HttpRequestMessage request)
+    {
+        Push(_stage._outRequest, request);
+    }
+
+    void IFeatureStageOperations.OnPushResponse(HttpResponseMessage response)
+    {
+        Push(_stage._outResponse, response);
+    }
+
+    void IFeatureStageOperations.OnSignalPullRequest() { }
+
+    void IFeatureStageOperations.OnSignalPullResponse() { }
+
+    void IFeatureStageOperations.OnCompleteStage() { }
+
+    void IFeatureStageOperations.OnScheduleTimer(string key, TimeSpan delay) { }
+
+    void IFeatureStageOperations.OnCancelTimer(string key) { }
+
+    ILoggingAdapter IFeatureStageOperations.Log => Log;
+}
+
+internal sealed class ContentEncodingBidiProcessor
+{
+    private readonly IFeatureStageOperations _ops;
+    private readonly CompressionPolicy? _compressionPolicy;
+    private readonly bool _automaticDecompression;
+
+    public ContentEncodingBidiProcessor(
+        IFeatureStageOperations ops,
+        CompressionPolicy? compressionPolicy,
+        bool automaticDecompression)
+    {
+        _ops = ops;
+        _compressionPolicy = compressionPolicy;
+        _automaticDecompression = automaticDecompression;
+    }
+
+    public void OnRequestPushWithCompression(HttpRequestMessage request)
+    {
+        _ops.OnPushRequest(CompressIfNeeded(request, _compressionPolicy!));
+    }
+
+    public void OnResponsePushWithDecompression(HttpResponseMessage response)
+    {
+        _ops.OnPushResponse(Decompress(response));
+    }
+
+    private static HttpRequestMessage CompressIfNeeded(HttpRequestMessage request, CompressionPolicy policy)
+    {
+        if (request.Content is null)
         {
-            if (!response.Content.Headers.TryGetValues("Content-Encoding", out var values))
-            {
-                return response;
-            }
+            return request;
+        }
 
-            var encoding = string.Join(", ", values).Trim();
+        var bodySize = request.Content.Headers.ContentLength ?? -1;
 
-            if (string.IsNullOrEmpty(encoding) ||
-                encoding.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
-            {
-                return response;
-            }
+        if (bodySize < policy.MinBodySizeBytes)
+        {
+            return request;
+        }
 
-            // Unknown encoding: pass the response through unchanged rather than
-            // allocating buffers and throwing. The caller sees the raw body,
-            // which is the correct fallback per RFC 9110 §8.4.
-            if (!ContentEncodingDecoder.IsSupported(encoding))
-            {
-                Log.Debug("ContentEncodingBidiStage: unknown encoding '{0}', passing through unchanged", encoding);
-                return response;
-            }
+        var (owner, written) = ReadContentAsMemory(request.Content);
+        try
+        {
+            using var compressedStream = ContentEncodingEncoder.Compress(owner.Memory[..written].Span, policy.Encoding);
+            var (compOwner, compLen) = ReadStreamToMemory(compressedStream);
 
-            HttpContent newContent;
+            var newContent = new PooledMemoryContent(compOwner, compLen);
 
-            // Streaming decompression for gzip/brotli (single encoding) when the body is
-            // large enough to justify the streaming overhead. For small or unknown bodies
-            // the buffered path is used — it can catch corrupt data and fall back to raw passthrough.
-            // Deflate always uses the buffered path because it needs a ZLib→raw DEFLATE fallback
-            // that requires a seekable stream.
-            const long streamingThreshold = 64 * 1024;
-            var contentLength = response.Content.Headers.ContentLength;
-            var canStream = !encoding.Contains(',') &&
-                            !encoding.Equals(WellKnownHeaders.Deflate, StringComparison.OrdinalIgnoreCase) &&
-                            contentLength > streamingThreshold;
-
-            if (canStream)
-            {
-                // Large-body streaming path: wrap the original content stream in a
-                // decompression stream. The body is decompressed lazily on read,
-                // avoiding a full buffering + copy cycle.
-                newContent = new DecompressingContent(response.Content, encoding);
-            }
-            else
-            {
-                // Buffered path: small bodies, deflate (ZLib/raw fallback), stacked encodings,
-                // and unknown Content-Length. Errors are caught and the raw response is passed through.
-                var (owner, written) = ReadContentAsMemory(response.Content);
-                try
-                {
-                    using var decompressedStream = ContentEncodingDecoder.Decompress(
-                        owner.Memory[..written].Span, encoding);
-                    var (decOwner, decLen) = ReadStreamToMemory(decompressedStream);
-
-                    newContent = new PooledMemoryContent(decOwner, decLen);
-                }
-                catch (Exception ex) when (ex is HttpDecoderException or InvalidDataException or InvalidOperationException)
-                {
-                    owner.Dispose();
-                    Log.Warning("ContentEncodingBidiStage: decompression failed ({0}), passing raw response through", ex.Message);
-                    return response;
-                }
-                finally
-                {
-                    owner.Dispose();
-                }
-            }
-
-            foreach (var header in response.Content.Headers)
+            foreach (var header in request.Content.Headers)
             {
                 if (header.Key.Equals("Content-Encoding", StringComparison.OrdinalIgnoreCase) ||
                     header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
@@ -248,213 +209,275 @@ internal sealed class ContentEncodingBidiStage
                 newContent.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }
 
-            response.Content = newContent;
+            newContent.Headers.TryAddWithoutValidation("Content-Encoding", policy.Encoding);
+            newContent.Headers.ContentLength = compLen;
+
+            request.Content = newContent;
+            return request;
+        }
+        finally
+        {
+            owner.Dispose();
+        }
+    }
+
+    private HttpResponseMessage Decompress(HttpResponseMessage response)
+    {
+        if (!response.Content.Headers.TryGetValues("Content-Encoding", out var values))
+        {
             return response;
         }
 
-        /// <summary>
-        /// Reads all bytes from <paramref name="stream"/> into a
-        /// <see cref="MemoryPool{T}"/>-rented buffer, growing it as needed.
-        /// </summary>
-        private static (IMemoryOwner<byte> Owner, int Length) ReadStreamToMemory(Stream stream)
-        {
-            var estimatedSize = stream.CanSeek ? Math.Max((int)stream.Length, 256) : 4096;
-            var pooled = MemoryPool<byte>.Shared.Rent(estimatedSize);
-            var written = 0;
+        var encoding = string.Join(", ", values).Trim();
 
+        if (string.IsNullOrEmpty(encoding) ||
+            encoding.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
+        {
+            return response;
+        }
+
+        if (!ContentEncodingDecoder.IsSupported(encoding))
+        {
+            _ops.Log.Debug("ContentEncodingBidiStage: unknown encoding '{0}', passing through unchanged", encoding);
+            return response;
+        }
+
+        HttpContent newContent;
+
+        const long streamingThreshold = 64 * 1024;
+        var contentLength = response.Content.Headers.ContentLength;
+        var canStream = !encoding.Contains(',') &&
+                        !encoding.Equals(WellKnownHeaders.Deflate, StringComparison.OrdinalIgnoreCase) &&
+                        contentLength > streamingThreshold;
+
+        if (canStream)
+        {
+            newContent = new DecompressingContent(response.Content, encoding);
+        }
+        else
+        {
+            var (owner, written) = ReadContentAsMemory(response.Content);
             try
             {
-                int read;
-                while ((read = stream.Read(pooled.Memory.Span[written..])) > 0)
-                {
-                    written += read;
+                using var decompressedStream = ContentEncodingDecoder.Decompress(
+                    owner.Memory[..written].Span, encoding);
+                var (decOwner, decLen) = ReadStreamToMemory(decompressedStream);
 
-                    if (written < pooled.Memory.Length)
-                    {
-                        continue;
-                    }
-
-                    var larger = MemoryPool<byte>.Shared.Rent(pooled.Memory.Length * 2);
-                    pooled.Memory.Span[..written].CopyTo(larger.Memory.Span);
-                    pooled.Dispose();
-                    pooled = larger;
-                }
-
-                return (pooled, written);
+                newContent = new PooledMemoryContent(decOwner, decLen);
             }
-            catch
+            catch (Exception ex) when (ex is HttpDecoderException or InvalidDataException or InvalidOperationException)
             {
-                pooled.Dispose();
-                throw;
+                _ops.Log.Warning("ContentEncodingBidiStage: decompression failed ({0}), passing raw response through", ex.Message);
+                return response;
+            }
+            finally
+            {
+                owner.Dispose();
             }
         }
 
-        private static (IMemoryOwner<byte>, int) ReadContentAsMemory(HttpContent content)
+        foreach (var header in response.Content.Headers)
         {
-            using var stream = content.ReadAsStream();
-
-            if (stream.CanSeek)
+            if (header.Key.Equals("Content-Encoding", StringComparison.OrdinalIgnoreCase) ||
+                header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
             {
-                var length = (int)stream.Length;
-                var owner = MemoryPool<byte>.Shared.Rent(length);
-                stream.ReadExactly(owner.Memory.Span[..length]);
-                return (owner, length);
+                continue;
             }
 
-            var pooled = MemoryPool<byte>.Shared.Rent(4096);
-            var written = 0;
+            newContent.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
 
-            try
+        response.Content = newContent;
+        return response;
+    }
+
+    internal static (IMemoryOwner<byte> Owner, int Length) ReadStreamToMemory(Stream stream)
+    {
+        var estimatedSize = stream.CanSeek ? Math.Max((int)stream.Length, 256) : 4096;
+        var pooled = MemoryPool<byte>.Shared.Rent(estimatedSize);
+        var written = 0;
+
+        try
+        {
+            int read;
+            while ((read = stream.Read(pooled.Memory.Span[written..])) > 0)
             {
-                int read;
-                while ((read = stream.Read(pooled.Memory.Span[written..])) > 0)
+                written += read;
+
+                if (written < pooled.Memory.Length)
                 {
-                    written += read;
-
-                    if (written < pooled.Memory.Length)
-                    {
-                        continue;
-                    }
-
-                    var larger = MemoryPool<byte>.Shared.Rent(pooled.Memory.Length * 2);
-                    pooled.Memory.Span[..written].CopyTo(larger.Memory.Span);
-                    pooled.Dispose();
-                    pooled = larger;
+                    continue;
                 }
 
-                return (pooled, written);
-            }
-            catch
-            {
+                var larger = MemoryPool<byte>.Shared.Rent(pooled.Memory.Length * 2);
+                pooled.Memory.Span[..written].CopyTo(larger.Memory.Span);
                 pooled.Dispose();
-                throw;
+                pooled = larger;
             }
+
+            return (pooled, written);
+        }
+        catch
+        {
+            pooled.Dispose();
+            throw;
         }
     }
 
-    /// <summary>
-    /// An <see cref="HttpContent"/> that lazily decompresses the underlying content on read.
-    /// Avoids buffering the entire compressed body in memory — the decompression stream wraps
-    /// the original content's stream and decompresses on-the-fly as downstream consumers read.
-    /// </summary>
-    private sealed class DecompressingContent : HttpContent
+    internal static (IMemoryOwner<byte>, int) ReadContentAsMemory(HttpContent content)
     {
-        private readonly HttpContent _inner;
-        private readonly string _encoding;
+        using var stream = content.ReadAsStream();
 
-        public DecompressingContent(HttpContent inner, string encoding)
+        if (stream.CanSeek)
         {
-            _inner = inner;
-            _encoding = encoding;
+            var length = (int)stream.Length;
+            var owner = MemoryPool<byte>.Shared.Rent(length);
+            stream.ReadExactly(owner.Memory.Span[..length]);
+            return (owner, length);
         }
 
-        protected override void SerializeToStream(Stream stream, TransportContext? context, CancellationToken ct)
-        {
-            using var source = _inner.ReadAsStream(ct);
-            using var decompressor = CreateDecompressor(source, _encoding);
-            decompressor.CopyTo(stream);
-        }
+        var pooled = MemoryPool<byte>.Shared.Rent(4096);
+        var written = 0;
 
-        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        try
         {
-            await using var source = await _inner.ReadAsStreamAsync().ConfigureAwait(false);
-            await using var decompressor = CreateDecompressor(source, _encoding);
-            await decompressor.CopyToAsync(stream).ConfigureAwait(false);
-        }
-
-        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken ct)
-        {
-            await using var source = await _inner.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            await using var decompressor = CreateDecompressor(source, _encoding);
-            await decompressor.CopyToAsync(stream, ct).ConfigureAwait(false);
-        }
-
-        protected override bool TryComputeLength(out long length)
-        {
-            // Decompressed length is unknown without reading the entire stream.
-            length = 0;
-            return false;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
+            int read;
+            while ((read = stream.Read(pooled.Memory.Span[written..])) > 0)
             {
-                _inner.Dispose();
+                written += read;
+
+                if (written < pooled.Memory.Length)
+                {
+                    continue;
+                }
+
+                var larger = MemoryPool<byte>.Shared.Rent(pooled.Memory.Length * 2);
+                pooled.Memory.Span[..written].CopyTo(larger.Memory.Span);
+                pooled.Dispose();
+                pooled = larger;
             }
 
-            base.Dispose(disposing);
+            return (pooled, written);
         }
-
-        private static Stream CreateDecompressor(Stream source, string encoding)
+        catch
         {
-            if (encoding.Equals(WellKnownHeaders.Gzip, StringComparison.OrdinalIgnoreCase) ||
-                encoding.Equals(WellKnownHeaders.XGzip, StringComparison.OrdinalIgnoreCase))
-            {
-                return new GZipStream(source, CompressionMode.Decompress);
-            }
-
-            if (encoding.Equals(WellKnownHeaders.Brotli, StringComparison.OrdinalIgnoreCase))
-            {
-                return new BrotliStream(source, CompressionMode.Decompress);
-            }
-
-            if (encoding.Equals(WellKnownHeaders.Deflate, StringComparison.OrdinalIgnoreCase))
-            {
-                return new ZLibStream(source, CompressionMode.Decompress);
-            }
-
-            throw new HttpDecoderException(HttpDecoderError.DecompressionFailed,
-                $"RFC 9110 §8.4: Unknown Content-Encoding '{encoding}'.");
+            pooled.Dispose();
+            throw;
         }
     }
+}
 
-    /// <summary>
-    /// An <see cref="HttpContent"/> backed by a pooled <see cref="IMemoryOwner{T}"/>.
-    /// Returns the memory to the pool on dispose, avoiding a GC allocation for the
-    /// compressed or decompressed body.
-    /// </summary>
-    private sealed class PooledMemoryContent : HttpContent
+internal sealed class DecompressingContent : HttpContent
+{
+    private readonly HttpContent _inner;
+    private readonly string _encoding;
+
+    public DecompressingContent(HttpContent inner, string encoding)
     {
-        private IMemoryOwner<byte>? _owner;
-        private readonly int _length;
+        _inner = inner;
+        _encoding = encoding;
+    }
 
-        public PooledMemoryContent(IMemoryOwner<byte> owner, int length)
+    protected override void SerializeToStream(Stream stream, TransportContext? context, CancellationToken ct)
+    {
+        using var source = _inner.ReadAsStream(ct);
+        using var decompressor = CreateDecompressor(source, _encoding);
+        decompressor.CopyTo(stream);
+    }
+
+    protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+    {
+        await using var source = await _inner.ReadAsStreamAsync().ConfigureAwait(false);
+        await using var decompressor = CreateDecompressor(source, _encoding);
+        await decompressor.CopyToAsync(stream).ConfigureAwait(false);
+    }
+
+    protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken ct)
+    {
+        await using var source = await _inner.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        await using var decompressor = CreateDecompressor(source, _encoding);
+        await decompressor.CopyToAsync(stream, ct).ConfigureAwait(false);
+    }
+
+    protected override bool TryComputeLength(out long length)
+    {
+        length = 0;
+        return false;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
         {
-            _owner = owner;
-            _length = length;
+            _inner.Dispose();
         }
 
-        protected override void SerializeToStream(Stream stream, TransportContext? context, CancellationToken cancellationToken)
-            => stream.Write(_owner!.Memory.Span[.._length]);
+        base.Dispose(disposing);
+    }
 
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+    private static Stream CreateDecompressor(Stream source, string encoding)
+    {
+        if (encoding.Equals(WellKnownHeaders.Gzip, StringComparison.OrdinalIgnoreCase) ||
+            encoding.Equals(WellKnownHeaders.XGzip, StringComparison.OrdinalIgnoreCase))
         {
-            var vt = stream.WriteAsync(_owner!.Memory[.._length]);
-            return vt.IsCompletedSuccessfully ? Task.CompletedTask : vt.AsTask();
+            return new GZipStream(source, CompressionMode.Decompress);
         }
 
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken ct)
+        if (encoding.Equals(WellKnownHeaders.Brotli, StringComparison.OrdinalIgnoreCase))
         {
-            var vt = stream.WriteAsync(_owner!.Memory[.._length], ct);
-            return vt.IsCompletedSuccessfully ? Task.CompletedTask : vt.AsTask();
+            return new BrotliStream(source, CompressionMode.Decompress);
         }
 
-        protected override bool TryComputeLength(out long length)
+        if (encoding.Equals(WellKnownHeaders.Deflate, StringComparison.OrdinalIgnoreCase))
         {
-            length = _length;
-            return true;
+            return new ZLibStream(source, CompressionMode.Decompress);
         }
 
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                var owner = Interlocked.Exchange(ref _owner, null);
-                owner?.Dispose();
-            }
+        throw new HttpDecoderException(HttpDecoderError.DecompressionFailed,
+            $"RFC 9110 §8.4: Unknown Content-Encoding '{encoding}'.");
+    }
+}
 
-            base.Dispose(disposing);
+internal sealed class PooledMemoryContent : HttpContent
+{
+    private IMemoryOwner<byte>? _owner;
+    private readonly int _length;
+
+    public PooledMemoryContent(IMemoryOwner<byte> owner, int length)
+    {
+        _owner = owner;
+        _length = length;
+    }
+
+    protected override void SerializeToStream(Stream stream, TransportContext? context, CancellationToken cancellationToken)
+        => stream.Write(_owner!.Memory.Span[.._length]);
+
+    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+    {
+        var vt = stream.WriteAsync(_owner!.Memory[.._length]);
+        return vt.IsCompletedSuccessfully ? Task.CompletedTask : vt.AsTask();
+    }
+
+    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken ct)
+    {
+        var vt = stream.WriteAsync(_owner!.Memory[.._length], ct);
+        return vt.IsCompletedSuccessfully ? Task.CompletedTask : vt.AsTask();
+    }
+
+    protected override bool TryComputeLength(out long length)
+    {
+        length = _length;
+        return true;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            var owner = Interlocked.Exchange(ref _owner, null);
+            owner?.Dispose();
         }
+
+        base.Dispose(disposing);
     }
 }

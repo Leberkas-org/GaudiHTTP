@@ -22,7 +22,7 @@ public sealed class Http2ErrorHandlingSpec
     [InlineData((uint)5, Http2ErrorCode.StreamClosed)]
     [Trait("RFC", "RFC9113-6.3")]
 #pragma warning disable xUnit1026
-    public void Http2FrameDecoder_should_decode_rst_stream_error_code(uint errorCodeInt, Http2ErrorCode expectedCode)
+    internal void Http2FrameDecoder_should_decode_rst_stream_error_code(uint errorCodeInt, Http2ErrorCode expectedCode)
     {
         var frame = new RstStreamFrame(1, expectedCode).Serialize();
         var frames = new FrameDecoder().Decode(frame);

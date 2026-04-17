@@ -73,7 +73,8 @@ public sealed class StageOrderingSpec : EngineTestBase
         }
 
         var store = new CacheStore();
-        store.Put(req, resp, [],
+        var (owner, length) = CacheStore.RentBody([]);
+        store.Put(req, resp, owner, length,
             DateTimeOffset.UtcNow.AddSeconds(-1), DateTimeOffset.UtcNow);
         return store;
     }
@@ -437,7 +438,7 @@ public sealed class StageOrderingSpec : EngineTestBase
         var lookupReq = new HttpRequestMessage(HttpMethod.Get, "http://example.com/compressed");
         var cacheResult = store.Get(lookupReq);
         Assert.NotNull(cacheResult);
-        Assert.Equal(plainBody, cacheResult.Body);
+        Assert.True(cacheResult.Body.Span.SequenceEqual(plainBody));
     }
 
 }

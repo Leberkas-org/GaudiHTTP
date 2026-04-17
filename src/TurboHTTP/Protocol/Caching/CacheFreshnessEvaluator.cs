@@ -4,14 +4,14 @@ namespace TurboHTTP.Protocol.Caching;
 /// RFC 9111 §4.2 — Evaluates whether a cached response is still fresh.
 /// All logic is stateless (pure functions).
 /// </summary>
-public static class CacheFreshnessEvaluator
+internal static class CacheFreshnessEvaluator
 {
     /// <summary>
     /// RFC 9111 §4.2.1 — Computes the freshness lifetime of the cached entry.
     /// Priority: s-maxage (shared cache) > max-age > Expires > heuristic.
     /// Returns TimeSpan.Zero when no freshness information is available.
     /// </summary>
-    public static TimeSpan GetFreshnessLifetime(CacheEntry entry, CachePolicy? policy = null)
+    public static TimeSpan GetFreshnessLifetime(ICacheEntry entry, CachePolicy? policy = null)
     {
         policy ??= CachePolicy.Default;
         var cc = entry.CacheControl;
@@ -60,7 +60,7 @@ public static class CacheFreshnessEvaluator
     ///   and response_delay = response_time – request_time
     ///   and resident_time = now – response_time
     /// </summary>
-    public static TimeSpan GetCurrentAge(CacheEntry entry, DateTimeOffset now)
+    public static TimeSpan GetCurrentAge(ICacheEntry entry, DateTimeOffset now)
     {
         // Apparent age (RFC 9111 §4.2.3 step 1)
         var apparentAge = TimeSpan.Zero;
@@ -104,7 +104,7 @@ public static class CacheFreshnessEvaluator
     /// RFC 9111 §4.2 — Returns true if the cached entry is still fresh at <paramref name="now"/>.
     /// IsFresh = freshness_lifetime > current_age.
     /// </summary>
-    public static bool IsFresh(CacheEntry entry, DateTimeOffset now, CachePolicy? policy = null)
+    public static bool IsFresh(ICacheEntry entry, DateTimeOffset now, CachePolicy? policy = null)
     {
         var freshnessLifetime = GetFreshnessLifetime(entry, policy);
         if (freshnessLifetime == TimeSpan.Zero)
@@ -121,7 +121,7 @@ public static class CacheFreshnessEvaluator
     /// with the current age of the <paramref name="entry"/> at <paramref name="now"/>.
     /// A cache MUST generate an Age header field in every response it sends.
     /// </summary>
-    public static void InjectAgeHeader(HttpResponseMessage response, CacheEntry entry, DateTimeOffset now)
+    public static void InjectAgeHeader(HttpResponseMessage response, ICacheEntry entry, DateTimeOffset now)
     {
         var currentAge = GetCurrentAge(entry, now);
         var ageSeconds = (long)currentAge.TotalSeconds;
@@ -140,7 +140,7 @@ public static class CacheFreshnessEvaluator
     /// Applies request directives (no-cache, max-age, min-fresh, max-stale, only-if-cached)
     /// and response directives (must-revalidate) to determine the lookup outcome.
     /// </summary>
-    public static CacheLookupResult Evaluate(CacheEntry? entry, HttpRequestMessage request, DateTimeOffset now,
+    public static CacheLookupResult Evaluate(ICacheEntry? entry, HttpRequestMessage request, DateTimeOffset now,
         CachePolicy? policy = null)
     {
         if (entry is null)

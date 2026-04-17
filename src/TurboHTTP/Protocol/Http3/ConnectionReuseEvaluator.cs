@@ -12,7 +12,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// - Single-level wildcard matching (e.g. *.example.com matches foo.example.com)
 /// - Common Name (CN) fallback only when no SAN dNSName entries exist
 /// </summary>
-public static class ConnectionReuseEvaluator
+internal static class ConnectionReuseEvaluator
 {
     /// <summary>
     /// Determines whether an existing HTTP/3 connection can be reused for a request

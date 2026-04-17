@@ -23,7 +23,7 @@ public sealed class RetrySpec
             _server.HttpsPort,
             new Version(1, 1),
             scheme: "https",
-            configure: builder => builder.WithRetry(new RetryPolicy { MaxRetries = maxRetries }),
+            configure: builder => builder.WithRetry(x => x.MaxRetries = maxRetries),
             system: _systemFixture.System);
     }
 

@@ -11,7 +11,7 @@ namespace TurboHTTP.Diagnostics;
 /// </para>
 /// </summary>
 [EventSource(Name = "TurboHTTP")]
-public sealed class TurboHttpEventSource : EventSource
+internal sealed class TurboHttpEventSource : EventSource
 {
     /// <summary>
     /// Singleton instance.

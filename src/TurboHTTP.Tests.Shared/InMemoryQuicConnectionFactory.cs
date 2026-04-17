@@ -1,7 +1,5 @@
-using System.Net;
 using TurboHTTP.Internal;
 using TurboHTTP.Transport.Connection;
-using TurboHTTP.Transport.Quic;
 
 #pragma warning disable CA1416
 

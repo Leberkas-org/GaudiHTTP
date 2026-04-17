@@ -7,7 +7,7 @@ namespace TurboHTTP.Protocol.Semantics;
 /// Only idempotent methods may be retried; non-idempotent methods (e.g. POST) are never retried.
 /// Retries are only issued for network-level failures or specific error status codes (408, 503).
 /// </summary>
-public static class RetryEvaluator
+internal static class RetryEvaluator
 {
     /// <summary>
     /// Determines whether the given HTTP request should be retried after a failure.

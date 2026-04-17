@@ -3,15 +3,12 @@ using Akka;
 using Akka.Streams.Dsl;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H2;
 
 public sealed class ErrorHandlingSpec : AcceptanceTestBase
 {
-    private static Http20Engine Engine => new(new Http2Options().ToEngineOptions());
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.4.2")]
     public async Task RstStream_should_raise_exception_on_abort()
@@ -28,7 +25,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Build();
 
         var fake = new H2EngineFakeConnectionStage(serverFrames);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp20Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -58,7 +55,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Data(1, "delayed")
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -80,7 +77,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Build();
 
         var fake = new H2EngineFakeConnectionStage(serverFrames);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp20Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -106,7 +103,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(1, 400, endStream: true)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
@@ -125,7 +122,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(1, 401, endStream: true)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
@@ -144,7 +141,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(1, 403, endStream: true)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
@@ -163,7 +160,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(1, 404, endStream: true)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
@@ -182,7 +179,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(1, 429, endStream: true)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
         Assert.Equal((HttpStatusCode)429, response.StatusCode);
     }
 
@@ -201,7 +198,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(1, 500, endStream: true)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
     }
 
@@ -220,7 +217,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(1, 502, endStream: true)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
     }
 
@@ -239,7 +236,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(1, 503, endStream: true)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
     }
 
@@ -266,7 +263,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Data(1, "many-headers")
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -304,7 +301,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Data(1, (ReadOnlyMemory<byte>)payload)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -337,7 +334,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Data(1, (ReadOnlyMemory<byte>)bodyBytes)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -378,7 +375,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Data(1, (ReadOnlyMemory<byte>)bodyBytes)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);

@@ -4,7 +4,6 @@ using Akka;
 using Akka.Streams.Dsl;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Tests.Shared;
 
@@ -12,8 +11,6 @@ namespace TurboHTTP.AcceptanceTests.H3;
 
 public sealed class RequestCompressionSpec : AcceptanceTestBase
 {
-    private static Http30Engine Engine => new(new Http3Options().ToEngineOptions());
-
     private static byte[] MakePayload(int size)
     {
         var payload = new byte[size];
@@ -28,14 +25,14 @@ public sealed class RequestCompressionSpec : AcceptanceTestBase
         CreateCompressionEngine(string encoding)
     {
         var stage = new ContentEncodingBidiStage(true, new CompressionPolicy { Encoding = encoding });
-        return BidiFlow.FromGraph(stage).Atop(Engine.CreateFlow());
+        return BidiFlow.FromGraph(stage).Atop(CreateHttp30Engine().CreateFlow());
     }
 
     private static BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed>
         CreateDefaultCompressionEngine()
     {
         var stage = new ContentEncodingBidiStage(true, CompressionPolicy.Default);
-        return BidiFlow.FromGraph(stage).Atop(Engine.CreateFlow());
+        return BidiFlow.FromGraph(stage).Atop(CreateHttp30Engine().CreateFlow());
     }
 
     private static byte[] GzipCompress(byte[] data)

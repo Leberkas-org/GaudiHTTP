@@ -5,7 +5,7 @@ namespace TurboHTTP.Protocol;
 /// The <see cref="DecodeError"/> property identifies the specific violation;
 /// <see cref="Exception.Message"/> contains a human-readable description with an RFC reference.
 /// </summary>
-public sealed class HttpDecoderException : TurboProtocolException
+internal sealed class HttpDecoderException : TurboProtocolException
 {
     /// <summary>The specific decode error that caused this exception.</summary>
     public HttpDecoderError DecodeError { get; }

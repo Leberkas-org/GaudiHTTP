@@ -3,7 +3,7 @@ namespace TurboHTTP.Protocol.Semantics;
 /// <summary>
 /// Error codes for redirect failures per RFC 9110 §15.4.
 /// </summary>
-public enum RedirectError
+internal enum RedirectError
 {
     /// <summary>The maximum number of redirects was exceeded.</summary>
     MaxRedirectsExceeded,
@@ -24,7 +24,7 @@ public enum RedirectError
 /// <summary>
 /// Thrown when an RFC 9110 §15.4 redirect constraint is violated.
 /// </summary>
-public sealed class RedirectException : TurboHttpException
+internal sealed class RedirectException : TurboHttpException
 {
     /// <summary>The specific redirect error that occurred.</summary>
     public RedirectError Error { get; }

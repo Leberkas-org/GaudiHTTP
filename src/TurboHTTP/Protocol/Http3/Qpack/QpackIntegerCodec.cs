@@ -5,7 +5,7 @@ namespace TurboHTTP.Protocol.Http3.Qpack;
 /// Uses the same variable-length integer representation as HPACK (RFC 7541 §5.1)
 /// with support for prefix lengths from 1 to 8 bits.
 /// </summary>
-public static class QpackIntegerCodec
+internal static class QpackIntegerCodec
 {
     /// <summary>
     /// Maximum integer value accepted to prevent overflow attacks.

@@ -1,50 +1,68 @@
 using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Protocol.Caching;
 using TurboHTTP.Protocol.Cookies;
-using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP;
 
 public static class TurboHttpClientBuilderExtensions
 {
-    public static ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder, CookieJar? jar = null)
+    public static ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder, ICookieJar? jar = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
         {
             d.EnableCookies = true;
-            d.CustomCookieJar = jar;
+            d.CustomCookieJar = jar ?? new CookieJar();
         });
         return builder;
     }
 
-    public static ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder, CachePolicy policy)
-    {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d => { d.CachePolicy = policy; });
-        return builder;
-    }
-
-    public static ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder, CacheStore store,
-        CachePolicy? policy = null)
+    public static ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder,
+        Action<CacheOptions>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
         {
-            d.CachePolicy = policy ?? CachePolicy.Default;
+            var options = new CacheOptions();
+            configure?.Invoke(options);
+            d.CachePolicy = options.To();
+        });
+        return builder;
+    }
+
+    public static ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder, ICacheStore store,
+        Action<CacheOptions>? configure = null)
+    {
+        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        {
+            var options = new CacheOptions();
+            configure?.Invoke(options);
+            d.CachePolicy = options.To();
             d.CustomCacheStore = store;
         });
         return builder;
     }
 
-    public static ITurboHttpClientBuilder WithRetry(this ITurboHttpClientBuilder builder, RetryPolicy policy)
+    public static ITurboHttpClientBuilder WithRetry(this ITurboHttpClientBuilder builder,
+        Action<RetryOptions>? configure = null)
     {
-        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d => { d.RetryPolicy = policy; });
+        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        {
+            var options = new RetryOptions();
+            configure?.Invoke(options);
+            d.RetryPolicy = options.To();
+        });
         return builder;
     }
 
     public static ITurboHttpClientBuilder WithRedirect(this ITurboHttpClientBuilder builder,
-        RedirectPolicy? policy = null)
+        Action<RedirectOptions>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name,
-            d => { d.RedirectPolicy = policy ?? new RedirectPolicy(); });
+            d =>
+            {
+                var options = new RedirectOptions();
+                configure?.Invoke(options);
+                d.RedirectPolicy = options.To();
+            });
         return builder;
     }
 
@@ -55,18 +73,28 @@ public static class TurboHttpClientBuilderExtensions
     }
 
     public static ITurboHttpClientBuilder WithRequestCompression(
-        this ITurboHttpClientBuilder builder, CompressionPolicy? policy = null)
+        this ITurboHttpClientBuilder builder, Action<CompressionOptions>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name,
-            d => { d.CompressionPolicy = policy ?? CompressionPolicy.Default; });
+            d =>
+            {
+                var options = new CompressionOptions();
+                configure?.Invoke(options);
+                d.CompressionPolicy = options.To();
+            });
         return builder;
     }
 
     public static ITurboHttpClientBuilder WithExpectContinue(
-        this ITurboHttpClientBuilder builder, Expect100Policy? policy = null)
+        this ITurboHttpClientBuilder builder, Action<Expect100Options>? configure = null)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name,
-            d => { d.Expect100Policy = policy ?? Expect100Policy.Default; });
+            d =>
+            {
+                var options = new Expect100Options();
+                configure?.Invoke(options);
+                d.Expect100Policy = options.To();
+            });
         return builder;
     }
 

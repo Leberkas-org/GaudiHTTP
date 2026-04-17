@@ -5,7 +5,7 @@ namespace TurboHTTP.Protocol.Semantics;
 /// RFC 9110 §10.1.1 — A client that will wait for a 100 (Continue) response before
 /// sending the request content MUST send an <c>Expect: 100-continue</c> header field.
 /// </summary>
-public sealed record Expect100Policy
+internal sealed record Expect100Policy
 {
     /// <summary>Default policy: bodies >= 1024 bytes trigger Expect: 100-continue.</summary>
     public static readonly Expect100Policy Default = new();

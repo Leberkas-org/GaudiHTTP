@@ -36,7 +36,7 @@ public sealed class RequestCompressionSpec
             _server.HttpsPort,
             new Version(1, 1),
             scheme: "https",
-            configure: b => b.WithRequestCompression(new CompressionPolicy { Encoding = "gzip" }),
+            configure: b => b.WithRequestCompression(x => x.Encoding = "gzip"),
             system: _systemFixture.System);
 
         var payload = MakePayload(4 * 1024);
@@ -60,7 +60,7 @@ public sealed class RequestCompressionSpec
             _server.HttpsPort,
             new Version(1, 1),
             scheme: "https",
-            configure: b => b.WithRequestCompression(new CompressionPolicy { Encoding = "deflate" }),
+            configure: b => b.WithRequestCompression(x => x.Encoding = "deflate"),
             system: _systemFixture.System);
 
         var payload = MakePayload(4 * 1024);
@@ -84,7 +84,7 @@ public sealed class RequestCompressionSpec
             _server.HttpsPort,
             new Version(1, 1),
             scheme: "https",
-            configure: b => b.WithRequestCompression(new CompressionPolicy { Encoding = "br" }),
+            configure: b => b.WithRequestCompression(x => x.Encoding = "br"),
             system: _systemFixture.System);
 
         var payload = MakePayload(4 * 1024);
@@ -109,7 +109,7 @@ public sealed class RequestCompressionSpec
             _server.HttpsPort,
             new Version(1, 1),
             scheme: "https",
-            configure: b => b.WithRequestCompression(CompressionPolicy.Default),
+            configure: b => b.WithRequestCompression(),
             system: _systemFixture.System);
 
         var payload = MakePayload(100);
@@ -135,7 +135,7 @@ public sealed class RequestCompressionSpec
             _server.HttpsPort,
             new Version(1, 1),
             scheme: "https",
-            configure: b => b.WithRequestCompression(new CompressionPolicy { Encoding = "gzip" }),
+            configure: b => b.WithRequestCompression(x => x.Encoding = "gzip"),
             system: _systemFixture.System);
 
         // Body must be >= 1024 bytes to trigger compression.
@@ -166,7 +166,7 @@ public sealed class RequestCompressionSpec
             new Version(1, 1),
             scheme: "https",
             configure: b => b
-                .WithRequestCompression(new CompressionPolicy { Encoding = "gzip" })
+                .WithRequestCompression(x => x.Encoding = "gzip")
                 .WithDecompression(),
             system: _systemFixture.System);
 
@@ -177,6 +177,7 @@ public sealed class RequestCompressionSpec
         {
             Content = new ByteArrayContent(payload)
         };
+
         var postResponse = await helper.Client.SendAsync(postRequest, cts.Token);
         Assert.Equal(HttpStatusCode.OK, postResponse.StatusCode);
         var echoed = await postResponse.Content.ReadAsByteArrayAsync(cts.Token);
@@ -185,6 +186,7 @@ public sealed class RequestCompressionSpec
         // Response direction: server sends gzip response → WithDecompression() transparently decompresses it.
         var getResponse = await helper.Client.SendAsync(
             new HttpRequestMessage(HttpMethod.Get, "/compress/gzip/1"), cts.Token);
+
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         var decompressedBody = await getResponse.Content.ReadAsByteArrayAsync(cts.Token);
         Assert.Equal(1024, decompressedBody.Length);

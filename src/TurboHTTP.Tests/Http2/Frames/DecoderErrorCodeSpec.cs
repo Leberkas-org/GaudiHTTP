@@ -28,7 +28,7 @@ public sealed class Http2DecoderErrorCodeSpec
     [InlineData((uint)0xc, Http2ErrorCode.InadequateSecurity)]
     [InlineData((uint)0xd, Http2ErrorCode.Http11Required)]
     [Trait("RFC", "RFC9113-7")]
-    public void Http2FrameDecoder_should_decode_error_code_from_goaway(uint errorCodeInt, Http2ErrorCode expected)
+    internal void Http2FrameDecoder_should_decode_error_code_from_goaway(uint errorCodeInt, Http2ErrorCode expected)
     {
         var frame = new GoAwayFrame(0, (Http2ErrorCode)errorCodeInt, ReadOnlyMemory<byte>.Empty).Serialize();
 
@@ -54,7 +54,7 @@ public sealed class Http2DecoderErrorCodeSpec
     [InlineData((uint)0xc, Http2ErrorCode.InadequateSecurity)]
     [InlineData((uint)0xd, Http2ErrorCode.Http11Required)]
     [Trait("RFC", "RFC9113-7")]
-    public void Http2FrameDecoder_should_decode_error_code_from_rst_stream(uint errorCodeInt, Http2ErrorCode expected)
+    internal void Http2FrameDecoder_should_decode_error_code_from_rst_stream(uint errorCodeInt, Http2ErrorCode expected)
     {
         var frame = new RstStreamFrame(1, (Http2ErrorCode)errorCodeInt).Serialize();
 

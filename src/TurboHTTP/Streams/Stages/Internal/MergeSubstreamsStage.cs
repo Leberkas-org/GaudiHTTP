@@ -104,7 +104,7 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                     // No ready sinks — pull all active sinks that haven't been pulled
                     foreach (var sink in _activeSinks)
                     {
-                        if (!sink.HasBeenPulled && !sink.IsClosed)
+                        if (sink is { HasBeenPulled: false, IsClosed: false })
                         {
                             sink.Pull();
                         }

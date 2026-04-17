@@ -1,15 +1,11 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H3;
 
 public sealed class EdgeCaseSpec : AcceptanceTestBase
 {
-    private static Http30Engine Engine => new(new Http3Options().ToEngineOptions());
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
     public async Task EdgeCase_should_receive_many_custom_response_headers()
@@ -32,7 +28,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             .Data("many-headers")
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -61,7 +57,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             .Headers(200, [("content-length", "0")], endStream: true)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -82,7 +78,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             .Headers(200, [("content-length", "0")], endStream: true)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -107,7 +103,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             .Data((ReadOnlyMemory<byte>)largeBody)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var bytes = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -137,7 +133,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             .Data((ReadOnlyMemory<byte>)payload)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -172,7 +168,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             .Headers(200, [("x-value", "alpha"), ("x-value", "beta"), ("content-length", "0")], endStream: true)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.TryGetValues("X-Value", out var values));
@@ -199,7 +195,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             .Data(responseBody)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -230,7 +226,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             .Data((ReadOnlyMemory<byte>)bodyBytes)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);

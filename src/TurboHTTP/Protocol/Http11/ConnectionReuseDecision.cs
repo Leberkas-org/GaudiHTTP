@@ -6,7 +6,7 @@ namespace TurboHTTP.Protocol.Http11;
 /// Result of evaluating whether an HTTP/1.x connection can be reused for subsequent requests.
 /// Common instances with fixed reason strings are cached to avoid per-request allocations.
 /// </summary>
-public sealed class ConnectionReuseDecision
+internal sealed class ConnectionReuseDecision
 {
     // Cache for Close() decisions keyed by reason string (all hot-path reasons are string literals)
     private static readonly ConcurrentDictionary<string, ConnectionReuseDecision> CloseCache = new();

@@ -3,7 +3,7 @@ namespace TurboHTTP.Protocol.Cookies;
 /// <summary>
 /// SameSite cookie attribute — not defined in RFC 6265; introduced in RFC 6265bis.
 /// </summary>
-public enum SameSitePolicy
+internal enum SameSitePolicy
 {
     /// <summary>No SameSite attribute present.</summary>
     Unspecified,
@@ -33,6 +33,12 @@ internal sealed record CookieEntry(
     bool IsHostOnly,
     DateTimeOffset CreatedAt);
 
+public interface ICookieJar
+{
+    void ProcessResponse(Uri requestUri, HttpResponseMessage response);
+    void AddCookiesToRequest(Uri requestUri, ref HttpRequestMessage request);
+}
+
 /// <summary>
 /// RFC 6265 — Cookie jar for storing and matching HTTP cookies.
 ///
@@ -46,7 +52,7 @@ internal sealed record CookieEntry(
 /// - SameSite attribute (stored; enforcement is caller responsibility)
 /// - Correct cookie replacement semantics (name+domain+path uniqueness)
 /// </summary>
-public sealed class CookieJar
+internal sealed class CookieJar : ICookieJar
 {
     private readonly Lock _lock = new();
     private readonly List<CookieEntry> _cookies = [];

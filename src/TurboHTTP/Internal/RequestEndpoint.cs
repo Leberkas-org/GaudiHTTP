@@ -6,7 +6,7 @@ namespace TurboHTTP.Internal;
 /// Identifies a connection target by scheme, host, port, and HTTP version.
 /// Used as the grouping key for per-host connection pools.
 /// </summary>
-public readonly record struct RequestEndpoint
+internal readonly record struct RequestEndpoint
 {
     /// <summary>
     /// Creates a <see cref="RequestEndpoint"/> from the URI and version of <paramref name="request"/>.

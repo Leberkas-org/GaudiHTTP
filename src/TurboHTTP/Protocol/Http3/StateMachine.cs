@@ -18,7 +18,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// QPACK instruction streams to <see cref="QpackStreamHandler"/>.
 /// </para>
 /// </summary>
-public sealed class StateMachine : IDisposable
+internal sealed class StateMachine : IDisposable
 {
     private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromSeconds(30);
 
@@ -90,10 +90,12 @@ public sealed class StateMachine : IDisposable
         _requestEncoder = new RequestEncoder(TableSync);
         _responseDecoder = new ResponseDecoder(TableSync);
         _qpackHandler = new QpackStreamHandler(ops, _requestEncoder, _responseDecoder, TableSync);
-        _streamManager = new Http3StreamManager(ops, _responseDecoder, TableSync);
-        _streamManager.FlushDecoderInstructionsCallback = _ => FlushDecoderInstructions();
-        _streamManager.OnStreamClosedCallback = OnStreamClosed;
-        Tracker = new StreamTracker(0, 100);
+        _streamManager = new Http3StreamManager(ops, _responseDecoder, TableSync)
+        {
+            FlushDecoderInstructionsCallback = _ => FlushDecoderInstructions(),
+            OnStreamClosedCallback = OnStreamClosed
+        };
+        Tracker = new StreamTracker();
 
         var idleTimeout = options.IdleTimeout == TimeSpan.Zero
             ? DefaultIdleTimeout

@@ -9,7 +9,7 @@ namespace TurboHTTP.Protocol.AltSvc;
 /// <param name="MaxAge">Duration in seconds that the entry is valid. Default is 86400 (24 hours) per RFC 7838 §3.1.</param>
 /// <param name="Persist">When true, the entry survives network changes (e.g., moving to a new network). RFC 7838 §3.1.</param>
 /// <param name="ExpiresAt">Absolute UTC time when this entry expires, computed as creation time + MaxAge.</param>
-public sealed record AltSvcEntry(
+internal sealed record AltSvcEntry(
     string Protocol,
     string Host,
     int Port,

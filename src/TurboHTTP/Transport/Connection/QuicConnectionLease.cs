@@ -20,9 +20,6 @@ namespace TurboHTTP.Transport.Connection;
 internal sealed class QuicConnectionLease : IDisposable
 {
     private readonly long _createdTicks = Environment.TickCount64;
-    private int _activeStreams;
-    private bool _alive = true;
-    private bool _reusable = true;
 
     public QuicConnectionLease(QuicConnectionHandle handle)
     {
@@ -38,10 +35,10 @@ internal sealed class QuicConnectionLease : IDisposable
     public RequestEndpoint Key => Handle.Key;
 
     /// <summary>Whether this connection is still alive and usable.</summary>
-    public bool IsAlive => _alive;
+    public bool IsAlive { get; private set; } = true;
 
     /// <summary>Whether this connection can be reused for subsequent requests.</summary>
-    public bool Reusable => _reusable;
+    public bool Reusable { get; private set; } = true;
 
     /// <summary>Timestamp of the last activity on this connection.</summary>
     public DateTime LastActivity { get; private set; }
@@ -50,7 +47,7 @@ internal sealed class QuicConnectionLease : IDisposable
     /// Number of stages currently holding this connection.
     /// Incremented by <see cref="MarkBusy"/>, decremented by <see cref="MarkIdle"/>.
     /// </summary>
-    public int ActiveStreams => _activeStreams;
+    public int ActiveStreams { get; private set; }
 
     /// <summary>
     /// Maximum number of stages that may hold this connection simultaneously.
@@ -63,7 +60,7 @@ internal sealed class QuicConnectionLease : IDisposable
     /// Whether this connection can accept another stage. Checks liveness, reusability,
     /// and the per-connection stream-capacity limit.
     /// </summary>
-    public bool CanAcceptStream => _alive && _reusable && ActiveStreams < MaxConcurrentStreams;
+    public bool CanAcceptStream => IsAlive && Reusable && ActiveStreams < MaxConcurrentStreams;
 
     /// <summary>
     /// Returns <see langword="true"/> when the connection has exceeded the specified
@@ -83,21 +80,21 @@ internal sealed class QuicConnectionLease : IDisposable
     /// <summary>Marks this connection as acquired by an additional stage.</summary>
     public void MarkBusy()
     {
-        _activeStreams++;
+        ActiveStreams++;
         LastActivity = DateTime.UtcNow;
     }
 
     /// <summary>Marks one stage as done, reducing the active count.</summary>
     public void MarkIdle()
     {
-        _activeStreams--;
+        ActiveStreams--;
         LastActivity = DateTime.UtcNow;
     }
 
     /// <summary>Marks this connection as non-reusable (e.g., after a transport error).</summary>
     public void MarkNoReuse()
     {
-        _reusable = false;
+        Reusable = false;
     }
 
     /// <summary>
@@ -105,12 +102,12 @@ internal sealed class QuicConnectionLease : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (!_alive)
+        if (!IsAlive)
         {
             return;
         }
 
-        _alive = false;
+        IsAlive = false;
 
         _ = Handle.DisposeAsync().AsTask();
 

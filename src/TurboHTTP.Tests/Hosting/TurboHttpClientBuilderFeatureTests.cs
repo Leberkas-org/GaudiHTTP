@@ -1,8 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Protocol.Caching;
 using TurboHTTP.Protocol.Cookies;
-using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Tests.Hosting;
 
@@ -23,7 +21,7 @@ public sealed class TurboHttpClientBuilderFeatureTests
         var descriptor = GetDescriptor(services, "test");
 
         Assert.True(descriptor.EnableCookies);
-        Assert.Null(descriptor.CustomCookieJar);
+        Assert.NotNull(descriptor.CustomCookieJar);
     }
 
     [Fact(DisplayName = "WithCookies(jar) sets EnableCookies to true and assigns the custom jar")]
@@ -42,25 +40,23 @@ public sealed class TurboHttpClientBuilderFeatureTests
     [Fact(DisplayName = "WithCache(policy) assigns the cache policy to the descriptor")]
     public void WithCache_AssignsCachePolicy()
     {
-        var policy = new CachePolicy { MaxEntries = 500 };
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithCache(policy);
+        services.AddTurboHttpClient("test").WithCache(x => x.MaxEntries = 500);
 
         var descriptor = GetDescriptor(services, "test");
 
-        Assert.Equal(policy, descriptor.CachePolicy);
+        Assert.Equal(500, descriptor.CachePolicy?.MaxEntries);
     }
 
     [Fact(DisplayName = "WithRetry(policy) assigns the retry policy to the descriptor")]
     public void WithRetry_AssignsRetryPolicy()
     {
-        var policy = new RetryPolicy { MaxRetries = 5 };
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithRetry(policy);
+        services.AddTurboHttpClient("test").WithRetry(x => x.MaxRetries = 5);
 
         var descriptor = GetDescriptor(services, "test");
 
-        Assert.Equal(policy, descriptor.RetryPolicy);
+        Assert.Equal(5, descriptor.RetryPolicy?.MaxRetries);
     }
 
     [Fact(DisplayName = "WithRedirect() sets a non-null default redirect policy")]
@@ -77,13 +73,12 @@ public sealed class TurboHttpClientBuilderFeatureTests
     [Fact(DisplayName = "WithRedirect(policy) assigns the provided redirect policy to the descriptor")]
     public void WithRedirect_WithPolicy_AssignsRedirectPolicy()
     {
-        var policy = new RedirectPolicy { MaxRedirects = 5 };
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithRedirect(policy);
+        services.AddTurboHttpClient("test").WithRedirect(x => x.MaxRedirects = 5);
 
         var descriptor = GetDescriptor(services, "test");
 
-        Assert.Equal(policy, descriptor.RedirectPolicy);
+        Assert.Equal(5, descriptor.RedirectPolicy?.MaxRedirects);
     }
 
     [Fact(DisplayName = "Default descriptor has AutomaticDecompression true")]

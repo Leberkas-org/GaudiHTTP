@@ -94,7 +94,7 @@ public sealed class DecoderInstruction
 /// When combining remainder + new data, a transient working buffer is rented from
 /// <see cref="MemoryPool{T}"/> to avoid per-call heap allocations on the hot path.
 /// </summary>
-public sealed class QpackInstructionDecoder : IDisposable
+internal sealed class QpackInstructionDecoder : IDisposable
 {
     private IMemoryOwner<byte>? _remainderOwner;
     private int _remainderLength;

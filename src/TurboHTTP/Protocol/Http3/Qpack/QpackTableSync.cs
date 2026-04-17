@@ -3,7 +3,7 @@
 /// <summary>
 /// Represents a blocked stream waiting for dynamic table updates.
 /// </summary>
-public sealed class BlockedStream
+internal sealed class BlockedStream
 {
     /// <summary>The stream ID that is blocked.</summary>
     public int StreamId { get; }
@@ -46,7 +46,7 @@ public sealed class BlockedStream
 ///      Count exceeds the decoder's current insert count, the stream is blocked.
 ///      <see cref="ResolveBlockedStreams"/> unblocks them as encoder instructions arrive.
 /// </summary>
-public sealed class QpackTableSync
+internal sealed class QpackTableSync
 {
     private readonly QpackInstructionDecoder _instructionDecoder;
     private readonly List<BlockedStream> _blockedStreams = [];

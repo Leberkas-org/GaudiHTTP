@@ -150,7 +150,7 @@ public sealed class Http2GoAwaySpec
     [InlineData(Http2ErrorCode.Cancel)]
     [InlineData(Http2ErrorCode.FlowControlError)]
     [InlineData(Http2ErrorCode.CompressionError)]
-    public void Http2FrameDecoder_should_decode_correctly_when_go_away_has_various_error_codes(Http2ErrorCode errorCode)
+    internal void Http2FrameDecoder_should_decode_correctly_when_go_away_has_various_error_codes(Http2ErrorCode errorCode)
     {
         var bytes = new GoAwayFrame(1, errorCode).Serialize();
         var decoder = new FrameDecoder();

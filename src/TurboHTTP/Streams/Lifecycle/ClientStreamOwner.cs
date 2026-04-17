@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
@@ -8,7 +9,6 @@ using TurboHTTP.Transport.Tcp;
 
 // QuicConnectionManagerActor is guarded on linux/macOS/windows — all desktop platforms.
 #pragma warning disable CA1416
-using OwnerMsg = TurboHTTP.Streams.Lifecycle.ClientStreamOwner;
 
 namespace TurboHTTP.Streams.Lifecycle;
 
@@ -24,8 +24,21 @@ namespace TurboHTTP.Streams.Lifecycle;
 /// and on actor termination (via <see cref="PostStop"/>).
 /// </para>
 /// </summary>
-internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
+internal sealed class ClientStreamOwner : UntypedActor, IWithTimers
 {
+    internal sealed record CreateStreamInstance(
+        TurboClientOptions ClientOptions,
+        Func<TurboRequestOptions> RequestOptionsFactory,
+        PipelineDescriptor Pipeline,
+        ChannelReader<HttpRequestMessage> RequestReader,
+        ChannelWriter<HttpResponseMessage> ResponseWriter);
+
+    internal sealed record StreamInstanceCreated;
+
+    internal sealed record StreamInstanceFailed(Exception Reason, int AttemptNumber);
+
+    internal sealed record Shutdown;
+    
     private static readonly TimeSpan[] RetryBackoffs =
     [
         TimeSpan.FromMilliseconds(100),
@@ -43,7 +56,7 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
 
     private int _retryAttempts;
     private Exception? _lastError;
-    private OwnerMsg.CreateStreamInstance? _createRequest;
+    private CreateStreamInstance? _createRequest;
     private IActorRef _createRequester = Nobody.Instance;
     private bool _shuttingDown;
 
@@ -59,15 +72,15 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
     {
         switch (message)
         {
-            case OwnerMsg.CreateStreamInstance create:
+            case CreateStreamInstance create:
                 HandleCreateStreamInstance(create);
                 break;
 
-            case OwnerMsg.StreamInstanceFailed failed:
+            case StreamInstanceFailed failed:
                 HandleStreamInstanceFailed(failed);
                 break;
 
-            case OwnerMsg.Shutdown:
+            case Shutdown:
                 HandleShutdown();
                 break;
 
@@ -89,7 +102,7 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
         }
     }
 
-    private void HandleCreateStreamInstance(OwnerMsg.CreateStreamInstance create)
+    private void HandleCreateStreamInstance(CreateStreamInstance create)
     {
         _log.Debug("Creating stream instance (options: BaseAddress={0})",
             create.ClientOptions.BaseAddress);
@@ -102,7 +115,7 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
         MaterializeStream(create);
     }
 
-    private void MaterializeStream(OwnerMsg.CreateStreamInstance create)
+    private void MaterializeStream(CreateStreamInstance create)
     {
         _log.Debug("Materializing stream pipeline (BaseAddress={0})",
             create.ClientOptions.BaseAddress);
@@ -185,7 +198,7 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
             // Notify requester of successful materialization
             if (!_createRequester.IsNobody())
             {
-                _createRequester.Tell(new OwnerMsg.StreamInstanceCreated());
+                _createRequester.Tell(new StreamInstanceCreated());
             }
         }
         catch (Exception ex)
@@ -219,13 +232,13 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
 
             if (!_createRequester.IsNobody())
             {
-                _createRequester.Tell(new OwnerMsg.StreamInstanceFailed(
+                _createRequester.Tell(new StreamInstanceFailed(
                     _lastError!, _retryAttempts));
             }
         }
     }
 
-    private void HandleStreamInstanceFailed(OwnerMsg.StreamInstanceFailed failed)
+    private void HandleStreamInstanceFailed(StreamInstanceFailed failed)
     {
         _lastError = failed.Reason;
         _retryAttempts = failed.AttemptNumber;
@@ -251,7 +264,7 @@ internal sealed class ClientStreamOwnerActor : UntypedActor, IWithTimers
 
             if (!_createRequester.IsNobody())
             {
-                _createRequester.Tell(new OwnerMsg.StreamInstanceFailed(
+                _createRequester.Tell(new StreamInstanceFailed(
                     _lastError!, _retryAttempts));
             }
         }

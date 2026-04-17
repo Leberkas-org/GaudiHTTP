@@ -9,7 +9,7 @@ namespace TurboHTTP.Protocol.Http11;
 /// RFC 9112 compliant HTTP/1.1 response decoder with zero-allocation patterns.
 /// Uses MemoryPool for buffer management to minimize GC pressure.
 /// </summary>
-public sealed class Decoder : IDisposable
+internal sealed class Decoder : IDisposable
 {
     private delegate HttpDecodeResult ParseOneFunc(ReadOnlySpan<byte> buffer, out HttpResponseMessage? response, out int consumed);
 

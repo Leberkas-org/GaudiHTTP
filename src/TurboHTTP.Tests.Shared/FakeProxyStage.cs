@@ -14,7 +14,7 @@ namespace TurboHTTP.Tests.Shared;
 /// response factory, allowing acceptance tests to verify tunneled request/response
 /// flows without a real proxy server.
 /// </summary>
-public sealed class FakeProxyStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
+internal sealed class FakeProxyStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
 {
     private static readonly byte[] ConnectEstablishedBytes =
         Encoding.Latin1.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");

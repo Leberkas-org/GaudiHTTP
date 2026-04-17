@@ -15,7 +15,7 @@ namespace TurboHTTP.Transport.Connection;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
+internal sealed class QuicClientProvider(QuicOptions options) : IClientProvider
 {
     private QuicConnection? _connection;
     private readonly SemaphoreSlim _connectLock = new(1, 1);
@@ -64,10 +64,6 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
     public sealed class EarlyDataRejectedException : Exception
     {
         public EarlyDataRejectedException(string message) : base(message)
-        {
-        }
-
-        public EarlyDataRejectedException(string message, Exception innerException) : base(message, innerException)
         {
         }
     }

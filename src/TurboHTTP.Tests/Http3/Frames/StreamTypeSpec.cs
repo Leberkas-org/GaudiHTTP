@@ -10,7 +10,7 @@ public sealed class StreamTypeSpec
     [InlineData(StreamType.Push, 0x01L)]
     [InlineData(StreamType.QpackEncoder, 0x02L)]
     [InlineData(StreamType.QpackDecoder, 0x03L)]
-    public void StreamType_HasCorrectValue(StreamType type, long expected)
+    internal void StreamType_HasCorrectValue(StreamType type, long expected)
     {
         Assert.Equal(expected, (long)type);
     }

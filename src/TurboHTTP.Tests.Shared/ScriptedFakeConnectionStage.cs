@@ -12,7 +12,7 @@ namespace TurboHTTP.Tests.Shared;
 /// (truncated body, abort, corrupt bytes) via the response factory.
 /// Optionally accepts a BehaviorStack to override the factory and an ActivityLog to record events.
 /// </summary>
-public sealed class ScriptedFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
+internal sealed class ScriptedFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
 {
     private readonly Func<int, byte[], byte[]?> _responseFactory;
     private readonly BehaviorStack<(int Index, byte[] RequestBytes), byte[]?>? _behaviorStack;

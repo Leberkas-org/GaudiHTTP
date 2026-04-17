@@ -9,7 +9,7 @@ namespace TurboHTTP.Protocol.Http2;
 /// Stateful: maintains HPACK encoder and stream ID counter.
 /// One instance per connection.
 /// </summary>
-public sealed class RequestEncoder(bool useHuffman = false, int maxFrameSize = 16384)
+internal sealed class RequestEncoder(bool useHuffman = false, int maxFrameSize = 16384)
 {
     private HpackEncoder _hpack = new(useHuffman);
     private int _maxFrameSize = maxFrameSize;

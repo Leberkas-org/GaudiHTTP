@@ -4,7 +4,7 @@ namespace TurboHTTP.Protocol.Semantics;
 /// Configuration for HTTP retry behavior.
 /// RFC 9110 §9.2 — Idempotency-constrained automatic retry policy.
 /// </summary>
-public sealed record RetryPolicy
+internal sealed record RetryPolicy
 {
     /// <summary>Default retry policy: up to 3 retries, Retry-After respected.</summary>
     public static readonly RetryPolicy Default = new();

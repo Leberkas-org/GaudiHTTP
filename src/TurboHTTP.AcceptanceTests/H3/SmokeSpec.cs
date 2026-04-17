@@ -1,15 +1,11 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H3;
 
 public sealed class SmokeSpec : AcceptanceTestBase
 {
-    private static Http30Engine Engine => new(new Http3Options().ToEngineOptions());
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
     public async Task Basic_get_should_return_200_with_body()
@@ -25,7 +21,7 @@ public sealed class SmokeSpec : AcceptanceTestBase
             .Data("Hello World")
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -49,7 +45,7 @@ public sealed class SmokeSpec : AcceptanceTestBase
             .Data(payload)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -113,7 +109,7 @@ public sealed class SmokeSpec : AcceptanceTestBase
             .Headers(200, [("x-smoke-test", "h3-value"), ("content-length", "0")], endStream: true)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.TryGetValues("X-Smoke-Test", out var values));
@@ -132,7 +128,7 @@ public sealed class SmokeSpec : AcceptanceTestBase
             .Headers(expectedCode, endStream: true)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal((HttpStatusCode)expectedCode, response.StatusCode);
     }

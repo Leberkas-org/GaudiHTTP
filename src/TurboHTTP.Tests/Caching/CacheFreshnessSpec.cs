@@ -40,10 +40,12 @@ public sealed class CacheFreshnessSpec
         }
 
         var actualDate = date ?? _baseTime;
+        var (owner, length) = CacheStore.RentBody([]);
         return new CacheEntry
         {
             Response = response,
-            Body = [],
+            BodyOwner = owner,
+            BodyLength = length,
             RequestTime = requestTime ?? actualDate.AddSeconds(-1),
             ResponseTime = responseTime ?? actualDate,
             Date = actualDate,

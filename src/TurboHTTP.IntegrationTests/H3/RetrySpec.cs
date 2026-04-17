@@ -1,6 +1,5 @@
 using System.Net;
 using TurboHTTP.IntegrationTests.Shared;
-using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.IntegrationTests.H3;
 
@@ -35,7 +34,7 @@ public sealed class RetrySpec : IAsyncLifetime
             _server.HttpsPort,
             new Version(3, 0),
             scheme: "https",
-            configure: builder => builder.WithRetry(new RetryPolicy { MaxRetries = maxRetries }),
+            configure: builder => builder.WithRetry(x => x.MaxRetries = maxRetries),
             system: _systemFixture.System);
     }
 

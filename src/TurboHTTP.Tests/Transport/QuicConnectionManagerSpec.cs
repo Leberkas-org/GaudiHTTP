@@ -1,4 +1,3 @@
-using System.Net;
 using System.Runtime.Versioning;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3;

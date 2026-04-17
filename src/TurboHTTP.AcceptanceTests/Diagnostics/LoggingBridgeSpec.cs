@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TurboHTTP.Diagnostics;
 
-namespace TurboHTTP.Tests.Diagnostics;
+namespace TurboHTTP.AcceptanceTests.Diagnostics;
 
 [CollectionDefinition("Logging", DisableParallelization = true)]
 public sealed class LoggingCollectionDefinition;

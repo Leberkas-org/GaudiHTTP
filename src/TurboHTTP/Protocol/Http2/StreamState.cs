@@ -6,7 +6,7 @@ namespace TurboHTTP.Protocol.Http2;
 /// Per-stream header and body buffer management for HTTP/2.
 /// Extracted from Http20ConnectionStage for independent testability.
 /// </summary>
-public sealed class StreamState
+internal sealed class StreamState
 {
     private readonly MemoryPool<byte> _pool = MemoryPool<byte>.Shared;
 

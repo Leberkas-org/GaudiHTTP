@@ -18,7 +18,7 @@ public readonly record struct QpackEntry(string Name, string Value);
 /// Each entry costs: Name.Length + Value.Length + 32 bytes overhead (RFC 9204 §3.2.1).
 /// When capacity is exceeded, the oldest entries (lowest absolute indices) are evicted.
 /// </summary>
-public sealed class QpackDynamicTable
+internal sealed class QpackDynamicTable
 {
     /// <summary>RFC 9204 §3.2.1 — Per-entry overhead in bytes.</summary>
     public const int EntryOverhead = 32;

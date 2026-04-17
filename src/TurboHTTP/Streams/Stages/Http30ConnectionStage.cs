@@ -6,21 +6,7 @@ using TurboHTTP.Protocol.Http3;
 
 namespace TurboHTTP.Streams.Stages;
 
-/// <summary>
-/// RFC 9114 — Consolidated HTTP/3 connection stage.
-///
-/// Mirrors <see cref="Http20ConnectionStage"/>: a single <see cref="GraphStage{ConnectionShape}"/>
-/// that owns all protocol logic via <see cref="StateMachine"/>. Handles request encoding,
-/// frame decoding, response assembly, QPACK feedback, control stream preface, idle timeout,
-/// and reconnection — replacing the previous 13-stage pipeline.
-///
-/// Ports:
-/// - InServer: raw transport items (frame data + QPACK decoder stream bytes + signals)
-/// - InApp: HTTP requests from the application
-/// - OutResponse: assembled HTTP responses
-/// - OutNetwork: serialized bytes to transport (frames + tagged QPACK/control items)
-/// </summary>
-public sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
+internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 {
     private readonly Inlet<IInputItem> _inServer = new("Http30Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http30Connection.Out.Response");

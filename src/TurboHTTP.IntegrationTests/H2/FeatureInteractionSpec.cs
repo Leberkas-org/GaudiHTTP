@@ -1,8 +1,6 @@
 using System.Net;
 using System.Text.Json;
 using TurboHTTP.IntegrationTests.Shared;
-using TurboHTTP.Protocol.Caching;
-using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.IntegrationTests.H2;
 
@@ -45,7 +43,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithCache(CachePolicy.Default).WithDecompression(),
+            configure: builder => builder.WithCache().WithDecompression(),
             system: _systemFixture.System);
 
         var req1 = new HttpRequestMessage(HttpMethod.Get, "/interaction/cache-gzip");
@@ -69,7 +67,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithRedirect().WithRetry(new RetryPolicy { MaxRetries = 3 }),
+            configure: builder => builder.WithRedirect().WithRetry(x => x.MaxRetries = 3),
             system: _systemFixture.System);
 
         var key = Guid.NewGuid().ToString("N");
@@ -88,7 +86,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithCookies().WithRetry(new RetryPolicy { MaxRetries = 3 }),
+            configure: builder => builder.WithCookies().WithRetry(x => x.MaxRetries = 3),
             system: _systemFixture.System);
 
         var setReq = new HttpRequestMessage(HttpMethod.Get, "/cookie/set/auth-token/abc123");
@@ -115,7 +113,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithCache(CachePolicy.Default).WithCookies(),
+            configure: builder => builder.WithCache().WithCookies(),
             system: _systemFixture.System);
 
         var req1 = new HttpRequestMessage(HttpMethod.Get, "/cache/vary/Accept-Language");
@@ -167,7 +165,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithCache(CachePolicy.Default).WithRetry(new RetryPolicy { MaxRetries = 3 }),
+            configure: builder => builder.WithCache().WithRetry(x => x.MaxRetries = 3),
             system: _systemFixture.System);
 
         var res1 = await helper.Client.SendAsync(

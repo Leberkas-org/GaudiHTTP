@@ -24,7 +24,8 @@ public sealed class CacheInvalidationSpec
         response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=3600");
         response.Headers.Date = _baseTime;
 
-        store.Put(request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
+        var (owner, length) = CacheStore.RentBody([1, 2, 3]);
+        store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
         return store;
     }
 
@@ -120,7 +121,8 @@ public sealed class CacheInvalidationSpec
         var locResponse = new HttpResponseMessage(HttpStatusCode.OK);
         locResponse.Headers.TryAddWithoutValidation("Cache-Control", "max-age=3600");
         locResponse.Headers.Date = _baseTime;
-        store.Put(locRequest, locResponse, [4, 5, 6], _baseTime.AddSeconds(-1), _baseTime);
+        var (locOwner, locLength) = CacheStore.RentBody([4, 5, 6]);
+        store.Put(locRequest, locResponse, locOwner, locLength, _baseTime.AddSeconds(-1), _baseTime);
 
         Assert.NotNull(store.Get(new HttpRequestMessage(HttpMethod.Get, requestUri)));
         Assert.NotNull(store.Get(new HttpRequestMessage(HttpMethod.Get, locationUri)));

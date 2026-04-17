@@ -7,7 +7,7 @@ using TurboHTTP.Streams.Stages.Internal;
 
 namespace TurboHTTP.Streams;
 
-public sealed record Http3EngineOptions(
+internal sealed record Http3EngineOptions(
     int MaxFieldSectionSize,
     int QpackMaxTableCapacity,
     int QpackBlockedStreams,
@@ -18,7 +18,7 @@ public sealed record Http3EngineOptions(
     bool AllowConnectionMigration,
     long MaxBatchWeight);
 
-public sealed class Http30Engine : IHttpProtocolEngine
+internal sealed class Http30Engine : IHttpProtocolEngine
 {
     private readonly Http3EngineOptions _options;
 

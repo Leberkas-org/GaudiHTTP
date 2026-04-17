@@ -1,17 +1,13 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H2;
 
 public sealed class RequestFormatSpec : AcceptanceTestBase
 {
-    private static Http20Engine Engine => new(new Http2Options().ToEngineOptions());
-
     private static byte[] StandardServerFrames(int streamId = 1, string body = "ok") =>
         new H2ResponseBuilder()
             .Settings()
@@ -29,7 +25,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Version = HttpVersion.Version20
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         Assert.Contains(outboundFrames, f => f is SettingsFrame { IsAck: false });
     }
@@ -43,7 +39,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Version = HttpVersion.Version20
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         Assert.Contains(outboundFrames, f => f is SettingsFrame { IsAck: true });
     }
@@ -57,7 +53,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Version = HttpVersion.Version20
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         var headersFrame = outboundFrames.OfType<HeadersFrame>().First();
         var decoder = new HpackDecoder();
@@ -75,7 +71,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Version = HttpVersion.Version20
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         var headersFrame = outboundFrames.OfType<HeadersFrame>().First();
         var decoder = new HpackDecoder();
@@ -93,7 +89,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Version = HttpVersion.Version20
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         var headersFrame = outboundFrames.OfType<HeadersFrame>().First();
         var decoder = new HpackDecoder();
@@ -111,7 +107,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Version = HttpVersion.Version20
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         var headersFrame = outboundFrames.OfType<HeadersFrame>().First();
         var decoder = new HpackDecoder();
@@ -129,7 +125,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Version = HttpVersion.Version20
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         var headersFrame = outboundFrames.OfType<HeadersFrame>().First();
         Assert.True(headersFrame.EndStream, "GET request HEADERS frame must have END_STREAM set");
@@ -146,7 +142,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Content = new StringContent(body, Encoding.UTF8, "text/plain")
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         var headersFrame = outboundFrames.OfType<HeadersFrame>().First();
         Assert.False(headersFrame.EndStream, "POST request HEADERS frame must NOT have END_STREAM");
@@ -166,7 +162,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Content = new StringContent("data", Encoding.UTF8, "text/plain")
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         var headersFrame = outboundFrames.OfType<HeadersFrame>().First();
         var decoder = new HpackDecoder();
@@ -185,7 +181,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         };
         request.Headers.TryAddWithoutValidation("X-Custom", "value");
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         var headersFrame = outboundFrames.OfType<HeadersFrame>().First();
         var decoder = new HpackDecoder();
@@ -218,7 +214,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
             Version = HttpVersion.Version20
         };
 
-        var (_, outboundFrames) = await SendH2EngineAsync(Engine.CreateFlow(), request, StandardServerFrames());
+        var (_, outboundFrames) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, StandardServerFrames());
 
         var headersFrame = outboundFrames.OfType<HeadersFrame>().First();
         Assert.True(headersFrame.StreamId % 2 == 1, "Client-initiated stream IDs must be odd");

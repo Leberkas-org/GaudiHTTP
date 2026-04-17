@@ -1,17 +1,13 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3;
 using TurboHTTP.Protocol.Http3.Qpack;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H3;
 
 public sealed class RequestFormatSpec : AcceptanceTestBase
 {
-    private static Http30Engine Engine => new(new Http3Options().ToEngineOptions());
-
     private static byte[] ControlFrames() =>
         new H3ResponseBuilder().Settings().Build();
 
@@ -31,7 +27,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         };
 
         var (_, outboundFrames) = await SendH3EngineAsync(
-            Engine.CreateFlow(), request, ControlFrames(), ResponseFrames());
+            CreateHttp30Engine().CreateFlow(), request, ControlFrames(), ResponseFrames());
 
         Assert.Contains(outboundFrames, f => f is Http3SettingsFrame);
     }
@@ -46,7 +42,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         };
 
         var (_, outboundFrames) = await SendH3EngineAsync(
-            Engine.CreateFlow(), request, ControlFrames(), ResponseFrames());
+            CreateHttp30Engine().CreateFlow(), request, ControlFrames(), ResponseFrames());
 
         var headersFrame = outboundFrames.OfType<Http3HeadersFrame>().First();
         var decoder = new QpackDecoder();
@@ -65,7 +61,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         };
 
         var (_, outboundFrames) = await SendH3EngineAsync(
-            Engine.CreateFlow(), request, ControlFrames(), ResponseFrames());
+            CreateHttp30Engine().CreateFlow(), request, ControlFrames(), ResponseFrames());
 
         var headersFrame = outboundFrames.OfType<Http3HeadersFrame>().First();
         var decoder = new QpackDecoder();
@@ -84,7 +80,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         };
 
         var (_, outboundFrames) = await SendH3EngineAsync(
-            Engine.CreateFlow(), request, ControlFrames(), ResponseFrames());
+            CreateHttp30Engine().CreateFlow(), request, ControlFrames(), ResponseFrames());
 
         var headersFrame = outboundFrames.OfType<Http3HeadersFrame>().First();
         var decoder = new QpackDecoder();
@@ -103,7 +99,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         };
 
         var (_, outboundFrames) = await SendH3EngineAsync(
-            Engine.CreateFlow(), request, ControlFrames(), ResponseFrames());
+            CreateHttp30Engine().CreateFlow(), request, ControlFrames(), ResponseFrames());
 
         var headersFrame = outboundFrames.OfType<Http3HeadersFrame>().First();
         var decoder = new QpackDecoder();
@@ -124,7 +120,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         };
 
         var (_, outboundFrames) = await SendH3EngineAsync(
-            Engine.CreateFlow(), request, ControlFrames(), ResponseFrames());
+            CreateHttp30Engine().CreateFlow(), request, ControlFrames(), ResponseFrames());
 
         var headersFrame = outboundFrames.OfType<Http3HeadersFrame>().FirstOrDefault();
         Assert.NotNull(headersFrame);
@@ -144,7 +140,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         };
 
         var (_, outboundFrames) = await SendH3EngineAsync(
-            Engine.CreateFlow(), request, ControlFrames(), ResponseFrames());
+            CreateHttp30Engine().CreateFlow(), request, ControlFrames(), ResponseFrames());
 
         var headersFrame = outboundFrames.OfType<Http3HeadersFrame>().First();
         var decoder = new QpackDecoder();
@@ -164,7 +160,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         request.Headers.TryAddWithoutValidation("X-Custom", "value");
 
         var (_, outboundFrames) = await SendH3EngineAsync(
-            Engine.CreateFlow(), request, ControlFrames(), ResponseFrames());
+            CreateHttp30Engine().CreateFlow(), request, ControlFrames(), ResponseFrames());
 
         var headersFrame = outboundFrames.OfType<Http3HeadersFrame>().First();
         var decoder = new QpackDecoder();

@@ -9,7 +9,7 @@ namespace TurboHTTP.Diagnostics;
 /// following the HTTP semantic conventions.
 /// Consumers subscribe via <c>AddMeter("TurboHTTP")</c> in the OTel SDK.
 /// </summary>
-public static class TurboHttpMetrics
+internal static class TurboHttpMetrics
 {
     /// <summary>
     /// The Meter name. Use this value with <c>AddMeter</c> to subscribe.

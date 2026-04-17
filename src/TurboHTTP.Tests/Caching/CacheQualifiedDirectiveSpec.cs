@@ -27,6 +27,13 @@ public sealed class CacheQualifiedDirectiveSpec
         r.Headers.Date = _baseTime;
         return r;
     }
+    
+    private static void Put(CacheStore store, HttpRequestMessage request, HttpResponseMessage response,
+        byte[] body, DateTimeOffset requestTime, DateTimeOffset responseTime)
+    {
+        var (owner, length) = CacheStore.RentBody(body);
+        store.Put(request, response, owner, length, requestTime, responseTime);
+    }
 
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
@@ -38,7 +45,8 @@ public sealed class CacheQualifiedDirectiveSpec
         var response = OkResponseWithCacheControl("max-age=3600, no-cache=\"Set-Cookie\"");
         response.Headers.TryAddWithoutValidation("Set-Cookie", "session=abc123");
 
-        store.Put(request, response, [], _baseTime.AddSeconds(-1), _baseTime);
+        var (owner, length) = CacheStore.RentBody([]);
+        store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
         Assert.NotNull(entry);
@@ -62,7 +70,8 @@ public sealed class CacheQualifiedDirectiveSpec
         response.Headers.TryAddWithoutValidation("X-Other", "val2");
         response.Headers.TryAddWithoutValidation("X-Keep", "val3");
 
-        store.Put(request, response, [], _baseTime.AddSeconds(-1), _baseTime);
+        var (owner, length) = CacheStore.RentBody([]);
+        store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
         Assert.NotNull(entry);
@@ -79,10 +88,12 @@ public sealed class CacheQualifiedDirectiveSpec
         var response = OkResponseWithCacheControl("max-age=3600, no-cache");
         var cc = CacheControlParser.Parse("max-age=3600, no-cache");
 
+        var (bodyOwner1, bodyLength1) = CacheStore.RentBody([]);
         var entry = new CacheEntry
         {
             Response = response,
-            Body = [],
+            BodyOwner = bodyOwner1,
+            BodyLength = bodyLength1,
             RequestTime = _baseTime.AddSeconds(-1),
             ResponseTime = _baseTime,
             Date = _baseTime,
@@ -100,10 +111,12 @@ public sealed class CacheQualifiedDirectiveSpec
         var response = OkResponseWithCacheControl("max-age=3600, no-cache=\"Set-Cookie\"");
         var cc = CacheControlParser.Parse("max-age=3600, no-cache=\"Set-Cookie\"");
 
+        var (bodyOwner2, bodyLength2) = CacheStore.RentBody([]);
         var entry = new CacheEntry
         {
             Response = response,
-            Body = [],
+            BodyOwner = bodyOwner2,
+            BodyLength = bodyLength2,
             RequestTime = _baseTime.AddSeconds(-1),
             ResponseTime = _baseTime,
             Date = _baseTime,
@@ -126,7 +139,8 @@ public sealed class CacheQualifiedDirectiveSpec
         response.Headers.TryAddWithoutValidation("Set-Cookie", "session=abc123");
         response.Headers.TryAddWithoutValidation("X-Keep", "should-remain");
 
-        store.Put(request, response, [], _baseTime.AddSeconds(-1), _baseTime);
+        var (owner, length) = CacheStore.RentBody([]);
+        store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
         Assert.NotNull(entry);
@@ -146,7 +160,8 @@ public sealed class CacheQualifiedDirectiveSpec
         var request = GetRequest();
         var response = OkResponseWithCacheControl("max-age=3600, private");
 
-        store.Put(request, response, [], _baseTime.AddSeconds(-1), _baseTime);
+        var (owner, length) = CacheStore.RentBody([]);
+        store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         // Unqualified private — shared cache must not store at all
         var entry = store.Get(GetRequest());
@@ -162,7 +177,8 @@ public sealed class CacheQualifiedDirectiveSpec
         var request = GetRequest();
         var response = OkResponseWithCacheControl("max-age=3600, private");
 
-        store.Put(request, response, [], _baseTime.AddSeconds(-1), _baseTime);
+        var (owner, length) = CacheStore.RentBody([]);
+        store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         // Private cache can store private responses
         var entry = store.Get(GetRequest());

@@ -7,7 +7,7 @@ namespace TurboHTTP.Protocol.Http2.Hpack;
 /// Encoding strategy for a single header field.
 /// Controls how the encoder serializes a given header.
 /// </summary>
-public enum HpackEncoding
+internal enum HpackEncoding
 {
     /// <summary>
     /// RFC 7541 §6.2.1 – Literal with Incremental Indexing.
@@ -51,7 +51,7 @@ public enum HpackEncoding
 ///     are automatically promoted to NeverIndexed (RFC 7541 §7.1)
 ///   - Huffman encoding is opt-in per Encode() call
 /// </summary>
-public sealed class HpackEncoder
+internal sealed class HpackEncoder
 {
     // RFC 7541 §7.1 – headers that must never be indexed
     private static readonly HashSet<string> SensitiveHeaders = new(StringComparer.OrdinalIgnoreCase)

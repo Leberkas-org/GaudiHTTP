@@ -1,15 +1,11 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H3;
 
 public sealed class ConcurrencySpec : AcceptanceTestBase
 {
-    private static Http30Engine Engine => new(new Http3Options().ToEngineOptions());
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
     public async Task Ten_parallel_gets_should_be_multiplexed_over_quic_streams()
@@ -27,7 +23,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
                 .Data("pong")
                 .Build();
 
-            var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+            var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
             return response;
         }).ToArray();
 
@@ -54,7 +50,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
                 .Data("Hello World")
                 .Build();
 
-            var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+            var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
             return response;
         }).ToArray();
 
@@ -118,7 +114,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
                     .Data((ReadOnlyMemory<byte>)payload)
                     .Build();
 
-                var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+                var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
                 return response;
             }).ToArray();
 
@@ -142,7 +138,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
             .Data(responseBody)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
         return response;
     }
 
@@ -160,7 +156,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
             .Data((ReadOnlyMemory<byte>)payload)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
         return response;
     }
 
@@ -178,7 +174,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
             .Data(body)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
         return response;
     }
 }

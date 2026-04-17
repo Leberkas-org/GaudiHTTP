@@ -384,15 +384,13 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
                 // Check if any existing connection now has capacity
                 foreach (var lease in host.Leases)
                 {
-                    if (lease.CanAcceptStream)
+                    if (!lease.CanAcceptStream) continue;
+                    lease.MarkBusy();
+                    if (next.Tcs.TrySetResult(lease))
                     {
-                        lease.MarkBusy();
-                        if (next.Tcs.TrySetResult(lease))
-                        {
-                            return;
-                        }
-                        lease.MarkIdle(); // cancelled — try next pending
+                        return;
                     }
+                    lease.MarkIdle(); // cancelled — try next pending
                 }
 
                 // Establish new connection if slot available

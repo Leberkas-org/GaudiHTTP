@@ -25,7 +25,7 @@ public enum Http3DecodeStatus
 /// and are returned via <see cref="IDisposable"/> on the frame objects.
 /// Call <see cref="Dispose"/> when the decoder is no longer needed.
 /// </summary>
-public sealed class FrameDecoder : IDisposable
+internal sealed class FrameDecoder : IDisposable
 {
     // MemoryPool-rented buffer holding the partial frame from the previous call.
     // _remainderOwner is null when not rented; _remainderLength tracks actual content.

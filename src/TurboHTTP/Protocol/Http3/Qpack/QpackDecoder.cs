@@ -22,7 +22,7 @@ namespace TurboHTTP.Protocol.Http3.Qpack;
 ///   - Huffman decoding is handled transparently by <see cref="QpackStringCodec"/>
 ///   - Decoder instructions are collected in <see cref="DecoderInstructions"/>
 /// </summary>
-public sealed class QpackDecoder
+internal sealed class QpackDecoder
 {
     private readonly int _maxTableCapacity;
     private readonly int _maxBlockedStreams;

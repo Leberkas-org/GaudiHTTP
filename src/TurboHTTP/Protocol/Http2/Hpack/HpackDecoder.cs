@@ -10,7 +10,7 @@ namespace TurboHTTP.Protocol.Http2.Hpack;
 /// (RFC 7541 §6.2.3). Applies to security-sensitive fields like Authorization,
 /// Cookie, etc.
 /// </summary>
-public readonly record struct HpackHeader(string Name, string Value, bool NeverIndex = false);
+internal readonly record struct HpackHeader(string Name, string Value, bool NeverIndex = false);
 
 /// <summary>
 /// RFC 7541 §4.1 - Dynamic Table.
@@ -20,7 +20,7 @@ public readonly record struct HpackHeader(string Name, string Value, bool NeverI
 /// and cached to avoid repeated <see cref="System.Text.Encoding.UTF8"/> GetByteCount
 /// calls during eviction, header-list-size accounting, and name-reference lookups.
 /// </summary>
-public sealed class HpackDynamicTable
+internal sealed class HpackDynamicTable
 {
     // RFC 7541 §4.2 - Default max size: 4096 bytes
 
@@ -140,7 +140,7 @@ public sealed class HpackDynamicTable
 ///   §6.3  Dynamic Table Size Update (only allowed at the start of a header block)
 ///   §7.1  Security: Never-Indexed semantics preserved through the decode pipeline
 /// </summary>
-public sealed class HpackDecoder
+internal sealed class HpackDecoder
 {
     // RFC 7541 §5.1: Maximum integer value = int.MaxValue (2^31-1 = 2147483647)
     private const int MaxIntegerValue = int.MaxValue;

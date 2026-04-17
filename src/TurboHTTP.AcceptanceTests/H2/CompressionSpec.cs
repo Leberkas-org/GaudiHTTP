@@ -3,7 +3,6 @@ using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
 using TurboHTTP.Internal;
-using TurboHTTP.Streams;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Tests.Shared;
 
@@ -11,13 +10,11 @@ namespace TurboHTTP.AcceptanceTests.H2;
 
 public sealed class CompressionSpec : AcceptanceTestBase
 {
-    private static Http20Engine Engine => new(new Http2Options().ToEngineOptions());
-
     private static BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed>
         CreateDecompressingEngine()
     {
         var decomp = BidiFlow.FromGraph(new ContentEncodingBidiStage());
-        return decomp.Atop(Engine.CreateFlow());
+        return decomp.Atop(CreateHttp20Engine().CreateFlow());
     }
 
     private static byte[] MakePayload(int sizeKb)

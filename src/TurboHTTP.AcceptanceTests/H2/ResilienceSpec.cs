@@ -2,15 +2,12 @@ using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
 using TurboHTTP.Internal;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H2;
 
 public sealed class ResilienceSpec : AcceptanceTestBase
 {
-    private static Http20Engine Engine => new(new Http2Options().ToEngineOptions());
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.1")]
     public async Task Timeout_should_cancel_request_after_deadline()
@@ -25,7 +22,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
             .Build();
 
         var fake = new H2EngineFakeConnectionStage(serverFrames);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp20Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -54,7 +51,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
                 .Data(1, "pong")
                 .Build();
 
-            var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+            var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
     }
@@ -78,7 +75,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
             .Data(1, (ReadOnlyMemory<byte>)largeBody)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -103,7 +100,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
                 .Data(1, "pong")
                 .Build();
 
-            var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+            var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
             return response;
         }).ToArray();
 
@@ -128,7 +125,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
             .Data(1, "Hello World")
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -151,7 +148,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
             .Data(1, "Hello World")
             .Build();
 
-        var (response1, _) = await SendH2EngineAsync(Engine.CreateFlow(), request1, serverFrames1);
+        var (response1, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request1, serverFrames1);
         Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
 
         var request2 = new HttpRequestMessage(HttpMethod.Get, "http://localhost/hello")
@@ -166,7 +163,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
             .Data(1, "Hello World")
             .Build();
 
-        var (response2, _) = await SendH2EngineAsync(Engine.CreateFlow(), request2, serverFrames2);
+        var (response2, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request2, serverFrames2);
         Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
         var body2 = await response2.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello World", body2);
@@ -190,7 +187,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
                 .Data(1, "Hello World")
                 .Build();
 
-            var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+            var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
             return response;
         }).ToArray();
 

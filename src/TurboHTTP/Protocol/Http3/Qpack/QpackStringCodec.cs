@@ -7,7 +7,7 @@ namespace TurboHTTP.Protocol.Http3.Qpack;
 /// Supports both plain (raw) and Huffman-encoded representations.
 /// The high bit of the first byte indicates Huffman encoding (H=1).
 /// </summary>
-public static class QpackStringCodec
+internal static class QpackStringCodec
 {
     /// <summary>
     /// Encodes a string literal using QPACK representation (RFC 9204 §4.1.2).

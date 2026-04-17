@@ -9,35 +9,35 @@ namespace TurboHTTP.Tests.Shared;
 
 public abstract class AcceptanceTestBase : EngineTestBase
 {
-    protected static IHttpProtocolEngine CreateHttp10Engine(Action<Http1Options>? configure = null)
+    internal static IHttpProtocolEngine CreateHttp10Engine(Action<Http1Options>? configure = null)
     {
         var options = new Http1Options();
         configure?.Invoke(options);
         return new Http10Engine(options.ToEngineOptions());
     }
 
-    protected static IHttpProtocolEngine CreateHttp11Engine(Action<Http1Options>? configure = null)
+    internal static IHttpProtocolEngine CreateHttp11Engine(Action<Http1Options>? configure = null)
     {
         var options = new Http1Options();
         configure?.Invoke(options);
         return new Http11Engine(options.ToEngineOptions());
     }
 
-    protected static IHttpProtocolEngine CreateHttp20Engine(Action<Http2Options>? configure = null)
+    internal static IHttpProtocolEngine CreateHttp20Engine(Action<Http2Options>? configure = null)
     {
         var options = new Http2Options();
         configure?.Invoke(options);
         return new Http20Engine(options.ToEngineOptions());
     }
 
-    protected static IHttpProtocolEngine CreateHttp30Engine(Action<Http3Options>? configure = null)
+    internal static IHttpProtocolEngine CreateHttp30Engine(Action<Http3Options>? configure = null)
     {
         var options = new Http3Options();
         configure?.Invoke(options);
         return new Http30Engine(options.ToEngineOptions());
     }
 
-    protected async Task<HttpResponseMessage> SendScriptedAsync(
+    internal async Task<HttpResponseMessage> SendScriptedAsync(
         IHttpProtocolEngine engine,
         HttpRequestMessage request,
         Func<int, byte[], byte[]?> responseFactory)
@@ -53,7 +53,7 @@ public abstract class AcceptanceTestBase : EngineTestBase
         return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
     }
 
-    protected async Task<(HttpResponseMessage Response, string RawRequest)> SendScriptedWithCaptureAsync(
+    internal async Task<(HttpResponseMessage Response, string RawRequest)> SendScriptedWithCaptureAsync(
         IHttpProtocolEngine engine,
         HttpRequestMessage request,
         Func<int, byte[], byte[]?> responseFactory)

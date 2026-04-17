@@ -4,7 +4,7 @@ namespace TurboHTTP.Protocol.Http2;
 /// Tracks HTTP/2 stream lifecycle — ID allocation, active stream count, and concurrency limits.
 /// RFC 9113 §5.1.1: Stream identifiers are odd for client-initiated, incremented by 2.
 /// </summary>
-public sealed class StreamTracker
+internal sealed class StreamTracker
 {
     private readonly HashSet<int> _activeStreamIds = [];
     private int _nextStreamId;

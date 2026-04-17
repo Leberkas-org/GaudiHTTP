@@ -9,7 +9,7 @@ namespace TurboHTTP.Diagnostics;
 /// <see cref="Configure"/> is called once at startup before any worker threads exist,
 /// so the thread-creation happens-before guarantees visibility without barriers.
 /// </summary>
-public static class TurboTrace
+internal static class TurboTrace
 {
     private static TraceConfig? _config;
 

@@ -18,7 +18,7 @@ namespace TurboHTTP.Protocol.Http2;
 /// pipeline never need to copy frame payloads defensively.
 /// </para>
 /// </summary>
-public sealed class FrameDecoder : IDisposable
+internal sealed class FrameDecoder : IDisposable
 {
     // RFC 9113 §4.1: all frames begin with a fixed 9-octet header.
     private const int FrameHeaderSize = 9;

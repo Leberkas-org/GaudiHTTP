@@ -16,7 +16,7 @@ namespace TurboHTTP.Protocol.Http3;
 // Unlike HTTP/2, HTTP/3 frames have no stream identifier in the
 // frame header (QUIC streams provide that) and no flags byte.
 
-public enum FrameType : long
+internal enum FrameType : long
 {
     Data = 0x00,
     Headers = 0x01,
@@ -27,7 +27,7 @@ public enum FrameType : long
     MaxPushId = 0x0d,
 }
 
-public abstract class Http3Frame
+internal abstract class Http3Frame
 {
     public abstract FrameType Type { get; }
 
@@ -78,7 +78,7 @@ public abstract class Http3Frame
 /// DATA frame (RFC 9114 §7.2.1).
 /// Carries request or response body data on a request stream.
 /// </summary>
-public sealed class Http3DataFrame : Http3Frame, IDisposable
+internal sealed class Http3DataFrame : Http3Frame, IDisposable
 {
     private readonly IMemoryOwner<byte>? _owner;
 
@@ -115,7 +115,7 @@ public sealed class Http3DataFrame : Http3Frame, IDisposable
 /// HEADERS frame (RFC 9114 §7.2.2).
 /// Carries a compressed QPACK header block on a request stream.
 /// </summary>
-public sealed class Http3HeadersFrame : Http3Frame, IDisposable
+internal sealed class Http3HeadersFrame : Http3Frame, IDisposable
 {
     private readonly IMemoryOwner<byte>? _owner;
 
@@ -162,7 +162,7 @@ public sealed class Http3HeadersFrame : Http3Frame, IDisposable
 /// Requests cancellation of a server push before the push stream is received.
 /// Sent on the control stream. Payload is a single QUIC variable-length push ID.
 /// </summary>
-public sealed class Http3CancelPushFrame : Http3Frame
+internal sealed class Http3CancelPushFrame : Http3Frame
 {
     public override FrameType Type => FrameType.CancelPush;
     public long PushId { get; }
@@ -196,7 +196,7 @@ public sealed class Http3CancelPushFrame : Http3Frame
 /// Each parameter is an identifier-value pair of QUIC variable-length integers.
 /// Unlike HTTP/2, there is no ACK mechanism — the transport provides reliability.
 /// </summary>
-public sealed class Http3SettingsFrame : Http3Frame
+internal sealed class Http3SettingsFrame : Http3Frame
 {
     public override FrameType Type => FrameType.Settings;
     public IReadOnlyList<(long Identifier, long Value)> Parameters { get; }
@@ -243,7 +243,7 @@ public sealed class Http3SettingsFrame : Http3Frame
 /// PUSH_PROMISE frame (RFC 9114 §7.2.5).
 /// Carries a push ID followed by a compressed QPACK header block on a request stream.
 /// </summary>
-public sealed class Http3PushPromiseFrame : Http3Frame, IDisposable
+internal sealed class Http3PushPromiseFrame : Http3Frame, IDisposable
 {
     private readonly IMemoryOwner<byte>? _owner;
 
@@ -296,7 +296,7 @@ public sealed class Http3PushPromiseFrame : Http3Frame, IDisposable
 /// Initiates graceful shutdown of a connection. Payload is a single QUIC
 /// variable-length integer indicating the stream ID or push ID.
 /// </summary>
-public sealed class Http3GoAwayFrame : Http3Frame
+internal sealed class Http3GoAwayFrame : Http3Frame
 {
     public override FrameType Type => FrameType.GoAway;
     public long StreamId { get; }
@@ -329,7 +329,7 @@ public sealed class Http3GoAwayFrame : Http3Frame
 /// Sent by the client on the control stream to indicate the maximum push ID
 /// the server is permitted to use.
 /// </summary>
-public sealed class Http3MaxPushIdFrame : Http3Frame
+internal sealed class Http3MaxPushIdFrame : Http3Frame
 {
     public override FrameType Type => FrameType.MaxPushId;
     public long PushId { get; }
@@ -361,7 +361,7 @@ public sealed class Http3MaxPushIdFrame : Http3Frame
 /// Well-known HTTP/3 setting identifiers per RFC 9114 §7.2.4.1.
 /// Analogous to HTTP/2's <see cref="Http2.SettingsParameter"/> enum.
 /// </summary>
-public static class Http3SettingsIdentifier
+internal static class Http3SettingsIdentifier
 {
     /// <summary>
     /// SETTINGS_QPACK_MAX_TABLE_CAPACITY (RFC 9204 §5).

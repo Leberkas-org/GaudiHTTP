@@ -8,7 +8,7 @@ namespace TurboHTTP.Transport.Connection;
 /// <summary>
 /// Plain TCP implementation of <see cref="IClientProvider"/>.
 /// </summary>
-public class TcpClientProvider(TcpOptions options) : IClientProvider
+internal class TcpClientProvider(TcpOptions options) : IClientProvider
 {
     private Socket? _socket;
 

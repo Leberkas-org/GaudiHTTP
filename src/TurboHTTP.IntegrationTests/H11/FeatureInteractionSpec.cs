@@ -46,7 +46,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: builder => builder.WithCache(CachePolicy.Default).WithDecompression(),
+            configure: builder => builder.WithCache().WithDecompression(),
             system: _systemFixture.System);
 
         var req1 = new HttpRequestMessage(HttpMethod.Get, "/interaction/cache-gzip");
@@ -70,7 +70,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: builder => builder.WithRedirect().WithRetry(new RetryPolicy { MaxRetries = 3 }),
+            configure: builder => builder.WithRedirect().WithRetry(x => x.MaxRetries = 3),
             system: _systemFixture.System);
 
         var key = Guid.NewGuid().ToString("N");
@@ -91,7 +91,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: builder => builder.WithCookies().WithRetry(new RetryPolicy { MaxRetries = 3 }),
+            configure: builder => builder.WithCookies().WithRetry(x => x.MaxRetries = 3),
             system: _systemFixture.System);
 
         // Step 1: set a cookie via a successful request
@@ -121,7 +121,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: builder => builder.WithCache(CachePolicy.Default).WithCookies(),
+            configure: builder => builder.WithCache().WithCookies(),
             system: _systemFixture.System);
 
         // /cache/vary/Accept-Language returns Vary: Accept-Language + body = vary-Accept-Language:{value}
@@ -177,7 +177,7 @@ public sealed class FeatureInteractionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: builder => builder.WithCache(CachePolicy.Default).WithRetry(new RetryPolicy { MaxRetries = 3 }),
+            configure: builder => builder.WithCache().WithRetry(x => x.MaxRetries = 3),
             system: _systemFixture.System);
 
         // /cache/max-age/3600 returns a timestamp body + Cache-Control: max-age=3600

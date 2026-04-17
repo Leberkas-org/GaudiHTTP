@@ -18,7 +18,7 @@ namespace TurboHTTP.Protocol.Http3;
 ///
 /// These rules apply to both request and response header fields.
 /// </summary>
-public static class FieldValidator
+internal static class FieldValidator
 {
     // RFC 9110 §5.1 token characters (excluding uppercase A-Z which are separately rejected):
     // token = 1*tchar

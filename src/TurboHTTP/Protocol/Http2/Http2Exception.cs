@@ -4,7 +4,7 @@ namespace TurboHTTP.Protocol.Http2;
 /// RFC 9113 §5.4: Distinguishes connection errors (which terminate the entire connection)
 /// from stream errors (which reset only the affected stream via RST_STREAM).
 /// </summary>
-public enum Http2ErrorScope
+internal enum Http2ErrorScope
 {
     /// <summary>
     /// RFC 9113 §5.4.1: A connection error terminates the HTTP/2 connection.
@@ -19,7 +19,7 @@ public enum Http2ErrorScope
     Stream,
 }
 
-public sealed class Http2Exception(
+internal sealed class Http2Exception(
     string message,
     Http2ErrorCode errorCode = Http2ErrorCode.ProtocolError,
     Http2ErrorScope scope = Http2ErrorScope.Connection,

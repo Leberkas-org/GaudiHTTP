@@ -230,7 +230,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
         {
             switch (timerKey)
             {
-                case string key when key == KeepAlivePingTimerKey:
+                case KeepAlivePingTimerKey:
                 {
                     var policy = _stage._options.KeepAlivePingPolicy;
                     if (policy == HttpKeepAlivePingPolicy.WithActiveRequests && !_sm.HasInFlightRequests)
@@ -243,7 +243,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                     ScheduleKeepAlivePingTimeout();
                     break;
                 }
-                case string key when key == KeepAlivePingTimeoutKey:
+                case KeepAlivePingTimeoutKey:
                 {
                     if (_sm.IsKeepAliveTimedOut(_stage._options.KeepAlivePingTimeout))
                     {

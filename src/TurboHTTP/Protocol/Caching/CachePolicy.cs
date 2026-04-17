@@ -3,7 +3,7 @@ namespace TurboHTTP.Protocol.Caching;
 /// <summary>
 /// RFC 9111 §3 — Configuration for the HTTP cache store behaviour.
 /// </summary>
-public sealed record CachePolicy
+internal sealed record CachePolicy
 {
     /// <summary>Default policy: private cache, 1 000 entries, 50 MiB body limit.</summary>
     public static CachePolicy Default { get; } = new();

@@ -2,15 +2,12 @@ using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
 using TurboHTTP.Internal;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H3;
 
 public sealed class ErrorHandlingSpec : AcceptanceTestBase
 {
-    private static Http30Engine Engine => new(new Http3Options().ToEngineOptions());
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
     public async Task Status_4xx_should_be_returned_as_response_400()
@@ -82,7 +79,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Build();
 
         var fake = new H3EngineFakeConnectionStage(controlFrames, responseFrames);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp30Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -111,7 +108,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Data("delayed")
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -130,7 +127,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
         var controlFrames = new H3ResponseBuilder().Settings().Build();
 
         var fake = new H3EngineFakeConnectionStage(controlFrames);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp30Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -156,7 +153,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Build();
 
         var fake = new H3EngineFakeConnectionStage(controlFrames, responseFrames);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp30Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -185,7 +182,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Data("test")
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -204,7 +201,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(200, [("x-unknown-foo", "bar"), ("x-unknown-bar", "baz"), ("content-length", "0")], endStream: true)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.TryGetValues("X-Unknown-Foo", out var fooValues));
@@ -225,7 +222,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
             .Headers(statusCode, endStream: true)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
         Assert.Equal(expected, response.StatusCode);
     }
 }

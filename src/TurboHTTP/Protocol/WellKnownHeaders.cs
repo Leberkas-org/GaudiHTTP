@@ -4,7 +4,7 @@
 /// RFC 9110/9112 well-known header names as UTF-8 byte sequences.
 /// Enables zero-allocation header comparison during parsing.
 /// </summary>
-public static class WellKnownHeaders
+internal static class WellKnownHeaders
 {
 
     /// <summary>RFC 9110 Section 7.2: Host header (mandatory in HTTP/1.1)</summary>

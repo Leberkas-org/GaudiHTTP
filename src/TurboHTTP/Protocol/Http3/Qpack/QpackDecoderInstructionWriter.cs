@@ -8,7 +8,7 @@ namespace TurboHTTP.Protocol.Http3.Qpack;
 ///   - Stream Cancellation (§4.4.2)
 ///   - Insert Count Increment (§4.4.3)
 /// </summary>
-public static class QpackDecoderInstructionWriter
+internal static class QpackDecoderInstructionWriter
 {
     /// <summary>
     /// RFC 9204 §4.4.1 — Section Acknowledgment.

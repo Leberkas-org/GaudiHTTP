@@ -6,7 +6,7 @@ namespace TurboHTTP.Protocol.Http11;
 /// RFC 9112 §9 — Evaluates whether an HTTP connection can be reused after receiving a response.
 /// This is pure protocol logic with no I/O or side effects.
 /// </summary>
-public static class ConnectionReuseEvaluator
+internal static class ConnectionReuseEvaluator
 {
     /// <summary>
     /// Determines whether the underlying TCP connection can be reused after this response.

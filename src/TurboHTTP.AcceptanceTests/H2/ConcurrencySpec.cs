@@ -1,16 +1,12 @@
 using System.Net;
-using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H2;
 
 public sealed class ConcurrencySpec : AcceptanceTestBase
 {
-    private static Http20Engine Engine => new(new Http2Options().ToEngineOptions());
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.1.1")]
     public async Task Ten_parallel_gets_should_be_multiplexed_over_single_connection()
@@ -41,7 +37,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
             .ToList();
 
         var (responses, _) = await SendH2EngineAsyncMany(
-            Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+            CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
         Assert.Equal(count, responses.Count);
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
@@ -77,7 +73,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
             .ToList();
 
         var (responses, _) = await SendH2EngineAsyncMany(
-            Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+            CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
         Assert.Equal(count, responses.Count);
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
@@ -123,7 +119,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
         };
 
         var (responses, _) = await SendH2EngineAsyncMany(
-            Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+            CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
         Assert.Equal(count, responses.Count);
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
@@ -164,7 +160,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
                 .ToList();
 
             var (responses, _) = await SendH2EngineAsyncMany(
-                Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+                CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
             Assert.Equal(count, responses.Count);
             Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
@@ -202,7 +198,7 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
             .ToList();
 
         var (responses, _) = await SendH2EngineAsyncMany(
-            Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+            CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
         Assert.Equal(count, responses.Count);
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));

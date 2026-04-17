@@ -2,7 +2,7 @@ using Akka.Streams;
 
 namespace TurboHTTP.Streams.Stages;
 
-public static class TurboAttributes
+internal static class TurboAttributes
 {
     public sealed class MemoryBuffer : Attributes.IMandatoryAttribute, IEquatable<MemoryBuffer>
     {

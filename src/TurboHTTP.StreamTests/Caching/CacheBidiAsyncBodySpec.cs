@@ -80,7 +80,7 @@ public sealed class CacheBidiAsyncBodySpec : StreamTestBase
 
     [Trait("RFC", "RFC9111-3")]
     [Fact(Timeout = 10_000)]
-    public async Task CacheBidiStage_should_push_response_when_body_is_delayed()
+    public async Task CacheBidiStage_should_push_response_immediately_while_body_read_is_pending()
     {
         var store = new CacheStore();
         var stage = new CacheBidiStage(store);
@@ -94,28 +94,33 @@ public sealed class CacheBidiAsyncBodySpec : StreamTestBase
         response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=3600");
         response.Headers.Date = DateTimeOffset.UtcNow;
 
-        // Start the graph — the stage will initiate ReadAsByteArrayAsync which blocks
         var resultTask = RunResponseAsync(stage, response);
 
-        // Simulate the slow body arriving after a delay
+        // Response should be pushed immediately — don't complete body yet
         await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        // Cache should NOT be populated yet (body still pending)
+        var lookup = new HttpRequestMessage(HttpMethod.Get, "http://example.com/slow");
+        Assert.Null(store.Get(lookup));
+
+        // Complete the body — triggers async PipeTo cache storage
         delayedContent.Complete("slow body data"u8.ToArray());
 
-        // The stage should push the response after the async callback fires
         var results = await resultTask;
         var result = Assert.Single(results);
         Assert.Equal(HttpStatusCode.OK, result.StatusCode);
 
-        // Verify the response was stored in cache
-        var lookup = new HttpRequestMessage(HttpMethod.Get, "http://example.com/slow");
-        var entry = store.Get(lookup);
+        // Allow the PipeTo callback to fire
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        var entry = store.Get(new HttpRequestMessage(HttpMethod.Get, "http://example.com/slow"));
         Assert.NotNull(entry);
-        Assert.Equal("slow body data", System.Text.Encoding.UTF8.GetString(entry.Body));
+        Assert.Equal("slow body data", System.Text.Encoding.UTF8.GetString(entry.Body.Span));
     }
 
     [Trait("RFC", "RFC9111-3")]
     [Fact(Timeout = 10_000)]
-    public async Task CacheBidiStage_should_not_complete_while_async_body_read_in_progress()
+    public async Task CacheBidiStage_should_store_in_cache_after_async_body_completes()
     {
         var store = new CacheStore();
         var stage = new CacheBidiStage(store);
@@ -129,28 +134,20 @@ public sealed class CacheBidiAsyncBodySpec : StreamTestBase
         response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=3600");
         response.Headers.Date = DateTimeOffset.UtcNow;
 
-        // Start the graph — the source will complete upstream immediately after pushing
-        // the single response, but the stage must NOT complete its outlet while the
-        // async body read is pending.
         var resultTask = RunResponseAsync(stage, response);
 
-        // Give the graph time to process the push and upstream completion
-        await Task.Delay(500, TestContext.Current.CancellationToken);
-
-        // The result task should NOT be completed yet — async read is still pending
-        Assert.False(resultTask.IsCompleted, "Stage completed prematurely while async body read was in progress");
-
-        // Now complete the body read
+        // Complete the body
         delayedContent.Complete("pending body"u8.ToArray());
 
-        // The stage should now push the response and complete
         var results = await resultTask;
         var result = Assert.Single(results);
         Assert.Equal(HttpStatusCode.OK, result.StatusCode);
 
-        // Verify cache storage
-        var lookup = new HttpRequestMessage(HttpMethod.Get, "http://example.com/pending");
-        var entry = store.Get(lookup);
+        // Allow the PipeTo callback to fire
+        await Task.Delay(200, TestContext.Current.CancellationToken);
+
+        var entry = store.Get(new HttpRequestMessage(HttpMethod.Get, "http://example.com/pending"));
         Assert.NotNull(entry);
+        Assert.Equal("pending body", System.Text.Encoding.UTF8.GetString(entry.Body.Span));
     }
 }

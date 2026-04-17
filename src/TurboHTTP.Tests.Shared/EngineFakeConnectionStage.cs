@@ -12,7 +12,7 @@ namespace TurboHTTP.Tests.Shared;
 /// <remarks>
 /// Exposes <see cref="EngineFakeConnectionStage.OutboundChannel"/> so tests can inspect the raw bytes sent by the encoder.
 /// </remarks>
-public sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
+internal sealed class EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
 {
     private readonly Func<byte[]> _responseFactory;
 

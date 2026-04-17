@@ -1,16 +1,12 @@
 using System.Net;
-using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H2;
 
 public sealed class MaxConcurrentStreamsSpec : AcceptanceTestBase
 {
-    private static Http20Engine Engine => new(new Http2Options().ToEngineOptions());
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.1.2")]
     public async Task Five_concurrent_requests_should_complete_with_limiter_active()
@@ -41,7 +37,7 @@ public sealed class MaxConcurrentStreamsSpec : AcceptanceTestBase
             .ToList();
 
         var (responses, _) = await SendH2EngineAsyncMany(
-            Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+            CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
         Assert.Equal(count, responses.Count);
         foreach (var response in responses)
@@ -68,7 +64,7 @@ public sealed class MaxConcurrentStreamsSpec : AcceptanceTestBase
                 .Data(1, "Hello World")
                 .Build();
 
-            var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+            var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             Assert.Equal("Hello World", body);
@@ -105,7 +101,7 @@ public sealed class MaxConcurrentStreamsSpec : AcceptanceTestBase
             .ToList();
 
         var (responses, _) = await SendH2EngineAsyncMany(
-            Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+            CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
         Assert.Equal(count, responses.Count);
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
@@ -141,7 +137,7 @@ public sealed class MaxConcurrentStreamsSpec : AcceptanceTestBase
             .ToList();
 
         var (responses, _) = await SendH2EngineAsyncMany(
-            Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+            CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
         Assert.Equal(count, responses.Count);
         foreach (var response in responses)
@@ -183,7 +179,7 @@ public sealed class MaxConcurrentStreamsSpec : AcceptanceTestBase
             .ToList();
 
         var (responses, _) = await SendH2EngineAsyncMany(
-            Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+            CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
         Assert.Equal(count, responses.Count);
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));

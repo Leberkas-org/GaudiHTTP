@@ -23,7 +23,7 @@ public sealed class ErrorCodeSpec
     [InlineData(Http3ErrorCode.MessageError, 0x10eu)]
     [InlineData(Http3ErrorCode.ConnectError, 0x10fu)]
     [InlineData(Http3ErrorCode.VersionFallback, 0x110u)]
-    public void ErrorCode_HasCorrectValue(Http3ErrorCode code, uint expected)
+    internal void ErrorCode_HasCorrectValue(Http3ErrorCode code, uint expected)
     {
         Assert.Equal(expected, (uint)code);
     }

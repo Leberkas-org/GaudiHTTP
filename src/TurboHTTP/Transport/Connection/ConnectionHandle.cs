@@ -8,7 +8,7 @@ namespace TurboHTTP.Transport.Connection;
 /// Bundles the Channel read/write handles for a single TCP connection,
 /// allowing ConnectionStage to get direct access to TCP I/O without actor messages.
 /// </summary>
-public sealed record ConnectionHandle(
+internal sealed record ConnectionHandle(
     ChannelWriter<NetworkBuffer> OutboundWriter,
     ChannelReader<NetworkBuffer> InboundReader,
     RequestEndpoint Key,

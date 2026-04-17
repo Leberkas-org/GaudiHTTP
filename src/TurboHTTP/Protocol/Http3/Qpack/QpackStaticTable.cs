@@ -7,7 +7,7 @@ namespace TurboHTTP.Protocol.Http3.Qpack;
 /// 99 predefined header entries at indices 0-98.
 /// Unlike HPACK, QPACK uses 0-based indexing.
 /// </summary>
-public static class QpackStaticTable
+internal static class QpackStaticTable
 {
     public const int Count = 99;
 

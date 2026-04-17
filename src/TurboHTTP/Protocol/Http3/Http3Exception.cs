@@ -5,7 +5,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// Carries the appropriate <see cref="Http3ErrorCode"/> so the transport
 /// layer can close the connection with the correct error code.
 /// </summary>
-public sealed class Http3Exception : TurboProtocolException
+internal sealed class Http3Exception : TurboProtocolException
 {
     public Http3ErrorCode ErrorCode { get; }
 

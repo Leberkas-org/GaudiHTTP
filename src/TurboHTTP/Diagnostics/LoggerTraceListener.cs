@@ -7,7 +7,7 @@ namespace TurboHTTP.Diagnostics;
 /// creating one <see cref="ILogger"/> per <see cref="TurboTraceCategory"/>.
 /// Logger names follow the pattern <c>TurboHttp.Trace.{Category}</c>.
 /// </summary>
-public sealed class LoggerTraceListener : ITurboTraceListener
+internal sealed class LoggerTraceListener : ITurboTraceListener
 {
     private readonly Dictionary<TurboTraceCategory, ILogger> _loggers;
     private readonly TurboTraceCategory _enabledCategories;

@@ -1,17 +1,13 @@
 using System.Net;
 using System.Text;
-using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H2;
 
 public sealed class ConnectionSpec : AcceptanceTestBase
 {
-    private static Http20Engine Engine => new(new Http2Options().ToEngineOptions());
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.1")]
     public async Task Sequential_requests_should_reuse_same_connection()
@@ -28,7 +24,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
             .Data(1, "Hello World")
             .Build();
 
-        var (response1, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response1, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
         var body1 = await response1.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -40,7 +36,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
             Version = HttpVersion.Version20
         };
 
-        var (response2, _) = await SendH2EngineAsync(Engine.CreateFlow(), request2, serverFrames);
+        var (response2, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request2, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
         var body2 = await response2.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -77,7 +73,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
         }
 
         var (responses, _) = await SendH2EngineAsyncMany(
-            Engine.CreateFlow(), requests, count, frameBuffers.ToArray());
+            CreateHttp20Engine().CreateFlow(), requests, count, frameBuffers.ToArray());
 
         Assert.Equal(count, responses.Count);
         foreach (var response in responses)
@@ -111,7 +107,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
             .Data(1, (ReadOnlyMemory<byte>)payload)
             .Build();
 
-        var (response, _) = await SendH2EngineAsync(Engine.CreateFlow(), request, serverFrames);
+        var (response, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request, serverFrames);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -135,7 +131,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
             .Data(1, "Hello World")
             .Build();
 
-        var (response1, _) = await SendH2EngineAsync(Engine.CreateFlow(), request1, serverFrames1);
+        var (response1, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request1, serverFrames1);
         Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
         Assert.Equal("Hello World", await response1.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
 
@@ -150,6 +146,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
         {
             manyHeaders.Add(($"x-custom-{i:D3}", $"value-{i:D3}"));
         }
+
         manyHeaders.Add(("content-length", "12"));
 
         var serverFrames2 = new H2ResponseBuilder()
@@ -159,7 +156,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
             .Data(1, "many-headers")
             .Build();
 
-        var (response2, _) = await SendH2EngineAsync(Engine.CreateFlow(), request2, serverFrames2);
+        var (response2, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request2, serverFrames2);
         Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
         Assert.True(response2.Headers.TryGetValues("X-Custom-000", out _));
 
@@ -179,7 +176,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
             .Data(1, (ReadOnlyMemory<byte>)largeBody)
             .Build();
 
-        var (response3, _) = await SendH2EngineAsync(Engine.CreateFlow(), request3, serverFrames3);
+        var (response3, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), request3, serverFrames3);
         Assert.Equal(HttpStatusCode.OK, response3.StatusCode);
         var largeResponseBody = await response3.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(8 * 1024, largeResponseBody.Length);
@@ -203,7 +200,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
             .Data(1, (ReadOnlyMemory<byte>)postPayload)
             .Build();
 
-        var (postResponse, _) = await SendH2EngineAsync(Engine.CreateFlow(), postRequest, postFrames);
+        var (postResponse, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), postRequest, postFrames);
         Assert.Equal(HttpStatusCode.OK, postResponse.StatusCode);
         var postBody = await postResponse.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(postPayload, postBody);
@@ -221,7 +218,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
             .Data(1, getPath)
             .Build();
 
-        var (getResponse, _) = await SendH2EngineAsync(Engine.CreateFlow(), getRequest, getFrames);
+        var (getResponse, _) = await SendH2EngineAsync(CreateHttp20Engine().CreateFlow(), getRequest, getFrames);
         Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
         var getBody = await getResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(getPath, getBody);

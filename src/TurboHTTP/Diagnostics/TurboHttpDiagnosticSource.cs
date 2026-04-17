@@ -18,7 +18,7 @@ namespace TurboHTTP.Diagnostics;
 /// </list>
 /// </para>
 /// </summary>
-public static class TurboHttpDiagnosticSource
+internal static class TurboHttpDiagnosticSource
 {
     /// <summary>
     /// The <see cref="DiagnosticListener"/> name. Subscribe with

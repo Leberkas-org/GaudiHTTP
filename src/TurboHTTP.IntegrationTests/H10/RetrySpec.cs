@@ -22,7 +22,7 @@ public sealed class RetrySpec
         return ClientHelper.CreateClient(
             _server.H1Port,
             new Version(1, 0),
-            configure: builder => builder.WithRetry(new RetryPolicy { MaxRetries = maxRetries }),
+            configure: builder => builder.WithRetry(x => x.MaxRetries = maxRetries),
             system: _systemFixture.System);
     }
 

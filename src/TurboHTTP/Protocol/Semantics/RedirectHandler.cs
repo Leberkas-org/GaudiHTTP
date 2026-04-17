@@ -10,7 +10,7 @@ namespace TurboHTTP.Protocol.Semantics;
 /// including method rewriting, body preservation, loop detection,
 /// max-redirect enforcement, and cross-origin security rules.
 /// </summary>
-public sealed class RedirectHandler
+internal sealed class RedirectHandler
 {
     private readonly RedirectPolicy _policy;
     private readonly HashSet<string> _visitedUris;

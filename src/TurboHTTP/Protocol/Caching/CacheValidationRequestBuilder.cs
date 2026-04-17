@@ -5,14 +5,14 @@ namespace TurboHTTP.Protocol.Caching;
 /// <summary>
 /// RFC 9111 §4.3 — Builds conditional revalidation requests and merges 304 responses.
 /// </summary>
-public static class CacheValidationRequestBuilder
+internal static class CacheValidationRequestBuilder
 {
     /// <summary>
     /// RFC 9111 §4.3.1 — Creates a conditional request from the original request by adding
     /// If-None-Match (from ETag) and/or If-Modified-Since (from Last-Modified) headers.
     /// The returned request shares the same URI, method, version, and content as the original.
     /// </summary>
-    public static HttpRequestMessage BuildConditionalRequest(HttpRequestMessage original, CacheEntry entry)
+    public static HttpRequestMessage BuildConditionalRequest(HttpRequestMessage original, ICacheEntry entry)
     {
         var conditional = new HttpRequestMessage(original.Method, original.RequestUri)
         {
@@ -53,13 +53,13 @@ public static class CacheValidationRequestBuilder
     /// Headers present in the 304 response override those in the cached entry.
     /// </summary>
     public static HttpResponseMessage MergeNotModifiedResponse(HttpResponseMessage notModifiedResponse,
-        CacheEntry cachedEntry)
+        ICacheEntry cachedEntry)
     {
         // RFC 9111 §4.3.4: construct a new 200 response using stored headers + body
         var merged = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Version = cachedEntry.Response.Version,
-            Content = new ByteArrayContent(cachedEntry.Body)
+            Content = new CachedBodyContent(cachedEntry.Body)
         };
 
         // Copy cached response headers as baseline

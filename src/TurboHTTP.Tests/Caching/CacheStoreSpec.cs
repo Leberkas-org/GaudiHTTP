@@ -17,6 +17,13 @@ public sealed class CacheStoreSpec
     private static readonly DateTimeOffset _baseTime = new(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
 
+    private static void Put(CacheStore store, HttpRequestMessage request, HttpResponseMessage response,
+        byte[] body, DateTimeOffset requestTime, DateTimeOffset responseTime)
+    {
+        var (owner, length) = CacheStore.RentBody(body);
+        store.Put(request, response, owner, length, requestTime, responseTime);
+    }
+
     private static HttpRequestMessage GetRequest(string uri = "http://example.com/resource")
         => new(HttpMethod.Get, uri);
 
@@ -115,11 +122,11 @@ public sealed class CacheStoreSpec
         var response = OkResponse();
         var body = new byte[] { 1, 2, 3 };
 
-        store.Put(request, response, body, _baseTime.AddSeconds(-1), _baseTime);
+        Put(store, request, response, body, _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource"));
         Assert.NotNull(entry);
-        Assert.Equal(body, entry.Body);
+        Assert.True(entry.Body.Span.SequenceEqual(body));
     }
 
     [Trait("RFC", "RFC9111-4.4")]
@@ -128,7 +135,7 @@ public sealed class CacheStoreSpec
     {
         var store = new CacheStore();
         var request = GetRequest();
-        store.Put(request, OkResponse(), [], _baseTime.AddSeconds(-1), _baseTime);
+        Put(store, request, OkResponse(), [], _baseTime.AddSeconds(-1), _baseTime);
 
         store.Invalidate(new Uri("http://example.com/resource"));
 
@@ -148,7 +155,7 @@ public sealed class CacheStoreSpec
         var response = OkResponse();
         response.Headers.TryAddWithoutValidation("Vary", "Accept");
 
-        store.Put(request1, response, [], _baseTime.AddSeconds(-1), _baseTime);
+        Put(store, request1, response, [], _baseTime.AddSeconds(-1), _baseTime);
 
         var request2 = GetRequest();
         request2.Headers.TryAddWithoutValidation("Accept", "text/html");
@@ -168,7 +175,7 @@ public sealed class CacheStoreSpec
         var response = OkResponse();
         response.Headers.TryAddWithoutValidation("Vary", "Accept");
 
-        store.Put(request1, response, [42], _baseTime.AddSeconds(-1), _baseTime);
+        Put(store, request1, response, [42], _baseTime.AddSeconds(-1), _baseTime);
 
         var request2 = GetRequest();
         request2.Headers.TryAddWithoutValidation("Accept", "application/json");
@@ -186,7 +193,7 @@ public sealed class CacheStoreSpec
         var response = OkResponse();
         response.Headers.TryAddWithoutValidation("Vary", "*");
 
-        store.Put(GetRequest(), response, [], _baseTime.AddSeconds(-1), _baseTime);
+        Put(store, GetRequest(), response, [], _baseTime.AddSeconds(-1), _baseTime);
 
         Assert.Null(store.Get(GetRequest()));
     }
@@ -278,7 +285,7 @@ public sealed class CacheStoreSpec
         response.TrailingHeaders.TryAddWithoutValidation("Checksum", "abc123");
         response.TrailingHeaders.TryAddWithoutValidation("Signature", "xyz789");
 
-        store.Put(request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
+        Put(store, request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
         Assert.NotNull(entry);
@@ -306,7 +313,7 @@ public sealed class CacheStoreSpec
         response.Headers.TryAddWithoutValidation("Connection", "keep-alive");
         response.Headers.TryAddWithoutValidation("Keep-Alive", "timeout=5");
 
-        store.Put(request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
+        Put(store, request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
         Assert.NotNull(entry);
@@ -332,7 +339,7 @@ public sealed class CacheStoreSpec
         var response = OkResponse();
         response.Headers.TryAddWithoutValidation(headerName, "some-value");
 
-        store.Put(request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
+        Put(store, request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
         Assert.NotNull(entry);
@@ -352,7 +359,7 @@ public sealed class CacheStoreSpec
         // Also add a connection-specific header to ensure it's stripped while custom headers survive
         response.Headers.TryAddWithoutValidation("Keep-Alive", "timeout=5");
 
-        store.Put(request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
+        Put(store, request, response, [1, 2, 3], _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
         Assert.NotNull(entry);
@@ -376,7 +383,7 @@ public sealed class CacheStoreSpec
         for (var i = 0; i < 3; i++)
         {
             var req = new HttpRequestMessage(HttpMethod.Get, $"http://example.com/r{i}");
-            store.Put(req, OkResponse(), [], _baseTime.AddSeconds(-1), _baseTime);
+            Put(store, req, OkResponse(), [], _baseTime.AddSeconds(-1), _baseTime);
         }
 
         // Store should have at most 2 entries

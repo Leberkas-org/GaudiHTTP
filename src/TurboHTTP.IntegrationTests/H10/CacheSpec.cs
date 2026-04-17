@@ -22,7 +22,12 @@ public sealed class CacheSpec
         return ClientHelper.CreateClient(
             _server.H1Port,
             new Version(1, 0),
-            configure: builder => builder.WithCache(store, policy),
+            configure: builder => builder.WithCache(store, x =>
+            {
+                x.SharedCache = policy?.SharedCache ?? false;
+                x.MaxEntries = policy?.MaxEntries ?? 1000;
+                x.MaxBodyBytes = policy?.MaxBodyBytes ?? 52_428_800;
+            }),
             system: _systemFixture.System);
     }
 

@@ -6,7 +6,7 @@ using TurboHTTP.Protocol.Http11;
 
 namespace TurboHTTP.Streams.Stages;
 
-public sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
+internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 {
     private readonly Inlet<IInputItem> _inServer = new("Http11Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http11Connection.Out.Response");

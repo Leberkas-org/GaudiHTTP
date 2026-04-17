@@ -6,7 +6,7 @@ using TurboHTTP.Protocol.Http10;
 
 namespace TurboHTTP.Streams.Stages;
 
-public sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
+internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
 {
     private readonly Inlet<IInputItem> _inServer = new("Http10Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http10Connection.Out.Response");

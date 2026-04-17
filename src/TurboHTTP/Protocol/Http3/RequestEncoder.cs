@@ -15,7 +15,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// Delegates QPACK encoding to the <see cref="QpackTableSync"/>-owned encoder.
 /// One instance per connection.
 /// </summary>
-public sealed class RequestEncoder
+internal sealed class RequestEncoder
 {
     // Tracks MemoryPool rentals from the previous Encode() call so they can be
     // disposed once the caller has consumed the frame list (contract: callers consume

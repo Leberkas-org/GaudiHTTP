@@ -14,7 +14,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// These checks protect against request smuggling where an intermediary might
 /// forward requests that a downstream HTTP/3 server interprets differently.
 /// </summary>
-public static class OriginValidator
+internal static class OriginValidator
 {
     /// <summary>
     /// Validates that a request URI does not target a prohibited origin.
@@ -40,7 +40,7 @@ public static class OriginValidator
     /// HTTP/3 pseudo-header :authority MUST NOT contain userinfo.
     /// An intermediary forwarding such a request would leak credentials.
     /// </summary>
-    internal static void ValidateNoUserInfo(Uri uri)
+    private static void ValidateNoUserInfo(Uri uri)
     {
         if (!string.IsNullOrEmpty(uri.UserInfo))
         {
@@ -53,7 +53,7 @@ public static class OriginValidator
     /// RFC 9114 §10.3: Reject requests with empty or missing scheme.
     /// HTTP/3 requires the :scheme pseudo-header for non-CONNECT requests.
     /// </summary>
-    internal static void ValidateScheme(Uri uri)
+    private static void ValidateScheme(Uri uri)
     {
         if (string.IsNullOrEmpty(uri.Scheme))
         {
@@ -67,7 +67,7 @@ public static class OriginValidator
     /// HTTP/3 requires the :path pseudo-header to be non-empty for non-CONNECT requests.
     /// Also rejects paths containing fragment identifiers (RFC 9110 §7.1).
     /// </summary>
-    internal static void ValidatePath(Uri uri)
+    private static void ValidatePath(Uri uri)
     {
         var path = uri.AbsolutePath;
 

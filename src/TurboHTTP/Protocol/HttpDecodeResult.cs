@@ -1,6 +1,6 @@
 namespace TurboHTTP.Protocol;
 
-public readonly struct HttpDecodeResult
+internal readonly struct HttpDecodeResult
 {
     public bool Success { get; }
     public HttpDecoderError? Error { get; }

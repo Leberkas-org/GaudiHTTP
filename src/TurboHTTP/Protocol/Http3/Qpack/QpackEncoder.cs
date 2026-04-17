@@ -22,7 +22,7 @@ namespace TurboHTTP.Protocol.Http3.Qpack;
 ///   - Huffman encoding auto-selects shorter representation (RFC 9204 §4.1.2)
 ///   - Sensitive headers (Authorization, Cookie, etc.) are automatically NEVERINDEX
 /// </summary>
-public sealed class QpackEncoder
+internal sealed class QpackEncoder
 {
     /// <summary>
     /// RFC 9204 §7.1 — Headers that MUST NOT be indexed by any intermediary.

@@ -6,7 +6,7 @@ namespace TurboHTTP.Transport.Connection;
 /// Abstracts a raw TCP or TLS connection so that <see cref="ClientState"/> is independent
 /// of the underlying transport.
 /// </summary>
-public interface IClientProvider : IAsyncDisposable
+internal interface IClientProvider : IAsyncDisposable
 {
     /// <summary>Gets the remote endpoint the socket is connected to, or <see langword="null"/> if not yet connected.</summary>
     EndPoint? RemoteEndPoint { get; }

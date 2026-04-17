@@ -1,13 +1,10 @@
 using System.Net;
-using TurboHTTP.Internal;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H3;
 
 public sealed class MaxStreamConcurrencySpec : AcceptanceTestBase
 {
-    private static Http30Engine Engine => new(new Http3Options().ToEngineOptions());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-6.1")]
@@ -26,7 +23,7 @@ public sealed class MaxStreamConcurrencySpec : AcceptanceTestBase
                 .Data("delayed")
                 .Build();
 
-            var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+            var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
             return response;
         }).ToArray();
 
@@ -56,7 +53,7 @@ public sealed class MaxStreamConcurrencySpec : AcceptanceTestBase
                 .Data("Hello World")
                 .Build();
 
-            var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+            var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
             Assert.Equal("Hello World", body);
@@ -80,7 +77,7 @@ public sealed class MaxStreamConcurrencySpec : AcceptanceTestBase
                 .Data("pong")
                 .Build();
 
-            var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+            var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
             return response;
         }).ToArray();
 
@@ -107,7 +104,7 @@ public sealed class MaxStreamConcurrencySpec : AcceptanceTestBase
                 .Data("delayed")
                 .Build();
 
-            var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+            var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
             return response;
         }).ToArray();
 
@@ -154,7 +151,7 @@ public sealed class MaxStreamConcurrencySpec : AcceptanceTestBase
             .Data(responseBody)
             .Build();
 
-        var (response, _) = await SendH3EngineAsync(Engine.CreateFlow(), request, controlFrames, responseFrames);
+        var (response, _) = await SendH3EngineAsync(CreateHttp30Engine().CreateFlow(), request, controlFrames, responseFrames);
         return response;
     }
 }

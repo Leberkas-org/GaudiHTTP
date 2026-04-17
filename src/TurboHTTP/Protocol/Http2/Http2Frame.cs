@@ -15,7 +15,7 @@ namespace TurboHTTP.Protocol.Http2;
 //   +=+=============================================================+
 //   |                   Frame Payload (0...)                        |
 //   +---------------------------------------------------------------+
-public enum FrameType : byte
+internal enum FrameType : byte
 {
     Data = 0x0,
     Headers = 0x1,
@@ -30,7 +30,7 @@ public enum FrameType : byte
 }
 
 [Flags]
-public enum DataFlags : byte
+internal enum DataFlags : byte
 {
     None = 0x0,
     EndStream = 0x1,
@@ -38,7 +38,7 @@ public enum DataFlags : byte
 }
 
 [Flags]
-public enum Headers : byte
+internal enum Headers : byte
 {
     None = 0x0,
     EndStream = 0x1,
@@ -48,27 +48,27 @@ public enum Headers : byte
 }
 
 [Flags]
-public enum Settings : byte
+internal enum Settings : byte
 {
     None = 0x0,
     Ack = 0x1,
 }
 
 [Flags]
-public enum PingFlags : byte
+internal enum PingFlags : byte
 {
     None = 0x0,
     Ack = 0x1,
 }
 
 [Flags]
-public enum ContinuationFlags : byte
+internal enum ContinuationFlags : byte
 {
     None = 0x0,
     EndHeaders = 0x4,
 }
 
-public enum SettingsParameter : ushort
+internal enum SettingsParameter : ushort
 {
     HeaderTableSize = 0x1,
     EnablePush = 0x2,
@@ -78,7 +78,7 @@ public enum SettingsParameter : ushort
     MaxHeaderListSize = 0x6,
 }
 
-public enum Http2ErrorCode : uint
+internal enum Http2ErrorCode : uint
 {
     NoError = 0x0,
     ProtocolError = 0x1,
@@ -96,11 +96,12 @@ public enum Http2ErrorCode : uint
     Http11Required = 0xd,
 }
 
-public abstract class Http2Frame(int streamId)
+internal abstract class Http2Frame(int streamId)
 {
     public int StreamId { get; } = streamId >= 0
         ? streamId
         : throw new ArgumentOutOfRangeException(nameof(streamId), streamId, "Stream ID must be non-negative.");
+
     public abstract FrameType Type { get; }
 
     public abstract int SerializedSize { get; }
@@ -128,7 +129,7 @@ public abstract class Http2Frame(int streamId)
     protected const int FrameHeaderSize = 9;
 }
 
-public sealed class DataFrame : Http2Frame
+internal sealed class DataFrame : Http2Frame
 {
     public override FrameType Type => FrameType.Data;
     public ReadOnlyMemory<byte> Data { get; }
@@ -166,7 +167,7 @@ public sealed class DataFrame : Http2Frame
     }
 }
 
-public sealed class HeadersFrame : Http2Frame
+internal sealed class HeadersFrame : Http2Frame
 {
     public override FrameType Type => FrameType.Headers;
     public ReadOnlyMemory<byte> HeaderBlockFragment { get; }
@@ -204,7 +205,7 @@ public sealed class HeadersFrame : Http2Frame
     }
 }
 
-public sealed class ContinuationFrame : Http2Frame
+internal sealed class ContinuationFrame : Http2Frame
 {
     public override FrameType Type => FrameType.Continuation;
     public ReadOnlyMemory<byte> HeaderBlockFragment { get; }
@@ -229,7 +230,7 @@ public sealed class ContinuationFrame : Http2Frame
     }
 }
 
-public sealed class RstStreamFrame : Http2Frame
+internal sealed class RstStreamFrame : Http2Frame
 {
     public override FrameType Type => FrameType.RstStream;
     public Http2ErrorCode ErrorCode { get; }
@@ -249,7 +250,7 @@ public sealed class RstStreamFrame : Http2Frame
     }
 }
 
-public sealed class SettingsFrame : Http2Frame
+internal sealed class SettingsFrame : Http2Frame
 {
     public override FrameType Type => FrameType.Settings;
     public IReadOnlyList<(SettingsParameter, uint)> Parameters { get; }
@@ -289,7 +290,7 @@ public sealed class SettingsFrame : Http2Frame
     }
 }
 
-public sealed class PingFrame : Http2Frame
+internal sealed class PingFrame : Http2Frame
 {
     public override FrameType Type => FrameType.Ping;
     public ReadOnlyMemory<byte> Data { get; }
@@ -319,7 +320,7 @@ public sealed class PingFrame : Http2Frame
     }
 }
 
-public sealed class GoAwayFrame : Http2Frame
+internal sealed class GoAwayFrame : Http2Frame
 {
     public override FrameType Type => FrameType.GoAway;
     public int LastStreamId { get; }
@@ -354,7 +355,7 @@ public sealed class GoAwayFrame : Http2Frame
     }
 }
 
-public sealed class WindowUpdateFrame : Http2Frame
+internal sealed class WindowUpdateFrame : Http2Frame
 {
     public override FrameType Type => FrameType.WindowUpdate;
     public int Increment { get; }
@@ -386,7 +387,7 @@ public sealed class WindowUpdateFrame : Http2Frame
 /// RFC 9113 §5.5: Unknown frame types MUST be ignored.
 /// Preserved in the decoded output so callers can inspect or discard as needed.
 /// </summary>
-public sealed class UnknownFrame : Http2Frame
+internal sealed class UnknownFrame : Http2Frame
 {
     public byte RawType { get; }
     public override FrameType Type => (FrameType)RawType;
@@ -410,7 +411,7 @@ public sealed class UnknownFrame : Http2Frame
     }
 }
 
-public sealed class PushPromiseFrame : Http2Frame
+internal sealed class PushPromiseFrame : Http2Frame
 {
     public override FrameType Type => FrameType.PushPromise;
     public int PromisedStreamId { get; }

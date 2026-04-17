@@ -19,10 +19,13 @@ public sealed class CacheValidationSpec
 
     private static CacheEntry MakeEntry(string? etag = null, DateTimeOffset? lastModified = null)
     {
+        var bodyBytes = System.Text.Encoding.UTF8.GetBytes("cached body");
+        var (owner, length) = CacheStore.RentBody(bodyBytes);
         return new CacheEntry
         {
             Response = new HttpResponseMessage(HttpStatusCode.OK),
-            Body = System.Text.Encoding.UTF8.GetBytes("cached body"),
+            BodyOwner = owner,
+            BodyLength = length,
             RequestTime = _baseTime.AddSeconds(-1),
             ResponseTime = _baseTime,
             ETag = etag,
@@ -147,7 +150,7 @@ public sealed class CacheValidationSpec
         var merged = CacheValidationRequestBuilder.MergeNotModifiedResponse(notModified, entry);
 
         var body = await merged.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(entry.Body, body);
+        Assert.True(entry.Body.Span.SequenceEqual(body));
     }
 
     [Trait("RFC", "RFC9111-4.3.4")]

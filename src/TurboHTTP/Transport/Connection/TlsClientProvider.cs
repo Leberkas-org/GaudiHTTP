@@ -10,7 +10,7 @@ namespace TurboHTTP.Transport.Connection;
 /// TLS-wrapped implementation of <see cref="IClientProvider"/>. Establishes a plain TCP connection
 /// first and then performs TLS handshake using <see cref="SslStream"/>.
 /// </summary>
-public class TlsClientProvider(TlsOptions options) : IClientProvider
+internal class TlsClientProvider(TlsOptions options) : IClientProvider
 {
     private readonly TcpClientProvider _tcpClientProvider = new(options);
     private SslStream? _sslStream;
@@ -60,19 +60,13 @@ public class TlsClientProvider(TlsOptions options) : IClientProvider
 
             if (tlsActivity is not null)
             {
-                var protocolName = _sslStream.SslProtocol switch
-                {
-                    SslProtocols.Tls12 => "tls",
-                    SslProtocols.Tls13 => "tls",
-                    _ => "tls"
-                };
                 var protocolVersion = _sslStream.SslProtocol switch
                 {
                     SslProtocols.Tls12 => "1.2",
                     SslProtocols.Tls13 => "1.3",
                     _ => _sslStream.SslProtocol.ToString()
                 };
-                TurboHttpInstrumentation.SetTlsInfo(tlsActivity, protocolName, protocolVersion);
+                TurboHttpInstrumentation.SetTlsInfo(tlsActivity, "tls", protocolVersion);
                 tlsActivity.Stop();
             }
 

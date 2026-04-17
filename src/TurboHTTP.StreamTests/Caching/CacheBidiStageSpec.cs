@@ -120,7 +120,8 @@ public sealed class CacheBidiStageSpec : StreamTestBase
         }
 
         var now = DateTimeOffset.UtcNow;
-        store.Put(request, response, Encoding.UTF8.GetBytes(body), now, now);
+        var (owner, length) = CacheStore.RentBody(Encoding.UTF8.GetBytes(body));
+        store.Put(request, response, owner, length, now, now);
         return store;
     }
 
@@ -151,7 +152,8 @@ public sealed class CacheBidiStageSpec : StreamTestBase
         }
 
         var now = DateTimeOffset.UtcNow.AddSeconds(-100);
-        store.Put(request, response, Encoding.UTF8.GetBytes(body), now, now);
+        var (owner, length) = CacheStore.RentBody(Encoding.UTF8.GetBytes(body));
+        store.Put(request, response, owner, length, now, now);
         return store;
     }
 

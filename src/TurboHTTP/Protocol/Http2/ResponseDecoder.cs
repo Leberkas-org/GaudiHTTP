@@ -9,7 +9,7 @@ namespace TurboHTTP.Protocol.Http2;
 /// <see cref="HttpResponseMessage"/> from stream state.
 /// Extracted from Http20ConnectionStage.Logic for independent testability.
 /// </summary>
-public sealed class ResponseDecoder
+internal sealed class ResponseDecoder
 {
     // Shared empty content — reused for headers-only responses with no content headers.
     private static readonly HttpContent SharedEmptyContent = new ByteArrayContent([]);

@@ -14,7 +14,7 @@ public sealed class Http3FrameSpec
     [InlineData(FrameType.PushPromise, 0x05)]
     [InlineData(FrameType.GoAway, 0x06)]
     [InlineData(FrameType.MaxPushId, 0x0d)]
-    public void FrameType_values_match_rfc(FrameType type, long expected)
+    internal void FrameType_values_match_rfc(FrameType type, long expected)
     {
         Assert.Equal(expected, (long)type);
     }

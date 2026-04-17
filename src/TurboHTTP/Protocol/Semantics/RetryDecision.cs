@@ -4,7 +4,7 @@ namespace TurboHTTP.Protocol.Semantics;
 /// Result of evaluating whether an HTTP request should be retried.
 /// RFC 9110 §9.2 — Idempotency-constrained retry decisions.
 /// </summary>
-public sealed record RetryDecision
+internal sealed record RetryDecision
 {
     /// <summary>Whether the request should be retried.</summary>
     public bool ShouldRetry { get; init; }

@@ -4,7 +4,7 @@ namespace TurboHTTP.Protocol.Caching;
 /// RFC 9111 §5.2 — Parses the Cache-Control header value into a <see cref="CacheControl"/> record.
 /// Unknown directives are silently ignored per RFC 9111 §5.2.
 /// </summary>
-public static class CacheControlParser
+internal static class CacheControlParser
 {
     /// <summary>
     /// Parses a Cache-Control header value string into a <see cref="CacheControl"/> record.

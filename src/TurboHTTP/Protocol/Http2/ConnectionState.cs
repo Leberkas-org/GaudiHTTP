@@ -3,7 +3,7 @@ namespace TurboHTTP.Protocol.Http2;
 /// <summary>
 /// Result of processing an inbound DATA frame through flow control.
 /// </summary>
-public readonly struct FlowControlResult
+internal readonly struct FlowControlResult
 {
     public bool Success { get; init; }
     public bool IsConnectionViolation { get; init; }
@@ -16,7 +16,7 @@ public readonly struct FlowControlResult
 /// <summary>
 /// Result of processing a remote SETTINGS frame.
 /// </summary>
-public readonly struct SettingsResult
+internal readonly struct SettingsResult
 {
     public int? MaxConcurrentStreamsChange { get; init; }
     public int? InitialWindowSizeChange { get; init; }
@@ -28,7 +28,7 @@ public readonly struct SettingsResult
 /// PING (§6.7), GOAWAY (§6.8), and per-stream receive windows.
 /// Extracted from Http20ConnectionStage.Logic for independent testability.
 /// </summary>
-public sealed class ConnectionState
+internal sealed class ConnectionState
 {
     // Per-stream receive windows (how much the server can still send per stream).
     private readonly Dictionary<int, int> _recvStreamWindows = new();

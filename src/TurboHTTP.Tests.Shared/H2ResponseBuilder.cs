@@ -9,7 +9,7 @@ namespace TurboHTTP.Tests.Shared;
 /// Produces valid frame sequences decodable by <see cref="FrameDecoder"/>.
 /// Intended for byte-level acceptance tests where hand-crafting frames is verbose.
 /// </summary>
-public sealed class H2ResponseBuilder
+internal sealed class H2ResponseBuilder
 {
     private readonly List<Http2Frame> _frames = [];
     private readonly HpackEncoder _encoder;
@@ -40,7 +40,8 @@ public sealed class H2ResponseBuilder
     /// <summary>
     /// Appends a HEADERS frame with HPACK-encoded pseudo-headers and regular headers.
     /// </summary>
-    public H2ResponseBuilder Headers(int streamId, int status, IReadOnlyList<(string Name, string Value)>? headers = null, bool endStream = false)
+    public H2ResponseBuilder Headers(int streamId, int status,
+        IReadOnlyList<(string Name, string Value)>? headers = null, bool endStream = false)
     {
         var allHeaders = new List<(string, string)>
         {

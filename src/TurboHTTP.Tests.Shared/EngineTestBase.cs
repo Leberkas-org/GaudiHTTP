@@ -28,7 +28,7 @@ public abstract class EngineTestBase : TestKit
         Materializer = Sys.Materializer();
     }
 
-    protected async Task<(HttpResponseMessage Response, string RawRequest)> SendAsync(
+    internal async Task<(HttpResponseMessage Response, string RawRequest)> SendAsync(
         BidiFlow<HttpRequestMessage, IOutputItem,
             IInputItem, HttpResponseMessage, NotUsed> engine,
         HttpRequestMessage request,
@@ -54,7 +54,7 @@ public abstract class EngineTestBase : TestKit
         return (response, rawBuilder.ToString());
     }
 
-    protected async Task<(List<HttpResponseMessage> Responses, string RawRequests)> SendManyAsync(
+    internal async Task<(List<HttpResponseMessage> Responses, string RawRequests)> SendManyAsync(
         BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> engine,
         IEnumerable<HttpRequestMessage> requests,
         Func<byte[]> responseFactory,
@@ -92,7 +92,7 @@ public abstract class EngineTestBase : TestKit
     /// Runs Http20Engine (ITransportItem variant) against pre-queued server frames.
     /// Returns the decoded response and all outbound H2 frames.
     /// </summary>
-    protected async Task<(HttpResponseMessage Response, IReadOnlyList<Http2Frame> OutboundFrames)> SendH2EngineAsync(
+    internal async Task<(HttpResponseMessage Response, IReadOnlyList<Http2Frame> OutboundFrames)> SendH2EngineAsync(
         BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> engine,
         HttpRequestMessage request,
         params byte[][] serverFrames)
@@ -121,7 +121,7 @@ public abstract class EngineTestBase : TestKit
     /// Runs Http20Engine (ITransportItem variant) with multiple requests against pre-queued server frames.
     /// Returns all decoded responses and all outbound H2 frames.
     /// </summary>
-    protected async Task<(List<HttpResponseMessage> Responses, IReadOnlyList<Http2Frame> OutboundFrames)>
+    internal async Task<(List<HttpResponseMessage> Responses, IReadOnlyList<Http2Frame> OutboundFrames)>
         SendH2EngineAsyncMany(
             BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> engine,
             IEnumerable<HttpRequestMessage> requests,
@@ -160,7 +160,7 @@ public abstract class EngineTestBase : TestKit
     /// Runs Http30Engine against pre-queued server frames.
     /// Returns the decoded response and all outbound H3 frames.
     /// </summary>
-    protected async Task<(HttpResponseMessage Response, IReadOnlyList<Http3Frame> OutboundFrames)> SendH3EngineAsync(
+    internal async Task<(HttpResponseMessage Response, IReadOnlyList<Http3Frame> OutboundFrames)> SendH3EngineAsync(
         BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> engine,
         HttpRequestMessage request,
         params byte[][] serverFrames)

@@ -1,6 +1,5 @@
 using System.Net;
 using TurboHTTP.IntegrationTests.Shared;
-using TurboHTTP.Protocol.Caching;
 
 namespace TurboHTTP.IntegrationTests.H2;
 
@@ -22,7 +21,7 @@ public sealed class CacheSpec
         return ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithCache(CachePolicy.Default),
+            configure: builder => builder.WithCache(),
             system: _systemFixture.System);
     }
 
@@ -198,7 +197,7 @@ public sealed class CacheSpec
         await using var helper = ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithCache(new CachePolicy { SharedCache = true }));
+            configure: builder => builder.WithCache(x => x.SharedCache = true));
 
         var request1 = new HttpRequestMessage(HttpMethod.Get, "/cache/s-maxage/3600");
         var response1 = await helper.Client.SendAsync(request1, cts.Token);
@@ -259,7 +258,7 @@ public sealed class CacheSpec
         await using var helper = ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithCache(new CachePolicy { SharedCache = true }));
+            configure: builder => builder.WithCache(x => x.SharedCache = true));
 
         var request1 = new HttpRequestMessage(HttpMethod.Get, "/cache/private");
         var response1 = await helper.Client.SendAsync(request1, cts.Token);

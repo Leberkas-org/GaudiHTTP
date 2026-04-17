@@ -10,7 +10,7 @@ namespace TurboHTTP.Diagnostics;
 /// following the HTTP semantic conventions.
 /// Consumers subscribe via <c>AddSource("TurboHTTP")</c> in the OTel SDK.
 /// </summary>
-public static class TurboHttpInstrumentation
+internal static class TurboHttpInstrumentation
 {
     public const string SourceName = "TurboHTTP";
 

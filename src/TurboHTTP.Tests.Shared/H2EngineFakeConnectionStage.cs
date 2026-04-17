@@ -12,7 +12,7 @@ namespace TurboHTTP.Tests.Shared;
 /// <remarks>
 /// Exposes <see cref="H2EngineFakeConnectionStage.OutboundChannel"/> so tests can decode and inspect outbound H2 frames.
 /// </remarks>
-public sealed class H2EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
+internal sealed class H2EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
 {
     private readonly IReadOnlyList<byte[]> _serverFrames;
 

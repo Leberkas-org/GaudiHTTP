@@ -17,6 +17,7 @@
     <File Path="Directory.Packages.props" />
   </Folder>
   <Project Path="TurboHTTP.AcceptanceTests/TurboHTTP.AcceptanceTests.csproj" />
+  <Project Path="TurboHTTP.API.Tests/TurboHTTP.API.Tests.csproj" />
   <Project Path="TurboHTTP.Benchmarks/TurboHTTP.Benchmarks.csproj" />
   <Project Path="TurboHTTP.IntegrationTests/TurboHTTP.IntegrationTests.csproj" />
   <Project Path="TurboHTTP.StreamTests/TurboHTTP.StreamTests.csproj" />

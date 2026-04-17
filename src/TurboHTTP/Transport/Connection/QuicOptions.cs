@@ -3,7 +3,7 @@ namespace TurboHTTP.Transport.Connection;
 /// <summary>
 /// QUIC connection options, extending <see cref="TcpOptions"/> with QUIC-specific settings.
 /// </summary>
-public record QuicOptions : TlsOptions
+internal record QuicOptions : TlsOptions
 {
     /// <summary>The idle timeout after which the QUIC connection is closed.</summary>
     public TimeSpan IdleTimeout { get; init; } = TimeSpan.FromSeconds(30);

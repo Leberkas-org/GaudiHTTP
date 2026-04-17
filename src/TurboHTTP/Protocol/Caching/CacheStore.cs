@@ -1,11 +1,36 @@
+using System.Buffers;
 using System.Net;
 
 namespace TurboHTTP.Protocol.Caching;
 
+public interface ICacheStore
+{
+    /// <summary>
+    /// RFC 9111 §4 — Looks up a matching entry for the request.
+    /// Returns null on a cache miss. Respects the Vary header for variant selection.
+    /// </summary>
+    public ICacheEntry? Get(HttpRequestMessage request);
+
+    /// <summary>
+    /// RFC 9111 §3 — Stores a cacheable response. Respects MaxEntries (LRU eviction)
+    /// and MaxBodyBytes. Does nothing if the response should not be stored.
+    /// </summary>
+    public void Put(HttpRequestMessage request, HttpResponseMessage response, IMemoryOwner<byte> bodyOwner,
+        int bodyLength,
+        DateTimeOffset requestTime,
+        DateTimeOffset responseTime);
+
+    /// <summary>
+    /// RFC 9111 §4.4 — Invalidates all stored entries whose URI matches the given URI.
+    /// Called after unsafe methods (POST, PUT, DELETE, PATCH) that may have modified the resource.
+    /// </summary>
+    public void Invalidate(Uri uri);
+}
+
 /// <summary>
 /// RFC 9111 §3 — Thread-safe in-memory LRU cache store for HTTP responses.
 /// </summary>
-public sealed class CacheStore
+internal sealed class CacheStore : ICacheStore
 {
     private readonly CachePolicy _policy;
     private readonly Lock _lock = new();
@@ -38,7 +63,7 @@ public sealed class CacheStore
     /// RFC 9111 §4 — Looks up a matching entry for the request.
     /// Returns null on a cache miss. Respects the Vary header for variant selection.
     /// </summary>
-    public CacheEntry? Get(HttpRequestMessage request)
+    public ICacheEntry? Get(HttpRequestMessage request)
     {
         var primaryKey = GetPrimaryKey(request);
 
@@ -81,12 +106,14 @@ public sealed class CacheStore
     public void Put(
         HttpRequestMessage request,
         HttpResponseMessage response,
-        byte[] body,
+        IMemoryOwner<byte> bodyOwner,
+        int bodyLength,
         DateTimeOffset requestTime,
         DateTimeOffset responseTime)
     {
         if (!ShouldStore(request, response))
         {
+            bodyOwner.Dispose();
             return;
         }
 
@@ -98,6 +125,7 @@ public sealed class CacheStore
                 var cc = CacheControlParser.Parse(string.Join(", ", ccVals));
                 if (cc is { Private: true, PrivateFields: null })
                 {
+                    bodyOwner.Dispose();
                     return; // Unqualified private — reject entirely
                 }
             }
@@ -108,12 +136,13 @@ public sealed class CacheStore
         // RFC 9111 §3.1 — connection-specific headers must not be stored in cache
         StripConnectionHeaders(response);
 
-        if (body.Length > _policy.MaxBodyBytes)
+        if (bodyLength > _policy.MaxBodyBytes)
         {
+            bodyOwner.Dispose();
             return;
         }
 
-        var entry = BuildEntry(response, body, requestTime, responseTime, request);
+        var entry = BuildEntry(response, bodyOwner, bodyLength, requestTime, responseTime, request);
         var primaryKey = GetPrimaryKey(request);
 
         lock (_lock)
@@ -128,6 +157,7 @@ public sealed class CacheStore
                 _lruList.RemoveLast();
                 _index.Remove(last.Value.key + "|" + GetVaryKey(last.Value.entry));
                 RemoveFromPrimaryIndex(last.Value.key, last);
+                last.Value.entry.Dispose();
             }
 
             var node = _lruList.AddFirst((primaryKey, entry));
@@ -163,6 +193,7 @@ public sealed class CacheStore
             {
                 _lruList.Remove(node);
                 _index.Remove(node.Value.key + "|" + GetVaryKey(node.Value.entry));
+                node.Value.entry.Dispose();
             }
 
             _primaryIndex.Remove(key);
@@ -267,6 +298,11 @@ public sealed class CacheStore
     {
         lock (_lock)
         {
+            foreach (var (_, entry) in _lruList)
+            {
+                entry.Dispose();
+            }
+
             _lruList.Clear();
             _index.Clear();
             _primaryIndex.Clear();
@@ -275,7 +311,8 @@ public sealed class CacheStore
 
     private static CacheEntry BuildEntry(
         HttpResponseMessage response,
-        byte[] body,
+        IMemoryOwner<byte> bodyOwner,
+        int bodyLength,
         DateTimeOffset requestTime,
         DateTimeOffset responseTime,
         HttpRequestMessage request)
@@ -342,7 +379,8 @@ public sealed class CacheStore
         return new CacheEntry
         {
             Response = response,
-            Body = body,
+            BodyOwner = bodyOwner,
+            BodyLength = bodyLength,
             RequestTime = requestTime,
             ResponseTime = responseTime,
             ETag = etag,
@@ -415,6 +453,7 @@ public sealed class CacheStore
                 _lruList.Remove(node);
                 _index.Remove(primaryKey + "|" + GetVaryKey(node.Value.entry));
                 candidates.RemoveAt(i);
+                node.Value.entry.Dispose();
             }
         }
 
@@ -437,6 +476,17 @@ public sealed class CacheStore
         {
             _primaryIndex.Remove(primaryKey);
         }
+    }
+
+    /// <summary>
+    /// Rents memory from the shared pool and copies the source bytes into it.
+    /// Returns the owner and the valid byte count.
+    /// </summary>
+    public static (IMemoryOwner<byte> owner, int length) RentBody(ReadOnlySpan<byte> source)
+    {
+        var owner = MemoryPool<byte>.Shared.Rent(source.Length);
+        source.CopyTo(owner.Memory.Span);
+        return (owner, source.Length);
     }
 
     private static string GetPrimaryKey(HttpRequestMessage request)

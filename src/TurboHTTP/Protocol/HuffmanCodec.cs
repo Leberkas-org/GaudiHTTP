@@ -2,7 +2,7 @@ using TurboHTTP.Protocol.Http2.Hpack;
 
 namespace TurboHTTP.Protocol;
 
-public static class HuffmanCodec
+internal static class HuffmanCodec
 {
     private static readonly (uint Code, int Bits)[] HpackHuffmanTable =
     [

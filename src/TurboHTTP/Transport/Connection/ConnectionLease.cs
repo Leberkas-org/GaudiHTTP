@@ -12,9 +12,6 @@ internal sealed class ConnectionLease : IDisposable
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly long _createdTicks = Environment.TickCount64;
-    private int _activeStreams;
-    private bool _alive = true;
-    private bool _reusable = true;
 
     public ConnectionLease(ConnectionHandle handle, ClientState state)
     {
@@ -44,12 +41,12 @@ internal sealed class ConnectionLease : IDisposable
     /// <summary>
     /// Whether this connection is still alive and usable.
     /// </summary>
-    public bool IsAlive => _alive;
+    public bool IsAlive { get; private set; } = true;
 
     /// <summary>
     /// Whether this connection can be reused for subsequent requests.
     /// </summary>
-    public bool Reusable => _reusable;
+    public bool Reusable { get; private set; } = true;
 
     /// <summary>
     /// Timestamp of the last activity on this connection.
@@ -59,7 +56,7 @@ internal sealed class ConnectionLease : IDisposable
     /// <summary>
     /// Number of currently active streams on this connection.
     /// </summary>
-    public int ActiveStreams => _activeStreams;
+    public int ActiveStreams { get; private set; }
 
     /// <summary>
     /// Maximum concurrent streams allowed on this connection.
@@ -71,7 +68,7 @@ internal sealed class ConnectionLease : IDisposable
     /// <summary>
     /// Whether this connection can accept another request.
     /// </summary>
-    public bool HasAvailableSlot => _alive && _reusable && ActiveStreams < MaxConcurrentStreams;
+    public bool HasAvailableSlot => IsAlive && Reusable && ActiveStreams < MaxConcurrentStreams;
 
     /// <summary>
     /// Returns <see langword="true"/> when the connection has exceeded the specified
@@ -99,7 +96,7 @@ internal sealed class ConnectionLease : IDisposable
     /// </summary>
     public void MarkBusy()
     {
-        _activeStreams++;
+        ActiveStreams++;
         LastActivity = DateTime.UtcNow;
     }
 
@@ -108,7 +105,7 @@ internal sealed class ConnectionLease : IDisposable
     /// </summary>
     public void MarkIdle()
     {
-        _activeStreams--;
+        ActiveStreams--;
         LastActivity = DateTime.UtcNow;
     }
 
@@ -117,7 +114,7 @@ internal sealed class ConnectionLease : IDisposable
     /// </summary>
     public void MarkNoReuse()
     {
-        _reusable = false;
+        Reusable = false;
     }
 
     /// <summary>
@@ -136,21 +133,18 @@ internal sealed class ConnectionLease : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (!_alive)
+        if (!IsAlive)
         {
             return;
         }
 
-        _alive = false;
+        IsAlive = false;
 
-        // 1. Cancel CTS first — stops ByteMover tasks
         _cts.Cancel();
         _cts.Dispose();
 
-        // 2. Dispose ClientState — closes channels + TCP stream
         State.Dispose();
 
-        // 3. Emit metrics and diagnostics
         var durationMs = Environment.TickCount64 - _createdTicks;
         var host = Key.Host;
         var port = Key.Port;

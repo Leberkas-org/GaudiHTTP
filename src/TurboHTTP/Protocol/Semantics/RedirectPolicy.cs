@@ -3,7 +3,7 @@ namespace TurboHTTP.Protocol.Semantics;
 /// <summary>
 /// Configuration for redirect behavior in <see cref="RedirectHandler"/>.
 /// </summary>
-public sealed record RedirectPolicy
+internal sealed record RedirectPolicy
 {
     /// <summary>Default redirect policy: max 10 redirects, no HTTPS→HTTP downgrade.</summary>
     public static readonly RedirectPolicy Default = new();

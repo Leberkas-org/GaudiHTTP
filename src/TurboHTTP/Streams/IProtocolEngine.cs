@@ -4,12 +4,12 @@ using TurboHTTP.Internal;
 
 namespace TurboHTTP.Streams;
 
-public interface IHttpProtocolEngine
+internal interface IHttpProtocolEngine
 {
     BidiFlow<
         HttpRequestMessage,
         IOutputItem,
-        IInputItem, 
+        IInputItem,
         HttpResponseMessage,
         NotUsed> CreateFlow();
 }

@@ -5,7 +5,7 @@ namespace TurboHTTP.Protocol.Semantics;
 /// RFC 9110 §8.4 — A sender that applies content encoding MUST generate a Content-Encoding
 /// header field listing the applied encodings.
 /// </summary>
-public sealed record CompressionPolicy
+internal sealed record CompressionPolicy
 {
     /// <summary>Default policy: gzip encoding, bodies >= 1024 bytes compressed.</summary>
     public static readonly CompressionPolicy Default = new();

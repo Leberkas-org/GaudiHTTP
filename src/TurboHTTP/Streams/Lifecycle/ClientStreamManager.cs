@@ -4,8 +4,57 @@ using Owner = TurboHTTP.Streams.Lifecycle.ClientStreamOwner;
 
 namespace TurboHTTP.Streams.Lifecycle;
 
+// Message Flow Diagrams (Merged Design: Owner handles materialization directly)
+//
+// HAPPY PATH: Create → Materialize → Run → Shutdown
+//
+//   StreamManager                   Owner
+//       │                             │
+//       │──CreateStreamInstance──────▶│
+//       │                             │──materialize pipeline (inline)
+//       │◀─StreamInstanceCreated──────│  (success)
+//       │                             │
+//       │   ... requests flow through channels ...
+//       │                             │   (sink completes when channels close)
+//       │                             │
+//       │──Shutdown──────────────────▶│
+//       │                             │──kill stream via KillSwitch
+//       │                             │──cleanup resources (materializer, pool)
+//       │◀───(actor terminated)───────│
+//
+//
+// ERROR PATH: Materialization Failure → Retry with Backoff
+//
+//   StreamManager                   Owner
+//       │                             │
+//       │──CreateStreamInstance──────▶│
+//       │                             │──materialize pipeline (inline)
+//       │                             │  └─ throws exception
+//       │                             │──CleanupForRetry() [explicit cleanup]
+//       │                             │
+//       │                             │ (retry attempt 1, backoff 100ms)
+//       │                             │──materialize pipeline (inline)
+//       │                             │  └─ throws exception again
+//       │                             │──CleanupForRetry()
+//       │                             │
+//       │                             │ (retry attempt 2, backoff 500ms)
+//       │                             │──materialize pipeline (inline)
+//       │◀─StreamInstanceCreated──────│ (success!)
+//       │                             │
+//
+//
+// ERROR PATH: Retries Exhausted
+//
+//   StreamManager                   Owner
+//       │                             │
+//       │──CreateStreamInstance──────▶│
+//       │                             │ ... 3 failed attempts (100ms, 500ms, 2s) ...
+//       │◀─StreamInstanceFailed───────│ (retries exhausted)
+//       │  (propagate error)          │
+//       │                             ╳
+
 /// <summary>
-/// Internal wrapper around <see cref="ClientStreamOwnerActor"/> that maintains backward
+/// Internal wrapper around <see cref="ClientStreamOwner"/> that maintains backward
 /// compatibility with the existing <see cref="TurboHttpClient"/> API.
 /// <para>
 /// Owns the stable channel endpoints (<see cref="Requests"/> / <see cref="Responses"/>)
@@ -28,38 +77,29 @@ internal sealed class ClientStreamManager : IDisposable
     private readonly IActorRef _owner;
     private int _disposed;
 
-    internal ChannelWriter<HttpRequestMessage> Requests { get; }
-    internal ChannelReader<HttpResponseMessage> Responses { get; }
-
-    /// <summary>
-    /// Exposes the response-channel writer so tests can inject synthetic responses
-    /// without requiring a live TCP connection.
-    /// </summary>
-    internal ChannelWriter<HttpResponseMessage> ResponseWriter { get; }
-
-    internal ClientStreamManager(TurboClientOptions clientOptions, Func<TurboRequestOptions> requestOptionsFactory,
-        ActorSystem system, PipelineDescriptor descriptor)
-    {
-        // Create stable channels — these survive instance actor restarts.
-        // The manager owns these channels; the instance actor reads/writes but never completes them.
-        var requestsChannel = Channel.CreateUnbounded<HttpRequestMessage>(new UnboundedChannelOptions
+    private readonly Channel<HttpRequestMessage> _requests = Channel.CreateUnbounded<HttpRequestMessage>(
+        new UnboundedChannelOptions
         {
             SingleReader = true
         });
-        var responsesChannel = Channel.CreateUnbounded<HttpResponseMessage>(new UnboundedChannelOptions
+
+    private readonly Channel<HttpResponseMessage> _responses = Channel.CreateUnbounded<HttpResponseMessage>(
+        new UnboundedChannelOptions
         {
             SingleWriter = true
         });
 
-        Requests = requestsChannel.Writer;
-        Responses = responsesChannel.Reader;
-        ResponseWriter = responsesChannel.Writer;
+    internal ChannelWriter<HttpRequestMessage> Requests => _requests.Writer;
+    internal ChannelReader<HttpResponseMessage> Responses => _responses.Reader;
 
+    internal ClientStreamManager(TurboClientOptions clientOptions, Func<TurboRequestOptions> requestOptionsFactory,
+        ActorSystem system, PipelineDescriptor descriptor)
+    {
         // Create the Owner actor — it materializes the stream directly,
         // tracks pending work, and handles retry with exponential backoff.
         // Uses dedicated dispatcher if available; falls back to default for external ActorSystems.
         _owner = system.ActorOf(
-            Props.Create(() => new ClientStreamOwnerActor()),
+            Props.Create(() => new ClientStreamOwner()),
             $"stream-owner-{Guid.NewGuid():N}");
 
         // Tell the Owner to create a stream instance. The instance will materialize
@@ -69,8 +109,8 @@ internal sealed class ClientStreamManager : IDisposable
             clientOptions,
             requestOptionsFactory,
             descriptor,
-            requestsChannel.Reader,
-            responsesChannel.Writer));
+            _requests.Reader,
+            _responses.Writer));
     }
 
     public void Dispose()
@@ -80,16 +120,12 @@ internal sealed class ClientStreamManager : IDisposable
             return;
         }
 
-        // Complete the request channel — the source will finish, the pipeline
-        // drains, and the instance actor stops writing to the response channel.
-        Requests.TryComplete();
+        _requests.Writer.TryComplete();
+        _responses.Writer.TryComplete();
 
         // Signal the Owner to shut down gracefully. It waits for pending work
         // to drain (up to 5s), then stops the instance and itself.
         _owner.GracefulStop(TimeSpan.FromSeconds(5), new Owner.Shutdown());
-
-        // Complete the response channel so downstream ITurboHttpClient.Responses consumers terminate.
-        ResponseWriter.TryComplete();
     }
 
     /// <summary>

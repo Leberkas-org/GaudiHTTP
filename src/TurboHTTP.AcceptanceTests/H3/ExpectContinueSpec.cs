@@ -4,7 +4,6 @@ using Akka;
 using Akka.Streams.Dsl;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Tests.Shared;
 
@@ -12,13 +11,11 @@ namespace TurboHTTP.AcceptanceTests.H3;
 
 public sealed class ExpectContinueSpec : AcceptanceTestBase
 {
-    private static Http30Engine Engine => new(new Http3Options().ToEngineOptions());
-
     private static BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed>
         CreateExpectContinueEngine()
     {
         var stage = new ExpectContinueBidiStage(Expect100Policy.Default);
-        return BidiFlow.FromGraph(stage).Atop(Engine.CreateFlow());
+        return BidiFlow.FromGraph(stage).Atop(CreateHttp30Engine().CreateFlow());
     }
 
     [Fact(Timeout = 5000)]

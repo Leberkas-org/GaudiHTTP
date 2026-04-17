@@ -9,7 +9,7 @@ namespace TurboHTTP.Tests.Shared;
 /// Fake TCP connection stage for HTTP/3 engine tests.
 /// Intercepts outbound H3 frames and injects pre-queued server frames one per outbound push.
 /// </summary>
-public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
+internal sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputItem, IInputItem>>
 {
     private readonly IReadOnlyList<byte[]> _serverFrames;
 
@@ -54,7 +54,8 @@ public sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutputIt
 
                     if (item is NetworkBuffer dataChunk)
                     {
-                        stage.OutboundChannel.Writer.TryWrite((NetworkBufferTestExtensions.FromArray(dataChunk.Span.ToArray()), streamType));
+                        stage.OutboundChannel.Writer.TryWrite((
+                            NetworkBufferTestExtensions.FromArray(dataChunk.Span.ToArray()), streamType));
                         dataChunk.Dispose();
                     }
 

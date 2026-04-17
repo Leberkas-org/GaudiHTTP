@@ -1,6 +1,5 @@
 using System.Net;
 using TurboHTTP.IntegrationTests.Shared;
-using TurboHTTP.Protocol.Caching;
 
 namespace TurboHTTP.IntegrationTests.H3;
 
@@ -35,7 +34,7 @@ public sealed class CacheSpec : IAsyncLifetime
             _server.HttpsPort,
             new Version(3, 0),
             scheme: "https",
-            configure: builder => builder.WithCache(CachePolicy.Default),
+            configure: builder => builder.WithCache(),
             system: _systemFixture.System);
     }
 
@@ -212,7 +211,7 @@ public sealed class CacheSpec : IAsyncLifetime
             _server.HttpsPort,
             new Version(3, 0),
             scheme: "https",
-            configure: builder => builder.WithCache(new CachePolicy { SharedCache = true }),
+            configure: builder => builder.WithCache(x => x.SharedCache = true),
             system: _systemFixture.System);
 
         var request1 = new HttpRequestMessage(HttpMethod.Get, "/cache/s-maxage/3600");
@@ -275,7 +274,7 @@ public sealed class CacheSpec : IAsyncLifetime
             _server.HttpsPort,
             new Version(3, 0),
             scheme: "https",
-            configure: builder => builder.WithCache(new CachePolicy { SharedCache = true }),
+            configure: builder => builder.WithCache(x => x.SharedCache = true),
             system: _systemFixture.System);
 
         var request1 = new HttpRequestMessage(HttpMethod.Get, "/cache/private");

@@ -5,7 +5,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// The stream type is sent as the first bytes on a unidirectional stream
 /// to indicate the purpose of that stream.
 /// </summary>
-public enum StreamType : long
+internal enum StreamType : long
 {
     /// <summary>
     /// Control stream (RFC 9114 §6.2.1). Each side MUST initiate exactly one

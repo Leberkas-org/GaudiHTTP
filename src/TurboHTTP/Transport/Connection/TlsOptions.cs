@@ -7,7 +7,7 @@ namespace TurboHTTP.Transport.Connection;
 /// <summary>
 /// TLS connection options, extending <see cref="TcpOptions"/> with certificate and protocol settings.
 /// </summary>
-public record TlsOptions : TcpOptions
+internal record TlsOptions : TcpOptions
 {
     public string? TargetHost { get; init; }
     public X509CertificateCollection? ClientCertificates { get; init; }

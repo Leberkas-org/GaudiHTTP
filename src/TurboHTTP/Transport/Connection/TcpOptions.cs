@@ -5,7 +5,7 @@ namespace TurboHTTP.Transport.Connection;
 /// <summary>
 /// Configuration options for a plain TCP connection.
 /// </summary>
-public record TcpOptions
+internal record TcpOptions
 {
     public required string Host { get; init; }
     public required int Port { get; init; }

@@ -35,7 +35,7 @@ public sealed class RequestCompressionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: b => b.WithRequestCompression(new CompressionPolicy { Encoding = "gzip" }),
+            configure: b => b.WithRequestCompression(x => x.Encoding = "gzip"),
             system: _systemFixture.System);
 
         var payload = MakePayload(4 * 1024);
@@ -58,7 +58,7 @@ public sealed class RequestCompressionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: b => b.WithRequestCompression(new CompressionPolicy { Encoding = "deflate" }),
+            configure: b => b.WithRequestCompression(x => x.Encoding = "deflate"),
             system: _systemFixture.System);
 
         var payload = MakePayload(4 * 1024);
@@ -81,7 +81,7 @@ public sealed class RequestCompressionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: b => b.WithRequestCompression(new CompressionPolicy { Encoding = "br" }),
+            configure: b => b.WithRequestCompression(x => x.Encoding = "br"),
             system: _systemFixture.System);
 
         var payload = MakePayload(4 * 1024);
@@ -105,7 +105,7 @@ public sealed class RequestCompressionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: b => b.WithRequestCompression(CompressionPolicy.Default),
+            configure: b => b.WithRequestCompression(),
             system: _systemFixture.System);
 
         var payload = MakePayload(100);
@@ -130,7 +130,7 @@ public sealed class RequestCompressionSpec
         await using var helper = ClientHelper.CreateClient(
             _server.HttpPort,
             new Version(1, 1),
-            configure: b => b.WithRequestCompression(new CompressionPolicy { Encoding = "gzip" }),
+            configure: b => b.WithRequestCompression(x => x.Encoding = "gzip"),
             system: _systemFixture.System);
 
         // Body must be >= 1024 bytes to trigger compression.
@@ -160,7 +160,7 @@ public sealed class RequestCompressionSpec
             _server.HttpPort,
             new Version(1, 1),
             configure: b => b
-                .WithRequestCompression(new CompressionPolicy { Encoding = "gzip" })
+                .WithRequestCompression(x => x.Encoding = "gzip")
                 .WithDecompression(),
             system: _systemFixture.System);
 

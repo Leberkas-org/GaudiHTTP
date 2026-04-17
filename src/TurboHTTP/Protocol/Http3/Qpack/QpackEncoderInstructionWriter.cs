@@ -12,7 +12,7 @@ namespace TurboHTTP.Protocol.Http3.Qpack;
 ///   - Insert With Literal Name (§4.3.3)
 ///   - Duplicate (§4.3.4)
 /// </summary>
-public static class QpackEncoderInstructionWriter
+internal static class QpackEncoderInstructionWriter
 {
     /// <summary>
     /// RFC 9204 §4.3.1 — Set Dynamic Table Capacity.

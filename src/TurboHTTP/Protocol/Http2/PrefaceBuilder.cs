@@ -8,7 +8,7 @@ namespace TurboHTTP.Protocol.Http2;
 /// magic octets + SETTINGS frame + optional WINDOW_UPDATE.
 /// Extracted from Http20EncoderStage for independent testability.
 /// </summary>
-public static class PrefaceBuilder
+internal static class PrefaceBuilder
 {
     public static (IMemoryOwner<byte> Owner, int Length) Build(
         int initialWindowSize,

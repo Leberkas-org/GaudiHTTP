@@ -12,7 +12,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// Represents a collection of HTTP/3 SETTINGS parameters (RFC 9114 §7.2.4).
 /// Preserves unknown (extension) settings alongside well-known ones.
 /// </summary>
-public sealed class Settings
+internal sealed class Settings
 {
     private readonly Dictionary<long, long> _parameters = new();
 

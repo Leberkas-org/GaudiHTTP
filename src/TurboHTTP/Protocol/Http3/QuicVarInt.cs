@@ -7,7 +7,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// Supports values from 0 to 2^62 - 1 using 1, 2, 4, or 8 bytes.
 /// The two most-significant bits of the first byte encode the length prefix.
 /// </summary>
-public static class QuicVarInt
+internal static class QuicVarInt
 {
     /// <summary>Maximum encodable value: 2^62 - 1.</summary>
     public const long MaxValue = (1L << 62) - 1;

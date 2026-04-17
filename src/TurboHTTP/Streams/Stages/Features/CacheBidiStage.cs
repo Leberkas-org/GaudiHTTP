@@ -1,5 +1,7 @@
+using System.Buffers;
 using System.Diagnostics;
 using System.Net;
+using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -50,7 +52,7 @@ internal sealed class CacheBidiStage
     internal static readonly HttpRequestOptionsKey<bool> RevalidationKey
         = new("TurboHTTP.CacheRevalidation");
 
-    private readonly CacheStore? _store;
+    private readonly ICacheStore? _store;
     private readonly CachePolicy _policy;
 
     private readonly Inlet<HttpRequestMessage> _inRequest = new("Cache.In.Request");
@@ -58,9 +60,12 @@ internal sealed class CacheBidiStage
     private readonly Inlet<HttpResponseMessage> _inResponse = new("Cache.In.Response");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Cache.Out.Response");
 
-    public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape { get; }
+    public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape
+    {
+        get;
+    }
 
-    public CacheBidiStage(CacheStore? store, CachePolicy? policy = null)
+    public CacheBidiStage(ICacheStore? store, CachePolicy? policy = null)
     {
         _store = store;
         _policy = policy ?? CachePolicy.Default;
@@ -69,31 +74,25 @@ internal sealed class CacheBidiStage
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new Logic(this);
+        => new CacheBidiLogic(this);
 
-    private enum CacheState
-    {
-        Idle,
-        Forwarded,
-        HitBuffered
-    }
-
-    private sealed class Logic : GraphStageLogic
+    private sealed class CacheBidiLogic : GraphStageLogic, IFeatureStageOperations
     {
         private readonly CacheBidiStage _stage;
-        private CacheState _state = CacheState.Idle;
-        private HttpResponseMessage? _bufferedHitResponse;
-        private bool _pendingAsyncRead;
-        private Action<(HttpResponseMessage response, byte[] body)>? _onBodyRead;
-        private Action<Exception>? _onBodyReadFailure;
+        private readonly CacheStateMachine _sm;
+        private IActorRef _stageActorRef = ActorRefs.Nobody;
 
-        public Logic(CacheBidiStage stage) : base(stage.Shape)
+        public CacheBidiLogic(CacheBidiStage stage) : base(stage.Shape)
         {
             _stage = stage;
+            _sm = new CacheStateMachine(this, stage._store, stage._policy);
 
-            // Request direction: cache lookup
             SetHandler(stage._inRequest,
-                onPush: OnRequestPush,
+                onPush: () =>
+                {
+                    var request = Grab(stage._inRequest);
+                    _sm.OnRequest(request);
+                },
                 onUpstreamFinish: () => Complete(stage._outRequest),
                 onUpstreamFailure: ex =>
                 {
@@ -104,64 +103,45 @@ internal sealed class CacheBidiStage
             SetHandler(stage._outRequest,
                 onPull: () =>
                 {
-                    // DL-010: Do not pull the request inlet while an async body read
-                    // is in flight — the substream must appear busy to GroupByHostKeyStage.
-                    if (_pendingAsyncRead)
-                    {
-                        return;
-                    }
-
-                    if (_state == CacheState.Idle && !HasBeenPulled(stage._inRequest))
+                    if (_sm.State == CacheStateMachine.CacheState.Idle && !HasBeenPulled(stage._inRequest))
                     {
                         Pull(stage._inRequest);
                     }
                 },
                 onDownstreamFinish: _ => Cancel(stage._inRequest));
 
-            // Response direction: cache storage
             SetHandler(stage._inResponse,
-                onPush: OnResponsePush,
+                onPush: () =>
+                {
+                    var response = Grab(stage._inResponse);
+                    _sm.OnResponse(response);
+                },
                 onUpstreamFinish: () =>
                 {
-                    // DL-010: Do not complete while an async body read is in flight.
-                    // The async callback will push the response and then complete.
-                    if (!_pendingAsyncRead)
+                    if (_sm.PendingAsyncCount > 0)
+                    {
+                        _sm.DeferCompletion();
+                    }
+                    else
                     {
                         Complete(stage._outResponse);
                     }
                 },
                 onUpstreamFailure: ex =>
                 {
-                    if (!_pendingAsyncRead)
-                    {
-                        Log.Warning("CacheBidiStage: Response upstream failure absorbed: {0}", ex.Message);
-                        Complete(stage._outResponse);
-                    }
+                    Log.Warning("CacheBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outResponse);
                 });
 
             SetHandler(stage._outResponse,
                 onPull: () =>
                 {
-                    if (_state == CacheState.HitBuffered)
+                    if (_sm.State == CacheStateMachine.CacheState.HitBuffered)
                     {
-                        Push(stage._outResponse, _bufferedHitResponse!);
-                        _bufferedHitResponse = null;
-                        _state = CacheState.Idle;
-                        MaybePullNextRequest();
+                        _sm.FlushBufferedHit();
                     }
                     else
                     {
-                        // DL-010: Do not pull the response inlet while an async body
-                        // read is in flight — we haven't finished processing the current
-                        // response yet, and pulling another would corrupt the pipeline.
-                        if (_pendingAsyncRead)
-                        {
-                            return;
-                        }
-
-                        // In both Idle and Forwarded states, pull In2 to allow responses
-                        // to flow. In the real pipeline In2 only delivers data after a
-                        // request has been forwarded on Out1; pulling early is harmless.
                         if (!HasBeenPulled(stage._inResponse))
                         {
                             Pull(stage._inResponse);
@@ -173,317 +153,380 @@ internal sealed class CacheBidiStage
 
         public override void PreStart()
         {
-            _onBodyRead = GetAsyncCallback<(HttpResponseMessage response, byte[] body)>(tuple =>
-            {
-                _pendingAsyncRead = false;
-                var (response, body) = tuple;
-                var request = response.RequestMessage!;
-                var now = DateTimeOffset.UtcNow;
-                _stage._store!.Put(request, response, body, now, now);
-                Push(_stage._outResponse, response);
-                _state = CacheState.Idle;
-
-                // DL-010: If upstream finished while the async read was in flight,
-                // complete the outlet now that we've pushed the final response.
-                if (IsClosed(_stage._inResponse))
-                {
-                    Complete(_stage._outResponse);
-                }
-                else
-                {
-                    MaybePullNextRequest();
-                }
-            });
-
-            _onBodyReadFailure = GetAsyncCallback<Exception>(ex =>
-            {
-                _pendingAsyncRead = false;
-                Log.Warning("CacheBidiStage: Async body read failed: {0}", ex.Message);
-                FailStage(ex);
-            });
+            _stageActorRef = GetStageActor(OnReceive).Ref;
+            _sm.SetStageActorRef(_stageActorRef);
         }
 
-        private void OnRequestPush()
+        private void OnReceive((IActorRef sender, object message) args)
         {
-            var request = Grab(_stage._inRequest);
-
-            if (_stage._store is null)
-            {
-                Push(_stage._outRequest, request);
-                _state = CacheState.Forwarded;
-                return;
-            }
-
-            var entry = _stage._store.Get(request);
-            var result = CacheFreshnessEvaluator.Evaluate(entry, request, DateTimeOffset.UtcNow, _stage._policy);
-            var isHit = result.Status is CacheLookupStatus.Fresh or CacheLookupStatus.Stale;
-
-            EmitCacheTelemetry(request, isHit);
-
-            if (isHit)
-            {
-                HandleCacheHit(request, result);
-            }
-            else
-            {
-                HandleCacheMiss(request, result);
-            }
+            _sm.OnStageActorMessage(args.message);
         }
 
-        private void EmitCacheTelemetry(HttpRequestMessage request, bool isHit)
+        void IFeatureStageOperations.OnPushRequest(HttpRequestMessage request)
         {
-            // Emit a "TurboHTTP.CacheLookup" span with cache.hit tag
-            var previous = Activity.Current;
-            if (request.Options.TryGetValue(TurboHttpInstrumentation.RequestActivityKey, out var rootActivity))
-            {
-                Activity.Current = rootActivity;
-            }
-
-            if (request.RequestUri is not null)
-            {
-                var cacheActivity = TurboHttpInstrumentation.StartCacheLookup(request.RequestUri);
-                cacheActivity?.SetTag("cache.hit", isHit);
-                cacheActivity?.Stop();
-            }
-
-            Activity.Current = previous;
-
-            // Record cache hit/miss metrics + trace events
-            var uri = request.RequestUri?.OriginalString ?? "";
-            if (isHit)
-            {
-                TurboHttpMetrics.CacheHit.Add(1);
-                TurboHttpEventSource.Instance.CacheHit(uri);
-                TurboTrace.Cache.Info(this, "Cache hit: {0}", uri);
-            }
-            else
-            {
-                TurboHttpMetrics.CacheMiss.Add(1);
-                TurboHttpEventSource.Instance.CacheMiss(uri);
-                TurboTrace.Cache.Info(this, "Cache miss: {0}", uri);
-            }
+            Push(_stage._outRequest, request);
         }
 
-        private void HandleCacheHit(HttpRequestMessage request, CacheLookupResult result)
+        void IFeatureStageOperations.OnPushResponse(HttpResponseMessage response)
         {
-            // RFC 9111 §5.1 — inject Age header on every cached response
-            var cachedResponse = result.Entry!.Response;
-            CacheFreshnessEvaluator.InjectAgeHeader(cachedResponse, result.Entry, DateTimeOffset.UtcNow);
-
-            // RFC 9111 §5.2.2.3 — strip qualified no-cache fields before serving
-            StripNoCacheFields(cachedResponse, result.Entry.CacheControl);
-
-            // Bind the cached response to the request so the pipeline Sink
-            // can extract the TCS from request Options and complete it (G2).
-            cachedResponse.RequestMessage = request;
-
-            // Cache hit — short-circuit to response output
-            if (IsAvailable(_stage._outResponse))
-            {
-                Push(_stage._outResponse, cachedResponse);
-                // Stay Idle, pull next request if engine has demand
-                MaybePullNextRequest();
-            }
-            else
-            {
-                _bufferedHitResponse = cachedResponse;
-                _state = CacheState.HitBuffered;
-            }
+            Push(_stage._outResponse, response);
+            MaybePullNextRequest();
         }
 
-        private void HandleCacheMiss(HttpRequestMessage request, CacheLookupResult result)
+        void IFeatureStageOperations.OnSignalPullRequest()
         {
-            // Miss or MustRevalidate — forward to engine
-            var isRevalidation = result is { Status: CacheLookupStatus.MustRevalidate, Entry: not null };
-            var outgoing = isRevalidation
-                ? CacheValidationRequestBuilder.BuildConditionalRequest(request, result.Entry!)
-                : request;
-
-            if (isRevalidation)
-            {
-                outgoing.Options.Set(RevalidationKey, true);
-            }
-
-            Push(_stage._outRequest, outgoing);
-            _state = CacheState.Forwarded;
+            MaybePullNextRequest();
         }
 
-        private void OnResponsePush()
+        void IFeatureStageOperations.OnSignalPullResponse()
         {
-            var response = Grab(_stage._inResponse);
-
-            if (_stage._store is null || response.RequestMessage is null)
+            if (_sm.State == CacheStateMachine.CacheState.HitBuffered && IsAvailable(_stage._outResponse))
             {
-                Push(_stage._outResponse, response);
-                _state = CacheState.Idle;
-                MaybePullNextRequest();
-                return;
+                _sm.FlushBufferedHit();
             }
-
-            // Revalidation responses are processed without pending work tracking
-
-            var (processed, needsAsyncRead) = ProcessResponse(response);
-
-            if (!needsAsyncRead)
+            else if (!HasBeenPulled(_stage._inResponse) && !IsClosed(_stage._inResponse))
             {
-                Push(_stage._outResponse, processed);
-                _state = CacheState.Idle;
-                MaybePullNextRequest();
+                Pull(_stage._inResponse);
             }
-            // When needsAsyncRead is true, the async callback will push downstream.
         }
 
-        /// <summary>
-        /// Processes a response for caching. Returns the response to push and whether an async
-        /// body read was initiated. When <c>needsAsyncRead</c> is true, the caller must NOT push
-        /// — the async callback will push after the body has been read.
-        /// </summary>
-        private (HttpResponseMessage response, bool needsAsyncRead) ProcessResponse(HttpResponseMessage response)
+        void IFeatureStageOperations.OnCompleteStage()
         {
-            var request = response.RequestMessage!;
-            var method = request.Method;
-            var isUnsafe = method == HttpMethod.Post
-                           || method == HttpMethod.Put
-                           || method == HttpMethod.Delete
-                           || method == HttpMethod.Patch;
-
-            if (isUnsafe)
-            {
-                // RFC 9111 §4.4 — invalidate stored entries after unsafe method,
-                // but only when the response indicates success (non-error status).
-                var statusCode = (int)response.StatusCode;
-                if (statusCode is >= 200 and < 400 && request.RequestUri is not null)
-                {
-                    _stage._store!.Invalidate(request.RequestUri);
-
-                    // Also invalidate URIs from Location and Content-Location (same-origin only)
-                    InvalidateIfSameOrigin(request.RequestUri, response.Headers.Location);
-
-                    if (response.Content?.Headers?.ContentLocation is { } contentLocation)
-                    {
-                        InvalidateIfSameOrigin(request.RequestUri, contentLocation);
-                    }
-                }
-
-                return (response, false);
-            }
-
-            if (response.StatusCode == HttpStatusCode.NotModified)
-            {
-                // RFC 9111 §4.3.4 — merge 304 with cached entry and push 200 downstream
-                var entry = _stage._store!.Get(request);
-                if (entry is not null)
-                {
-                    var merged = CacheValidationRequestBuilder.MergeNotModifiedResponse(response, entry);
-                    merged.RequestMessage = request;
-
-                    var now = DateTimeOffset.UtcNow;
-                    _stage._store!.Put(request, merged, entry.Body, now, now);
-
-                    return (merged, false);
-                }
-
-                return (response, false);
-            }
-
-            if ((int)response.StatusCode >= 200 && (int)response.StatusCode < 300)
-            {
-                // RFC 9111 §3 — store cacheable 2xx responses.
-                // Sync fast-path: ReadAsByteArrayAsync on ByteArrayContent completes synchronously.
-                var task = response.Content.ReadAsByteArrayAsync();
-
-                if (task.IsCompletedSuccessfully)
-                {
-                    var body = task.Result;
-                    var now = DateTimeOffset.UtcNow;
-                    _stage._store!.Put(request, response, body, now, now);
-                    return (response, false);
-                }
-
-                // Async fallback: content not yet available — schedule via GetAsyncCallback
-                // to keep the stage scope alive (prevents GroupByHostKeyStage from
-                // completing the substream while the body read is in progress — DL-010).
-                _pendingAsyncRead = true;
-                var callback = _onBodyRead!;
-                var failureCallback = _onBodyReadFailure!;
-                var capturedResponse = response;
-                task.ContinueWith(t =>
-                {
-                    if (t.IsCompletedSuccessfully)
-                    {
-                        callback((capturedResponse, t.Result));
-                    }
-                    else
-                    {
-                        failureCallback(t.Exception?.GetBaseException()
-                            ?? new InvalidOperationException("Async body read failed"));
-                    }
-                }, TaskContinuationOptions.ExecuteSynchronously);
-
-                return (response, true);
-            }
-
-            return (response, false);
+            Complete(_stage._outResponse);
         }
 
-        /// <summary>
-        /// RFC 9111 §5.2.2.3 — Strips header fields listed in no-cache="field1, field2"
-        /// from the response before serving from cache.
-        /// </summary>
-        private static void StripNoCacheFields(HttpResponseMessage response, CacheControl? cc)
+        void IFeatureStageOperations.OnScheduleTimer(string key, TimeSpan delay)
         {
-            if (cc?.NoCacheFields is not { Count: > 0 } fields)
-            {
-                return;
-            }
-
-            foreach (var field in fields)
-            {
-                response.Headers.Remove(field);
-                response.Content?.Headers.Remove(field);
-            }
         }
 
-        /// <summary>
-        /// RFC 9111 §4.4 — Invalidates the target URI in the cache store if it shares
-        /// the same origin (scheme + host + port) as the request URI.
-        /// Handles relative URIs by resolving them against the request URI.
-        /// </summary>
-        private void InvalidateIfSameOrigin(Uri requestUri, Uri? targetUri)
+        void IFeatureStageOperations.OnCancelTimer(string key)
         {
-            if (targetUri is null)
-            {
-                return;
-            }
-
-            // Resolve relative URI against request URI
-            if (!targetUri.IsAbsoluteUri)
-            {
-                targetUri = new Uri(requestUri, targetUri);
-            }
-
-            // Same-origin check: scheme + host + port must match
-            if (string.Equals(requestUri.Scheme, targetUri.Scheme, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(requestUri.Host, targetUri.Host, StringComparison.OrdinalIgnoreCase)
-                && requestUri.Port == targetUri.Port)
-            {
-                _stage._store!.Invalidate(targetUri);
-            }
         }
+
+        ILoggingAdapter IFeatureStageOperations.Log => Log;
 
         private void MaybePullNextRequest()
         {
-            // DL-010: Do not pull the request inlet while an async body read
-            // is in flight — the substream must appear busy to GroupByHostKeyStage.
-            if (_pendingAsyncRead)
-            {
-                return;
-            }
-
-            if (IsAvailable(_stage._outRequest) && !HasBeenPulled(_stage._inRequest))
+            if (IsAvailable(_stage._outRequest)
+                && !HasBeenPulled(_stage._inRequest)
+                && !IsClosed(_stage._inRequest))
             {
                 Pull(_stage._inRequest);
             }
         }
+    }
+}
+
+internal sealed class CacheStateMachine
+{
+    internal enum CacheState
+    {
+        Idle,
+        Forwarded,
+        HitBuffered
+    }
+
+    private sealed record BodyReadComplete(HttpResponseMessage Response, IMemoryOwner<byte> Owner, int Length);
+
+    private sealed record BodyReadFailed(Exception Exception);
+
+    private readonly IFeatureStageOperations _ops;
+    private readonly ICacheStore? _store;
+    private readonly CachePolicy _policy;
+
+    private HttpResponseMessage? _bufferedHitResponse;
+    private bool _completionDeferred;
+    private IActorRef _stageActorRef = ActorRefs.Nobody;
+
+    public CacheState State { get; private set; } = CacheState.Idle;
+
+    public int PendingAsyncCount { get; private set; }
+
+    public CacheStateMachine(
+        IFeatureStageOperations ops,
+        ICacheStore? store,
+        CachePolicy policy)
+    {
+        _ops = ops;
+        _store = store;
+        _policy = policy;
+    }
+
+    public void SetStageActorRef(IActorRef actorRef)
+    {
+        _stageActorRef = actorRef;
+    }
+
+    public void DeferCompletion()
+    {
+        _completionDeferred = true;
+    }
+
+    public void OnStageActorMessage(object message)
+    {
+        switch (message)
+        {
+            case BodyReadComplete msg:
+            {
+                var request = msg.Response.RequestMessage!;
+                var now = DateTimeOffset.UtcNow;
+                _store!.Put(request, msg.Response, msg.Owner, msg.Length, now, now);
+                DecrementPendingAsync();
+                break;
+            }
+
+            case BodyReadFailed msg:
+                _ops.Log.Warning("CacheBidiStage: Async body read failed, response was already forwarded: {0}",
+                    msg.Exception.Message);
+                DecrementPendingAsync();
+                break;
+        }
+    }
+
+    public void OnRequest(HttpRequestMessage request)
+    {
+        if (_store is null)
+        {
+            _ops.OnPushRequest(request);
+            State = CacheState.Forwarded;
+            return;
+        }
+
+        var entry = _store.Get(request);
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, DateTimeOffset.UtcNow, _policy);
+        var isHit = result.Status is CacheLookupStatus.Fresh or CacheLookupStatus.Stale;
+
+        EmitCacheTelemetry(request, isHit);
+
+        if (isHit)
+        {
+            HandleCacheHit(request, result);
+        }
+        else
+        {
+            HandleCacheMiss(request, result);
+        }
+    }
+
+    public void OnResponse(HttpResponseMessage response)
+    {
+        if (_store is null || response.RequestMessage is null)
+        {
+            _ops.OnPushResponse(response);
+            State = CacheState.Idle;
+            return;
+        }
+
+        var processed = ProcessResponse(response);
+        _ops.OnPushResponse(processed);
+        State = CacheState.Idle;
+    }
+
+    public void FlushBufferedHit()
+    {
+        _ops.OnPushResponse(_bufferedHitResponse!);
+        _bufferedHitResponse = null;
+        State = CacheState.Idle;
+    }
+
+    private void DecrementPendingAsync()
+    {
+        PendingAsyncCount--;
+        if (PendingAsyncCount == 0 && _completionDeferred)
+        {
+            _ops.OnCompleteStage();
+        }
+    }
+
+    private void EmitCacheTelemetry(HttpRequestMessage request, bool isHit)
+    {
+        var previous = Activity.Current;
+        if (request.Options.TryGetValue(TurboHttpInstrumentation.RequestActivityKey, out var rootActivity))
+        {
+            Activity.Current = rootActivity;
+        }
+
+        if (request.RequestUri is not null)
+        {
+            var cacheActivity = TurboHttpInstrumentation.StartCacheLookup(request.RequestUri);
+            cacheActivity?.SetTag("cache.hit", isHit);
+            cacheActivity?.Stop();
+        }
+
+        Activity.Current = previous;
+
+        var uri = request.RequestUri?.OriginalString ?? "";
+        if (isHit)
+        {
+            TurboHttpMetrics.CacheHit.Add(1);
+            TurboHttpEventSource.Instance.CacheHit(uri);
+            TurboTrace.Cache.Info(_ops, "Cache hit: {0}", uri);
+        }
+        else
+        {
+            TurboHttpMetrics.CacheMiss.Add(1);
+            TurboHttpEventSource.Instance.CacheMiss(uri);
+            TurboTrace.Cache.Info(_ops, "Cache miss: {0}", uri);
+        }
+    }
+
+    private void HandleCacheHit(HttpRequestMessage request, CacheLookupResult result)
+    {
+        var cachedResponse = CloneCachedResponse(result.Entry!);
+
+        CacheFreshnessEvaluator.InjectAgeHeader(cachedResponse, result.Entry!, DateTimeOffset.UtcNow);
+
+        StripNoCacheFields(cachedResponse, result.Entry!.CacheControl);
+
+        cachedResponse.RequestMessage = request;
+
+        _bufferedHitResponse = cachedResponse;
+        State = CacheState.HitBuffered;
+        _ops.OnSignalPullResponse();
+    }
+
+    private void HandleCacheMiss(HttpRequestMessage request, CacheLookupResult result)
+    {
+        var isRevalidation = result is { Status: CacheLookupStatus.MustRevalidate, Entry: not null };
+        var outgoing = isRevalidation
+            ? CacheValidationRequestBuilder.BuildConditionalRequest(request, result.Entry!)
+            : request;
+
+        if (isRevalidation)
+        {
+            outgoing.Options.Set(CacheBidiStage.RevalidationKey, true);
+        }
+
+        _ops.OnPushRequest(outgoing);
+        State = CacheState.Forwarded;
+    }
+
+    private HttpResponseMessage ProcessResponse(HttpResponseMessage response)
+    {
+        var request = response.RequestMessage!;
+        var method = request.Method;
+        var isUnsafe = method == HttpMethod.Post
+                       || method == HttpMethod.Put
+                       || method == HttpMethod.Delete
+                       || method == HttpMethod.Patch;
+
+        if (isUnsafe)
+        {
+            var statusCode = (int)response.StatusCode;
+            if (statusCode is >= 200 and < 400 && request.RequestUri is not null)
+            {
+                _store!.Invalidate(request.RequestUri);
+
+                InvalidateIfSameOrigin(request.RequestUri, response.Headers.Location);
+
+                if (response.Content.Headers.ContentLocation is { } contentLocation)
+                {
+                    InvalidateIfSameOrigin(request.RequestUri, contentLocation);
+                }
+            }
+
+            return response;
+        }
+
+        if (response.StatusCode == HttpStatusCode.NotModified)
+        {
+            var entry = _store!.Get(request);
+            if (entry is not null)
+            {
+                var merged = CacheValidationRequestBuilder.MergeNotModifiedResponse(response, entry);
+                merged.RequestMessage = request;
+
+                var (owner, length) = CacheStore.RentBody(entry.Body.Span);
+                var now = DateTimeOffset.UtcNow;
+                _store!.Put(request, merged, owner, length, now, now);
+
+                return merged;
+            }
+
+            return response;
+        }
+
+        if ((int)response.StatusCode >= 200 && (int)response.StatusCode < 300)
+        {
+            var task = response.Content.ReadAsByteArrayAsync();
+
+            if (task.IsCompletedSuccessfully)
+            {
+                var body = task.Result;
+                var (owner, length) = CacheStore.RentBody(body);
+                var now = DateTimeOffset.UtcNow;
+                _store!.Put(request, response, owner, length, now, now);
+                return response;
+            }
+
+            PendingAsyncCount++;
+            task.PipeTo(_stageActorRef,
+                success: body =>
+                {
+                    var (owner, length) = CacheStore.RentBody(body);
+                    return new BodyReadComplete(response, owner, length);
+                },
+                failure: ex => new BodyReadFailed(
+                    ex.GetBaseException()));
+        }
+
+        return response;
+    }
+
+    private static void StripNoCacheFields(HttpResponseMessage response, CacheControl? cc)
+    {
+        if (cc?.NoCacheFields is not { Count: > 0 } fields)
+        {
+            return;
+        }
+
+        foreach (var field in fields)
+        {
+            response.Headers.Remove(field);
+            response.Content?.Headers.Remove(field);
+        }
+    }
+
+    private void InvalidateIfSameOrigin(Uri requestUri, Uri? targetUri)
+    {
+        if (targetUri is null)
+        {
+            return;
+        }
+
+        if (!targetUri.IsAbsoluteUri)
+        {
+            targetUri = new Uri(requestUri, targetUri);
+        }
+
+        if (string.Equals(requestUri.Scheme, targetUri.Scheme, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(requestUri.Host, targetUri.Host, StringComparison.OrdinalIgnoreCase)
+            && requestUri.Port == targetUri.Port)
+        {
+            _store!.Invalidate(targetUri);
+        }
+    }
+
+    private static HttpResponseMessage CloneCachedResponse(ICacheEntry entry)
+    {
+        var original = entry.Response;
+        var clone = new HttpResponseMessage(original.StatusCode)
+        {
+            Version = original.Version,
+            ReasonPhrase = original.ReasonPhrase,
+            Content = new ByteArrayContent(entry.Body.ToArray())
+        };
+
+        foreach (var header in original.Headers)
+        {
+            clone.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
+
+        foreach (var header in original.Content.Headers)
+        {
+            clone.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        }
+
+        return clone;
     }
 }
