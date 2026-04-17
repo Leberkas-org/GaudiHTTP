@@ -72,6 +72,162 @@ public sealed class Http11EncoderRangeRequestSpec
         });
     }
 
+    [Fact]
+    [Trait("RFC", "RFC9110-14.1.1")]
+    public void Http11Encoder_should_reject_range_without_bytes_prefix()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
+        request.Headers.TryAddWithoutValidation("Range", "0-99");
+        var buffer = new Memory<byte>(new byte[4096]);
+        var threw = false;
+        try
+        {
+            var span = buffer.Span;
+            Protocol.Http11.Encoder.Encode(request, ref span);
+        }
+        catch (ArgumentException ex)
+        {
+            threw = ex.Message.Contains("bytes=");
+        }
+
+        Assert.True(threw);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-14.1.1")]
+    public void Http11Encoder_should_reject_range_with_missing_dash()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
+        request.Headers.TryAddWithoutValidation("Range", "bytes=0");
+        var buffer = new Memory<byte>(new byte[4096]);
+        var threw = false;
+        try
+        {
+            var span = buffer.Span;
+            Protocol.Http11.Encoder.Encode(request, ref span);
+        }
+        catch (ArgumentException ex)
+        {
+            threw = ex.Message.Contains("'-'");
+        }
+
+        Assert.True(threw);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-14.1.1")]
+    public void Http11Encoder_should_reject_range_with_empty_spec()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
+        request.Headers.TryAddWithoutValidation("Range", "bytes=-");
+        var buffer = new Memory<byte>(new byte[4096]);
+        var threw = false;
+        try
+        {
+            var span = buffer.Span;
+            Protocol.Http11.Encoder.Encode(request, ref span);
+        }
+        catch (ArgumentException ex)
+        {
+            threw = ex.Message.Contains("empty range spec");
+        }
+
+        Assert.True(threw);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-14.1.1")]
+    public void Http11Encoder_should_reject_range_with_non_digit_characters()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
+        request.Headers.TryAddWithoutValidation("Range", "bytes=0-a9");
+        var buffer = new Memory<byte>(new byte[4096]);
+        var threw = false;
+        try
+        {
+            var span = buffer.Span;
+            Protocol.Http11.Encoder.Encode(request, ref span);
+        }
+        catch (ArgumentException ex)
+        {
+            threw = ex.Message.Contains("non-digit");
+        }
+
+        Assert.True(threw);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-14.1.1")]
+    public void Http11Encoder_should_accept_case_insensitive_bytes_prefix()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
+        request.Headers.TryAddWithoutValidation("Range", "BYTES=0-99");
+        var result = Encode(request);
+        Assert.Contains("Range: BYTES=0-99\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-14.1.1")]
+    public void Http11Encoder_should_accept_range_with_large_numbers()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
+        request.Headers.TryAddWithoutValidation("Range", "bytes=0-9999999999");
+        var result = Encode(request);
+        Assert.Contains("Range: bytes=0-9999999999\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-14.1.1")]
+    public void Http11Encoder_should_accept_range_with_spaces()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
+        request.Headers.TryAddWithoutValidation("Range", "bytes=0-99, 200-299");
+        var result = Encode(request);
+        Assert.Contains("Range: bytes=0-99, 200-299\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-14.1.1")]
+    public void Http11Encoder_should_reject_range_with_invalid_character()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
+        request.Headers.TryAddWithoutValidation("Range", "bytes=0-9*");
+        var buffer = new Memory<byte>(new byte[4096]);
+        var threw = false;
+        try
+        {
+            var span = buffer.Span;
+            Protocol.Http11.Encoder.Encode(request, ref span);
+        }
+        catch (ArgumentException ex)
+        {
+            threw = ex.Message.Contains("non-digit");
+        }
+
+        Assert.True(threw);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-14.1.1")]
+    public void Http11Encoder_should_reject_range_non_bytes_unit()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
+        request.Headers.TryAddWithoutValidation("Range", "units=0-99");
+        var buffer = new Memory<byte>(new byte[4096]);
+        var threw = false;
+        try
+        {
+            var span = buffer.Span;
+            Protocol.Http11.Encoder.Encode(request, ref span);
+        }
+        catch (ArgumentException ex)
+        {
+            threw = ex.Message.Contains("bytes=");
+        }
+
+        Assert.True(threw);
+    }
+
     private static string Encode(HttpRequestMessage request)
     {
         using var owner = MemoryPool<byte>.Shared.Rent(4096);

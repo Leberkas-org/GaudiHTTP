@@ -152,6 +152,94 @@ public sealed class Http11EncoderRequestLineSpec
         Assert.Contains("GET /path%20with%20spaces HTTP/1.1\r\n", result);
     }
 
+    [Fact]
+    [Trait("RFC", "RFC9110-9.3.6")]
+    public void Http11Encoder_should_use_authority_form_for_connect_method()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Connect, "http://proxy.example.com:8080/");
+        var result = Encode(request);
+        Assert.StartsWith("CONNECT proxy.example.com:8080 HTTP/1.1\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-3")]
+    public void Http11Encoder_should_use_absolute_form_for_proxy_requests()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com:8080/path?query=1");
+        var result = EncodeAbsolute(request);
+        Assert.StartsWith("GET http://example.com:8080/path?query=1 HTTP/1.1\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-3")]
+    public void Http11Encoder_should_strip_userinfo_in_absolute_form()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://user:password@example.com/path");
+        var result = EncodeAbsolute(request);
+        Assert.DoesNotContain("user", result);
+        Assert.DoesNotContain("password", result);
+        Assert.Contains("example.com", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-3")]
+    public void Http11Encoder_should_handle_ipv6_address_in_host_header()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://[::1]/path");
+        var result = Encode(request);
+        Assert.Contains("Host: [::1]\r\n", result);
+        Assert.StartsWith("GET /path HTTP/1.1\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-9.3.6")]
+    public void Http11Encoder_should_handle_ipv6_in_connect_authority()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Connect, "http://[2001:db8::1]:443/");
+        var result = Encode(request);
+        Assert.StartsWith("CONNECT [2001:db8::1]:443 HTTP/1.1\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-3")]
+    public void Http11Encoder_should_preserve_multiple_query_params()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/search?q=hello&sort=asc&limit=10");
+        var result = Encode(request);
+        Assert.Contains("GET /search?q=hello&sort=asc&limit=10 HTTP/1.1\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-3")]
+    public void Http11Encoder_should_accept_mixed_case_custom_method()
+    {
+        var request = new HttpRequestMessage(new HttpMethod("PROPFIND"), "https://example.com/");
+        var result = Encode(request);
+        Assert.Contains("PROPFIND / HTTP/1.1\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-3")]
+    public void Http11Encoder_should_reject_method_with_lowercase_letters()
+    {
+        var request = new HttpRequestMessage(new HttpMethod("Post"), "https://example.com/");
+        var buffer = new Memory<byte>(new byte[4096]);
+        Assert.Throws<ArgumentException>(() =>
+        {
+            var span = buffer.Span;
+            Protocol.Http11.Encoder.Encode(request, ref span);
+        });
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-3")]
+    public void Http11Encoder_should_handle_options_with_absolute_path()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Options, "https://example.com/api");
+        var result = Encode(request);
+        Assert.Contains("OPTIONS /api HTTP/1.1\r\n", result);
+    }
+
     private static string Encode(HttpRequestMessage request)
     {
         using var owner = MemoryPool<byte>.Shared.Rent(4096);

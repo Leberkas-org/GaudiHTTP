@@ -259,6 +259,115 @@ public sealed class Http11EncoderBodySpec
         });
     }
 
+    [Fact]
+    [Trait("RFC", "RFC9112-7")]
+    public void Http11Encoder_should_auto_chunk_when_content_length_unknown()
+    {
+        var content = new StringContent("test body");
+        content.Headers.ContentLength = null;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/")
+        {
+            Content = content
+        };
+
+        var result = Encode(request);
+
+        Assert.Contains("Transfer-Encoding: chunked\r\n", result);
+        Assert.DoesNotContain("Content-Length:", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-7")]
+    public void Http11Encoder_should_format_chunk_size_in_hex()
+    {
+        // Create content of exactly 256 bytes to verify hex encoding (0x100)
+        var bodyText = new string('a', 256);
+        var content = new StringContent(bodyText);
+        content.Headers.ContentLength = null;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/")
+        {
+            Content = content
+        };
+
+        using var owner = MemoryPool<byte>.Shared.Rent(16384);
+        var buffer = owner.Memory;
+        var span = buffer.Span;
+        var written = Protocol.Http11.Encoder.Encode(request, ref span);
+        var bytes = buffer.Span[..written].ToArray();
+        var result = Encoding.ASCII.GetString(bytes);
+
+        // Verify hex encoding with CRLF markers
+        Assert.Contains("\r\n", result); // Chunked format uses CRLF
+        Assert.Contains("0\r\n\r\n", result); // Final chunk
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-7")]
+    public void Http11Encoder_should_handle_empty_body_with_chunked()
+    {
+        var content = new StringContent("");
+        content.Headers.ContentLength = null;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/")
+        {
+            Content = content
+        };
+
+        var result = Encode(request);
+
+        Assert.Contains("Transfer-Encoding: chunked\r\n", result);
+        Assert.Contains("0\r\n\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-7")]
+    public void Http11Encoder_should_preserve_content_type_with_chunked()
+    {
+        var content = new StringContent("json data", Encoding.UTF8, "application/json");
+        content.Headers.ContentLength = null;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/")
+        {
+            Content = content
+        };
+
+        var result = Encode(request);
+
+        Assert.Contains("Content-Type: application/json", result);
+        Assert.Contains("Transfer-Encoding: chunked\r\n", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-6")]
+    public void Http11Encoder_should_preserve_charset_in_content_type()
+    {
+        var content = new StringContent("test", Encoding.UTF8, "text/plain");
+        content.Headers.ContentType!.CharSet = "utf-8";
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/")
+        {
+            Content = content
+        };
+
+        var result = Encode(request);
+
+        Assert.Contains("Content-Type: text/plain; charset=utf-8", result);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9112-6")]
+    public void Http11Encoder_should_handle_post_without_explicit_body()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/");
+
+        var result = Encode(request);
+
+        // POST without explicit body should not use chunking or content-length
+        Assert.DoesNotContain("Transfer-Encoding:", result);
+        Assert.DoesNotContain("Content-Length:", result);
+    }
+
     private static string Encode(HttpRequestMessage request)
     {
         using var owner = MemoryPool<byte>.Shared.Rent(4096);
