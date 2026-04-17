@@ -53,15 +53,15 @@ internal sealed class FrameDecoder : IDisposable
         // Combine remainder with new input into a pooled working buffer
         ReadOnlySpan<byte> data;
         IMemoryOwner<byte>? rentedCombined = null;
-        int combinedLength = 0;
+        var combinedLength = 0;
 
         if (_remainderLength > 0)
         {
             combinedLength = _remainderLength + input.Length;
             rentedCombined = MemoryPool<byte>.Shared.Rent(combinedLength);
-            _remainderOwner!.Memory.Span.Slice(0, _remainderLength).CopyTo(rentedCombined.Memory.Span);
-            input.CopyTo(rentedCombined.Memory.Span.Slice(_remainderLength));
-            data = rentedCombined.Memory.Span.Slice(0, combinedLength);
+            _remainderOwner!.Memory.Span[.._remainderLength].CopyTo(rentedCombined.Memory.Span);
+            input.CopyTo(rentedCombined.Memory.Span[_remainderLength..]);
+            data = rentedCombined.Memory.Span[..combinedLength];
 
             // Dispose old remainder buffer now that its content has been copied out
             _remainderOwner?.Dispose();
@@ -118,10 +118,7 @@ internal sealed class FrameDecoder : IDisposable
         }
         finally
         {
-            if (rentedCombined != null)
-            {
-                rentedCombined.Dispose();
-            }
+            rentedCombined?.Dispose();
         }
     }
 

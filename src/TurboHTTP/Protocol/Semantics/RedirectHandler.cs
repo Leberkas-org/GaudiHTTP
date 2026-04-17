@@ -14,7 +14,6 @@ internal sealed class RedirectHandler
 {
     private readonly RedirectPolicy _policy;
     private readonly HashSet<string> _visitedUris;
-    private int _redirectCount;
 
     /// <summary>
     /// Creates a new redirect handler with the specified policy.
@@ -24,7 +23,7 @@ internal sealed class RedirectHandler
     {
         _policy = policy ?? RedirectPolicy.Default;
         _visitedUris = new HashSet<string>(StringComparer.Ordinal);
-        _redirectCount = 0;
+        RedirectCount = 0;
     }
 
     /// <summary>
@@ -64,13 +63,13 @@ internal sealed class RedirectHandler
         ArgumentNullException.ThrowIfNull(original.RequestUri);
 
         // Register the current URL on first call (before first redirect)
-        if (_redirectCount == 0)
+        if (RedirectCount == 0)
         {
             _visitedUris.Add(NormalizeUriForComparison(original.RequestUri));
         }
 
         // Enforce max redirects
-        if (_redirectCount >= _policy.MaxRedirects)
+        if (RedirectCount >= _policy.MaxRedirects)
         {
             throw new RedirectException(
                 $"RFC 9110 §15.4: Maximum redirect limit of {_policy.MaxRedirects} exceeded.",
@@ -100,7 +99,7 @@ internal sealed class RedirectHandler
                 RedirectError.RedirectLoop);
         }
 
-        _redirectCount++;
+        RedirectCount++;
 
         // Determine new method and whether to preserve the body
         var (newMethod, preserveBody) = ResolveMethodAndBody(original.Method, response.StatusCode);
@@ -122,10 +121,10 @@ internal sealed class RedirectHandler
         // disposes the stream on first use, breaking re-reads on redirect.
         if (preserveBody && original.Content != null)
         {
-            using var ms = RecyclableStreams.Manager.GetStream();
+            var ms = RecyclableStreams.Manager.GetStream();
             original.Content.CopyTo(ms, null, CancellationToken.None);
-            var bytes = ms.ToArray();
-            var newContent = new ByteArrayContent(bytes);
+            ms.Position = 0;
+            var newContent = new StreamContent(ms);
             foreach (var h in original.Content.Headers)
             {
                 newContent.Headers.TryAddWithoutValidation(h.Key, h.Value);
@@ -143,11 +142,11 @@ internal sealed class RedirectHandler
     public void Reset()
     {
         _visitedUris.Clear();
-        _redirectCount = 0;
+        RedirectCount = 0;
     }
 
     /// <summary>Gets the current redirect count for the active chain.</summary>
-    public int RedirectCount => _redirectCount;
+    public int RedirectCount { get; private set; }
 
     /// <summary>
     /// Normalizes a URI for redirect loop comparison.

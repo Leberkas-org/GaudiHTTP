@@ -6,8 +6,7 @@ namespace TurboHTTP.Internal;
 /// <summary>
 /// An <see cref="HttpContent"/> backed by a pooled <see cref="IMemoryOwner{T}"/>.
 /// Writes directly from the rented memory without copying. The memory is returned
-/// to the pool when the content (and therefore the owning <see cref="HttpResponseMessage"/>)
-/// is disposed.
+/// to the pool when the content is disposed.
 /// </summary>
 internal sealed class PooledBodyContent : HttpContent
 {
@@ -20,19 +19,60 @@ internal sealed class PooledBodyContent : HttpContent
         _length = length;
     }
 
-    protected override void SerializeToStream(Stream stream, TransportContext? context,
-        CancellationToken cancellationToken)
-        => stream.Write(_owner!.Memory.Span[.._length]);
-
-    protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+    public static PooledBodyContent FromChunks(byte[]? initial, List<NetworkBuffer>? chunks)
     {
-        await stream.WriteAsync(_owner!.Memory[.._length]);
+        var totalLength = initial?.Length ?? 0;
+        if (chunks is not null)
+        {
+            foreach (var buf in chunks)
+            {
+                totalLength += buf.Length;
+            }
+        }
+
+        var owner = MemoryPool<byte>.Shared.Rent(totalLength);
+        var target = owner.Memory.Span;
+        var offset = 0;
+
+        if (initial is { Length: > 0 })
+        {
+            initial.CopyTo(target);
+            offset += initial.Length;
+        }
+
+        if (chunks is not null)
+        {
+            foreach (var buf in chunks)
+            {
+                buf.Memory.Span.CopyTo(target[offset..]);
+                offset += buf.Length;
+                buf.Dispose();
+            }
+        }
+
+        return new PooledBodyContent(owner, totalLength);
     }
 
-    protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context,
+    protected override void SerializeToStream(Stream stream, TransportContext? context,
         CancellationToken cancellationToken)
     {
-        await stream.WriteAsync(_owner!.Memory[.._length], cancellationToken);
+        var mem = AcquireOwner();
+        stream.Write(mem.Memory.Span[.._length]);
+    }
+
+    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+    {
+        var mem = AcquireOwner();
+        var vt = stream.WriteAsync(mem.Memory[.._length]);
+        return vt.IsCompletedSuccessfully ? Task.CompletedTask : vt.AsTask();
+    }
+
+    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context,
+        CancellationToken cancellationToken)
+    {
+        var mem = AcquireOwner();
+        var vt = stream.WriteAsync(mem.Memory[.._length], cancellationToken);
+        return vt.IsCompletedSuccessfully ? Task.CompletedTask : vt.AsTask();
     }
 
     protected override bool TryComputeLength(out long length)
@@ -45,73 +85,17 @@ internal sealed class PooledBodyContent : HttpContent
     {
         if (disposing)
         {
-            var owner = Interlocked.Exchange(ref _owner, null);
-            owner?.Dispose();
+            var prev = Interlocked.Exchange(ref _owner, null);
+            prev?.Dispose();
         }
 
         base.Dispose(disposing);
     }
-}
 
-/// <summary>
-/// An <see cref="HttpContent"/> that holds pooled <see cref="NetworkBuffer"/> chunks
-/// accumulated during connection-close-delimited body streaming.
-/// </summary>
-internal sealed class PooledChunksContent : HttpContent
-{
-    private readonly byte[]? _initial;
-    private readonly List<NetworkBuffer>? _chunks;
-
-    public PooledChunksContent(byte[]? initial, List<NetworkBuffer>? chunks)
+    private IMemoryOwner<byte> AcquireOwner()
     {
-        _initial = initial;
-        _chunks = chunks;
-    }
-
-    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
-        => SerializeToStreamAsync(stream, context, CancellationToken.None);
-
-    protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context,
-        CancellationToken ct)
-    {
-        if (_initial is { Length: > 0 })
-        {
-            await stream.WriteAsync(_initial, ct).ConfigureAwait(false);
-        }
-
-        if (_chunks is not null)
-        {
-            foreach (var buf in _chunks)
-            {
-                await stream.WriteAsync(buf.Memory, ct).ConfigureAwait(false);
-            }
-        }
-    }
-
-    protected override bool TryComputeLength(out long length)
-    {
-        length = _initial?.Length ?? 0;
-        if (_chunks is not null)
-        {
-            foreach (var buf in _chunks)
-            {
-                length += buf.Length;
-            }
-        }
-
-        return true;
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing && _chunks is not null)
-        {
-            foreach (var buf in _chunks)
-            {
-                buf.Dispose();
-            }
-        }
-
-        base.Dispose(disposing);
+        var mem = Interlocked.CompareExchange(ref _owner, null, null);
+        ObjectDisposedException.ThrowIf(mem is null, this);
+        return mem;
     }
 }

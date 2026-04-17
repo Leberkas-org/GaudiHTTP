@@ -39,12 +39,12 @@ internal sealed class RedirectBidiStage
     internal static readonly HttpRequestOptionsKey<RedirectHandler> RedirectHandlerKey
         = new("TurboHTTP.RedirectHandler");
 
-    internal readonly RedirectPolicy? _policy;
+    private readonly RedirectPolicy? _policy;
 
-    internal readonly Inlet<HttpRequestMessage> _inRequest = new("Redirect.In.Request");
-    internal readonly Outlet<HttpRequestMessage> _outRequest = new("Redirect.Out.Request");
-    internal readonly Inlet<HttpResponseMessage> _inResponse = new("Redirect.In.Response");
-    internal readonly Outlet<HttpResponseMessage> _outResponse = new("Redirect.Out.Response");
+    private readonly Inlet<HttpRequestMessage> _inRequest = new("Redirect.In.Request");
+    private readonly Outlet<HttpRequestMessage> _outRequest = new("Redirect.Out.Request");
+    private readonly Inlet<HttpResponseMessage> _inResponse = new("Redirect.In.Response");
+    private readonly Outlet<HttpResponseMessage> _outResponse = new("Redirect.Out.Response");
 
     public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape
     {
@@ -64,22 +64,57 @@ internal sealed class RedirectBidiStage
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new RedirectBidiLogic(this);
-}
 
-internal sealed class RedirectBidiLogic : GraphStageLogic, IFeatureStageOperations
-{
-    private readonly RedirectBidiStage _stage;
-    private readonly RedirectStateMachine? _sm;
 
-    public RedirectBidiLogic(RedirectBidiStage stage) : base(stage.Shape)
+    private sealed class RedirectBidiLogic : GraphStageLogic, IFeatureStageOperations
     {
-        _stage = stage;
+        private readonly RedirectBidiStage _stage;
+        private readonly RedirectStateMachine? _sm;
 
-        if (stage._policy is null)
+        public RedirectBidiLogic(RedirectBidiStage stage) : base(stage.Shape)
         {
+            _stage = stage;
+
+            if (stage._policy is null)
+            {
+                SetHandler(stage._inRequest,
+                    onPush: () => Push(stage._outRequest, Grab(stage._inRequest)),
+                    onUpstreamFinish: () => Complete(stage._outRequest),
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RedirectBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outRequest);
+                    });
+
+                SetHandler(stage._outRequest,
+                    onPull: () => Pull(stage._inRequest),
+                    onDownstreamFinish: _ => Cancel(stage._inRequest));
+
+                SetHandler(stage._inResponse,
+                    onPush: () => Push(stage._outResponse, Grab(stage._inResponse)),
+                    onUpstreamFinish: () => Complete(stage._outResponse),
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RedirectBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outResponse);
+                    });
+
+                SetHandler(stage._outResponse,
+                    onPull: () => Pull(stage._inResponse),
+                    onDownstreamFinish: _ => Cancel(stage._inResponse));
+
+                return;
+            }
+
+            _sm = new RedirectStateMachine(this, stage._policy);
+
             SetHandler(stage._inRequest,
-                onPush: () => Push(stage._outRequest, Grab(stage._inRequest)),
-                onUpstreamFinish: () => Complete(stage._outRequest),
+                onPush: () =>
+                {
+                    var request = Grab(stage._inRequest);
+                    _sm.OnRequest(request);
+                },
+                onUpstreamFinish: () => _sm.OnRequestUpstreamFinish(),
                 onUpstreamFailure: ex =>
                 {
                     Log.Warning("RedirectBidiStage: Request upstream failure absorbed: {0}", ex.Message);
@@ -87,12 +122,30 @@ internal sealed class RedirectBidiLogic : GraphStageLogic, IFeatureStageOperatio
                 });
 
             SetHandler(stage._outRequest,
-                onPull: () => Pull(stage._inRequest),
+                onPull: () =>
+                {
+                    if (_sm.HasReadyRedirects)
+                    {
+                        _sm.FlushReadyRedirect();
+                    }
+                    else
+                    {
+                        TryPullRequest();
+                    }
+                },
                 onDownstreamFinish: _ => Cancel(stage._inRequest));
 
             SetHandler(stage._inResponse,
-                onPush: () => Push(stage._outResponse, Grab(stage._inResponse)),
-                onUpstreamFinish: () => Complete(stage._outResponse),
+                onPush: () =>
+                {
+                    var response = Grab(stage._inResponse);
+                    _sm.OnResponse(response);
+                },
+                onUpstreamFinish: () =>
+                {
+                    Complete(stage._outResponse);
+                    MaybeComplete();
+                },
                 onUpstreamFailure: ex =>
                 {
                     Log.Warning("RedirectBidiStage: Response upstream failure absorbed: {0}", ex.Message);
@@ -100,133 +153,85 @@ internal sealed class RedirectBidiLogic : GraphStageLogic, IFeatureStageOperatio
                 });
 
             SetHandler(stage._outResponse,
-                onPull: () => Pull(stage._inResponse),
+                onPull: () => TryPullResponse(),
                 onDownstreamFinish: _ => Cancel(stage._inResponse));
-
-            return;
         }
 
-        _sm = new RedirectStateMachine(this, stage._policy);
+        public override void PostStop() => _sm?.PostStop();
 
-        SetHandler(stage._inRequest,
-            onPush: () =>
-            {
-                var request = Grab(stage._inRequest);
-                _sm.OnRequest(request);
-            },
-            onUpstreamFinish: () => _sm.OnRequestUpstreamFinish(),
-            onUpstreamFailure: ex =>
-            {
-                Log.Warning("RedirectBidiStage: Request upstream failure absorbed: {0}", ex.Message);
-                Complete(stage._outRequest);
-            });
-
-        SetHandler(stage._outRequest,
-            onPull: () =>
-            {
-                if (_sm.HasReadyRedirects)
-                {
-                    _sm.FlushReadyRedirect();
-                }
-                else
-                {
-                    TryPullRequest();
-                }
-            },
-            onDownstreamFinish: _ => Cancel(stage._inRequest));
-
-        SetHandler(stage._inResponse,
-            onPush: () =>
-            {
-                var response = Grab(stage._inResponse);
-                _sm.OnResponse(response);
-            },
-            onUpstreamFinish: () =>
-            {
-                Complete(stage._outResponse);
-                MaybeComplete();
-            },
-            onUpstreamFailure: ex =>
-            {
-                Log.Warning("RedirectBidiStage: Response upstream failure absorbed: {0}", ex.Message);
-                Complete(stage._outResponse);
-            });
-
-        SetHandler(stage._outResponse,
-            onPull: () => TryPullResponse(),
-            onDownstreamFinish: _ => Cancel(stage._inResponse));
-    }
-
-    public override void PostStop() => _sm?.PostStop();
-
-    void IFeatureStageOperations.OnPushRequest(HttpRequestMessage request)
-    {
-        Push(_stage._outRequest, request);
-        TryPullRequest();
-    }
-
-    void IFeatureStageOperations.OnPushResponse(HttpResponseMessage response)
-    {
-        Push(_stage._outResponse, response);
-        TryPullResponse();
-        MaybeComplete();
-    }
-
-    void IFeatureStageOperations.OnSignalPullRequest()
-    {
-        if (_sm!.HasReadyRedirects && IsAvailable(_stage._outRequest))
+        void IFeatureStageOperations.OnPushRequest(HttpRequestMessage request)
         {
-            _sm.FlushReadyRedirect();
-        }
-        else
-        {
+            Push(_stage._outRequest, request);
             TryPullRequest();
         }
-    }
 
-    void IFeatureStageOperations.OnSignalPullResponse()
-    {
-        TryPullResponse();
-    }
-
-    void IFeatureStageOperations.OnCompleteStage()
-    {
-        Complete(_stage._outRequest);
-    }
-
-    void IFeatureStageOperations.OnScheduleTimer(string key, TimeSpan delay) { }
-
-    void IFeatureStageOperations.OnCancelTimer(string key) { }
-
-    ILoggingAdapter IFeatureStageOperations.Log => Log;
-
-    private void TryPullRequest()
-    {
-        if (IsAvailable(_stage._outRequest)
-            && _sm!.CanAcceptRequest
-            && !HasBeenPulled(_stage._inRequest)
-            && !IsClosed(_stage._inRequest))
+        void IFeatureStageOperations.OnPushResponse(HttpResponseMessage response)
         {
-            Pull(_stage._inRequest);
+            Push(_stage._outResponse, response);
+            TryPullResponse();
+            MaybeComplete();
         }
-    }
 
-    private void TryPullResponse()
-    {
-        if (!HasBeenPulled(_stage._inResponse)
-            && !IsClosed(_stage._inResponse))
+        void IFeatureStageOperations.OnSignalPullRequest()
         {
-            Pull(_stage._inResponse);
+            if (_sm!.HasReadyRedirects && IsAvailable(_stage._outRequest))
+            {
+                _sm.FlushReadyRedirect();
+            }
+            else
+            {
+                TryPullRequest();
+            }
         }
-    }
 
-    private void MaybeComplete()
-    {
-        if (_sm!.IsDrained
-            && !IsClosed(_stage._outRequest)
-            && (IsClosed(_stage._inRequest) || IsClosed(_stage._inResponse)))
+        void IFeatureStageOperations.OnSignalPullResponse()
+        {
+            TryPullResponse();
+        }
+
+        void IFeatureStageOperations.OnCompleteStage()
         {
             Complete(_stage._outRequest);
+        }
+
+        void IFeatureStageOperations.OnScheduleTimer(string key, TimeSpan delay)
+        {
+        }
+
+        void IFeatureStageOperations.OnCancelTimer(string key)
+        {
+        }
+
+        ILoggingAdapter IFeatureStageOperations.Log => Log;
+
+        private void TryPullRequest()
+        {
+            if (IsAvailable(_stage._outRequest)
+                && _sm!.CanAcceptRequest
+                && !HasBeenPulled(_stage._inRequest)
+                && !IsClosed(_stage._inRequest))
+            {
+                Pull(_stage._inRequest);
+            }
+        }
+
+        private void TryPullResponse()
+        {
+            if (!HasBeenPulled(_stage._inResponse)
+                && !IsClosed(_stage._inResponse))
+            {
+                Pull(_stage._inResponse);
+            }
+        }
+
+        private void MaybeComplete()
+        {
+            if (_sm!.IsDrained
+                && !IsClosed(_stage._outRequest)
+                && (IsClosed(_stage._inRequest) || IsClosed(_stage._inResponse)))
+            {
+                Complete(_stage._outRequest);
+            }
         }
     }
 }

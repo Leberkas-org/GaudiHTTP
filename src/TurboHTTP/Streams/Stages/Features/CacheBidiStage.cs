@@ -223,7 +223,8 @@ internal sealed class CacheStateMachine
     {
         Idle,
         Forwarded,
-        HitBuffered
+        HitBuffered,
+        AwaitingCacheStore
     }
 
     private sealed record BodyReadComplete(HttpResponseMessage Response, IMemoryOwner<byte> Owner, int Length);
@@ -235,6 +236,7 @@ internal sealed class CacheStateMachine
     private readonly CachePolicy _policy;
 
     private HttpResponseMessage? _bufferedHitResponse;
+    private HttpResponseMessage? _pendingCacheResponse;
     private bool _completionDeferred;
     private IActorRef _stageActorRef = ActorRefs.Nobody;
 
@@ -271,13 +273,14 @@ internal sealed class CacheStateMachine
                 var request = msg.Response.RequestMessage!;
                 var now = DateTimeOffset.UtcNow;
                 _store!.Put(request, msg.Response, msg.Owner, msg.Length, now, now);
+                FlushPendingCacheResponse();
                 DecrementPendingAsync();
                 break;
             }
 
             case BodyReadFailed msg:
-                _ops.Log.Warning("CacheBidiStage: Async body read failed, response was already forwarded: {0}",
-                    msg.Exception.Message);
+                _ops.Log.Warning("CacheBidiStage: Async body read failed: {0}", msg.Exception.Message);
+                FlushPendingCacheResponse();
                 DecrementPendingAsync();
                 break;
         }
@@ -318,6 +321,11 @@ internal sealed class CacheStateMachine
         }
 
         var processed = ProcessResponse(response);
+        if (State == CacheState.AwaitingCacheStore)
+        {
+            return;
+        }
+
         _ops.OnPushResponse(processed);
         State = CacheState.Idle;
     }
@@ -326,6 +334,19 @@ internal sealed class CacheStateMachine
     {
         _ops.OnPushResponse(_bufferedHitResponse!);
         _bufferedHitResponse = null;
+        State = CacheState.Idle;
+    }
+
+    private void FlushPendingCacheResponse()
+    {
+        if (_pendingCacheResponse is null)
+        {
+            return;
+        }
+
+        var response = _pendingCacheResponse;
+        _pendingCacheResponse = null;
+        _ops.OnPushResponse(response);
         State = CacheState.Idle;
     }
 
@@ -448,26 +469,16 @@ internal sealed class CacheStateMachine
 
         if ((int)response.StatusCode >= 200 && (int)response.StatusCode < 300)
         {
-            var task = response.Content.ReadAsByteArrayAsync();
+            var task = ReadBodyToPoolAsync(response);
 
-            if (task.IsCompletedSuccessfully)
-            {
-                var body = task.Result;
-                var (owner, length) = CacheStore.RentBody(body);
-                var now = DateTimeOffset.UtcNow;
-                _store!.Put(request, response, owner, length, now, now);
-                return response;
-            }
-
+            _pendingCacheResponse = response;
+            State = CacheState.AwaitingCacheStore;
             PendingAsyncCount++;
             task.PipeTo(_stageActorRef,
-                success: body =>
-                {
-                    var (owner, length) = CacheStore.RentBody(body);
-                    return new BodyReadComplete(response, owner, length);
-                },
+                success: result => result,
                 failure: ex => new BodyReadFailed(
                     ex.GetBaseException()));
+            return response;
         }
 
         return response;
@@ -505,6 +516,15 @@ internal sealed class CacheStateMachine
         {
             _store!.Invalidate(targetUri);
         }
+    }
+
+    private static async Task<BodyReadComplete> ReadBodyToPoolAsync(HttpResponseMessage response)
+    {
+        await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        var length = (int)stream.Length;
+        var owner = MemoryPool<byte>.Shared.Rent(length);
+        stream.ReadExactly(owner.Memory.Span[..length]);
+        return new BodyReadComplete(response, owner, length);
     }
 
     private static HttpResponseMessage CloneCachedResponse(ICacheEntry entry)

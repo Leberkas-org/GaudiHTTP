@@ -62,7 +62,7 @@ public sealed class HpackFuzzSpec
             span[0] = 0x80 | 1;
             var huffmanByte = (byte)(0x80 | (stringLength & 0x7F));
             span[1] = huffmanByte;
-            randomBytes.CopyTo(span.Slice(2));
+            randomBytes.CopyTo(span[2..]);
             buffer.Advance(2 + stringLength);
 
             AssertDecodeNeverCrashes(decoder, buffer.WrittenSpan.ToArray());
@@ -99,7 +99,7 @@ public sealed class HpackFuzzSpec
                 var entrySpan = buffer.GetSpan(2 + nameLen);
                 entrySpan[0] = 0x40 | 1;
                 entrySpan[1] = (byte)(nameLen & 0x7F);
-                name.CopyTo(entrySpan.Slice(2));
+                name.CopyTo(entrySpan[2..]);
                 buffer.Advance(2 + nameLen);
             }
 
@@ -160,7 +160,7 @@ public sealed class HpackFuzzSpec
         span[1] = 0x80 | 127;
         span[2] = 0x80;
         span[3] = 0x07;
-        new byte[] { 1, 2, 3, 4, 5 }.CopyTo(span.Slice(4));
+        new byte[] { 1, 2, 3, 4, 5 }.CopyTo(span[4..]);
         buffer.Advance(9);
 
         var ex = Assert.Throws<HpackException>(() => decoder.Decode(buffer.WrittenSpan));
@@ -210,9 +210,9 @@ public sealed class HpackFuzzSpec
             var span = buffer.GetSpan(2 + nameBytes.Length + 1 + valueBytes.Length);
             span[0] = 0x10;
             span[1] = (byte)nameBytes.Length;
-            nameBytes.CopyTo(span.Slice(2));
+            nameBytes.CopyTo(span[2..]);
             span[2 + nameBytes.Length] = (byte)valueBytes.Length;
-            valueBytes.CopyTo(span.Slice(3 + nameBytes.Length));
+            valueBytes.CopyTo(span[(3 + nameBytes.Length)..]);
             buffer.Advance(3 + nameBytes.Length + valueBytes.Length);
 
             var headers = decoder.Decode(buffer.WrittenSpan);
@@ -244,9 +244,9 @@ public sealed class HpackFuzzSpec
             var span = buffer.GetSpan(2 + nameBytes.Length + 1 + valueBytes.Length);
             span[0] = 0x40 | 1;
             span[1] = (byte)nameBytes.Length;
-            nameBytes.CopyTo(span.Slice(2));
+            nameBytes.CopyTo(span[2..]);
             span[2 + nameBytes.Length] = (byte)valueBytes.Length;
-            valueBytes.CopyTo(span.Slice(3 + nameBytes.Length));
+            valueBytes.CopyTo(span[(3 + nameBytes.Length)..]);
             buffer.Advance(3 + nameBytes.Length + valueBytes.Length);
         }
 
@@ -277,9 +277,9 @@ public sealed class HpackFuzzSpec
             span[0] = 0x82;
             span[1] = 0x40;
             span[2] = 4;
-            "test"u8.CopyTo(span.Slice(3));
+            "test"u8.CopyTo(span[3..]);
             span[7] = 5;
-            "value"u8.CopyTo(span.Slice(8));
+            "value"u8.CopyTo(span[8..]);
             buffer.Advance(13);
 
             var data = buffer.WrittenMemory.ToArray();

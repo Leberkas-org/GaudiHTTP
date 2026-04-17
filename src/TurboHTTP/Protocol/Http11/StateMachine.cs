@@ -336,7 +336,7 @@ internal sealed class StateMachine
             if (closeSignal.CloseKind == TlsCloseKind.CleanClose)
             {
                 // RFC 9112 §9.8: connection close is a valid body delimiter.
-                var content = new PooledChunksContent(_initialBodyBytes, _bodyOwners);
+                var content = PooledBodyContent.FromChunks(_initialBodyBytes, _bodyOwners);
                 _pendingCloseDelimitedResponse.Content = content;
                 var response = _pendingCloseDelimitedResponse;
                 _pendingCloseDelimitedResponse = null;

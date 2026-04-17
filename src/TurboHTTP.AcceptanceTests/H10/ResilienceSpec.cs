@@ -11,19 +11,17 @@ namespace TurboHTTP.AcceptanceTests.H10;
 
 public sealed class ResilienceSpec : AcceptanceTestBase
 {
-    private static Http10Engine Engine => new(new Http1EngineOptions(16, 6, 3, 64 * 1024, 64, 1024 * 1024, TimeSpan.FromSeconds(2)));
-
     private static BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed>
         CreateDecompressingEngine()
     {
         var decomp = BidiFlow.FromGraph(new ContentEncodingBidiStage());
-        return decomp.Atop(Engine.CreateFlow());
+        return decomp.Atop(CreateHttp10Engine().CreateFlow());
     }
 
     private async Task<HttpResponseMessage> SendScriptedAsync(HttpRequestMessage request, Func<int, byte[], byte[]?> factory)
     {
         var fake = new ScriptedFakeConnectionStage(factory);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp10Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -59,7 +57,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
         var raw = "HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nhello";
 
         var fake = new ScriptedFakeConnectionStage((_, _) => Encoding.Latin1.GetBytes(raw));
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp10Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -148,7 +146,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
         truncatedBody.CopyTo(responseBytes, headerBytes.Length);
 
         var fake = new ScriptedFakeConnectionStage((_, _) => responseBytes);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp10Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -190,7 +188,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
 
         // Simulate server that never responds (abort connection)
         var fake = new ScriptedFakeConnectionStage((_, _) => null);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp10Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)
@@ -212,7 +210,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
 
         // Server closes connection without sending anything
         var fake = new ScriptedFakeConnectionStage((_, _) => null);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp10Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)

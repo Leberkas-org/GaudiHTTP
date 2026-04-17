@@ -79,9 +79,9 @@ public sealed class ContentEncodingSpec : StreamTestBase
     private static byte[] DeflateCompress(byte[] data)
     {
         using var output = new MemoryStream();
-        using (var zlib = new ZLibStream(output, CompressionMode.Compress))
+        using (var deflate = new ZLibStream(output, CompressionMode.Compress))
         {
-            zlib.Write(data, 0, data.Length);
+            deflate.Write(data, 0, data.Length);
         }
         return output.ToArray();
     }

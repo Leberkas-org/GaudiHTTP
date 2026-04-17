@@ -59,7 +59,7 @@ internal static class CacheValidationRequestBuilder
         var merged = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Version = cachedEntry.Response.Version,
-            Content = new CachedBodyContent(cachedEntry.Body)
+            Content = new ReadOnlyMemoryContent(cachedEntry.Body)
         };
 
         // Copy cached response headers as baseline

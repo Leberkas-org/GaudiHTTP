@@ -139,16 +139,23 @@ internal static class Encoder
             return 0;
         }
 
-        // Use Content-Length header if available — avoids buffering entirely.
         if (content.Headers.ContentLength is { } cl)
         {
             return (int)cl;
         }
 
-        // Fallback: buffer to determine length (unavoidable for streamed content).
-        using var stream = content.ReadAsStream();
+        // HTTP/1.0 has no chunked transfer encoding, so we must buffer to
+        // determine the length. ReadAsStream triggers SerializeToStream once
+        // and caches internally. Do NOT dispose — the encoder reads it again.
+        var stream = content.ReadAsStream();
+        if (stream.CanSeek)
+        {
+            return (int)stream.Length;
+        }
+
         using var ms = RecyclableStreams.Manager.GetStream();
         stream.CopyTo(ms);
+        content.Headers.ContentLength = ms.Length;
         return (int)ms.Length;
     }
 

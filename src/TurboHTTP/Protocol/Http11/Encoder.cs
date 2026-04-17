@@ -41,8 +41,15 @@ internal static class Encoder
         // 2. Host header (RFC 9112 Section 5.4 - MUST be present and first)
         bytesWritten += WriteHostHeader(request.RequestUri, ref buffer);
 
-        // Check if chunked encoding is requested
+        // Check if chunked encoding is requested or required.
+        // When Content-Length is unknown, use chunked transfer encoding
+        // instead of buffering the body to determine length (RFC 9112 §7.1).
         var isChunked = request.Headers.TransferEncodingChunked == true;
+        if (!isChunked && request.Content is not null && request.Content.Headers.ContentLength is null)
+        {
+            isChunked = true;
+            request.Headers.TransferEncodingChunked = true;
+        }
 
         // 3. Accept-Encoding (RFC 9110 §8.4: advertise supported decodings unless already set)
         bytesWritten += WriteAcceptEncodingIfNeeded(request.Headers, ref buffer);
@@ -53,17 +60,6 @@ internal static class Encoder
         // 5. Content headers (if body present)
         if (request.Content != null)
         {
-            // Ensure Content-Length is set for content with known length
-            // This is required for HTTP/1.1 requests with bodies (unless chunked)
-            if (!isChunked && request.Content.Headers.ContentLength == null)
-            {
-                using var stream = request.Content.ReadAsStream();
-                if (stream.CanSeek)
-                {
-                    request.Content.Headers.ContentLength = stream.Length;
-                }
-            }
-
             bytesWritten += WriteContentHeaders(request.Content.Headers, ref buffer, isChunked);
         }
 

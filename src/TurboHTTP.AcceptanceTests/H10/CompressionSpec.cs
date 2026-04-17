@@ -43,7 +43,7 @@ public sealed class CompressionSpec : AcceptanceTestBase
     private static byte[] DeflateCompress(byte[] data)
     {
         using var output = new MemoryStream();
-        using (var deflate = new DeflateStream(output, CompressionMode.Compress))
+        using (var deflate = new ZLibStream(output, CompressionMode.Compress))
         {
             deflate.Write(data, 0, data.Length);
         }

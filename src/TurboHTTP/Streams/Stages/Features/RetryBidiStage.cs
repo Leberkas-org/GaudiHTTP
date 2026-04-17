@@ -26,12 +26,12 @@ namespace TurboHTTP.Streams.Stages.Features;
 internal sealed class RetryBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
 {
-    internal readonly RetryPolicy? _policy;
+    private readonly RetryPolicy? _policy;
 
-    internal readonly Inlet<HttpRequestMessage> _inRequest = new("Retry.In.Request");
-    internal readonly Outlet<HttpRequestMessage> _outRequest = new("Retry.Out.Request");
-    internal readonly Inlet<HttpResponseMessage> _inResponse = new("Retry.In.Response");
-    internal readonly Outlet<HttpResponseMessage> _outResponse = new("Retry.Out.Response");
+    private readonly Inlet<HttpRequestMessage> _inRequest = new("Retry.In.Request");
+    private readonly Outlet<HttpRequestMessage> _outRequest = new("Retry.Out.Request");
+    private readonly Inlet<HttpResponseMessage> _inResponse = new("Retry.In.Response");
+    private readonly Outlet<HttpResponseMessage> _outResponse = new("Retry.Out.Response");
 
     /// <summary>
     /// Maximum number of pending retries (ready + waiting) before the stage stops accepting
@@ -57,22 +57,56 @@ internal sealed class RetryBidiStage
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new RetryBidiLogic(this);
-}
 
-internal sealed class RetryBidiLogic : TimerGraphStageLogic, IFeatureStageOperations
-{
-    private readonly RetryBidiStage _stage;
-    private readonly RetryStateMachine? _sm;
-
-    public RetryBidiLogic(RetryBidiStage stage) : base(stage.Shape)
+    private sealed class RetryBidiLogic : TimerGraphStageLogic, IFeatureStageOperations
     {
-        _stage = stage;
+        private readonly RetryBidiStage _stage;
+        private readonly RetryStateMachine? _sm;
 
-        if (stage._policy is null)
+        public RetryBidiLogic(RetryBidiStage stage) : base(stage.Shape)
         {
+            _stage = stage;
+
+            if (stage._policy is null)
+            {
+                SetHandler(stage._inRequest,
+                    onPush: () => Push(stage._outRequest, Grab(stage._inRequest)),
+                    onUpstreamFinish: () => Complete(stage._outRequest),
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RetryBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outRequest);
+                    });
+
+                SetHandler(stage._outRequest,
+                    onPull: () => Pull(stage._inRequest),
+                    onDownstreamFinish: _ => Cancel(stage._inRequest));
+
+                SetHandler(stage._inResponse,
+                    onPush: () => Push(stage._outResponse, Grab(stage._inResponse)),
+                    onUpstreamFinish: () => Complete(stage._outResponse),
+                    onUpstreamFailure: ex =>
+                    {
+                        Log.Warning("RetryBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                        Complete(stage._outResponse);
+                    });
+
+                SetHandler(stage._outResponse,
+                    onPull: () => Pull(stage._inResponse),
+                    onDownstreamFinish: _ => Cancel(stage._inResponse));
+
+                return;
+            }
+
+            _sm = new RetryStateMachine(this, stage._policy);
+
             SetHandler(stage._inRequest,
-                onPush: () => Push(stage._outRequest, Grab(stage._inRequest)),
-                onUpstreamFinish: () => Complete(stage._outRequest),
+                onPush: () =>
+                {
+                    var request = Grab(stage._inRequest);
+                    _sm.OnRequest(request);
+                },
+                onUpstreamFinish: () => _sm.OnRequestUpstreamFinish(),
                 onUpstreamFailure: ex =>
                 {
                     Log.Warning("RetryBidiStage: Request upstream failure absorbed: {0}", ex.Message);
@@ -80,12 +114,30 @@ internal sealed class RetryBidiLogic : TimerGraphStageLogic, IFeatureStageOperat
                 });
 
             SetHandler(stage._outRequest,
-                onPull: () => Pull(stage._inRequest),
+                onPull: () =>
+                {
+                    if (_sm.HasReadyRetries)
+                    {
+                        _sm.FlushReadyRetry();
+                    }
+                    else
+                    {
+                        TryPullRequest();
+                    }
+                },
                 onDownstreamFinish: _ => Cancel(stage._inRequest));
 
             SetHandler(stage._inResponse,
-                onPush: () => Push(stage._outResponse, Grab(stage._inResponse)),
-                onUpstreamFinish: () => Complete(stage._outResponse),
+                onPush: () =>
+                {
+                    var response = Grab(stage._inResponse);
+                    _sm.OnResponse(response);
+                },
+                onUpstreamFinish: () =>
+                {
+                    Complete(stage._outResponse);
+                    MaybeComplete();
+                },
                 onUpstreamFailure: ex =>
                 {
                     Log.Warning("RetryBidiStage: Response upstream failure absorbed: {0}", ex.Message);
@@ -93,141 +145,89 @@ internal sealed class RetryBidiLogic : TimerGraphStageLogic, IFeatureStageOperat
                 });
 
             SetHandler(stage._outResponse,
-                onPull: () => Pull(stage._inResponse),
+                onPull: () => TryPullResponse(),
                 onDownstreamFinish: _ => Cancel(stage._inResponse));
-
-            return;
         }
 
-        _sm = new RetryStateMachine(this, stage._policy);
+        protected override void OnTimer(object timerKey) => _sm?.OnTimer(timerKey);
 
-        SetHandler(stage._inRequest,
-            onPush: () =>
-            {
-                var request = Grab(stage._inRequest);
-                _sm.OnRequest(request);
-            },
-            onUpstreamFinish: () => _sm.OnRequestUpstreamFinish(),
-            onUpstreamFailure: ex =>
-            {
-                Log.Warning("RetryBidiStage: Request upstream failure absorbed: {0}", ex.Message);
-                Complete(stage._outRequest);
-            });
+        public override void PostStop() => _sm?.PostStop();
 
-        SetHandler(stage._outRequest,
-            onPull: () =>
-            {
-                if (_sm.HasReadyRetries)
-                {
-                    _sm.FlushReadyRetry();
-                }
-                else
-                {
-                    TryPullRequest();
-                }
-            },
-            onDownstreamFinish: _ => Cancel(stage._inRequest));
-
-        SetHandler(stage._inResponse,
-            onPush: () =>
-            {
-                var response = Grab(stage._inResponse);
-                _sm.OnResponse(response);
-            },
-            onUpstreamFinish: () =>
-            {
-                Complete(stage._outResponse);
-                MaybeComplete();
-            },
-            onUpstreamFailure: ex =>
-            {
-                Log.Warning("RetryBidiStage: Response upstream failure absorbed: {0}", ex.Message);
-                Complete(stage._outResponse);
-            });
-
-        SetHandler(stage._outResponse,
-            onPull: () => TryPullResponse(),
-            onDownstreamFinish: _ => Cancel(stage._inResponse));
-    }
-
-    protected override void OnTimer(object timerKey) => _sm?.OnTimer(timerKey);
-
-    public override void PostStop() => _sm?.PostStop();
-
-    void IFeatureStageOperations.OnPushRequest(HttpRequestMessage request)
-    {
-        Push(_stage._outRequest, request);
-        TryPullRequest();
-    }
-
-    void IFeatureStageOperations.OnPushResponse(HttpResponseMessage response)
-    {
-        Push(_stage._outResponse, response);
-        TryPullResponse();
-        MaybeComplete();
-    }
-
-    void IFeatureStageOperations.OnSignalPullRequest()
-    {
-        if (_sm!.HasReadyRetries && IsAvailable(_stage._outRequest))
+        void IFeatureStageOperations.OnPushRequest(HttpRequestMessage request)
         {
-            _sm.FlushReadyRetry();
-        }
-        else
-        {
+            Push(_stage._outRequest, request);
             TryPullRequest();
         }
-    }
 
-    void IFeatureStageOperations.OnSignalPullResponse()
-    {
-        TryPullResponse();
-    }
-
-    void IFeatureStageOperations.OnCompleteStage()
-    {
-        Complete(_stage._outRequest);
-    }
-
-    void IFeatureStageOperations.OnScheduleTimer(string key, TimeSpan delay)
-    {
-        ScheduleOnce(key, delay);
-    }
-
-    void IFeatureStageOperations.OnCancelTimer(string key)
-    {
-        CancelTimer(key);
-    }
-
-    ILoggingAdapter IFeatureStageOperations.Log => Log;
-
-    private void TryPullRequest()
-    {
-        if (IsAvailable(_stage._outRequest)
-            && _sm!.CanAcceptRequest
-            && !HasBeenPulled(_stage._inRequest)
-            && !IsClosed(_stage._inRequest))
+        void IFeatureStageOperations.OnPushResponse(HttpResponseMessage response)
         {
-            Pull(_stage._inRequest);
+            Push(_stage._outResponse, response);
+            TryPullResponse();
+            MaybeComplete();
         }
-    }
 
-    private void TryPullResponse()
-    {
-        if (!HasBeenPulled(_stage._inResponse)
-            && !IsClosed(_stage._inResponse))
+        void IFeatureStageOperations.OnSignalPullRequest()
         {
-            Pull(_stage._inResponse);
+            if (_sm!.HasReadyRetries && IsAvailable(_stage._outRequest))
+            {
+                _sm.FlushReadyRetry();
+            }
+            else
+            {
+                TryPullRequest();
+            }
         }
-    }
 
-    private void MaybeComplete()
-    {
-        if (_sm!.IsDrained
-            && !IsClosed(_stage._outRequest)
-            && (IsClosed(_stage._inRequest) || IsClosed(_stage._inResponse)))
+        void IFeatureStageOperations.OnSignalPullResponse()
+        {
+            TryPullResponse();
+        }
+
+        void IFeatureStageOperations.OnCompleteStage()
         {
             Complete(_stage._outRequest);
+        }
+
+        void IFeatureStageOperations.OnScheduleTimer(string key, TimeSpan delay)
+        {
+            ScheduleOnce(key, delay);
+        }
+
+        void IFeatureStageOperations.OnCancelTimer(string key)
+        {
+            CancelTimer(key);
+        }
+
+        ILoggingAdapter IFeatureStageOperations.Log => Log;
+
+        private void TryPullRequest()
+        {
+            if (IsAvailable(_stage._outRequest)
+                && _sm!.CanAcceptRequest
+                && !HasBeenPulled(_stage._inRequest)
+                && !IsClosed(_stage._inRequest))
+            {
+                Pull(_stage._inRequest);
+            }
+        }
+
+        private void TryPullResponse()
+        {
+            if (!HasBeenPulled(_stage._inResponse)
+                && !IsClosed(_stage._inResponse))
+            {
+                Pull(_stage._inResponse);
+            }
+        }
+
+        private void MaybeComplete()
+        {
+            if (_sm!.IsDrained
+                && !IsClosed(_stage._outRequest)
+                && (IsClosed(_stage._inRequest) || IsClosed(_stage._inResponse)))
+            {
+                Complete(_stage._outRequest);
+            }
         }
     }
 }

@@ -21,7 +21,7 @@ public sealed class RetrySpec
         return ClientHelper.CreateClient(
             _server.H2Port,
             new Version(2, 0),
-            configure: builder => builder.WithRetry(x => x.MaxRetries = 3),
+            configure: builder => builder.WithRetry(x => x.MaxRetries = maxRetries),
             system: _systemFixture.System);
     }
 

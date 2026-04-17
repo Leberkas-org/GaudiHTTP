@@ -1,9 +1,11 @@
+using System.IO.Compression;
+using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Tests.Semantics;
 
 /// <summary>
-/// Tests for <see cref="ContentEncodingEncoder"/> and <see cref="CompressionPolicy"/>.
+/// Tests for request compression and <see cref="CompressionPolicy"/>.
 /// RFC 9110 §8.4 — A sender that applied content encoding MUST generate a Content-Encoding
 /// header field listing the applied encodings.
 /// </summary>
@@ -27,13 +29,29 @@ public sealed class RequestCompressionSpec
         return ms.ToArray();
     }
 
+    private static byte[] Compress(ReadOnlySpan<byte> data, string encoding)
+    {
+        if (data.IsEmpty)
+        {
+            return [];
+        }
+
+        using var output = new MemoryStream();
+        using (var codec =
+               ContentEncoding.CreateCodecStream(output, encoding, CompressionMode.Compress, leaveOpen: true))
+        {
+            codec.Write(data);
+        }
+
+        return output.ToArray();
+    }
+
     [Fact]
     [Trait("RFC", "RFC9110-8.4")]
     public void Should_Compress_When_GzipPolicy()
     {
         var body = MakeBody(2048);
-        using var compressed = ContentEncodingEncoder.Compress(body, "gzip");
-        var buf = ReadStream(compressed);
+        var buf = Compress(body, "gzip");
 
         Assert.True(buf.Length > 0);
         Assert.False(body.AsSpan().SequenceEqual(buf));
@@ -44,10 +62,8 @@ public sealed class RequestCompressionSpec
     public void Should_SetHeader_When_Compressed()
     {
         var body = MakeBody(2048);
-        using var compressed = ContentEncodingEncoder.Compress(body, "gzip");
-        var buf = ReadStream(compressed);
+        var buf = Compress(body, "gzip");
 
-        // Simulate what the stage does: create content with encoding header
         using var content = new ByteArrayContent(buf);
         content.Headers.TryAddWithoutValidation("Content-Encoding", "gzip");
         content.Headers.ContentLength = buf.Length;
@@ -71,40 +87,28 @@ public sealed class RequestCompressionSpec
         Assert.True(bodySize < policy.MinBodySizeBytes);
     }
 
-    [Fact]
+    [Theory]
     [Trait("RFC", "RFC9110-8.4")]
-    public void Should_Roundtrip_When_CompressedAndDecompressed()
+    [InlineData("gzip")]
+    [InlineData("deflate")]
+    [InlineData("br")]
+    public void Should_Roundtrip_When_CompressedAndDecompressed(string encoding)
     {
         var original = MakeBody(4096);
 
-        // Test gzip roundtrip
-        using var gzipCompressed = ContentEncodingEncoder.Compress(original, "gzip");
-        var gzipBuf = ReadStream(gzipCompressed);
-        using var gzipDecompressed = ContentEncodingDecoder.Decompress(gzipBuf, "gzip");
-        var gzipResult = ReadStream(gzipDecompressed);
-        Assert.Equal(original, gzipResult);
+        var compressed = Compress(original, encoding);
+        using var decompressed = ContentEncoding.CreateCodecStream(
+            new MemoryStream(compressed), encoding, CompressionMode.Decompress);
+        var result = ReadStream(decompressed);
 
-        // Test deflate roundtrip
-        using var deflateCompressed = ContentEncodingEncoder.Compress(original, "deflate");
-        var deflateBuf = ReadStream(deflateCompressed);
-        using var deflateDecompressed = ContentEncodingDecoder.Decompress(deflateBuf, "deflate");
-        var deflateResult = ReadStream(deflateDecompressed);
-        Assert.Equal(original, deflateResult);
-
-        // Test brotli roundtrip
-        using var brCompressed = ContentEncodingEncoder.Compress(original, "br");
-        var brBuf = ReadStream(brCompressed);
-        using var brDecompressed = ContentEncodingDecoder.Decompress(brBuf, "br");
-        var brResult = ReadStream(brDecompressed);
-        Assert.Equal(original, brResult);
+        Assert.Equal(original, result);
     }
 
     [Fact]
     [Trait("RFC", "RFC9110-8.4")]
     public void Should_ReturnEmpty_When_EmptyBody()
     {
-        using var stream = ContentEncodingEncoder.Compress([], "gzip");
-        var buf = ReadStream(stream);
+        var buf = Compress([], "gzip");
         Assert.Empty(buf);
     }
 
@@ -113,7 +117,7 @@ public sealed class RequestCompressionSpec
     public void Should_Throw_When_UnknownEncoding()
     {
         var body = MakeBody(256);
-        Assert.Throws<ArgumentException>(() => ContentEncodingEncoder.Compress(body, "unknown"));
+        Assert.Throws<HttpDecoderException>(() => Compress(body, "unknown"));
     }
 
     [Fact]
@@ -131,13 +135,10 @@ public sealed class RequestCompressionSpec
     public void Should_UpdateContentLength_When_Compressed()
     {
         var body = MakeBody(2048);
-        using var compressed = ContentEncodingEncoder.Compress(body, "gzip");
-        var buf = ReadStream(compressed);
+        var buf = Compress(body, "gzip");
 
-        // Compressed size should be different from original size
         Assert.NotEqual(body.Length, buf.Length);
 
-        // Simulate stage behavior
         using var content = new ByteArrayContent(buf);
         content.Headers.ContentLength = buf.Length;
 

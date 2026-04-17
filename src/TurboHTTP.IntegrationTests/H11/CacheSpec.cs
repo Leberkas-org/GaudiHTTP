@@ -1,6 +1,5 @@
 using System.Net;
 using TurboHTTP.IntegrationTests.Shared;
-using TurboHTTP.Protocol.Caching;
 
 namespace TurboHTTP.IntegrationTests.H11;
 

@@ -10,8 +10,6 @@ namespace TurboHTTP.AcceptanceTests.H10;
 
 public sealed class SmokeSpec : AcceptanceTestBase
 {
-    private static Http10Engine Engine => new(new Http1EngineOptions(16, 6, 3, 64 * 1024, 64, 1024 * 1024, TimeSpan.FromSeconds(2)));
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-4.1")]
     public async Task SmokeTest_should_return_200_hello_world()
@@ -26,7 +24,7 @@ public sealed class SmokeSpec : AcceptanceTestBase
         var responseBytes = Encoding.Latin1.GetBytes(raw);
 
         var fake = new ScriptedFakeConnectionStage((_, _) => responseBytes);
-        var flow = Engine.CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
+        var flow = CreateHttp10Engine().CreateFlow().Join(Flow.FromGraph<IOutputItem, IInputItem, NotUsed>(fake));
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
         _ = Source.Single(request)

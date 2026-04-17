@@ -26,12 +26,15 @@ namespace TurboHTTP.Streams.Stages.Features;
 internal sealed class TracingBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
 {
-    internal readonly Inlet<HttpRequestMessage> _inRequest = new("Tracing.In.Request");
-    internal readonly Outlet<HttpRequestMessage> _outRequest = new("Tracing.Out.Request");
-    internal readonly Inlet<HttpResponseMessage> _inResponse = new("Tracing.In.Response");
-    internal readonly Outlet<HttpResponseMessage> _outResponse = new("Tracing.Out.Response");
+    private readonly Inlet<HttpRequestMessage> _inRequest = new("Tracing.In.Request");
+    private readonly Outlet<HttpRequestMessage> _outRequest = new("Tracing.Out.Request");
+    private readonly Inlet<HttpResponseMessage> _inResponse = new("Tracing.In.Response");
+    private readonly Outlet<HttpResponseMessage> _outResponse = new("Tracing.Out.Response");
 
-    public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape { get; }
+    public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape
+    {
+        get;
+    }
 
     public TracingBidiStage()
     {
@@ -41,77 +44,87 @@ internal sealed class TracingBidiStage
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new TracingBidiLogic(this);
-}
 
-internal sealed class TracingBidiLogic : GraphStageLogic, IFeatureStageOperations
-{
-    private readonly TracingBidiStage _stage;
-    private readonly TracingBidiProcessor _processor;
-
-    public TracingBidiLogic(TracingBidiStage stage) : base(stage.Shape)
+    private sealed class TracingBidiLogic : GraphStageLogic, IFeatureStageOperations
     {
-        _stage = stage;
-        _processor = new TracingBidiProcessor(this);
+        private readonly TracingBidiStage _stage;
+        private readonly TracingBidiProcessor _processor;
 
-        SetHandler(stage._inRequest,
-            onPush: () =>
-            {
-                var request = Grab(stage._inRequest);
-                _processor.OnRequestPush(request);
-            },
-            onUpstreamFinish: () => Complete(stage._outRequest),
-            onUpstreamFailure: ex =>
-            {
-                _processor.OnRequestUpstreamFailure(ex);
-                Fail(_stage._outRequest, ex);
-            });
+        public TracingBidiLogic(TracingBidiStage stage) : base(stage.Shape)
+        {
+            _stage = stage;
+            _processor = new TracingBidiProcessor(this);
 
-        SetHandler(stage._outRequest,
-            onPull: () => Pull(stage._inRequest),
-            onDownstreamFinish: _ => Cancel(stage._inRequest));
+            SetHandler(stage._inRequest,
+                onPush: () =>
+                {
+                    var request = Grab(stage._inRequest);
+                    _processor.OnRequestPush(request);
+                },
+                onUpstreamFinish: () => Complete(stage._outRequest),
+                onUpstreamFailure: ex =>
+                {
+                    _processor.OnRequestUpstreamFailure(ex);
+                    Fail(_stage._outRequest, ex);
+                });
 
-        SetHandler(stage._inResponse,
-            onPush: () =>
-            {
-                var response = Grab(stage._inResponse);
-                _processor.OnResponsePush(response);
-            },
-            onUpstreamFinish: () => Complete(stage._outResponse),
-            onUpstreamFailure: ex =>
-            {
-                _processor.OnResponseUpstreamFailure(ex);
-                Fail(_stage._outResponse, ex);
-                TurboHttpMetrics.ActiveRequests.Add(-1);
-            });
+            SetHandler(stage._outRequest,
+                onPull: () => Pull(stage._inRequest),
+                onDownstreamFinish: _ => Cancel(stage._inRequest));
 
-        SetHandler(stage._outResponse,
-            onPull: () => Pull(stage._inResponse),
-            onDownstreamFinish: _ => Cancel(stage._inResponse));
+            SetHandler(stage._inResponse,
+                onPush: () =>
+                {
+                    var response = Grab(stage._inResponse);
+                    _processor.OnResponsePush(response);
+                },
+                onUpstreamFinish: () => Complete(stage._outResponse),
+                onUpstreamFailure: ex =>
+                {
+                    _processor.OnResponseUpstreamFailure(ex);
+                    Fail(_stage._outResponse, ex);
+                    TurboHttpMetrics.ActiveRequests.Add(-1);
+                });
+
+            SetHandler(stage._outResponse,
+                onPull: () => Pull(stage._inResponse),
+                onDownstreamFinish: _ => Cancel(stage._inResponse));
+        }
+
+        public override void PostStop() => _processor.PostStop();
+
+        void IFeatureStageOperations.OnPushRequest(HttpRequestMessage request)
+        {
+            Push(_stage._outRequest, request);
+        }
+
+        void IFeatureStageOperations.OnPushResponse(HttpResponseMessage response)
+        {
+            Push(_stage._outResponse, response);
+        }
+
+        void IFeatureStageOperations.OnSignalPullRequest()
+        {
+        }
+
+        void IFeatureStageOperations.OnSignalPullResponse()
+        {
+        }
+
+        void IFeatureStageOperations.OnCompleteStage()
+        {
+        }
+
+        void IFeatureStageOperations.OnScheduleTimer(string key, TimeSpan delay)
+        {
+        }
+
+        void IFeatureStageOperations.OnCancelTimer(string key)
+        {
+        }
+
+        ILoggingAdapter IFeatureStageOperations.Log => Log;
     }
-
-    public override void PostStop() => _processor.PostStop();
-
-    void IFeatureStageOperations.OnPushRequest(HttpRequestMessage request)
-    {
-        Push(_stage._outRequest, request);
-    }
-
-    void IFeatureStageOperations.OnPushResponse(HttpResponseMessage response)
-    {
-        Push(_stage._outResponse, response);
-    }
-
-    void IFeatureStageOperations.OnSignalPullRequest() { }
-
-    void IFeatureStageOperations.OnSignalPullResponse() { }
-
-    void IFeatureStageOperations.OnCompleteStage() { }
-
-    void IFeatureStageOperations.OnScheduleTimer(string key, TimeSpan delay) { }
-
-    void IFeatureStageOperations.OnCancelTimer(string key) { }
-
-    ILoggingAdapter IFeatureStageOperations.Log => Log;
 }
 
 internal sealed class TracingBidiProcessor
@@ -196,6 +209,7 @@ internal sealed class TracingBidiProcessor
         {
             TurboHttpDiagnosticSource.OnRequestStop(request, response, TaskStatus.RanToCompletion);
         }
+
         TurboHttpEventSource.Instance.RequestStop(
             request?.Method.Method ?? "UNKNOWN", statusCode, durationMs);
 

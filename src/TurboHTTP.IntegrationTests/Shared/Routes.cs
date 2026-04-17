@@ -1333,15 +1333,14 @@ internal static class Routes
             await ctx.Response.Body.WriteAsync(body);
         });
 
-        // POST /compress/verify-deflate → verifies body is valid zlib-deflate, decompresses, echoes
-        // Uses ZLibStream because the TurboHttp client compresses deflate as zlib-wrapped deflate (RFC 1950).
+        // POST /compress/verify-deflate → verifies body is valid raw deflate (RFC 1951), decompresses, echoes
         app.MapPost("/compress/verify-deflate", async ctx =>
         {
             using var ms = new MemoryStream();
             await ctx.Request.Body.CopyToAsync(ms);
             ms.Position = 0;
             using var decompressed = new MemoryStream();
-            await using (var ds = new ZLibStream(ms, CompressionMode.Decompress))
+            await using (var ds = new DeflateStream(ms, CompressionMode.Decompress))
             {
                 await ds.CopyToAsync(decompressed);
             }

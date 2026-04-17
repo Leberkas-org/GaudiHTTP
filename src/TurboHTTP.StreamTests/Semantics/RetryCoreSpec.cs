@@ -384,4 +384,34 @@ public sealed class RetryCoreSpec : StreamTestBase
 
         Assert.Same(response, respOut.ExpectNext(TestContext.Current.CancellationToken));
     }
+
+    [Theory]
+    [Trait("RFC", "RFC9110-9.2")]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Should_retry_exactly_MaxRetries_minus_one_times_then_forward_response(int maxRetries)
+    {
+        var policy = new RetryPolicy { MaxRetries = maxRetries };
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        var stage = new RetryBidiStage(policy);
+        var (reqOut, respOut, pushResp, _) = RunManual(stage, maxRetries + 2, maxRetries + 2, request);
+
+        reqOut.ExpectNext(TestContext.Current.CancellationToken);
+
+        for (var attempt = 1; attempt < maxRetries; attempt++)
+        {
+            var retryResponse = BuildResponse(HttpStatusCode.ServiceUnavailable, request);
+            pushResp(retryResponse);
+
+            var retryReq = reqOut.ExpectNext(TestContext.Current.CancellationToken);
+            Assert.Same(request, retryReq);
+        }
+
+        var finalResponse = BuildResponse(HttpStatusCode.ServiceUnavailable, request);
+        pushResp(finalResponse);
+
+        Assert.Same(finalResponse, respOut.ExpectNext(TestContext.Current.CancellationToken));
+        reqOut.ExpectNoMsg(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
+    }
 }

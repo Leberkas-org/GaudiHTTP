@@ -496,4 +496,49 @@ public sealed class RetryEvaluatorSpec
         Assert.NotNull(decision.RetryAfterDelay);
         Assert.True(decision.RetryAfterDelay!.Value > TimeSpan.Zero);
     }
+
+    [Theory]
+    [Trait("RFC", "RFC9110-9.2")]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(5)]
+    public void RetryOptions_should_propagate_MaxRetries_to_policy(int maxRetries)
+    {
+        var options = new RetryOptions { MaxRetries = maxRetries };
+        var policy = options.To();
+
+        Assert.Equal(maxRetries, policy.MaxRetries);
+    }
+
+    [Fact]
+    [Trait("RFC", "RFC9110-9.2")]
+    public void RetryOptions_should_propagate_RespectRetryAfter_false_to_policy()
+    {
+        var options = new RetryOptions { RespectRetryAfter = false };
+        var policy = options.To();
+
+        Assert.False(policy.RespectRetryAfter);
+    }
+
+    [Theory]
+    [Trait("RFC", "RFC9110-9.2")]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public void Should_stop_retrying_after_exactly_MaxRetries_attempts(int maxRetries)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
+        var policy = new RetryPolicy { MaxRetries = maxRetries };
+
+        for (var attempt = 1; attempt < maxRetries; attempt++)
+        {
+            var decision = RetryEvaluator.Evaluate(
+                request, networkFailure: true, attemptCount: attempt, policy: policy);
+            Assert.True(decision.ShouldRetry, $"Attempt {attempt} of {maxRetries} should retry");
+        }
+
+        var finalDecision = RetryEvaluator.Evaluate(
+            request, networkFailure: true, attemptCount: maxRetries, policy: policy);
+        Assert.False(finalDecision.ShouldRetry, $"Attempt {maxRetries} should NOT retry (limit reached)");
+    }
 }

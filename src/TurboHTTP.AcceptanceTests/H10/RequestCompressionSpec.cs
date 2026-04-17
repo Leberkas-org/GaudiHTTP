@@ -13,8 +13,7 @@ namespace TurboHTTP.AcceptanceTests.H10;
 
 public sealed class RequestCompressionSpec : AcceptanceTestBase
 {
-    private static Http10Engine Engine => new(new Http1EngineOptions(16, 6, 3, 64 * 1024, 64, 1024 * 1024, TimeSpan.FromSeconds(2)));
-
+    
     private static byte[] MakePayload(int size)
     {
         var payload = new byte[size];
@@ -29,21 +28,21 @@ public sealed class RequestCompressionSpec : AcceptanceTestBase
         CreateCompressionEngine(string encoding)
     {
         var stage = new ContentEncodingBidiStage(true, new CompressionPolicy { Encoding = encoding });
-        return BidiFlow.FromGraph(stage).Atop(Engine.CreateFlow());
+        return BidiFlow.FromGraph(stage).Atop(CreateHttp10Engine().CreateFlow());
     }
 
     private static BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed>
         CreateDefaultCompressionEngine()
     {
         var stage = new ContentEncodingBidiStage(true, CompressionPolicy.Default);
-        return BidiFlow.FromGraph(stage).Atop(Engine.CreateFlow());
+        return BidiFlow.FromGraph(stage).Atop(CreateHttp10Engine().CreateFlow());
     }
 
     private static BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed>
         CreateDecompressingAndCompressingEngine(string encoding)
     {
         var stage = new ContentEncodingBidiStage(true, new CompressionPolicy { Encoding = encoding });
-        return BidiFlow.FromGraph(stage).Atop(Engine.CreateFlow());
+        return BidiFlow.FromGraph(stage).Atop(CreateHttp10Engine().CreateFlow());
     }
 
     private static byte[] BuildResponse(byte[] body, string? extraHeaders = null)
@@ -144,7 +143,7 @@ public sealed class RequestCompressionSpec : AcceptanceTestBase
             Content = new ByteArrayContent(payload)
         };
 
-        var (response, fake) = await SendCompressedAsync(
+        var (response, _) = await SendCompressedAsync(
             CreateCompressionEngine("gzip"),
             request,
             (_, outbound) =>
@@ -223,7 +222,7 @@ public sealed class RequestCompressionSpec : AcceptanceTestBase
             Content = new ByteArrayContent(payload)
         };
 
-        var (response, fake) = await SendCompressedAsync(
+        var (response, _) = await SendCompressedAsync(
             CreateDefaultCompressionEngine(),
             request,
             (_, outbound) =>

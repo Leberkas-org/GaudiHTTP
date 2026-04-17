@@ -489,6 +489,47 @@ internal sealed class CacheStore : ICacheStore
         return (owner, source.Length);
     }
 
+    /// <summary>
+    /// Reads the entire stream into pooled memory, using <paramref name="sizeHint"/>
+    /// to pre-size the buffer when Content-Length is known.
+    /// </summary>
+    public static async Task<(IMemoryOwner<byte> owner, int length)> RentBodyFromStreamAsync(
+        Stream source, int sizeHint = 4096)
+    {
+        var bufferSize = Math.Max(sizeHint, 256);
+        var owner = MemoryPool<byte>.Shared.Rent(bufferSize);
+        var written = 0;
+
+        try
+        {
+            while (true)
+            {
+                if (written == owner.Memory.Length)
+                {
+                    var next = MemoryPool<byte>.Shared.Rent(owner.Memory.Length * 2);
+                    owner.Memory[..written].CopyTo(next.Memory);
+                    owner.Dispose();
+                    owner = next;
+                }
+
+                var read = await source.ReadAsync(owner.Memory[written..]).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                written += read;
+            }
+
+            return (owner, written);
+        }
+        catch
+        {
+            owner.Dispose();
+            throw;
+        }
+    }
+
     private static string GetPrimaryKey(HttpRequestMessage request)
         => NormalizeUri(request.RequestUri!);
 
