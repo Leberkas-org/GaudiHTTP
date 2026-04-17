@@ -1,7 +1,7 @@
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Http2.StreamState;
+namespace TurboHTTP.Tests.Http2.FrameDecoding;
 
 /// <summary>
 /// Tests CONTINUATION frame handling and header block reassembly per RFC 9113 §6.10 — Part 2.

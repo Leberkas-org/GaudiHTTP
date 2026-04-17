@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using TurboHTTP.Protocol.Http2;
 
-namespace TurboHTTP.Tests.Http2.StreamState;
+namespace TurboHTTP.Tests.Http2.FrameDecoding;
 
 /// <summary>
 /// Tests HTTP/2 connection preface encoding and decoding per RFC 9113 §3.4/3.5.

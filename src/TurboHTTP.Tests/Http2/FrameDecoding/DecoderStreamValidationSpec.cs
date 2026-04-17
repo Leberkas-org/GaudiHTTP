@@ -1,7 +1,7 @@
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Http2.StreamState;
+namespace TurboHTTP.Tests.Http2.FrameDecoding;
 
 /// <summary>
 /// Tests HEADERS frame stream validation and multi-frame header block reassembly per RFC 9113 §5 and §6.2.

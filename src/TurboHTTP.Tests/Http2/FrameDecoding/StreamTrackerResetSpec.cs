@@ -1,6 +1,6 @@
 using TurboHTTP.Protocol.Http2;
 
-namespace TurboHTTP.Tests.Http2.StreamState;
+namespace TurboHTTP.Tests.Http2.FrameDecoding;
 
 public sealed class StreamTrackerResetSpec
 {

@@ -3,7 +3,7 @@ using System.Net;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Http2.StreamState;
+namespace TurboHTTP.Tests.Http2.FrameDecoding;
 
 /// <summary>
 /// Tests HTTP/2 connection preface encoding and decoding per RFC 9113 §3.4/3.5.

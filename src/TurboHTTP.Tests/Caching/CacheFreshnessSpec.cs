@@ -239,4 +239,219 @@ public sealed class CacheFreshnessSpec
         var expectedAge = (long)CacheFreshnessEvaluator.GetCurrentAge(entry, now).TotalSeconds;
         Assert.Equal(expectedAge.ToString(), values[0]);
     }
+
+    [Trait("RFC", "RFC9111-5.2.1.4")]
+    [Fact]
+    public void Evaluate_should_return_must_revalidate_when_request_no_cache()
+    {
+        var entry = MakeEntry(maxAgeSeconds: 60);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        request.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
+        var now = _baseTime.AddSeconds(10);
+
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, now);
+
+        Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
+    }
+
+    [Trait("RFC", "RFC9111-5.2.2.3")]
+    [Fact]
+    public void Evaluate_should_return_must_revalidate_when_response_unqualified_no_cache()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK);
+        var cc = new CacheControl { MaxAge = TimeSpan.FromSeconds(60), NoCache = true, NoCacheFields = null };
+        var (owner, length) = CacheStore.RentBody([]);
+        var entry = new CacheEntry
+        {
+            Response = response,
+            BodyOwner = owner,
+            BodyLength = length,
+            RequestTime = _baseTime.AddSeconds(-1),
+            ResponseTime = _baseTime,
+            Date = _baseTime,
+            CacheControl = cc
+        };
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        var now = _baseTime.AddSeconds(10);
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, now);
+
+        Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
+    }
+
+    [Trait("RFC", "RFC9111-5.2.1.3")]
+    [Fact]
+    public void Evaluate_should_return_stale_when_request_min_fresh_not_satisfied()
+    {
+        var entry = MakeEntry(maxAgeSeconds: 60);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        request.Headers.TryAddWithoutValidation("Cache-Control", "min-fresh=50");
+        var now = _baseTime.AddSeconds(20); // Only 40s freshness remaining
+
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, now);
+
+        Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
+    }
+
+    [Trait("RFC", "RFC9111-5.2.2.2")]
+    [Fact]
+    public void Evaluate_should_return_must_revalidate_when_stale_and_must_revalidate_set()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK);
+        var cc = new CacheControl { MaxAge = TimeSpan.FromSeconds(10), MustRevalidate = true };
+        var (owner, length) = CacheStore.RentBody([]);
+        var entry = new CacheEntry
+        {
+            Response = response,
+            BodyOwner = owner,
+            BodyLength = length,
+            RequestTime = _baseTime.AddSeconds(-1),
+            ResponseTime = _baseTime,
+            Date = _baseTime,
+            CacheControl = cc
+        };
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        var now = _baseTime.AddSeconds(60); // Entry is stale
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, now);
+
+        Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
+    }
+
+    [Trait("RFC", "RFC9111-5.2.2.2")]
+    [Fact]
+    public void Evaluate_should_return_must_revalidate_when_stale_proxy_and_proxy_revalidate_in_shared_cache()
+    {
+        var response = new HttpResponseMessage(HttpStatusCode.OK);
+        var cc = new CacheControl { MaxAge = TimeSpan.FromSeconds(10), ProxyRevalidate = true };
+        var (owner, length) = CacheStore.RentBody([]);
+        var entry = new CacheEntry
+        {
+            Response = response,
+            BodyOwner = owner,
+            BodyLength = length,
+            RequestTime = _baseTime.AddSeconds(-1),
+            ResponseTime = _baseTime,
+            Date = _baseTime,
+            CacheControl = cc
+        };
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        var now = _baseTime.AddSeconds(60); // Entry is stale
+        var sharedPolicy = new CachePolicy { SharedCache = true };
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, now, sharedPolicy);
+
+        Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
+    }
+
+    [Trait("RFC", "RFC9111-5.2.1.2")]
+    [Fact]
+    public void Evaluate_should_return_stale_when_request_max_stale_with_sufficient_tolerance()
+    {
+        var entry = MakeEntry(maxAgeSeconds: 10);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        request.Headers.TryAddWithoutValidation("Cache-Control", "max-stale=60");
+        var now = _baseTime.AddSeconds(30); // 20s stale, within 60s tolerance
+
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, now);
+
+        Assert.Equal(CacheLookupStatus.Stale, result.Status);
+    }
+
+    [Trait("RFC", "RFC9111-5.2.1.2")]
+    [Fact]
+    public void Evaluate_should_return_must_revalidate_when_stale_exceeds_max_stale_tolerance()
+    {
+        var entry = MakeEntry(maxAgeSeconds: 10);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        request.Headers.TryAddWithoutValidation("Cache-Control", "max-stale=10");
+        var now = _baseTime.AddSeconds(30); // 20s stale, exceeds 10s tolerance
+
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, now);
+
+        Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9111-5.2.1.2")]
+    public void Evaluate_should_accept_stale_when_max_stale_no_value()
+    {
+        var entry = MakeEntry(maxAgeSeconds: 10);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        request.Headers.TryAddWithoutValidation("Cache-Control", "max-stale");
+        var now = _baseTime.AddSeconds(100); // Very stale, but max-stale with no value accepts any staleness
+
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, now);
+
+        Assert.Equal(CacheLookupStatus.Stale, result.Status);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9111-4.2.3")]
+    public void GetCurrentAge_should_use_apparent_age_when_date_in_future()
+    {
+        // When response_time > date, apparent age = response_time - date
+        var entry = MakeEntry(requestTime: _baseTime, responseTime: _baseTime.AddSeconds(10), date: _baseTime);
+        var now = _baseTime.AddSeconds(20);
+        var age = CacheFreshnessEvaluator.GetCurrentAge(entry, now);
+        // apparent_age = response_time - date = 10, age_value = 0, response_delay = response_time - request_time = 10
+        // corrected_age = max(10, 0 + 10) = 10; resident = 20 - 10 = 10; total = 10 + 10 = 20
+        Assert.Equal(TimeSpan.FromSeconds(20), age);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9111-4.2.3")]
+    public void GetCurrentAge_should_handle_negative_response_delay()
+    {
+        // When request_time > response_time (clock skew), treat response_delay as 0
+        var entry = MakeEntry(requestTime: _baseTime.AddSeconds(5), responseTime: _baseTime);
+        var now = _baseTime.AddSeconds(10);
+        var age = CacheFreshnessEvaluator.GetCurrentAge(entry, now);
+        // response_delay becomes 0 due to clamping
+        // corrected_age = max(0, 0 + 0) = 0; resident = 10
+        Assert.Equal(TimeSpan.FromSeconds(10), age);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9111-4.2.3")]
+    public void GetCurrentAge_should_handle_negative_resident_time()
+    {
+        // When now < response_time (clock skew), treat resident_time as 0
+        var entry = MakeEntry();
+        var now = _baseTime.AddSeconds(-10);
+        var age = CacheFreshnessEvaluator.GetCurrentAge(entry, now);
+        // response_delay = response_time - request_time = 1s, resident_time becomes 0 due to clamping
+        // corrected_age = max(0, 0 + 1) = 1, total = 1 + 0 = 1
+        Assert.Equal(TimeSpan.FromSeconds(1), age);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9111-5.3")]
+    public void GetFreshnessLifetime_should_return_zero_when_expires_in_past()
+    {
+        var entry = MakeEntry(expires: _baseTime.AddSeconds(-300));
+        var lifetime = CacheFreshnessEvaluator.GetFreshnessLifetime(entry);
+        Assert.Equal(TimeSpan.Zero, lifetime);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9111-4.2.2")]
+    public void GetFreshnessLifetime_should_return_zero_when_last_modified_in_future()
+    {
+        var entry = MakeEntry(lastModified: _baseTime.AddSeconds(1000));
+        var lifetime = CacheFreshnessEvaluator.GetFreshnessLifetime(entry);
+        Assert.Equal(TimeSpan.Zero, lifetime);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Evaluate_should_return_stale_default_message_when_no_freshness()
+    {
+        var entry = MakeEntry();
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        var now = _baseTime;
+
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, now);
+
+        Assert.Equal(CacheLookupStatus.MustRevalidate, result.Status);
+    }
 }

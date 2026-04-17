@@ -1,7 +1,7 @@
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
 
-namespace TurboHTTP.Tests.Http2.StreamState;
+namespace TurboHTTP.Tests.Http2.FrameDecoding;
 
 /// <summary>
 /// Tests HTTP/2 stream state machine transitions per RFC 9113 §5.1.
