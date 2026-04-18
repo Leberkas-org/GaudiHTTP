@@ -112,4 +112,110 @@ public sealed class ConnectionHandleSpec
         // After writer completes, the final value should be eventually visible
         Assert.Equal(targetValue, handle.MaxConcurrentStreams);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionHandle")]
+    public void CloseKind_should_default_to_zero()
+    {
+        var handle = CreateHandle();
+
+        Assert.Equal(default(TlsCloseKind), handle.CloseKind);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionHandle")]
+    public void SetCloseKind_should_update_close_kind()
+    {
+        var handle = CreateHandle();
+
+        handle.SetCloseKind(TlsCloseKind.CleanClose);
+
+        Assert.Equal(TlsCloseKind.CleanClose, handle.CloseKind);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionHandle")]
+    public void SetCloseKind_should_allow_multiple_updates()
+    {
+        var handle = CreateHandle();
+
+        handle.SetCloseKind(TlsCloseKind.CleanClose);
+        Assert.Equal(TlsCloseKind.CleanClose, handle.CloseKind);
+
+        handle.SetCloseKind(TlsCloseKind.AbruptClose);
+        Assert.Equal(TlsCloseKind.AbruptClose, handle.CloseKind);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionHandle")]
+    public void CreateDirect_should_create_handle_with_nobody_actor()
+    {
+        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var key = new RequestEndpoint
+        {
+            Host = "example.com",
+            Port = 8080,
+            Scheme = "http",
+            Version = HttpVersion.Version11
+        };
+
+        var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key);
+
+        Assert.Equal(ActorRefs.Nobody, handle.ConnectionActor);
+        Assert.Same(outbound.Writer, handle.OutboundWriter);
+        Assert.Same(inbound.Reader, handle.InboundReader);
+        Assert.Equal(key, handle.Key);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionHandle")]
+    public void CreateDirect_should_create_handle_with_default_max_concurrent_streams()
+    {
+        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var key = new RequestEndpoint
+        {
+            Host = "example.com",
+            Port = 8080,
+            Scheme = "http",
+            Version = HttpVersion.Version11
+        };
+
+        var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key);
+
+        Assert.Equal(100, handle.MaxConcurrentStreams);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionHandle")]
+    public void Key_property_should_be_preserved()
+    {
+        var handle = CreateHandle();
+        var expectedKey = handle.Key;
+
+        Assert.Equal("localhost", expectedKey.Host);
+        Assert.Equal((ushort)443, expectedKey.Port);
+        Assert.Equal("https", expectedKey.Scheme);
+        Assert.Equal(HttpVersion.Version20, expectedKey.Version);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionHandle")]
+    public void ConnectionActor_property_should_be_set()
+    {
+        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var key = new RequestEndpoint
+        {
+            Host = "localhost",
+            Port = 443,
+            Scheme = "https",
+            Version = HttpVersion.Version20
+        };
+
+        var handle = new ConnectionHandle(outbound.Writer, inbound.Reader, key, ActorRefs.Nobody);
+
+        Assert.Equal(ActorRefs.Nobody, handle.ConnectionActor);
+    }
 }

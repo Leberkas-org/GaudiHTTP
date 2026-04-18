@@ -191,7 +191,7 @@ public sealed class Http2StateMachineSpec
         sm.TryBuildPreface();
         ops.Outbound.Clear();
 
-        var content = new ByteArrayContent(new byte[] { 1, 2, 3 });
+        var content = new ByteArrayContent([1, 2, 3]);
         var req = MakePost("/", content);
         sm.EncodeRequest(req);
 
@@ -241,7 +241,7 @@ public sealed class Http2StateMachineSpec
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(), ops);
 
-        var frame = new SettingsFrame(Array.Empty<(SettingsParameter, uint)>());
+        var frame = new SettingsFrame([]);
         var buffer = NetworkBuffer.Rent(frame.SerializedSize);
         var span = buffer.FullMemory.Span;
         frame.WriteTo(ref span);
@@ -263,7 +263,7 @@ public sealed class Http2StateMachineSpec
         sm.TryBuildPreface();
         ops.Outbound.Clear();
 
-        var settings = new SettingsFrame(new[] { (SettingsParameter.MaxFrameSize, 32768u) });
+        var settings = new SettingsFrame([(SettingsParameter.MaxFrameSize, 32768u)]);
 
         var result = sm.ProcessFrame(settings);
 
@@ -279,7 +279,7 @@ public sealed class Http2StateMachineSpec
         sm.TryBuildPreface();
         ops.Outbound.Clear();
 
-        var settings = new SettingsFrame(Array.Empty<(SettingsParameter, uint)>());
+        var settings = new SettingsFrame([]);
         sm.ProcessFrame(settings);
 
         var ack = Assert.Single(ops.Outbound.OfType<NetworkBuffer>());
@@ -295,7 +295,7 @@ public sealed class Http2StateMachineSpec
         sm.TryBuildPreface();
         ops.Outbound.Clear();
 
-        var settings = new SettingsFrame(new[] { (SettingsParameter.MaxConcurrentStreams, 50u) });
+        var settings = new SettingsFrame([(SettingsParameter.MaxConcurrentStreams, 50u)]);
 
         sm.ProcessFrame(settings);
 
@@ -321,7 +321,7 @@ public sealed class Http2StateMachineSpec
         Assert.True(result);
 
         // Then send data frame
-        var data = MakeData(1, new byte[] { 1, 2, 3 }, endStream: true);
+        var data = MakeData(1, [1, 2, 3], endStream: true);
         result = sm.ProcessFrame(data);
 
         Assert.True(result);
@@ -343,7 +343,7 @@ public sealed class Http2StateMachineSpec
 
         Assert.False(sm.ResponseProduced);
 
-        var data = MakeData(1, new byte[] { 1, 2, 3 }, endStream: true);
+        var data = MakeData(1, [1, 2, 3], endStream: true);
         sm.ProcessFrame(data);
 
         Assert.True(sm.ResponseProduced);
@@ -1040,14 +1040,14 @@ public sealed class Http2StateMachineSpec
         var headers = MakeResponseHeaders(1, "200", endStream: false);
         sm.ProcessFrame(headers);
 
-        var data1 = MakeData(1, new byte[] { 1, 2, 3 }, endStream: false);
+        var data1 = MakeData(1, [1, 2, 3], endStream: false);
         sm.ProcessFrame(data1);
 
-        var data2 = MakeData(1, new byte[] { 4, 5, 6 }, endStream: true);
+        var data2 = MakeData(1, [4, 5, 6], endStream: true);
         sm.ProcessFrame(data2);
 
         var response = Assert.Single(ops.Responses);
-        var body = response.Content?.ReadAsStream();
+        var body = response.Content?.ReadAsStream(TestContext.Current.CancellationToken);
         Assert.NotNull(body);
     }
 }

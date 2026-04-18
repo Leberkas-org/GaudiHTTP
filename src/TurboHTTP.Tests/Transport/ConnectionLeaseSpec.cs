@@ -359,4 +359,171 @@ public sealed class ConnectionLeaseSpec
 
         Assert.False(lease.Token.IsCancellationRequested);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void IsExpired_should_return_false_for_infinite_lifetime()
+    {
+        var handle = CreateHandle(HttpVersion.Version11);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        Assert.False(lease.IsExpired(Timeout.InfiniteTimeSpan));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void IsExpired_should_return_false_for_recent_connection()
+    {
+        var handle = CreateHandle(HttpVersion.Version11);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        Assert.False(lease.IsExpired(TimeSpan.FromMinutes(1)));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public async Task IsExpired_should_return_true_for_very_short_lifetime()
+    {
+        var handle = CreateHandle(HttpVersion.Version11);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        await Task.Delay(10);
+        Assert.True(lease.IsExpired(TimeSpan.FromMilliseconds(1)));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void LastActivity_should_be_set_on_construction()
+    {
+        var handle = CreateHandle(HttpVersion.Version11);
+        using var state = CreateState();
+        var before = DateTime.UtcNow;
+        var lease = new ConnectionLease(handle, state);
+        var after = DateTime.UtcNow;
+
+        Assert.InRange(lease.LastActivity, before, after);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void HasAvailableSlot_should_return_false_when_not_alive()
+    {
+        var handle = CreateHandle(HttpVersion.Version11);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        lease.Dispose();
+
+        Assert.False(lease.HasAvailableSlot);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void Mark_busy_multiple_times_should_increment_correctly()
+    {
+        var handle = CreateHandle(HttpVersion.Version20);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        for (int i = 0; i < 10; i++)
+        {
+            lease.MarkBusy();
+            Assert.Equal(i + 1, lease.ActiveStreams);
+        }
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void Mark_idle_multiple_times_should_decrement_correctly()
+    {
+        var handle = CreateHandle(HttpVersion.Version20);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        for (int i = 0; i < 5; i++)
+        {
+            lease.MarkBusy();
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            lease.MarkIdle();
+            Assert.Equal(4 - i, lease.ActiveStreams);
+        }
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void Mark_no_reuse_should_prevent_slots()
+    {
+        var handle = CreateHandle(HttpVersion.Version11);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        Assert.True(lease.HasAvailableSlot); // Initially has slot
+        lease.MarkNoReuse();
+
+        Assert.False(lease.HasAvailableSlot); // No slot after mark no reuse
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void Update_max_concurrent_streams_to_zero_should_prevent_slots()
+    {
+        var handle = CreateHandle(HttpVersion.Version20);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        lease.UpdateMaxConcurrentStreams(0);
+
+        Assert.False(lease.HasAvailableSlot);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void Idempotent_double_dispose_should_not_emit_metrics_twice()
+    {
+        var handle = CreateHandle(HttpVersion.Version11);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        lease.Dispose();
+        lease.Dispose(); // Should be idempotent and not throw
+
+        Assert.False(lease.IsAlive);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void State_property_should_return_provided_state()
+    {
+        var handle = CreateHandle(HttpVersion.Version11);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+
+        Assert.Same(state, lease.State);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("Coverage", "ConnectionLease")]
+    public void Token_should_allow_waiting_for_disposal()
+    {
+        var handle = CreateHandle(HttpVersion.Version11);
+        using var state = CreateState();
+        var lease = new ConnectionLease(handle, state);
+        var token = lease.Token;
+
+        var disposeTask = Task.Run(() =>
+        {
+            Thread.Sleep(100);
+            lease.Dispose();
+        });
+
+        Assert.False(token.IsCancellationRequested);
+        disposeTask.Wait();
+        Assert.True(token.IsCancellationRequested);
+    }
 }

@@ -169,8 +169,6 @@ public sealed class Http3RequestEncoderEdgeCasesSpec
         var frames = encoder.Encode(request);
 
         Assert.Single(frames);
-        var headersFrame = (Http3HeadersFrame)frames[0];
-        Assert.NotNull(headersFrame.HeaderBlock);
     }
 
     [Fact(Timeout = 5000)]

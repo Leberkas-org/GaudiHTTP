@@ -14,7 +14,7 @@ public sealed class PooledBodyContentSpec
 
         using var content = new PooledBodyContent(owner, data.Length);
         using var ms = new MemoryStream();
-        await content.CopyToAsync(ms);
+        await content.CopyToAsync(ms, TestContext.Current.CancellationToken);
 
         Assert.Equal(data, ms.ToArray());
     }
@@ -52,7 +52,7 @@ public sealed class PooledBodyContentSpec
         content.Dispose();
 
         using var ms = new MemoryStream();
-        await Assert.ThrowsAsync<ObjectDisposedException>(() => content.CopyToAsync(ms));
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => content.CopyToAsync(ms, TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
@@ -76,7 +76,7 @@ public sealed class PooledBodyContentSpec
         var gate = new SemaphoreSlim(0, 1);
         var slowStream = new GatedWriteStream(gate);
 
-        var writeTask = content.CopyToAsync(slowStream);
+        var writeTask = content.CopyToAsync(slowStream, TestContext.Current.CancellationToken);
 
         await slowStream.WaitUntilWriteStarted();
 
@@ -121,7 +121,7 @@ public sealed class PooledBodyContentSpec
             var disposeTask = Task.Run(() =>
             {
                 content.Dispose();
-            });
+            }, TestContext.Current.CancellationToken);
 
             await Task.WhenAll(serializeTask, disposeTask);
 

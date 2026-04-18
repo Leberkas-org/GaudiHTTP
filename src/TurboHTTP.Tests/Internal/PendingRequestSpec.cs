@@ -108,7 +108,8 @@ public sealed class PendingRequestSpec
         var pr2 = PendingRequest.Rent();
         var newVersion = pr2.Version;
 
-        Assert.False(pr2.TrySetResult(new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError), oldVersion));
+        Assert.False(pr2.TrySetResult(new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError),
+            oldVersion));
 
         var expected = new HttpResponseMessage(System.Net.HttpStatusCode.Created);
         Assert.True(pr2.TrySetResult(expected, newVersion));
@@ -159,7 +160,7 @@ public sealed class PendingRequestSpec
 
         foreach (var pending in pendingTcs.Keys)
         {
-            pending.TrySetCanceled();
+            pending.TrySetCanceled(TestContext.Current.CancellationToken);
             pendingTcs.TryRemove(pending, out _);
             PendingRequest.Return(pending);
         }

@@ -293,8 +293,8 @@ public sealed class HttpDecoderExceptionSpec
 
         Assert.Contains("status-line", ex.Message);
         Assert.Contains(context, ex.Message);
-        var indexOfStatusLine = ex.Message.IndexOf("status-line");
-        var indexOfContext = ex.Message.IndexOf(context);
+        var indexOfStatusLine = ex.Message.IndexOf("status-line", StringComparison.Ordinal);
+        var indexOfContext = ex.Message.IndexOf(context, StringComparison.Ordinal);
         Assert.True(indexOfStatusLine < indexOfContext, "Context should appear after default message");
     }
 

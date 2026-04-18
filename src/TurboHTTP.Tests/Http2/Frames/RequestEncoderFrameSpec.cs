@@ -313,7 +313,7 @@ public sealed class Http2RequestEncoderFrameSpec
     public void Http2RequestEncoder_should_throw_when_request_uri_null()
     {
         var encoder = new RequestEncoder();
-        var request = new HttpRequestMessage(HttpMethod.Get, (string)null);
+        var request = new HttpRequestMessage(HttpMethod.Get, (string)null!);
 
         Assert.Throws<ArgumentNullException>(() => encoder.Encode(request, 1));
     }
