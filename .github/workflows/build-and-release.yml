@@ -3,19 +3,15 @@ name: Build and Release NuGet Package
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - 'src/**'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'src/**'
 
 env:
-  GLOBAL_JSON_PATH: './src/global.json'
-  PROJECT_PATH: './src/TurboHTTP.slnx'
-  PACKAGE_OUTPUT_DIRECTORY: './packages'
-  TEST_OUTPUT_DIRECTORY: '${{ github.workspace }}/testresults'
-  COVERAGE_REPORT_DIRECTORY: './coveragereport'
+  GLOBAL_JSON_PATH: "./src/global.json"
+  PROJECT_PATH: "./src/TurboHTTP.slnx"
+  PACKAGE_OUTPUT_DIRECTORY: "./packages"
+  TEST_OUTPUT_DIRECTORY: "${{ github.workspace }}/testresults"
+  COVERAGE_REPORT_DIRECTORY: "./coveragereport"
 
 permissions:
   contents: write
@@ -47,16 +43,16 @@ jobs:
         with:
           global-json-file: ${{ env.GLOBAL_JSON_PATH }}
           cache: true
-          cache-dependency-path: '**/packages.lock.json'
+          cache-dependency-path: "**/packages.lock.json"
 
       - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v1.1.1
+        uses: gittools/actions/gitversion/setup@v3
         with:
           versionSpec: '5.x'
-
+        
       - name: Determine Version
-        uses: gittools/actions/gitversion/execute@v1.1.1
         id: gitversion
+        uses: gittools/actions/gitversion/execute@v3
 
       - name: Generate Release Notes for nuget
         id: plain-notes
@@ -203,7 +199,7 @@ jobs:
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create & Publish Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: "v${{ needs.build.outputs.releaseVersion }}"
           target_commitish: ${{ github.sha }}
