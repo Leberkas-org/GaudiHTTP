@@ -16,26 +16,26 @@ If all three conditions are satisfied, TurboHTTP retries the request automatical
 
 ## Method Retry Table
 
-| Method | Retried? | Reason |
-|--------|----------|--------|
-| `GET` | Yes | Idempotent — reading a resource has no side effects |
-| `HEAD` | Yes | Idempotent — same as GET, response body omitted |
-| `PUT` | Yes | Idempotent — replacing a resource produces the same result each time |
-| `DELETE` | Yes | Idempotent — deleting an already-deleted resource is still "deleted" |
-| `OPTIONS` | Yes | Idempotent — capability query with no side effects |
-| `TRACE` | Yes | Idempotent — diagnostic echo with no side effects |
-| `POST` | **No** | Non-idempotent — sending the same POST twice could create duplicate records |
-| `PATCH` | **No** | Non-idempotent — partial updates may produce different results each time |
-| `CONNECT` | **No** | Non-idempotent — establishes a tunnel, not a repeatable operation |
+| Method    | Retried? | Reason                                                                      |
+| --------- | -------- | --------------------------------------------------------------------------- |
+| `GET`     | Yes      | Idempotent — reading a resource has no side effects                         |
+| `HEAD`    | Yes      | Idempotent — same as GET, response body omitted                             |
+| `PUT`     | Yes      | Idempotent — replacing a resource produces the same result each time        |
+| `DELETE`  | Yes      | Idempotent — deleting an already-deleted resource is still "deleted"        |
+| `OPTIONS` | Yes      | Idempotent — capability query with no side effects                          |
+| `TRACE`   | Yes      | Idempotent — diagnostic echo with no side effects                           |
+| `POST`    | **No**   | Non-idempotent — sending the same POST twice could create duplicate records |
+| `PATCH`   | **No**   | Non-idempotent — partial updates may produce different results each time    |
+| `CONNECT` | **No**   | Non-idempotent — establishes a tunnel, not a repeatable operation           |
 
 ## Status Code Retry Table
 
-| Status Code | Retry Behavior | Notes |
-|-------------|---------------|-------|
-| Network failure (no response) | Retried | Connection dropped, refused, or reset before any response arrived |
-| `408 Request Timeout` | Retried | Server explicitly signals the request timed out and can be resent |
-| `503 Service Unavailable` | Retried | Server temporarily unable to handle requests; respects `Retry-After` |
-| Any other 4xx / 5xx | **Not retried** | Non-transient errors — retrying would not change the outcome |
+| Status Code                   | Retry Behavior  | Notes                                                                |
+| ----------------------------- | --------------- | -------------------------------------------------------------------- |
+| Network failure (no response) | Retried         | Connection dropped, refused, or reset before any response arrived    |
+| `408 Request Timeout`         | Retried         | Server explicitly signals the request timed out and can be resent    |
+| `503 Service Unavailable`     | Retried         | Server temporarily unable to handle requests; respects `Retry-After` |
+| Any other 4xx / 5xx           | **Not retried** | Non-transient errors — retrying would not change the outcome         |
 
 ## Retry-After Header
 

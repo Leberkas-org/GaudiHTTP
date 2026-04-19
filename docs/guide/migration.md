@@ -4,16 +4,16 @@ This guide shows how to migrate common `HttpClient` patterns to TurboHTTP. The A
 
 ## Quick Comparison
 
-| HttpClient | TurboHTTP |
-|---|---|
-| `new HttpClient()` | `factory.CreateClient("name")` via DI |
-| `IHttpClientFactory` | `ITurboHttpClientFactory` |
-| `services.AddHttpClient()` | `services.AddTurboHttpClient()` |
-| `client.GetAsync(url)` | `client.SendAsync(new HttpRequestMessage(Get, url), ct)` |
-| `DelegatingHandler` | `TurboHandler` (stream-compatible) |
-| Polly retry policies | Built-in `.WithRetry()` |
-| No caching | Built-in `.WithCache()` |
-| `CookieContainer` (manual) | `CookieJar` (automatic) |
+| HttpClient                 | TurboHTTP                                                |
+| -------------------------- | -------------------------------------------------------- |
+| `new HttpClient()`         | `factory.CreateClient("name")` via DI                    |
+| `IHttpClientFactory`       | `ITurboHttpClientFactory`                                |
+| `services.AddHttpClient()` | `services.AddTurboHttpClient()`                          |
+| `client.GetAsync(url)`     | `client.SendAsync(new HttpRequestMessage(Get, url), ct)` |
+| `DelegatingHandler`        | `TurboHandler` (stream-compatible)                       |
+| Polly retry policies       | Built-in `.WithRetry()`                                  |
+| No caching                 | Built-in `.WithCache()`                                  |
+| `CookieContainer` (manual) | `CookieJar` (automatic)                                  |
 
 ## Basic Request
 
@@ -43,6 +43,7 @@ var body = await response.Content.ReadAsStringAsync();
 ```
 
 Key differences:
+
 - Client is obtained from `ITurboHttpClientFactory`, not constructed directly
 - Always pass `CancellationToken` explicitly
 - No shorthand methods like `GetAsync` — use `SendAsync` with `HttpRequestMessage`
@@ -107,6 +108,7 @@ builder.Services.AddTurboHttpClient("my-api", options =>
 ```
 
 No Polly dependency needed. TurboHTTP automatically:
+
 - Retries only idempotent methods (GET, HEAD, PUT, DELETE, OPTIONS, TRACE)
 - Never retries POST or PATCH
 - Respects `Retry-After` headers
@@ -242,15 +244,15 @@ Same API. TurboHTTP additionally respects `CancellationToken` at every layer.
 
 By switching to TurboHTTP, these features work out of the box without additional libraries:
 
-| Feature | HttpClient Approach | TurboHTTP |
-|---|---|---|
-| Retries | Polly + DelegatingHandler | Built-in `.WithRetry()` |
-| Caching | Custom DelegatingHandler or nothing | Built-in `.WithCache()` |
-| Cookies | Manual CookieContainer setup | Automatic `CookieJar` |
-| Decompression | `AutomaticDecompression` flag | Automatic (gzip, deflate, brotli) |
-| Connection pooling | SocketsHttpHandler (opaque) | Actor-based, per-host, configurable |
-| Backpressure | None | End-to-end via Akka.Streams |
-| Channel API | None | `ChannelWriter` / `ChannelReader` |
+| Feature            | HttpClient Approach                 | TurboHTTP                           |
+| ------------------ | ----------------------------------- | ----------------------------------- |
+| Retries            | Polly + DelegatingHandler           | Built-in `.WithRetry()`             |
+| Caching            | Custom DelegatingHandler or nothing | Built-in `.WithCache()`             |
+| Cookies            | Manual CookieContainer setup        | Automatic `CookieJar`               |
+| Decompression      | `AutomaticDecompression` flag       | Automatic (gzip, deflate, brotli)   |
+| Connection pooling | SocketsHttpHandler (opaque)         | Actor-based, per-host, configurable |
+| Backpressure       | None                                | End-to-end via Akka.Streams         |
+| Channel API        | None                                | `ChannelWriter` / `ChannelReader`   |
 
 ## What You Lose
 

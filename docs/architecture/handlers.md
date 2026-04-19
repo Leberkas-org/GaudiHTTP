@@ -4,14 +4,14 @@
 
 `SocketsHttpHandler` (the default handler since .NET 5) ships with the following features out of the box:
 
-| Feature | Default | Configurable |
-|---|---|---|
-| Redirect | **on** (`AllowAutoRedirect = true`, max 50) | via `MaxAutomaticRedirections` |
-| Decompression | **on** (`DecompressionMethods.All`) | via `AutomaticDecompression` |
-| Connection Pooling | **on** (per-host, idle eviction) | via `PooledConnectionLifetime` etc. |
-| Cookies | **off** (`UseCookies = false`) | via `CookieContainer` |
-| HTTP Caching | **not available** | — (Polly / external library) |
-| Retry | **not available** | — (Polly / `AddStandardResilienceHandler`) |
+| Feature            | Default                                     | Configurable                               |
+| ------------------ | ------------------------------------------- | ------------------------------------------ |
+| Redirect           | **on** (`AllowAutoRedirect = true`, max 50) | via `MaxAutomaticRedirections`             |
+| Decompression      | **on** (`DecompressionMethods.All`)         | via `AutomaticDecompression`               |
+| Connection Pooling | **on** (per-host, idle eviction)            | via `PooledConnectionLifetime` etc.        |
+| Cookies            | **off** (`UseCookies = false`)              | via `CookieContainer`                      |
+| HTTP Caching       | **not available**                           | — (Polly / external library)               |
+| Retry              | **not available**                           | — (Polly / `AddStandardResilienceHandler`) |
 
 The `IHttpClientFactory` middleware (`DelegatingHandler`) is an opt-in mechanism — it builds on top of the existing request/response model:
 
@@ -182,6 +182,7 @@ services.AddTurboHttpClient("myapi", options => { ... })
 ```
 
 User handlers intentionally run **outside** the feedback loops:
+
 - `ProcessRequest` sees each enriched initial request. Redirect and retry re-entries bypass the handler — they re-enter the pipeline further downstream.
 - `ProcessResponse` sees only **final** responses — after all redirects and retries have been resolved. No intermediate results, no internal noise.
 
@@ -227,13 +228,13 @@ public sealed class AuthHandler(ITokenProvider tokens) : TurboHandler
 
 `TurboClientOptions` remains as **transport configuration** (timeouts, TLS, reconnect intervals). Handler configuration (cookies, cache, retry, redirect, user handlers) moves entirely into the `ITurboHttpClientBuilder` extensions.
 
-| Configuration Type | Where |
-|---|---|
+| Configuration Type                                       | Where                                                               |
+| -------------------------------------------------------- | ------------------------------------------------------------------- |
 | Connection parameters (timeouts, TLS, HTTP/2 frame size) | `TurboClientOptions` via `AddTurboHttpClient(name, options => ...)` |
-| Redirect / Retry / Cookie / Cache | `ITurboHttpClientBuilder` extensions (`.WithRedirect()` etc.) |
-| User handlers | `ITurboHttpClientBuilder` (`.AddHandler<T>()`) |
-| BaseAddress | `TurboClientOptions` |
-| DefaultRequestHeaders / DefaultRequestVersion | `ITurboHttpClient` (set on the client instance after creation) |
+| Redirect / Retry / Cookie / Cache                        | `ITurboHttpClientBuilder` extensions (`.WithRedirect()` etc.)       |
+| User handlers                                            | `ITurboHttpClientBuilder` (`.AddHandler<T>()`)                      |
+| BaseAddress                                              | `TurboClientOptions`                                                |
+| DefaultRequestHeaders / DefaultRequestVersion            | `ITurboHttpClient` (set on the client instance after creation)      |
 
 ---
 
@@ -289,14 +290,14 @@ The engine reads this descriptor and wires up only the stages you have actually 
 
 ## Comparison: HttpClient vs. TurboHTTP
 
-| Aspect | HttpClient | TurboHTTP |
-|---|---|---|
-| Registration | `services.AddHttpClient("name", ...)` | `services.AddTurboHttpClient("name", ...)` |
-| Handlers | `.AddHttpMessageHandler<T>()` | `.AddHandler<T>()` |
-| Redirect | on by default | off — opt-in via `.WithRedirect()` |
-| Retry | off — Polly via `.AddStandardResilienceHandler()` | off — opt-in via `.WithRetry(policy)` |
-| Cache | not available | off — opt-in via `.WithCache(policy)` |
-| Cookies | off (SocketsHttpHandler) | off — opt-in via `.WithCookies()` |
-| Handler base | `DelegatingHandler` (sync/async, per request) | `TurboHandler` (async, stream-compatible) |
-| Factory | `IHttpClientFactory` | `ITurboHttpClientFactory` |
-| Typed Clients | `AddHttpClient<TClient>()` | `AddTurboHttpClient<TClient>()` |
+| Aspect        | HttpClient                                        | TurboHTTP                                  |
+| ------------- | ------------------------------------------------- | ------------------------------------------ |
+| Registration  | `services.AddHttpClient("name", ...)`             | `services.AddTurboHttpClient("name", ...)` |
+| Handlers      | `.AddHttpMessageHandler<T>()`                     | `.AddHandler<T>()`                         |
+| Redirect      | on by default                                     | off — opt-in via `.WithRedirect()`         |
+| Retry         | off — Polly via `.AddStandardResilienceHandler()` | off — opt-in via `.WithRetry(policy)`      |
+| Cache         | not available                                     | off — opt-in via `.WithCache(policy)`      |
+| Cookies       | off (SocketsHttpHandler)                          | off — opt-in via `.WithCookies()`          |
+| Handler base  | `DelegatingHandler` (sync/async, per request)     | `TurboHandler` (async, stream-compatible)  |
+| Factory       | `IHttpClientFactory`                              | `ITurboHttpClientFactory`                  |
+| Typed Clients | `AddHttpClient<TClient>()`                        | `AddTurboHttpClient<TClient>()`            |

@@ -4,12 +4,12 @@ TurboHTTP automatically decompresses compressed HTTP responses. When a server se
 
 ## Supported Encodings
 
-| Encoding | Header token | Notes |
-|----------|-------------|-------|
-| Gzip | `gzip`, `x-gzip` | Most common; used by the majority of web servers |
-| Deflate | `deflate` | Handles both zlib-wrapped and raw deflate formats |
-| Brotli | `br` | Best compression ratio; requires modern server support |
-| Identity | `identity` | No compression; body passed through unchanged |
+| Encoding | Header token     | Notes                                                  |
+| -------- | ---------------- | ------------------------------------------------------ |
+| Gzip     | `gzip`, `x-gzip` | Most common; used by the majority of web servers       |
+| Deflate  | `deflate`        | Handles both zlib-wrapped and raw deflate formats      |
+| Brotli   | `br`             | Best compression ratio; requires modern server support |
+| Identity | `identity`       | No compression; body passed through unchanged          |
 
 ## How It Works
 

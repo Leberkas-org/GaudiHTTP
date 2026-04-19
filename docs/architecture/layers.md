@@ -15,6 +15,7 @@ Console.WriteLine(response.StatusCode);
 ```
 
 `SendAsync` behaves like `HttpClient.SendAsync`:
+
 - Takes an `HttpRequestMessage`
 - Returns a `Task<HttpResponseMessage>`
 - Supports `CancellationToken` for cancellation

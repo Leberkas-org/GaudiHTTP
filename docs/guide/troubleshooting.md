@@ -55,6 +55,7 @@ Per-request overrides are also supported via `HttpRequestMessage.Version`.
 **Symptom:** `SendAsync` throws a timeout or connection exception.
 
 **Causes:**
+
 1. Server is not reachable — verify the URL and network
 2. `ConnectTimeout` too low — increase it:
    ```csharp
@@ -114,6 +115,7 @@ The built-in retry handles idempotent method detection and backoff automatically
 ### High Memory Usage
 
 **Possible causes:**
+
 1. **Cache too large** — reduce `MaxEntries` or `MaxBodyBytes` when registering:
    ```csharp
    .WithCache(c => { c.MaxEntries = 100; c.MaxBodyBytes = 10 * 1024 * 1024; })
@@ -132,6 +134,7 @@ The built-in retry handles idempotent method detection and backoff automatically
 **Symptom:** HTTP/2 request fails, HTTP/1.1 works.
 
 **Possible causes:**
+
 1. Server doesn't support HTTP/2 — use `HttpVersionPolicy.RequestVersionOrLower` to fall back
 2. Cleartext HTTP/2 (h2c) not supported by server — use HTTPS
 3. TLS ALPN negotiation failed — check server TLS configuration
@@ -149,6 +152,7 @@ client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower; // gracef
 **Cause:** The outbound channel is full — the connection cannot send requests as fast as you produce them. This is **correct behaviour** (backpressure).
 
 **Fixes:**
+
 1. Use HTTP/2 for multiplexing (concurrent streams over one connection)
 2. Increase `MaxConnectionsPerServer` for HTTP/1.1:
    ```csharp
@@ -161,6 +165,7 @@ client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower; // gracef
 **Symptom:** Getting old data despite server changes.
 
 **Fixes:**
+
 1. Force revalidation on a specific request:
    ```csharp
    request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
@@ -191,6 +196,7 @@ akka.actor.debug.lifecycle = on
 ### Inspect Connection State
 
 The actor hierarchy provides connection pool visibility. Use Akka's built-in monitoring to see:
+
 - Active connections per host
 - Idle connection count
 - Reconnect attempts

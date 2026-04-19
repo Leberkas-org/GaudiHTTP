@@ -130,9 +130,9 @@ While request/response streams are active, `Http30ConnectionStage` handles:
 
 ### Key Differences from HTTP/2
 
-| | HTTP/2 | HTTP/3 |
-|---|--------|--------|
-| **Transport** | TCP + TLS | QUIC (UDP + built-in TLS) |
-| **Head-of-line blocking** | Yes — one lost TCP packet stalls all streams | No — each QUIC stream is independent |
-| **Header compression** | HPACK | QPACK (adapted for out-of-order delivery) |
-| **Connection preface** | Required (`PRI * HTTP/2.0...`) | Not needed — QUIC handles this |
+|                           | HTTP/2                                       | HTTP/3                                    |
+| ------------------------- | -------------------------------------------- | ----------------------------------------- |
+| **Transport**             | TCP + TLS                                    | QUIC (UDP + built-in TLS)                 |
+| **Head-of-line blocking** | Yes — one lost TCP packet stalls all streams | No — each QUIC stream is independent      |
+| **Header compression**    | HPACK                                        | QPACK (adapted for out-of-order delivery) |
+| **Connection preface**    | Required (`PRI * HTTP/2.0...`)               | Not needed — QUIC handles this            |

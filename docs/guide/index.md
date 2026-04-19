@@ -50,6 +50,7 @@ ChannelReader<HttpResponseMessage> responseReader = client.Responses;
 ```
 
 Use the channel API when:
+
 - You have a producer loop generating requests faster than you can await responses
 - You want to decouple request creation from response processing
 - You are integrating TurboHTTP into a pipeline that already uses `System.Threading.Channels`
@@ -99,16 +100,16 @@ The channel has a bounded capacity. If the connection cannot keep up with your p
 
 TurboHTTP works out of the box — no middleware to wire up, no Polly policies to configure.
 
-| Feature | Description |
-|---------|-------------|
-| **HTTP/1.0, HTTP/1.1, HTTP/2 & HTTP/3** | Automatic version negotiation; HTTP/2 multiplexes over TCP, HTTP/3 multiplexes over QUIC |
-| **Automatic Retries** | Idempotent methods (GET, PUT, DELETE) are retried automatically; respects `Retry-After` headers |
-| **Built-in Caching** | In-memory LRU cache with `ETag`/`Last-Modified` conditional requests and `Vary` support |
-| **Redirect Following** | Follows 301/302/303/307/308 with correct method rewriting, loop detection, and auth header stripping |
-| **Cookie Management** | `CookieJar` stores `Set-Cookie` responses and injects cookies on subsequent requests automatically |
-| **Content Encoding** | Automatic gzip, deflate, and Brotli decompression |
-| **Connection Pooling** | Per-host pools with idle eviction, automatic reconnect, and configurable concurrency limits |
-| **Channel-based API** | `ChannelWriter`/`ChannelReader` interface for backpressure-aware, high-throughput request pipelines |
+| Feature                                 | Description                                                                                          |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **HTTP/1.0, HTTP/1.1, HTTP/2 & HTTP/3** | Automatic version negotiation; HTTP/2 multiplexes over TCP, HTTP/3 multiplexes over QUIC             |
+| **Automatic Retries**                   | Idempotent methods (GET, PUT, DELETE) are retried automatically; respects `Retry-After` headers      |
+| **Built-in Caching**                    | In-memory LRU cache with `ETag`/`Last-Modified` conditional requests and `Vary` support              |
+| **Redirect Following**                  | Follows 301/302/303/307/308 with correct method rewriting, loop detection, and auth header stripping |
+| **Cookie Management**                   | `CookieJar` stores `Set-Cookie` responses and injects cookies on subsequent requests automatically   |
+| **Content Encoding**                    | Automatic gzip, deflate, and Brotli decompression                                                    |
+| **Connection Pooling**                  | Per-host pools with idle eviction, automatic reconnect, and configurable concurrency limits          |
+| **Channel-based API**                   | `ChannelWriter`/`ChannelReader` interface for backpressure-aware, high-throughput request pipelines  |
 
 ## Next Steps
 

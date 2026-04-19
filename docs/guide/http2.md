@@ -17,7 +17,7 @@ If you send one request at a time and wait for each response before sending the 
 
 With HTTP/1.1, each request occupies an entire TCP connection from start to finish. To run 10 requests in parallel you need 10 separate connections.
 
-With HTTP/2, a single TCP connection carries multiple requests at the same time as independent *streams*. Each stream has its own ID and flows alongside the others without blocking:
+With HTTP/2, a single TCP connection carries multiple requests at the same time as independent _streams_. Each stream has its own ID and flows alongside the others without blocking:
 
 ```
 HTTP/1.1 (4 connections needed for 4 parallel requests):

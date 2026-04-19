@@ -19,10 +19,10 @@ The pool runs entirely in the background. Your code just calls `SendAsync` — c
 
 How connections are reused depends on the HTTP version:
 
+- **HTTP/1.0** — connections are closed after each response. No reuse. Each request opens a new TCP connection.
 - **HTTP/1.1** — connections use keep-alive by default. After a response is received, the connection returns to the idle pool and is available for the next request.
 - **HTTP/2** — a single TCP connection carries multiple concurrent requests as independent streams. When a connection reaches its stream limit, additional connections are opened.
 - **HTTP/3** — similar to HTTP/2 but over QUIC instead of TCP. Supports connection migration and 0-RTT early data.
-- **HTTP/1.0** — connections are closed after each response. No reuse. Each request opens a new TCP connection.
 
 ## Idle Connection Eviction
 

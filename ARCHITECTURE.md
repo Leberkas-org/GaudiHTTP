@@ -49,15 +49,15 @@ TurboHTTP is a high-performance **.NET 10 HTTP client library** built on **Akka.
 
 ## Client Layer
 
-| Component | Responsibility |
-|-----------|---------------|
-| `ITurboHttpClient` | Public API: `ChannelWriter<HttpRequestMessage>` + `ChannelReader<HttpResponseMessage>` + `SendAsync()` |
-| `ITurboHttpClientFactory` | Creates named/typed client instances; owns `ConnectionPool` lifetime |
-| `ITurboHttpClientBuilder` | Fluent DI configuration surface (extends `IServiceCollection`) |
-| `TurboClientOptions` | Per-client config: nested `Http1Options`, `Http2Options`, `Http3Options`; timeouts, TLS certificates |
-| `TurboRequestOptions` | Per-request defaults: base address, version, headers |
-| `PipelineDescriptor` | Aggregates all optional policies into a single record for pipeline construction |
-| `TurboHandler` | User middleware (bridges delegating-handler pattern into the BidiFlow chain) |
+| Component                 | Responsibility                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `ITurboHttpClient`        | Public API: `ChannelWriter<HttpRequestMessage>` + `ChannelReader<HttpResponseMessage>` + `SendAsync()` |
+| `ITurboHttpClientFactory` | Creates named/typed client instances; owns `ConnectionPool` lifetime                                   |
+| `ITurboHttpClientBuilder` | Fluent DI configuration surface (extends `IServiceCollection`)                                         |
+| `TurboClientOptions`      | Per-client config: nested `Http1Options`, `Http2Options`, `Http3Options`; timeouts, TLS certificates   |
+| `TurboRequestOptions`     | Per-request defaults: base address, version, headers                                                   |
+| `PipelineDescriptor`      | Aggregates all optional policies into a single record for pipeline construction                        |
+| `TurboHandler`            | User middleware (bridges delegating-handler pattern into the BidiFlow chain)                           |
 
 **Factory pattern** — `ITurboHttpClientFactory` rather than direct construction, enabling named clients with separate configurations and shared `ConnectionPool` instances.
 
@@ -84,16 +84,16 @@ ClientStreamOwnerActor (supervisor)
 
 Composed via `Atop` (innermost → outermost):
 
-| Stage | RFC | Effect |
-|-------|-----|--------|
-| `TracingBidiStage` | — | Root `Activity` per request |
-| `HandlerBidiStage` | — | Wraps user `TurboHandler` middleware |
-| `RedirectBidiStage` | RFC 9110 §15.4 | Follows 301/302/303/307/308; internal feedback loop |
-| `CookieBidiStage` | RFC 6265 §5.3–5.4 | Injects/extracts cookies via `CookieJar` |
-| `RetryBidiStage` | RFC 9110 §9.2 | Retries idempotent requests; internal feedback loop |
-| `ExpectContinueBidiStage` | RFC 9110 §10.1.1 | Manages `Expect: 100-continue` handshake |
-| `CacheBidiStage` | RFC 9111 | Short-circuits on hit; stores responses |
-| `ContentEncodingBidiStage` | RFC 9110 §8.4 | Compresses requests / decompresses responses |
+| Stage                      | RFC               | Effect                                              |
+| -------------------------- | ----------------- | --------------------------------------------------- |
+| `TracingBidiStage`         | —                 | Root `Activity` per request                         |
+| `HandlerBidiStage`         | —                 | Wraps user `TurboHandler` middleware                |
+| `RedirectBidiStage`        | RFC 9110 §15.4    | Follows 301/302/303/307/308; internal feedback loop |
+| `CookieBidiStage`          | RFC 6265 §5.3–5.4 | Injects/extracts cookies via `CookieJar`            |
+| `RetryBidiStage`           | RFC 9110 §9.2     | Retries idempotent requests; internal feedback loop |
+| `ExpectContinueBidiStage`  | RFC 9110 §10.1.1  | Manages `Expect: 100-continue` handshake            |
+| `CacheBidiStage`           | RFC 9111          | Short-circuits on hit; stores responses             |
+| `ContentEncodingBidiStage` | RFC 9110 §8.4     | Compresses requests / decompresses responses        |
 
 Request flows top-to-bottom; response flows bottom-to-top. Only BidiFlows for non-null policies in `PipelineDescriptor` are included.
 
@@ -115,28 +115,28 @@ RequestEnricherStage
 
 ### Per-Version Engine Assembly
 
-| Version | Encode path | Decode path |
-|---------|------------|------------|
-| HTTP/1.0 | `Http10ConnectionStage` (unified encode + decode + correlation) | — |
-| HTTP/1.1 | `Http11ConnectionStage` (unified encode + decode + correlation) | — |
-| HTTP/2 | `Http20EncoderStage` + `PrependPrefaceStage` + `Request2FrameStage` | `Http20DecoderStage` + `ConnectionStage` + `StreamStage` + `CorrelationStage` + `StreamIdAllocatorStage` |
-| HTTP/3 | `Http30EncoderStage` + control/QPACK preface stages + `Request2FrameStage` | `Http30DecoderStage` + `ConnectionStage` + `StreamStage` + `CorrelationStage` + `StreamDemuxStage` + QPACK stream stages |
+| Version  | Encode path                                                                | Decode path                                                                                                              |
+| -------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| HTTP/1.0 | `Http10ConnectionStage` (unified encode + decode + correlation)            | —                                                                                                                        |
+| HTTP/1.1 | `Http11ConnectionStage` (unified encode + decode + correlation)            | —                                                                                                                        |
+| HTTP/2   | `Http20EncoderStage` + `PrependPrefaceStage` + `Request2FrameStage`        | `Http20DecoderStage` + `ConnectionStage` + `StreamStage` + `CorrelationStage` + `StreamIdAllocatorStage`                 |
+| HTTP/3   | `Http30EncoderStage` + control/QPACK preface stages + `Request2FrameStage` | `Http30DecoderStage` + `ConnectionStage` + `StreamStage` + `CorrelationStage` + `StreamDemuxStage` + QPACK stream stages |
 
 ### Builders (Streams Layer Orchestration)
 
-| Builder | Responsibility |
-|---------|-----------------|
-| `Engine` | Thin orchestrator; wires `ProtocolCoreBuilder` and `FeaturePipelineBuilder` to create the final client-facing flow |
-| `ProtocolCoreBuilder` | Owns endpoint grouping (`GroupByRequestEndpoint`), version dispatch via `EndpointDispatchStage`, version-specific engine instantiation, and transport selection via `TransportRegistry` (zero Transport-layer imports) |
-| `FeaturePipelineBuilder` | Owns BidiFlow feature stack composition (ContentEncoding, Cache, Expect100, Retry, Cookie, Redirect, Handlers, Tracing) |
+| Builder                  | Responsibility                                                                                                                                                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Engine`                 | Thin orchestrator; wires `ProtocolCoreBuilder` and `FeaturePipelineBuilder` to create the final client-facing flow                                                                                                     |
+| `ProtocolCoreBuilder`    | Owns endpoint grouping (`GroupByRequestEndpoint`), version dispatch via `EndpointDispatchStage`, version-specific engine instantiation, and transport selection via `TransportRegistry` (zero Transport-layer imports) |
+| `FeaturePipelineBuilder` | Owns BidiFlow feature stack composition (ContentEncoding, Cache, Expect100, Retry, Cookie, Redirect, Handlers, Tracing)                                                                                                |
 
 ### Stage Naming Convention
 
-| Shape | Inlet | Outlet | Example |
-|-------|-------|--------|---------|
-| FlowShape (1 in, 1 out) | `StageName.In` | `StageName.Out` | `"Http11Encoder.In"` |
-| FanOutShape | `StageName.In` | `StageName.Out.Role` | `"Redirect.Out.Final"` |
-| FanInShape | `StageName.In.Role` | `StageName.Out` | `"Http20Correlation.In.Request"` |
+| Shape                   | Inlet               | Outlet               | Example                          |
+| ----------------------- | ------------------- | -------------------- | -------------------------------- |
+| FlowShape (1 in, 1 out) | `StageName.In`      | `StageName.Out`      | `"Http11Encoder.In"`             |
+| FanOutShape             | `StageName.In`      | `StageName.Out.Role` | `"Redirect.Out.Final"`           |
+| FanInShape              | `StageName.In.Role` | `StageName.Out`      | `"Http20Correlation.In.Request"` |
 
 PascalCase, no protocol prefix, no `Stage` suffix, semantically named roles, globally unique.
 
@@ -193,16 +193,16 @@ ConnectionStage  — connection-level frames (SETTINGS, PING, GOAWAY, WINDOW_UPD
 
 ### Business Logic Components
 
-| Component | RFC | Responsibility |
-|-----------|-----|---------------|
-| `RedirectHandler` | RFC 9110 §15.4 | Redirect following with correct method rewriting |
-| `RetryEvaluator` | RFC 9110 §9.2 | Idempotency-based retry decisions |
-| `ConnectionReuseEvaluator` | RFC 9112 §9 | Keep-alive vs. close decisions |
-| `CookieJar` | RFC 6265 | Domain/path matching, Secure/HttpOnly/SameSite |
-| `ContentEncodingDecoder` | RFC 9110 §8.4 | gzip/deflate/brotli decompression |
-| `HttpCacheStore` | RFC 9111 | Thread-safe in-memory LRU cache |
-| `CacheFreshnessEvaluator` | RFC 9111 | Freshness lifetime calculation |
-| `CacheValidationRequestBuilder` | RFC 9111 | Conditional request construction |
+| Component                       | RFC            | Responsibility                                   |
+| ------------------------------- | -------------- | ------------------------------------------------ |
+| `RedirectHandler`               | RFC 9110 §15.4 | Redirect following with correct method rewriting |
+| `RetryEvaluator`                | RFC 9110 §9.2  | Idempotency-based retry decisions                |
+| `ConnectionReuseEvaluator`      | RFC 9112 §9    | Keep-alive vs. close decisions                   |
+| `CookieJar`                     | RFC 6265       | Domain/path matching, Secure/HttpOnly/SameSite   |
+| `ContentEncodingDecoder`        | RFC 9110 §8.4  | gzip/deflate/brotli decompression                |
+| `HttpCacheStore`                | RFC 9111       | Thread-safe in-memory LRU cache                  |
+| `CacheFreshnessEvaluator`       | RFC 9111       | Freshness lifetime calculation                   |
+| `CacheValidationRequestBuilder` | RFC 9111       | Conditional request construction                 |
 
 ---
 
@@ -220,11 +220,11 @@ ConnectionPool
     └── _evictionTimer (at least one connection kept per host)
 ```
 
-| Version | Acquire | Release | Limit |
-|---------|---------|---------|-------|
-| HTTP/1.0 | Always new | Always dispose | None |
-| HTTP/1.1 | Idle queue → wait semaphore → establish | Reusable → idle queue; else dispose + release | 6/host |
-| HTTP/2+ | MRU with available stream slots → establish | Decrement streams; dispose at 0 | Unlimited |
+| Version  | Acquire                                     | Release                                       | Limit     |
+| -------- | ------------------------------------------- | --------------------------------------------- | --------- |
+| HTTP/1.0 | Always new                                  | Always dispose                                | None      |
+| HTTP/1.1 | Idle queue → wait semaphore → establish     | Reusable → idle queue; else dispose + release | 6/host    |
+| HTTP/2+  | MRU with available stream slots → establish | Decrement streams; dispose at 0               | Unlimited |
 
 ### Channels-Based I/O
 
@@ -271,30 +271,30 @@ Connection lifecycle is managed by `IConnectionScope`:
 
 - ≤128 KB → 512 KB pause threshold
 - ≤1 MB → 2 MB pause threshold
-- >1 MB → 2× MaxFrameSize
+- > 1 MB → 2× MaxFrameSize
 
 ---
 
 ## Diagnostics
 
-| Mechanism | API | Purpose |
-|-----------|-----|---------|
-| `TracingBidiStage` | `ActivitySource("TurboHTTP")` | W3C trace context, root `Activity` per request |
-| `TurboHttpDiagnosticListener` | `DiagnosticListener` | Publish/subscribe event bus (compatible with `HttpClient` tooling) |
-| `TurboHttpEventSource` | ETW `EventSource` | High-performance structured logging (zero alloc on hot path) |
-| `TurboHttpMetrics` | OTel `Meter` | `ConnectionActive`, `ConnectionIdle`, `ConnectionDuration` gauges |
-| `DeadlockWatchdogStage` | DEBUG only | Fires `OnDeadlockStall` if no element flows within 10s |
+| Mechanism                     | API                           | Purpose                                                            |
+| ----------------------------- | ----------------------------- | ------------------------------------------------------------------ |
+| `TracingBidiStage`            | `ActivitySource("TurboHTTP")` | W3C trace context, root `Activity` per request                     |
+| `TurboHttpDiagnosticListener` | `DiagnosticListener`          | Publish/subscribe event bus (compatible with `HttpClient` tooling) |
+| `TurboHttpEventSource`        | ETW `EventSource`             | High-performance structured logging (zero alloc on hot path)       |
+| `TurboHttpMetrics`            | OTel `Meter`                  | `ConnectionActive`, `ConnectionIdle`, `ConnectionDuration` gauges  |
+| `DeadlockWatchdogStage`       | DEBUG only                    | Fires `OnDeadlockStall` if no element flows within 10s             |
 
 ---
 
 ## Testing Structure
 
-| Project | Contents |
-|---------|----------|
-| `TurboHTTP.Tests` | Unit tests organized by RFC namespace (`RFC9112`, `RFC9113`, `Http3/Security`, …) |
-| `TurboHTTP.StreamTests` | Akka.Streams `GraphStage` behavior via `StreamTestBase` |
+| Project                      | Contents                                                                                                                                                                                                                                                                                                          |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TurboHTTP.Tests`            | Unit tests organized by RFC namespace (`RFC9112`, `RFC9113`, `Http3/Security`, …)                                                                                                                                                                                                                                 |
+| `TurboHTTP.StreamTests`      | Akka.Streams `GraphStage` behavior via `StreamTestBase`                                                                                                                                                                                                                                                           |
 | `TurboHTTP.IntegrationTests` | End-to-end with Kestrel fixtures (16 integration test files each for H2 and H3 covering: smoke, connection, concurrency, cache, cookie, compression, request compression, redirect, retry, error handling, edge case, feature interaction, handler pipeline, resilience, expect-continue, max stream concurrency) |
-| `TurboHTTP.Benchmarks` | BenchmarkDotNet suite (25+ benchmarks) |
+| `TurboHTTP.Benchmarks`       | BenchmarkDotNet suite (25+ benchmarks)                                                                                                                                                                                                                                                                            |
 
 ### HTTP/3 Test Coverage
 
@@ -307,29 +307,29 @@ All `[Fact]`/`[Theory]` tests carry `DisplayName("RFC-section-cat-nnn: descripti
 
 ## Extension Points
 
-| Extension point | How |
-|----------------|-----|
-| Custom middleware | Implement `TurboHandler`; add via `TurboHttpClientBuilder` |
-| Custom BidiFlow stages | Extend `GraphStage<BidiShape<...>>`; wire into `FeaturePipelineBuilder.Build()` |
-| Custom encoders/decoders | Replace Protocol-layer implementations (maintain RFC wire compatibility) |
-| Custom transport | Implement `ITransportFactory`; register via `TransportRegistry` (production + test injection) |
+| Extension point             | How                                                                                                          |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Custom middleware           | Implement `TurboHandler`; add via `TurboHttpClientBuilder`                                                   |
+| Custom BidiFlow stages      | Extend `GraphStage<BidiShape<...>>`; wire into `FeaturePipelineBuilder.Build()`                              |
+| Custom encoders/decoders    | Replace Protocol-layer implementations (maintain RFC wire compatibility)                                     |
+| Custom transport            | Implement `ITransportFactory`; register via `TransportRegistry` (production + test injection)                |
 | Transport registry override | Inject a `TransportRegistry` into `Engine.CreateFlow()` with alternate or test `ITransportFactory` instances |
-| DI registration | `AddTurboHttpClient()` + `ITurboHttpClientBuilder.Services` |
+| DI registration             | `AddTurboHttpClient()` + `ITurboHttpClientBuilder.Services`                                                  |
 
 ---
 
 ## Implementation Status
 
-| Area | Score | Notes |
-|------|-------|-------|
-| HTTP/1.0 | 85/100 | Stable |
-| HTTP/1.1 | 92/100 | Stable |
-| HTTP/2 | 87/100 | Stable |
-| HTTP/3 | 88/100 | Frame parsing + QUIC transport fully wired; `Http3Options` configuration (QPACK table size, idle timeout, connection limits, blocked streams) integrated via `ProtocolCoreBuilder`; integration and security test coverage now at parity with HTTP/2 |
-| HPACK | 90/100 | Stable |
-| QPACK | 40/100 | Decoder only; encoder missing |
-| Cookies | 80/100 | Stable |
-| Caching | 78/100 | Stable |
-| Redirects/Retries | 82/100 | Stable |
+| Area              | Score  | Notes                                                                                                                                                                                                                                                |
+| ----------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP/1.0          | 85/100 | Stable                                                                                                                                                                                                                                               |
+| HTTP/1.1          | 92/100 | Stable                                                                                                                                                                                                                                               |
+| HTTP/2            | 87/100 | Stable                                                                                                                                                                                                                                               |
+| HTTP/3            | 88/100 | Frame parsing + QUIC transport fully wired; `Http3Options` configuration (QPACK table size, idle timeout, connection limits, blocked streams) integrated via `ProtocolCoreBuilder`; integration and security test coverage now at parity with HTTP/2 |
+| HPACK             | 90/100 | Stable                                                                                                                                                                                                                                               |
+| QPACK             | 40/100 | Decoder only; encoder missing                                                                                                                                                                                                                        |
+| Cookies           | 80/100 | Stable                                                                                                                                                                                                                                               |
+| Caching           | 78/100 | Stable                                                                                                                                                                                                                                               |
+| Redirects/Retries | 82/100 | Stable                                                                                                                                                                                                                                               |
 
 **Open gaps**: DoS protection (header size/count limits), redirect loop detection, HTTPS→HTTP downgrade blocking, QPACK encoder, trailer header parsing.

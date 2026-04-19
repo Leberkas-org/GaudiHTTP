@@ -187,78 +187,78 @@ public sealed class TurboClientOptions
 
 ### Connection options
 
-| Property | Default | Description |
-|---|---|---|
-| `BaseAddress` | `null` | Base URI for relative requests |
-| `ConnectTimeout` | `15 s` | TCP/QUIC connection timeout |
-| `PooledConnectionIdleTimeout` | `90 s` | How long idle connections are kept in the pool |
-| `PooledConnectionLifetime` | `infinite` | Maximum lifetime of a pooled connection |
-| `MaxEndpointSubstreams` | `256` | Max concurrently active endpoint substreams |
+| Property                      | Default    | Description                                    |
+| ----------------------------- | ---------- | ---------------------------------------------- |
+| `BaseAddress`                 | `null`     | Base URI for relative requests                 |
+| `ConnectTimeout`              | `15 s`     | TCP/QUIC connection timeout                    |
+| `PooledConnectionIdleTimeout` | `90 s`     | How long idle connections are kept in the pool |
+| `PooledConnectionLifetime`    | `infinite` | Maximum lifetime of a pooled connection        |
+| `MaxEndpointSubstreams`       | `256`      | Max concurrently active endpoint substreams    |
 
 Per-version connection limits are configured on the nested options objects:
 
-| Property | Default | Description |
-|---|---|---|
-| `Http1.MaxConnectionsPerServer` | `6` | Max concurrent HTTP/1.x connections per host |
-| `Http1.MaxPipelineDepth` | `16` | Max pipelined requests per HTTP/1.1 connection |
-| `Http2.MaxConnectionsPerServer` | `6` | Max concurrent HTTP/2 connections per host |
-| `Http2.MaxConcurrentStreams` | `100` | Max concurrent streams per HTTP/2 connection |
-| `Http3.MaxConnectionsPerServer` | `4` | Max concurrent QUIC connections per host |
+| Property                        | Default | Description                                    |
+| ------------------------------- | ------- | ---------------------------------------------- |
+| `Http1.MaxConnectionsPerServer` | `6`     | Max concurrent HTTP/1.x connections per host   |
+| `Http1.MaxPipelineDepth`        | `16`    | Max pipelined requests per HTTP/1.1 connection |
+| `Http2.MaxConnectionsPerServer` | `6`     | Max concurrent HTTP/2 connections per host     |
+| `Http2.MaxConcurrentStreams`    | `100`   | Max concurrent streams per HTTP/2 connection   |
+| `Http3.MaxConnectionsPerServer` | `4`     | Max concurrent QUIC connections per host       |
 
 See [Connection Pooling guide](/guide/connection-pooling) for pool lifecycle details.
 
 ### HTTP/1.x options
 
-| Property | Default | Description |
-|---|---|---|
-| `Http1.MaxConnectionsPerServer` | `6` | Max concurrent TCP connections per host |
-| `Http1.MaxPipelineDepth` | `16` | Max pipelined requests per connection |
-| `Http1.MaxBatchWeight` | `65536` (64 KiB) | Max batch weight for request encoding |
-| `Http1.MaxResponseHeadersLength` | `64` (KB) | Max response header size |
-| `Http1.MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
-| `Http1.MaxResponseDrainSize` | `1048576` (1 MB) | Max bytes to drain from incomplete response |
-| `Http1.ResponseDrainTimeout` | `2 s` | Timeout for draining incomplete response body |
+| Property                         | Default          | Description                                   |
+| -------------------------------- | ---------------- | --------------------------------------------- |
+| `Http1.MaxConnectionsPerServer`  | `6`              | Max concurrent TCP connections per host       |
+| `Http1.MaxPipelineDepth`         | `16`             | Max pipelined requests per connection         |
+| `Http1.MaxBatchWeight`           | `65536` (64 KiB) | Max batch weight for request encoding         |
+| `Http1.MaxResponseHeadersLength` | `64` (KB)        | Max response header size                      |
+| `Http1.MaxReconnectAttempts`     | `3`              | Max reconnect attempts on connection drop     |
+| `Http1.MaxResponseDrainSize`     | `1048576` (1 MB) | Max bytes to drain from incomplete response   |
+| `Http1.ResponseDrainTimeout`     | `2 s`            | Timeout for draining incomplete response body |
 
 ### HTTP/2 options
 
-| Property | Default | Description |
-|---|---|---|
-| `Http2.MaxConnectionsPerServer` | `6` | Max concurrent TCP connections per host |
-| `Http2.MaxConcurrentStreams` | `100` | Max concurrent streams per connection |
-| `Http2.InitialConnectionWindowSize` | `67108864` (64 MB) | Connection-level flow control window |
-| `Http2.InitialStreamWindowSize` | `65535` | Per-stream flow control window |
-| `Http2.MaxFrameSize` | `16384` (16 KiB) | Max frame payload size |
-| `Http2.HeaderTableSize` | `4096` | HPACK dynamic table size |
-| `Http2.MaxBatchWeight` | `262144` (256 KiB) | Max batch weight for frame encoding |
-| `Http2.MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
-| `Http2.KeepAlivePingDelay` | `infinite` | Delay before sending keep-alive PING |
-| `Http2.KeepAlivePingTimeout` | `20 s` | Timeout for PING acknowledgment |
-| `Http2.KeepAlivePingPolicy` | `Always` | When to send keep-alive PINGs |
+| Property                            | Default            | Description                               |
+| ----------------------------------- | ------------------ | ----------------------------------------- |
+| `Http2.MaxConnectionsPerServer`     | `6`                | Max concurrent TCP connections per host   |
+| `Http2.MaxConcurrentStreams`        | `100`              | Max concurrent streams per connection     |
+| `Http2.InitialConnectionWindowSize` | `67108864` (64 MB) | Connection-level flow control window      |
+| `Http2.InitialStreamWindowSize`     | `65535`            | Per-stream flow control window            |
+| `Http2.MaxFrameSize`                | `16384` (16 KiB)   | Max frame payload size                    |
+| `Http2.HeaderTableSize`             | `4096`             | HPACK dynamic table size                  |
+| `Http2.MaxBatchWeight`              | `262144` (256 KiB) | Max batch weight for frame encoding       |
+| `Http2.MaxReconnectAttempts`        | `3`                | Max reconnect attempts on connection drop |
+| `Http2.KeepAlivePingDelay`          | `infinite`         | Delay before sending keep-alive PING      |
+| `Http2.KeepAlivePingTimeout`        | `20 s`             | Timeout for PING acknowledgment           |
+| `Http2.KeepAlivePingPolicy`         | `Always`           | When to send keep-alive PINGs             |
 
 ### HTTP/3 options
 
-| Property | Default | Description |
-|---|---|---|
-| `Http3.MaxConnectionsPerServer` | `4` | Max concurrent QUIC connections per host |
-| `Http3.QpackMaxTableCapacity` | `4096` | QPACK dynamic table size |
-| `Http3.QpackBlockedStreams` | `100` | Max streams blocked waiting for QPACK |
-| `Http3.MaxFieldSectionSize` | `65536` (64 KiB) | Max header block size |
-| `Http3.IdleTimeout` | `30 s` | QUIC idle timeout |
-| `Http3.MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
-| `Http3.AllowEarlyData` | `false` | Allow QUIC 0-RTT early data |
-| `Http3.AllowConnectionMigration` | `true` | Allow QUIC connection migration |
-| `Http3.AllowServerPush` | `false` | Allow server push via PUSH_PROMISE |
-| `Http3.MaxBatchWeight` | `262144` (256 KiB) | Max batch weight for frame encoding |
-| `Http3.EnableAltSvcDiscovery` | `false` | Auto-discover HTTP/3 via Alt-Svc headers |
+| Property                         | Default            | Description                               |
+| -------------------------------- | ------------------ | ----------------------------------------- |
+| `Http3.MaxConnectionsPerServer`  | `4`                | Max concurrent QUIC connections per host  |
+| `Http3.QpackMaxTableCapacity`    | `4096`             | QPACK dynamic table size                  |
+| `Http3.QpackBlockedStreams`      | `100`              | Max streams blocked waiting for QPACK     |
+| `Http3.MaxFieldSectionSize`      | `65536` (64 KiB)   | Max header block size                     |
+| `Http3.IdleTimeout`              | `30 s`             | QUIC idle timeout                         |
+| `Http3.MaxReconnectAttempts`     | `3`                | Max reconnect attempts on connection drop |
+| `Http3.AllowEarlyData`           | `false`            | Allow QUIC 0-RTT early data               |
+| `Http3.AllowConnectionMigration` | `true`             | Allow QUIC connection migration           |
+| `Http3.AllowServerPush`          | `false`            | Allow server push via PUSH_PROMISE        |
+| `Http3.MaxBatchWeight`           | `262144` (256 KiB) | Max batch weight for frame encoding       |
+| `Http3.EnableAltSvcDiscovery`    | `false`            | Auto-discover HTTP/3 via Alt-Svc headers  |
 
 ### TLS options
 
-| Property | Default | Description |
-|---|---|---|
-| `DangerousAcceptAnyServerCertificate` | `false` | Skip all certificate validation — dev/test only |
-| `ServerCertificateValidationCallback` | Accept valid certs | Custom TLS certificate validation |
-| `ClientCertificates` | `null` | Client certificates for mutual TLS |
-| `EnabledSslProtocols` | `SslProtocols.None` (OS default) | TLS protocol versions to permit |
+| Property                              | Default                          | Description                                     |
+| ------------------------------------- | -------------------------------- | ----------------------------------------------- |
+| `DangerousAcceptAnyServerCertificate` | `false`                          | Skip all certificate validation — dev/test only |
+| `ServerCertificateValidationCallback` | Accept valid certs               | Custom TLS certificate validation               |
+| `ClientCertificates`                  | `null`                           | Client certificates for mutual TLS              |
+| `EnabledSslProtocols`                 | `SslProtocols.None` (OS default) | TLS protocol versions to permit                 |
 
 ```csharp
 // Mutual TLS with a client certificate
@@ -389,12 +389,12 @@ See [Content Encoding guide](/guide/content-encoding) for request compression an
 
 These types are part of the public API and can be customized via the builder extensions:
 
-| Type | Purpose | Guide |
-|---|---|---|
-| `CookieJar` | Cookie storage and injection — provided via `.WithCookies()` | [Cookies](/guide/cookies) |
-| `CacheStore` | In-memory LRU cache backend — provided via `.WithCache(store)` | [Caching](/guide/caching) |
-| `RedirectHandler` | Built-in HTTP redirect handling — controlled via `.WithRedirect()` | [Redirects](/guide/redirects) |
-| `RetryEvaluator` | Built-in idempotent method retry — controlled via `.WithRetry()` | [Retries](/guide/retries) |
-| `TurboHandler` | Custom request/response middleware — registered via `.AddHandler<T>()` | [Extending the Pipeline](/architecture/extending) |
+| Type              | Purpose                                                                | Guide                                             |
+| ----------------- | ---------------------------------------------------------------------- | ------------------------------------------------- |
+| `CookieJar`       | Cookie storage and injection — provided via `.WithCookies()`           | [Cookies](/guide/cookies)                         |
+| `CacheStore`      | In-memory LRU cache backend — provided via `.WithCache(store)`         | [Caching](/guide/caching)                         |
+| `RedirectHandler` | Built-in HTTP redirect handling — controlled via `.WithRedirect()`     | [Redirects](/guide/redirects)                     |
+| `RetryEvaluator`  | Built-in idempotent method retry — controlled via `.WithRetry()`       | [Retries](/guide/retries)                         |
+| `TurboHandler`    | Custom request/response middleware — registered via `.AddHandler<T>()` | [Extending the Pipeline](/architecture/extending) |
 
 See the [Configuration guide](/guide/configuration) and [Extending the Pipeline](/architecture/extending) for integration patterns.

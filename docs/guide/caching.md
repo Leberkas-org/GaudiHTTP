@@ -22,29 +22,29 @@ Responses to `POST`, `PUT`, `DELETE`, and all other methods are **never cached**
 
 Freshness is evaluated in this priority order:
 
-| Source | Example | Notes |
-|--------|---------|-------|
-| `s-maxage` directive | `Cache-Control: s-maxage=3600` | Shared-cache lifetime; takes priority over `max-age` |
-| `max-age` directive | `Cache-Control: max-age=300` | Seconds from the response date |
-| `Expires` header | `Expires: Fri, 21 Mar 2026 12:00:00 GMT` | Absolute expiry date; ignored when `max-age` is present |
-| Heuristic freshness | _(no directive)_ | When the server provides no explicit cache lifetime, TurboHTTP estimates one: if a resource was last changed 100 days ago, it is assumed fresh for 10 days (10% of the time since the last modification). This only applies when no `max-age`, `s-maxage`, or `Expires` header is present. |
+| Source               | Example                                  | Notes                                                                                                                                                                                                                                                                                      |
+| -------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `s-maxage` directive | `Cache-Control: s-maxage=3600`           | Shared-cache lifetime; takes priority over `max-age`                                                                                                                                                                                                                                       |
+| `max-age` directive  | `Cache-Control: max-age=300`             | Seconds from the response date                                                                                                                                                                                                                                                             |
+| `Expires` header     | `Expires: Fri, 21 Mar 2026 12:00:00 GMT` | Absolute expiry date; ignored when `max-age` is present                                                                                                                                                                                                                                    |
+| Heuristic freshness  | _(no directive)_                         | When the server provides no explicit cache lifetime, TurboHTTP estimates one: if a resource was last changed 100 days ago, it is assumed fresh for 10 days (10% of the time since the last modification). This only applies when no `max-age`, `s-maxage`, or `Expires` header is present. |
 
 Once a cached response becomes stale, TurboHTTP issues a **conditional request** to revalidate it rather than fetching the full response again (see [Conditional Requests](#conditional-requests) below).
 
 ## Cache-Control Directives
 
-| Directive | Direction | Behavior |
-|-----------|-----------|----------|
-| `max-age=N` | Response | Cache for N seconds from the response date |
-| `s-maxage=N` | Response | Shared-cache lifetime; overrides `max-age` |
-| `no-store` | Response | Never cache this response |
-| `no-cache` | Response | Cache the response, but **always revalidate** with the server before serving it |
-| `must-revalidate` | Response | Once stale, do not serve the cached copy without revalidation |
-| `private` | Response | Do not cache — response is personalised to one user |
-| `public` | Response | Explicitly marks the response as cacheable, even on shared caches |
-| `no-cache` | Request | Bypass cache; fetch a fresh response from the server |
-| `no-store` | Request | Bypass cache and do not store the response |
-| `only-if-cached` | Request | Return cached copy or `504 Gateway Timeout` — never go to the network |
+| Directive         | Direction | Behavior                                                                        |
+| ----------------- | --------- | ------------------------------------------------------------------------------- |
+| `max-age=N`       | Response  | Cache for N seconds from the response date                                      |
+| `s-maxage=N`      | Response  | Shared-cache lifetime; overrides `max-age`                                      |
+| `no-store`        | Response  | Never cache this response                                                       |
+| `no-cache`        | Response  | Cache the response, but **always revalidate** with the server before serving it |
+| `must-revalidate` | Response  | Once stale, do not serve the cached copy without revalidation                   |
+| `private`         | Response  | Do not cache — response is personalised to one user                             |
+| `public`          | Response  | Explicitly marks the response as cacheable, even on shared caches               |
+| `no-cache`        | Request   | Bypass cache; fetch a fresh response from the server                            |
+| `no-store`        | Request   | Bypass cache and do not store the response                                      |
+| `only-if-cached`  | Request   | Return cached copy or `504 Gateway Timeout` — never go to the network           |
 
 ## Conditional Requests
 
@@ -70,10 +70,10 @@ Client                                   Server
 
 Two standard mechanisms are used:
 
-| Validator | Request header | Response header | Description |
-|-----------|----------------|-----------------|-------------|
-| ETag | `If-None-Match: "abc123"` | `ETag: "abc123"` | Opaque token identifying the specific version of the content |
-| Last-Modified date | `If-Modified-Since: Mon, 20 Mar 2026 10:00:00 GMT` | `Last-Modified: Mon, 20 Mar 2026 10:00:00 GMT` | Timestamp of the last content modification |
+| Validator          | Request header                                     | Response header                                | Description                                                  |
+| ------------------ | -------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| ETag               | `If-None-Match: "abc123"`                          | `ETag: "abc123"`                               | Opaque token identifying the specific version of the content |
+| Last-Modified date | `If-Modified-Since: Mon, 20 Mar 2026 10:00:00 GMT` | `Last-Modified: Mon, 20 Mar 2026 10:00:00 GMT` | Timestamp of the last content modification                   |
 
 When the server responds with `304 Not Modified`, TurboHTTP:
 

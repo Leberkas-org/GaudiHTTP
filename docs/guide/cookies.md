@@ -71,12 +71,12 @@ Set-Cookie: session=xyz; HttpOnly
 
 Controls whether a cookie is sent with cross-site requests. TurboHTTP stores the `SameSite` attribute but does **not** enforce it — the library always sends cookies that match domain and path rules. SameSite enforcement is a browser-level protection that does not apply to programmatic HTTP clients.
 
-| Value | Meaning |
-|-------|---------|
-| `Strict` | Cookie sent only for requests originating from the same site |
-| `Lax` | Cookie sent for same-site and top-level cross-site navigations |
-| `None` | Cookie sent with all requests (requires `Secure`) |
-| _(absent)_ | No policy; treated like `Lax` in browsers |
+| Value      | Meaning                                                        |
+| ---------- | -------------------------------------------------------------- |
+| `Strict`   | Cookie sent only for requests originating from the same site   |
+| `Lax`      | Cookie sent for same-site and top-level cross-site navigations |
+| `None`     | Cookie sent with all requests (requires `Secure`)              |
+| _(absent)_ | No policy; treated like `Lax` in browsers                      |
 
 ## Expiration
 

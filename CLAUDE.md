@@ -77,6 +77,7 @@ Key vault guides: `Architecture/Guides/10-TEST_CONVENTIONS`, `11-STAGE_PORT_NAMI
 ## Test Conventions (Quick Reference)
 
 New tests use **component-based folders** (`Http10/`, `Http11/`, `Http2/`, etc.) not RFC folders. Key rules:
+
 - `Spec` suffix, `sealed` class, BDD method names: `Subject_should_behavior()`
 - `[Trait("RFC", "RFC9113-4.1")]` for traceability, `[Fact(Timeout = 5000)]` required
 - `[Fact(DisplayName = ...)]` is deprecated — method name IS the documentation
@@ -92,8 +93,8 @@ Full details: `notes/Architecture/Guides/11-STAGE_PORT_NAMING`
 
 ## Custom Agents (`.claude/agents/`)
 
-| Agent | When to use |
-|-------|-------------|
+| Agent             | When to use                                                                                                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `spec-refactorer` | Refactor test specs: remove non-Protocol RFC traits, validate RFC section refs against Obsidian vault, strip `///` comments outside methods |
 
 ## Agent Guidance: dotnet-skills
@@ -112,12 +113,14 @@ Use for multi-step reasoning where the full scope isn't clear upfront. The tool 
 step-by-step with the ability to revise, branch, and extend as understanding deepens.
 
 **When to use:**
+
 - Complex debugging where the root cause isn't obvious
 - Architecture/design decisions with multiple trade-offs
 - RFC compliance analysis requiring cross-referencing multiple sections
 - Any problem where early assumptions may need revision
 
 **How it works:** Call the tool repeatedly, once per thought step. Each call takes:
+
 - `thought` — your current reasoning step (analysis, revision, hypothesis, verification)
 - `thoughtNumber` / `totalThoughts` — track position; adjust `totalThoughts` up/down as needed
 - `nextThoughtNeeded` — `true` to continue, `false` when done

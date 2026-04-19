@@ -52,19 +52,19 @@ builder.Services.AddTurboHttpClient("http3-api", options =>
 
 ### All HTTP/3 options
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `MaxConnectionsPerServer` | `int` | `4` | Max concurrent QUIC connections per host |
-| `QpackMaxTableCapacity` | `int` | `4096` | QPACK dynamic table size in bytes |
-| `QpackBlockedStreams` | `int` | `100` | Max streams blocked waiting for QPACK encoder |
-| `MaxFieldSectionSize` | `int` | `65536` (64 KiB) | Max header block size |
-| `IdleTimeout` | `TimeSpan` | `30 s` | QUIC idle timeout |
-| `MaxReconnectAttempts` | `int` | `3` | Max reconnect attempts on connection drop |
-| `AllowEarlyData` | `bool` | `false` | Allow QUIC 0-RTT early data |
-| `AllowConnectionMigration` | `bool` | `true` | Allow QUIC connection migration |
-| `AllowServerPush` | `bool` | `false` | Allow server push via PUSH_PROMISE |
-| `MaxBatchWeight` | `long` | `262144` (256 KiB) | Max batch weight for frame encoding |
-| `EnableAltSvcDiscovery` | `bool` | `false` | Auto-discover HTTP/3 via Alt-Svc headers |
+| Property                   | Type       | Default            | Description                                   |
+| -------------------------- | ---------- | ------------------ | --------------------------------------------- |
+| `MaxConnectionsPerServer`  | `int`      | `4`                | Max concurrent QUIC connections per host      |
+| `QpackMaxTableCapacity`    | `int`      | `4096`             | QPACK dynamic table size in bytes             |
+| `QpackBlockedStreams`      | `int`      | `100`              | Max streams blocked waiting for QPACK encoder |
+| `MaxFieldSectionSize`      | `int`      | `65536` (64 KiB)   | Max header block size                         |
+| `IdleTimeout`              | `TimeSpan` | `30 s`             | QUIC idle timeout                             |
+| `MaxReconnectAttempts`     | `int`      | `3`                | Max reconnect attempts on connection drop     |
+| `AllowEarlyData`           | `bool`     | `false`            | Allow QUIC 0-RTT early data                   |
+| `AllowConnectionMigration` | `bool`     | `true`             | Allow QUIC connection migration               |
+| `AllowServerPush`          | `bool`     | `false`            | Allow server push via PUSH_PROMISE            |
+| `MaxBatchWeight`           | `long`     | `262144` (256 KiB) | Max batch weight for frame encoding           |
+| `EnableAltSvcDiscovery`    | `bool`     | `false`            | Auto-discover HTTP/3 via Alt-Svc headers      |
 
 ## 0-RTT Early Data
 

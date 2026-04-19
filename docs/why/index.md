@@ -6,23 +6,23 @@ TurboHTTP is designed for situations where `HttpClient` alone isn't enough: high
 
 ## Feature Comparison
 
-| Feature | HttpClient | Refit | Flurl | TurboHTTP |
-|---------|:----------:|:-----:|:-----:|:---------:|
-| HTTP/1.0 | ✅ | ✅ | ✅ | ✅ |
-| HTTP/1.1 | ✅ | ✅ | ✅ | ✅ |
-| HTTP/2 Multiplexing | ⚠️ Partial | ⚠️ Partial | ❌ | ✅ Full |
-| HTTP/3 (QUIC) | ⚠️ Partial | ❌ | ❌ | ✅ Full |
-| Automatic Retries | ❌ Polly needed | ❌ Polly needed | ❌ | ✅ Built-in |
-| HTTP Caching | ❌ | ❌ | ❌ | ✅ Built-in |
-| Cookie Management | ⚠️ Manual / CookieContainer | ⚠️ Manual | ⚠️ Manual | ✅ Automatic |
-| Redirect Following | ✅ Basic | ✅ Basic | ✅ Basic | ✅ Full |
-| Content Decompression | ✅ | ✅ | ✅ | ✅ |
-| Connection Pooling | ✅ SocketsHttpHandler | ✅ via HttpClient | ✅ via HttpClient | ✅ Thread-safe, lock-free, per-host |
-| Channel-based API | ❌ | ❌ | ❌ | ✅ |
-| Backpressure | ❌ | ❌ | ❌ | ✅ Akka.Streams |
-| Zero-alloc internals | ⚠️ Partial | ❌ | ❌ | ✅ Span/Memory throughout |
-| Typed client interfaces | ❌ | ✅ | ❌ | ❌ |
-| Fluent request builder | ❌ | ❌ | ✅ | ❌ |
+| Feature                 |         HttpClient          |       Refit       |       Flurl       |              TurboHTTP              |
+| ----------------------- | :-------------------------: | :---------------: | :---------------: | :---------------------------------: |
+| HTTP/1.0                |             ✅              |        ✅         |        ✅         |                 ✅                  |
+| HTTP/1.1                |             ✅              |        ✅         |        ✅         |                 ✅                  |
+| HTTP/2 Multiplexing     |         ⚠️ Partial          |    ⚠️ Partial     |        ❌         |               ✅ Full               |
+| HTTP/3 (QUIC)           |         ⚠️ Partial          |        ❌         |        ❌         |               ✅ Full               |
+| Automatic Retries       |       ❌ Polly needed       |  ❌ Polly needed  |        ❌         |             ✅ Built-in             |
+| HTTP Caching            |             ❌              |        ❌         |        ❌         |             ✅ Built-in             |
+| Cookie Management       | ⚠️ Manual / CookieContainer |     ⚠️ Manual     |     ⚠️ Manual     |            ✅ Automatic             |
+| Redirect Following      |          ✅ Basic           |     ✅ Basic      |     ✅ Basic      |               ✅ Full               |
+| Content Decompression   |             ✅              |        ✅         |        ✅         |                 ✅                  |
+| Connection Pooling      |    ✅ SocketsHttpHandler    | ✅ via HttpClient | ✅ via HttpClient | ✅ Thread-safe, lock-free, per-host |
+| Channel-based API       |             ❌              |        ❌         |        ❌         |                 ✅                  |
+| Backpressure            |             ❌              |        ❌         |        ❌         |           ✅ Akka.Streams           |
+| Zero-alloc internals    |         ⚠️ Partial          |        ❌         |        ❌         |      ✅ Span/Memory throughout      |
+| Typed client interfaces |             ❌              |        ✅         |        ❌         |                 ❌                  |
+| Fluent request builder  |             ❌              |        ❌         |        ✅         |                 ❌                  |
 
 > **⚠️ Partial** means the feature exists but has constraints — for example, HttpClient's HTTP/2 support requires .NET 5+ and TLS, and its cookie support relies on a shared `CookieContainer` that requires manual setup.
 
@@ -125,10 +125,10 @@ await foreach (var response in reader.ReadAllAsync())
 
 ## Summary
 
-| Scenario | Recommended |
-|----------|-------------|
-| Simple REST calls, small scale | `HttpClient` |
-| Typed API client from interface | Refit |
-| Fluent URL building | Flurl |
-| High-throughput, HTTP/2 & HTTP/3, built-in caching + retry | **TurboHTTP** |
-| Need Polly circuit-breaker patterns | `HttpClient` + Polly |
+| Scenario                                                   | Recommended          |
+| ---------------------------------------------------------- | -------------------- |
+| Simple REST calls, small scale                             | `HttpClient`         |
+| Typed API client from interface                            | Refit                |
+| Fluent URL building                                        | Flurl                |
+| High-throughput, HTTP/2 & HTTP/3, built-in caching + retry | **TurboHTTP**        |
+| Need Polly circuit-breaker patterns                        | `HttpClient` + Polly |

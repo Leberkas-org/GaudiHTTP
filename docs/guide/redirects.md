@@ -17,13 +17,13 @@ When a redirect response arrives, TurboHTTP:
 
 Each redirect status code tells TurboHTTP how to handle the follow-up request:
 
-| Status code | What TurboHTTP does |
-|-------------|---------------------|
-| `301` Moved Permanently | POST becomes GET for legacy compatibility; all other methods stay the same. Body is dropped. |
-| `302` Found | Same as 301 — POST becomes GET, other methods unchanged. Body is dropped. |
-| `303` See Other | Always switches to GET regardless of the original method. Body is always dropped. Use this when a form submission should redirect to a results page. |
-| `307` Temporary Redirect | Method and body are preserved exactly. A POST stays a POST with the same body. |
-| `308` Permanent Redirect | Same as 307 — method and body are always preserved. |
+| Status code              | What TurboHTTP does                                                                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `301` Moved Permanently  | POST becomes GET for legacy compatibility; all other methods stay the same. Body is dropped.                                                         |
+| `302` Found              | Same as 301 — POST becomes GET, other methods unchanged. Body is dropped.                                                                            |
+| `303` See Other          | Always switches to GET regardless of the original method. Body is always dropped. Use this when a form submission should redirect to a results page. |
+| `307` Temporary Redirect | Method and body are preserved exactly. A POST stays a POST with the same body.                                                                       |
+| `308` Permanent Redirect | Same as 307 — method and body are always preserved.                                                                                                  |
 
 **In practice:**
 
