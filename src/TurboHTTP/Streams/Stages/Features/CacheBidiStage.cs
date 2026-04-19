@@ -37,14 +37,14 @@ namespace TurboHTTP.Streams.Stages.Features;
 ///     <b>304 Not Modified</b> — merges headers with the cached entry and pushes 200 OK.
 ///   </description></item>
 ///   <item><description>
-///     <b>2xx (cacheable)</b> — stores the response via <see cref="CacheStore.Put"/>.
+///     <b>2xx (cacheable)</b> — stores the response via <see cref="Cache.Put"/>.
 ///   </description></item>
 ///   <item><description>
 ///     <b>Unsafe method</b> — invalidates the cache entry for the request URI.
 ///   </description></item>
 /// </list>
 /// </para>
-/// When no <see cref="CacheStore"/> is provided the stage is a pass-through in both directions.
+/// When no <see cref="Cache"/> is provided the stage is a pass-through in both directions.
 /// </summary>
 internal sealed class CacheBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
@@ -52,7 +52,7 @@ internal sealed class CacheBidiStage
     internal static readonly HttpRequestOptionsKey<bool> RevalidationKey
         = new("TurboHTTP.CacheRevalidation");
 
-    private readonly ICacheStore? _store;
+    private readonly Cache? _store;
     private readonly CachePolicy _policy;
 
     private readonly Inlet<HttpRequestMessage> _inRequest = new("Cache.In.Request");
@@ -65,7 +65,7 @@ internal sealed class CacheBidiStage
         get;
     }
 
-    public CacheBidiStage(ICacheStore? store, CachePolicy? policy = null)
+    public CacheBidiStage(Cache? store, CachePolicy? policy = null)
     {
         _store = store;
         _policy = policy ?? CachePolicy.Default;
@@ -232,7 +232,7 @@ internal sealed class CacheStateMachine
     private sealed record BodyReadFailed(Exception Exception);
 
     private readonly IFeatureStageOperations _ops;
-    private readonly ICacheStore? _store;
+    private readonly Cache? _store;
     private readonly CachePolicy _policy;
 
     private HttpResponseMessage? _bufferedHitResponse;
@@ -246,7 +246,7 @@ internal sealed class CacheStateMachine
 
     public CacheStateMachine(
         IFeatureStageOperations ops,
-        ICacheStore? store,
+        Cache? store,
         CachePolicy policy)
     {
         _ops = ops;
@@ -457,7 +457,7 @@ internal sealed class CacheStateMachine
                 var merged = CacheValidationRequestBuilder.MergeNotModifiedResponse(response, entry);
                 merged.RequestMessage = request;
 
-                var (owner, length) = CacheStore.RentBody(entry.Body.Span);
+                var (owner, length) = Cache.RentBody(entry.Body.Span);
                 var now = DateTimeOffset.UtcNow;
                 _store!.Put(request, merged, owner, length, now, now);
 

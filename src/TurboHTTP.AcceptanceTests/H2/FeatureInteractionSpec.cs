@@ -53,7 +53,7 @@ public sealed class FeatureInteractionSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendCacheAsync(ResponseMap map, HttpRequestMessage request,
-        CacheStore store, CachePolicy? policy = null)
+        Cache store, CachePolicy? policy = null)
     {
         var cache = BidiFlow.FromGraph(new CacheBidiStage(store, policy));
         var fake = ResponseMapFake.Create(map);
@@ -103,7 +103,7 @@ public sealed class FeatureInteractionSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendCacheCookieAsync(ResponseMap map, HttpRequestMessage request,
-        CacheStore store, CookieJar jar)
+        Cache store, CookieJar jar)
     {
         var cache = BidiFlow.FromGraph(new CacheBidiStage(store));
         var cookie = BidiFlow.FromGraph(new CookieBidiStage(jar));
@@ -120,7 +120,7 @@ public sealed class FeatureInteractionSpec : AcceptanceTestBase
     }
 
     private async Task<HttpResponseMessage> SendCacheRetryAsync(ResponseMap map, HttpRequestMessage request,
-        CacheStore store, RetryPolicy retryPolicy)
+        Cache store, RetryPolicy retryPolicy)
     {
         var cache = BidiFlow.FromGraph(new CacheBidiStage(store));
         var retry = BidiFlow.FromGraph(new RetryBidiStage(retryPolicy));
@@ -178,7 +178,7 @@ public sealed class FeatureInteractionSpec : AcceptanceTestBase
                 return r;
             });
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var res1 = await SendCacheAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "http://localhost/interaction/cache-gzip"), store);
@@ -294,7 +294,7 @@ public sealed class FeatureInteractionSpec : AcceptanceTestBase
                 return r;
             });
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var req1 = new HttpRequestMessage(HttpMethod.Get, "http://localhost/cache/vary/Accept-Language");
         req1.Headers.Add("Accept-Language", "en");
@@ -364,7 +364,7 @@ public sealed class FeatureInteractionSpec : AcceptanceTestBase
                 return r;
             });
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var res1 = await SendCacheRetryAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "http://localhost/cache/max-age/3600"),

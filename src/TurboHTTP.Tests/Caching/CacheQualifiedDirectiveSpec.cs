@@ -18,10 +18,10 @@ public sealed class CacheQualifiedDirectiveSpec
         return r;
     }
     
-    private static void Put(CacheStore store, HttpRequestMessage request, HttpResponseMessage response,
+    private static void Put(Cache store, HttpRequestMessage request, HttpResponseMessage response,
         byte[] body, DateTimeOffset requestTime, DateTimeOffset responseTime)
     {
-        var (owner, length) = CacheStore.RentBody(body);
+        var (owner, length) = Cache.RentBody(body);
         store.Put(request, response, owner, length, requestTime, responseTime);
     }
 
@@ -30,12 +30,12 @@ public sealed class CacheQualifiedDirectiveSpec
     [Fact]
     public void CacheQualifiedDirective_should_strip_field_when_no_cache_qualified()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = GetRequest();
         var response = OkResponseWithCacheControl("max-age=3600, no-cache=\"Set-Cookie\"");
         response.Headers.TryAddWithoutValidation("Set-Cookie", "session=abc123");
 
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
@@ -53,14 +53,14 @@ public sealed class CacheQualifiedDirectiveSpec
     [Fact]
     public void CacheQualifiedDirective_should_strip_multiple_fields_when_no_cache_qualified()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = GetRequest();
         var response = OkResponseWithCacheControl("max-age=3600, no-cache=\"X-Custom, X-Other\"");
         response.Headers.TryAddWithoutValidation("X-Custom", "val1");
         response.Headers.TryAddWithoutValidation("X-Other", "val2");
         response.Headers.TryAddWithoutValidation("X-Keep", "val3");
 
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
@@ -78,7 +78,7 @@ public sealed class CacheQualifiedDirectiveSpec
         var response = OkResponseWithCacheControl("max-age=3600, no-cache");
         var cc = CacheControlParser.Parse("max-age=3600, no-cache");
 
-        var (bodyOwner1, bodyLength1) = CacheStore.RentBody([]);
+        var (bodyOwner1, bodyLength1) = Cache.RentBody([]);
         var entry = new CacheEntry
         {
             Response = response,
@@ -101,7 +101,7 @@ public sealed class CacheQualifiedDirectiveSpec
         var response = OkResponseWithCacheControl("max-age=3600, no-cache=\"Set-Cookie\"");
         var cc = CacheControlParser.Parse("max-age=3600, no-cache=\"Set-Cookie\"");
 
-        var (bodyOwner2, bodyLength2) = CacheStore.RentBody([]);
+        var (bodyOwner2, bodyLength2) = Cache.RentBody([]);
         var entry = new CacheEntry
         {
             Response = response,
@@ -123,13 +123,13 @@ public sealed class CacheQualifiedDirectiveSpec
     public void CacheQualifiedDirective_should_exclude_field_when_private_qualified_in_shared_cache()
     {
         var policy = new CachePolicy { SharedCache = true };
-        var store = new CacheStore(policy);
+        var store = new Cache(policy);
         var request = GetRequest();
         var response = OkResponseWithCacheControl("max-age=3600, private=\"Set-Cookie\"");
         response.Headers.TryAddWithoutValidation("Set-Cookie", "session=abc123");
         response.Headers.TryAddWithoutValidation("X-Keep", "should-remain");
 
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         var entry = store.Get(GetRequest());
@@ -146,11 +146,11 @@ public sealed class CacheQualifiedDirectiveSpec
     public void CacheQualifiedDirective_should_not_store_when_unqualified_private_in_shared_cache()
     {
         var policy = new CachePolicy { SharedCache = true };
-        var store = new CacheStore(policy);
+        var store = new Cache(policy);
         var request = GetRequest();
         var response = OkResponseWithCacheControl("max-age=3600, private");
 
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         // Unqualified private — shared cache must not store at all
@@ -163,11 +163,11 @@ public sealed class CacheQualifiedDirectiveSpec
     public void CacheQualifiedDirective_should_store_when_unqualified_private_in_private_cache()
     {
         var policy = new CachePolicy { SharedCache = false };
-        var store = new CacheStore(policy);
+        var store = new Cache(policy);
         var request = GetRequest();
         var response = OkResponseWithCacheControl("max-age=3600, private");
 
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
 
         // Private cache can store private responses

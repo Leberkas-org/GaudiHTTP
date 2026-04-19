@@ -30,7 +30,7 @@ public sealed class CacheFreshnessSpec
         }
 
         var actualDate = date ?? BaseTime;
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         return new CacheEntry
         {
             Response = response,
@@ -247,7 +247,7 @@ public sealed class CacheFreshnessSpec
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
         var cc = new CacheControl { MaxAge = TimeSpan.FromSeconds(60), NoCache = true, NoCacheFields = null };
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         var entry = new CacheEntry
         {
             Response = response,
@@ -286,7 +286,7 @@ public sealed class CacheFreshnessSpec
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
         var cc = new CacheControl { MaxAge = TimeSpan.FromSeconds(10), MustRevalidate = true };
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         var entry = new CacheEntry
         {
             Response = response,
@@ -311,7 +311,7 @@ public sealed class CacheFreshnessSpec
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
         var cc = new CacheControl { MaxAge = TimeSpan.FromSeconds(10), ProxyRevalidate = true };
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         var entry = new CacheEntry
         {
             Response = response,
@@ -448,7 +448,7 @@ public sealed class CacheFreshnessSpec
     {
         // Expires header requires Date header to compute lifetime (RFC 9111 §5.3)
         var response = new HttpResponseMessage(HttpStatusCode.OK);
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         var entry = new CacheEntry
         {
             Response = response,
@@ -509,7 +509,7 @@ public sealed class CacheFreshnessSpec
         // proxy-revalidate should NOT apply in private cache (SharedCache=false)
         var response = new HttpResponseMessage(HttpStatusCode.OK);
         var cc = new CacheControl { MaxAge = TimeSpan.FromSeconds(10), ProxyRevalidate = true };
-        var (owner, length) = CacheStore.RentBody([]);
+        var (owner, length) = Cache.RentBody([]);
         var entry = new CacheEntry
         {
             Response = response,

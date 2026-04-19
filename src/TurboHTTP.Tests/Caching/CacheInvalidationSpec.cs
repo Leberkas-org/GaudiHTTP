@@ -7,15 +7,15 @@ public sealed class CacheInvalidationSpec
 {
     private static readonly DateTimeOffset _baseTime = new(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
-    private static CacheStore CreateStoreWithEntry(string uri = "http://example.com/resource")
+    private static Cache CreateStoreWithEntry(string uri = "http://example.com/resource")
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
         var response = new HttpResponseMessage(HttpStatusCode.OK);
         response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=3600");
         response.Headers.Date = _baseTime;
 
-        var (owner, length) = CacheStore.RentBody([1, 2, 3]);
+        var (owner, length) = Cache.RentBody([1, 2, 3]);
         store.Put(request, response, owner, length, _baseTime.AddSeconds(-1), _baseTime);
         return store;
     }
@@ -112,7 +112,7 @@ public sealed class CacheInvalidationSpec
         var locResponse = new HttpResponseMessage(HttpStatusCode.OK);
         locResponse.Headers.TryAddWithoutValidation("Cache-Control", "max-age=3600");
         locResponse.Headers.Date = _baseTime;
-        var (locOwner, locLength) = CacheStore.RentBody([4, 5, 6]);
+        var (locOwner, locLength) = Cache.RentBody([4, 5, 6]);
         store.Put(locRequest, locResponse, locOwner, locLength, _baseTime.AddSeconds(-1), _baseTime);
 
         Assert.NotNull(store.Get(new HttpRequestMessage(HttpMethod.Get, requestUri)));

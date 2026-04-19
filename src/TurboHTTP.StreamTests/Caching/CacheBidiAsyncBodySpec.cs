@@ -68,7 +68,7 @@ public sealed class CacheBidiAsyncBodySpec : StreamTestBase
     [Trait("RFC", "RFC9111-3")]
     public async Task CacheBidiStage_should_push_response_immediately_while_body_read_is_pending()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
 
         var delayedContent = new DelayedContent();
@@ -108,7 +108,7 @@ public sealed class CacheBidiAsyncBodySpec : StreamTestBase
     [Trait("RFC", "RFC9111-3")]
     public async Task CacheBidiStage_should_store_in_cache_after_async_body_completes()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
 
         var delayedContent = new DelayedContent();

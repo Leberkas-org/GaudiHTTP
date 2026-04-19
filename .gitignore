@@ -370,3 +370,5 @@ TurboHTTP/.obsidian/
 .worktrees/
 .maggus/logs/
 .maggus/worktrees/
+
+*.ps1

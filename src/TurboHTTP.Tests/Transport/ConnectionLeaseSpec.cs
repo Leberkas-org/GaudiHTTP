@@ -383,7 +383,7 @@ public sealed class ConnectionLeaseSpec
         using var state = CreateState();
         var lease = new ConnectionLease(handle, state);
 
-        await Task.Delay(10, TestContext.Current.CancellationToken);
+        await Task.Delay(15, TestContext.Current.CancellationToken);
         Assert.True(lease.IsExpired(TimeSpan.FromMilliseconds(1)));
     }
 

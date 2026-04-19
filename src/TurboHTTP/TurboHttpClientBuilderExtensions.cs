@@ -6,12 +6,22 @@ namespace TurboHTTP;
 
 public static class TurboHttpClientBuilderExtensions
 {
-    public static ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder, ICookieJar? jar = null)
+    public static ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
         {
             d.EnableCookies = true;
-            d.CustomCookieJar = jar ?? new CookieJar();
+            d.CustomCookieJar = new CookieJar();
+        });
+        return builder;
+    }
+
+    public static ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder, ICookieStore store)
+    {
+        builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
+        {
+            d.EnableCookies = true;
+            d.CustomCookieJar = new CookieJar(store);
         });
         return builder;
     }

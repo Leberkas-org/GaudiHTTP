@@ -29,20 +29,20 @@ public sealed class NamedClientIsolationSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void NamedClientIsolation_should_have_separate_jar_instances()
+    public void NamedClientIsolation_should_have_separate_cookie_store_instances()
     {
-        var jarA = new CookieJar();
-        var jarB = new CookieJar();
+        var storeA = new MemoryCookieStore();
+        var storeB = new MemoryCookieStore();
 
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("a").WithCookies(jarA);
-        services.AddTurboHttpClient("b").WithCookies(jarB);
+        services.AddTurboHttpClient("a").WithCookies(storeA);
+        services.AddTurboHttpClient("b").WithCookies(storeB);
 
         var descriptorA = GetDescriptor(services, "a");
         var descriptorB = GetDescriptor(services, "b");
 
-        Assert.Same(jarA, descriptorA.CustomCookieJar);
-        Assert.Same(jarB, descriptorB.CustomCookieJar);
+        Assert.NotNull(descriptorA.CustomCookieJar);
+        Assert.NotNull(descriptorB.CustomCookieJar);
         Assert.NotSame(descriptorA.CustomCookieJar, descriptorB.CustomCookieJar);
     }
 

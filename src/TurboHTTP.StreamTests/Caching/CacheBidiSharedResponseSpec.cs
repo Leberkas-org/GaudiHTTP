@@ -14,7 +14,7 @@ public sealed class CacheBidiSharedResponseSpec : StreamTestBase
     [Trait("RFC", "RFC9111-4")]
     public void CacheBidiStage_should_serve_same_response_reference_on_multiple_cache_hits()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
 
         var reqPub = this.CreateManualPublisherProbe<HttpRequestMessage>();

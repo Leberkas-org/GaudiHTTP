@@ -9,7 +9,7 @@ namespace TurboHTTP.AcceptanceTests.TLS;
 public sealed class CacheSpec : AcceptanceTestBase
 {
     private async Task<HttpResponseMessage> SendAsync(ResponseMap map, HttpRequestMessage request,
-        CacheStore store, CachePolicy? policy = null)
+        Cache store, CachePolicy? policy = null)
     {
         var cache = BidiFlow.FromGraph(new CacheBidiStage(store, policy));
         var fake = ResponseMapFake.Create(map);
@@ -69,7 +69,7 @@ public sealed class CacheSpec : AcceptanceTestBase
                 return CacheableResponse($"max-age-body-{callCount}", "max-age=3600");
             });
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/max-age/3600"), store);
@@ -97,7 +97,7 @@ public sealed class CacheSpec : AcceptanceTestBase
                 return CacheableResponse($"no-cache-body-{callCount}", "no-cache");
             });
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/no-cache"), store);
@@ -119,7 +119,7 @@ public sealed class CacheSpec : AcceptanceTestBase
         var map = new ResponseMap()
             .On("/cache/no-store", _ => CacheableResponse("no-store-resource", "no-store"));
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/no-store"), store);
@@ -143,7 +143,7 @@ public sealed class CacheSpec : AcceptanceTestBase
             .On("/cache/etag/test1", _ => CacheableResponse("etag-resource-test1", "max-age=3600",
                 etag: "etag-test1"));
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/etag/test1"), store);
@@ -167,7 +167,7 @@ public sealed class CacheSpec : AcceptanceTestBase
             .On("/cache/last-modified/doc1", _ => CacheableResponse("last-modified-resource-doc1",
                 "max-age=3600", lastModified: DateTimeOffset.UtcNow.AddHours(-1)));
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/last-modified/doc1"), store);
@@ -195,7 +195,7 @@ public sealed class CacheSpec : AcceptanceTestBase
                     vary: "Accept-Language");
             });
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var request1 = new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/vary/Accept-Language");
         request1.Headers.TryAddWithoutValidation("Accept-Language", "en");
@@ -248,7 +248,7 @@ public sealed class CacheSpec : AcceptanceTestBase
                     etag: "mr-etag-2");
             });
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/must-revalidate"), store);
@@ -276,7 +276,7 @@ public sealed class CacheSpec : AcceptanceTestBase
             });
 
         var policy = new CachePolicy { SharedCache = true };
-        var store = new CacheStore(policy);
+        var store = new Cache(policy);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/s-maxage/3600"), store, policy);
@@ -304,7 +304,7 @@ public sealed class CacheSpec : AcceptanceTestBase
                     expires: DateTimeOffset.UtcNow.AddHours(1));
             });
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/expires"), store);
@@ -331,7 +331,7 @@ public sealed class CacheSpec : AcceptanceTestBase
                 return CacheableResponse($"private-body-{callCount}", "private, max-age=3600");
             });
 
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new Cache(CachePolicy.Default);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/private"), store);
@@ -359,7 +359,7 @@ public sealed class CacheSpec : AcceptanceTestBase
             });
 
         var policy = new CachePolicy { SharedCache = true };
-        var store = new CacheStore(policy);
+        var store = new Cache(policy);
 
         var response1 = await SendAsync(map,
             new HttpRequestMessage(HttpMethod.Get, "https://localhost/cache/private"), store, policy);

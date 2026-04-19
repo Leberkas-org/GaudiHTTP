@@ -49,7 +49,7 @@ public sealed class StageOrderingSpec : EngineTestBase
         return response;
     }
 
-    private static CacheStore StoreWithFreshEntry(
+    private static Cache StoreWithFreshEntry(
         string url = "http://example.com/resource",
         string? varyHeader = null)
     {
@@ -63,8 +63,8 @@ public sealed class StageOrderingSpec : EngineTestBase
             resp.Headers.TryAddWithoutValidation("Vary", varyHeader);
         }
 
-        var store = new CacheStore();
-        var (owner, length) = CacheStore.RentBody([]);
+        var store = new Cache();
+        var (owner, length) = Cache.RentBody([]);
         store.Put(req, resp, owner, length,
             DateTimeOffset.UtcNow.AddSeconds(-1), DateTimeOffset.UtcNow);
         return store;
@@ -112,7 +112,7 @@ public sealed class StageOrderingSpec : EngineTestBase
         // CookieBidi.Atop(CacheBidi): request path is Cookie → Cache → Engine.
         // The echo engine returns the request as RequestMessage, proving cookies were injected first.
         var jar = JarWithCookie("session", "abc123", "example.com");
-        var store = new CacheStore();
+        var store = new Cache();
 
         var bidi = BidiFlow.FromGraph(new CookieBidiStage(jar))
             .Atop(BidiFlow.FromGraph(new CacheBidiStage(store)));
@@ -240,7 +240,7 @@ public sealed class StageOrderingSpec : EngineTestBase
         // CookieBidi.Atop(CacheBidi): response path is Engine → CacheBidi(store) → CookieBidi(store Set-Cookie).
         // Both storage operations happen; order is reversed from old architecture but functionally equivalent.
         var jar = new CookieJar();
-        var store = new CacheStore();
+        var store = new Cache();
 
         var bidi = BidiFlow.FromGraph(new CookieBidiStage(jar))
             .Atop(BidiFlow.FromGraph(new CacheBidiStage(store)));
@@ -276,7 +276,7 @@ public sealed class StageOrderingSpec : EngineTestBase
         StageOrdering_should_cache_response_before_retry_evaluation_when_cache_bidi_is_inner_to_retry_bidi()
     {
         // RetryBidi.Atop(CacheBidi): response path is Engine → CacheBidi(store) → RetryBidi(evaluate: 200=pass).
-        var store = new CacheStore();
+        var store = new Cache();
 
         var bidi = BidiFlow.FromGraph(new RetryBidiStage(new RetryPolicy()))
             .Atop(BidiFlow.FromGraph(new CacheBidiStage(store)));
@@ -350,7 +350,7 @@ public sealed class StageOrderingSpec : EngineTestBase
         // Engine-level test: ConnectionReuseStage is inside the engine; CookieBidi/CacheBidi are outside.
         // The response flows: Engine(ConnectionReuse) → BidiFlow(CacheBidi → CookieBidi) → Client.
         var jar = new CookieJar();
-        var store = new CacheStore();
+        var store = new Cache();
 
         byte[] ResponseWithCookieAndCache() =>
             "HTTP/1.1 200 OK\r\nSet-Cookie: k=v; Domain=example.com; Path=/\r\nCache-Control: max-age=3600\r\nDate: Thu, 21 Mar 2026 10:00:00 GMT\r\nContent-Length: 4\r\n\r\nbody"u8
@@ -396,7 +396,7 @@ public sealed class StageOrderingSpec : EngineTestBase
     {
         // CacheBidi.Atop(DecompressionBidi): response path is Engine → Decomp(decompress) → Cache(store).
         // Cached body is the decompressed version.
-        var store = new CacheStore();
+        var store = new Cache();
         var plainBody = "Hello, decompressed world!"u8.ToArray();
 
         var bidi = BidiFlow.FromGraph(new CacheBidiStage(store))

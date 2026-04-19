@@ -187,7 +187,7 @@ public sealed class EngineBidiFlowCompositionSpec : EngineTestBase
     [Fact(Timeout = 10_000)]
     public async Task EngineBidiFlowComposition_should_serve_cached_response_when_only_cache_store_is_set()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var callCount = 0;
 
         byte[] Factory()
@@ -233,7 +233,7 @@ public sealed class EngineBidiFlowCompositionSpec : EngineTestBase
             RetryPolicy: new RetryPolicy(),
             Expect100Policy: null, CompressionPolicy: null,
             CookieJar: new CookieJar(),
-            CacheStore: new CacheStore(),
+            CacheStore: new Cache(),
             CachePolicy: null,
             Handlers: [],
             AutomaticDecompression: true);
@@ -252,7 +252,7 @@ public sealed class EngineBidiFlowCompositionSpec : EngineTestBase
     public async Task EngineBidiFlowComposition_should_retry_and_cache_with_cookies_when_all_features_enabled()
     {
         var jar = new CookieJar();
-        var store = new CacheStore();
+        var store = new Cache();
         var callCount = 0;
 
         byte[] Factory() => ++callCount == 1

@@ -82,13 +82,13 @@ public sealed class CacheBidiStageSpec : StreamTestBase
         return RunnableGraph.FromGraph(graph).Run(Materializer);
     }
 
-    private static CacheStore StoreWithFreshEntry(
+    private static Cache StoreWithFreshEntry(
         string uri = "http://example.com/data",
         string body = "cached body",
         string? etag = null,
         DateTimeOffset? lastModified = null)
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
         var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
@@ -108,18 +108,18 @@ public sealed class CacheBidiStageSpec : StreamTestBase
         }
 
         var now = DateTimeOffset.UtcNow;
-        var (owner, length) = CacheStore.RentBody(Encoding.UTF8.GetBytes(body));
+        var (owner, length) = Cache.RentBody(Encoding.UTF8.GetBytes(body));
         store.Put(request, response, owner, length, now, now);
         return store;
     }
 
-    private static CacheStore StoreWithStaleEntry(
+    private static Cache StoreWithStaleEntry(
         string uri = "http://example.com/data",
         string body = "stale body",
         string? etag = null,
         DateTimeOffset? lastModified = null)
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
         var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
@@ -140,7 +140,7 @@ public sealed class CacheBidiStageSpec : StreamTestBase
         }
 
         var now = DateTimeOffset.UtcNow.AddSeconds(-100);
-        var (owner, length) = CacheStore.RentBody(Encoding.UTF8.GetBytes(body));
+        var (owner, length) = Cache.RentBody(Encoding.UTF8.GetBytes(body));
         store.Put(request, response, owner, length, now, now);
         return store;
     }
@@ -191,7 +191,7 @@ public sealed class CacheBidiStageSpec : StreamTestBase
     [Trait("RFC", "RFC9111-4")]
     public async Task CacheBidiStage_should_forward_request_when_cache_miss()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/data");
 
@@ -236,7 +236,7 @@ public sealed class CacheBidiStageSpec : StreamTestBase
     [Trait("RFC", "RFC9111-4")]
     public async Task CacheBidiStage_should_evaluate_each_request_independently()
     {
-        var store = new CacheStore();
+        var store = new Cache();
 
         var stage1 = new CacheBidiStage(store);
         var req1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/a");
@@ -282,7 +282,7 @@ public sealed class CacheBidiStageSpec : StreamTestBase
     [Trait("RFC", "RFC9111-3")]
     public async Task CacheBidiStage_should_pass_through_response_when_request_message_is_null()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
         var response = MakeResponse(body: "hello");
 
@@ -296,7 +296,7 @@ public sealed class CacheBidiStageSpec : StreamTestBase
     [Trait("RFC", "RFC9111-3")]
     public async Task CacheBidiStage_should_store_response_when_cacheable_200()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
         var response = MakeResponse(
             requestUri: "http://example.com/data",
@@ -355,7 +355,7 @@ public sealed class CacheBidiStageSpec : StreamTestBase
     [Trait("RFC", "RFC9111-4.3.4")]
     public async Task CacheBidiStage_should_pass_through_304_when_no_cached_entry()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
 
         var notModified = new HttpResponseMessage(HttpStatusCode.NotModified);
@@ -371,7 +371,7 @@ public sealed class CacheBidiStageSpec : StreamTestBase
     [Trait("RFC", "RFC9111-3")]
     public async Task CacheBidiStage_should_not_store_non_cacheable_status()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
         var response = MakeResponse(
             statusCode: HttpStatusCode.InternalServerError,
@@ -388,7 +388,7 @@ public sealed class CacheBidiStageSpec : StreamTestBase
     [Trait("RFC", "RFC9111-4")]
     public async Task CacheBidiStage_should_cache_and_serve_from_cache_on_second_request()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
 
         var results1 = await RunBidiWithEchoAsync(
@@ -452,7 +452,7 @@ public sealed class CacheBidiStageSpec : StreamTestBase
     [Trait("RFC", "RFC9111-3")]
     public async Task CacheBidiStage_should_not_store_when_no_store_directive()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var stage = new CacheBidiStage(store);
         var response = MakeResponse(
             requestUri: "http://example.com/data",

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using TurboHTTP.Protocol.Caching;
 using TurboHTTP.Protocol.Cookies;
 
 namespace TurboHTTP.Tests.Client;
@@ -25,16 +26,16 @@ public sealed class TurboHttpClientBuilderExtensionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void WithCookies_WithJar_SetsCustomCookieJar()
+    public void WithCookies_WithStore_SetsCustomCookieJar()
     {
-        var jar = new CookieJar();
+        var store = new MemoryCookieStore();
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithCookies(jar);
+        services.AddTurboHttpClient("test").WithCookies(store);
 
         var descriptor = GetDescriptor(services, "test");
 
         Assert.True(descriptor.EnableCookies);
-        Assert.Same(jar, descriptor.CustomCookieJar);
+        Assert.NotNull(descriptor.CustomCookieJar);
     }
 
     [Fact(Timeout = 5000)]
@@ -75,7 +76,7 @@ public sealed class TurboHttpClientBuilderExtensionsSpec
     public void WithCache_WithStore_AssignsCacheStoreAndPolicy()
     {
         var services = new ServiceCollection();
-        var customStore = new Protocol.Caching.CacheStore(new Protocol.Caching.CachePolicy());
+        var customStore = new MemoryCacheStore();
         services.AddTurboHttpClient("test").WithCache(customStore, x => x.MaxEntries = 100);
 
         var descriptor = GetDescriptor(services, "test");
@@ -88,7 +89,7 @@ public sealed class TurboHttpClientBuilderExtensionsSpec
     public void WithCache_WithStoreNoConfiguration_UsesDef()
     {
         var services = new ServiceCollection();
-        var customStore = new Protocol.Caching.CacheStore(new Protocol.Caching.CachePolicy());
+        var customStore = new MemoryCacheStore();
         services.AddTurboHttpClient("test").WithCache(customStore);
 
         var descriptor = GetDescriptor(services, "test");

@@ -12,7 +12,7 @@ internal sealed class TurboClientDescriptor
     public bool AutomaticDecompression { get; set; } = true;
     public CompressionPolicy? CompressionPolicy { get; set; }
     public bool EnableCookies { get; set; }
-    public ICookieJar? CustomCookieJar { get; set; }
+    public CookieJar? CustomCookieJar { get; set; }
     public CachePolicy? CachePolicy { get; set; }
     public ICacheStore? CustomCacheStore { get; set; }
     public List<Type> HandlerTypes { get; } = [];

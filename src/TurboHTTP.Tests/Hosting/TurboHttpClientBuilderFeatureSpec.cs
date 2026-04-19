@@ -25,16 +25,16 @@ public sealed class TurboHttpClientBuilderFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpClientBuilderFeature_should_set_custom_cookie_jar()
+    public void TurboHttpClientBuilderFeature_should_set_custom_cookie_store()
     {
-        var jar = new CookieJar();
+        var store = new MemoryCookieStore();
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithCookies(jar);
+        services.AddTurboHttpClient("test").WithCookies(store);
 
         var descriptor = GetDescriptor(services, "test");
 
         Assert.True(descriptor.EnableCookies);
-        Assert.Same(jar, descriptor.CustomCookieJar);
+        Assert.NotNull(descriptor.CustomCookieJar);
     }
 
     [Fact(Timeout = 5000)]

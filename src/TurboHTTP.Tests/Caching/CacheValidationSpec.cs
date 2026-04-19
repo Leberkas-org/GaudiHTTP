@@ -11,7 +11,7 @@ public sealed class CacheValidationSpec
     private static CacheEntry MakeEntry(string? etag = null, DateTimeOffset? lastModified = null)
     {
         var bodyBytes = "cached body"u8.ToArray();
-        var (owner, length) = CacheStore.RentBody(bodyBytes);
+        var (owner, length) = Cache.RentBody(bodyBytes);
         return new CacheEntry
         {
             Response = new HttpResponseMessage(HttpStatusCode.OK),

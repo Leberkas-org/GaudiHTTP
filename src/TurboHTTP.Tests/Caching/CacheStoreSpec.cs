@@ -3,15 +3,15 @@ using TurboHTTP.Protocol.Caching;
 
 namespace TurboHTTP.Tests.Caching;
 
-public sealed class CacheStoreSpec
+public sealed class CacheSpec
 {
     private static readonly DateTimeOffset _baseTime = new(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
 
 
-    private static void Put(CacheStore store, HttpRequestMessage request, HttpResponseMessage response,
+    private static void Put(Cache store, HttpRequestMessage request, HttpResponseMessage response,
         byte[] body, DateTimeOffset requestTime, DateTimeOffset responseTime)
     {
-        var (owner, length) = CacheStore.RentBody(body);
+        var (owner, length) = Cache.RentBody(body);
         store.Put(request, response, owner, length, requestTime, responseTime);
     }
 
@@ -32,7 +32,7 @@ public sealed class CacheStoreSpec
     public void CacheStore_should_be_cacheable_when_200_ok_with_max_age()
     {
         var response = OkResponse();
-        Assert.True(CacheStore.IsCacheable(response));
+        Assert.True(Cache.IsCacheable(response));
     }
 
     [Trait("RFC", "RFC9111-3.1")]
@@ -49,7 +49,7 @@ public sealed class CacheStoreSpec
     public void CacheStore_should_be_cacheable_when_status_code_is_cacheable(int statusCode)
     {
         var response = new HttpResponseMessage((HttpStatusCode)statusCode);
-        Assert.True(CacheStore.IsCacheable(response));
+        Assert.True(Cache.IsCacheable(response));
     }
 
     [Trait("RFC", "RFC9111-3.1")]
@@ -57,7 +57,7 @@ public sealed class CacheStoreSpec
     public void CacheStore_should_not_be_cacheable_when_500_internal_server_error()
     {
         var response = new HttpResponseMessage(HttpStatusCode.InternalServerError);
-        Assert.False(CacheStore.IsCacheable(response));
+        Assert.False(Cache.IsCacheable(response));
     }
 
 
@@ -65,7 +65,7 @@ public sealed class CacheStoreSpec
     [Fact]
     public void CacheStore_should_store_entry_when_get_200_with_max_age()
     {
-        Assert.True(CacheStore.ShouldStore(GetRequest(), OkResponse()));
+        Assert.True(Cache.ShouldStore(GetRequest(), OkResponse()));
     }
 
     [Trait("RFC", "RFC9111-3")]
@@ -73,7 +73,7 @@ public sealed class CacheStoreSpec
     public void CacheStore_should_not_store_entry_when_post_200_unsafe_method()
     {
         var post = new HttpRequestMessage(HttpMethod.Post, "http://example.com/resource");
-        Assert.False(CacheStore.ShouldStore(post, OkResponse()));
+        Assert.False(Cache.ShouldStore(post, OkResponse()));
     }
 
     [Trait("RFC", "RFC9111-5.2.1.5")]
@@ -82,7 +82,7 @@ public sealed class CacheStoreSpec
     {
         var request = GetRequest();
         request.Headers.TryAddWithoutValidation("Cache-Control", "no-store");
-        Assert.False(CacheStore.ShouldStore(request, OkResponse()));
+        Assert.False(Cache.ShouldStore(request, OkResponse()));
     }
 
     [Trait("RFC", "RFC9111-5.2.2.5")]
@@ -91,7 +91,7 @@ public sealed class CacheStoreSpec
     {
         var response = new HttpResponseMessage(HttpStatusCode.OK);
         response.Headers.TryAddWithoutValidation("Cache-Control", "no-store");
-        Assert.False(CacheStore.ShouldStore(GetRequest(), response));
+        Assert.False(Cache.ShouldStore(GetRequest(), response));
     }
 
 
@@ -99,7 +99,7 @@ public sealed class CacheStoreSpec
     [Fact]
     public void CacheStore_should_return_null_when_store_is_empty()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var result = store.Get(GetRequest());
         Assert.Null(result);
     }
@@ -108,7 +108,7 @@ public sealed class CacheStoreSpec
     [Fact]
     public void CacheStore_should_return_cached_entry_when_put_then_get_same_uri()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = GetRequest();
         var response = OkResponse();
         var body = new byte[] { 1, 2, 3 };
@@ -124,7 +124,7 @@ public sealed class CacheStoreSpec
     [Fact]
     public void CacheStore_should_remove_entry_when_invalidated()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = GetRequest();
         Put(store, request, OkResponse(), [], _baseTime.AddSeconds(-1), _baseTime);
 
@@ -138,7 +138,7 @@ public sealed class CacheStoreSpec
     [Fact]
     public void CacheStore_should_return_miss_when_vary_header_and_different_accept()
     {
-        var store = new CacheStore();
+        var store = new Cache();
 
         var request1 = GetRequest();
         request1.Headers.TryAddWithoutValidation("Accept", "application/json");
@@ -158,7 +158,7 @@ public sealed class CacheStoreSpec
     [Fact]
     public void CacheStore_should_return_hit_when_vary_header_and_matching_accept()
     {
-        var store = new CacheStore();
+        var store = new Cache();
 
         var request1 = GetRequest();
         request1.Headers.TryAddWithoutValidation("Accept", "application/json");
@@ -179,7 +179,7 @@ public sealed class CacheStoreSpec
     [Fact]
     public void CacheStore_should_never_match_when_vary_is_star()
     {
-        var store = new CacheStore();
+        var store = new Cache();
 
         var response = OkResponse();
         response.Headers.TryAddWithoutValidation("Vary", "*");
@@ -199,7 +199,7 @@ public sealed class CacheStoreSpec
         response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=60, must-understand");
         response.Headers.Date = _baseTime;
 
-        Assert.True(CacheStore.ShouldStore(request, response));
+        Assert.True(Cache.ShouldStore(request, response));
     }
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
@@ -211,7 +211,7 @@ public sealed class CacheStoreSpec
         response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=60, must-understand");
         response.Headers.Date = _baseTime;
 
-        Assert.False(CacheStore.ShouldStore(request, response));
+        Assert.False(Cache.ShouldStore(request, response));
     }
 
     [Trait("RFC", "RFC9111-5.2.2.3")]
@@ -224,7 +224,7 @@ public sealed class CacheStoreSpec
         response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=60");
         response.Headers.Date = _baseTime;
 
-        Assert.True(CacheStore.ShouldStore(request, response));
+        Assert.True(Cache.ShouldStore(request, response));
     }
 
     [Trait("RFC", "RFC9111-3.1")]
@@ -236,7 +236,7 @@ public sealed class CacheStoreSpec
         response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=60");
         response.Headers.Date = _baseTime;
 
-        Assert.False(CacheStore.ShouldStore(request, response));
+        Assert.False(Cache.ShouldStore(request, response));
     }
 
     [Trait("RFC", "RFC9111-3.1")]
@@ -251,7 +251,7 @@ public sealed class CacheStoreSpec
         response.Headers.TryAddWithoutValidation("Cache-Control", "max-age=60");
         response.Headers.Date = _baseTime;
 
-        Assert.False(CacheStore.ShouldStore(request, response));
+        Assert.False(Cache.ShouldStore(request, response));
     }
 
     [Trait("RFC", "RFC9111-3.1")]
@@ -261,14 +261,14 @@ public sealed class CacheStoreSpec
         var request = GetRequest();
         var response = OkResponse();
 
-        Assert.True(CacheStore.ShouldStore(request, response));
+        Assert.True(Cache.ShouldStore(request, response));
     }
 
     [Trait("RFC", "RFC9111-3.1")]
     [Fact]
     public void CacheStore_should_not_merge_trailers_when_cached_with_trailers()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = GetRequest();
 
         // Simulate a chunked response with trailing headers
@@ -298,7 +298,7 @@ public sealed class CacheStoreSpec
     [Fact]
     public void CacheStore_should_not_store_connection_header_when_connection_header()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = GetRequest();
         var response = OkResponse();
         response.Headers.TryAddWithoutValidation("Connection", "keep-alive");
@@ -325,7 +325,7 @@ public sealed class CacheStoreSpec
     [InlineData("Upgrade")]
     public void CacheStore_should_not_store_connection_specific_header(string headerName)
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = GetRequest();
         var response = OkResponse();
         response.Headers.TryAddWithoutValidation(headerName, "some-value");
@@ -342,7 +342,7 @@ public sealed class CacheStoreSpec
     [Fact]
     public void CacheStore_should_store_custom_headers()
     {
-        var store = new CacheStore();
+        var store = new Cache();
         var request = GetRequest();
         var response = OkResponse();
         response.Headers.TryAddWithoutValidation("X-Custom-Header", "my-value");
@@ -369,7 +369,7 @@ public sealed class CacheStoreSpec
     public void CacheStore_should_evict_entries_when_max_entries_exceeded()
     {
         var policy = new CachePolicy { MaxEntries = 2 };
-        var store = new CacheStore(policy);
+        var store = new Cache(policy);
 
         for (var i = 0; i < 3; i++)
         {

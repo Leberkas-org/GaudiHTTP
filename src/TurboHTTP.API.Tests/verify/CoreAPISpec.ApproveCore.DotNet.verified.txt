@@ -167,7 +167,8 @@ namespace TurboHTTP
         public static TurboHTTP.ITurboHttpClientBuilder UseResponse(this TurboHTTP.ITurboHttpClientBuilder builder, System.Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpResponseMessage, System.Net.Http.HttpResponseMessage> transform) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithCache(this TurboHTTP.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.CacheOptions>? configure = null) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithCache(this TurboHTTP.ITurboHttpClientBuilder builder, TurboHTTP.Protocol.Caching.ICacheStore store, System.Action<TurboHTTP.CacheOptions>? configure = null) { }
-        public static TurboHTTP.ITurboHttpClientBuilder WithCookies(this TurboHTTP.ITurboHttpClientBuilder builder, TurboHTTP.Protocol.Cookies.ICookieJar? jar = null) { }
+        public static TurboHTTP.ITurboHttpClientBuilder WithCookies(this TurboHTTP.ITurboHttpClientBuilder builder) { }
+        public static TurboHTTP.ITurboHttpClientBuilder WithCookies(this TurboHTTP.ITurboHttpClientBuilder builder, TurboHTTP.Protocol.Cookies.ICookieStore store) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithDecompression(this TurboHTTP.ITurboHttpClientBuilder builder, bool enabled = true) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithExpectContinue(this TurboHTTP.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.Expect100Options>? configure = null) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithRedirect(this TurboHTTP.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.RedirectOptions>? configure = null) { }
@@ -237,6 +238,14 @@ namespace TurboHTTP.Diagnostics
 }
 namespace TurboHTTP.Protocol.Caching
 {
+    public sealed class CacheBody : System.IDisposable
+    {
+        public bool IsEmpty { get; }
+        public int Length { get; }
+        public System.ReadOnlyMemory<byte> Memory { get; }
+        public System.ReadOnlySpan<byte> Span { get; }
+        public void Dispose() { }
+    }
     public sealed class CacheControl : System.IEquatable<TurboHTTP.Protocol.Caching.CacheControl>
     {
         public CacheControl() { }
@@ -257,6 +266,43 @@ namespace TurboHTTP.Protocol.Caching
         public bool Public { get; init; }
         public System.TimeSpan? SMaxAge { get; init; }
     }
+    public sealed class CacheControlStoreEntry : System.IEquatable<TurboHTTP.Protocol.Caching.CacheControlStoreEntry>
+    {
+        public CacheControlStoreEntry() { }
+        public bool Immutable { get; init; }
+        public System.TimeSpan? MaxAge { get; init; }
+        public System.TimeSpan? MaxStale { get; init; }
+        public System.TimeSpan? MinFresh { get; init; }
+        public bool MustRevalidate { get; init; }
+        public bool MustUnderstand { get; init; }
+        public bool NoCache { get; init; }
+        public string[] NoCacheFields { get; init; }
+        public bool NoStore { get; init; }
+        public bool NoTransform { get; init; }
+        public bool OnlyIfCached { get; init; }
+        public bool Private { get; init; }
+        public string[] PrivateFields { get; init; }
+        public bool ProxyRevalidate { get; init; }
+        public bool Public { get; init; }
+        public System.TimeSpan? SMaxAge { get; init; }
+    }
+    public sealed class CacheStoreEntry : System.IDisposable
+    {
+        public CacheStoreEntry() { }
+        public int? AgeSeconds { get; init; }
+        public required TurboHTTP.Protocol.Caching.CacheBody Body { get; init; }
+        public TurboHTTP.Protocol.Caching.CacheControlStoreEntry? CacheControl { get; init; }
+        public System.DateTimeOffset? Date { get; init; }
+        public string? ETag { get; init; }
+        public System.DateTimeOffset? Expires { get; init; }
+        public System.DateTimeOffset? LastModified { get; init; }
+        public required System.DateTimeOffset RequestTime { get; init; }
+        public required System.Net.Http.HttpResponseMessage Response { get; init; }
+        public required System.DateTimeOffset ResponseTime { get; init; }
+        public string[] VaryHeaderNames { get; init; }
+        public System.Collections.Generic.Dictionary<string, string?> VaryRequestValues { get; init; }
+        public void Dispose() { }
+    }
     public interface ICacheEntry : System.IDisposable
     {
         int? AgeSeconds { get; }
@@ -272,18 +318,43 @@ namespace TurboHTTP.Protocol.Caching
         System.Collections.Generic.IReadOnlyList<string> VaryHeaderNames { get; }
         System.Collections.Generic.IReadOnlyDictionary<string, string?> VaryRequestValues { get; }
     }
-    public interface ICacheStore
+    public interface ICacheStore : System.IDisposable
     {
-        TurboHTTP.Protocol.Caching.ICacheEntry? Get(System.Net.Http.HttpRequestMessage request);
-        void Invalidate(System.Uri uri);
-        void Put(System.Net.Http.HttpRequestMessage request, System.Net.Http.HttpResponseMessage response, System.Buffers.IMemoryOwner<byte> bodyOwner, int bodyLength, System.DateTimeOffset requestTime, System.DateTimeOffset responseTime);
+        void Clear();
+        bool Remove(string key);
+        void Set(string key, TurboHTTP.Protocol.Caching.CacheStoreEntry entry);
+        bool TryGet(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out TurboHTTP.Protocol.Caching.CacheStoreEntry? entry);
     }
 }
 namespace TurboHTTP.Protocol.Cookies
 {
-    public interface ICookieJar
+    public sealed class CookieStoreEntry : System.IEquatable<TurboHTTP.Protocol.Cookies.CookieStoreEntry>
     {
-        void AddCookiesToRequest(System.Uri requestUri, ref System.Net.Http.HttpRequestMessage request);
-        void ProcessResponse(System.Uri requestUri, System.Net.Http.HttpResponseMessage response);
+        public CookieStoreEntry(string Name, string Value, string Domain, string Path, System.DateTimeOffset? ExpiresAt, bool Secure, bool HttpOnly, TurboHTTP.Protocol.Cookies.SameSitePolicy SameSite, bool IsHostOnly, System.DateTimeOffset CreatedAt) { }
+        public System.DateTimeOffset CreatedAt { get; init; }
+        public string Domain { get; init; }
+        public System.DateTimeOffset? ExpiresAt { get; init; }
+        public bool HttpOnly { get; init; }
+        public bool IsHostOnly { get; init; }
+        public string Name { get; init; }
+        public string Path { get; init; }
+        public TurboHTTP.Protocol.Cookies.SameSitePolicy SameSite { get; init; }
+        public bool Secure { get; init; }
+        public string Value { get; init; }
+    }
+    public interface ICookieStore
+    {
+        int Count { get; }
+        void Add(TurboHTTP.Protocol.Cookies.CookieStoreEntry entry);
+        void Clear();
+        System.Collections.Generic.IReadOnlyList<TurboHTTP.Protocol.Cookies.CookieStoreEntry> GetAll();
+        void Remove(string name, string domain, string path);
+    }
+    public enum SameSitePolicy
+    {
+        Unspecified = 0,
+        Strict = 1,
+        Lax = 2,
+        None = 3,
     }
 }

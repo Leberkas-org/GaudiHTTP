@@ -13,7 +13,7 @@ namespace TurboHTTP.Streams.Stages.Features;
 internal sealed class CookieBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
 {
-    private readonly ICookieJar? _cookieJar;
+    private readonly CookieJar? _cookieJar;
 
     private readonly Inlet<HttpRequestMessage> _inRequest = new("Cookie.In.Request");
     private readonly Outlet<HttpRequestMessage> _outRequest = new("Cookie.Out.Request");
@@ -22,7 +22,7 @@ internal sealed class CookieBidiStage
 
     public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape { get; }
 
-    public CookieBidiStage(ICookieJar? cookieJar)
+    public CookieBidiStage(CookieJar? cookieJar)
     {
         _cookieJar = cookieJar;
         Shape = new BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>(
