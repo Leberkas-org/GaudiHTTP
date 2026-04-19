@@ -32,14 +32,14 @@ TurboHTTP replaces `HttpClient` with a reactive, backpressure-aware HTTP pipelin
 ### HTTP Features
 
 - **Redirect following** — 301, 302, 303, 307, 308 with correct method rewriting (POST to GET on 303), body preservation on 307/308, loop detection, and HTTPS-to-HTTP downgrade protection. Configurable max redirects.
-- **Cookie management** — automatic cookie storage and injection across requests. Supports domain/path matching, `Secure`, `HttpOnly`, `SameSite`, `Max-Age`, and `Expires`. Bring your own `CookieJar` or use the built-in one.
-- **HTTP caching** — in-memory LRU cache with `Vary` support, conditional requests via `ETag`/`If-None-Match` and `Last-Modified`/`If-Modified-Since`, freshness evaluation (`max-age`, `s-maxage`, `Expires`, heuristic), and 304 response merging. Configurable via `CachePolicy`.
+- **Cookie management** — automatic cookie storage and injection across requests. Supports domain/path matching, `Secure`, `HttpOnly`, `SameSite`, `Max-Age`, and `Expires`. Bring your own `ICookieJar` implementation or use the built-in `CookieJar`.
+- **HTTP caching** — in-memory LRU cache with `Vary` support, conditional requests via `ETag`/`If-None-Match` and `Last-Modified`/`If-Modified-Since`, freshness evaluation (`max-age`, `s-maxage`, `Expires`, heuristic), and 304 response merging. Pluggable via `ICacheStore` for custom storage backends (Redis, disk, etc.).
 - **Content encoding** — automatic gzip, deflate, and Brotli response decompression. Optional request body compression. Can be disabled per-client if you need raw compressed bytes.
 - **100-Continue** — `Expect: 100-continue` handling for large request bodies.
 
 ### Performance
 
-- **Zero-allocation internals** — `MemoryPool<byte>`, `Span<T>`, `ReadOnlyMemory<byte>`, `IBufferWriter<byte>`, and `System.Threading.Channels` throughout the hot path
+- **Zero-allocation internals** — `MemoryPool<byte>`, `Span<T>`, `ReadOnlyMemory<byte>`, and `System.Threading.Channels` throughout the hot path
 - **HTTP/2 multiplexing** — multiple concurrent requests over a single TCP connection with header compression and per-stream flow control
 - **Backpressure** — Akka.Streams backpressure propagates end-to-end from the network to the caller, preventing buffer bloat and memory exhaustion under load
 - **Channel-based API** — for high-throughput scenarios, bypass `SendAsync` and write/read directly to `System.Threading.Channels` for pipelined I/O
@@ -47,9 +47,10 @@ TurboHTTP replaces `HttpClient` with a reactive, backpressure-aware HTTP pipelin
 ### Extensibility
 
 - **Handler pipeline** — compose custom request/response transforms via `TurboHandler` subclasses or inline delegates, ordered FIFO
+- **Pluggable storage** — bring your own `ICookieJar` for custom cookie persistence or `ICacheStore` for external cache backends (Redis, disk, etc.)
 - **Distributed tracing** — built-in OpenTelemetry-compatible tracing via `TracingBidiStage` for request/response lifecycle visibility
 - **DI integration** — first-class `IServiceCollection` support with named and typed clients, `IOptionsMonitor` for runtime configuration changes
-- **4,200+ tests** — unit tests, stream stage tests, integration tests, and benchmarks
+- **6,300+ tests** — unit tests, stream stage tests, acceptance tests, integration tests, API tests, and benchmarks
 
 ---
 
@@ -106,8 +107,8 @@ services
     .WithRedirect()
     .WithCookies()
     .WithDecompression()
-    .WithRetry(new RetryPolicy { MaxRetries = 3 })
-    .WithCache(new CachePolicy { MaxEntries = 1000 });
+    .WithRetry(retry => retry.MaxRetries = 3)
+    .WithCache(cache => cache.MaxEntries = 1000);
 ```
 
 Then inject and use:
@@ -150,6 +151,48 @@ await foreach (var response in client.Responses.ReadAllAsync())
 {
     Console.WriteLine($"{response.RequestMessage!.RequestUri} -> {response.StatusCode}");
 }
+```
+
+### Custom Cookie Jar
+
+Implement `ICookieJar` to plug in your own cookie storage (e.g. encrypted, persistent, or shared across clients):
+
+```csharp
+public sealed class PersistentCookieJar : ICookieJar
+{
+    public void ProcessResponse(Uri requestUri, HttpResponseMessage response)
+    {
+        // parse Set-Cookie headers and persist to your backing store
+    }
+
+    public void AddCookiesToRequest(Uri requestUri, ref HttpRequestMessage request)
+    {
+        // load cookies from your backing store and add Cookie header
+    }
+}
+
+services
+    .AddTurboHttpClient("MyApi", options => { ... })
+    .WithCookies(new PersistentCookieJar());
+```
+
+### Custom Cache Store
+
+Implement `ICacheStore` to use Redis, disk, or any other backend instead of the built-in in-memory LRU cache:
+
+```csharp
+public sealed class RedisCacheStore : ICacheStore
+{
+    public ICacheEntry? Get(HttpRequestMessage request) { /* Redis lookup */ }
+    public void Put(HttpRequestMessage request, HttpResponseMessage response,
+        IMemoryOwner<byte> bodyOwner, int bodyLength,
+        DateTimeOffset requestTime, DateTimeOffset responseTime) { /* Redis store */ }
+    public void Invalidate(Uri uri) { /* Redis delete */ }
+}
+
+services
+    .AddTurboHttpClient("MyApi", options => { ... })
+    .WithCache(new RedisCacheStore(), cache => cache.MaxBodyBytes = 10_485_760);
 ```
 
 ### Custom Handlers
@@ -236,11 +279,15 @@ Full documentation — including feature guides, architecture deep-dives, and a 
 
 ```bash
 # Restore and build
-dotnet restore ./src/TurboHTTP.sln
-dotnet build --configuration Release ./src/TurboHTTP.sln
+dotnet restore ./src/TurboHTTP.slnx
+dotnet build --configuration Release ./src/TurboHTTP.slnx
 
-# Run all tests
-dotnet test ./src/TurboHTTP.sln
+# Run tests by project
+dotnet test --project ./src/TurboHTTP.Tests/TurboHTTP.Tests.csproj                # unit
+dotnet test --project ./src/TurboHTTP.StreamTests/TurboHTTP.StreamTests.csproj    # stream stages
+dotnet test --project ./src/TurboHTTP.AcceptanceTests/TurboHTTP.AcceptanceTests.csproj  # acceptance
+dotnet test --project ./src/TurboHTTP.IntegrationTests/TurboHTTP.IntegrationTests.csproj  # integration (network)
+dotnet test --project ./src/TurboHTTP.API.Tests/TurboHTTP.API.Tests.csproj        # public API surface
 
 # Run benchmarks
 dotnet run --configuration Release --project ./src/TurboHTTP.Benchmarks/TurboHTTP.Benchmarks.csproj
