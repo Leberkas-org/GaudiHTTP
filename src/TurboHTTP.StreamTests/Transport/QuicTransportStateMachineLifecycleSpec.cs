@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using Akka.Actor;
 using Akka.Event;
 using TurboHTTP.Internal;
+using TurboHTTP.Protocol.Http3;
 using TurboHTTP.Tests.Shared;
 using TurboHTTP.Transport.Connection;
 using TurboHTTP.Transport.Quic;
@@ -54,6 +55,11 @@ public sealed class QuicTransportStateMachineLifecycleSpec
             ActorRefs.Nobody,
             ActorRefs.Nobody,
             new TurboClientOptions(),
+            [
+                new TypedStreamDescriptor(0x00, -2, Outbound: true),
+                new TypedStreamDescriptor(0x02, -3, Outbound: true),
+                new TypedStreamDescriptor(0x03, -4, Outbound: false),
+            ],
             allowConnectionMigration);
         return (sm, ops);
     }
@@ -130,9 +136,9 @@ public sealed class QuicTransportStateMachineLifecycleSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        // Push control data before control stream is ready
         var controlData = Http3NetworkBuffer.Rent(4);
-        controlData.StreamType = Http3StreamType.Control;
+        controlData.StreamTypeValue = (long)StreamType.Control;
+        controlData.StreamTypeValue = 0x00;
         controlData.Length = 3;
         controlData.Key = TestEndpoint;
         sm.HandlePush(controlData);
@@ -140,7 +146,7 @@ public sealed class QuicTransportStateMachineLifecycleSpec
         var lease = CreateTestLease();
         ops.PullInputCount = 0;
 
-        sm.Dispatch(new TypedLeaseAcquired(lease, Http3StreamType.Control));
+        sm.Dispatch(new TypedLeaseAcquired(lease, 0x00, -2));
 
         Assert.True(ops.PullInputCount > 0);
     }
@@ -151,7 +157,7 @@ public sealed class QuicTransportStateMachineLifecycleSpec
         var (sm, ops) = CreateStateMachine();
 
         var lease = CreateTestLease();
-        sm.Dispatch(new TypedLeaseAcquired(lease, Http3StreamType.QpackEncoder));
+        sm.Dispatch(new TypedLeaseAcquired(lease, 0x02, -3));
 
         Assert.True(ops.PullInputCount > 0);
     }
@@ -213,7 +219,6 @@ public sealed class QuicTransportStateMachineLifecycleSpec
 
         // Create a pending request stream
         var dataItem = Http3NetworkBuffer.Rent(4);
-        dataItem.StreamType = Http3StreamType.Request;
         dataItem.StreamId = 1;
         dataItem.Length = 3;
         dataItem.Key = TestEndpoint;
@@ -233,13 +238,11 @@ public sealed class QuicTransportStateMachineLifecycleSpec
         var (sm, ops) = CreateStateMachine();
 
         var stream1 = Http3NetworkBuffer.Rent(4);
-        stream1.StreamType = Http3StreamType.Request;
         stream1.StreamId = 1;
         stream1.Length = 3;
         stream1.Key = TestEndpoint;
 
         var stream3 = Http3NetworkBuffer.Rent(4);
-        stream3.StreamType = Http3StreamType.Request;
         stream3.StreamId = 3;
         stream3.Length = 3;
         stream3.Key = TestEndpoint;
@@ -257,7 +260,6 @@ public sealed class QuicTransportStateMachineLifecycleSpec
 
         // Create a request stream context
         var requestData = Http3NetworkBuffer.Rent(4);
-        requestData.StreamType = Http3StreamType.Request;
         requestData.StreamId = 1;
         requestData.Length = 3;
         requestData.Key = TestEndpoint;

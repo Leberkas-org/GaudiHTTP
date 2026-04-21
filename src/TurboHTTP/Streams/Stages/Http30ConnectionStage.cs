@@ -113,7 +113,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 var span = buf.FullMemory.Span;
                 goAway.WriteTo(ref span);
                 buf.Length = goAway.SerializedSize;
-                buf.StreamType = Http3StreamType.Control;
+                buf.StreamTypeValue = (long)StreamType.Control;
                 _pendingOutbound.Add(buf);
                 FlushOutbound();
                 CompleteStage();
@@ -153,7 +153,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 case QuicCloseItem:
                     HandleSignalItem(item);
                     return;
-                case Http3NetworkBuffer tagged when tagged.StreamType != Http3StreamType.None:
+                case Http3NetworkBuffer tagged:
                     HandleTaggedStreamData(tagged);
                     return;
                 case NetworkBuffer rawBuffer:
@@ -241,30 +241,39 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
         private void HandleTaggedStreamData(Http3NetworkBuffer tagged)
         {
-            switch (tagged.StreamType)
+            StreamType? type = tagged switch
             {
-                case Http3StreamType.QpackDecoder:
+                { StreamTypeValue: (long)StreamType.Control } => StreamType.Control,
+                { StreamTypeValue: (long)StreamType.QpackEncoder } => StreamType.QpackEncoder,
+                { StreamTypeValue: (long)StreamType.QpackDecoder } => StreamType.QpackDecoder,
+                { StreamTypeValue: null } => null,
+                _ => throw new ArgumentOutOfRangeException(nameof(tagged), tagged, null)
+            };
+
+            switch (type)
+            {
+                case StreamType.QpackDecoder:
                 {
                     _sm.ProcessQpackDecoderBytes(tagged.Memory);
                     tagged.Dispose();
                     Pull(_stage._inServer);
                     return;
                 }
-                case Http3StreamType.QpackEncoder:
+                case StreamType.QpackEncoder:
                 {
                     _sm.ProcessQpackEncoderBytes(tagged.Memory);
                     tagged.Dispose();
                     Pull(_stage._inServer);
                     return;
                 }
-                // Control stream — decode frames for SETTINGS/GOAWAY but use a dedicated stream ID
-                // to keep control-stream remainder state separate from request streams.
-                case Http3StreamType.Control:
+                case StreamType.Control:
                     ProcessFrameData(tagged, streamId: ControlStreamDecoderId);
                     return;
+                case StreamType.Push:
+                    break;
                 default:
                 {
-                    ProcessFrameData(tagged, tagged.StreamId);
+                    ProcessFrameData(tagged, tagged.StreamId!.Value);
                     return;
                 }
             }

@@ -29,7 +29,7 @@ public sealed class Http3StateMachineEdgeCasesSpec
         Assert.NotNull(preface);
         Assert.IsType<Http3NetworkBuffer>(preface);
         var buf = (Http3NetworkBuffer)preface;
-        Assert.Equal(Http3StreamType.Control, buf.StreamType);
+        Assert.Equal((long)StreamType.Control, buf.StreamTypeValue);
         Assert.True(buf.Length > 0);
     }
 
@@ -58,7 +58,7 @@ public sealed class Http3StateMachineEdgeCasesSpec
         var buf = (Http3NetworkBuffer)preface;
         // Preface contains: StreamType VarInt + Settings frame + MaxPushIdFrame
         // With MAX_PUSH_ID, size should be larger than without it
-        Assert.Equal(Http3StreamType.Control, buf.StreamType);
+        Assert.Equal((long)StreamType.Control, buf.StreamTypeValue);
         Assert.True(buf.Length > 0);
     }
 
@@ -73,7 +73,7 @@ public sealed class Http3StateMachineEdgeCasesSpec
         Assert.NotNull(preface);
         var buf = (Http3NetworkBuffer)preface;
         // Without MaxPushIdFrame, still contains StreamType VarInt + Settings frame
-        Assert.Equal(Http3StreamType.Control, buf.StreamType);
+        Assert.Equal((long)StreamType.Control, buf.StreamTypeValue);
         Assert.True(buf.Length > 0);
     }
 
@@ -87,7 +87,7 @@ public sealed class Http3StateMachineEdgeCasesSpec
 
         // OnConnectionRestored emits preface via _ops callback
         var prefaces = _ops.Outbound.OfType<Http3NetworkBuffer>()
-            .Where(b => b.StreamType == Http3StreamType.Control)
+            .Where(b => b.StreamTypeValue == (long)StreamType.Control)
             .ToList();
         Assert.NotEmpty(prefaces);
     }
@@ -406,7 +406,7 @@ public sealed class Http3StateMachineEdgeCasesSpec
         Assert.NotEmpty(items);
         if (items[0] is Http3NetworkBuffer buf)
         {
-            Assert.Equal(Http3StreamType.Control, buf.StreamType);
+            Assert.Equal((long)StreamType.Control, buf.StreamTypeValue);
         }
     }
 

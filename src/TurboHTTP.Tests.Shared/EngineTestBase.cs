@@ -167,10 +167,10 @@ public abstract class EngineTestBase
             var bytes = chunk.Buffer.Span.ToArray();
             switch (chunk.StreamType)
             {
-                case Http3StreamType.Control:
+                case (long)StreamType.Control:
                     controlBytes.AddRange(bytes);
                     break;
-                case Http3StreamType.QpackEncoder:
+                case (long)StreamType.QpackEncoder:
                     // QPACK encoder instructions — not HTTP/3 frames, skip.
                     break;
                 default:

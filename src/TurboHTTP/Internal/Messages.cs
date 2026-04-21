@@ -125,30 +125,13 @@ internal class NetworkBuffer : IInputItem, IOutputItem
     }
 }
 
-internal enum Http3StreamType
-{
-    None,
-
-    /// <summary>Bidirectional request stream (default for request/response data).</summary>
-    Request,
-
-    /// <summary>Unidirectional control stream (type 0x00) — carries SETTINGS and GOAWAY frames.</summary>
-    Control,
-
-    /// <summary>Unidirectional QPACK encoder instruction stream (type 0x02).</summary>
-    QpackEncoder,
-
-    /// <summary>Unidirectional QPACK decoder instruction stream (type 0x03).</summary>
-    QpackDecoder,
-}
-
 internal class Http3NetworkBuffer : NetworkBuffer
 {
     private static readonly ConcurrentStack<Http3NetworkBuffer> WrapperPool = new();
 
-    public Http3StreamType StreamType { get; set; } = Http3StreamType.None;
+    public long? StreamTypeValue { get; set; }
 
-    public long StreamId { get; set; } = -1;
+    public long? StreamId { get; set; }
 
     public new static Http3NetworkBuffer Rent(int minimumSize)
     {
@@ -161,8 +144,8 @@ internal class Http3NetworkBuffer : NetworkBuffer
         buf.Owner = owner;
         buf.Length = 0;
         buf.Key = default;
-        buf.StreamType = Http3StreamType.None;
-        buf.StreamId = -1;
+        buf.StreamTypeValue = null;
+        buf.StreamId = null;
         return buf;
     }
 

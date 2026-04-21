@@ -42,45 +42,46 @@ internal sealed class QuicStreamRouter
     /// connection must be established (no existing connection with control stream).
     /// Returns false if the context already existed or was handled.
     /// </summary>
-    public StreamContextResult EnsureStreamContext(IOutputItem item, long streamId,
+    public StreamContextResult EnsureStreamContext(IOutputItem item, long? streamId,
         bool hasConnection)
     {
-        if (streamId < 0 || _requestStreams.ContainsKey(streamId) || string.IsNullOrEmpty(item.Key.Scheme) ||
+        if (streamId is null || streamId.Value < 0 || _requestStreams.ContainsKey(streamId.Value) ||
+            string.IsNullOrEmpty(item.Key.Scheme) ||
             item.Key == RequestEndpoint.Default)
         {
             return StreamContextResult.AlreadyExists;
         }
 
-        _requestStreams[streamId] = new RequestStreamContext();
+        _requestStreams[streamId.Value] = new RequestStreamContext();
 
         if (hasConnection)
         {
             return StreamContextResult.OpenNewStream;
         }
 
-        _pendingOpenStreamIds.Enqueue(streamId);
+        _pendingOpenStreamIds.Enqueue(streamId.Value);
         return StreamContextResult.NeedsConnection;
     }
 
     /// <summary>
     /// Routes a tagged item to the appropriate stream (request, control, or encoder).
     /// </summary>
-    public void RouteTaggedItem(Http3NetworkBuffer dataItem,
-        ConnectionHandle? controlHandle, Queue<NetworkBuffer> pendingControlItems,
-        ConnectionHandle? encoderHandle, Queue<NetworkBuffer> pendingEncoderItems)
+    public void RouteTaggedItem(Http3NetworkBuffer dataItem, long? streamTypeValue,
+        Dictionary<long, TypedStreamState> typedStreams)
     {
-        switch (dataItem.StreamType)
+        if (streamTypeValue is null)
         {
-            case Http3StreamType.Request:
-                RouteToRequestStream(dataItem.StreamId, dataItem);
-                break;
-            case Http3StreamType.Control:
-                RouteToTypedStream(controlHandle, pendingControlItems, dataItem);
-                break;
-            case Http3StreamType.QpackEncoder:
-                RouteToTypedStream(encoderHandle, pendingEncoderItems, dataItem);
-                break;
+            RouteToRequestStream(dataItem.StreamId, dataItem);
+            return;
         }
+
+        if (typedStreams.TryGetValue(streamTypeValue.Value, out var state))
+        {
+            RouteToTypedStream(state.Handle, state.PendingItems, dataItem, state.StreamId);
+            return;
+        }
+
+        RouteToRequestStream(dataItem.StreamId, dataItem);
     }
 
     /// <summary>
@@ -234,9 +235,9 @@ internal sealed class QuicStreamRouter
         }
     }
 
-    private void RouteToRequestStream(long streamId, NetworkBuffer dataItem)
+    private void RouteToRequestStream(long? streamId, NetworkBuffer dataItem)
     {
-        if (streamId >= 0 && _requestStreams.TryGetValue(streamId, out var ctx))
+        if (streamId is not null && _requestStreams.TryGetValue(streamId.Value, out var ctx))
         {
             if (ctx.Handle is not null)
             {
@@ -255,10 +256,15 @@ internal sealed class QuicStreamRouter
     }
 
     private void RouteToTypedStream(ConnectionHandle? handle, Queue<NetworkBuffer> pendingQueue,
-        NetworkBuffer dataItem)
+        NetworkBuffer dataItem, long streamId)
     {
         if (handle is not null)
         {
+            if (dataItem is Http3NetworkBuffer h3)
+            {
+                h3.StreamId = streamId;
+            }
+
             WriteToHandle(handle, dataItem);
         }
         else

@@ -563,7 +563,7 @@ public sealed class Http3StateMachineSpec
         // All request frames should be tagged as Http3NetworkBuffer with stream ID 0
         var tagged = _ops.Outbound
             .OfType<Http3NetworkBuffer>()
-            .Where(t => t.StreamType == Http3StreamType.Request)
+            .Where(t => t.StreamTypeValue is null)
             .ToList();
         Assert.NotEmpty(tagged);
         Assert.All(tagged, t => Assert.Equal(0L, t.StreamId));

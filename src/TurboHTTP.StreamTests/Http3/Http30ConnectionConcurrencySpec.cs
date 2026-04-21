@@ -30,9 +30,7 @@ public sealed class Http30ConnectionConcurrencySpec : StreamTestBase
             var buf = Http3NetworkBuffer.Rent(headersBytes.Length);
             headersBytes.AsSpan().CopyTo(buf.FullMemory.Span);
             buf.Length = headersBytes.Length;
-            buf.StreamType = Http3StreamType.Request;
             buf.StreamId = streamId;
-
             yield return buf;
             yield return new QuicCloseItem(QuicCloseKind.RequestStreamComplete, streamId);
         }
@@ -44,7 +42,7 @@ public sealed class Http30ConnectionConcurrencySpec : StreamTestBase
         var buf = Http3NetworkBuffer.Rent(settingsBytes.Length);
         settingsBytes.AsSpan().CopyTo(buf.FullMemory.Span);
         buf.Length = settingsBytes.Length;
-        buf.StreamType = Http3StreamType.Control;
+        buf.StreamTypeValue = (long)StreamType.Control;
         return buf;
     }
 
@@ -93,10 +91,10 @@ public sealed class Http30ConnectionConcurrencySpec : StreamTestBase
         var result = new List<long>();
         foreach (var item in items)
         {
-            if (item is Http3NetworkBuffer { StreamType: Http3StreamType.Request, StreamId: >= 0 } tagged
-                && seen.Add(tagged.StreamId))
+            if (item is Http3NetworkBuffer { StreamTypeValue: null, StreamId: not null } tagged
+                && seen.Add(tagged.StreamId.Value))
             {
-                result.Add(tagged.StreamId);
+                result.Add(tagged.StreamId.Value);
             }
         }
 

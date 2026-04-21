@@ -109,7 +109,7 @@ internal sealed class QpackStreamHandler
         _decoderPrefaceSent = true;
         buf.Length = offset;
         buf.Key = endpoint;
-        buf.StreamType = Http3StreamType.QpackDecoder;
+        buf.StreamTypeValue = 0x03;
         _ops.OnOutbound(buf);
     }
 
@@ -147,7 +147,7 @@ internal sealed class QpackStreamHandler
         owner.Memory.Span[..totalLength].CopyTo(buf.FullMemory.Span);
         buf.Length = totalLength;
         buf.Key = endpoint;
-        buf.StreamType = Http3StreamType.QpackEncoder;
+        buf.StreamTypeValue = 0x02;
 
         _ops.OnOutbound(buf);
     }

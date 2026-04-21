@@ -31,7 +31,7 @@ public sealed class QuicPumpManagerSpec
         var handle = CreateTestHandle();
 
         // Should complete without throwing
-        pumpMgr.StartInboundPump(handle, Http3StreamType.Request, TestEndpoint, connectionGen: 0, streamId: 1);
+        pumpMgr.StartInboundPump(handle, -1, TestEndpoint, connectionGen: 0, streamId: 1);
 
         pumpMgr.StopAll();
     }
@@ -53,8 +53,8 @@ public sealed class QuicPumpManagerSpec
         var handle1 = CreateTestHandle();
         var handle2 = CreateTestHandle();
 
-        pumpMgr.StartInboundPump(handle1, Http3StreamType.Request, TestEndpoint, connectionGen: 0, streamId: 1);
-        pumpMgr.StartInboundPump(handle2, Http3StreamType.Request, TestEndpoint, connectionGen: 0, streamId: 2);
+        pumpMgr.StartInboundPump(handle1, -1, TestEndpoint, connectionGen: 0, streamId: 1);
+        pumpMgr.StartInboundPump(handle2, -1, TestEndpoint, connectionGen: 0, streamId: 2);
 
         // Stop all should complete without throwing
         pumpMgr.StopAll();
@@ -71,7 +71,7 @@ public sealed class QuicPumpManagerSpec
         for (var i = 0; i < 5; i++)
         {
             var handle = CreateTestHandle();
-            pumpMgr.StartInboundPump(handle, Http3StreamType.Request, TestEndpoint, connectionGen: 0, streamId: i);
+            pumpMgr.StartInboundPump(handle, -1, TestEndpoint, connectionGen: 0, streamId: i);
         }
 
         // StopAll should handle all pumps
@@ -84,7 +84,7 @@ public sealed class QuicPumpManagerSpec
         var pumpMgr = new QuicPumpManager(ActorRefs.Nobody);
         var handle = CreateTestHandle();
 
-        pumpMgr.StartInboundPump(handle, Http3StreamType.Control, TestEndpoint, connectionGen: 0);
+        pumpMgr.StartInboundPump(handle, 0x00, TestEndpoint, connectionGen: 0, streamId: -2);
 
         pumpMgr.StopAll();
     }
@@ -95,19 +95,18 @@ public sealed class QuicPumpManagerSpec
         var pumpMgr = new QuicPumpManager(ActorRefs.Nobody);
         var handle = CreateTestHandle();
 
-        pumpMgr.StartInboundPump(handle, Http3StreamType.QpackEncoder, TestEndpoint, connectionGen: 0);
+        pumpMgr.StartInboundPump(handle, 0x02, TestEndpoint, connectionGen: 0, streamId: -3);
 
         pumpMgr.StopAll();
     }
 
     [Fact(Timeout = 5000)]
-    public void StartInboundPump_without_stream_id_should_work()
+    public void StartInboundPump_with_explicit_stream_id_should_work()
     {
         var pumpMgr = new QuicPumpManager(ActorRefs.Nobody);
         var handle = CreateTestHandle();
 
-        // Default streamId = -1 for connection-level streams
-        pumpMgr.StartInboundPump(handle, Http3StreamType.Control, TestEndpoint, connectionGen: 0);
+        pumpMgr.StartInboundPump(handle, 0x00, TestEndpoint, connectionGen: 0, streamId: -2);
 
         pumpMgr.StopAll();
     }
@@ -118,7 +117,7 @@ public sealed class QuicPumpManagerSpec
         var pumpMgr = new QuicPumpManager(ActorRefs.Nobody);
         var handle = CreateTestHandle();
 
-        pumpMgr.StartInboundPump(handle, Http3StreamType.Request, TestEndpoint, connectionGen: 0, streamId: 1);
+        pumpMgr.StartInboundPump(handle, -1, TestEndpoint, connectionGen: 0, streamId: 1);
 
         pumpMgr.StopAll();
         pumpMgr.StopAll();

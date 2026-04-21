@@ -2,6 +2,7 @@ using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
 using TurboHTTP.Internal;
+using TurboHTTP.Protocol.Http3;
 using TurboHTTP.Tests.Shared;
 using TurboHTTP.Transport.Connection;
 using TurboHTTP.Transport.Quic;
@@ -102,11 +103,11 @@ public sealed class QuicStreamRouterSpec
         ctx.Handle = handle;
 
         var dataItem = Http3NetworkBuffer.Rent(4);
-        dataItem.StreamType = Http3StreamType.Request;
         dataItem.StreamId = 1;
         dataItem.Length = 3;
 
-        router.RouteTaggedItem(dataItem, null, new Queue<NetworkBuffer>(), null, new Queue<NetworkBuffer>());
+        var typedStreams = new Dictionary<long, TypedStreamState>();
+        router.RouteTaggedItem(dataItem, -1, typedStreams);
 
         Assert.True(outboundReader.TryRead(out _));
     }
@@ -118,11 +119,11 @@ public sealed class QuicStreamRouterSpec
         router.GetOrCreateContext(1);
 
         var dataItem = Http3NetworkBuffer.Rent(4);
-        dataItem.StreamType = Http3StreamType.Request;
         dataItem.StreamId = 1;
         dataItem.Length = 3;
 
-        router.RouteTaggedItem(dataItem, null, new Queue<NetworkBuffer>(), null, new Queue<NetworkBuffer>());
+        var typedStreams = new Dictionary<long, TypedStreamState>();
+        router.RouteTaggedItem(dataItem, -1, typedStreams);
 
         Assert.Single(router.RequestStreams[1].PendingWrites);
         Assert.True(ops.PullInputCount > 0);
@@ -132,15 +133,16 @@ public sealed class QuicStreamRouterSpec
     public void RouteTaggedItem_should_route_control_to_pending_queue_when_no_handle()
     {
         var (router, ops) = CreateRouter();
-        var pendingControl = new Queue<NetworkBuffer>();
+        var controlState = new TypedStreamState { StreamId = -2 };
+        var typedStreams = new Dictionary<long, TypedStreamState> { [0x00] = controlState };
 
         var dataItem = Http3NetworkBuffer.Rent(4);
-        dataItem.StreamType = Http3StreamType.Control;
+        dataItem.StreamTypeValue = (long)StreamType.Control;
         dataItem.Length = 3;
 
-        router.RouteTaggedItem(dataItem, null, pendingControl, null, new Queue<NetworkBuffer>());
+        router.RouteTaggedItem(dataItem, 0x00, typedStreams);
 
-        Assert.Single(pendingControl);
+        Assert.Single(controlState.PendingItems);
         Assert.True(ops.PullInputCount > 0);
     }
 
@@ -149,12 +151,14 @@ public sealed class QuicStreamRouterSpec
     {
         var (router, _) = CreateRouter();
         var (controlHandle, controlReader) = CreateTestHandle();
+        var controlState = new TypedStreamState { Handle = controlHandle, StreamId = -2 };
+        var typedStreams = new Dictionary<long, TypedStreamState> { [0x00] = controlState };
 
         var dataItem = Http3NetworkBuffer.Rent(4);
-        dataItem.StreamType = Http3StreamType.Control;
+        dataItem.StreamTypeValue = (long)StreamType.Control;
         dataItem.Length = 3;
 
-        router.RouteTaggedItem(dataItem, controlHandle, new Queue<NetworkBuffer>(), null, new Queue<NetworkBuffer>());
+        router.RouteTaggedItem(dataItem, 0x00, typedStreams);
 
         Assert.True(controlReader.TryRead(out _));
     }

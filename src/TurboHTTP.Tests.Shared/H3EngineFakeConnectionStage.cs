@@ -2,6 +2,7 @@ using System.Threading.Channels;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Internal;
+using TurboHTTP.Protocol.Http3;
 
 namespace TurboHTTP.Tests.Shared;
 
@@ -13,8 +14,8 @@ internal sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutput
 {
     private readonly IReadOnlyList<byte[]> _serverFrames;
 
-    public Channel<(NetworkBuffer Buffer, Http3StreamType? StreamType)> OutboundChannel { get; } =
-        Channel.CreateUnbounded<(NetworkBuffer, Http3StreamType?)>();
+    public Channel<(NetworkBuffer Buffer, long? StreamType)> OutboundChannel { get; } =
+        Channel.CreateUnbounded<(NetworkBuffer, long?)>();
 
     public Inlet<IOutputItem> In { get; } = new("h3-engine-fake.in");
     public Outlet<IInputItem> Out { get; } = new("h3-engine-fake.out");
@@ -46,10 +47,10 @@ internal sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutput
                     var item = Grab(stage.In);
 
                     // Extract stream type from Http3NetworkBuffer (control preface, QPACK encoder, etc.)
-                    Http3StreamType? streamType = null;
+                    long? streamType = null;
                     if (item is Http3NetworkBuffer h3Buf)
                     {
-                        streamType = h3Buf.StreamType != Http3StreamType.None ? h3Buf.StreamType : null;
+                        streamType = h3Buf.StreamTypeValue;
                     }
 
                     if (item is NetworkBuffer dataChunk)
@@ -124,11 +125,10 @@ internal sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<IOutput
 
             if (_serverFrameIndex == 1)
             {
-                h3Buf.StreamType = Http3StreamType.Control;
+                h3Buf.StreamTypeValue = (long)StreamType.Control;
             }
             else
             {
-                h3Buf.StreamType = Http3StreamType.Request;
                 h3Buf.StreamId = 0;
             }
 

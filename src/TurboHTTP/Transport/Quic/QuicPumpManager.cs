@@ -28,13 +28,13 @@ internal sealed class QuicPumpManager
     /// Starts a background pump that reads from the given handle's inbound channel
     /// and marshals each chunk as a <see cref="InboundData"/> message.
     /// </summary>
-    public void StartInboundPump(ConnectionHandle handle, Http3StreamType streamType,
-        RequestEndpoint key, int connectionGen, long streamId = -1)
+    public void StartInboundPump(ConnectionHandle handle, long streamTypeValue,
+        RequestEndpoint key, int connectionGen, long streamId)
     {
         var cts = new CancellationTokenSource();
         _pumpCancellations.Add(cts);
 
-        _ = PumpAsync(handle.InboundReader, key, streamType, cts.Token, _self, connectionGen, streamId);
+        _ = PumpAsync(handle.InboundReader, key, streamTypeValue, cts.Token, _self, connectionGen, streamId);
     }
 
     /// <summary>
@@ -92,11 +92,11 @@ internal sealed class QuicPumpManager
     private static async Task PumpAsync(
         ChannelReader<NetworkBuffer> reader,
         RequestEndpoint key,
-        Http3StreamType streamType,
+        long streamTypeValue,
         CancellationToken ct,
         IActorRef self,
         int gen,
-        long streamId = -1)
+        long streamId)
     {
         var closeKind = TlsCloseKind.CleanClose;
         try
@@ -109,11 +109,8 @@ internal sealed class QuicPumpManager
 
                     if (chunk is Http3NetworkBuffer h3Buf)
                     {
-                        h3Buf.StreamType = streamType;
-                        if (streamType == Http3StreamType.Request)
-                        {
-                            h3Buf.StreamId = streamId;
-                        }
+                        h3Buf.StreamTypeValue = streamTypeValue;
+                        h3Buf.StreamId = streamId;
                     }
 
                     self.Tell(new InboundData(chunk, gen));
@@ -138,8 +135,7 @@ internal sealed class QuicPumpManager
             return;
         }
 
-        // Only emit close signal for the request stream (per-stream lifecycle)
-        if (streamType == Http3StreamType.Request)
+        if (streamTypeValue < 0)
         {
             self.Tell(new InboundComplete(closeKind, gen, streamId));
         }

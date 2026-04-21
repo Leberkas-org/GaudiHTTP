@@ -36,6 +36,11 @@ public sealed class QuicTransportStateMachineSpec
             ActorRefs.Nobody,
             ActorRefs.Nobody,
             new TurboClientOptions(),
+            [
+                new TypedStreamDescriptor(0x00, -2, Outbound: true),
+                new TypedStreamDescriptor(0x02, -3, Outbound: true),
+                new TypedStreamDescriptor(0x03, -4, Outbound: false),
+            ],
             allowConnectionMigration);
         return (sm, ops);
     }
@@ -190,7 +195,6 @@ public sealed class QuicTransportStateMachineSpec
         var (sm, ops) = CreateStateMachine();
 
         var dataItem = Http3NetworkBuffer.Rent(4);
-        dataItem.StreamType = Http3StreamType.Request;
         dataItem.StreamId = 1;
         dataItem.Length = 3;
         dataItem.Key = TestEndpoint;

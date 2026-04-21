@@ -1,6 +1,5 @@
 using System.Runtime.Versioning;
 using TurboHTTP.Internal;
-using TurboHTTP.Protocol.Http3;
 using TurboHTTP.Transport.Quic;
 
 // QUIC APIs are platform-guarded; usage is gated at runtime via QuicOptions.
@@ -25,7 +24,7 @@ internal sealed class QuicConnectionHandle : IAsyncDisposable
     /// Notification produced when the inbound-accept loop receives a server-initiated stream.
     /// Equivalent to the old <c>QuicConnectionManager.InboundStream</c> record.
     /// </summary>
-    public sealed record InboundStream(ConnectionLease Lease, Http3StreamType StreamType);
+    public sealed record InboundStream(ConnectionLease Lease, long StreamTypeValue, long StreamId);
 
     private readonly IClientProvider _provider;
     private readonly QuicOptions _options;
@@ -49,9 +48,11 @@ internal sealed class QuicConnectionHandle : IAsyncDisposable
     /// Opens a typed QUIC stream and returns a <see cref="ConnectionLease"/> for it.
     /// </summary>
     public async Task<ConnectionLease> OpenStreamAsLeaseAsync(
-        Http3StreamType streamType, CancellationToken ct = default)
+        bool bidirectional, CancellationToken ct = default)
     {
-        var (direction, streamFactory) = MapStreamType(streamType);
+        var (direction, streamFactory) = bidirectional
+            ? (StreamDirection.Bidirectional, (Func<CancellationToken, Task<Stream>>)_provider.GetStreamAsync)
+            : (StreamDirection.WriteOnly, _provider.GetUnidirectionalStreamAsync);
         var stream = await streamFactory(ct).ConfigureAwait(false);
         return CreateStreamLease(stream, direction);
     }
@@ -96,28 +97,13 @@ internal sealed class QuicConnectionHandle : IAsyncDisposable
             return null;
         }
 
-        if (!QuicVarInt.TryDecode(typeBuf.AsSpan(0, bytesRead), out var streamTypeValue, out _))
-        {
-            await stream.DisposeAsync().ConfigureAwait(false);
-            return null;
-        }
-
-        var h3StreamType = (StreamType)streamTypeValue switch
-        {
-            StreamType.Control => Http3StreamType.Control,
-            StreamType.QpackEncoder => Http3StreamType.QpackEncoder,
-            StreamType.QpackDecoder => Http3StreamType.QpackDecoder,
-            _ => (Http3StreamType?)null,
-        };
-
-        if (h3StreamType is null)
-        {
-            await stream.DisposeAsync().ConfigureAwait(false);
-            return null;
-        }
+        long streamTypeValue = typeBuf[0];
 
         var lease = CreateStreamLease(stream, StreamDirection.ReadOnly);
-        return new InboundStream(lease, h3StreamType.Value);
+        var streamId = stream is System.Net.Quic.QuicStream quicStream
+            ? quicStream.Id
+            : -1;
+        return new InboundStream(lease, streamTypeValue, streamId);
     }
 
     /// <inheritdoc/>
@@ -182,16 +168,4 @@ internal sealed class QuicConnectionHandle : IAsyncDisposable
         return lease;
     }
 
-    private (StreamDirection Direction, Func<CancellationToken, Task<Stream>> StreamFactory)
-        MapStreamType(Http3StreamType streamType)
-    {
-        return streamType switch
-        {
-            Http3StreamType.Request => (StreamDirection.Bidirectional, _provider.GetStreamAsync),
-            Http3StreamType.Control => (StreamDirection.WriteOnly, _provider.GetUnidirectionalStreamAsync),
-            Http3StreamType.QpackEncoder => (StreamDirection.WriteOnly, _provider.GetUnidirectionalStreamAsync),
-            _ => throw new ArgumentOutOfRangeException(nameof(streamType), streamType,
-                "Unknown output stream type"),
-        };
-    }
 }

@@ -2,6 +2,7 @@ using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
 using TurboHTTP.Internal;
+using TurboHTTP.Protocol.Http3;
 using TurboHTTP.Tests.Shared;
 using TurboHTTP.Transport.Connection;
 using TurboHTTP.Transport.Quic;
@@ -38,15 +39,16 @@ public sealed class QuicStreamRouterEnhancedSpec
     public void RouteTaggedItem_should_route_encoder_to_pending_when_no_handle()
     {
         var (router, ops) = CreateRouter();
-        var pendingEncoder = new Queue<NetworkBuffer>();
 
         var encoderData = Http3NetworkBuffer.Rent(4);
-        encoderData.StreamType = Http3StreamType.QpackEncoder;
+        encoderData.StreamTypeValue = (long)StreamType.QpackEncoder;
         encoderData.Length = 3;
 
-        router.RouteTaggedItem(encoderData, null, new Queue<NetworkBuffer>(), null, pendingEncoder);
+        var encoderState = new TypedStreamState { StreamId = -3 };
+        var typedStreams = new Dictionary<long, TypedStreamState> { [0x02] = encoderState };
+        router.RouteTaggedItem(encoderData, 0x02, typedStreams);
 
-        Assert.Single(pendingEncoder);
+        Assert.Single(encoderState.PendingItems);
         Assert.True(ops.PullInputCount > 0);
     }
 
@@ -57,11 +59,12 @@ public sealed class QuicStreamRouterEnhancedSpec
         var (encoderHandle, encoderReader) = CreateTestHandle();
 
         var encoderData = Http3NetworkBuffer.Rent(4);
-        encoderData.StreamType = Http3StreamType.QpackEncoder;
+        encoderData.StreamTypeValue = (long)StreamType.QpackEncoder;
         encoderData.Length = 3;
 
-        router.RouteTaggedItem(encoderData, null, new Queue<NetworkBuffer>(), encoderHandle,
-            new Queue<NetworkBuffer>());
+        var encoderState = new TypedStreamState { Handle = encoderHandle, StreamId = -3 };
+        var typedStreams = new Dictionary<long, TypedStreamState> { [0x02] = encoderState };
+        router.RouteTaggedItem(encoderData, 0x02, typedStreams);
 
         Assert.True(encoderReader.TryRead(out _));
     }
@@ -299,12 +302,11 @@ public sealed class QuicStreamRouterEnhancedSpec
         ctx.Handle = handle;
 
         var dataItem = Http3NetworkBuffer.Rent(4);
-        dataItem.StreamType = Http3StreamType.Request;
         dataItem.StreamId = 999; // Different from expected
         dataItem.Length = 3;
 
-        // Should not throw - routing handles mismatched stream IDs gracefully
-        router.RouteTaggedItem(dataItem, null, new Queue<NetworkBuffer>(), null, new Queue<NetworkBuffer>());
+        var typedStreams = new Dictionary<long, TypedStreamState>();
+        router.RouteTaggedItem(dataItem, -1, typedStreams);
 
         // Verify the operation completed without error
         Assert.NotNull(router);

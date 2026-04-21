@@ -2,6 +2,7 @@ using System.Net;
 using TurboHTTP.Internal;
 using TurboHTTP.Tests.Shared;
 using TurboHTTP.Transport.Connection;
+using TurboHTTP.Transport.Quic;
 
 #pragma warning disable CA1416
 
@@ -68,46 +69,22 @@ public sealed class QuicConnectionHandleSpec
         var provider = new FakeClientProvider();
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.Request, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true, TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
         Assert.True(lease.IsAlive);
     }
 
     [Fact(Timeout = 5000)]
-    public async Task QuicConnectionHandle_should_open_stream_as_lease_for_control_streams()
+    public async Task QuicConnectionHandle_should_open_stream_as_lease_for_unidirectional_streams()
     {
         var provider = new FakeClientProvider();
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.Control, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: false, TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
         Assert.True(lease.IsAlive);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task QuicConnectionHandle_should_open_stream_as_lease_for_qpack_encoder()
-    {
-        var provider = new FakeClientProvider();
-        var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
-
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.QpackEncoder,
-            TestContext.Current.CancellationToken);
-
-        Assert.NotNull(lease);
-        Assert.True(lease.IsAlive);
-    }
-
-    [Fact(Timeout = 5000)]
-    public async Task QuicConnectionHandle_should_throw_for_qpack_decoder_as_output()
-    {
-        var provider = new FakeClientProvider();
-        var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
-
-        // QpackDecoder is receive-only, not supported for opening
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-            await handle.OpenStreamAsLeaseAsync(Http3StreamType.QpackDecoder, TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
@@ -116,18 +93,18 @@ public sealed class QuicConnectionHandleSpec
         var provider = new FakeClientProvider();
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.Request, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true, TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
     }
 
     [Fact(Timeout = 5000)]
-    public async Task QuicConnectionHandle_opened_control_stream_should_be_usable()
+    public async Task QuicConnectionHandle_opened_unidirectional_stream_should_be_usable()
     {
         var provider = new FakeClientProvider();
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.Control, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: false, TestContext.Current.CancellationToken);
 
         Assert.NotNull(lease);
     }
@@ -138,7 +115,7 @@ public sealed class QuicConnectionHandleSpec
         var provider = new FakeClientProvider();
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.Request, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true, TestContext.Current.CancellationToken);
 
         Assert.Equal(TestEndpoint, lease.Key);
     }
@@ -185,12 +162,12 @@ public sealed class QuicConnectionHandleSpec
     {
         var provider = new FakeClientProvider();
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.Request, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true, TestContext.Current.CancellationToken);
 
-        var inboundStream = new QuicConnectionHandle.InboundStream(lease, Http3StreamType.Control);
+        var inboundStream = new QuicConnectionHandle.InboundStream(lease, 0x00, 3);
 
         Assert.Same(lease, inboundStream.Lease);
-        Assert.Equal(Http3StreamType.Control, inboundStream.StreamType);
+        Assert.Equal(0x00, inboundStream.StreamTypeValue);
     }
 
     [Fact(Timeout = 5000)]
@@ -198,12 +175,12 @@ public sealed class QuicConnectionHandleSpec
     {
         var provider = new FakeClientProvider();
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.Request, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true, TestContext.Current.CancellationToken);
 
-        var stream1 = new QuicConnectionHandle.InboundStream(lease, Http3StreamType.Control);
-        var stream2 = new QuicConnectionHandle.InboundStream(lease, Http3StreamType.Control);
+        var stream1 = new QuicConnectionHandle.InboundStream(lease, 0x00, 3);
+        var stream2 = new QuicConnectionHandle.InboundStream(lease, 0x00, 3);
 
-        // Records with same lease and stream type should be equal
+        // Records with same lease and stream type value should be equal
         Assert.Equal(stream1, stream2);
     }
 
@@ -213,7 +190,7 @@ public sealed class QuicConnectionHandleSpec
         var provider = new FakeClientProvider();
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.Request, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true, TestContext.Current.CancellationToken);
 
         // Stream lease should have a valid ClientState
         Assert.NotNull(lease.State);
@@ -225,7 +202,7 @@ public sealed class QuicConnectionHandleSpec
         var provider = new FakeClientProvider();
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
 
-        var lease = await handle.OpenStreamAsLeaseAsync(Http3StreamType.Control, TestContext.Current.CancellationToken);
+        var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: false, TestContext.Current.CancellationToken);
 
         // Stream lease should preserve the endpoint key
         Assert.Equal(TestEndpoint, lease.Key);

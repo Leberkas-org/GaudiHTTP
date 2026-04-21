@@ -145,7 +145,7 @@ internal sealed class StateMachine : IDisposable
         owner.Memory.Span[..totalSize].CopyTo(buf.FullMemory.Span);
         buf.Length = totalSize;
         buf.Key = Endpoint;
-        buf.StreamType = Http3StreamType.Control;
+        buf.StreamTypeValue = 0x00;
 
         return buf;
     }
@@ -153,9 +153,9 @@ internal sealed class StateMachine : IDisposable
     /// <summary>
     /// Decodes a NetworkBuffer into HTTP/3 frames using a per-stream decoder.
     /// </summary>
-    public IReadOnlyList<Http3Frame> DecodeServerData(NetworkBuffer buffer, long streamId)
+    public IReadOnlyList<Http3Frame> DecodeServerData(NetworkBuffer buffer, long? streamId)
     {
-        return _streamManager.DecodeServerData(buffer, streamId);
+        return _streamManager.DecodeServerData(buffer, streamId!.Value);
     }
 
     /// <summary>
@@ -468,7 +468,7 @@ internal sealed class StateMachine : IDisposable
 
         if (streamId >= 0)
         {
-            buf.StreamType = Http3StreamType.Request;
+            buf.StreamTypeValue = null;
             buf.StreamId = streamId;
         }
 

@@ -23,7 +23,7 @@ public sealed class Http3DecoderStreamSpec
 
         var decoderItems = _ops.Outbound
             .OfType<Http3NetworkBuffer>()
-            .Where(t => t.StreamType == Http3StreamType.QpackDecoder)
+            .Where(t => t.StreamTypeValue == (long)StreamType.QpackDecoder)
             .ToList();
         Assert.Empty(decoderItems);
     }
@@ -42,7 +42,7 @@ public sealed class Http3DecoderStreamSpec
 
         var decoderItems = _ops.Outbound
             .OfType<Http3NetworkBuffer>()
-            .Where(t => t.StreamType == Http3StreamType.QpackDecoder)
+            .Where(t => t.StreamTypeValue == (long)StreamType.QpackDecoder)
             .ToList();
         Assert.Single(decoderItems);
 
@@ -126,7 +126,7 @@ public sealed class Http3DecoderStreamSpec
 
         var decoderItems = _ops.Outbound
             .OfType<Http3NetworkBuffer>()
-            .Where(t => t.StreamType == Http3StreamType.QpackDecoder)
+            .Where(t => t.StreamTypeValue == (long)StreamType.QpackDecoder)
             .ToList();
         Assert.Single(decoderItems);
 
@@ -140,7 +140,7 @@ public sealed class Http3DecoderStreamSpec
     {
         var items = ops.Outbound
             .OfType<Http3NetworkBuffer>()
-            .Where(t => t.StreamType == Http3StreamType.QpackDecoder)
+            .Where(t => t.StreamTypeValue == (long)StreamType.QpackDecoder)
             .ToList();
         return items[index];
     }

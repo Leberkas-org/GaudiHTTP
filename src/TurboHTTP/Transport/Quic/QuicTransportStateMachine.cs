@@ -27,12 +27,14 @@ namespace TurboHTTP.Transport.Quic;
 internal sealed class QuicTransportStateMachine
 {
     private const string ConnectTimerKey = "connect-timeout";
+    private const long RequestStreamTypeValue = -1;
 
     private readonly ITransportOperations _ops;
     private readonly IActorRef _self;
     private readonly IActorRef _quicManagerActor;
     private readonly TurboClientOptions _clientOptions;
     private readonly bool _allowConnectionMigration;
+    private readonly TypedStreamDescriptor[] _descriptors;
 
     private readonly QuicStreamRouter _router;
     private readonly QuicPumpManager _pumpManager;
@@ -40,17 +42,11 @@ internal sealed class QuicTransportStateMachine
     private int _connectionGen;
 
     private QuicConnectionLease? _currentConnectionLease;
-    private ConnectionHandle? _controlHandle;
-    private ConnectionHandle? _encoderHandle;
+
+    private readonly Dictionary<long, TypedStreamState> _typedStreams = new();
 
     private TlsCloseKind _lastCloseKind = TlsCloseKind.CleanClose;
     private bool _needsReconnectSignal;
-
-    /// <summary>Pending control items buffered before control stream is ready.</summary>
-    private readonly Queue<NetworkBuffer> _pendingControlItems = new();
-
-    /// <summary>Pending QPACK encoder items buffered before encoder stream is ready.</summary>
-    private readonly Queue<NetworkBuffer> _pendingEncoderItems = new();
 
     /// <summary>All active stream leases for this connection (disposed on Cleanup).</summary>
     private readonly List<ConnectionLease> _activeLeases = [];
@@ -63,15 +59,18 @@ internal sealed class QuicTransportStateMachine
     private System.Net.EndPoint? _lastLocalEndPoint;
 
     public QuicTransportStateMachine(ITransportOperations ops, IActorRef self, IActorRef quicManagerActor,
-        TurboClientOptions clientOptions, bool allowConnectionMigration = true)
+        TurboClientOptions clientOptions, TypedStreamDescriptor[] typedStreamDescriptors,
+        bool allowConnectionMigration = true)
     {
         _ops = ops;
         _self = self;
         _quicManagerActor = quicManagerActor;
         _clientOptions = clientOptions;
         _allowConnectionMigration = allowConnectionMigration;
+        _descriptors = typedStreamDescriptors;
         _router = new QuicStreamRouter(ops, self);
         _pumpManager = new QuicPumpManager(self);
+        InitializeTypedStreams();
     }
 
     public void Dispatch(IQuicTransportEvent evt)
@@ -85,7 +84,7 @@ internal sealed class QuicTransportStateMachine
                 OnRequestLeaseAcquired(e.Lease, e.StreamId);
                 break;
             case TypedLeaseAcquired e:
-                OnTypedLeaseAcquired(e.Lease, e.StreamType);
+                OnTypedLeaseAcquired(e.Lease, e.StreamTypeValue, e.StreamId);
                 break;
             case AcquisitionFailed e:
                 OnAcquisitionFailed(e.Error);
@@ -133,21 +132,22 @@ internal sealed class QuicTransportStateMachine
         {
             Http3NetworkBuffer t => t.StreamId,
             Http3EndOfRequestItem e => e.StreamId,
-            _ => -1L
+            _ => null
         };
 
+        var firstTypedReady = _descriptors.Any(d => d.Outbound) &&
+                              _descriptors.Where(d => d.Outbound)
+                                  .All(d => _typedStreams.TryGetValue(d.StreamTypeValue, out var s) &&
+                                            s.Handle is not null);
         var result = _router.EnsureStreamContext(item, streamId,
-            hasConnection: _currentConnectionLease is not null && _controlHandle is not null);
+            hasConnection: _currentConnectionLease is not null && firstTypedReady);
 
         switch (result)
         {
             case QuicStreamRouter.StreamContextResult.OpenNewStream:
-                OpenNewRequestStream(streamId);
+                OpenNewRequestStream(streamId!.Value);
                 break;
             case QuicStreamRouter.StreamContextResult.NeedsConnection:
-                // Only start a new connection if one isn't already being acquired or established.
-                // The stream context was already created — its items will be buffered in pending writes
-                // and the stream will be opened once the connection is fully ready.
                 if (_pendingConnect is null && _currentConnectionLease is null)
                 {
                     AutoConnect(item.Key);
@@ -162,9 +162,15 @@ internal sealed class QuicTransportStateMachine
                 HandleConnectItem(connect);
                 break;
 
-            case Http3NetworkBuffer tagged when tagged.StreamType != Http3StreamType.None:
-                _router.RouteTaggedItem(tagged, _controlHandle, _pendingControlItems,
-                    _encoderHandle, _pendingEncoderItems);
+            case Http3NetworkBuffer tagged:
+                var typeValue = tagged.StreamTypeValue;
+                if (typeValue is null && tagged.StreamId is null)
+                {
+                    throw new InvalidOperationException(
+                        "QuicConnectionStage: Request stream write requires an explicit non-negative StreamId.");
+                }
+
+                _router.RouteTaggedItem(tagged, typeValue, _typedStreams);
                 break;
 
             case NetworkBuffer dataItem:
@@ -172,13 +178,18 @@ internal sealed class QuicTransportStateMachine
                 break;
 
             case Http3EndOfRequestItem endItem:
+                if (endItem.StreamId < 0)
+                {
+                    throw new InvalidOperationException(
+                        "QuicConnectionStage: End-of-request requires an explicit non-negative StreamId.");
+                }
+
                 _router.HandleEndOfRequest(endItem);
                 break;
 
             case ConnectionReuseItem:
             case StreamAcquireItem:
             case MaxConcurrentStreamsItem:
-                // QUIC manages these internally — no-op
                 _ops.OnSignalPullInput();
                 break;
         }
@@ -269,7 +280,7 @@ internal sealed class QuicTransportStateMachine
             return;
         }
 
-        _ = lease.Handle.OpenStreamAsLeaseAsync(Http3StreamType.Request)
+        _ = lease.Handle.OpenStreamAsLeaseAsync(bidirectional: true)
             .PipeTo(_self,
                 success: streamLease => new RequestLeaseAcquired(streamLease, streamId),
                 failure: ex => new AcquisitionFailed(ex.GetBaseException()));
@@ -286,45 +297,52 @@ internal sealed class QuicTransportStateMachine
 
         var ctx = _router.GetOrCreateContext(streamId);
         ctx.Handle = lease.Handle;
-        _pumpManager.StartInboundPump(lease.Handle, Http3StreamType.Request, _currentKey, _connectionGen, streamId);
+        _pumpManager.StartInboundPump(lease.Handle, RequestStreamTypeValue, _currentKey, _connectionGen, streamId);
 
-        if (_controlHandle is not null)
+        var allOutboundReady = _descriptors.Where(d => d.Outbound)
+            .All(d => _typedStreams.TryGetValue(d.StreamTypeValue, out var s) && s.Handle is not null);
+        if (allOutboundReady)
         {
             _router.FlushPendingWrites(ctx);
             _ops.OnSignalPullInput();
         }
         else
         {
-            OpenTypedStream(Http3StreamType.Control);
-            OpenTypedStream(Http3StreamType.QpackEncoder);
+            foreach (var descriptor in _descriptors.Where(d => d.Outbound))
+            {
+                OpenTypedStream(descriptor);
+            }
+
             _pumpManager.StartInboundAcceptLoop(_currentConnectionLease!.Handle);
         }
     }
 
-    private void OnTypedLeaseAcquired(ConnectionLease lease, Http3StreamType streamType)
+    private void OnTypedLeaseAcquired(ConnectionLease lease, long streamTypeValue, long streamId)
     {
         _activeLeases.Add(lease);
 
-        switch (streamType)
+        if (!_typedStreams.TryGetValue(streamTypeValue, out var state))
         {
-            case Http3StreamType.Control:
-                _controlHandle = lease.Handle;
-                FlushPendingQuicItems(_pendingControlItems, lease.Handle);
-                _router.FlushAllReadyStreams();
-                OpenPendingStreams();
-                if (_needsReconnectSignal)
-                {
-                    _needsReconnectSignal = false;
-                    _ops.OnPushOutput(new ConnectedSignalItem { Key = _currentKey });
-                }
+            return;
+        }
 
-                _ops.OnSignalPullInput();
-                break;
+        state.Handle = lease.Handle;
+        state.StreamId = streamId;
+        FlushPendingQuicItems(state.PendingItems, lease.Handle, streamId);
 
-            case Http3StreamType.QpackEncoder:
-                _encoderHandle = lease.Handle;
-                FlushPendingQuicItems(_pendingEncoderItems, lease.Handle);
-                break;
+        var allOutboundReady = _descriptors.Where(d => d.Outbound)
+            .All(d => _typedStreams.TryGetValue(d.StreamTypeValue, out var s) && s.Handle is not null);
+        if (allOutboundReady)
+        {
+            _router.FlushAllReadyStreams();
+            OpenPendingStreams();
+            if (_needsReconnectSignal)
+            {
+                _needsReconnectSignal = false;
+                _ops.OnPushOutput(new ConnectedSignalItem { Key = _currentKey });
+            }
+
+            _ops.OnSignalPullInput();
         }
     }
 
@@ -348,8 +366,7 @@ internal sealed class QuicTransportStateMachine
         _ops.OnPushOutput(signal);
 
         _router.Clear();
-        _controlHandle = null;
-        _encoderHandle = null;
+        ResetTypedStreams();
     }
 
     private void CheckForConnectionMigration()
@@ -384,8 +401,7 @@ internal sealed class QuicTransportStateMachine
         _ops.OnPushOutput(signal);
 
         _router.Clear();
-        _controlHandle = null;
-        _encoderHandle = null;
+        ResetTypedStreams();
     }
 
     private void OnAcquisitionFailed(Exception ex)
@@ -406,7 +422,7 @@ internal sealed class QuicTransportStateMachine
         _ops.OnSignalPullInput();
     }
 
-    private void OnInboundComplete(TlsCloseKind closeKind, long streamId = -1)
+    private void OnInboundComplete(TlsCloseKind closeKind, long streamId)
     {
         _lastCloseKind = closeKind;
 
@@ -420,15 +436,19 @@ internal sealed class QuicTransportStateMachine
             _needsReconnectSignal = true;
             _ops.OnPushOutput(new QuicCloseItem(QuicCloseKind.ConnectionFailure) { Key = _currentKey });
             _router.Clear();
-            _controlHandle = null;
-            _encoderHandle = null;
+            ResetTypedStreams();
         }
     }
 
     private void OnInboundStreamReady(QuicConnectionHandle.InboundStream inbound)
     {
         _activeLeases.Add(inbound.Lease);
-        _pumpManager.StartInboundPump(inbound.Lease.Handle, inbound.StreamType, _currentKey, _connectionGen);
+        var streamId = inbound.StreamId >= 0
+            ? inbound.StreamId
+            : LookupSyntheticStreamId(inbound.StreamTypeValue);
+
+        _pumpManager.StartInboundPump(inbound.Lease.Handle, inbound.StreamTypeValue, _currentKey, _connectionGen,
+            streamId);
     }
 
     private void AcquireQuicConnection(QuicOptions options, ConnectItem connect)
@@ -469,26 +489,27 @@ internal sealed class QuicTransportStateMachine
             return;
         }
 
-        _ = _currentConnectionLease.Handle.OpenStreamAsLeaseAsync(Http3StreamType.Request)
+        _ = _currentConnectionLease.Handle.OpenStreamAsLeaseAsync(bidirectional: true)
             .PipeTo(_self,
                 success: streamLease => new RequestLeaseAcquired(streamLease, streamId),
                 failure: ex => new AcquisitionFailed(ex.GetBaseException()));
     }
 
-    private void OpenTypedStream(Http3StreamType streamType)
+    private void OpenTypedStream(TypedStreamDescriptor descriptor)
     {
         if (_currentConnectionLease is null)
         {
             return;
         }
 
-        _ = _currentConnectionLease.Handle.OpenStreamAsLeaseAsync(streamType)
+        _ = _currentConnectionLease.Handle.OpenStreamAsLeaseAsync(bidirectional: false)
             .PipeTo(_self,
-                success: lease => new TypedLeaseAcquired(lease, streamType),
+                success: lease => new TypedLeaseAcquired(lease, descriptor.StreamTypeValue,
+                    descriptor.SyntheticStreamId),
                 failure: ex =>
                 {
-                    _ops.Log.Warning("QuicConnectionStage: Failed to open {0} stream — {1}",
-                        streamType, ex.GetBaseException().Message);
+                    _ops.Log.Warning("QuicConnectionStage: Failed to open typed stream (type=0x{0:X2}) — {1}",
+                        descriptor.StreamTypeValue, ex.GetBaseException().Message);
                     return new AcquisitionFailed(ex.GetBaseException());
                 });
     }
@@ -526,16 +547,59 @@ internal sealed class QuicTransportStateMachine
         _lastCloseKind = TlsCloseKind.CleanClose;
 
         _router.Clear();
-        _controlHandle = null;
-        _encoderHandle = null;
+        ResetTypedStreams();
+    }
+
+    private void InitializeTypedStreams()
+    {
+        foreach (var descriptor in _descriptors)
+        {
+            _typedStreams[descriptor.StreamTypeValue] = new TypedStreamState
+            {
+                StreamId = descriptor.SyntheticStreamId
+            };
+        }
+    }
+
+    private void ResetTypedStreams()
+    {
+        foreach (var state in _typedStreams.Values)
+        {
+            state.Handle = null;
+            state.PendingItems.Clear();
+        }
+
+        foreach (var descriptor in _descriptors)
+        {
+            _typedStreams[descriptor.StreamTypeValue].StreamId = descriptor.SyntheticStreamId;
+        }
+    }
+
+    private long LookupSyntheticStreamId(long streamTypeValue)
+    {
+        foreach (var descriptor in _descriptors)
+        {
+            if (descriptor.StreamTypeValue == streamTypeValue)
+            {
+                return descriptor.SyntheticStreamId;
+            }
+        }
+
+        return streamTypeValue;
     }
 
     private void FlushPendingQuicItems(
         Queue<NetworkBuffer> pending,
-        ConnectionHandle handle)
+        ConnectionHandle handle,
+        long streamId)
     {
         while (pending.TryDequeue(out var item))
         {
+            if (item is Http3NetworkBuffer h3)
+            {
+                h3.StreamId = streamId;
+            }
+
             _ = handle.OutboundWriter.WriteAsync(item)
                 .PipeTo(_self,
                     success: () => new OutboundWriteDone(),

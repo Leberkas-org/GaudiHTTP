@@ -9,15 +9,15 @@ internal readonly record struct ConnectionLeaseAcquired(QuicConnectionLease Leas
 
 internal readonly record struct RequestLeaseAcquired(ConnectionLease Lease, long StreamId) : IQuicTransportEvent;
 
-internal readonly record struct TypedLeaseAcquired(ConnectionLease Lease, Http3StreamType StreamType) : IQuicTransportEvent;
+internal readonly record struct TypedLeaseAcquired(ConnectionLease Lease, long StreamTypeValue, long StreamId) : IQuicTransportEvent;
 
 internal readonly record struct AcquisitionFailed(Exception Error) : IQuicTransportEvent;
 
 internal readonly record struct InboundData(IInputItem Item, int Gen) : IQuicTransportEvent;
 
-internal readonly record struct InboundComplete(TlsCloseKind CloseKind, int Gen, long StreamId = -1) : IQuicTransportEvent;
+internal readonly record struct InboundComplete(TlsCloseKind CloseKind, int Gen, long StreamId) : IQuicTransportEvent;
 
-internal readonly record struct InboundPumpFailed(Exception Error, long StreamId = -1) : IQuicTransportEvent;
+internal readonly record struct InboundPumpFailed(Exception Error, long StreamId) : IQuicTransportEvent;
 
 internal readonly record struct InboundStreamReady(QuicConnectionHandle.InboundStream Stream) : IQuicTransportEvent;
 
