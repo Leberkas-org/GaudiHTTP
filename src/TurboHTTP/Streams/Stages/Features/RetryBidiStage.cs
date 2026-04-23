@@ -362,8 +362,6 @@ internal sealed class RetryStateMachine
         var retryActivity = TurboHttpInstrumentation.StartRetry(attemptCount);
         retryActivity?.Stop();
         Activity.Current = previous;
-
-        TurboHttpEventSource.Instance.RetryAttempt(attemptCount + 1);
         TurboHttpMetrics.RetryCount.Add(1,
             new KeyValuePair<string, object?>("http.request.method", original.Method.Method),
             new KeyValuePair<string, object?>("server.address", original.RequestUri?.Host ?? "unknown"));

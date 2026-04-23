@@ -2,11 +2,10 @@ using System.Buffers;
 using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
-using TurboHTTP.Internal;
-using TurboHTTP.Transport.Connection;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Tcp;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.Transport.Tcp;
 
 namespace TurboHTTP.StreamTests.Transport;
 
@@ -205,7 +204,8 @@ public sealed class TcpTransportStateMachineSpec
         sm.HandlePush(new StreamAcquireItem { Key = TestEndpoint });
         var pullBefore = ops.PullInputCount;
 
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
 
         Assert.True(ops.PullInputCount > pullBefore);
     }
@@ -220,7 +220,8 @@ public sealed class TcpTransportStateMachineSpec
         sm.HandlePush(new StreamAcquireItem { Key = TestEndpoint });
         var pullBefore = ops.PullInputCount;
 
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.Close("server close")) { Key = TestEndpoint });
+        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.Close("server close").CanReuse)
+            { Key = TestEndpoint });
 
         Assert.True(ops.PullInputCount > pullBefore);
     }
@@ -287,7 +288,8 @@ public sealed class TcpTransportStateMachineSpec
 
         Assert.Equal(0, ops.CompleteStageCount);
 
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
 
         Assert.Equal(1, ops.CompleteStageCount);
     }
@@ -415,8 +417,10 @@ public sealed class TcpTransportStateMachineSpec
         sm.HandlePush(new StreamAcquireItem { Key = TestEndpoint });
         sm.HandlePush(new StreamAcquireItem { Key = TestEndpoint });
 
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
 
         sm.HandleUpstreamFinish();
         Assert.Equal(1, ops.CompleteStageCount);

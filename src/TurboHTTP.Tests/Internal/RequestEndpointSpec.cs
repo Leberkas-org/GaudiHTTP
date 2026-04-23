@@ -1,4 +1,5 @@
 using System.Net;
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 
 namespace TurboHTTP.Tests.Internal;

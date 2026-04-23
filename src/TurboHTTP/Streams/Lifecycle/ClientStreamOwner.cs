@@ -3,9 +3,8 @@ using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Transport.Connection;
-using TurboHTTP.Transport.Quic;
-using TurboHTTP.Transport.Tcp;
+using Servus.Akka.IO.Quic;
+using Servus.Akka.IO.Tcp;
 
 // QuicConnectionManagerActor is guarded on linux/macOS/windows — all desktop platforms.
 #pragma warning disable CA1416

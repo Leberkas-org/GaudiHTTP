@@ -380,13 +380,11 @@ internal sealed class CacheStateMachine
         if (isHit)
         {
             TurboHttpMetrics.CacheHit.Add(1);
-            TurboHttpEventSource.Instance.CacheHit(uri);
             TurboTrace.Cache.Info(_ops, "Cache hit: {0}", uri);
         }
         else
         {
             TurboHttpMetrics.CacheMiss.Add(1);
-            TurboHttpEventSource.Instance.CacheMiss(uri);
             TurboTrace.Cache.Info(_ops, "Cache miss: {0}", uri);
         }
     }

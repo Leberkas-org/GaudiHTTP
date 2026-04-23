@@ -1,11 +1,9 @@
 using System.Net;
 using Akka.Actor;
-using TurboHTTP.Internal;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Quic;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.Transport.Connection;
-using TurboHTTP.Transport.Quic;
-using Quic = TurboHTTP.Transport.Quic;
 
 namespace TurboHTTP.StreamTests.Transport;
 
@@ -68,7 +66,7 @@ public sealed class QuicTransportStateMachineSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.Dispatch(new Quic.OutboundWriteDone());
+        sm.Dispatch(new OutboundWriteDone());
 
         Assert.Equal(1, ops.PullInputCount);
     }
@@ -78,7 +76,7 @@ public sealed class QuicTransportStateMachineSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.Dispatch(new Quic.OutboundWriteFailed(new IOException("write failed")));
+        sm.Dispatch(new OutboundWriteFailed(new IOException("write failed")));
 
         Assert.Contains(ops.PushedOutputs, item => item is QuicCloseItem { Kind: QuicCloseKind.WriteFailed });
     }
@@ -92,7 +90,7 @@ public sealed class QuicTransportStateMachineSpec
         sm.HandlePush(connectItem);
         ops.CancelledTimers.Clear();
 
-        sm.Dispatch(new Quic.AcquisitionFailed(new Exception("failed")));
+        sm.Dispatch(new AcquisitionFailed(new Exception("failed")));
 
         Assert.Contains("connect-timeout", ops.CancelledTimers);
     }
@@ -107,7 +105,7 @@ public sealed class QuicTransportStateMachineSpec
         ops.PushedOutputs.Clear();
         ops.PullInputCount = 0;
 
-        sm.Dispatch(new Quic.AcquisitionFailed(new Exception("failed")));
+        sm.Dispatch(new AcquisitionFailed(new Exception("failed")));
 
         Assert.Contains(ops.PushedOutputs, item => item is QuicCloseItem { Kind: QuicCloseKind.AcquisitionFailed });
         Assert.True(ops.PullInputCount > 0);
@@ -118,7 +116,7 @@ public sealed class QuicTransportStateMachineSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.Dispatch(new Quic.InboundComplete(QuicCloseKind.RequestStreamComplete, 0, StreamId: 1));
+        sm.Dispatch(new InboundComplete(QuicCloseKind.RequestStreamComplete, 0, StreamId: 1));
 
         Assert.Contains(ops.PushedOutputs,
             item => item is QuicCloseItem { Kind: QuicCloseKind.RequestStreamComplete });
@@ -129,7 +127,7 @@ public sealed class QuicTransportStateMachineSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.Dispatch(new Quic.InboundComplete(QuicCloseKind.ConnectionFailure, 0, StreamId: 1));
+        sm.Dispatch(new InboundComplete(QuicCloseKind.ConnectionFailure, 0, StreamId: 1));
 
         Assert.Contains(ops.PushedOutputs,
             item => item is QuicCloseItem { Kind: QuicCloseKind.ConnectionFailure });
@@ -140,7 +138,7 @@ public sealed class QuicTransportStateMachineSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.Dispatch(new Quic.InboundPumpFailed(new IOException("pump failed"), StreamId: 1));
+        sm.Dispatch(new InboundPumpFailed(new IOException("pump failed"), StreamId: 1));
 
         Assert.Contains(ops.PushedOutputs,
             item => item is QuicCloseItem { Kind: QuicCloseKind.ConnectionFailure });
@@ -229,7 +227,8 @@ public sealed class QuicTransportStateMachineSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("reuse")) { Key = TestEndpoint });
+        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("reuse").CanReuse)
+            { Key = TestEndpoint });
 
         Assert.Equal(1, ops.PullInputCount);
     }

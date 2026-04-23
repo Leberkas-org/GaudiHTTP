@@ -1,5 +1,5 @@
 using System.Net;
-using TurboHTTP.Transport.Connection;
+using Servus.Akka.IO;
 
 namespace TurboHTTP.Tests.Shared;
 

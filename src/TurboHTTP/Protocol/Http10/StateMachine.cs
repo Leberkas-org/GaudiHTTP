@@ -1,7 +1,7 @@
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Streams.Stages;
-using TurboHTTP.Transport.Connection;
 
 namespace TurboHTTP.Protocol.Http10;
 
@@ -291,7 +291,7 @@ internal sealed class StateMachine
         // HTTP/1.0 default is Connection: close (RFC 1945)
         var endpoint = RequestEndpoint.FromRequest(response.RequestMessage!);
         var decision = ConnectionReuseEvaluator.Evaluate(response, response.Version);
-        var item = new ConnectionReuseItem(decision) { Key = endpoint };
+        var item = new ConnectionReuseItem(decision.CanReuse) { Key = endpoint };
         _ops.OnResponse(response);
         _ops.OnOutbound(item);
     }

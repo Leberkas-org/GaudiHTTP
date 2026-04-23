@@ -1,8 +1,9 @@
 using System.Net;
 using System.Net.Security;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Tcp;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Transport.Connection;
 
 namespace TurboHTTP.Tests.Security;
 

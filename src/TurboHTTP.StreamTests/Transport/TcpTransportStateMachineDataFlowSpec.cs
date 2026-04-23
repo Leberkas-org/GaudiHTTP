@@ -2,11 +2,10 @@ using System.Buffers;
 using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
-using TurboHTTP.Internal;
-using TurboHTTP.Transport.Connection;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Tcp;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.Transport.Tcp;
 
 namespace TurboHTTP.StreamTests.Transport;
 
@@ -219,12 +218,15 @@ public sealed class TcpTransportStateMachineDataFlowSpec
 
         Assert.Equal(0, ops.CompleteStageCount);
 
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
 
         Assert.Equal(0, ops.CompleteStageCount);
 
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
 
         Assert.Equal(1, ops.CompleteStageCount);
     }

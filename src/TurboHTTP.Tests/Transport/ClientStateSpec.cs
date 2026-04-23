@@ -1,7 +1,7 @@
 using System.Threading.Channels;
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.Transport.Connection;
 
 namespace TurboHTTP.Tests.Transport;
 

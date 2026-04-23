@@ -4,11 +4,10 @@ using Akka;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Internal;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Tcp;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.Transport.Connection;
-using TurboHTTP.Transport.Tcp;
 
 namespace TurboHTTP.StreamTests.Streams;
 
@@ -249,7 +248,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         await Task.Delay(300, TestContext.Current.CancellationToken);
 
         var decision = ConnectionReuseDecision.Close("Connection: close");
-        var reuseItem = new ConnectionReuseItem(decision) { Key = TestKey };
+        var reuseItem = new ConnectionReuseItem(decision.CanReuse) { Key = TestKey };
         await inputQueue.OfferAsync(reuseItem);
         AwaitCondition(() => tracker.Released, TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
@@ -281,7 +280,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         await Task.Delay(300, TestContext.Current.CancellationToken);
 
         var decision = ConnectionReuseDecision.KeepAlive("HTTP/1.1 persistent");
-        var reuseItem = new ConnectionReuseItem(decision) { Key = TestKey };
+        var reuseItem = new ConnectionReuseItem(decision.CanReuse) { Key = TestKey };
         await inputQueue.OfferAsync(reuseItem);
         await Task.Delay(300, TestContext.Current.CancellationToken);
 

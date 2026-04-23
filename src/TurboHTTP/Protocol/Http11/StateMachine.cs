@@ -1,7 +1,7 @@
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Streams.Stages;
-using TurboHTTP.Transport.Connection;
 
 namespace TurboHTTP.Protocol.Http11;
 
@@ -418,7 +418,7 @@ internal sealed class StateMachine
         var decision = ConnectionReuseEvaluator.Evaluate(response, response.Version);
 
         _ops.OnResponse(response);
-        var item = new ConnectionReuseItem(decision) { Key = endpoint };
+        var item = new ConnectionReuseItem(decision.CanReuse) { Key = endpoint };
         _ops.OnOutbound(item);
     }
 

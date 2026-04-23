@@ -1,6 +1,7 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http11;
 

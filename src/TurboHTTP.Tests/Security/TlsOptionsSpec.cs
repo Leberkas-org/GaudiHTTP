@@ -2,9 +2,11 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Quic;
+using Servus.Akka.IO.Tcp;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Transport.Connection;
 
 namespace TurboHTTP.Tests.Security;
 

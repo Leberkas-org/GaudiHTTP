@@ -3,6 +3,7 @@ using System.Text;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Stages;
 using TurboHTTP.Tests.Shared;
@@ -187,7 +188,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         var reuseItem = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var connectionReuse = Assert.IsType<ConnectionReuseItem>(reuseItem);
         // HTTP/1.0 default is close (RFC 1945)
-        Assert.False(connectionReuse.Decision.CanReuse);
+        Assert.False(connectionReuse.CanReuse);
     }
 
 

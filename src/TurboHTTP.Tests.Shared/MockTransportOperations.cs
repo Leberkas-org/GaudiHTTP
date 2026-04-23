@@ -1,6 +1,6 @@
 using Akka.Event;
-using TurboHTTP.Internal;
-using TurboHTTP.Transport.Tcp;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Tcp;
 
 namespace TurboHTTP.Tests.Shared;
 

@@ -1,6 +1,7 @@
+using Servus.Akka.IO;
+using Servus.Akka.IO.Quic;
 using TurboHTTP.Internal;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.Transport.Connection;
 
 #pragma warning disable CA1416
 

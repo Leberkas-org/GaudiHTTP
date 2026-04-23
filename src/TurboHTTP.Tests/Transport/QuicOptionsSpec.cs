@@ -1,5 +1,5 @@
 using System.Net.Security;
-using TurboHTTP.Transport.Connection;
+using Servus.Akka.IO.Quic;
 
 #pragma warning disable CA1416
 

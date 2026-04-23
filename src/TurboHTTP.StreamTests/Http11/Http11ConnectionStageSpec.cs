@@ -2,6 +2,7 @@ using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Stages;
 using TurboHTTP.Tests.Shared;
@@ -322,7 +323,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var reuseItem = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var connectionReuse = Assert.IsType<ConnectionReuseItem>(reuseItem);
         // Connection: close means cannot reuse
-        Assert.False(connectionReuse.Decision.CanReuse);
+        Assert.False(connectionReuse.CanReuse);
 
         // After receiving Connection: close, the stage should reduce effective pipeline depth to 1.
         // Send a second request to verify it's still accepted
@@ -390,7 +391,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         var reuseItem = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var connectionReuse = Assert.IsType<ConnectionReuseItem>(reuseItem);
         // HTTP/1.1 default is keep-alive (RFC 9112)
-        Assert.True(connectionReuse.Decision.CanReuse);
+        Assert.True(connectionReuse.CanReuse);
     }
 
     [Fact(Timeout = 10_000)]
@@ -498,7 +499,7 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         // ConnectionReuseItem should indicate cannot reuse
         var reuseItem = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var connectionReuse = Assert.IsType<ConnectionReuseItem>(reuseItem);
-        Assert.False(connectionReuse.Decision.CanReuse);
+        Assert.False(connectionReuse.CanReuse);
     }
 
     [Fact(Timeout = 10_000)]

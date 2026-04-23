@@ -7,8 +7,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <Folder Include="IO\QUIC\" />
-      <Folder Include="IO\TCP\" />
+      <PackageReference Include="Akka.Hosting" />
     </ItemGroup>
 
 </Project>

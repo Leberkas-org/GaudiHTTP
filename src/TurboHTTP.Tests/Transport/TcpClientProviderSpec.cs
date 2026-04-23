@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
-using TurboHTTP.Transport.Connection;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Tcp;
 
 namespace TurboHTTP.Tests.Transport;
 

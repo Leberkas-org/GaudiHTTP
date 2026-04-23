@@ -1,9 +1,9 @@
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Streams.Stages;
-using TurboHTTP.Transport.Connection;
 
 namespace TurboHTTP.Protocol.Http2;
 
@@ -293,8 +293,7 @@ internal sealed class StateMachine
         if (result.IsConnectionViolation)
         {
             _ops.OnWarning("RFC 9113 §6.9 — connection flow control window exceeded. Triggering reconnect.");
-            var item = new ConnectionReuseItem(
-                    ConnectionReuseDecision.Close("RFC 9113 §6.9: connection window exceeded"))
+            var item = new ConnectionReuseItem(false)
                 { Key = Endpoint };
             _ops.OnOutbound(item);
             return false;
@@ -304,7 +303,7 @@ internal sealed class StateMachine
         {
             _ops.OnWarning(
                 $"RFC 9113 §6.9 — stream {frame.StreamId} flow control window exceeded. Triggering reconnect.");
-            var item = new ConnectionReuseItem(ConnectionReuseDecision.Close("RFC 9113 §6.9: stream window exceeded"))
+            var item = new ConnectionReuseItem(false)
                 { Key = Endpoint };
             _ops.OnOutbound(item);
             return false;

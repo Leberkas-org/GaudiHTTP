@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Threading.Channels;
 using System.Threading.Tasks.Sources;
 using Akka.Actor;
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Lifecycle;

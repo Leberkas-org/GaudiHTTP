@@ -2,7 +2,7 @@ using System.Buffers;
 using System.IO.Pipelines;
 using System.Net;
 using System.Text;
-using TurboHTTP.Transport.Connection;
+using Servus.Akka.IO.Tcp;
 
 namespace TurboHTTP.Tests.Transport;
 

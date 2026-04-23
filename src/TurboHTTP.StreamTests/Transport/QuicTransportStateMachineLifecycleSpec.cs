@@ -2,13 +2,11 @@ using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
 using Akka.Event;
-using TurboHTTP.Internal;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Quic;
+using Servus.Akka.IO.Tcp;
 using TurboHTTP.Protocol.Http3;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.Transport.Connection;
-using TurboHTTP.Transport.Quic;
-using TurboHTTP.Transport.Tcp;
-using Quic = TurboHTTP.Transport.Quic;
 
 namespace TurboHTTP.StreamTests.Transport;
 
@@ -281,7 +279,7 @@ public sealed class QuicTransportStateMachineLifecycleSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.Dispatch(new Quic.AcquisitionFailed(new Exception("failed")));
+        sm.Dispatch(new Servus.Akka.IO.Quic.AcquisitionFailed(new Exception("failed")));
 
         // No outputs pushed since no pending connect
         Assert.Empty(ops.PushedOutputs);
@@ -292,7 +290,7 @@ public sealed class QuicTransportStateMachineLifecycleSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.Dispatch(new Quic.InboundPumpFailed(new IOException("pump failed"), 1));
+        sm.Dispatch(new Servus.Akka.IO.Quic.InboundPumpFailed(new IOException("pump failed"), 1));
 
         Assert.Contains(ops.PushedOutputs,
             item => item is QuicCloseItem { Kind: QuicCloseKind.ConnectionFailure });
@@ -319,7 +317,7 @@ public sealed class QuicTransportStateMachineLifecycleSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.Dispatch(new Quic.OutboundWriteFailed(new IOException("write error")));
+        sm.Dispatch(new Servus.Akka.IO.Quic.OutboundWriteFailed(new IOException("write error")));
 
         Assert.Contains(ops.PushedOutputs,
             item => item is QuicCloseItem { Kind: QuicCloseKind.WriteFailed });

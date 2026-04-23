@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Cookies;
 using TurboHTTP.Protocol.Semantics;

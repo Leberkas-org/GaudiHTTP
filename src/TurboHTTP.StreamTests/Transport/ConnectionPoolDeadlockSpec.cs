@@ -1,9 +1,10 @@
 using System.Net;
 using Akka.Actor;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Quic;
+using Servus.Akka.IO.Tcp;
 using TurboHTTP.Internal;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.Transport.Connection;
-using TurboHTTP.Transport.Quic;
 
 namespace TurboHTTP.StreamTests.Transport;
 

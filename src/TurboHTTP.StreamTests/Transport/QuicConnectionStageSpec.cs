@@ -1,5 +1,5 @@
 using Akka.Actor;
-using TurboHTTP.Transport.Quic;
+using Servus.Akka.IO.Quic;
 
 namespace TurboHTTP.StreamTests.Transport;
 

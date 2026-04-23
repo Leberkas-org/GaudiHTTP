@@ -2,6 +2,7 @@ using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.Implementation;
+using Servus.Akka.IO;
 using TurboHTTP.Internal;
 
 namespace TurboHTTP.Streams.Stages.Internal;

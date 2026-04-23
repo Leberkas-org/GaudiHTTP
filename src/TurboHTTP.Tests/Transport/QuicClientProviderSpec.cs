@@ -1,4 +1,4 @@
-using TurboHTTP.Transport.Connection;
+using Servus.Akka.IO.Quic;
 
 namespace TurboHTTP.Tests.Transport;
 

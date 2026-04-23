@@ -700,121 +700,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
     }
 
     [Fact(Timeout = 5000)]
-    public void StartDnsLookup_should_create_activity()
-    {
-        var activity = TurboHttpInstrumentation.StartDnsLookup("example.com");
-
-        Assert.NotNull(activity);
-        Assert.Equal("TurboHTTP.DnsLookup", activity.OperationName);
-        Assert.Equal("example.com", activity.GetTagItem("dns.question.name"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void StartSocketConnect_should_create_activity()
-    {
-        var activity = TurboHttpInstrumentation.StartSocketConnect("93.184.216.34", 443);
-
-        Assert.NotNull(activity);
-        Assert.Equal("TurboHTTP.SocketConnect", activity.OperationName);
-        Assert.Equal("93.184.216.34", activity.GetTagItem("network.peer.address"));
-        Assert.Equal(443, activity.GetTagItem("network.peer.port"));
-        Assert.Equal("tcp", activity.GetTagItem("network.transport"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void StartSocketConnect_should_set_network_type_when_provided()
-    {
-        var activity = TurboHttpInstrumentation.StartSocketConnect("93.184.216.34", 443, "tcp", "ipv4");
-
-        Assert.NotNull(activity);
-        Assert.Equal("ipv4", activity.GetTagItem("network.type"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void StartSocketConnect_should_omit_network_type_when_null()
-    {
-        var activity = TurboHttpInstrumentation.StartSocketConnect("93.184.216.34", 443);
-
-        Assert.NotNull(activity);
-        Assert.Null(activity.GetTagItem("network.type"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void StartTlsHandshake_should_create_activity()
-    {
-        var activity = TurboHttpInstrumentation.StartTlsHandshake("example.com");
-
-        Assert.NotNull(activity);
-        Assert.Equal("TurboHTTP.TlsHandshake", activity.OperationName);
-        Assert.Equal("example.com", activity.GetTagItem("server.address"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void StartWaitForConnection_should_create_activity()
-    {
-        var activity = TurboHttpInstrumentation.StartWaitForConnection("example.com", 443);
-
-        Assert.NotNull(activity);
-        Assert.Equal("TurboHTTP.WaitForConnection", activity.OperationName);
-        Assert.Equal("example.com", activity.GetTagItem("server.address"));
-        Assert.Equal(443, activity.GetTagItem("server.port"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void StartConnect_should_create_activity()
-    {
-        var activity = TurboHttpInstrumentation.StartConnect(new Uri("https://example.com:8443/"));
-
-        Assert.NotNull(activity);
-        Assert.Equal("TurboHTTP.Connect", activity.OperationName);
-        Assert.Equal("example.com", activity.GetTagItem("server.address"));
-        Assert.Equal(8443, activity.GetTagItem("server.port"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void StartConnect_should_set_url_scheme()
-    {
-        var activity = TurboHttpInstrumentation.StartConnect(new Uri("https://example.com/"));
-
-        Assert.NotNull(activity);
-        Assert.Equal("https", activity.GetTagItem("url.scheme"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void SetTlsInfo_should_set_protocol_tags()
-    {
-        var activity = TurboHttpInstrumentation.StartTlsHandshake("example.com");
-        Assert.NotNull(activity);
-
-        TurboHttpInstrumentation.SetTlsInfo(activity, "tls", "1.3");
-
-        Assert.Equal("tls", activity.GetTagItem("tls.protocol.name"));
-        Assert.Equal("1.3", activity.GetTagItem("tls.protocol.version"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void SetDnsAnswers_should_set_answers_tag()
-    {
-        var activity = TurboHttpInstrumentation.StartDnsLookup("example.com");
-        Assert.NotNull(activity);
-
-        TurboHttpInstrumentation.SetDnsAnswers(activity, ["93.184.216.34", "2606:2800:220:1::"]);
-
-        Assert.Equal(new[] { "93.184.216.34", "2606:2800:220:1::" }, activity.GetTagItem("dns.answers"));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void SetNetworkPeerAddress_should_set_tag()
-    {
-        var activity = TurboHttpInstrumentation.StartConnect(new Uri("https://example.com/"));
-        Assert.NotNull(activity);
-
-        TurboHttpInstrumentation.SetNetworkPeerAddress(activity, "93.184.216.34");
-
-        Assert.Equal("93.184.216.34", activity.GetTagItem("network.peer.address"));
-    }
-
-    [Fact(Timeout = 5000)]
     public void IsTracingActive_should_return_true_when_listener_present()
     {
         // Our listener is already subscribed in constructor
@@ -939,15 +824,6 @@ public sealed class TurboHttpInstrumentationSpec : IDisposable
         Assert.NotNull(TurboHttpInstrumentation.Source);
         // Source is static and shared, verify it has Name and Version
         Assert.Equal("TurboHTTP", TurboHttpInstrumentation.Source.Name);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void StartDnsLookup_should_return_null_when_no_listener()
-    {
-        _listener.Dispose();
-        TurboHttpInstrumentation.StartDnsLookup("example.com");
-        // May or may not be null depending on other listeners
-        Assert.Equal("TurboHTTP", TurboHttpInstrumentation.SourceName);
     }
 
     [Fact(Timeout = 5000)]

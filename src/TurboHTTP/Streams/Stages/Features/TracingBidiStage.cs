@@ -149,11 +149,6 @@ internal sealed class TracingBidiProcessor
             _currentActivity = activity;
         }
 
-        TurboHttpDiagnosticSource.OnRequestStart(request);
-        TurboHttpEventSource.Instance.RequestStart(
-            request.Method.Method,
-            request.RequestUri?.OriginalString ?? "");
-
         var method = request.Method.Method;
         var uri = request.RequestUri?.OriginalString ?? "";
         TurboTrace.Request.Info(_ops, "Request started: {0} {1}", method, uri);
@@ -174,7 +169,6 @@ internal sealed class TracingBidiProcessor
     public void OnRequestUpstreamFailure(Exception ex)
     {
         TurboTrace.Request.Warning(_ops, $"Request failed: {ex.GetType().Name} — {ex.Message}");
-        TurboHttpEventSource.Instance.RequestFailed("UNKNOWN", "", ex.GetType().Name);
 
         if (_currentActivity is not null)
         {
@@ -205,13 +199,6 @@ internal sealed class TracingBidiProcessor
         var statusCode = (int)response.StatusCode;
         TurboTrace.Request.Info(_ops, "Request completed: {0} ({1:F1}ms)", statusCode, durationMs);
 
-        if (request is not null)
-        {
-            TurboHttpDiagnosticSource.OnRequestStop(request, response, TaskStatus.RanToCompletion);
-        }
-
-        TurboHttpEventSource.Instance.RequestStop(
-            request?.Method.Method ?? "UNKNOWN", statusCode, durationMs);
 
         RecordActiveRequestEnd(request);
 
@@ -223,7 +210,6 @@ internal sealed class TracingBidiProcessor
     public void OnResponseUpstreamFailure(Exception ex)
     {
         TurboTrace.Request.Warning(_ops, $"Request failed: {ex.GetType().Name} — {ex.Message}");
-        TurboHttpEventSource.Instance.RequestFailed("UNKNOWN", "", ex.GetType().Name);
 
         if (_currentActivity is not null)
         {

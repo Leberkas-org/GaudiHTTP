@@ -1,11 +1,10 @@
 using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
-using TurboHTTP.Internal;
-using TurboHTTP.Transport.Connection;
+using Servus.Akka.IO;
+using Servus.Akka.IO.Tcp;
 using TurboHTTP.Protocol.Http11;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.Transport.Tcp;
 
 namespace TurboHTTP.StreamTests.Transport;
 
@@ -61,7 +60,8 @@ public sealed class TcpTransportStateMachineLifecycleSpec
     {
         var (sm, ops) = CreateStateMachine();
 
-        sm.HandlePush(new ConnectItem(new TcpOptions { Host = TestEndpoint.Host, Port = TestEndpoint.Port }) { Key = TestEndpoint, IsReconnect = true });
+        sm.HandlePush(new ConnectItem(new TcpOptions { Host = TestEndpoint.Host, Port = TestEndpoint.Port })
+            { Key = TestEndpoint, IsReconnect = true });
         ops.PushedOutputs.Clear();
 
         var lease = CreateTestLease();
@@ -119,7 +119,8 @@ public sealed class TcpTransportStateMachineLifecycleSpec
         sm.HandlePush(new StreamAcquireItem { Key = TestEndpoint });
 
         var pullBefore = ops.PullInputCount;
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
 
         Assert.True(ops.PullInputCount > pullBefore);
         Assert.Equal(0, ops.CompleteStageCount);
@@ -135,7 +136,8 @@ public sealed class TcpTransportStateMachineLifecycleSpec
         sm.HandlePush(new StreamAcquireItem { Key = TestEndpoint });
 
         var pullBefore = ops.PullInputCount;
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
 
         Assert.True(ops.PullInputCount > pullBefore);
         Assert.Equal(0, ops.CompleteStageCount);
@@ -153,7 +155,8 @@ public sealed class TcpTransportStateMachineLifecycleSpec
 
         Assert.Equal(0, ops.CompleteStageCount);
 
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test")) { Key = TestEndpoint });
+        sm.HandlePush(
+            new ConnectionReuseItem(ConnectionReuseDecision.KeepAlive("test").CanReuse) { Key = TestEndpoint });
 
         Assert.Equal(1, ops.CompleteStageCount);
     }
@@ -170,7 +173,8 @@ public sealed class TcpTransportStateMachineLifecycleSpec
 
         Assert.Equal(0, ops.CompleteStageCount);
 
-        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.Close("server close")) { Key = TestEndpoint });
+        sm.HandlePush(new ConnectionReuseItem(ConnectionReuseDecision.Close("server close").CanReuse)
+            { Key = TestEndpoint });
 
         Assert.Equal(1, ops.CompleteStageCount);
     }
@@ -197,7 +201,8 @@ public sealed class TcpTransportStateMachineLifecycleSpec
         sm.Dispatch(new LeaseAcquired(lease1));
         ops.PushedOutputs.Clear();
 
-        sm.HandlePush(new ConnectItem(new TcpOptions { Host = AltEndpoint.Host, Port = AltEndpoint.Port }) { Key = AltEndpoint, IsReconnect = true });
+        sm.HandlePush(new ConnectItem(new TcpOptions { Host = AltEndpoint.Host, Port = AltEndpoint.Port })
+            { Key = AltEndpoint, IsReconnect = true });
 
         Assert.Contains(ops.ScheduledTimers, t => t.Key == "connect-timeout");
         Assert.False(lease1.IsAlive);
