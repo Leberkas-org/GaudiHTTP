@@ -16,6 +16,7 @@
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
   </Folder>
+  <Project Path="Servus.Akka.Tests/Servus.Akka.Tests.csproj" />
   <Project Path="Servus.Akka/Servus.Akka.csproj" />
   <Project Path="TurboHTTP.AcceptanceTests/TurboHTTP.AcceptanceTests.csproj" />
   <Project Path="TurboHTTP.API.Tests/TurboHTTP.API.Tests.csproj" />
