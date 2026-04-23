@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.2.  Handshake Denial of Service"
 rfc_number: 9000
 rfc_section: "21.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.2.  Handshake Denial of Service
-
 
    As an encrypted and authenticated transport, QUIC provides a range of
    protections against denial of service.  Once the cryptographic
@@ -64,4 +63,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

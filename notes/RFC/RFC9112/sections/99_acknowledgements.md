@@ -1,4 +1,4 @@
----
+﻿---
 title: "Acknowledgements"
 rfc_number: 9112
 rfc_section: "-"
@@ -16,4 +16,3 @@ Acknowledgements
 
 ---
 
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

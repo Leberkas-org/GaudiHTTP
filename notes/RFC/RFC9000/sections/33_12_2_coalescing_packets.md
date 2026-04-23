@@ -1,4 +1,4 @@
----
+﻿---
 title: "12.2.  Coalescing Packets"
 rfc_number: 9000
 rfc_section: "12.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 12.2.  Coalescing Packets
-
 
    Initial (Section 17.2.2), 0-RTT (Section 17.2.3), and Handshake
    (Section 17.2.4) packets contain a Length field that determines the
@@ -57,4 +56,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

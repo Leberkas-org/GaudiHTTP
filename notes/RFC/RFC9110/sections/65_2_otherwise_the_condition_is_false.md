@@ -1,4 +1,4 @@
----
+﻿---
 title: "2.  Otherwise, the condition is false."
 rfc_number: 9110
 rfc_section: "2"
@@ -65,11 +65,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    representation is unchanged, send me the part(s) that I am requesting
    in Range; otherwise, send me the entire representation.
 
-
 ```abnf
      If-Range = entity-tag / HTTP-date
 ```
-
 
    A valid entity-tag can be distinguished from a valid HTTP-date by
    examining the first three characters for a DQUOTE.
@@ -102,4 +100,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

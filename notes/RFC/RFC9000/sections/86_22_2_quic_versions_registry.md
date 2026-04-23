@@ -1,4 +1,4 @@
----
+﻿---
 title: "22.2.  QUIC Versions Registry"
 rfc_number: 9000
 rfc_section: "22.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 22.2.  QUIC Versions Registry
-
 
    IANA has added a registry for "QUIC Versions" under a "QUIC" heading.
 
@@ -29,4 +28,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

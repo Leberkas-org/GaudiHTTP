@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  Using the grammar below, divide the cookie-date into date-tokens."
 rfc_number: 6265
 rfc_section: "1"
@@ -8,8 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 1.  Using the grammar below, divide the cookie-date into date-tokens.
-
-
 
 ```abnf
    cookie-date     = *delimiter date-token-list *delimiter
@@ -30,14 +28,8 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    time-field      = 1*2DIGIT
 ```
 
-
    2.  Process each date-token sequentially in the order the date-tokens
        appear in the cookie-date:
-
-
-
-
-
 
        1.  If the found-time flag is not set and the token matches the
            time production, set the found-time flag and set the hour-
@@ -72,4 +64,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

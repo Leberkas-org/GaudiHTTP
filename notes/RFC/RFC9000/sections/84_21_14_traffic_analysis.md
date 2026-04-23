@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.14.  Traffic Analysis"
 rfc_number: 9000
 rfc_section: "21.14"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.14.  Traffic Analysis
-
 
    The length of QUIC packets can reveal information about the length of
    the content of those packets.  The PADDING frame is provided so that
@@ -22,4 +21,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

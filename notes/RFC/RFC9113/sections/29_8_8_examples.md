@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.8.  Examples"
 rfc_number: 9113
 rfc_section: "8.8"
@@ -36,7 +36,6 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
                                           accept = image/jpeg
 ```
 
-
 ### 8.8.2  Simple Response
 
    Similarly, a response that includes only control data and a response
@@ -53,7 +52,6 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
                                           etag = "xyzzy"
                                           expires = Thu, 23 Jan ...
 ```
-
 
 ### 8.8.3  Complex Request
 
@@ -81,7 +79,6 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
                                           content-length = 123
 ```
 
-
                                       DATA
                                         + END_STREAM
                                       {binary data}
@@ -107,7 +104,6 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 ```abnf
                                           content-length = 123
 ```
-
 
                                       DATA
                                         + END_STREAM
@@ -137,7 +133,6 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
                                           extension-field = bar
 ```
 
-
      HTTP/1.1 200 OK                  HEADERS
      Content-Type: image/jpeg   ==>     - END_STREAM
      Transfer-Encoding: chunked         + END_HEADERS
@@ -163,4 +158,3 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ---
 
-**Navigation:** [[../RFC9113|RFC9113 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

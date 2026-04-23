@@ -1,4 +1,4 @@
----
+﻿---
 title: 6.4.  Content
 rfc_number: 9110
 rfc_section: '6.4'
@@ -140,26 +140,3 @@ tags:
 
    7.  Otherwise, the content is unidentified by HTTP, but a more
        specific identifier might be supplied within the content itself.
-
-
----
-
-## TurboHTTP Compliance
-
-**Status**: ✅ Compliant
-
-### Implementation Notes
-- **`HttpResponseDecoder.cs`** — Extracts content from message framing; handles zero-length content for 204/304 responses per §6.4.1
-- **`ContentDecodingStage.cs`** — Decodes content after extracting from framing layer; supports streaming content delivery
-- **`Http11ResponseDecoder.cs`** — Handles chunked transfer coding extraction to produce raw content stream
-- **`ContentIdentification.cs`** — Applies §6.4.2 rules for identifying content via Content-Location and request method
-
-### Test References
-- `TurboHTTP.Tests/RFC9110/25_ContentTests.cs` — Content semantics, zero-length bodies, HEAD response handling
-
-### Known Gaps
-- None
-
----
-
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

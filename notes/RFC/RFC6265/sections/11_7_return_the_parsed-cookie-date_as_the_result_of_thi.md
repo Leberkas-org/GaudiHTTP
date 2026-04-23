@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.  Return the parsed-cookie-date as the result of this algorithm."
 rfc_number: 6265
 rfc_section: "7"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 7.  Return the parsed-cookie-date as the result of this algorithm.
-
 
 ### 5.1.2.  Canonicalized Host Names
 
@@ -49,9 +48,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 > **MUST**: The user agent MUST use an algorithm equivalent to the following
    algorithm to compute the default-path of a cookie:
-
-
-
 
    1.  Let uri-path be the path portion of the request-uri if such a
        portion exists (and empty otherwise).  For example, if the
@@ -102,11 +98,8 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    interoperate with servers that do not follow the recommendations in
    Section 4.
 
-
-
 > **MUST**: A user agent MUST use an algorithm equivalent to the following
    algorithm to parse a "set-cookie-string":
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.4.  Optimistic ACK Attack"
 rfc_number: 9000
 rfc_section: "21.4"
@@ -9,7 +9,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 # 21.4.  Optimistic ACK Attack
 
-
    An endpoint that acknowledges packets it has not received might cause
    a congestion controller to permit sending at rates beyond what the
 > **MAY**: network supports.  An endpoint MAY skip packet numbers when sending
@@ -19,4 +18,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

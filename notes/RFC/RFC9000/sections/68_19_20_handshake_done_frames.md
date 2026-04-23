@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.20.  HANDSHAKE_DONE Frames"
 rfc_number: 9000
 rfc_section: "19.20"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.20.  HANDSHAKE_DONE Frames
-
 
    The server uses a HANDSHAKE_DONE frame (type=0x1e) to signal
    confirmation of the handshake to the client.
@@ -29,4 +28,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

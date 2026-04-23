@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.8.  Stream Commitment Attack"
 rfc_number: 9000
 rfc_section: "21.8"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.8.  Stream Commitment Attack
-
 
    An adversarial endpoint can open a large number of streams,
    exhausting state on an endpoint.  The adversarial endpoint could
@@ -34,4 +33,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

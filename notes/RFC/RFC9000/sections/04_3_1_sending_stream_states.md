@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.1.  Sending Stream States"
 rfc_number: 9000
 rfc_section: "3.1"
@@ -8,8 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 3.1.  Sending Stream States
-
-
 
    This section describes streams in terms of their send or receive
    components.  Two state machines are described: one for the streams on
@@ -134,4 +132,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "13.  Acknowledgments"
 rfc_number: 1945
 rfc_section: "13"
@@ -8,7 +8,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 ---
 
 # 13.  Acknowledgments
-
 
    This specification makes heavy use of the augmented BNF and generic
    constructs defined by David H. Crocker for RFC 822 [7]. Similarly, it
@@ -30,15 +29,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
    Paul Hoffman contributed sections regarding the informational status
    of this document and Appendices C and D.
-
-
-
-
-
-
-
-
-
 
    This document has benefited greatly from the comments of all those
    participating in the HTTP-WG. In addition to those already mentioned,
@@ -68,4 +58,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

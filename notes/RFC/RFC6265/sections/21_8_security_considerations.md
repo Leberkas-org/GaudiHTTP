@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.  Security Considerations"
 rfc_number: 6265
 rfc_section: "8"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 8.  Security Considerations
-
 
 ## 8.1.  Overview
 
@@ -25,9 +24,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    insufficient to prevent a network attacker from obtaining or altering
    a victim's cookies because the cookie protocol itself has various
    vulnerabilities (see "Weak Confidentiality" and "Weak Integrity",
-
-
-
 
    below).  In addition, by default, cookies do not provide
    confidentiality or integrity from network attackers, even when used
@@ -74,11 +70,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
    3.  A malicious client could alter the Cookie header before
        transmission, with unpredictable results.
-
-
-
-
-
 
 > **SHOULD**: Servers SHOULD encrypt and sign the contents of cookies (using
    whatever format the server desires) when transmitting them to the
@@ -129,8 +120,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    attacker transplants a session identifier from his or her user agent
    to the victim's user agent.  Second, the victim uses that session
 
-
-
    identifier to interact with the server, possibly imbuing the session
    identifier with the user's credentials or confidential information.
    Third, the attacker uses the session identifier to interact with
@@ -178,10 +167,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    able to leverage this ability to mount an attack against
    bar.example.com.
 
-
-
-
-
    Even though the Set-Cookie header supports the Path attribute, the
    Path attribute does not provide any integrity protection because the
    user agent will accept an arbitrary Path attribute in a Set-Cookie
@@ -220,4 +205,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

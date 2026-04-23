@@ -1,4 +1,4 @@
----
+﻿---
 title: "14.  References"
 rfc_number: 1945
 rfc_section: "14"
@@ -8,8 +8,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 ---
 
 # 14.  References
-
-
 
    [1]  Anklesaria, F., McCahill, M., Lindner, P., Johnson, D.,
         Torrey, D., and B. Alberti, "The Internet Gopher Protocol: A
@@ -27,12 +25,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    [4]  Berners-Lee, T., Masinter, L., and M. McCahill, "Uniform
         Resource Locators (URL)", RFC 1738, CERN, Xerox PARC,
         University of Minnesota, December 1994.
-
-
-
-
-
-
 
    [5]  Borenstein, N., and N. Freed, "MIME (Multipurpose Internet Mail
         Extensions) Part One: Mechanisms for Specifying and Describing
@@ -81,10 +73,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
         for Information Interchange. Standard ANSI X3.4-1986, ANSI,
         1986.
 
-
-
-
-
    [18] ISO-8859. International Standard -- Information Processing --
         8-bit Single-Byte Coded Graphic Character Sets --
         Part 1: Latin alphabet No. 1, ISO 8859-1:1987.
@@ -99,4 +87,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.6.  Content-Length"
 rfc_number: 9110
 rfc_section: "8.6"
@@ -20,11 +20,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    current length, which can be used by recipients to estimate transfer
    time or to compare with previously stored representations.
 
-
 ```abnf
      Content-Length = 1*DIGIT
 ```
-
 
    An example is
 
@@ -90,4 +88,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

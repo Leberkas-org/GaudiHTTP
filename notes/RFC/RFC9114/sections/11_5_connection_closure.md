@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.  Connection Closure"
 rfc_number: 9114
 rfc_section: "5"
@@ -162,32 +162,3 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 > **MUST**: If a connection terminates without a GOAWAY frame, clients MUST
    assume that any request that was sent, whether in whole or in part,
    might have been processed.
-
----
-
-## TurboHTTP Compliance
-
-**Status**: ⚠️ Partial
-
-### Implementation Notes
-
-- **`Http3Connection.cs`** — Implements graceful shutdown via GOAWAY frame exchange per §5.2; tracks last accepted stream ID; supports multiple GOAWAY frames with decreasing IDs
-- **`Http3ControlStream.cs`** — Sends GOAWAY on control stream before connection closure per §5.2; uses `H3_NO_ERROR` for graceful close per §5.2
-- **`Http3IdleTimeoutHandler.cs`** — Monitors QUIC idle timeout and triggers reconnection per §5.1
-- **`QuicTransportAdapter.cs`** — Maps QUIC CONNECTION_CLOSE to TurboHTTP connection termination per §5.3
-
-### Test References
-
-- `TurboHTTP.Tests/RFC9114/15_Http3ConnectionClosureTests.cs` — GOAWAY frame exchange, graceful shutdown sequence
-- `TurboHTTP.Tests/RFC9114/16_Http3IdleTimeoutTests.cs` — Idle connection management
-- `TurboHTTP.StreamTests/` — End-to-end connection lifecycle tests
-
-### Known Gaps
-
-- ❌ Two-phase GOAWAY shutdown (§5.2) — does not send initial max-value GOAWAY followed by final GOAWAY; sends single GOAWAY with actual last stream ID
-- ⚠️ Client-to-server GOAWAY with push ID (§5.2) — not sent since server push is not implemented
-- ⚠️ Transport closure (§5.4) — assumes unfinished requests failed on transport termination, but retry logic does not always distinguish processed vs. unprocessed requests
-
----
-
-**Navigation:** [[../RFC9114|RFC9114 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.  Abort these steps and fail to parse the cookie-date if:"
 rfc_number: 6265
 rfc_section: "5"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 5.  Abort these steps and fail to parse the cookie-date if:
-
 
        *  at least one of the found-day-of-month, found-month, found-
           year, or found-time flags is not set,
@@ -25,9 +24,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
        (Note that leap seconds cannot be represented in this syntax.)
 
-
-
-
    6.  Let the parsed-cookie-date be the date whose day-of-month, month,
        year, hour, minute, and second (in UTC) are the day-of-month-
        value, the month-value, the year-value, the hour-value, the
@@ -36,4 +32,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

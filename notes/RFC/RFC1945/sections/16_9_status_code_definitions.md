@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.  Status Code Definitions"
 rfc_number: 1945
 rfc_section: "9"
@@ -8,7 +8,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 ---
 
 # 9.  Status Code Definitions
-
 
    Each Status-Code is described below, including a description of which
    method(s) it can follow and any metainformation required in the
@@ -27,9 +26,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
    This class of status code indicates that the client's request was
    successfully received, understood, and accepted.
-
-
-
 
    200 OK
 
@@ -80,8 +76,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    information to send back. If the client is a user agent, it should
    not change its document view from that which caused the request to
 
-
-
    be generated. This response is primarily intended to allow input
    for scripts or other actions to take place without causing a change
    to the user agent's active document view. The response may include
@@ -129,10 +123,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    request unless it can be confirmed by the user, since this might
    change the conditions under which the request was issued.
 
-
-
-
-
        Note: When automatically redirecting a POST request after
        receiving a 301 status code, some existing user agents will
        erroneously change it into a GET request.
@@ -178,11 +168,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    the server should include an entity containing an explanation of the
    error situation, and whether it is a temporary or permanent
    condition. These status codes are applicable to any request method.
-
-
-
-
-
 
       Note: If the client is sending data, server implementations on TCP
       should be careful to ensure that the client acknowledges receipt
@@ -233,8 +218,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    available to the client, the status code 403 (forbidden) can be
    used instead.
 
-
-
 ## 9.5  Server Error 5xx
 
    Response status codes beginning with the digit "5" indicate cases in
@@ -278,4 +261,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix C.  Changes from Previous RFCs"
 rfc_number: 9112
 rfc_section: "Appendix C"
@@ -118,4 +118,3 @@ C.3.  Changes from RFC 7230
 
 ---
 
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

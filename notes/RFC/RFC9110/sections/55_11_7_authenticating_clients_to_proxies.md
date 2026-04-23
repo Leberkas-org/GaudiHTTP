@@ -1,4 +1,4 @@
----
+﻿---
 title: "11.7.  Authenticating Clients to Proxies"
 rfc_number: 9110
 rfc_section: "11.7"
@@ -19,11 +19,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    one Proxy-Authenticate header field in each 407 (Proxy Authentication
    Required) response that it generates.
 
-
 ```abnf
      Proxy-Authenticate = #challenge
 ```
-
 
    Unlike WWW-Authenticate, the Proxy-Authenticate header field applies
    only to the next outbound client on the response chain.  This is
@@ -47,11 +45,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    information of the client for the proxy and/or realm of the resource
    being requested.
 
-
 ```abnf
      Proxy-Authorization = credentials
 ```
-
 
    Unlike Authorization, the Proxy-Authorization header field applies
    only to the next inbound proxy that demanded authentication using the
@@ -70,11 +66,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    authentication scheme indicated by the Proxy-Authorization header
    field (Section 11.7.2) of the corresponding request:
 
-
 ```abnf
      Proxy-Authentication-Info = #auth-param
 ```
-
 
    However, unlike Authentication-Info, the Proxy-Authentication-Info
    header field applies only to the next outbound client on the response
@@ -93,4 +87,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

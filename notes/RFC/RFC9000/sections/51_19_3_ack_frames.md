@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.3.  ACK Frames"
 rfc_number: 9000
 rfc_section: "19.3"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.3.  ACK Frames
-
 
    Receivers send ACK frames (types 0x02 and 0x03) to inform senders of
    packets they have received and processed.  The ACK frame contains one
@@ -123,11 +122,9 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    packet number for the range, the smallest value is determined by the
    following formula:
 
-
 ```abnf
       smallest = largest - ack_range
 ```
-
 
    An ACK Range acknowledges all packets between the smallest packet
    number and the largest, inclusive.
@@ -142,11 +139,9 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
    The value of the Gap field establishes the largest packet number
    value for the subsequent ACK Range using the following formula:
 
-
 ```abnf
       largest = previous_smallest - gap - 2
 ```
-
 
 > **MUST**: If any computed packet number is negative, an endpoint MUST generate
    a connection error of type FRAME_ENCODING_ERROR.
@@ -187,4 +182,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

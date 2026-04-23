@@ -1,4 +1,4 @@
----
+﻿---
 title: "23.  References"
 rfc_number: 9000
 rfc_section: "23"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 23.  References
-
 
 ## 23.1.  Normative References
 
@@ -242,4 +241,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix B.  Changes from RFC 7540"
 rfc_number: 9113
 rfc_section: "Appendix B"
@@ -65,4 +65,3 @@ Contributors
 
 ---
 
-**Navigation:** [[../RFC9113|RFC9113 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

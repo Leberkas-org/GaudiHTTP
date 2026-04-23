@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.4.  Loss Detection and Congestion Control"
 rfc_number: 9000
 rfc_section: "9.4"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 9.4.  Loss Detection and Congestion Control
-
 
    The capacity available on the new path might not be the same as the
 > **MUST NOT**: old path.  Packets sent on the old path MUST NOT contribute to
@@ -53,4 +52,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

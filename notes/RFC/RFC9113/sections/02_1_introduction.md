@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  Introduction"
 rfc_number: 9113
 rfc_section: "1"
@@ -52,4 +52,3 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ---
 
-**Navigation:** [[../RFC9113|RFC9113 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

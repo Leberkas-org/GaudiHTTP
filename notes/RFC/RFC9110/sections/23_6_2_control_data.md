@@ -1,4 +1,4 @@
----
+﻿---
 title: 6.2.  Control Data
 rfc_number: 9110
 rfc_section: '6.2'
@@ -70,26 +70,3 @@ tags:
    support for that higher version, is sufficiently backwards-compatible
    to be safely processed by any implementation of the same major
    version.
-
-
----
-
-## TurboHTTP Compliance
-
-**Status**: ✅ Compliant
-
-### Implementation Notes
-- **`HttpRequestEncoder.cs`** — Sets protocol version in request control data; sends highest conformant version per §6.2
-- **`Http11RequestEncoder.cs`** — Encodes request-line with method, request-target, and HTTP/1.1 version
-- **`Http2RequestEncoder.cs`** — Maps control data to pseudo-header fields (`:method`, `:path`, `:scheme`, `:authority`)
-- **`HttpResponseDecoder.cs`** — Parses status code and reason phrase from response control data
-
-### Test References
-- `TurboHTTP.Tests/RFC9110/23_ControlDataTests.cs` — Version negotiation, pseudo-header mapping
-
-### Known Gaps
-- ⚠️ Version downgrade — Client does not automatically retry with lower HTTP version if server indicates incompatibility
-
----
-
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "11.4.  Credentials"
 rfc_number: 9110
 rfc_section: "11.4"
@@ -22,11 +22,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    considerations regarding the confidentiality of the underlying
    connection, as described in Section 17.16.1.
 
-
 ```abnf
      credentials = auth-scheme [ 1*SP ( token68 / #auth-param ) ]
 ```
-
 
    Upon receipt of a request for a protected resource that omits
    credentials, contains invalid credentials (e.g., a bad password) or
@@ -59,4 +57,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

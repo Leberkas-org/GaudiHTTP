@@ -1,105 +1,52 @@
 # TurboHTTP Knowledge Base
 
-This is the central hub for all TurboHTTP project knowledge — connecting session logs, architecture decisions, RFC compliance notes, and feature planning.
+Central hub for all TurboHTTP RFC reference knowledge.
 
-## Architecture & Design Decisions
+See [[VAULT_STYLE_GUIDE|Vault Style Guide]] for vault conventions and frontmatter standards.
 
-- [[Architecture/00-ONBOARDING|Developer Onboarding Guide]] — Start here: project purpose, tech stack, build commands, AI & human workflows, key code patterns
-- [[Architecture/Design/01-LAYERED_ARCHITECTURE|Layered Architecture]] — Client → Handlers → Streams → Protocol → Transport
-- [[Architecture/Design/02-STAGE_PATTERNS|GraphStage Patterns]] — Port naming, conventions, stage lifecycle
-- [[Architecture/Status/03-KNOWN_GAPS_AND_LIMITATIONS|Known Gaps & Limitations]] — Critical issues, workarounds, priority roadmap
-- [[Architecture/Status/04-CURRENT_STATE_SUMMARY|Current State Summary]] — Implementation completeness, status, next milestones
-- [[Architecture/Guides/05-BENCHMARK_PATTERNS|Benchmark Patterns]] — BDN conventions, port assignments, TCP TIME_WAIT workarounds
-- [[Architecture/Design/06-DECODER_PIPELINE_ARCHITECTURE|Decoder Pipeline Architecture]] — Three-layer Pipeline/EventAggregator/CompletionDecoder pattern
-- [[Architecture/Analysis/07-HTTP10_RECONNECTION_LIMITATION|HTTP/1.0 Reconnection Limitation]] — ExtractOptionsStage single-emit bug
-- [[Architecture/Analysis/08-HTTP2_DECODER_MIGRATION|Http2Decoder Migration]] — Phases 39-62, ProtocolSession migration mapping
-- [[Architecture/Guides/09-CLAUDE_PREFERENCES|Claude Preferences]] — Language, knowledge capture, response style
-- [[Architecture/Analysis/11-STAGE_COMPLETION_AUDIT|Stage Completion Audit]] — 48-stage audit, 20 completion propagation bugs found and fixed
-- [[Architecture/Guides/12-TEST_ORGANIZATION|Test Organization]] — Test projects, base classes, fixtures, conventions, completed phases
-- [[Architecture/Layers/13-CLIENT_LAYER|Client Layer]] — ITurboHttpClient, factory, DI integration, request lifecycle
-- [[Architecture/Layers/14-TRANSPORT_LAYER|Transport Layer]] — Actor-free connection pool, Channels I/O, TCP/QUIC, backpressure
-- [[Architecture/Layers/15-STREAMS_LAYER|Streams Layer]] — GraphStage categories, BidiFlow composition, pipeline data flow
-- [[Architecture/Layers/16-PROTOCOL_LAYER|Protocol Layer]] — Encoder/decoder patterns, HPACK/QPACK, RFC subfolder structure
-- [[Architecture/Guides/17-DIAGNOSTICS_INTEGRATION|Diagnostics Integration]] — DiagnosticListener, ETW EventSource, OTel Metrics
+---
 
-### Dispatcher & Threading
-- [[Architecture/Design/10-DISPATCHER_SELECTION_ANALYSIS|Dispatcher Selection Analysis]] — All six Akka.NET dispatcher types evaluated for HTTP/2 streaming
-- [[Architecture/Guides/11-DISPATCHER_CONFIGURATION_GUIDE|Dispatcher Configuration Guide]] — ChannelExecutor configuration, tuning, and implementation steps
-- [[Architecture/Guides/12-DISPATCHER_QUICK_REFERENCE|Dispatcher Quick Reference]] — One-page decision tree and config templates
-- [[Architecture/Status/12-THREADPOOL_CONTENTION_RESOLUTION|ThreadPool Contention Resolution]] — ChannelExecutor migration to eliminate ThreadPool starvation
+## RFC Reference Documents
 
-### Analysis
-- [[Architecture/Analysis/13-CONNECTION_POOL_HIERARCHY_ANALYSIS|Connection Pool Hierarchy Analysis]] — Connection pool design patterns and hierarchy options
-- [[Architecture/Analysis/14-OPTION_B_IMPLEMENTATION_GUIDE|Option B Implementation Guide]] — Selected connection pool architecture implementation
+### HTTP Semantics & Messaging
 
-### Guides (New)
-- [[Architecture/Guides/10-TEST_CONVENTIONS|Test Conventions]] — BDD naming, Spec suffix, Trait-based RFC traceability
-- [[Architecture/Guides/11-STAGE_PORT_NAMING|Stage Port Naming]] — PascalCase port naming, shape patterns, global uniqueness
-- [[Architecture/Guides/12-OBSIDIAN_WORKFLOW|Obsidian Workflow]] — Vault conventions and knowledge capture workflow
+| RFC | Title | Description |
+|-----|-------|-------------|
+| [[RFC/RFC9110/RFC9110\|RFC 9110]] | HTTP Semantics | Methods, status codes, content negotiation, conditional requests, authentication |
+| [[RFC/RFC9112/RFC9112\|RFC 9112]] | HTTP/1.1 | Message framing, chunked transfer coding, persistent connections |
+| [[RFC/RFC9111/RFC9111\|RFC 9111]] | HTTP Caching | Freshness, validation, Cache-Control directives, Vary-based secondary keys |
+| [[RFC/RFC1945/RFC1945\|RFC 1945]] | HTTP/1.0 | Original HTTP spec — request/response format, GET/HEAD/POST, status codes |
+| [[RFC/RFC6265/RFC6265\|RFC 6265]] | HTTP Cookies | Set-Cookie/Cookie headers, domain/path matching, Secure/HttpOnly/SameSite attributes |
 
-### Benchmarks & Performance
-- [[Architecture/Benchmarks/Benchmark_2026-04-03_Transport_Refactoring|Benchmark 2026-04-03]] — Transport refactoring baseline
-- [[Architecture/Benchmarks/Benchmark_2026-04-04_Perf_Optimizations|Benchmark 2026-04-04]] — Performance optimizations follow-up
-- [[Architecture/Performance/01-BOTTLENECK_ANALYSIS_APR2026|Bottleneck Analysis (Apr 2026)]] — Systematic bottleneck analysis with profiling data
-- [[Architecture/Performance/TOP_5_THROUGHPUT_OPTIMIZATIONS|Top 5 Throughput Optimizations]] — Highest-impact throughput improvements
+### HTTP/2
 
-### HTTP/3
-- [[Architecture/Design/HTTP3_CONSOLIDATION_PLAN|HTTP/3 Consolidation Plan]] — QUIC support consolidation into stage-based architecture
+| RFC | Title | Description |
+|-----|-------|-------------|
+| [[RFC/RFC9113/RFC9113\|RFC 9113]] | HTTP/2 | Binary framing, stream multiplexing, flow control, SETTINGS, server push |
+| [[RFC/RFC7541/RFC7541\|RFC 7541]] | HPACK | Header compression for HTTP/2 — static table, dynamic table, Huffman encoding |
+| [[RFC/RFC7838/RFC7838\|RFC 7838]] | Alt-Svc | HTTP Alternative Services — ALTSVC frame, Alt-Svc header, caching rules |
 
-See [Architecture Notes](./Architecture/) for full decision records.
+### HTTP/3 & QUIC
 
-## RFC Compliance & Coverage
+| RFC | Title | Description |
+|-----|-------|-------------|
+| [[RFC/RFC9114/RFC9114\|RFC 9114]] | HTTP/3 | QUIC-based HTTP — variable-length frames, QPACK integration, stream types |
+| [[RFC/RFC9204/RFC9204\|RFC 9204]] | QPACK | Header compression for HTTP/3 — encoder/decoder streams, blocking references |
+| [[RFC/RFC9000/RFC9000\|RFC 9000]] | QUIC | UDP-based multiplexed transport with built-in TLS 1.3 |
 
-**Overall Compliance**: 86/100 — Production-Ready for HTTP/1.0, 1.1, 2.0
+---
 
-- [[RFC/00-RFC_STATUS_MATRIX|RFC Status Matrix]] — Detailed compliance scores, gaps, and priorities (⭐ START HERE)
-- All RFC reference documents are in the [rfc/](./rfc/) folder
+## RFC Dependency Map
 
-## Features
+```
+RFC 9110 (Semantics)
+├── RFC 9112 (HTTP/1.1) ──────── depends on RFC 9110
+├── RFC 9111 (Caching) ───────── depends on RFC 9110
+├── RFC 9113 (HTTP/2) ────────── depends on RFC 9110 + RFC 7541
+│   └── RFC 7838 (Alt-Svc) ───── used by HTTP/2 ALTSVC frame
+└── RFC 9114 (HTTP/3) ────────── depends on RFC 9110 + RFC 9204 + RFC 9000
+    └── RFC 7838 (Alt-Svc) ───── used by HTTP/3 Alt-Svc header
 
-### Protocol
-- [[Features/Protocol/Feature003_Decompression_Stage|Feature 003: Decompression Stage]] — Initial standalone DecompressionStage (superseded by Feature 020)
-- [[Features/Protocol/Feature004_HTTP10_Deadlock_Fix|Feature 004: HTTP/1.0 Deadlock Fix]] — Demand propagation deadlock fix via DequeueSignalStage
-- [[Features/Protocol/Feature017_ConnectionStage_Race|Feature 017: ConnectionStage Race Fix]] — Race condition fixes in connection establishment
-- [[Features/Protocol/Feature020_ContentEncoding_Consolidation|Feature 020: ContentEncoding Consolidation]] — Consolidation into ContentEncodingBidiStage
-
-### Testing
-- [[Features/Testing/Feature005_H10_Flakiness_Mitigation|Feature 005: H10 Flakiness Mitigation]] — Integration test flakiness mitigation for HTTP/1.0 suite
-- [[Features/Testing/Feature006_Connection_Management_Tests|Feature 006: Connection Management Tests]] — HTTP/1.1 connection management integration tests
-- [[Features/Testing/Feature007_Error_Handling_Tests|Feature 007: Error Handling Tests]] — HTTP error handling and resilience integration tests
-- [[Features/Testing/Feature008_TLS_Integration_Tests|Feature 008: TLS Integration Tests]] — TLS/HTTPS integration test suite
-- [[Features/Testing/Feature013_Security_Tests|Feature 013: Security Tests]] — Security-focused integration tests (certificate validation, auth headers)
-- [[Features/Testing/Feature014_Decoder_Fuzzing|Feature 014: Decoder Fuzzing]] — HTTP/1.x response decoder fuzz tests
-- [[Features/Testing/Feature015_H2_HPACK_Fuzzing|Feature 015: H2 HPACK Fuzzing]] — HTTP/2 HPACK header compression fuzz tests
-
-### Diagnostics
-- [[Features/Diagnostics/Feature009_Akka_Logging_Bridge|Feature 009: Akka Logging Bridge]] — Akka.NET → Microsoft.Extensions.Logging bridge
-- [[Features/Diagnostics/Feature010_Tracing_Infrastructure|Feature 010: Tracing Infrastructure]] — Distributed tracing with ActivitySource and W3C trace context
-- [[Features/Diagnostics/Feature011_OTel_Metrics|Feature 011: OTel Metrics]] — OpenTelemetry metrics integration
-- [[Features/Diagnostics/Feature012_Diagnostic_EventSource|Feature 012: Diagnostic EventSource]] — ETW EventSource for high-performance diagnostics
-
-### Infrastructure
-- [[Features/Infrastructure/Feature016_TracingBidi_Consolidation|Feature 016: TracingBidi Consolidation]] — Consolidation of tracing/diagnostics into TracingBidiStage
-- [[Features/Infrastructure/Feature018_Docs_Site_Revision|Feature 018: Docs Site Revision]] — VitePress documentation site revision and content update
-- [[Features/Infrastructure/Feature019_Stream_Survival|Feature 019: Stream Survival]] — Stream error absorption and survival hardening
-- [[Features/Infrastructure/Feature025_Clean_Protocol_Core|Feature 025: Clean Protocol Core]] — Invert protocol-core topology with GroupByRequestKey routing
-
-### Performance
-- [[Features/Performance/Feature024_Benchmark_Comparison|Feature 024: Benchmark Comparison]] — TurboHTTP vs HttpClient performance comparison
-
-## Active Debugging
-
-See [Debugging Notes](./Debugging/) for active investigations.
-
-## Templates
-
-- [[Templates/Session-Log|Session-Log]] — Daily work capture
-- [[Templates/ADR|ADR]] — Architecture Decision Records
-- [[Templates/RFC-Note|RFC-Note]] — RFC compliance gap tracking (distinct from RFC-Index)
-- [[Templates/Bug-Investigation|Bug-Investigation]] — Structured debugging
-
-## Getting Started
-
-- [[VAULT_STYLE_GUIDE|Vault Style Guide]] — Structure, frontmatter, formatting conventions
-- [[OBSIDIAN_CSS_SETUP|Obsidian CSS Setup]] — Visual consistency, theme selection, CSS snippets
-- **Sessions folder**: `notes/Sessions/` — Optional session logs (use Session-Log template)
+RFC 1945 (HTTP/1.0) ──────────── superseded by RFC 9112
+RFC 6265 (Cookies) ───────────── extends HTTP semantics
+```

@@ -1,4 +1,4 @@
----
+﻿---
 title: "13.3.  Retransmission of Information"
 rfc_number: 9000
 rfc_section: "13.3"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 13.3.  Retransmission of Information
-
 
    QUIC packets that are determined to be lost are not retransmitted
    whole.  The same applies to the frames that are contained within lost
@@ -142,4 +141,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

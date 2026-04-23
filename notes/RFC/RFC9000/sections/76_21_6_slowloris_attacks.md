@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.6.  Slowloris Attacks"
 rfc_number: 9000
 rfc_section: "21.6"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.6.  Slowloris Attacks
-
 
    The attacks commonly known as Slowloris [SLOWLORIS] try to keep many
    connections to the target endpoint open and hold them open as long as
@@ -28,4 +27,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

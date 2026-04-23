@@ -1,4 +1,4 @@
----
+﻿---
 title: 5.  User Agent Requirements
 rfc_number: 6265
 rfc_section: "5"
@@ -17,8 +17,6 @@ tags:
 ---
 
 # 5.  User Agent Requirements
-
-
 
    This section specifies the Cookie and Set-Cookie headers in
    sufficient detail that a user agent implementing these requirements
@@ -44,4 +42,3 @@ tags:
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

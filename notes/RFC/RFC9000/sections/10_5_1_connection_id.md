@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.1.  Connection ID"
 rfc_number: 9000
 rfc_section: "5.1"
@@ -8,8 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 5.1.  Connection ID
-
-
 
    A QUIC connection is shared state between a client and a server.
 
@@ -220,4 +218,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

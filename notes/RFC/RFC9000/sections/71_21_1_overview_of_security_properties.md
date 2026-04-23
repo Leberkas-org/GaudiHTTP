@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.1.  Overview of Security Properties"
 rfc_number: 9000
 rfc_section: "21.1"
@@ -8,8 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.1.  Overview of Security Properties
-
-
 
    The goal of QUIC is to provide a secure transport connection.
    Section 21.1 provides an overview of those properties; subsequent
@@ -363,4 +361,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

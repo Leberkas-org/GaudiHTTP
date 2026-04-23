@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 7541
 rfc_section: "preamble"
@@ -9,18 +9,11 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 # Preamble
 
-
-
-
-
-
-
 Internet Engineering Task Force (IETF)                           R. Peon
 Request for Comments: 7541                                   Google, Inc
 Category: Standards Track                                     H. Ruellan
 ISSN: 2070-1721                                                Canon CRF
                                                                 May 2015
-
 
                   HPACK: Header Compression for HTTP/2
 
@@ -57,14 +50,6 @@ Copyright Notice
    include Simplified BSD License text as described in Section 4.e of
    the Trust Legal Provisions and are provided without warranty as
    described in the Simplified BSD License.
-
-
-
-
-
-
-
-
 
 Table of Contents
 
@@ -112,11 +97,6 @@ Table of Contents
    Appendix A. Static Table Definition ...............................25
    Appendix B. Huffman Code ..........................................27
 
-
-
-
-
-
    Appendix C. Examples ..............................................33
      C.1. Integer Representation Examples ............................33
        C.1.1. Example 1: Encoding 10 Using a 5-Bit Prefix ............33
@@ -148,4 +128,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

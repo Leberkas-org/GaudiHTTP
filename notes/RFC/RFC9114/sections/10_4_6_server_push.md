@@ -1,4 +1,4 @@
----
+﻿---
 title: "4.6.  Server Push"
 rfc_number: 9114
 rfc_section: "4.6"
@@ -118,4 +118,3 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 ---
 
-**Navigation:** [[../RFC9114|RFC9114 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

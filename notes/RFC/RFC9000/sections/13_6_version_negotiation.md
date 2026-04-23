@@ -1,4 +1,4 @@
----
+﻿---
 title: "6.  Version Negotiation"
 rfc_number: 9000
 rfc_section: "6"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 6.  Version Negotiation
-
 
    Version negotiation allows a server to indicate that it does not
    support the version the client used.  A server sends a Version
@@ -83,4 +82,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

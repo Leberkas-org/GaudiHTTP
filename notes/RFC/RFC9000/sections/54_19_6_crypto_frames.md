@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.6.  CRYPTO Frames"
 rfc_number: 9000
 rfc_section: "19.6"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.6.  CRYPTO Frames
-
 
    A CRYPTO frame (type=0x06) is used to transmit cryptographic
    handshake messages.  It can be sent in all packet types except 0-RTT.
@@ -56,4 +55,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

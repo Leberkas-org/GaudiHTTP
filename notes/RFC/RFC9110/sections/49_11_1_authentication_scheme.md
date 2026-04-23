@@ -1,4 +1,4 @@
----
+﻿---
 title: "11.1.  Authentication Scheme"
 rfc_number: 9110
 rfc_section: "11.1"
@@ -20,11 +20,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    It uses a case-insensitive token to identify the authentication
    scheme:
 
-
 ```abnf
      auth-scheme    = token
 ```
-
 
    Aside from the general framework, this document does not specify any
    authentication schemes.  New and existing authentication schemes are
@@ -35,4 +33,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

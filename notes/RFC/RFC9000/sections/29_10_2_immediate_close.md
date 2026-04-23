@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.2.  Immediate Close"
 rfc_number: 9000
 rfc_section: "10.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 10.2.  Immediate Close
-
 
    An endpoint sends a CONNECTION_CLOSE frame (Section 19.19) to
    terminate the connection immediately.  A CONNECTION_CLOSE frame
@@ -194,4 +193,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

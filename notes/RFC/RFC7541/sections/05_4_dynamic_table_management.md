@@ -1,4 +1,4 @@
----
+﻿---
 title: "4.  Dynamic Table Management"
 rfc_number: 7541
 rfc_section: "4"
@@ -9,16 +9,8 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 # 4.  Dynamic Table Management
 
-
    To limit the memory requirements on the decoder side, the dynamic
    table is constrained in size.
-
-
-
-
-
-
-
 
 ## 4.1.  Calculating Table Size
 
@@ -66,11 +58,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    dynamic table by setting a maximum size of 0, which can subsequently
    be restored.
 
-
-
-
-
-
 ## 4.3.  Entry Eviction When Dynamic Table Size Changes
 
    Whenever the maximum size for the dynamic table is reduced, entries
@@ -98,4 +85,3 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

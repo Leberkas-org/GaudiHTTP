@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.2.  Authorization"
 rfc_number: 1945
 rfc_section: "10.2"
@@ -18,11 +18,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    containing the authentication information of the user agent for the
    realm of the resource being requested.
 
-
 ```abnf
        Authorization  = "Authorization" ":" credentials
 ```
-
 
    HTTP access authentication is described in Section 11. If a request
    is authenticated and a realm specified, the same credentials should
@@ -33,4 +31,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

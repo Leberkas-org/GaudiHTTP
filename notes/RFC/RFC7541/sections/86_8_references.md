@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.  References"
 rfc_number: 7541
 rfc_section: "8"
@@ -8,7 +8,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 ---
 
 # 8.  References
-
 
 ## 8.1.  Normative References
 
@@ -26,12 +25,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
                Transfer Protocol (HTTP/1.1): Message Syntax and
                Routing", RFC 7230, DOI 10.17487/RFC7230, June 2014,
                <http://www.rfc-editor.org/info/rfc7230>.
-
-
-
-
-
-
 
 ## 8.2.  Informative References
 
@@ -73,4 +66,3 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

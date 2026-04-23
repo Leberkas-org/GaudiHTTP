@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.9.  MAX_DATA Frames"
 rfc_number: 9000
 rfc_section: "19.9"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.9.  MAX_DATA Frames
-
 
    A MAX_DATA frame (type=0x10) is used in flow control to inform the
    peer of the maximum amount of data that can be sent on the connection
@@ -39,4 +38,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

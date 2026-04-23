@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.7.  Use of IPv6 Flow Label and Migration"
 rfc_number: 9000
 rfc_section: "9.7"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 9.7.  Use of IPv6 Flow Label and Migration
-
 
 > **SHOULD**: Endpoints that send data using IPv6 SHOULD apply an IPv6 flow label
    in compliance with [RFC6437], unless the local API does not allow
@@ -28,4 +27,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

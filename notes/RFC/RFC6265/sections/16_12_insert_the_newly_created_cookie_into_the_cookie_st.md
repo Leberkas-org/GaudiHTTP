@@ -1,4 +1,4 @@
----
+﻿---
 title: "12.  Insert the newly created cookie into the cookie store."
 rfc_number: 6265
 rfc_section: "12"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 12.  Insert the newly created cookie into the cookie store.
-
 
    A cookie is "expired" if the cookie has an expiry date in the past.
 
@@ -28,4 +27,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

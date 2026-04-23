@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  Introduction"
 rfc_number: 6265
 rfc_section: "1"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 1.  Introduction
-
 
    This document defines the HTTP Cookie and Set-Cookie header fields.
    Using the Set-Cookie header field, an HTTP server can pass name/value
@@ -35,8 +34,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
    There are two audiences for this specification: developers of cookie-
    generating servers and developers of cookie-consuming user agents.
-
-
 
 > **SHOULD**: To maximize interoperability with user agents, servers SHOULD limit
    themselves to the well-behaved profile defined in Section 4 when
@@ -71,4 +68,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

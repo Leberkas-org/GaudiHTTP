@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.2.  Matching Packets to Connections"
 rfc_number: 9000
 rfc_section: "5.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 5.2.  Matching Packets to Connections
-
 
    Incoming packets are classified on receipt.  Packets can either be
    associated with an existing connection or -- for servers --
@@ -132,4 +131,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

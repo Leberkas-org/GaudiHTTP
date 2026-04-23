@@ -1,4 +1,4 @@
----
+﻿---
 title: "17.4.  Latency Spin Bit"
 rfc_number: 9000
 rfc_section: "17.4"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 17.4.  Latency Spin Bit
-
 
    The latency spin bit, which is defined for 1-RTT packets
    (Section 17.3.1), enables passive latency monitoring from observation
@@ -69,4 +68,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.3.  Expires"
 rfc_number: 9111
 rfc_section: "5.3"
@@ -23,11 +23,9 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
    Section 5.6.7 of [HTTP].  See also Section 4.2 for parsing
    requirements specific to caches.
 
-
 ```abnf
      Expires = HTTP-date
 ```
-
 
    For example
 
@@ -59,4 +57,3 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ---
 
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

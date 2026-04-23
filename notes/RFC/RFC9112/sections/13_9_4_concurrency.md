@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.4.  Concurrency"
 rfc_number: 9112
 rfc_section: "9.4"
@@ -39,4 +39,3 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ---
 
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

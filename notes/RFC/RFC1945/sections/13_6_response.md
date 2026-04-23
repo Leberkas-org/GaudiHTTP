@@ -1,4 +1,4 @@
----
+﻿---
 title: "6.  Response"
 rfc_number: 1945
 rfc_section: "6"
@@ -9,21 +9,14 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 # 6.  Response
 
-
    After receiving and interpreting a request message, a server responds
    in the form of an HTTP response message.
-
 
 ```abnf
        Response        = Simple-Response | Full-Response
 
        Simple-Response = [ Entity-Body ]
 ```
-
-
-
-
-
 
 ```abnf
        Full-Response   = Status-Line             ; Section 6.1
@@ -33,7 +26,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
                          CRLF
                          [ Entity-Body ]         ; Section 7.2
 ```
-
 
    A Simple-Response should only be sent in response to an HTTP/0.9
    Simple-Request or if the server only supports the more limited
@@ -50,11 +42,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    and its associated textual phrase, with each element separated by SP
    characters. No CR or LF is allowed except in the final CRLF sequence.
 
-
 ```abnf
        Status-Line = HTTP-Version SP Status-Code SP Reason-Phrase CRLF
 ```
-
 
    Since a status line always begins with the protocol version and
    status code
@@ -77,11 +67,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    Status-Code is intended for use by automata and the Reason-Phrase is
    intended for the human user. The client is not required to examine or
    display the Reason-Phrase.
-
-
-
-
-
 
    The first digit of the Status-Code defines the class of response. The
    last two digits do not have any categorization role. There are 5
@@ -107,7 +92,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    -- they may be replaced by local equivalents without affecting the
    protocol. These codes are fully defined in Section 9.
 
-
 ```abnf
        Status-Code    = "200"   ; OK
                       | "201"   ; Created
@@ -131,12 +115,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
        Reason-Phrase  = *<TEXT, excluding CR, LF>
 ```
 
-
    HTTP status codes are extensible, but the above codes are the only
    ones generally recognized in current practice. HTTP applications are
    not required to understand the meaning of all registered status
-
-
 
    codes, though such understanding is obviously desirable. However,
    applications must understand the class of any status code, as
@@ -158,13 +139,11 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    Line. These header fields give information about the server and about
    further access to the resource identified by the Request-URI.
 
-
 ```abnf
        Response-Header = Location                ; Section 10.11
                        | Server                  ; Section 10.14
                        | WWW-Authenticate        ; Section 10.16
 ```
-
 
    Response-Header field names can be extended reliably only in
    combination with a change in the protocol version. However, new or
@@ -175,4 +154,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

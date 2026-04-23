@@ -1,4 +1,4 @@
----
+﻿---
 title: "6.  Binary Format"
 rfc_number: 7541
 rfc_section: "6"
@@ -8,7 +8,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 ---
 
 # 6.  Binary Format
-
 
    This section describes the detailed format of each of the different
    header field representations and the dynamic table size update
@@ -28,11 +27,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    +---+---------------------------+
 
                       Figure 5: Indexed Header Field
-
-
-
-
-
 
    An indexed header field starts with the '1' 1-bit pattern, followed
    by the index of the matching header field, represented as an integer
@@ -68,22 +62,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
     Figure 6: Literal Header Field with Incremental Indexing -- Indexed
                                    Name
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -132,9 +110,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    +-------------------------------+
 
       Figure 8: Literal Header Field without Indexing -- Indexed Name
-
-
-
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -185,8 +160,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
        Figure 10: Literal Header Field Never Indexed -- Indexed Name
 
-
-
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
    | 0 | 0 | 0 | 1 |       0       |
@@ -234,10 +207,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    followed by the new maximum size, represented as an integer with a
    5-bit prefix (see Section 5.1).
 
-
-
-
-
 > **MUST**: The new maximum size MUST be lower than or equal to the limit
    determined by the protocol using HPACK.  A value that exceeds this
 > **MUST**: limit MUST be treated as a decoding error.  In HTTP/2, this limit is
@@ -250,4 +219,3 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

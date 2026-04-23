@@ -1,4 +1,4 @@
----
+﻿---
 title: "14.  Datagram Size"
 rfc_number: 9000
 rfc_section: "14"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 14.  Datagram Size
-
 
    A UDP datagram can include one or more QUIC packets.  The datagram
    size refers to the total UDP payload size of a single UDP datagram
@@ -244,4 +243,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

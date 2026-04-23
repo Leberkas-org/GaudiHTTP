@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.3.  Content-Encoding"
 rfc_number: 1945
 rfc_section: "10.3"
@@ -19,11 +19,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    primarily used to allow a document to be compressed without losing
    the identity of its underlying media type.
 
-
 ```abnf
        Content-Encoding = "Content-Encoding" ":" content-coding
 ```
-
 
    Content codings are defined in Section 3.5. An example of its use is
 
@@ -35,4 +33,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

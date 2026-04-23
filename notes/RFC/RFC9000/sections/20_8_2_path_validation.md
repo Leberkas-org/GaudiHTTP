@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.2.  Path Validation"
 rfc_number: 9000
 rfc_section: "8.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 8.2.  Path Validation
-
 
    Path validation is used by both peers during connection migration
    (see Section 9) to verify reachability after a change of address.  In
@@ -182,4 +181,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

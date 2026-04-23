@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.4.  Transport Parameters"
 rfc_number: 9000
 rfc_section: "7.4"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 7.4.  Transport Parameters
-
 
    During connection establishment, both endpoints make authenticated
    declarations of their transport parameters.  Endpoints are required
@@ -167,4 +166,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

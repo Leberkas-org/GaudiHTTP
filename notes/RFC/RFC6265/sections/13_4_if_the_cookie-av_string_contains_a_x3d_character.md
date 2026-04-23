@@ -1,4 +1,4 @@
----
+﻿---
 title: "4.  If the cookie-av string contains a %x3D ("=") character:"
 rfc_number: 6265
 rfc_section: "4"
@@ -8,8 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 4.  If the cookie-av string contains a %x3D ("=") character:
-
-
 
           The (possibly empty) attribute-name string consists of the
           characters up to, but not including, the first %x3D ("=")
@@ -31,4 +29,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

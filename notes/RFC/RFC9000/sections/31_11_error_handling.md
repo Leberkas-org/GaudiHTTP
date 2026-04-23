@@ -1,4 +1,4 @@
----
+﻿---
 title: "11.  Error Handling"
 rfc_number: 9000
 rfc_section: "11"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 11.  Error Handling
-
 
 > **SHOULD**: An endpoint that detects an error SHOULD signal the existence of that
    error to its peer.  Both transport-level and application-level errors
@@ -89,4 +88,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

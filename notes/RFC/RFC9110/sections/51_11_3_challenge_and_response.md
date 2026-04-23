@@ -1,4 +1,4 @@
----
+﻿---
 title: "11.3.  Challenge and Response"
 rfc_number: 9110
 rfc_section: "11.3"
@@ -21,11 +21,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Proxy-Authenticate header field containing at least one challenge
    applicable to the proxy for the requested resource.
 
-
 ```abnf
      challenge   = auth-scheme [ 1*SP ( token68 / #auth-param ) ]
 ```
-
 
       |  *Note:* Many clients fail to parse a challenge that contains an
       |  unknown scheme.  A workaround for this problem is to list well-
@@ -43,4 +41,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

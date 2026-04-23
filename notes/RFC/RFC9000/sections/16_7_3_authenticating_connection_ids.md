@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.3.  Authenticating Connection IDs"
 rfc_number: 9000
 rfc_section: "7.3"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 7.3.  Authenticating Connection IDs
-
 
    The choice each endpoint makes about connection IDs during the
    handshake is authenticated by including all values in transport
@@ -105,4 +104,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

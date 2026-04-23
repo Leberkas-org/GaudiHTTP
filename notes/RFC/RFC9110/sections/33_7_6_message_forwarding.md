@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.6.  Message Forwarding"
 rfc_number: 9110
 rfc_section: "7.6"
@@ -46,12 +46,10 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    The "Connection" header field allows the sender to list desired
    control options for the current connection.
 
-
 ```abnf
      Connection        = #connection-option
      connection-option = token
 ```
-
 
    Connection options are case-insensitive.
 
@@ -118,11 +116,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    can be useful when the client is attempting to trace a request that
    appears to be failing or looping mid-chain.
 
-
 ```abnf
      Max-Forwards = 1*DIGIT
 ```
-
 
    The Max-Forwards value is a decimal integer indicating the remaining
    number of times this request message can be forwarded.
@@ -150,7 +146,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    request loops, and identifying the protocol capabilities of senders
    along the request/response chain.
 
-
 ```abnf
      Via = #( received-protocol RWS received-by [ RWS comment ] )
 
@@ -159,7 +154,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
      received-by       = pseudonym [ ":" port ]
      pseudonym         = token
 ```
-
 
    Each member of the Via field value represents a proxy or gateway that
    has forwarded the message.  Each intermediary appends its own
@@ -226,4 +220,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

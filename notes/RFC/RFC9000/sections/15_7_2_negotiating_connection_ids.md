@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.2.  Negotiating Connection IDs"
 rfc_number: 9000
 rfc_section: "7.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 7.2.  Negotiating Connection IDs
-
 
    A connection ID is used to ensure consistent routing of packets, as
    described in Section 5.1.  The long header contains two connection
@@ -75,4 +74,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

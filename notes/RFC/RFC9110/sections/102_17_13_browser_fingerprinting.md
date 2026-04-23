@@ -1,4 +1,4 @@
----
+﻿---
 title: "17.13.  Browser Fingerprinting"
 rfc_number: 9110
 rfc_section: "17.13"
@@ -61,4 +61,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

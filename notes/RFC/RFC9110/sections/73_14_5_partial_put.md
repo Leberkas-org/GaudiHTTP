@@ -1,4 +1,4 @@
----
+﻿---
 title: "14.5.  Partial PUT"
 rfc_number: 9110
 rfc_section: "14.5"
@@ -35,4 +35,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

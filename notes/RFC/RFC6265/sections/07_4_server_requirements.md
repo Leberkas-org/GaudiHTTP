@@ -1,4 +1,4 @@
----
+﻿---
 title: "4.  Server Requirements"
 rfc_number: 6265
 rfc_section: "4"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 4.  Server Requirements
-
 
    This section describes the syntax and semantics of a well-behaved
    profile of the Cookie and Set-Cookie headers.
@@ -25,17 +24,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    a name-value-pair, followed by zero or more attribute-value pairs.
 > **SHOULD NOT**: Servers SHOULD NOT send Set-Cookie headers that fail to conform to
    the following grammar:
-
-
-
-
-
-
-
-
-
-
-
 
  set-cookie-header = "Set-Cookie:" SP set-cookie-string
  set-cookie-string = cookie-pair *( ";" SP cookie-av )
@@ -85,9 +73,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    same set-cookie-string.  (See Section 5.3 for how user agents handle
    this case.)
 
-
-
-
 > **SHOULD NOT**: Servers SHOULD NOT include more than one Set-Cookie header field in
    the same response with the same cookie-name.  (See Section 5.2 for
    how user agents handle this case.)
@@ -129,15 +114,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    subdomains), and it expires at the end of the current session (as
    defined by the user agent).  User agents ignore unrecognized cookie
    attributes (but not the entire cookie).
-
-
-
-
-
-
-
-
-
 
 ### 4.1.2.1.  The Expires Attribute
 
@@ -183,13 +159,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
       Cookie header without a Domain attribute, these user agents will
       erroneously send the cookie to www.example.com as well.
 
-
-
-
-
-
-
-
    The user agent will reject cookies unless the Domain attribute
    specifies a scope for the cookie that would include the origin
    server.  For example, the user agent will accept a cookie with a
@@ -233,14 +202,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    cookies from an insecure channel, disrupting their integrity (see
    Section 8.6 for more details).
 
-
-
-
-
-
-
-
-
 ### 4.1.2.6.  The HttpOnly Attribute
 
    The HttpOnly attribute limits the scope of the cookie to HTTP
@@ -262,12 +223,10 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    Section 5), the user agent will send a Cookie header that conforms to
    the following grammar:
 
-
 ```abnf
    cookie-header = "Cookie:" OWS cookie-string OWS
    cookie-string = cookie-pair *( ";" SP cookie-pair )
 ```
-
 
 ### 4.2.2.  Semantics
 
@@ -294,4 +253,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

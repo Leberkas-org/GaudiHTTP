@@ -1,4 +1,4 @@
----
+﻿---
 title: "12.  Security Considerations"
 rfc_number: 1945
 rfc_section: "12"
@@ -8,7 +8,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 ---
 
 # 12.  Security Considerations
-
 
    This section is meant to inform application developers, information
    providers, and users of the security limitations in HTTP/1.0 as
@@ -39,10 +38,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    allows user agents to represent other methods, such as POST, in a
    special way, so that the user is made aware of the fact that a
    possibly unsafe action is being requested.
-
-
-
-
 
    Naturally, it is not possible to ensure that the server does not
    generate side-effects as a result of performing a GET request; in
@@ -93,8 +88,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    be provided for the user to enable or disable the sending of From and
    Referer information.
 
-
-
 ## 12.5  Attacks Based On File and Path Names
 
    Implementations of HTTP origin servers should be careful to restrict
@@ -116,4 +109,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix A.  Collected ABNF"
 rfc_number: 9111
 rfc_section: "Appendix A"
@@ -13,7 +13,6 @@ Appendix A.  Collected ABNF
 
    In the collected ABNF below, list rules are expanded per
    Section 5.6.1 of [HTTP].
-
 
 ```abnf
    Age = delta-seconds
@@ -39,4 +38,3 @@ Appendix A.  Collected ABNF
 
 ---
 
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

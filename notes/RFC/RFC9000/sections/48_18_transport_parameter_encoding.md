@@ -1,4 +1,4 @@
----
+﻿---
 title: "18.  Transport Parameter Encoding"
 rfc_number: 9000
 rfc_section: "18"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 18.  Transport Parameter Encoding
-
 
    The extension_data field of the quic_transport_parameters extension
    defined in [QUIC-TLS] contains the QUIC transport parameters.  They
@@ -252,4 +251,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

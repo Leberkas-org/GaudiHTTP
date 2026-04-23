@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.15.  User-Agent"
 rfc_number: 1945
 rfc_section: "10.15"
@@ -22,11 +22,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    convention, the product tokens are listed in order of their
    significance for identifying the application.
 
-
 ```abnf
        User-Agent     = "User-Agent" ":" 1*( product | comment )
 ```
-
 
    Example:
 
@@ -42,4 +40,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

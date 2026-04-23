@@ -1,4 +1,4 @@
----
+﻿---
 title: "2.  Change the status of [RFC2965] to Historic."
 rfc_number: 6265
 rfc_section: "2"
@@ -9,7 +9,5 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 # 2.  Change the status of [RFC2965] to Historic.
 
-
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

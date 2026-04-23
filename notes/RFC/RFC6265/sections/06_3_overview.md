@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.  Overview"
 rfc_number: 6265
 rfc_section: "3"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 3.  Overview
-
 
    This section outlines a way for an origin server to send state
    information to a user agent and for the user agent to return the
@@ -44,14 +43,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    the server can send the user agent a "session identifier" named SID
    with the value 31d4d96e407aad42.  The user agent then returns the
    session identifier in subsequent requests.
-
-
-
-
-
-
-
-
 
    == Server -> User Agent ==
 
@@ -98,12 +89,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    the expiration date if the user agent's cookie store exceeds its
    quota or if the user manually deletes the server's cookie.
 
-
-
-
-
-
-
    == Server -> User Agent ==
 
    Set-Cookie: lang=en-US; Expires=Wed, 09 Jun 2021 10:18:14 GMT
@@ -128,4 +113,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

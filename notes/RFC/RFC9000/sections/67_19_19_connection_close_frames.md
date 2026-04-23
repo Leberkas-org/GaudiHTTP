@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.19.  CONNECTION_CLOSE Frames"
 rfc_number: 9000
 rfc_section: "19.19"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.19.  CONNECTION_CLOSE Frames
-
 
    An endpoint sends a CONNECTION_CLOSE frame (type=0x1c or 0x1d) to
    notify its peer that the connection is being closed.  The
@@ -66,4 +65,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

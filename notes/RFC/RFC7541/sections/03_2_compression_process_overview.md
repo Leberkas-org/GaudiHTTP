@@ -1,4 +1,4 @@
----
+﻿---
 title: "2.  Compression Process Overview"
 rfc_number: 7541
 rfc_section: "2"
@@ -8,7 +8,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 ---
 
 # 2.  Compression Process Overview
-
 
    This specification does not describe a specific algorithm for an
    encoder.  Instead, it defines precisely how a decoder is expected to
@@ -57,8 +56,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    table is at the lowest index, and the oldest entry of a dynamic table
    is at the highest index.
 
-
-
    The dynamic table is initially empty.  Entries are added as each
    header block is decompressed.
 
@@ -103,13 +100,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
                        Figure 1: Index Address Space
 
-
-
-
-
-
-
-
 ## 2.4.  Header Field Representation
 
    An encoded header field can be represented either as an index or as a
@@ -150,4 +140,3 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

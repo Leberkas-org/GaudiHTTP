@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.3.  Method Definitions"
 rfc_number: 9110
 rfc_section: "9.3"
@@ -498,26 +498,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MUST NOT**: A client MUST NOT send content in a TRACE request.
 
    Responses to the TRACE method are not cacheable.
-
----
-
-## TurboHTTP Compliance
-
-**Status**: ⚠️ Partial
-
-### Implementation Notes
-- **`HttpRequestBuilder.cs`** — Supports all standard methods: GET, HEAD, POST, PUT, DELETE, CONNECT, OPTIONS, TRACE
-- **`RedirectStage.cs`** — Implements redirect method semantics: POST→GET for 301/302/303, method-preserving for 307/308
-- **`ConnectHandler.cs`** — CONNECT tunnel establishment through proxies per §9.3.6
-- **`HttpMethodProperties.cs`** — Safe/idempotent/cacheable method property lookup per §9.2
-
-### Test References
-- `TurboHTTP.Tests/RFC9110/46_MethodDefinitionTests.cs` — Method encoding, redirect method changes, safe/idempotent classification
-
-### Known Gaps
-- ⚠️ TRACE — Not actively tested; client sends TRACE but response body parsing as message/http not implemented
-- ⚠️ OPTIONS * — Server-wide OPTIONS with asterisk request-target not explicitly supported
-
----
-
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

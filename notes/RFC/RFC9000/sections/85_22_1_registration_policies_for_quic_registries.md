@@ -1,4 +1,4 @@
----
+﻿---
 title: "22.1.  Registration Policies for QUIC Registries"
 rfc_number: 9000
 rfc_section: "22.1"
@@ -8,8 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 22.1.  Registration Policies for QUIC Registries
-
-
 
    This document establishes several registries for the management of
    codepoints in QUIC.  These registries operate on a common set of
@@ -145,4 +143,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

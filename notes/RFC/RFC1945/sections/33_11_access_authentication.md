@@ -1,4 +1,4 @@
----
+﻿---
 title: "11.  Access Authentication"
 rfc_number: 1945
 rfc_section: "11"
@@ -9,7 +9,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 # 11.  Access Authentication
 
-
    HTTP provides a simple challenge-response authentication mechanism
    which may be used by a server to challenge a client request and by a
    client to provide authentication information. It uses an extensible,
@@ -18,19 +17,16 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    carry the parameters necessary for achieving authentication via that
    scheme.
 
-
 ```abnf
        auth-scheme    = token
 
        auth-param     = token "=" quoted-string
 ```
 
-
    The 401 (unauthorized) response message is used by an origin server
    to challenge the authorization of a user agent. This response must
    include a WWW-Authenticate header field containing at least one
    challenge applicable to the requested resource.
-
 
 ```abnf
        challenge      = auth-scheme 1*SP realm *( "," auth-param )
@@ -38,7 +34,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
        realm          = "realm" "=" realm-value
        realm-value    = quoted-string
 ```
-
 
    The realm attribute (case-insensitive) is required for all
    authentication schemes which issue a challenge. The realm value
@@ -57,19 +52,15 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    authentication information of the user agent for the realm of the
    resource being requested.
 
-
 ```abnf
        credentials    = basic-credentials
                       | ( auth-scheme #auth-param )
 ```
 
-
    The domain over which credentials can be automatically applied by a
    user agent is determined by the protection space. If a prior request
    has been authorized, the same credentials may be reused for all other
    requests within that protection space for a period of time determined
-
-
 
    by the authentication scheme, parameters, and/or user preference.
    Unless otherwise defined by the authentication scheme, a single
@@ -114,7 +105,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    separated by a single colon (":") character, within a base64 [5]
    encoded string in the credentials.
 
-
 ```abnf
        basic-credentials = "Basic" SP basic-cookie
 
@@ -122,15 +112,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
                             except not limited to 76 char/line>
 ```
 
-
-
-
-
-
 ```abnf
        userid-password   = [ token ] ":" *TEXT
 ```
-
 
    If the user agent wishes to send the user-ID "Aladdin" and password
    "open sesame", it would use the following header field:
@@ -147,4 +131,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

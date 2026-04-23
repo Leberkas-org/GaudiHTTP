@@ -1,4 +1,4 @@
----
+﻿---
 title: 4.2.  Freshness
 rfc_number: 9111
 rfc_section: '4.2'
@@ -237,29 +237,3 @@ tags:
    (e.g., by the max-stale request directive in Section 5.2.1, extension
    directives such as those defined in [RFC5861], or configuration in
    accordance with an out-of-band contract).
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ❌ Missing
-
-**Implementation Notes:**
-TurboHTTP does not perform freshness calculations. No age computation, freshness lifetime evaluation, or stale response serving logic exists. The client does not interpret `max-age`, `s-maxage`, `Expires`, or heuristic freshness rules.
-
-**Key Gaps:**
-- No age calculation algorithm (§4.2.3)
-- No freshness lifetime computation from `max-age` or `Expires`
-- No heuristic freshness estimation
-- No stale response serving with `stale-while-revalidate` or `stale-if-error`
-- No `min-fresh` or `max-stale` request directive handling
-- No `Age` header generation
-
-**Affected Components:** None
-
-**Test References:** None
-
----
-
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

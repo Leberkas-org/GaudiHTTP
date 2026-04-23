@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.16.  RETIRE_CONNECTION_ID Frames"
 rfc_number: 9000
 rfc_section: "19.16"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.16.  RETIRE_CONNECTION_ID Frames
-
 
    An endpoint sends a RETIRE_CONNECTION_ID frame (type=0x19) to
    indicate that it will no longer use a connection ID that was issued
@@ -51,4 +50,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

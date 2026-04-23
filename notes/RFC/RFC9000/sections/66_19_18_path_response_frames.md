@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.18.  PATH_RESPONSE Frames"
 rfc_number: 9000
 rfc_section: "19.18"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.18.  PATH_RESPONSE Frames
-
 
    A PATH_RESPONSE frame (type=0x1b) is sent in response to a
    PATH_CHALLENGE frame.
@@ -30,4 +29,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

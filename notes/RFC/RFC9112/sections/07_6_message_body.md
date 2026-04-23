@@ -1,4 +1,4 @@
----
+﻿---
 title: 6.  Message Body
 rfc_number: 9112
 rfc_section: '6'
@@ -288,36 +288,3 @@ tags:
 > **MUST NOT**: client MUST NOT process, cache, or forward such extra data as a
    separate response, since such behavior would be vulnerable to cache
    poisoning.
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ✅ Compliant
-
-**Implementation Notes:**
-TurboHTTP implements the full message body length determination algorithm from §6.3. The decoder supports Transfer-Encoding (chunked), Content-Length, and connection-close body framing. Transfer-Encoding takes precedence over Content-Length when both are present. The client generates Content-Length for known-size bodies and chunked encoding for streaming bodies.
-
-**Key Components:**
-- `Http11ResponseDecoder` — body length determination, chunked decoding, Content-Length framing
-- `Http11RequestEncoder` — Content-Length and Transfer-Encoding generation
-- `ChunkedDecodingStage` — Akka.Streams stage for chunked transfer decoding
-
-**Compliance Details:**
-- ✅ Transfer-Encoding overrides Content-Length (§6.3 rule 3)
-- ✅ Chunked transfer coding decoding (§6.3 rule 4)
-- ✅ Content-Length body framing (§6.3 rule 6)
-- ✅ Connection-close body termination (§6.3 rule 8)
-- ✅ HEAD/1xx/204/304 responses have no body (§6.3 rule 1)
-- ✅ Invalid Content-Length detection
-- ✅ Client sends Content-Length or chunked for request bodies
-
-**Gaps:**
-- CONNECT tunnel response handling (§6.3 rule 2) — CONNECT not supported
-
-**Test References:** `TurboHTTP.Tests.RFC9112`
-
----
-
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

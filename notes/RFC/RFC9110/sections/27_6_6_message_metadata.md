@@ -1,4 +1,4 @@
----
+﻿---
 title: "6.6.  Message Metadata"
 rfc_number: 9110
 rfc_section: "6.6"
@@ -22,11 +22,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Date Field (orig-date) defined in Section 3.6.1 of [RFC5322].  The
    field value is an HTTP-date, as defined in Section 5.6.7.
 
-
 ```abnf
      Date = HTTP-date
 ```
-
 
    An example is
 
@@ -71,11 +69,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    This allows a recipient to prepare for receipt of the indicated
    metadata before it starts processing the content.
 
-
 ```abnf
      Trailer = #field-name
 ```
-
 
    For example, a sender might indicate that a signature will be
    computed as the content is being streamed and provide the final
@@ -94,4 +90,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.1.  Field Names"
 rfc_number: 9110
 rfc_section: "5.1"
@@ -23,11 +23,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    is defined in Section 6.6.1 as containing the origination timestamp
    for the message in which it appears.
 
-
 ```abnf
      field-name     = token
 ```
-
 
    Field names are case-insensitive and ought to be registered within
    the "Hypertext Transfer Protocol (HTTP) Field Name Registry"; see
@@ -55,4 +53,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "12.5.  Content Negotiation Fields"
 rfc_number: 9110
 rfc_section: "12.5"
@@ -23,7 +23,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    about which content types are preferred in the content of a
    subsequent request to the same resource.
 
-
 ```abnf
      Accept = #( media-range [ weight ] )
 
@@ -32,7 +31,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
                         / ( type "/" subtype )
                       ) parameters
 ```
-
 
    The asterisk "*" character is used to group media types into ranges,
    with "*/*" indicating all media types and "type/*" indicating all
@@ -132,11 +130,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    capability to an origin server that is capable of representing
    information in those charsets.
 
-
 ```abnf
      Accept-Charset = #( ( token / "*" ) [ weight ] )
 ```
-
 
 > **MAY**: Charset names are defined in Section 8.3.2.  A user agent MAY
    associate a quality value with each charset to indicate the user's
@@ -170,12 +166,10 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    An "identity" token is used as a synonym for "no encoding" in order
    to communicate when no encoding is preferred.
 
-
 ```abnf
      Accept-Encoding  = #( codings [ weight ] )
      codings          = content-coding / "identity" / "*"
 ```
-
 
 > **MAY**: Each codings value MAY be given an associated quality value (weight)
    representing the preference for that encoding, as defined in
@@ -255,7 +249,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    indicate the set of natural languages that are preferred in the
    response.  Language tags are defined in Section 8.5.1.
 
-
 ```abnf
      Accept-Language = #( language-range [ weight ] )
 ```
@@ -313,11 +306,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    influenced the origin server's process for selecting the content of
    this response.
 
-
 ```abnf
      Vary = #( "*" / field-name )
 ```
-
 
    A Vary field value is either the wildcard member "*" or a list of
    request field names, known as the selecting header fields, that might
@@ -379,4 +370,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "13.  Conditional Requests"
 rfc_number: 9110
 rfc_section: "13"
@@ -73,11 +73,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    client intends this precondition to prevent the method from being
    applied if there have been any changes to the representation data.
 
-
 ```abnf
      If-Match = "*" / #entity-tag
 ```
-
 
    Examples:
 
@@ -109,4 +107,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

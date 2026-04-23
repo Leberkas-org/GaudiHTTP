@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.  Entity"
 rfc_number: 1945
 rfc_section: "7"
@@ -9,31 +9,17 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 # 7.  Entity
 
-
    Full-Request and Full-Response messages may transfer an entity within
    some requests and responses. An entity consists of Entity-Header
    fields and (usually) an Entity-Body. In this section, both sender and
    recipient refer to either the client or the server, depending on who
    sends and who receives the entity.
 
-
-
-
-
-
-
-
-
-
-
-
-
 ## 7.1  Entity Header Fields
 
    Entity-Header fields define optional metainformation about the
    Entity-Body or, if no body is present, about the resource identified
    by the request.
-
 
 ```abnf
        Entity-Header  = Allow                    ; Section 10.1
@@ -47,7 +33,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
        extension-header = HTTP-header
 ```
 
-
    The extension-header mechanism allows additional Entity-Header fields
    to be defined without changing the protocol, but these fields cannot
    be assumed to be recognizable by the recipient. Unrecognized header
@@ -58,11 +43,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    The entity body (if any) sent with an HTTP request or response is in
    a format and encoding defined by the Entity-Header fields.
 
-
 ```abnf
        Entity-Body    = *OCTET
 ```
-
 
    An entity body is included with a request message only when the
    request method calls for one. The presence of an entity body in a
@@ -84,8 +67,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    When an Entity-Body is included with a message, the data type of that
    body is determined via the header fields Content-Type and Content-
    Encoding. These define a two-layer, ordered encoding model:
-
-
 
        entity-body := Content-Encoding( Content-Type( data ) )
 
@@ -131,4 +112,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

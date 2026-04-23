@@ -1,4 +1,4 @@
----
+﻿---
 title: "6.  Relationship to Applications and Other Caches"
 rfc_number: 9111
 rfc_section: "6"
@@ -45,4 +45,3 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ---
 
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

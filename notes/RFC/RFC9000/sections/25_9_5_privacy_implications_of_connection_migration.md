@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.5.  Privacy Implications of Connection Migration"
 rfc_number: 9000
 rfc_section: "9.5"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 9.5.  Privacy Implications of Connection Migration
-
 
    Using a stable connection ID on multiple network paths would allow a
    passive observer to correlate activity between those paths.  An
@@ -82,4 +81,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

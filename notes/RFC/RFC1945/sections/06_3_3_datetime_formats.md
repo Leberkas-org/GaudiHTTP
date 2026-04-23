@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.3.  Date/Time Formats"
 rfc_number: 1945
 rfc_section: "3.3"
@@ -18,8 +18,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
        Sunday, 06-Nov-94 08:49:37 GMT   ; RFC 850, obsoleted by RFC 1036
        Sun Nov  6 08:49:37 1994         ; ANSI C's asctime() format
 
-
-
    The first format is preferred as an Internet standard and represents
    a fixed-length subset of that defined by RFC 1123 [6] (an update to
    RFC 822 [7]). The second format is in common use, but is based on the
@@ -38,7 +36,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    This is indicated in the first two formats by the inclusion of "GMT"
    as the three-letter abbreviation for time zone, and should be assumed
    when reading the asctime format.
-
 
 ```abnf
        HTTP-date      = rfc1123-date | rfc850-date | asctime-date
@@ -68,15 +65,11 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
                       | "Sep" | "Oct" | "Nov" | "Dec"
 ```
 
-
        Note: HTTP requirements for the date/time stamp format apply
        only to their usage within the protocol stream. Clients and
        servers are not required to use these formats for user
-
-
 
        presentation, request logging, etc.
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.11.  MAX_STREAMS Frames"
 rfc_number: 9000
 rfc_section: "19.11"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.11.  MAX_STREAMS Frames
-
 
    A MAX_STREAMS frame (type=0x12 or 0x13) informs the peer of the
    cumulative number of streams of a given type it is permitted to open.
@@ -54,4 +53,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.  Reference Tables"
 rfc_number: 9204
 rfc_section: "3"
@@ -143,12 +143,10 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
          |                             V
    Insertion Point               Dropping Point
 
-
 ```abnf
    n = count of entries inserted
    d = count of entries dropped
 ```
-
 
          Figure 2: Example Dynamic Table Indexing - Encoder Stream
 
@@ -169,7 +167,6 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
        +-----+-----+  -  +-----+   -   +
                    |  0  | ... | n-d-3 |  Relative Index
                    +-----+-----+-------+
-
 
 ```abnf
    n = count of entries inserted
@@ -201,7 +198,6 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
        |  1  |  0  |                    Post-Base Index
        +-----+-----+
 
-
 ```abnf
    n = count of entries inserted
    d = count of entries dropped
@@ -214,4 +210,3 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC9204|RFC9204 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "12.4.  Content Negotiation Field Features"
 rfc_number: 9110
 rfc_section: "12.4"
@@ -45,13 +45,11 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    value of 0 means "not acceptable".  If no "q" parameter is present,
    the default weight is 1.
 
-
 ```abnf
      weight = OWS ";" OWS "q=" qvalue
      qvalue = ( "0" [ "." 0*3DIGIT ] )
             / ( "1" [ "." 0*3("0") ] )
 ```
-
 
 > **MUST NOT**: A sender of qvalue MUST NOT generate more than three digits after the
    decimal point.  User configuration of these values ought to be
@@ -76,4 +74,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  Introduction"
 rfc_number: 1945
 rfc_section: "1"
@@ -8,7 +8,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 ---
 
 # 1.  Introduction
-
 
 ## 1.1  Purpose
 
@@ -55,9 +54,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
        The basic unit of HTTP communication, consisting of a structured
        sequence of octets matching the syntax defined in Section 4 and
        transmitted via the connection.
-
-
-
 
    request
 
@@ -108,8 +104,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
        possible translation, on to other servers. A proxy must
        interpret and, if necessary, rewrite a request message before
 
-
-
        forwarding it. Proxies are often used as client-side portals
        through network firewalls and as helper applications for
        handling requests via protocols not implemented by the user
@@ -158,8 +152,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    server in the form of a request method, URI, and protocol version,
    followed by a MIME-like message containing request modifiers, client
    information, and possible body content. The server responds with a
-
-
 
    status line, including the message's protocol version and a success
    or error code, followed by a MIME-like message containing server
@@ -210,8 +202,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    participants along the chain has a cached response applicable to that
    request. The following illustrates the resulting chain if B has a
 
-
-
    cached copy of an earlier response from O (via C) for a request which
    has not been cached by UA or A.
 
@@ -252,4 +242,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

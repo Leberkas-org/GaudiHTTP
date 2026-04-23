@@ -1,4 +1,4 @@
----
+﻿---
 title: "4.1.  URI References"
 rfc_number: 9110
 rfc_section: "4.1"
@@ -29,7 +29,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    rule is defined for protocol elements that can contain a relative URI
    but not a fragment component.
 
-
 ```abnf
      URI-reference = <URI-reference, see [URI], Section 4.1>
      absolute-URI  = <absolute-URI, see [URI], Section 4.3>
@@ -44,7 +43,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
      absolute-path = 1*( "/" segment )
      partial-URI   = relative-part [ "?" query ]
 ```
-
 
    Each protocol element in HTTP that allows a URI reference will
    indicate in its ABNF production whether the element allows any form
@@ -61,4 +59,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

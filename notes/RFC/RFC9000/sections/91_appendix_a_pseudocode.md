@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix A.  Pseudocode"
 rfc_number: 9000
 rfc_section: "Appendix A"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # Appendix A.  Pseudocode
-
 
    The pseudocode in this section describes sample algorithms.  These
    algorithms are intended to be correct and clear, rather than being
@@ -33,7 +32,6 @@ A.1.  Sample Variable-Length Integer Decoding
      prefix = v >> 6
      length = 1 << prefix
 ```
-
 
      // Once the length is known, remove these bits and read any
      // remaining bytes.
@@ -233,4 +231,3 @@ Contributors
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.15.  NEW_CONNECTION_ID Frames"
 rfc_number: 9000
 rfc_section: "19.15"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.15.  NEW_CONNECTION_ID Frames
-
 
    An endpoint sends a NEW_CONNECTION_ID frame (type=0x18) to provide
    its peer with alternative connection IDs that can be used to break
@@ -90,4 +89,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

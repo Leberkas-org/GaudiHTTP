@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix A.  Static Table Definition"
 rfc_number: 7541
 rfc_section: "Appendix A"
@@ -8,7 +8,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 ---
 
 # Appendix A.  Static Table Definition
-
 
    The static table (see Section 2.3.1) consists in a predefined and
    unchangeable list of header fields.
@@ -57,8 +56,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
           | 29    | content-location            |               |
           | 30    | content-range               |               |
 
-
-
           | 31    | content-type                |               |
           | 32    | cookie                      |               |
           | 33    | date                        |               |
@@ -96,4 +93,3 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

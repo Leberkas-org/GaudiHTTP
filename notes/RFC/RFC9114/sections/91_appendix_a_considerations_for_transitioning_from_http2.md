@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix A.  Considerations for Transitioning from HTTP/2"
 rfc_number: 9114
 rfc_section: "Appendix A"
@@ -371,4 +371,3 @@ Acknowledgments
 
 ---
 
-**Navigation:** [[../RFC9114|RFC9114 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

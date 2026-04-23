@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.8.  STREAM Frames"
 rfc_number: 9000
 rfc_section: "19.8"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.8.  STREAM Frames
-
 
    STREAM frames implicitly create a stream and carry stream data.  The
    Type field in the STREAM frame takes the form 0b00001XXX (or the set
@@ -77,4 +76,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

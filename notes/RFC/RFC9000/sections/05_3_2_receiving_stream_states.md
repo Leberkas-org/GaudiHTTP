@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.2.  Receiving Stream States"
 rfc_number: 9000
 rfc_section: "3.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 3.2.  Receiving Stream States
-
 
    Figure 3 shows the states for the part of a stream that receives data
    from a peer.  The states for a receiving part of a stream mirror only
@@ -126,4 +125,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

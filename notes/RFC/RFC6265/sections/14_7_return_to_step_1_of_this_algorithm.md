@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.  Return to Step 1 of this algorithm."
 rfc_number: 6265
 rfc_section: "7"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 7.  Return to Step 1 of this algorithm.
-
 
    When the user agent finishes parsing the set-cookie-string, the user
    agent is said to "receive a cookie" from the request-uri with name
@@ -30,8 +29,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    If the expiry-time is later than the last date the user agent can
 > **MAY**: represent, the user agent MAY replace the expiry-time with the last
    representable date.
-
-
 
    If the expiry-time is earlier than the earliest date the user agent
 > **MAY**: can represent, the user agent MAY replace the expiry-time with the
@@ -82,8 +79,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    Append an attribute to the cookie-attribute-list with an attribute-
    name of Domain and an attribute-value of cookie-domain.
 
-
-
 ### 5.2.4.  The Path Attribute
 
    If the attribute-name case-insensitively matches the string "Path",
@@ -129,11 +124,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
         example, the user agent might wish to block receiving cookies
         from "third-party" responses or the user agent might not wish to
         store cookies that exceed some size.
-
-
-
-
-
 
    2.   Create a new cookie with name cookie-name, value cookie-value.
         Set the creation-time and the last-access-time to the current
@@ -184,8 +174,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
               Let the domain-attribute be the empty string.
 
-
-
            Otherwise:
 
               Ignore the cookie entirely and abort these steps.
@@ -202,4 +190,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

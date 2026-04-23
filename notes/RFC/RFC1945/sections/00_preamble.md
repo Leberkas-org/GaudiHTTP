@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 1945
 rfc_section: "preamble"
@@ -9,12 +9,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 # Preamble
 
-
-
-
-
-
-
 Network Working Group                                     T. Berners-Lee
 Request for Comments: 1945                                       MIT/LCS
 Category: Informational                                      R. Fielding
@@ -22,7 +16,6 @@ Category: Informational                                      R. Fielding
                                                               H. Frystyk
                                                                  MIT/LCS
                                                                 May 1996
-
 
                 Hypertext Transfer Protocol -- HTTP/1.0
 
@@ -63,8 +56,6 @@ Table of Contents
        2.1  Augmented BNF ........................................  8
        2.2  Basic Rules .......................................... 10
    3.  Protocol Parameters ....................................... 12
-
-
 
 ## 3.1  HTTP Version ......................................... 12
        3.2  Uniform Resource Identifiers ......................... 14
@@ -115,8 +106,6 @@ Table of Contents
        10.7  Expires ............................................. 41
        10.8  From ................................................ 42
 
-
-
 ## 10.9  If-Modified-Since ................................... 42
        10.10 Last-Modified ....................................... 43
        10.11 Location ............................................ 44
@@ -164,4 +153,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

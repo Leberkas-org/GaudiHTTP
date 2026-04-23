@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  If the set-cookie-string contains a %x3B (";") character:"
 rfc_number: 6265
 rfc_section: "1"
@@ -8,8 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 1.  If the set-cookie-string contains a %x3B (";") character:
-
-
 
           The name-value-pair string consists of the characters up to,
           but not including, the first %x3B (";"), and the unparsed-
@@ -54,9 +52,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
           Consume the characters of the unparsed-attributes up to, but
           not including, the first %x3B (";") character.
 
-
-
-
        Otherwise:
 
           Consume the remainder of the unparsed-attributes.
@@ -65,4 +60,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

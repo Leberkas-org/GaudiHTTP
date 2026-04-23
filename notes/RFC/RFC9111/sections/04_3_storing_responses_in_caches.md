@@ -1,4 +1,4 @@
----
+﻿---
 title: 3.  Storing Responses in Caches
 rfc_number: 9111
 rfc_section: '3'
@@ -202,27 +202,3 @@ tags:
    In this specification, the following response directives have such an
    effect: must-revalidate (Section 5.2.2.2), public (Section 5.2.2.9),
    and s-maxage (Section 5.2.2.10).
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ❌ Missing
-
-**Implementation Notes:**
-TurboHTTP does not store responses in any cache. No logic exists to evaluate whether a response is cacheable based on request method, status code, or Cache-Control directives. All responses are passed directly to the caller without storage consideration.
-
-**Key Gaps:**
-- No response storage mechanism
-- No evaluation of `no-store`, `private`, or `Authorization` constraints
-- No incomplete response handling for caching purposes
-- No `s-maxage` or shared cache directive processing
-
-**Affected Components:** None
-
-**Test References:** None
-
----
-
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

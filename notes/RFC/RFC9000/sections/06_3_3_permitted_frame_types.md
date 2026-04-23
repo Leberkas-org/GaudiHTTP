@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.3.  Permitted Frame Types"
 rfc_number: 9000
 rfc_section: "3.3"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 3.3.  Permitted Frame Types
-
 
    The sender of a stream sends just three frame types that affect the
    state of a stream at either the sender or the receiver: STREAM
@@ -36,4 +35,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

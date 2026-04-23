@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.1.  Address Validation during Connection Establishment"
 rfc_number: 9000
 rfc_section: "8.1"
@@ -8,8 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 8.1.  Address Validation during Connection Establishment
-
-
 
    Address validation ensures that an endpoint cannot be used for a
    traffic amplification attack.  In such an attack, a packet is sent to
@@ -300,4 +298,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.5.  Solicited State Transitions"
 rfc_number: 9000
 rfc_section: "3.5"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 3.5.  Solicited State Transitions
-
 
    If an application is no longer interested in the data it is receiving
    on a stream, it can abort reading the stream and specify an
@@ -57,4 +56,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

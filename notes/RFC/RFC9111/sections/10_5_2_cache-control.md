@@ -1,4 +1,4 @@
----
+﻿---
 title: 5.2.  Cache-Control
 rfc_number: 9111
 rfc_section: '5.2'
@@ -410,31 +410,3 @@ tags:
 
    Values to be added to this namespace require IETF Review (see
    [RFC8126], Section 4.8).
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ❌ Missing
-
-**Implementation Notes:**
-TurboHTTP does not parse or act on Cache-Control directives. The Cache-Control header is passed through in requests and responses as a standard header but no directive-specific logic exists. The client does not honor `no-cache`, `no-store`, `max-age`, `must-revalidate`, or any other cache directives.
-
-**Key Gaps:**
-- No Cache-Control directive parsing
-- No `no-cache` / `no-store` enforcement
-- No `max-age` / `s-maxage` freshness calculation
-- No `must-revalidate` / `proxy-revalidate` logic
-- No `public` / `private` response classification
-- No `no-transform` enforcement
-- No `only-if-cached` request directive handling
-- No extension directive support
-
-**Affected Components:** None (Cache-Control header passed through as generic header)
-
-**Test References:** None
-
----
-
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

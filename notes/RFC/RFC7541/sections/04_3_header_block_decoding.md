@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.  Header Block Decoding"
 rfc_number: 7541
 rfc_section: "3"
@@ -9,7 +9,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 # 3.  Header Block Decoding
 
-
 ## 3.1.  Header Block Processing
 
    A decoder processes a header block sequentially to reconstruct the
@@ -18,8 +17,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    A header block is the concatenation of header field representations.
    The different possible header field representations are described in
    Section 6.
-
-
 
    Once a header field is decoded and added to the reconstructed header
    list, the header field cannot be removed.  A header field added to
@@ -62,4 +59,3 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

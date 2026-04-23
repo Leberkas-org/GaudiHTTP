@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.3.  Stateless Reset"
 rfc_number: 9000
 rfc_section: "10.3"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 10.3.  Stateless Reset
-
 
    A stateless reset is provided as an option of last resort for an
    endpoint that does not have access to the state of a connection.  A
@@ -261,4 +260,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

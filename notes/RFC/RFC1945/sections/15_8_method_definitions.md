@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.  Method Definitions"
 rfc_number: 1945
 rfc_section: "8"
@@ -9,13 +9,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 # 8.  Method Definitions
 
-
    The set of common methods for HTTP/1.0 is defined below. Although
    this set can be expanded, additional methods cannot be assumed to
    share the same semantics for separately extended clients and servers.
-
-
-
 
 ## 8.1  GET
 
@@ -66,8 +62,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
       o Extending a database through an append operation.
 
-
-
    The actual function performed by the POST method is determined by the
    server and is usually dependent on the Request-URI. The posted entity
    is subordinate to that URI in the same way that a file is subordinate
@@ -98,4 +92,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

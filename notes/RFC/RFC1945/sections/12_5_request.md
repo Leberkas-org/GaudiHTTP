@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.  Request"
 rfc_number: 1945
 rfc_section: "5"
@@ -9,14 +9,11 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 # 5.  Request
 
-
-
    A request message from a client to a server includes, within the
    first line of that message, the method to be applied to the resource,
    the identifier of the resource, and the protocol version in use. For
    backwards compatibility with the more limited HTTP/0.9 protocol,
    there are two valid formats for an HTTP request:
-
 
 ```abnf
        Request        = Simple-Request | Full-Request
@@ -31,7 +28,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
                         [ Entity-Body ]          ; Section 7.2
 ```
 
-
    If an HTTP/1.0 server receives a Simple-Request, it must respond with
    an HTTP/0.9 Simple-Response. An HTTP/1.0 client capable of receiving
    a Full-Response should never generate a Simple-Request.
@@ -43,13 +39,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    elements are separated by SP characters. No CR or LF are allowed
    except in the final CRLF sequence.
 
-
 ```abnf
        Request-Line = Method SP Request-URI SP HTTP-Version CRLF
 ```
-
-
-
 
    Note that the difference between a Simple-Request and the Request-
    Line of a Full-Request is the presence of the HTTP-Version field and
@@ -60,7 +52,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    The Method token indicates the method to be performed on the resource
    identified by the Request-URI. The method is case-sensitive.
 
-
 ```abnf
        Method         = "GET"                    ; Section 8.1
                       | "HEAD"                   ; Section 8.2
@@ -69,7 +60,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
        extension-method = token
 ```
-
 
    The list of methods acceptable by a specific resource can change
    dynamically; the client is notified through the return code of the
@@ -85,11 +75,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    The Request-URI is a Uniform Resource Identifier (Section 3.2) and
    identifies the resource upon which to apply the request.
 
-
 ```abnf
        Request-URI    = absoluteURI | abs_path
 ```
-
 
    The two options for Request-URI are dependent on the nature of the
    request.
@@ -106,9 +94,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    Request-Line would be:
 
        GET http://www.w3.org/pub/WWW/TheProject.html HTTP/1.0
-
-
-
 
    The most common form of Request-URI is that used to identify a
    resource on an origin server or gateway. In this case, only the
@@ -136,7 +121,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    equivalent to the parameters on a programming language method
    (procedure) invocation.
 
-
 ```abnf
        Request-Header = Authorization            ; Section 10.2
                       | From                     ; Section 10.8
@@ -144,7 +128,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
                       | Referer                  ; Section 10.13
                       | User-Agent               ; Section 10.15
 ```
-
 
    Request-Header field names can be extended reliably only in
    combination with a change in the protocol version. However, new or
@@ -155,4 +138,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.16.  WWW-Authenticate"
 rfc_number: 1945
 rfc_section: "10.16"
@@ -16,11 +16,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    least one challenge that indicates the authentication scheme(s) and
    parameters applicable to the Request-URI.
 
-
 ```abnf
        WWW-Authenticate = "WWW-Authenticate" ":" 1#challenge
 ```
-
 
    The HTTP access authentication process is described in Section 11.
    User agents must take special care in parsing the WWW-Authenticate
@@ -31,4 +29,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix A.  Static Table"
 rfc_number: 9204
 rfc_section: "Appendix A"
@@ -240,4 +240,3 @@ Appendix A.  Static Table
 
 ---
 
-**Navigation:** [[../RFC9204|RFC9204 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

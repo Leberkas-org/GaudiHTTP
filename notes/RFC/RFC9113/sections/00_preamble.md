@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 9113
 rfc_section: "preamble"
@@ -9,16 +9,11 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ## Preamble
 
-
-
-
-
 Internet Engineering Task Force (IETF)                   M. Thomson, Ed.
 Request for Comments: 9113                                       Mozilla
 Obsoletes: 7540, 8740                                   C. Benfield, Ed.
 Category: Standards Track                                     Apple Inc.
 ISSN: 2070-1721                                                June 2022
-
 
                                  HTTP/2
 
@@ -166,4 +161,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC9113|RFC9113 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

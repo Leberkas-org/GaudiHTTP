@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix C.  Examples"
 rfc_number: 7541
 rfc_section: "Appendix C"
@@ -8,7 +8,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 ---
 
 # Appendix C.  Examples
-
 
    This appendix contains examples covering integer encoding, header
    field representation, and the encoding of whole lists of header
@@ -40,11 +39,9 @@ C.1.2.  Example 2: Encoding 1337 Using a 5-Bit Prefix
 
          The 5-bit prefix is filled with its max value (31).
 
-
 ```abnf
       I = 1337 - (2^5 - 1) = 1306.
 ```
-
 
          I (1306) is greater than or equal to 128, so the while loop
          body executes:
@@ -56,8 +53,6 @@ C.1.2.  Example 2: Encoding 1337 Using a 5-Bit Prefix
             154 is encoded in 8 bits as: 10011010
 
             I is set to 10 (1306 / 128 == 10)
-
-
 
             I is no longer greater than or equal to 128, so the while
             loop terminates.
@@ -103,12 +98,6 @@ C.2.1.  Literal Header Field with Indexing
 
    400a 6375 7374 6f6d 2d6b 6579 0d63 7573 | @.custom-key.cus
    746f 6d2d 6865 6164 6572                | tom-header
-
-
-
-
-
-
 
    Decoding process:
 
@@ -157,10 +146,6 @@ C.2.2.  Literal Header Field without Indexing
 
    :path: /sample/path
 
-
-
-
-
 C.2.3.  Literal Header Field Never Indexed
 
    The header field representation uses a literal name and a literal
@@ -190,27 +175,6 @@ C.2.3.  Literal Header Field Never Indexed
    Decoded header list:
 
    password: secret
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 C.2.4.  Indexed Header Field
 
@@ -256,13 +220,6 @@ C.3.1.  First Request
    8286 8441 0f77 7777 2e65 7861 6d70 6c65 | ...A.www.example
    2e63 6f6d                               | .com
 
-
-
-
-
-
-
-
    Decoding process:
 
    82                                      | == Indexed - Add ==
@@ -307,12 +264,6 @@ C.3.2.  Second Request
    Hex dump of encoded data:
 
    8286 84be 5808 6e6f 2d63 6163 6865      | ....X.no-cache
-
-
-
-
-
-
 
    Decoding process:
 
@@ -360,11 +311,6 @@ C.3.3.  Third Request
    :authority: www.example.com
    custom-key: custom-value
 
-
-
-
-
-
    Hex dump of encoded data:
 
    8287 85bf 400a 6375 7374 6f6d 2d6b 6579 | ....@.custom-key
@@ -407,14 +353,6 @@ C.3.3.  Third Request
    :path: /index.html
    :authority: www.example.com
    custom-key: custom-value
-
-
-
-
-
-
-
-
 
 C.4.  Request Examples with Huffman Coding
 
@@ -462,11 +400,6 @@ C.4.1.  First Request
    [  1] (s =  57) :authority: www.example.com
          Table size:  57
 
-
-
-
-
-
    Decoded header list:
 
    :method: GET
@@ -513,11 +446,6 @@ C.4.2.  Second Request
                                            | no-cache
                                            | -> cache-control: no-cache
 
-
-
-
-
-
    Dynamic Table (after decoding):
 
    [  1] (s =  53) cache-control: no-cache
@@ -546,28 +474,6 @@ C.4.3.  Third Request
 
    8287 85bf 4088 25a8 49e9 5ba9 7d7f 8925 | ....@.%.I.[.}..%
    a849 e95b b8e8 b4bf                     | .I.[....
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
    Decoding process:
 
@@ -612,13 +518,6 @@ C.4.3.  Third Request
    :path: /index.html
    :authority: www.example.com
    custom-key: custom-value
-
-
-
-
-
-
-
 
 C.5.  Response Examples without Huffman Coding
 
@@ -669,8 +568,6 @@ C.5.1.  First Response
    6e                                      | == Literal indexed ==
                                            |   Indexed name (idx = 46)
 
-
-
                                            |     location
    17                                      |   Literal value (len = 23)
    6874 7470 733a 2f2f 7777 772e 6578 616d | https://www.exam
@@ -720,8 +617,6 @@ C.5.2.  Second Response
                                            | -> :status: 307
    c1                                      | == Indexed - Add ==
 
-
-
                                            |   idx = 65
                                            | -> cache-control: private
    c0                                      | == Indexed - Add ==
@@ -761,17 +656,6 @@ C.5.3.  Third Response
    location: https://www.example.com
    content-encoding: gzip
    set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1
-
-
-
-
-
-
-
-
-
-
-
 
    Hex dump of encoded data:
 
@@ -822,8 +706,6 @@ C.5.3.  Third Response
    206d 6178 2d61 6765 3d33 3630 303b 2076 |  max-age=3600; v
    6572 7369 6f6e 3d31                     | ersion=1
 
-
-
                                            | - evict: location:
                                            |   https://www.example.com
                                            | - evict: :status: 307
@@ -873,8 +755,6 @@ C.6.1.  First Response
    2d1b ff6e 919d 29ad 1718 63c7 8f0b 97c8 | -..n..)...c.....
    e9ae 82ae 43d3                          | ....C.
 
-
-
    Decoding process:
 
    48                                      | == Literal indexed ==
@@ -918,13 +798,6 @@ C.6.1.  First Response
                                            | https://www.example.com
                                            | -> location:
                                            |   https://www.example.com
-
-
-
-
-
-
-
 
    Dynamic Table (after decoding):
 
@@ -975,8 +848,6 @@ C.6.2.  Second Response
    c0                                      | == Indexed - Add ==
                                            |   idx = 64
 
-
-
                                            | -> date: Mon, 21 Oct 2013
                                            |   20:13:21 GMT
    bf                                      | == Indexed - Add ==
@@ -1020,13 +891,6 @@ C.6.3.  Third Response
    77ad 94e7 821d d7f2 e6c7 b335 dfdf cd5b | w..........5...[
    3960 d5af 2708 7f36 72c1 ab27 0fb5 291f | 9`..'..6r..'..).
    9587 3160 65c0 03ed 4ee5 b106 3d50 07   | ..1`e...N...=P.
-
-
-
-
-
-
-
 
    Decoding process:
 
@@ -1077,8 +941,6 @@ C.6.3.  Third Response
                                            | foo=ASDJKHQKBZXOQWEOPIUAXQ
                                            | WEOIU; max-age=3600; versi
 
-
-
                                            | on=1
                                            | - evict: location:
                                            |   https://www.example.com
@@ -1104,32 +966,6 @@ C.6.3.  Third Response
    content-encoding: gzip
    set-cookie: foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 Acknowledgments
 
    This specification includes substantial input from the following
@@ -1142,4 +978,3 @@ Acknowledgments
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

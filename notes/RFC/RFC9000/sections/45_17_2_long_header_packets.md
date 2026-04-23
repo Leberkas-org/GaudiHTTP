@@ -1,4 +1,4 @@
----
+﻿---
 title: "17.2.  Long Header Packets"
 rfc_number: 9000
 rfc_section: "17.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 17.2.  Long Header Packets
-
 
    Long Header Packet {
      Header Form (1) = 1,
@@ -531,4 +530,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

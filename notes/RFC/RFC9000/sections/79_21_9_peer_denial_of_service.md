@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.9.  Peer Denial of Service"
 rfc_number: 9000
 rfc_section: "21.9"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.9.  Peer Denial of Service
-
 
    QUIC and TLS both contain frames or messages that have legitimate
    uses in some contexts, but these frames or messages can be abused to
@@ -31,4 +30,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

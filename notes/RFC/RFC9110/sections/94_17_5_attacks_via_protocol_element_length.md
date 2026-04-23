@@ -1,4 +1,4 @@
----
+﻿---
 title: "17.5.  Attacks via Protocol Element Length"
 rfc_number: 9110
 rfc_section: "17.5"
@@ -36,4 +36,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

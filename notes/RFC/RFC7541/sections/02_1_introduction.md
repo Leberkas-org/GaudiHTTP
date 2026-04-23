@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  Introduction"
 rfc_number: 7541
 rfc_section: "1"
@@ -8,7 +8,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 ---
 
 # 1.  Introduction
-
 
    In HTTP/1.1 (see [RFC7230]), header fields are not compressed.  As
    web pages have grown to require dozens to hundreds of requests, the
@@ -57,8 +56,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    as new entries in the header field tables.  The decoder executes the
    modifications to the header field tables prescribed by the encoder,
 
-
-
    reconstructing the list of header fields in the process.  This
    enables decoders to remain simple and interoperate with a wide
    variety of encoders.
@@ -106,4 +103,3 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

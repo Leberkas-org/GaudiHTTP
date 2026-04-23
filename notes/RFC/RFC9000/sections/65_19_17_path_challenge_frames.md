@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.17.  PATH_CHALLENGE Frames"
 rfc_number: 9000
 rfc_section: "19.17"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.17.  PATH_CHALLENGE Frames
-
 
    Endpoints can use PATH_CHALLENGE frames (type=0x1a) to check
    reachability to the peer and for path validation during connection
@@ -36,4 +35,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

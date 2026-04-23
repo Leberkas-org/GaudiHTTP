@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  Introduction"
 rfc_number: 9112
 rfc_section: "1"
@@ -67,7 +67,6 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
    The rules below are defined in [HTTP]:
 
-
 ```abnf
      BWS           = <BWS, see [HTTP], Section 5.6.3>
      OWS           = <OWS, see [HTTP], Section 5.6.3>
@@ -85,7 +84,6 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
    The rules below are defined in [URI]:
 
-
 ```abnf
      absolute-URI  = <absolute-URI, see [URI], Section 4.3>
      authority     = <authority, see [URI], Section 3.2>
@@ -96,4 +94,3 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ---
 
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

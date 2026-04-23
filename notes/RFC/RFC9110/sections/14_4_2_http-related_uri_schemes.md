@@ -1,4 +1,4 @@
----
+﻿---
 title: "4.2.  HTTP-Related URI Schemes"
 rfc_number: 9110
 rfc_section: "4.2"
@@ -40,11 +40,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    within the hierarchical namespace governed by a potential HTTP origin
    server listening for TCP ([TCP]) connections on a given port.
 
-
 ```abnf
      http-URI = "http" "://" authority path-abempty [ "?" query ]
 ```
-
 
    The origin server for an "http" URI is identified by the authority
    component, which includes a host identifier ([URI], Section 3.2.2)
@@ -73,11 +71,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    confidentiality and integrity protection that is acceptable to both
    client and server.
 
-
 ```abnf
      https-URI = "https" "://" authority path-abempty [ "?" query ]
 ```
-
 
    The origin server for an "https" URI is identified by the authority
    component, which includes a host identifier ([URI], Section 3.2.2)
@@ -188,4 +184,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

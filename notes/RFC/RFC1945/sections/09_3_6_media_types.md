@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.6.  Media Types"
 rfc_number: 1945
 rfc_section: "3.6"
@@ -14,24 +14,20 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    HTTP uses Internet Media Types [13] in the Content-Type header field
    (Section 10.5) in order to provide open and extensible data typing.
 
-
 ```abnf
        media-type     = type "/" subtype *( ";" parameter )
        type           = token
        subtype        = token
 ```
 
-
    Parameters may follow the type/subtype in the form of attribute/value
    pairs.
-
 
 ```abnf
        parameter      = attribute "=" value
        attribute      = token
        value          = token | quoted-string
 ```
-
 
    The type, subtype, and parameter attribute names are case-
    insensitive. Parameter values may or may not be case-sensitive,
@@ -64,9 +60,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    consistently within the Entity-Body. HTTP applications must accept
    CRLF, bare CR, and bare LF as being representative of a line break in
    text media received via HTTP.
-
-
-
 
    In addition, if the text media is represented in a character set that
    does not use octets 13 and 10 for CR and LF respectively, as is the
@@ -112,4 +105,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

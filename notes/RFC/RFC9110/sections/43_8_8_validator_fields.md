@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.8.  Validator Fields"
 rfc_number: 9110
 rfc_section: "8.8"
@@ -134,11 +134,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    selected representation was last modified, as determined at the
    conclusion of handling the request.
 
-
 ```abnf
      Last-Modified = HTTP-date
 ```
-
 
    An example of its use is
 
@@ -233,7 +231,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    or both.  An entity tag consists of an opaque quoted string, possibly
    prefixed by a weakness indicator.
 
-
 ```abnf
      ETag       = entity-tag
 
@@ -243,7 +240,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
      etagc      = %x21 / %x23-7E / obs-text
                 ; VCHAR except double quotes, plus obs-text
 ```
-
 
       |  *Note:* Previously, opaque-tag was defined to be a quoted-
       |  string ([RFC2616], Section 3.11); thus, some recipients might
@@ -383,4 +379,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

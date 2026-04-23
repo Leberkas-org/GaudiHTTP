@@ -1,4 +1,4 @@
----
+﻿---
 title: "12.1.  Protected Packets"
 rfc_number: 9000
 rfc_section: "12.1"
@@ -8,8 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 12.1.  Protected Packets
-
-
 
    QUIC endpoints communicate by exchanging packets.  Packets have
    confidentiality and integrity protection; see Section 12.1.  Packets
@@ -63,4 +61,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

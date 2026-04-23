@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  Introduction"
 rfc_number: 9111
 rfc_section: "1"
@@ -75,7 +75,6 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
    [HTTP] defines the following rules:
 
-
 ```abnf
      HTTP-date     = <HTTP-date, see [HTTP], Section 5.6.7>
      OWS           = <OWS, see [HTTP], Section 5.6.3>
@@ -84,17 +83,14 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
      token         = <token, see [HTTP], Section 5.6.2>
 ```
 
-
 ### 1.2.2  Delta Seconds
 
    The delta-seconds rule specifies a non-negative integer, representing
    time in seconds.
 
-
 ```abnf
      delta-seconds  = 1*DIGIT
 ```
-
 
    A recipient parsing a delta-seconds value and converting it to binary
    form ought to use an arithmetic type of at least 31 bits of non-
@@ -115,4 +111,3 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ---
 
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

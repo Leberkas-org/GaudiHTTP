@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.1.  Overview"
 rfc_number: 9110
 rfc_section: "9.1"
@@ -29,11 +29,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    target resource in much the same way that a remote method invocation
    can be sent to an identified object.
 
-
 ```abnf
      method = token
 ```
-
 
    The method token is case-sensitive because it might be used as a
    gateway to object-based systems with case-sensitive method names.  By
@@ -100,4 +98,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

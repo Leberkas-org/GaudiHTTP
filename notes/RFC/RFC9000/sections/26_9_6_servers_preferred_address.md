@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.6.  Server's Preferred Address"
 rfc_number: 9000
 rfc_section: "9.6"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 9.6.  Server's Preferred Address
-
 
    QUIC allows servers to accept connections on one IP address and
    attempt to transfer these connections to a more preferred address
@@ -112,4 +111,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

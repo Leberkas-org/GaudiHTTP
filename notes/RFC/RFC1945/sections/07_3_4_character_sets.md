@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.4.  Character Sets"
 rfc_number: 1945
 rfc_section: "3.4"
@@ -44,7 +44,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    other names specifically recommended for use within MIME charset
    parameters.
 
-
 ```abnf
      charset = "US-ASCII"
              | "ISO-8859-1" | "ISO-8859-2" | "ISO-8859-3"
@@ -55,12 +54,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
              | token
 ```
 
-
    Although HTTP allows an arbitrary token to be used as a charset
    value, any token that has a predefined value within the IANA
    Character Set registry [15] must represent the character set defined
-
-
 
    by that registry. Applications should limit their use of character
    sets to those defined by the IANA registry.
@@ -72,4 +68,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

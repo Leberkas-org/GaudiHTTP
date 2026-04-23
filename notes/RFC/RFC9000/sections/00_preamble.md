@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 9000
 rfc_section: "preamble"
@@ -9,16 +9,11 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 # Preamble
 
-
-
-
-
 Internet Engineering Task Force (IETF)                   J. Iyengar, Ed.
 Request for Comments: 9000                                        Fastly
 Category: Standards Track                                M. Thomson, Ed.
 ISSN: 2070-1721                                                  Mozilla
                                                                 May 2021
-
 
            QUIC: A UDP-Based Multiplexed and Secure Transport
 
@@ -267,4 +262,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.13.  Referer"
 rfc_number: 1945
 rfc_section: "10.13"
@@ -15,19 +15,15 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    the server's benefit, the address (URI) of the resource from which
    the Request-URI was obtained. This allows a server to generate lists
 
-
-
    of back-links to resources for interest, logging, optimized caching,
    etc. It also allows obsolete or mistyped links to be traced for
    maintenance. The Referer field must not be sent if the Request-URI
    was obtained from a source that does not have its own URI, such as
    input from the user keyboard.
 
-
 ```abnf
        Referer        = "Referer" ":" ( absoluteURI | relativeURI )
 ```
-
 
    Example:
 
@@ -46,4 +42,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

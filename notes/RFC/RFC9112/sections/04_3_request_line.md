@@ -1,4 +1,4 @@
----
+﻿---
 title: 3.  Request Line
 rfc_number: 9112
 rfc_section: '3'
@@ -319,37 +319,3 @@ tags:
    determining whether that target URI identifies a resource for which
    the server is willing and able to send a response, as defined in
    Section 7.4 of [HTTP].
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ✅ Compliant
-
-**Implementation Notes:**
-TurboHTTP's `Http11RequestEncoder` generates compliant request-lines with method, request-target (origin-form), and HTTP-version. The Host header is always included in HTTP/1.1 requests. Request-target is derived from the target URI using origin-form (absolute-path + query).
-
-**Key Components:**
-- `Http11RequestEncoder` — generates `method SP request-target SP HTTP-version CRLF`
-- `HttpRequestEncoder` — prepares request metadata including Host header
-
-**Compliance Details:**
-- ✅ Request-line format: `method SP request-target SP HTTP-version`
-- ✅ Host header always sent in HTTP/1.1 requests
-- ✅ Origin-form used for direct requests (absolute-path + query)
-- ✅ Empty path normalized to "/"
-- ⚠️ Absolute-form (proxy requests) not currently used (TurboHTTP is not a proxy client)
-- ⚠️ Authority-form (CONNECT) not supported
-- ⚠️ Asterisk-form (OPTIONS *) not supported
-
-**Gaps:**
-- No proxy-style absolute-form request-target
-- No CONNECT method support
-- No OPTIONS * (server-wide) support
-
-**Test References:** `TurboHTTP.Tests.RFC9112`
-
----
-
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "4.  The registration MUST name a point of contact."
 rfc_number: 9110
 rfc_section: "4"
@@ -27,4 +27,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

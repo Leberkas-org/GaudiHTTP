@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.4.  Bidirectional Stream States"
 rfc_number: 9000
 rfc_section: "3.4"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 3.4.  Bidirectional Stream States
-
 
    A bidirectional stream is composed of sending and receiving parts.
    Implementations can represent states of the bidirectional stream as
@@ -66,4 +65,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

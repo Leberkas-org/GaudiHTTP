@@ -1,4 +1,4 @@
----
+﻿---
 title: "6.  If the domain-attribute is non-empty:"
 rfc_number: 6265
 rfc_section: "6"
@@ -8,8 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 6.  If the domain-attribute is non-empty:
-
-
 
            If the canonicalized request-host does not domain-match the
            domain-attribute:
@@ -42,10 +40,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
         attribute-name of "HttpOnly", set the cookie's http-only-flag to
         true.  Otherwise, set the cookie's http-only-flag to false.
 
-
-
-
-
    10.  If the cookie was received from a "non-HTTP" API and the
         cookie's http-only-flag is set, abort these steps and ignore the
         cookie entirely.
@@ -69,4 +63,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "17.1.  Packet Number Encoding and Decoding"
 rfc_number: 9000
 rfc_section: "17.1"
@@ -8,8 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 17.1.  Packet Number Encoding and Decoding
-
-
 
    All numeric values are encoded in network byte order (that is, big
    endian), and all field sizes are in bits.  Hexadecimal notation is
@@ -63,4 +61,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

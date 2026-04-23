@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.1.  Stream States"
 rfc_number: 9113
 rfc_section: "5.1"
@@ -341,27 +341,3 @@ tags: [RFC9113, HTTP/2, binary-framing, streams, multiplexing, flow-control, SET
 
 ---
 
-## TurboHTTP Compliance
-
-**Status**: ✅ Compliant
-
-### Implementation Notes
-
-- **`Http2StreamStateMachine.cs`** — Implements the full stream state machine (idle → open → half-closed → closed) per §5.1 Figure 2; validates state transitions and raises `PROTOCOL_ERROR` or `STREAM_CLOSED` for invalid transitions
-- **`Http2StreamManager.cs`** — Manages concurrent stream tracking; enforces `SETTINGS_MAX_CONCURRENT_STREAMS` per §5.1.2; assigns odd-numbered stream IDs for client-initiated streams per §5.1.1
-- **`Http2Connection.cs`** — Coordinates stream lifecycle across the connection; handles RST_STREAM and END_STREAM flag processing for state transitions
-
-### Test References
-
-- `TurboHTTP.Tests/RFC9113/05_Http2StreamStateTests.cs` — Stream state machine transitions, invalid state detection
-- `TurboHTTP.Tests/RFC9113/06_Http2StreamIdTests.cs` — Stream identifier ordering, odd/even validation
-- `TurboHTTP.Tests/RFC9113/07_Http2ConcurrencyTests.cs` — `SETTINGS_MAX_CONCURRENT_STREAMS` enforcement
-
-### Known Gaps
-
-- ⚠️ `SETTINGS_MAX_CONCURRENT_STREAMS` enforcement — tracked but not actively enforced as a hard limit when the server hasn't advertised a value (initial value is unlimited per spec)
-- ❌ Reserved stream states (§5.1 reserved local/remote) — not fully implemented since server push (`PUSH_PROMISE`) is not supported
-
----
-
-**Navigation:** [[../RFC9113|RFC9113 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

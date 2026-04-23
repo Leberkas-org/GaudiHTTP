@@ -1,4 +1,4 @@
----
+﻿---
 title: "4.5.  Field Line Representations"
 rfc_number: 9204
 rfc_section: "4.5"
@@ -57,16 +57,13 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
          EncInsertCount = (ReqInsertCount mod (2 * MaxEntries)) + 1
 ```
 
-
    Here MaxEntries is the maximum number of entries that the dynamic
    table can have.  The smallest entry has empty name and value strings
    and has the size of 32.  Hence, MaxEntries is calculated as:
 
-
 ```abnf
       MaxEntries = floor( MaxTableCapacity / 32 )
 ```
-
 
    MaxTableCapacity is the maximum capacity of the dynamic table as
    specified by the decoder; see Section 3.2.3.
@@ -83,7 +80,6 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
    TotalNumberOfInserts is the total number of inserts into the
    decoder's dynamic table.
 
-
 ```abnf
       FullRange = 2 * MaxEntries
       if EncodedInsertCount == 0:
@@ -94,7 +90,6 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
          MaxValue = TotalNumberOfInserts + MaxEntries
 ```
 
-
          # MaxWrapped is the largest possible value of
          # ReqInsertCount that is 0 mod 2 * MaxEntries
 
@@ -102,7 +97,6 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
          MaxWrapped = floor(MaxValue / FullRange) * FullRange
          ReqInsertCount = MaxWrapped + EncodedInsertCount - 1
 ```
-
 
          # If ReqInsertCount exceeds MaxValue, the Encoder's value
          # must have wrapped one fewer time
@@ -142,7 +136,6 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
       else:
          Base = ReqInsertCount - DeltaBase - 1
 ```
-
 
    A single-pass encoder determines the Base before encoding a field
    section.  If the encoder inserted entries in the dynamic table while
@@ -304,4 +297,3 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC9204|RFC9204 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

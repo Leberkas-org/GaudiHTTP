@@ -1,4 +1,4 @@
----
+﻿---
 title: "12.5.  Frames and Number Spaces"
 rfc_number: 9000
 rfc_section: "12.5"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 12.5.  Frames and Number Spaces
-
 
    Some frames are prohibited in different packet number spaces.  The
    rules here generalize those of TLS, in that frames associated with
@@ -39,4 +38,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

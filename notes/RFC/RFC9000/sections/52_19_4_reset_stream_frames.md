@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.4.  RESET_STREAM Frames"
 rfc_number: 9000
 rfc_section: "19.4"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.4.  RESET_STREAM Frames
-
 
    An endpoint uses a RESET_STREAM frame (type=0x04) to abruptly
    terminate the sending part of a stream.
@@ -47,4 +46,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

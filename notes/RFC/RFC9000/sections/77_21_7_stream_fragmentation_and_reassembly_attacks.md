@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.7.  Stream Fragmentation and Reassembly Attacks"
 rfc_number: 9000
 rfc_section: "21.7"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.7.  Stream Fragmentation and Reassembly Attacks
-
 
    An adversarial sender might intentionally not send portions of the
    stream data, causing the receiver to commit resources for the unsent
@@ -35,4 +34,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

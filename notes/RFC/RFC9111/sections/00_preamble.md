@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 9111
 rfc_section: "preamble"
@@ -9,10 +9,6 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ## Preamble
 
-
-
-
-
 Internet Engineering Task Force (IETF)                  R. Fielding, Ed.
 Request for Comments: 9111                                         Adobe
 STD: 98                                               M. Nottingham, Ed.
@@ -20,7 +16,6 @@ Obsoletes: 7234                                                   Fastly
 Category: Standards Track                                J. Reschke, Ed.
 ISSN: 2070-1721                                               greenbytes
                                                                June 2022
-
 
                               HTTP Caching
 
@@ -150,4 +145,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

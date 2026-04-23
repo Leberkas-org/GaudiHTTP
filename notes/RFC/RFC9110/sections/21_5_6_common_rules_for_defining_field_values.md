@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.6.  Common Rules for Defining Field Values"
 rfc_number: 9110
 rfc_section: "5.6"
@@ -59,12 +59,10 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    For example, given these ABNF productions:
 
-
 ```abnf
      example-list      = 1#example-list-elmt
      example-list-elmt = token ; see Section 5.6.2
 ```
-
 
    Then the following are valid values for example-list (not including
    the double quotes, which are present for delimitation only):
@@ -85,7 +83,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Tokens are short textual identifiers that do not include whitespace
    or delimiters.
 
-
 ```abnf
      token          = 1*tchar
 
@@ -94,7 +91,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
                     / DIGIT / ALPHA
                     ; any VCHAR, except delimiters
 ```
-
 
    Many HTTP field values are defined using common syntax components,
    separated by whitespace or specific delimiting characters.
@@ -130,7 +126,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MAY**: BWS has no semantics.  Any content known to be defined as BWS MAY be
    removed before interpreting it or forwarding the message downstream.
 
-
 ```abnf
      OWS            = *( SP / HTAB )
                     ; optional whitespace
@@ -140,29 +135,24 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
                     ; "bad" whitespace
 ```
 
-
 ### 5.6.4  Quoted Strings
 
    A string of text is parsed as a single value if it is quoted using
    double-quote marks.
-
 
 ```abnf
      quoted-string  = DQUOTE *( qdtext / quoted-pair ) DQUOTE
      qdtext         = HTAB / SP / %x21 / %x23-5B / %x5D-7E / obs-text
 ```
 
-
    The backslash octet ("\") can be used as a single-octet quoting
    mechanism within quoted-string and comment constructs.  Recipients
 > **MUST**: that process the value of a quoted-string MUST handle a quoted-pair
    as if it were replaced by the octet following the backslash.
 
-
 ```abnf
      quoted-pair    = "\" ( HTAB / SP / VCHAR / obs-text )
 ```
-
 
 > **SHOULD NOT**: A sender SHOULD NOT generate a quoted-pair in a quoted-string except
    where necessary to quote DQUOTE and backslash octets occurring within
@@ -176,12 +166,10 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    comment text with parentheses.  Comments are only allowed in fields
    containing "comment" as part of their field value definition.
 
-
 ```abnf
      comment        = "(" *( ctext / quoted-pair / comment ) ")"
      ctext          = HTAB / SP / %x21-27 / %x2A-5B / %x5D-7E / obs-text
 ```
-
 
 ### 5.6.6  Parameters
 
@@ -190,14 +178,12 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    to an item.  Each parameter is usually delimited by an immediately
    preceding semicolon.
 
-
 ```abnf
      parameters      = *( OWS ";" OWS [ parameter ] )
      parameter       = parameter-name "=" parameter-value
      parameter-name  = token
      parameter-value = ( token / quoted-string )
 ```
-
 
    Parameter names are case-insensitive.  Parameter values might or
    might not be case-sensitive, depending on the semantics of the
@@ -220,11 +206,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    a fixed-length and single-zone subset of the date and time
    specification used by the Internet Message Format [RFC5322].
 
-
 ```abnf
      HTTP-date    = IMF-fixdate / obs-date
 ```
-
 
    An example of the preferred format is
 
@@ -253,14 +237,12 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    Preferred format:
 
-
 ```abnf
      IMF-fixdate  = day-name "," SP date1 SP time-of-day SP GMT
 ```
 
      ; fixed length/zone/capitalization subset of the format
      ; see Section 3.3 of [RFC5322]
-
 
 ```abnf
      day-name     = %s"Mon" / %s"Tue" / %s"Wed"
@@ -285,9 +267,7 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
      second       = 2DIGIT
 ```
 
-
    Obsolete formats:
-
 
 ```abnf
      obs-date     = rfc850-date / asctime-date
@@ -304,7 +284,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
      date3        = month SP ( 2DIGIT / ( SP 1DIGIT ))
                   ; e.g., Jun  2
 ```
-
 
    HTTP-date is case sensitive.  Note that Section 4.2 of [CACHING]
    relaxes this for cache recipients.
@@ -333,4 +312,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

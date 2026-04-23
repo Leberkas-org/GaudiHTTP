@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.  References"
 rfc_number: 6265
 rfc_section: "10"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 10.  References
-
 
 ## 10.1.  Normative References
 
@@ -55,10 +54,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    [RFC2965]  Kristol, D. and L. Montulli, "HTTP State Management
               Mechanism", RFC 2965, October 2000.
 
-
-
-
-
    [RFC2818]  Rescorla, E., "HTTP Over TLS", RFC 2818, May 2000.
 
    [Netscape] Netscape Communications Corp., "Persistent Client State --
@@ -100,4 +95,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

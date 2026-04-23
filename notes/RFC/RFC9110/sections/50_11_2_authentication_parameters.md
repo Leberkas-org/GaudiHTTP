@@ -1,4 +1,4 @@
----
+﻿---
 title: "11.2.  Authentication Parameters"
 rfc_number: 9110
 rfc_section: "11.2"
@@ -16,12 +16,10 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    comma-separated list of parameters or a single sequence of characters
    capable of holding base64-encoded information.
 
-
 ```abnf
      token68        = 1*( ALPHA / DIGIT /
                           "-" / "." / "_" / "~" / "+" / "/" ) *"="
 ```
-
 
    The token68 syntax allows the 66 unreserved URI characters ([URI]),
    plus a few others, so that it can hold a base64, base64url (URL and
@@ -32,11 +30,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MUST**: is matched case-insensitively and each parameter name MUST only occur
    once per challenge.
 
-
 ```abnf
      auth-param     = token BWS "=" BWS ( token / quoted-string )
 ```
-
 
    Parameter values can be expressed either as "token" or as "quoted-
    string" (Section 5.6).  Authentication scheme definitions need to
@@ -51,4 +47,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

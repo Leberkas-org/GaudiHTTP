@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.1.  PADDING Frames"
 rfc_number: 9000
 rfc_section: "19.1"
@@ -8,8 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.1.  PADDING Frames
-
-
 
    As described in Section 12.4, packets contain one or more frames.
    This section describes the format and semantics of the core QUIC
@@ -34,4 +32,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: 2.  Overview of Cache Operation
 rfc_number: 9111
 rfc_section: '2'
@@ -64,28 +64,3 @@ tags:
    A cache is "disconnected" when it cannot contact the origin server or
    otherwise find a forward path for a request.  A disconnected cache
    can serve stale responses in some circumstances (Section 4.2.4).
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ❌ Missing
-
-**Implementation Notes:**
-TurboHTTP does not implement an HTTP cache. The client library forwards all requests directly to the origin server without any cache lookup, storage, or revalidation logic. CacheLookupStage is planned as a future pipeline stage but not yet implemented.
-
-**Key Gaps:**
-- No cache storage or retrieval mechanism
-- No freshness evaluation or expiration logic
-- No private vs shared cache distinction
-- No understanding of cacheable methods or status codes
-- No response reuse logic
-
-**Affected Components:** None (no caching components exist)
-
-**Test References:** None
-
----
-
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

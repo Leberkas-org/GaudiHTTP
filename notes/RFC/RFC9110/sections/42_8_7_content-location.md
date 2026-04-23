@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.7.  Content-Location"
 rfc_number: 9110
 rfc_section: "8.7"
@@ -18,11 +18,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    message's generation, then a 200 (OK) response would contain the same
    representation that is enclosed as content in this message.
 
-
 ```abnf
      Content-Location = absolute-URI / partial-URI
 ```
-
 
    The field value is either an absolute-URI or a partial-URI.  In the
    latter case (Section 4), the referenced URI is relative to the target
@@ -101,4 +99,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

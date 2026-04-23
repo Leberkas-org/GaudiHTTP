@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.  All cookies."
 rfc_number: 6265
 rfc_section: "3"
@@ -9,11 +9,8 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 # 3.  All cookies.
 
-
 > **MUST**: If two cookies have the same removal priority, the user agent MUST
    evict the cookie with the earliest last-access date first.
-
-
 
    When "the current session is over" (as defined by the user agent),
 > **MUST**: the user agent MUST remove from the cookie store all cookies with the
@@ -62,10 +59,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
              this document.  Typically, user agents consider a protocol
              secure if the protocol makes use of transport-layer
 
-
-
-
-
              security, such as SSL or TLS.  For example, most user
              agents consider "https" to be a scheme that denotes a
              secure protocol.
@@ -111,4 +104,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

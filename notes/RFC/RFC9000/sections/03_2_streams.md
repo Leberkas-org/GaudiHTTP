@@ -1,4 +1,4 @@
----
+﻿---
 title: "2.  Streams"
 rfc_number: 9000
 rfc_section: "2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 2.  Streams
-
 
    Streams in QUIC provide a lightweight, ordered byte-stream
    abstraction to an application.  Streams can be unidirectional or
@@ -160,4 +159,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

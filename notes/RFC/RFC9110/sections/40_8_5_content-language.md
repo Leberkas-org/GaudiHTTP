@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.5.  Content-Language"
 rfc_number: 9110
 rfc_section: "8.5"
@@ -16,11 +16,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    might not be equivalent to all the languages used within the
    representation.
 
-
 ```abnf
      Content-Language = #language-tag
 ```
-
 
    Language tags are defined in Section 8.5.1.  The primary purpose of
    Content-Language is to allow a user to identify and differentiate
@@ -64,11 +62,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    language-range production defined in Section 12.5.4, whereas
    Content-Language uses the language-tag production defined below.
 
-
 ```abnf
      language-tag = <Language-Tag, see [RFC5646], Section 2.1>
 ```
-
 
    A language tag is a sequence of one or more case-insensitive subtags,
    each separated by a hyphen character ("-", %x2D).  In most cases, a
@@ -85,4 +81,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

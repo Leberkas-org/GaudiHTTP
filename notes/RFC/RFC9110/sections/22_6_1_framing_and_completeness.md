@@ -1,4 +1,4 @@
----
+﻿---
 title: 6.1.  Framing and Completeness
 rfc_number: 9110
 rfc_section: '6.1'
@@ -96,26 +96,3 @@ tags:
    close is considered complete even though it might be
    indistinguishable from an incomplete response, unless a transport-
    level error indicates that it is not complete.
-
-
----
-
-## TurboHTTP Compliance
-
-**Status**: ✅ Compliant
-
-### Implementation Notes
-- **`Http11ResponseDecoder.cs`** — Detects message completeness via Content-Length or chunked transfer coding; handles connection-close framing for HTTP/1.0
-- **`Http2FrameDecoder.cs`** — Uses END_STREAM flag for message completeness in HTTP/2
-- **`Http3FrameDecoder.cs`** — Uses FIN bit on QUIC streams for HTTP/3 message completeness
-- **`MessageCompleteness.cs`** — Shared abstraction tracking whether headers, content, and trailers are complete
-
-### Test References
-- `TurboHTTP.Tests/RFC9110/22_FramingCompletenessTests.cs` — Message completeness detection across protocol versions
-
-### Known Gaps
-- None
-
----
-
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

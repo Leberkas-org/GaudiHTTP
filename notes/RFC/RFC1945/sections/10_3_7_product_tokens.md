@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.7.  Product Tokens"
 rfc_number: 1945
 rfc_section: "3.7"
@@ -16,18 +16,14 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    slash and version designator. Most fields using product tokens also
    allow subproducts which form a significant part of the application to
 
-
-
    be listed, separated by whitespace. By convention, the products are
    listed in order of their significance for identifying the
    application.
-
 
 ```abnf
        product         = token ["/" product-version]
        product-version = token
 ```
-
 
    Examples:
 
@@ -44,4 +40,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

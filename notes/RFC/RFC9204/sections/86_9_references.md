@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.  References"
 rfc_number: 9204
 rfc_section: "9"
@@ -72,4 +72,3 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC9204|RFC9204 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.10.  Explicit Congestion Notification Attacks"
 rfc_number: 9000
 rfc_section: "21.10"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.10.  Explicit Congestion Notification Attacks
-
 
    An on-path attacker could manipulate the value of ECN fields in the
    IP header to influence the sender's rate.  [RFC3168] discusses
@@ -24,4 +23,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix B.  Changes from Previous RFCs"
 rfc_number: 9110
 rfc_section: "Appendix B"
@@ -204,4 +204,3 @@ B.9.  Changes from RFC 7694
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

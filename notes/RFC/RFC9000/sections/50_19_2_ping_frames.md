@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.2.  PING Frames"
 rfc_number: 9000
 rfc_section: "19.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.2.  PING Frames
-
 
    Endpoints can use PING frames (type=0x01) to verify that their peers
    are still alive or to check reachability to the peer.
@@ -31,4 +30,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

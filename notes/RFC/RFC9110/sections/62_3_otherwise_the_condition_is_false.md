@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.  Otherwise, the condition is false."
 rfc_number: 9110
 rfc_section: "3"
@@ -65,11 +65,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    tags can be used for cache validation even if there have been changes
    to the representation data.
 
-
 ```abnf
      If-None-Match = "*" / #entity-tag
 ```
-
 
    Examples:
 
@@ -112,4 +110,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

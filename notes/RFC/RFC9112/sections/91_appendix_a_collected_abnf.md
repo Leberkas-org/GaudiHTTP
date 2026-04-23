@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix A.  Collected ABNF"
 rfc_number: 9112
 rfc_section: "Appendix A"
@@ -13,7 +13,6 @@ Appendix A.  Collected ABNF
 
    In the collected ABNF below, list rules are expanded per
    Section 5.6.1 of [HTTP].
-
 
 ```abnf
    BWS = <BWS, see [HTTP], Section 5.6.3>
@@ -35,7 +34,6 @@ Appendix A.  Collected ABNF
 ```
 
     ) ]
-
 
 ```abnf
    absolute-URI = <absolute-URI, see [URI], Section 4.3>
@@ -94,4 +92,3 @@ Appendix A.  Collected ABNF
 
 ---
 
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

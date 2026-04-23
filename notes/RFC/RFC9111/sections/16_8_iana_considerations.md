@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.  IANA Considerations"
 rfc_number: 9111
 rfc_section: "8"
@@ -87,4 +87,3 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ---
 
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

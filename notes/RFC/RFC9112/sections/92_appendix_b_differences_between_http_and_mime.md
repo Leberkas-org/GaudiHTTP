@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix B.  Differences between HTTP and MIME"
 rfc_number: 9112
 rfc_section: "Appendix B"
@@ -107,4 +107,3 @@ B.6.  MHTML and Line Length Limitations
 
 ---
 
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

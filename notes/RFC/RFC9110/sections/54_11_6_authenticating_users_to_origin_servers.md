@@ -1,4 +1,4 @@
----
+﻿---
 title: "11.6.  Authenticating Users to Origin Servers"
 rfc_number: 9110
 rfc_section: "11.6"
@@ -17,11 +17,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    authentication scheme(s) and parameters applicable to the target
    resource.
 
-
 ```abnf
      WWW-Authenticate = #challenge
 ```
-
 
 > **MUST**: A server generating a 401 (Unauthorized) response MUST send a WWW-
    Authenticate header field containing at least one challenge.  A
@@ -67,11 +65,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    credentials containing the authentication information of the user
    agent for the realm of the resource being requested.
 
-
 ```abnf
      Authorization = credentials
 ```
-
 
    If a request is authenticated and a realm specified, the same
    credentials are presumed to be valid for all other requests within
@@ -99,11 +95,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    "Digest" Authentication Scheme, for instance, defines multiple
    parameters in Section 3.5 of [RFC7616].
 
-
 ```abnf
      Authentication-Info = #auth-param
 ```
-
 
    The Authentication-Info field can be used in any HTTP response,
    independently of request method and status code.  Its semantics are
@@ -118,4 +112,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

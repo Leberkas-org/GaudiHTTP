@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.1.  HTTP Version"
 rfc_number: 1945
 rfc_section: "3.1"
@@ -8,8 +8,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 ---
 
 # 3.1.  HTTP Version
-
-
 
 ## 3.1  HTTP Version
 
@@ -31,15 +29,11 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    in the first line of the message. If the protocol version is not
    specified, the recipient must assume that the message is in the
 
-
-
    simple HTTP/0.9 format.
-
 
 ```abnf
        HTTP-Version   = "HTTP" "/" 1*DIGIT "." 1*DIGIT
 ```
-
 
    Note that the major and minor numbers should be treated as separate
    integers and that each may be incremented higher than a single digit.
@@ -84,4 +78,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

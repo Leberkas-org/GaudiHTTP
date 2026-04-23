@@ -1,4 +1,4 @@
----
+﻿---
 title: "8.3.  Content-Type"
 rfc_number: 9110
 rfc_section: "8.3"
@@ -19,11 +19,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    within the scope of the received message semantics, after any content
    codings indicated by Content-Encoding are decoded.
 
-
 ```abnf
      Content-Type = media-type
 ```
-
 
    Media types are defined in Section 8.3.1.  An example of the field is
 
@@ -65,13 +63,11 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    a data format and various processing models: how to process that data
    in accordance with the message context.
 
-
 ```abnf
      media-type = type "/" subtype parameters
      type       = token
      subtype    = token
 ```
-
 
    The type and subtype tokens are case-insensitive.
 
@@ -134,4 +130,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

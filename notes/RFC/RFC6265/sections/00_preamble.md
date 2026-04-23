@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 6265
 rfc_section: "preamble"
@@ -9,18 +9,11 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 # Preamble
 
-
-
-
-
-
-
 Internet Engineering Task Force (IETF)                          A. Barth
 Request for Comments: 6265                                 U.C. Berkeley
 Obsoletes: 2965                                               April 2011
 Category: Standards Track
 ISSN: 2070-1721
-
 
                     HTTP State Management Mechanism
 
@@ -62,9 +55,6 @@ Copyright Notice
    include Simplified BSD License text as described in Section 4.e of
    the Trust Legal Provisions and are provided without warranty as
    described in the Simplified BSD License.
-
-
-
 
    This document may contain material from IETF Documents or IETF
    Contributions published or made publicly available before November
@@ -117,4 +107,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

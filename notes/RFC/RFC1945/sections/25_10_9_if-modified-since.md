@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.9.  If-Modified-Since"
 rfc_number: 1945
 rfc_section: "10.9"
@@ -17,19 +17,13 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    resource will not be returned from the server; instead, a 304 (not
    modified) response will be returned without any Entity-Body.
 
-
 ```abnf
        If-Modified-Since = "If-Modified-Since" ":" HTTP-date
 ```
 
-
    An example of the field is:
 
        If-Modified-Since: Sat, 29 Oct 1994 19:43:31 GMT
-
-
-
-
 
    A conditional GET method requests that the identified resource be
    transferred only if it has been modified since the date given by the
@@ -55,4 +49,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

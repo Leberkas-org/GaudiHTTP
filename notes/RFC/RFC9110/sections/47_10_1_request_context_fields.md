@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.1.  Request Context Fields"
 rfc_number: 9110
 rfc_section: "10.1"
@@ -23,12 +23,10 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    behaviors (expectations) that need to be supported by the server in
    order to properly handle this request.
 
-
 ```abnf
      Expect =      #expectation
      expectation = token [ "=" ( token / quoted-string ) parameters ]
 ```
-
 
    The Expect field value is case-insensitive.
 
@@ -144,13 +142,11 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    to be machine-usable, as defined by "mailbox" in Section 3.4 of
    [RFC5322]:
 
-
 ```abnf
      From    = mailbox
 
      mailbox = <mailbox, see [RFC5322], Section 3.4>
 ```
-
 
    An example is:
 
@@ -179,11 +175,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MUST NOT**: agent MUST NOT include the fragment and userinfo components of the
    URI reference [URI], if any, when generating the Referer field value.
 
-
 ```abnf
      Referer = absolute-URI / partial-URI
 ```
-
 
    The field value is either an absolute-URI or a partial-URI.  In the
    latter case (Section 4), the referenced URI is relative to the target
@@ -258,14 +252,12 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    transfer coding (Section 12.4.2) and optional parameters for that
    transfer coding.
 
-
 ```abnf
      TE                 = #t-codings
      t-codings          = "trailers" / ( transfer-coding [ weight ] )
      transfer-coding    = token *( OWS ";" OWS transfer-parameter )
      transfer-parameter = token BWS "=" BWS ( token / quoted-string )
 ```
-
 
 > **MUST**: A sender of TE MUST also send a "TE" connection option within the
    Connection header field (Section 7.6.1) to inform intermediaries not
@@ -281,11 +273,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **SHOULD**: use.  A user agent SHOULD send a User-Agent header field in each
    request unless specifically configured not to do so.
 
-
 ```abnf
      User-Agent = product *( RWS ( product / comment ) )
 ```
-
 
    The User-Agent field value consists of one or more product
    identifiers, each followed by zero or more comments (Section 5.6.5),
@@ -295,12 +285,10 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    software.  Each product identifier consists of a name and optional
    version.
 
-
 ```abnf
      product         = token ["/" product-version]
      product-version = token
 ```
-
 
 > **SHOULD**: A sender SHOULD limit generated product identifiers to what is
    necessary to identify the product; a sender MUST NOT generate
@@ -330,4 +318,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix B.  Huffman Code"
 rfc_number: 7541
 rfc_section: "Appendix B"
@@ -8,7 +8,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 ---
 
 # Appendix B.  Huffman Code
-
 
    The following Huffman code is used when encoding string literals with
    a Huffman coding (see Section 5.2).
@@ -56,8 +55,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
        ( 11)  |11111111|11111111|11111110|1001         fffffe9  [28]
        ( 12)  |11111111|11111111|11111110|1010         fffffea  [28]
        ( 13)  |11111111|11111111|11111111|111101      3ffffffd  [30]
-
-
 
        ( 14)  |11111111|11111111|11111110|1011         fffffeb  [28]
        ( 15)  |11111111|11111111|11111110|1100         fffffec  [28]
@@ -108,8 +105,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    '<' ( 60)  |11111111|1111100                           7ffc  [15]
    '=' ( 61)  |100000                                       20  [ 6]
 
-
-
    '>' ( 62)  |11111111|1011                               ffb  [12]
    '?' ( 63)  |11111111|00                                 3fc  [10]
    '@' ( 64)  |11111111|11010                             1ffa  [13]
@@ -158,8 +153,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    'k' (107)  |1110101                                      75  [ 7]
    'l' (108)  |101000                                       28  [ 6]
    'm' (109)  |101001                                       29  [ 6]
-
-
 
    'n' (110)  |101010                                       2a  [ 6]
    'o' (111)  |00111                                         7  [ 5]
@@ -210,8 +203,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
        (156)  |11111111|11111111|011001                 3fffd9  [22]
        (157)  |11111111|11111111|1100110                7fffe6  [23]
 
-
-
        (158)  |11111111|11111111|1100111                7fffe7  [23]
        (159)  |11111111|11111111|11101111               ffffef  [24]
        (160)  |11111111|11111111|011010                 3fffda  [22]
@@ -260,8 +251,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
        (203)  |11111111|11111111|11111011|110          7ffffde  [27]
        (204)  |11111111|11111111|11111011|111          7ffffdf  [27]
        (205)  |11111111|11111111|11111001|01           3ffffe5  [26]
-
-
 
        (206)  |11111111|11111111|11110001               fffff1  [24]
        (207)  |11111111|11111111|11110110|1            1ffffed  [25]
@@ -312,12 +301,9 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
        (252)  |11111111|11111111|11111101|110          7ffffee  [27]
        (253)  |11111111|11111111|11111101|111          7ffffef  [27]
 
-
-
        (254)  |11111111|11111111|11111110|000          7fffff0  [27]
        (255)  |11111111|11111111|11111011|10           3ffffee  [26]
    EOS (256)  |11111111|11111111|11111111|111111      3fffffff  [30]
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.5.  Field Values"
 rfc_number: 9110
 rfc_section: "5.5"
@@ -15,7 +15,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    defined by the field's grammar.  Each field's grammar is usually
    defined using ABNF ([RFC5234]).
 
-
 ```abnf
      field-value    = *field-content
      field-content  = field-vchar
@@ -23,7 +22,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
      field-vchar    = VCHAR / obs-text
      obs-text       = %x80-FF
 ```
-
 
    A field value does not include leading or trailing whitespace.  When
    a specific version of HTTP allows such whitespace to appear in a
@@ -97,4 +95,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

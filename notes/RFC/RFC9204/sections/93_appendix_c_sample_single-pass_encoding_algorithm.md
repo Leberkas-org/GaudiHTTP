@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix C.  Sample Single-Pass Encoding Algorithm"
 rfc_number: 9204
 rfc_section: "Appendix C"
@@ -54,7 +54,6 @@ Appendix C.  Sample Single-Pass Encoding Algorithm
        encodeStaticIndexReference(streamBuffer, staticIndex)
        continue
 
-
 ```abnf
      dynamicIndex = dynamicTable.findIndex(line)
 ```
@@ -68,7 +67,6 @@ Appendix C.  Sample Single-Pass Encoding Algorithm
           dynamicNameIndex = dynamicTable.findName(line.name)
 ```
 
-
        if shouldIndex(line) and dynamicTable.canIndex(line):
          encodeInsert(encoderBuffer, staticNameIndex,
                       dynamicNameIndex, line)
@@ -76,7 +74,6 @@ Appendix C.  Sample Single-Pass Encoding Algorithm
 ```abnf
          dynamicIndex = dynamicTable.add(line)
 ```
-
 
      if dynamicIndex is None:
        # Could not index it, literal
@@ -102,7 +99,6 @@ Appendix C.  Sample Single-Pass Encoding Algorithm
        # Encode dynamicIndex, possibly above Base
        encodeDynamicIndexReference(streamBuffer, dynamicIndex, base)
 ```
-
 
    # encode the prefix
    if requiredInsertCount == 0:
@@ -161,4 +157,3 @@ Acknowledgments
 
 ---
 
-**Navigation:** [[../RFC9204|RFC9204 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

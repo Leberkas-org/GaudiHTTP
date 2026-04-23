@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.13.  Targeted Attacks by Routing"
 rfc_number: 9000
 rfc_section: "21.13"
@@ -9,7 +9,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 # 21.13.  Targeted Attacks by Routing
 
-
    Deployments should limit the ability of an attacker to target a new
    connection to a particular server instance.  Ideally, routing
    decisions are made independently of client-selected values, including
@@ -18,4 +17,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.3.  Responding to Connection Migration"
 rfc_number: 9000
 rfc_section: "9.3"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 9.3.  Responding to Connection Migration
-
 
    Receiving a packet from a new peer address containing a non-probing
    frame indicates that the peer has migrated to that address.
@@ -137,4 +136,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

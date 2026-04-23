@@ -1,4 +1,4 @@
----
+﻿---
 title: 5.  Field Syntax
 rfc_number: 9112
 rfc_section: '5'
@@ -96,32 +96,3 @@ tags:
 > **MUST**: not within a "message/http" container MUST replace each received
    obs-fold with one or more SP octets prior to interpreting the field
    value.
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ✅ Compliant
-
-**Implementation Notes:**
-TurboHTTP's HTTP/1.1 decoder correctly parses field lines as `field-name ":" OWS field-value OWS`. Leading and trailing whitespace around field values is trimmed. Field names are treated case-insensitively. Obsolete line folding (obs-fold) is handled by replacing with SP octets.
-
-**Key Components:**
-- `Http11ResponseDecoder` — header field parsing and extraction
-- `Http11RequestEncoder` — header field serialization
-
-**Compliance Details:**
-- ✅ Field-line format: `field-name ":" OWS field-value OWS`
-- ✅ Whitespace between field-name and colon rejected (as client, not generated)
-- ✅ Leading/trailing OWS trimmed from field values
-- ✅ Obs-fold replaced with SP when encountered
-- ✅ Case-insensitive field name handling
-
-**Gaps:** None identified
-
-**Test References:** `TurboHTTP.Tests.RFC9112`
-
----
-
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

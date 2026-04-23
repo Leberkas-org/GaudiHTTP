@@ -1,4 +1,4 @@
----
+﻿---
 title: 4.  Status Line
 rfc_number: 9112
 rfc_section: '4'
@@ -79,31 +79,3 @@ tags:
    space that separates the status-code from the reason-phrase even when
    the reason-phrase is absent (i.e., the status-line would end with the
    space).
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ✅ Compliant
-
-**Implementation Notes:**
-TurboHTTP's `Http11ResponseDecoder` parses status-lines per §4. The decoder extracts HTTP-version, 3-digit status code, and optional reason-phrase. The reason-phrase is parsed but not used for application logic (as recommended by the RFC). Status codes are mapped to `HttpStatusCode` enum values.
-
-**Key Components:**
-- `Http11ResponseDecoder` — parses `HTTP-version SP status-code SP [reason-phrase]`
-- `HttpStatusCode` — enum covering all standard status codes
-
-**Compliance Details:**
-- ✅ Status-line parsing: HTTP-version, status-code, reason-phrase
-- ✅ 3-digit status-code extraction
-- ✅ Reason-phrase ignored for logic (used for display only)
-- ✅ Whitespace-delimited parsing with robustness
-
-**Gaps:** None identified
-
-**Test References:** `TurboHTTP.Tests.RFC9112`
-
----
-
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.2.  Response Context Fields"
 rfc_number: 9110
 rfc_section: "10.2"
@@ -23,11 +23,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    strictly to inform the recipient of valid request methods associated
    with the resource.
 
-
 ```abnf
      Allow = #method
 ```
-
 
    Example of use:
 
@@ -51,11 +49,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    relationship is defined by the combination of request method and
    status code semantics.
 
-
 ```abnf
      Location = URI-reference
 ```
-
 
    The field value consists of a single URI-reference.  When it has the
    form of a relative reference ([URI], Section 4.2), the final value is
@@ -126,20 +122,16 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    The Retry-After field value can be either an HTTP-date or a number of
    seconds to delay after receiving the response.
 
-
 ```abnf
      Retry-After = HTTP-date / delay-seconds
 ```
 
-
    A delay-seconds value is a non-negative decimal integer, representing
    time in seconds.
-
 
 ```abnf
      delay-seconds  = 1*DIGIT
 ```
-
 
    Two examples of its use are
 
@@ -158,11 +150,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 > **MAY**: system use.  An origin server MAY generate a Server header field in
    its responses.
 
-
 ```abnf
      Server = product *( RWS ( product / comment ) )
 ```
-
 
    The Server header field value consists of one or more product
    identifiers, each followed by zero or more comments (Section 5.6.5),
@@ -185,4 +175,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

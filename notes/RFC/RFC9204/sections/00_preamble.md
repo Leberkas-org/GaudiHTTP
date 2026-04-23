@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 9204
 rfc_section: "preamble"
@@ -9,10 +9,6 @@ tags: [RFC9204, QPACK, header-compression, HTTP/3, dynamic-table, static-table, 
 
 ## Preamble
 
-
-
-
-
 Internet Engineering Task Force (IETF)                         C. Krasic
 Request for Comments: 9204                                              
 Category: Standards Track                                      M. Bishop
@@ -20,7 +16,6 @@ ISSN: 2070-1721                                      Akamai Technologies
                                                         A. Frindell, Ed.
                                                                 Facebook
                                                                June 2022
-
 
                   QPACK: Field Compression for HTTP/3
 
@@ -135,4 +130,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC9204|RFC9204 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

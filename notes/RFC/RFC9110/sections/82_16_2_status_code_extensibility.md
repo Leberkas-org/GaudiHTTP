@@ -1,4 +1,4 @@
----
+﻿---
 title: "16.2.  Status Code Extensibility"
 rfc_number: 9110
 rfc_section: "16.2"
@@ -80,4 +80,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

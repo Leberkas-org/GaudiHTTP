@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 9110
 rfc_section: "preamble"
@@ -9,10 +9,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ## Preamble
 
-
-
-
-
 Internet Engineering Task Force (IETF)                  R. Fielding, Ed.
 Request for Comments: 9110                                         Adobe
 STD: 97                                               M. Nottingham, Ed.
@@ -21,7 +17,6 @@ Obsoletes: 2818, 7230, 7231, 7232, 7233, 7235,                    Fastly
 Updates: 3864                                                 greenbytes
 Category: Standards Track                                      June 2022
 ISSN: 2070-1721
-
 
                              HTTP Semantics
 
@@ -390,4 +385,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

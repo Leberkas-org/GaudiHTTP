@@ -1,4 +1,4 @@
----
+﻿---
 title: 8.  Handling Incomplete Messages
 rfc_number: 9112
 rfc_section: '8'
@@ -46,32 +46,3 @@ tags:
    considered complete unless an error was indicated by the underlying
    connection (e.g., an "incomplete close" in TLS would leave the
    response incomplete, as described in Section 9.8).
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ✅ Compliant
-
-**Implementation Notes:**
-TurboHTTP correctly detects and records incomplete response messages. When a connection closes prematurely (before Content-Length bytes received or before chunked zero-chunk), the response is marked as incomplete. The decoder distinguishes between connection-close terminated responses (complete if headers intact) and prematurely truncated responses.
-
-**Key Components:**
-- `Http11ResponseDecoder` — incomplete message detection
-- `MessageCompleteness` — tracks whether full body was received
-- `ConnectionPool` — handles connection failures and retries
-
-**Compliance Details:**
-- ✅ Incomplete chunked messages detected (no zero-chunk received)
-- ✅ Content-Length mismatch detected (fewer bytes than declared)
-- ✅ Connection-close responses considered complete if headers intact
-- ✅ TLS incomplete close detection
-
-**Gaps:** None identified
-
-**Test References:** `TurboHTTP.Tests.RFC9112`
-
----
-
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

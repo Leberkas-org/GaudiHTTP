@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.5.  Content Codings"
 rfc_number: 1945
 rfc_section: "3.5"
@@ -18,11 +18,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    stored in this encoding and only decoded before rendering or
    analogous usage.
 
-
 ```abnf
        content-coding = "x-gzip" | "x-compress" | token
 ```
-
 
        Note: For future compatibility, HTTP/1.0 applications should
        consider "gzip" and "compress" to be equivalent to "x-gzip"
@@ -53,4 +51,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

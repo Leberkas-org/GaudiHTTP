@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.11.  Stateless Reset Oracle"
 rfc_number: 9000
 rfc_section: "21.11"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.11.  Stateless Reset Oracle
-
 
    Stateless resets create a possible denial-of-service attack analogous
    to a TCP reset injection.  This attack is possible if an attacker is
@@ -42,4 +41,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.  Indicate that [RFC2965] has been obsoleted by this document."
 rfc_number: 6265
 rfc_section: "3"
@@ -9,11 +9,9 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 # 3.  Indicate that [RFC2965] has been obsoleted by this document.
 
-
    In particular, in moving RFC 2965 to Historic and obsoleting it, this
    document deprecates the use of the Cookie2 and Set-Cookie2 header
    fields.
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

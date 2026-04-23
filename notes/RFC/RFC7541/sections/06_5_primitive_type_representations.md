@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.  Primitive Type Representations"
 rfc_number: 7541
 rfc_section: "5"
@@ -8,7 +8,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 ---
 
 # 5.  Primitive Type Representations
-
 
    HPACK encoding uses two primitive types: unsigned variable-length
    integers and strings of octets.
@@ -27,12 +26,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
    If the integer value is small enough, i.e., strictly less than 2^N-1,
    it is encoded within the N-bit prefix.
-
-
-
-
-
-
 
      0   1   2   3   4   5   6   7
    +---+---+---+---+---+---+---+---+
@@ -84,11 +77,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
        encode I on 8 bits
 ```
 
-
-
-
-
-
    Pseudocode to decode an integer I is as follows:
 
    decode I from the next N bits
@@ -104,7 +92,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
        while B & 128 == 128
        return I
 ```
-
 
    Examples illustrating the encoding of integers are available in
    Appendix C.1.
@@ -142,8 +129,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
       literal, encoded as an integer with a 7-bit prefix (see
       Section 5.1).
 
-
-
    String Data:  The encoded data of the string literal.  If H is '0',
       then the encoded data is the raw octets of the string literal.  If
       H is '1', then the encoded data is the Huffman encoding of the
@@ -171,4 +156,3 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

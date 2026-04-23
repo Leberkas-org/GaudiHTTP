@@ -1,4 +1,4 @@
----
+﻿---
 title: "12.4.  Frames and Frame Types"
 rfc_number: 9000
 rfc_section: "12.4"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 12.4.  Frames and Frame Types
-
 
    The payload of QUIC packets, after removing packet protection,
    consists of a sequence of complete frames, as shown in Figure 11.
@@ -158,4 +157,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

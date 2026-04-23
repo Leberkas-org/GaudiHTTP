@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.1.  Example Handshake Flows"
 rfc_number: 9000
 rfc_section: "7.1"
@@ -8,8 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 7.1.  Example Handshake Flows
-
-
 
    QUIC relies on a combined cryptographic and transport handshake to
    minimize connection establishment latency.  QUIC uses the CRYPTO
@@ -148,4 +146,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

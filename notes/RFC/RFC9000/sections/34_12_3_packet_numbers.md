@@ -1,4 +1,4 @@
----
+﻿---
 title: "12.3.  Packet Numbers"
 rfc_number: 9000
 rfc_section: "12.3"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 12.3.  Packet Numbers
-
 
    The packet number is an integer in the range 0 to 2^62-1.  This
    number is used in determining the cryptographic nonce for packet
@@ -81,4 +80,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

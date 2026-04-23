@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  Expired cookies."
 rfc_number: 6265
 rfc_section: "1"
@@ -9,10 +9,7 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 # 1.  Expired cookies.
 
-
-
        number of other cookies.
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

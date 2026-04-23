@@ -1,4 +1,4 @@
----
+﻿---
 title: "9.  IANA Considerations"
 rfc_number: 6265
 rfc_section: "9"
@@ -9,19 +9,8 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 # 9.  IANA Considerations
 
-
    The permanent message header field registry (see [RFC3864]) has been
    updated with the following registrations.
-
-
-
-
-
-
-
-
-
-
 
 ## 9.1.  Cookie
 
@@ -73,4 +62,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

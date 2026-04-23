@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 9112
 rfc_section: "preamble"
@@ -9,10 +9,6 @@ tags: [RFC9112, HTTP/1.1, message-framing, chunked-encoding, connection-manageme
 
 ## Preamble
 
-
-
-
-
 Internet Engineering Task Force (IETF)                  R. Fielding, Ed.
 Request for Comments: 9112                                         Adobe
 STD: 99                                               M. Nottingham, Ed.
@@ -20,7 +16,6 @@ Obsoletes: 7230                                                   Fastly
 Category: Standards Track                                J. Reschke, Ed.
 ISSN: 2070-1721                                               greenbytes
                                                                June 2022
-
 
                                 HTTP/1.1
 
@@ -157,4 +152,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

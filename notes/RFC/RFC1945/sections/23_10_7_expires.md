@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.7.  Expires"
 rfc_number: 1945
 rfc_section: "10.7"
@@ -22,11 +22,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    should include an Expires header with that date. The format is an
    absolute date and time as defined by HTTP-date in Section 3.3.
 
-
 ```abnf
        Expires        = "Expires" ":" HTTP-date
 ```
-
 
    An example of its use is
 
@@ -59,4 +57,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

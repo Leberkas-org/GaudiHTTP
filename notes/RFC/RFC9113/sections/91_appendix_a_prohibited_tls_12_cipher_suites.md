@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix A.  Prohibited TLS 1.2 Cipher Suites"
 rfc_number: 9113
 rfc_section: "Appendix A"
@@ -304,4 +304,3 @@ Appendix A.  Prohibited TLS 1.2 Cipher Suites
 
 ---
 
-**Navigation:** [[../RFC9113|RFC9113 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

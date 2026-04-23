@@ -1,4 +1,4 @@
----
+﻿---
 title: "13.4.  Explicit Congestion Notification"
 rfc_number: 9000
 rfc_section: "13.4"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 13.4.  Explicit Congestion Notification
-
 
    QUIC endpoints can use ECN [RFC3168] to detect and respond to network
    congestion.  ECN allows an endpoint to set an ECN-Capable Transport
@@ -154,4 +153,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

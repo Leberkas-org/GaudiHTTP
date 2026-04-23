@@ -1,4 +1,4 @@
----
+﻿---
 title: "14.1.  Range Units"
 rfc_number: 9110
 rfc_section: "14.1"
@@ -43,11 +43,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Content-Range (Section 14.4) header field to describe which part of a
    representation is being transferred.
 
-
 ```abnf
      range-unit       = token
 ```
-
 
    All range unit names are case-insensitive and ought to be registered
    within the "HTTP Range Unit Registry", as defined in Section 16.5.1.
@@ -67,7 +65,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    A range request can specify a single range or a set of ranges within
    a single representation.
 
-
 ```abnf
      ranges-specifier = range-unit "=" range-set
      range-set        = 1#range-spec
@@ -76,20 +73,17 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
                       / other-range
 ```
 
-
    An int-range is a range expressed as two non-negative integers or as
    one non-negative integer through to the end of the representation
    data.  The range unit specifies what the integers mean (e.g., they
    might indicate unit offsets from the beginning, inclusive numbered
    parts, etc.).
 
-
 ```abnf
      int-range     = first-pos "-" [ last-pos ]
      first-pos     = 1*DIGIT
      last-pos      = 1*DIGIT
 ```
-
 
    An int-range is invalid if the last-pos value is present and less
    than the first-pos.
@@ -98,23 +92,19 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    data with the provided non-negative integer maximum length (in range
    units).  In other words, the last N units of the representation data.
 
-
 ```abnf
      suffix-range  = "-" suffix-length
      suffix-length = 1*DIGIT
 ```
 
-
    To provide for extensibility, the other-range rule is a mostly
    unconstrained grammar that allows application-specific or future
    range units to define additional range specifiers.
-
 
 ```abnf
      other-range   = 1*( %x21-2B / %x2D-7E )
                    ; 1*(VCHAR excluding comma)
 ```
-
 
    A ranges-specifier is invalid if it contains any range-spec that is
    invalid or undefined for the indicated range-unit.
@@ -180,11 +170,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
    *  The first, middle, and last 1000 bytes:
 
-
 ```abnf
            bytes= 0-999, 4500-5499, -1000
 ```
-
 
    *  Other valid (but not canonical) specifications of the second 500
       bytes (byte offsets 500-999, inclusive):
@@ -212,4 +200,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

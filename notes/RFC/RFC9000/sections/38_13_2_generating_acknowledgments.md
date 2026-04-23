@@ -1,4 +1,4 @@
----
+﻿---
 title: "13.2.  Generating Acknowledgments"
 rfc_number: 9000
 rfc_section: "13.2"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 13.2.  Generating Acknowledgments
-
 
    Endpoints acknowledge all packets they receive and process.  However,
    only ack-eliciting packets cause an ACK frame to be sent within the
@@ -248,4 +247,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

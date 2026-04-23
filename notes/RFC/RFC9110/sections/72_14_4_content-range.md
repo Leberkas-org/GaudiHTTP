@@ -1,4 +1,4 @@
----
+﻿---
 title: "14.4.  Content-Range"
 rfc_number: 9110
 rfc_section: "14.4"
@@ -19,7 +19,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    Satisfiable) responses to provide information about the selected
    representation.
 
-
 ```abnf
      Content-Range       = range-unit SP
                            ( range-resp / unsatisfied-range )
@@ -30,7 +29,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
      complete-length     = 1*DIGIT
 ```
-
 
    If a 206 (Partial Content) response contains a Content-Range header
    field with a range unit (Section 14.1) that the recipient does not
@@ -102,4 +100,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

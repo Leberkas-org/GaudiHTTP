@@ -1,4 +1,4 @@
----
+﻿---
 title: 4.3.  Validation
 rfc_number: 9111
 rfc_section: '4.3'
@@ -233,28 +233,3 @@ tags:
    If a cache updates a stored response with the metadata provided in a
 > **MUST**: HEAD response, the cache MUST use the header fields provided in the
    HEAD response to update the stored response (see Section 3.2).
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ❌ Missing
-
-**Implementation Notes:**
-TurboHTTP does not perform cache validation. No conditional request generation (If-None-Match, If-Modified-Since) for cache revalidation exists. The client does not send conditional requests automatically to revalidate stale cached responses, nor does it process 304 (Not Modified) responses for cache update purposes.
-
-**Key Gaps:**
-- No conditional request generation for revalidation
-- No 304 response handling for cache freshening
-- No ETag/Last-Modified based validator comparison
-- No HEAD request cache update logic
-- No handling of partial 200 responses invalidating partial cache entries
-
-**Affected Components:** None
-
-**Test References:** None
-
----
-
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

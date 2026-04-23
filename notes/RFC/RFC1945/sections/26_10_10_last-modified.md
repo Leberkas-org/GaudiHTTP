@@ -1,4 +1,4 @@
----
+﻿---
 title: "10.10.  Last-Modified"
 rfc_number: 1945
 rfc_section: "10.10"
@@ -18,11 +18,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    which is older than the date given by the Last-Modified field, that
    copy should be considered stale.
 
-
 ```abnf
        Last-Modified  = "Last-Modified" ":" HTTP-date
 ```
-
 
    An example of its use is
 
@@ -40,11 +38,8 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    than the server's time of message origination. In such cases, where
    the resource's last modification would indicate some time in the
 
-
-
    future, the server must replace that date with the message
    origination date.
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

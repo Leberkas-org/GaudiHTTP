@@ -1,4 +1,4 @@
----
+﻿---
 title: "17.9.  Disclosure of Sensitive Information in URIs"
 rfc_number: 9110
 rfc_section: "17.9"
@@ -44,4 +44,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

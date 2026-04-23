@@ -1,4 +1,4 @@
----
+﻿---
 title: 2.  Message
 rfc_number: 9112
 rfc_section: '2'
@@ -174,34 +174,3 @@ tags:
    unless triggered by specific client attributes, such as when one or
    more of the request header fields (e.g., User-Agent) uniquely match
    the values sent by a client known to be in error.
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ✅ Compliant
-
-**Implementation Notes:**
-TurboHTTP's `Http11ResponseDecoder` and `Http11RequestEncoder` implement HTTP/1.1 message framing per §2. Messages are parsed as octet sequences (not Unicode strings). The decoder handles start-line parsing, header field extraction, and body length determination. CRLF line terminators are required; bare LF tolerance is implemented for robustness. Bare CR characters within protocol elements are rejected.
-
-**Key Components:**
-- `Http11ResponseDecoder` — parses status-line, headers, and body from byte stream
-- `Http11RequestEncoder` — generates request-line, headers, and body framing
-- `Http11MessageParser` — low-level ABNF-compliant parsing utilities
-
-**Compliance Details:**
-- ✅ Parses as octet sequence (US-ASCII superset), not Unicode
-- ✅ CRLF line termination enforced
-- ✅ Bare CR handling (reject/replace)
-- ✅ No extra CRLF before/after requests
-- ✅ HTTP-version parsing and generation
-- ✅ Whitespace between start-line and headers rejected
-
-**Gaps:** None identified
-
-**Test References:** `TurboHTTP.Tests.RFC9112`
-
----
-
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.13.  STREAM_DATA_BLOCKED Frames"
 rfc_number: 9000
 rfc_section: "19.13"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.13.  STREAM_DATA_BLOCKED Frames
-
 
 > **SHOULD**: A sender SHOULD send a STREAM_DATA_BLOCKED frame (type=0x15) when it
    wishes to send data but is unable to do so due to stream-level flow
@@ -37,4 +36,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

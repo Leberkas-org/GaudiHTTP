@@ -1,4 +1,4 @@
----
+﻿---
 title: "5.5.  Warning"
 rfc_number: 9111
 rfc_section: "5.5"
@@ -20,4 +20,3 @@ tags: [RFC9111, HTTP-caching, freshness, validation, Cache-Control, max-age, Exp
 
 ---
 
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

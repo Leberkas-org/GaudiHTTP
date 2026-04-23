@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.5.  Cryptographic Message Buffering"
 rfc_number: 9000
 rfc_section: "7.5"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 7.5.  Cryptographic Message Buffering
-
 
    Implementations need to maintain a buffer of CRYPTO data received out
    of order.  Because there is no flow control of CRYPTO frames, an
@@ -38,4 +37,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

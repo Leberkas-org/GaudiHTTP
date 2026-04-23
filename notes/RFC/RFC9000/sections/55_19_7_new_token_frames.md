@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.7.  NEW_TOKEN Frames"
 rfc_number: 9000
 rfc_section: "19.7"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.7.  NEW_TOKEN Frames
-
 
    A server sends a NEW_TOKEN frame (type=0x07) to provide the client
    with a token to send in the header of an Initial packet for a future
@@ -46,4 +45,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

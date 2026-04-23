@@ -1,4 +1,4 @@
----
+﻿---
 title: "17.3.  Short Header Packets"
 rfc_number: 9000
 rfc_section: "17.3"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 17.3.  Short Header Packets
-
 
    This version of QUIC defines a single packet type that uses the short
    packet header.
@@ -90,4 +89,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: 9.3.  Persistence
 rfc_number: 9112
 rfc_section: '9.3'
@@ -117,35 +117,3 @@ tags:
 > **SHOULD**: SHOULD forward any received responses and then close the
    corresponding outbound connection(s) so that the outbound user
    agent(s) can recover accordingly.
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ✅ Compliant
-
-**Implementation Notes:**
-TurboHTTP fully supports HTTP/1.1 persistent connections. The connection pool maintains keep-alive connections and reuses them for subsequent requests. The `close` connection option is respected — connections are released when the server sends `Connection: close`. HTTP/1.0 keep-alive is also supported. The client reads the entire response body before reusing connections.
-
-**Key Components:**
-- `ConnectionPool` — manages persistent connection lifecycle, keep-alive, and reuse
-- `Http11ResponseDecoder` — detects `Connection: close` and keep-alive signals
-- `RetryStage` — handles connection failures with automatic retry for idempotent methods
-
-**Compliance Details:**
-- ✅ Persistent connections by default in HTTP/1.1
-- ✅ `Connection: close` option respected
-- ✅ HTTP/1.0 keep-alive support
-- ✅ Full response body consumed before connection reuse
-- ✅ Connection retry for idempotent methods (§9.3.1)
-- ⚠️ Pipelining not implemented (§9.3.2) — requests are serialized per connection
-
-**Gaps:**
-- HTTP/1.1 pipelining not supported (sequential requests only)
-
-**Test References:** `TurboHTTP.Tests.RFC9112`
-
----
-
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

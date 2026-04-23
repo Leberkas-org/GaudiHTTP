@@ -1,4 +1,4 @@
----
+﻿---
 title: 7.  Transfer Codings
 rfc_number: 9112
 rfc_section: '7'
@@ -251,38 +251,3 @@ tags:
    Connection header field (Section 7.6.1 of [HTTP]) in order to prevent
    the TE header field from being forwarded by intermediaries that do
    not support its semantics.
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ✅ Compliant
-
-**Implementation Notes:**
-TurboHTTP fully supports chunked transfer coding for both decoding responses and encoding requests. The `ChunkedDecodingStage` handles chunk-size parsing, chunk-data extraction, last-chunk detection, and trailer section processing. Chunk extensions are parsed and ignored per spec. Compression transfer codings (gzip, deflate) are handled by the separate `DecompressionStage`.
-
-**Key Components:**
-- `ChunkedDecodingStage` — Akka.Streams stage for chunked transfer decoding
-- `Http11ResponseDecoder` — Transfer-Encoding detection and routing
-- `Http11RequestEncoder` — chunked encoding for streaming request bodies
-- `DecompressionStage` — handles gzip/deflate transfer codings
-
-**Compliance Details:**
-- ✅ Chunked transfer coding parsing and decoding (§7.1)
-- ✅ Large chunk-size handling (overflow protection)
-- ✅ Chunk extensions parsed and ignored (§7.1.1)
-- ✅ Trailer section handling (§7.1.2)
-- ✅ Decoding algorithm per §7.1.3
-- ✅ Gzip and deflate compression codings (§7.2)
-- ✅ TE header not sent with "chunked" (§7.4)
-
-**Gaps:**
-- Compress/x-compress (LZW) not supported
-- Chunk extension parameters not treated as error (SHOULD)
-
-**Test References:** `TurboHTTP.Tests.RFC9112`
-
----
-
-**Navigation:** [[../RFC9112|RFC9112 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

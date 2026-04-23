@@ -1,4 +1,4 @@
----
+﻿---
 title: "1.  Overview"
 rfc_number: 9000
 rfc_section: "1"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 1.  Overview
-
 
    QUIC is a secure general-purpose transport protocol.  This document
    defines version 1 of QUIC, which conforms to the version-independent
@@ -248,4 +247,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

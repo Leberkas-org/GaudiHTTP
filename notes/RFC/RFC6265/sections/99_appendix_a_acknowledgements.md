@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix A.  Acknowledgements"
 rfc_number: 6265
 rfc_section: "Appendix A"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # Appendix A.  Acknowledgements
-
 
    This document borrows heavily from RFC 2109 [RFC2109].  We are
    indebted to David M. Kristol and Lou Montulli for their efforts to
@@ -33,4 +32,3 @@ Author's Address
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

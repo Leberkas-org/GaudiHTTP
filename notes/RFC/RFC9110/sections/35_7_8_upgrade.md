@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.8.  Upgrade"
 rfc_number: 9110
 rfc_section: "7.8"
@@ -23,7 +23,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    that connection.  Upgrade cannot be used to insist on a protocol
    change.
 
-
 ```abnf
      Upgrade          = #protocol
 
@@ -31,7 +30,6 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
      protocol-name    = token
      protocol-version = token
 ```
-
 
    Although protocol names are registered with a preferred case,
 > **SHOULD**: recipients SHOULD use case-insensitive comparison when matching each
@@ -121,4 +119,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

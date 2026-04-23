@@ -1,4 +1,4 @@
----
+﻿---
 title: "14.3.  Accept-Ranges"
 rfc_number: 9110
 rfc_section: "14.3"
@@ -14,12 +14,10 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    The "Accept-Ranges" field in a response indicates whether an upstream
    server supports range requests for the target resource.
 
-
 ```abnf
      Accept-Ranges     = acceptable-ranges
      acceptable-ranges = 1#range-unit
 ```
-
 
    For example, a server that supports byte-range requests
    (Section 14.1.2) can send the field
@@ -57,4 +55,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

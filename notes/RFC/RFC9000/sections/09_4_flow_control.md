@@ -1,4 +1,4 @@
----
+﻿---
 title: "4.  Flow Control"
 rfc_number: 9000
 rfc_section: "4"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 4.  Flow Control
-
 
    Receivers need to limit the amount of data that they are required to
    buffer, in order to prevent a fast sender from overwhelming them or a
@@ -240,4 +239,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

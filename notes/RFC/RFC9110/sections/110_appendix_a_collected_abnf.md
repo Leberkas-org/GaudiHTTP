@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix A.  Collected ABNF"
 rfc_number: 9110
 rfc_section: "Appendix A"
@@ -13,7 +13,6 @@ Appendix A.  Collected ABNF
 
    In the collected ABNF below, list rules are expanded per
    Section 5.6.1.
-
 
 ```abnf
    Accept = [ ( media-range [ weight ] ) *( OWS "," OWS ( media-range [
@@ -125,7 +124,6 @@ Appendix A.  Collected ABNF
 
     "," OWS ( received-protocol RWS received-by [ RWS comment ] ) ) ]
 
-
 ```abnf
    WWW-Authenticate = [ challenge *( OWS "," OWS challenge ) ]
 
@@ -234,7 +232,6 @@ Appendix A.  Collected ABNF
 
     )
 
-
 ```abnf
    parameter = parameter-name "=" parameter-value
    parameter-name = token
@@ -300,4 +297,3 @@ Appendix A.  Collected ABNF
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

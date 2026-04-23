@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.2.  Host and :authority"
 rfc_number: 9110
 rfc_section: "7.2"
@@ -20,11 +20,9 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
    some cases, supplanted by the ":authority" pseudo-header field of a
    request's control data.
 
-
 ```abnf
      Host = uri-host [ ":" port ] ; Section 4
 ```
-
 
    The target URI's authority information is critical for handling a
 > **MUST**: request.  A user agent MUST generate a Host header field in a request
@@ -49,4 +47,3 @@ tags: [RFC9110, HTTP-semantics, methods, status-codes, redirects, retries, conte
 
 ---
 
-**Navigation:** [[../RFC9110|RFC9110 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

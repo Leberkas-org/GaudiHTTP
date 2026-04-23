@@ -1,4 +1,4 @@
----
+﻿---
 title: "6.  Implementation Considerations"
 rfc_number: 6265
 rfc_section: "6"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 6.  Implementation Considerations
-
 
 ## 6.1.  Limits
 
@@ -57,12 +56,9 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 > **SHOULD**: based domain name labels will exist in the wild.  User agents SHOULD
    implement IDNA2008 [RFC5890] and MAY implement [UTS46] or [RFC5895]
 
-
-
    in order to facilitate their IDNA transition.  If a user agent does
 > **MUST**: not implement IDNA2008, the user agent MUST implement IDNA2003
    [RFC3490].
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

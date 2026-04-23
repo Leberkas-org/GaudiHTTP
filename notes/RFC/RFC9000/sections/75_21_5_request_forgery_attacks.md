@@ -1,4 +1,4 @@
----
+﻿---
 title: "21.5.  Request Forgery Attacks"
 rfc_number: 9000
 rfc_section: "21.5"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 21.5.  Request Forgery Attacks
-
 
    A request forgery attack occurs where an endpoint causes its peer to
    issue a request towards a victim, with the request controlled by the
@@ -261,4 +260,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

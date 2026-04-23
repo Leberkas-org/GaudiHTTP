@@ -1,4 +1,4 @@
----
+﻿---
 title: 4.1.  Calculating Cache Keys with the Vary Header Field
 rfc_number: 9111
 rfc_section: '4.1'
@@ -135,27 +135,3 @@ tags:
    request.  Typically, the request is forwarded to the origin server,
    potentially with preconditions added to describe what responses the
    cache has already stored (Section 4.3).
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ❌ Missing
-
-**Implementation Notes:**
-TurboHTTP does not compute cache keys or process the Vary header field for cache selection purposes. The Vary header is passed through in responses but not used for any storage or retrieval logic.
-
-**Key Gaps:**
-- No cache key computation from effective request URI
-- No Vary-based secondary key selection
-- No `Vary: *` handling
-- No stored response matching against request header fields
-
-**Affected Components:** None
-
-**Test References:** None
-
----
-
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

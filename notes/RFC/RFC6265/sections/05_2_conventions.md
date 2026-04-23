@@ -1,4 +1,4 @@
----
+﻿---
 title: "2.  Conventions"
 rfc_number: 6265
 rfc_section: "2"
@@ -9,16 +9,11 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 # 2.  Conventions
 
-
 ## 2.1.  Conformance Criteria
 
 > **MUST**: The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
    "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
    document are to be interpreted as described in [RFC2119].
-
-
-
-
 
 > **MUST**: Requirements phrased in the imperative as part of algorithms (such as
    "strip any leading space characters" or "return false and abort these
@@ -47,13 +42,11 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    The OWS (optional whitespace) rule is used where zero or more linear
 > **MAY**: whitespace characters MAY appear:
 
-
 ```abnf
    OWS            = *( [ obs-fold ] WSP )
                     ; "optional" whitespace
    obs-fold       = CRLF
 ```
-
 
 > **SHOULD**: OWS SHOULD either not be produced or be produced as a single SP
    character.
@@ -71,10 +64,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
    The term request-uri is defined in Section 5.1.2 of [RFC2616].
 
-
-
-
-
    Two sequences of octets are said to case-insensitively match each
    other if and only if they are equivalent under the i;ascii-casemap
    collation defined in [RFC4790].
@@ -83,4 +72,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "Preamble"
 rfc_number: 9114
 rfc_section: "preamble"
@@ -9,15 +9,10 @@ tags: [RFC9114, HTTP/3, QUIC, variable-length-frames, unidirectional-streams, QP
 
 ## Preamble
 
-
-
-
-
 Internet Engineering Task Force (IETF)                    M. Bishop, Ed.
 Request for Comments: 9114                                        Akamai
 Category: Standards Track                                      June 2022
 ISSN: 2070-1721
-
 
                                  HTTP/3
 
@@ -152,4 +147,3 @@ Table of Contents
 
 ---
 
-**Navigation:** [[../RFC9114|RFC9114 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

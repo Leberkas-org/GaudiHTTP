@@ -1,4 +1,4 @@
----
+﻿---
 title: "Appendix B.  Encoding and Decoding Examples"
 rfc_number: 9204
 rfc_section: "Appendix B"
@@ -193,4 +193,3 @@ B.5.  Dynamic Table Insert, Eviction
 
 ---
 
-**Navigation:** [[../RFC9204|RFC9204 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

@@ -1,4 +1,4 @@
----
+﻿---
 title: "19.21.  Extension Frames"
 rfc_number: 9000
 rfc_section: "19.21"
@@ -8,7 +8,6 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 ---
 
 # 19.21.  Extension Frames
-
 
    QUIC frames do not use a self-describing encoding.  An endpoint
    therefore needs to understand the syntax of all frames before it can
@@ -39,4 +38,3 @@ tags: [RFC9000, QUIC, transport, UDP, variable-length-integer, connection-migrat
 
 ---
 
-**Navigation:** [[../RFC9000|RFC9000 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

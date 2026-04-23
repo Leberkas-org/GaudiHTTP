@@ -1,4 +1,4 @@
----
+﻿---
 title: 4.4.  Invalidating Stored Responses
 rfc_number: 9111
 rfc_section: '4.4'
@@ -52,26 +52,3 @@ tags:
    Note that this does not guarantee that all appropriate responses are
    invalidated globally; a state-changing request would only invalidate
    responses in the caches it travels through.
-
-
----
-
-## TurboHTTP Compliance
-
-**Status:** ❌ Missing
-
-**Implementation Notes:**
-TurboHTTP does not implement cache invalidation. No logic exists to invalidate stored responses after successful unsafe method requests (POST, PUT, DELETE). Since no cache storage exists, there is nothing to invalidate.
-
-**Key Gaps:**
-- No invalidation triggered by unsafe methods
-- No invalidation based on Location/Content-Location headers
-- No protection against invalidation from non-trustworthy sources
-
-**Affected Components:** None
-
-**Test References:** None
-
----
-
-**Navigation:** [[../RFC9111|RFC9111 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

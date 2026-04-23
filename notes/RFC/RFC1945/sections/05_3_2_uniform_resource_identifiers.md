@@ -1,4 +1,4 @@
----
+﻿---
 title: "3.2.  Uniform Resource Identifiers"
 rfc_number: 1945
 rfc_section: "3.2"
@@ -25,7 +25,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
    forms are differentiated by the fact that absolute URIs always begin
    with a scheme name followed by a colon.
 
-
 ```abnf
        URI            = ( absoluteURI | relativeURI ) [ "#" fragment ]
 
@@ -34,11 +33,9 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
        relativeURI    = net_path | abs_path | rel_path
 ```
 
-
        net_path       = "//" net_loc [ abs_path ]
        abs_path       = "/" rel_path
        rel_path       = [ path ] [ ";" params ] [ "?" query ]
-
 
 ```abnf
        path           = fsegment *( "/" segment )
@@ -65,9 +62,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
        national       = <any OCTET excluding ALPHA, DIGIT,
 ```
 
-
-
-
                         reserved, extra, safe, and unsafe>
 
    For definitive information on URL syntax and semantics, see RFC 1738
@@ -85,7 +79,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
        http_URL       = "http:" "//" host [ ":" port ] [ abs_path ]
 
-
 ```abnf
        host           = <A legal Internet host domain name
                          or IP address (in dotted-decimal form),
@@ -93,7 +86,6 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
        port           = *DIGIT
 ```
-
 
    If the port is empty or not given, port 80 is assumed. The semantics
    are that the identified resource is located at the server listening
@@ -114,4 +106,3 @@ tags: [RFC1945, HTTP/1.0, message-syntax, request-response, entity-body, content
 
 ---
 
-**Navigation:** [[../RFC1945|RFC1945 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

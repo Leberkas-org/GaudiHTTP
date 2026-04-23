@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.  Security Considerations"
 rfc_number: 7541
 rfc_section: "7"
@@ -8,7 +8,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 ---
 
 # 7.  Security Considerations
-
 
    This section describes potential areas of security concern with
    HPACK:
@@ -45,9 +44,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
       increased number of guesses to learn the length associated with a
       given guess.  Padding schemes also work directly against
       compression by increasing the number of bits that are transmitted.
-
-
-
 
    Attacks like CRIME [CRIME] demonstrated the existence of these
    general attacker capabilities.  The specific attack exploited the
@@ -96,10 +92,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    of HTTP to take steps to mitigate attacks.  It would impose new
    constraints on how HTTP is used.
 
-
-
-
-
    Rather than impose constraints on users of HTTP, an implementation of
    HPACK can instead constrain how compression is applied in order to
    limit the potential for dynamic table probing.
@@ -144,12 +136,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    indexed literal (see Section 6.2.3) can be used to signal to
    intermediaries that a particular value was intentionally sent as a
    literal.
-
-
-
-
-
-
 
 > **MUST NOT**: An intermediary MUST NOT re-encode a value that uses the never-
    indexed literal representation with another representation that would
@@ -197,11 +183,6 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
    size of the data stored in the dynamic table, plus a small allowance
    for overhead.
 
-
-
-
-
-
    A decoder can limit the amount of state memory used by setting an
    appropriate value for the maximum size of the dynamic table.  In
    HTTP/2, this is realized by setting an appropriate value for the
@@ -230,4 +211,3 @@ tags: [RFC7541, HPACK, header-compression, HTTP/2, dynamic-table, static-table, 
 
 ---
 
-**Navigation:** [[../RFC7541|RFC7541 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]

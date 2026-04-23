@@ -1,4 +1,4 @@
----
+﻿---
 title: "7.  Privacy Considerations"
 rfc_number: 6265
 rfc_section: "7"
@@ -8,7 +8,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 ---
 
 # 7.  Privacy Considerations
-
 
    Cookies are often criticized for letting servers track users.  For
    example, a number of "web analytics" companies use cookies to
@@ -51,10 +50,6 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
    cookies stored in the cookie store.  For example, a user agent might
    let users delete all cookies received during a specified time period
 
-
-
-
-
    or all the cookies related to a particular domain.  In addition, many
    user agents include a user interface element that lets users examine
    the cookies stored in their cookie store.
@@ -87,4 +82,3 @@ tags: [RFC6265, cookies, state-management, Set-Cookie, domain-matching, path-mat
 
 ---
 
-**Navigation:** [[../RFC6265|RFC6265 Index]] | [[../../00-RFC_STATUS_MATRIX|Status Matrix]]
