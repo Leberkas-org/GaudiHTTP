@@ -88,36 +88,61 @@ internal sealed class RequestEncoder
         {
             var contentStream = request.Content.ReadAsStream();
             var contentLength = request.Content.Headers.ContentLength;
-            var initialSize = contentLength is > 0
-                ? (int)Math.Min(contentLength.Value, int.MaxValue)
-                : 8192;
 
-            var bodyOwner = MemoryPool<byte>.Shared.Rent(initialSize);
-            var totalRead = 0;
-            int bytesRead;
-
-            while ((bytesRead = contentStream.Read(bodyOwner.Memory.Span[totalRead..])) > 0)
+            if (contentLength is > 0)
             {
-                totalRead += bytesRead;
+                var size = (int)Math.Min(contentLength.Value, int.MaxValue);
+                var bodyOwner = MemoryPool<byte>.Shared.Rent(size);
+                var totalRead = 0;
+                int bytesRead;
 
-                // Grow buffer if full and more data may follow
-                if (totalRead == bodyOwner.Memory.Length)
+                while (totalRead < size &&
+                       (bytesRead = contentStream.Read(bodyOwner.Memory.Span[totalRead..size])) > 0)
                 {
-                    var newOwner = MemoryPool<byte>.Shared.Rent(totalRead * 2);
-                    bodyOwner.Memory[..totalRead].CopyTo(newOwner.Memory);
-                    bodyOwner.Dispose();
-                    bodyOwner = newOwner;
+                    totalRead += bytesRead;
                 }
-            }
 
-            if (totalRead > 0)
-            {
-                _rentedOwners.Add(bodyOwner);
-                frames.Add(new Http3DataFrame(bodyOwner.Memory[..totalRead]));
+                if (totalRead > 0)
+                {
+                    _rentedOwners.Add(bodyOwner);
+                    frames.Add(new Http3DataFrame(bodyOwner.Memory[..totalRead]));
+                }
+                else
+                {
+                    bodyOwner.Dispose();
+                }
             }
             else
             {
-                bodyOwner.Dispose();
+                const int chunkSize = 262_144;
+                int bytesRead;
+
+                while (true)
+                {
+                    var chunkOwner = MemoryPool<byte>.Shared.Rent(chunkSize);
+                    var chunkFilled = 0;
+
+                    while (chunkFilled < chunkSize &&
+                           (bytesRead = contentStream.Read(chunkOwner.Memory.Span[chunkFilled..chunkSize])) > 0)
+                    {
+                        chunkFilled += bytesRead;
+                    }
+
+                    if (chunkFilled > 0)
+                    {
+                        _rentedOwners.Add(chunkOwner);
+                        frames.Add(new Http3DataFrame(chunkOwner.Memory[..chunkFilled]));
+                    }
+                    else
+                    {
+                        chunkOwner.Dispose();
+                    }
+
+                    if (chunkFilled < chunkSize)
+                    {
+                        break;
+                    }
+                }
             }
         }
 

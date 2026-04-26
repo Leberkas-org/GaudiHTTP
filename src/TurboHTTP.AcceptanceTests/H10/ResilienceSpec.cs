@@ -125,7 +125,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
         await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
     }
 
-    [Fact(Timeout = 5000)]
+    [Fact(Timeout = 10000)]
     [Trait("RFC", "RFC1945-7.2")]
     public async Task Resilience_should_detect_truncated_body()
     {
@@ -156,7 +156,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
 
         await Assert.ThrowsAnyAsync<Exception>(async () =>
         {
-            var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
             await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         });
     }

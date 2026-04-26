@@ -12,14 +12,13 @@ namespace TurboHTTP.Protocol.Http2.Hpack;
 /// </summary>
 internal sealed class HpackDynamicTable
 {
-    // RFC 7541 §4.2 - Default max size: 4096 bytes
-
     // Each slot stores the header, its name byte length, and total RFC 7541 §4.1 entry size.
-    // NameByteLength is needed for literal header fields that reference an indexed name (§6.2.1/§6.2.2/§6.2.3).
-    // EncodedSize (= nameBytes + valueBytes + 32) is used for eviction and header-list-size checks.
     private readonly List<(HpackHeader Header, int NameByteLength, int EncodedSize)> _entries = [];
 
-    // RFC 7541 §4.2 - Default max size: 4096 bytes
+    private readonly Dictionary<string, int> _nameIndex = new(StringComparer.OrdinalIgnoreCase);
+
+    private int _evictedCount;
+
     /// <summary>Currently configured maximum table size in bytes.</summary>
     public int MaxSize { get; private set; } = 4096;
 
@@ -44,7 +43,6 @@ internal sealed class HpackDynamicTable
     /// <summary>
     /// RFC 7541 §4.4 - Adds a new entry to the front of the table.
     /// If the entry alone exceeds MaxSize, the entire table is cleared.
-    /// Name byte length and total entry size are computed once here and cached.
     /// </summary>
     public void Add(string name, string value)
     {
@@ -52,14 +50,15 @@ internal sealed class HpackDynamicTable
         var valueByteLength = Encoding.UTF8.GetByteCount(value);
         var entrySize = nameByteLength + valueByteLength + 32;
 
-        // RFC 7541 §4.4: Entry larger than MaxSize -> evict everything
         if (entrySize > MaxSize)
         {
             Clear();
             return;
         }
 
+        var absolutePos = _evictedCount + _entries.Count;
         _entries.Add((new HpackHeader(name, value), nameByteLength, entrySize));
+        _nameIndex[name] = absolutePos;
         CurrentSize += entrySize;
         Evict();
     }
@@ -75,14 +74,12 @@ internal sealed class HpackDynamicTable
             return null;
         }
 
-        // Newest entry is at the end of the list (index Count-1), dynamic index 1 = newest.
         return _entries[^dynamicIndex].Header;
     }
 
     /// <summary>
     /// Returns the header, its pre-computed name byte length, and total encoded entry size
-    /// (name bytes + value bytes + 32) for the given 1-based dynamic index, or null if out of range.
-    /// Used by the decoder to avoid re-computing byte counts for indexed references.
+    /// for the given 1-based dynamic index, or null if out of range.
     /// </summary>
     public (HpackHeader Header, int NameByteLength, int EncodedSize)? GetEntryWithSizes(int dynamicIndex)
     {
@@ -98,21 +95,83 @@ internal sealed class HpackDynamicTable
     /// <summary>Number of entries currently in the dynamic table.</summary>
     public int Count => _entries.Count;
 
+    /// <summary>
+    /// O(1) lookup: finds the 1-based dynamic index for a full (name+value) match.
+    /// Returns 0 if not found.
+    /// </summary>
+    public int FindFullMatch(string name, string value)
+    {
+        if (!_nameIndex.TryGetValue(name, out var absolutePos))
+        {
+            return 0;
+        }
+
+        var listIndex = absolutePos - _evictedCount;
+        if (listIndex < 0 || listIndex >= _entries.Count)
+        {
+            return 0;
+        }
+
+        var entry = _entries[listIndex];
+        if (string.Equals(entry.Header.Value, value, StringComparison.Ordinal))
+        {
+            return _entries.Count - listIndex;
+        }
+
+        for (var i = _entries.Count - 1; i >= 0; i--)
+        {
+            var e = _entries[i];
+            if (string.Equals(e.Header.Name, name, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(e.Header.Value, value, StringComparison.Ordinal))
+            {
+                return _entries.Count - i;
+            }
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// O(1) lookup: finds the 1-based dynamic index for a name-only match.
+    /// Returns 0 if not found.
+    /// </summary>
+    public int FindNameMatch(string name)
+    {
+        if (!_nameIndex.TryGetValue(name, out var absolutePos))
+        {
+            return 0;
+        }
+
+        var listIndex = absolutePos - _evictedCount;
+        if (listIndex < 0 || listIndex >= _entries.Count)
+        {
+            return 0;
+        }
+
+        return _entries.Count - listIndex;
+    }
+
     private void Evict()
     {
         while (CurrentSize > MaxSize && _entries.Count > 0)
         {
-            // Oldest entry is at the front of the list (index 0).
-            // Use cached EncodedSize — no GetByteCount call on eviction.
             var oldest = _entries[0];
             CurrentSize -= oldest.EncodedSize;
+
+            if (_nameIndex.TryGetValue(oldest.Header.Name, out var pos) && pos == _evictedCount)
+            {
+                _nameIndex.Remove(oldest.Header.Name);
+            }
+
             _entries.RemoveAt(0);
+            _evictedCount++;
         }
     }
 
     private void Clear()
     {
         _entries.Clear();
+        _nameIndex.Clear();
         CurrentSize = 0;
     }
 }

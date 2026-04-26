@@ -1123,11 +1123,11 @@ internal static class Routes
             return ms.ToArray();
         }
 
-        // Helper: compress with deflate
+        // Helper: compress with deflate (zlib-wrapped per RFC 9110 §8.4.1.2)
         static byte[] CompressDeflate(byte[] data)
         {
             using var ms = new MemoryStream();
-            using (var ds = new DeflateStream(ms, CompressionLevel.Fastest))
+            using (var ds = new ZLibStream(ms, CompressionLevel.Fastest))
             {
                 ds.Write(data, 0, data.Length);
             }
@@ -1333,14 +1333,14 @@ internal static class Routes
             await ctx.Response.Body.WriteAsync(body);
         });
 
-        // POST /compress/verify-deflate → verifies body is valid raw deflate (RFC 1951), decompresses, echoes
+        // POST /compress/verify-deflate → verifies body is valid zlib-wrapped deflate (RFC 9110 §8.4.1.2), decompresses, echoes
         app.MapPost("/compress/verify-deflate", async ctx =>
         {
             using var ms = new MemoryStream();
             await ctx.Request.Body.CopyToAsync(ms);
             ms.Position = 0;
             using var decompressed = new MemoryStream();
-            await using (var ds = new DeflateStream(ms, CompressionMode.Decompress))
+            await using (var ds = new ZLibStream(ms, CompressionMode.Decompress))
             {
                 await ds.CopyToAsync(decompressed);
             }

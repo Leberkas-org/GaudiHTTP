@@ -404,50 +404,15 @@ internal sealed class HpackEncoder
         return HpackStaticTable.NameFirstIndex.GetValueOrDefault(name, 0);
     }
 
-    /// <summary>
-    /// Searches the dynamic table for an entry matching both name and value.
-    /// Returns the absolute HPACK index (static count + dynamic offset), or 0 if not found.
-    /// </summary>
     private int FindDynamicFullMatch(string name, string value)
     {
-        for (var i = 1; i <= _table.Count; i++)
-        {
-            var entry = _table.GetEntry(i);
-            if (entry == null)
-            {
-                break;
-            }
-
-            if (string.Equals(entry.Value.Name, name, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(entry.Value.Value, value, StringComparison.Ordinal))
-            {
-                return HpackStaticTable.StaticCount + i;
-            }
-        }
-
-        return 0;
+        var dynIdx = _table.FindFullMatch(name, value);
+        return dynIdx > 0 ? HpackStaticTable.StaticCount + dynIdx : 0;
     }
 
-    /// <summary>
-    /// Searches the dynamic table for an entry matching the name only.
-    /// Returns the absolute HPACK index, or 0 if not found.
-    /// </summary>
     private int FindDynamicNameMatch(string name)
     {
-        for (var i = 1; i <= _table.Count; i++)
-        {
-            var entry = _table.GetEntry(i);
-            if (entry == null)
-            {
-                break;
-            }
-
-            if (string.Equals(entry.Value.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                return HpackStaticTable.StaticCount + i;
-            }
-        }
-
-        return 0;
+        var dynIdx = _table.FindNameMatch(name);
+        return dynIdx > 0 ? HpackStaticTable.StaticCount + dynIdx : 0;
     }
 }

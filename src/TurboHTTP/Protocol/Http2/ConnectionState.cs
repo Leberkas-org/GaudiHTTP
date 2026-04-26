@@ -21,10 +21,9 @@ internal sealed class ConnectionState
         InitialRecvStreamWindow = initialStreamWindowSize;
 
         const int minWindowUpdateThreshold = 8_192;
-        const int maxWindowUpdateThreshold = 262_144; // 256 KB
         _windowUpdateThreshold = Math.Max(
             minWindowUpdateThreshold,
-            Math.Min(maxWindowUpdateThreshold, initialConnectionWindowSize / 4));
+            initialStreamWindowSize / 2);
     }
 
     public bool GoAwayReceived { get; private set; }

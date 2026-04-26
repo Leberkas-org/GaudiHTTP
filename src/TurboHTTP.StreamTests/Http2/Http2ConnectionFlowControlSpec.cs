@@ -80,11 +80,11 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.9")]
     public async Task Http2ConnectionFlowControl_should_send_connection_window_update_when_data_reaches_threshold()
     {
-        // Explicit 65535-byte window → threshold = max(8192, 65535/4) = 16384.
-        // Sending exactly 16384 bytes crosses the threshold in a single DATA frame.
+        // Explicit 65535-byte window → threshold = max(8192, 65535/2) = 32767.
+        // Sending exactly 40000 bytes crosses the threshold in a single DATA frame.
         var stage = new Http20ConnectionStage(new TurboClientOptions
-        { Http2 = { InitialConnectionWindowSize = 65535 } });
-        var data = new DataFrame(streamId: 1, data: new byte[16384], endStream: true);
+        { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } });
+        var data = new DataFrame(streamId: 1, data: new byte[40000], endStream: true);
 
         var (_, serverBound) = await RunFlowAsync(stage, data);
 
@@ -93,7 +93,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
             .FirstOrDefault(f => f.StreamId == 0);
 
         Assert.NotNull(connectionUpdate);
-        Assert.Equal(16384, connectionUpdate.Increment);
+        Assert.Equal(40000, connectionUpdate.Increment);
     }
 
     [Fact(Timeout = 10_000)]
@@ -116,19 +116,19 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.9")]
     public async Task Http2ConnectionFlowControl_should_send_both_window_updates_when_threshold_crossed()
     {
-        // Explicit 65535-byte window → threshold = 16384. Exactly 16384 bytes on a single
-        // DATA frame crosses both the connection and stream thresholds simultaneously.
+        // Explicit 65535-byte window → threshold = max(8192, 65535/2) = 32767.
+        // Sending 40000 bytes crosses both thresholds simultaneously.
         var stage = new Http20ConnectionStage(new TurboClientOptions
-        { Http2 = { InitialConnectionWindowSize = 65535 } });
-        var data = new DataFrame(streamId: 3, data: new byte[16384], endStream: true);
+        { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } });
+        var data = new DataFrame(streamId: 3, data: new byte[40000], endStream: true);
 
         var (_, serverBound) = await RunFlowAsync(stage, data);
 
         var windowUpdates = serverBound.OfType<WindowUpdateFrame>().ToList();
 
         Assert.Equal(2, windowUpdates.Count);
-        Assert.Contains(windowUpdates, f => f is { StreamId: 0, Increment: 16384 });
-        Assert.Contains(windowUpdates, f => f is { StreamId: 3, Increment: 16384 });
+        Assert.Contains(windowUpdates, f => f is { StreamId: 0, Increment: 40000 });
+        Assert.Contains(windowUpdates, f => f is { StreamId: 3, Increment: 40000 });
     }
 
     [Fact(Timeout = 10_000)]
@@ -146,7 +146,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 (b, dsSink, nwSink) =>
                 {
                     var stage = b.Add(new Http20ConnectionStage(new TurboClientOptions
-                    { Http2 = { InitialConnectionWindowSize = 65535 } }));
+                    { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
                     var serverSource = b.Add(Source.From(FramesToInputs([data])));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
@@ -184,7 +184,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 (b, dsSink, nwSink) =>
                 {
                     var stage = b.Add(new Http20ConnectionStage(new TurboClientOptions
-                    { Http2 = { InitialConnectionWindowSize = 65535 } }));
+                    { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
                     var serverSource = b.Add(Source.From(FramesToInputs([data])));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
@@ -222,7 +222,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 (b, dsSink, nwSink) =>
                 {
                     var stage = b.Add(new Http20ConnectionStage(new TurboClientOptions
-                    { Http2 = { InitialConnectionWindowSize = 65535 } }));
+                    { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
                     var serverSource = b.Add(Source.Never<IInputItem>());
                     var requestSource = b.Add(Source.Single(request));
 
@@ -258,7 +258,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 (b, nwSink) =>
                 {
                     var stage = b.Add(new Http20ConnectionStage(new TurboClientOptions
-                    { Http2 = { InitialConnectionWindowSize = 65535 } }));
+                    { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
                     var serverSource = b.Add(Source.Never<IInputItem>());
                     var requestSource = b.Add(Source.Single(request));
                     var ignoreSink =
@@ -296,7 +296,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                 (b, nwSink) =>
                 {
                     var stage = b.Add(new Http20ConnectionStage(new TurboClientOptions
-                    { Http2 = { InitialConnectionWindowSize = 65535 } }));
+                    { Http2 = { InitialConnectionWindowSize = 65535, InitialStreamWindowSize = 65535 } }));
 
                     // Server sends WINDOW_UPDATEs immediately, then a harmless SETTINGS ACK
                     // after a delay to keep InServer alive until the request has been processed.

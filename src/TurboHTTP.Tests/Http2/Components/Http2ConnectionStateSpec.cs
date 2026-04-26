@@ -176,7 +176,7 @@ public sealed class Http2ConnectionStateSpec
     public void OnInboundData_should_send_connection_window_update_when_pending_threshold_reached()
     {
         var state = new ConnectionState(65535, 65535);
-        const int largeData = 20000;
+        const int largeData = 40000;
 
         var result = state.OnInboundData(streamId: 1, dataLength: largeData);
 
@@ -191,7 +191,7 @@ public sealed class Http2ConnectionStateSpec
     public void OnInboundData_should_send_stream_window_update_when_pending_threshold_reached()
     {
         var state = new ConnectionState(65535, 65535);
-        const int largeData = 20000;
+        const int largeData = 40000;
 
         var result = state.OnInboundData(streamId: 1, dataLength: largeData);
 
@@ -214,7 +214,7 @@ public sealed class Http2ConnectionStateSpec
         var result2 = state.OnInboundData(streamId: 1, dataLength: smallData);
         Assert.Null(result2.ConnectionWindowUpdate);
 
-        const int largeData = 20000;
+        const int largeData = 40000;
         var result3 = state.OnInboundData(streamId: 2, dataLength: largeData);
         Assert.NotNull(result3.ConnectionWindowUpdate);
     }
@@ -396,7 +396,7 @@ public sealed class Http2ConnectionStateSpec
         var state = new ConnectionState(65535, 65535);
         const int data1 = 3000;
         const int data2 = 3000;
-        const int data3 = 20000;
+        const int data3 = 40000;
 
         var result1 = state.OnInboundData(streamId: 1, dataLength: data1);
         Assert.Null(result1.StreamWindowUpdate);

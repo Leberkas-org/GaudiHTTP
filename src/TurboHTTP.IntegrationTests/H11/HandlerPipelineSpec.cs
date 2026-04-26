@@ -211,7 +211,7 @@ public sealed class HandlerPipelineSpec
         // UseRequest injects X-From-Handler.
         // WithCookies causes the jar to inject a Cookie header on subsequent requests.
         // /interaction/echo-all-headers echoes X-* headers AND Cookie as X-Received-Cookie.
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await using var helper = ClientHelper.CreateClient(

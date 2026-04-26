@@ -18,7 +18,7 @@ public sealed class CookieSpec
         _systemFixture = systemFixture;
     }
 
-    private ClientHelper CreateCookieClient(CookieJar jar)
+    private ClientHelper CreateCookieClient(MemoryCookieStore jar)
     {
         return ClientHelper.CreateClient(
             _server.H1Port,
@@ -31,7 +31,7 @@ public sealed class CookieSpec
     public async Task Cookie_should_roundtrip_set_and_echo()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -52,7 +52,7 @@ public sealed class CookieSpec
     public async Task Cookie_must_not_be_sent_over_plaintext_when_secure()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -73,7 +73,7 @@ public sealed class CookieSpec
     public async Task Cookie_should_send_httponly_on_subsequent_requests()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -97,7 +97,7 @@ public sealed class CookieSpec
     public async Task Cookie_should_store_and_send_samesite(string policy)
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -118,7 +118,7 @@ public sealed class CookieSpec
     public async Task Cookie_should_not_be_sent_after_max_age_expires()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -149,7 +149,7 @@ public sealed class CookieSpec
     public async Task Cookie_should_be_stored_when_domain_scoped()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -170,7 +170,7 @@ public sealed class CookieSpec
     public async Task Cookie_should_be_sent_for_matching_path_when_path_scoped()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -193,7 +193,7 @@ public sealed class CookieSpec
     public async Task Cookie_should_return_empty_when_no_cookies_set()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -210,7 +210,7 @@ public sealed class CookieSpec
     public async Task Cookie_should_store_all_multiple_setcookie_headers()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -233,7 +233,7 @@ public sealed class CookieSpec
     public async Task Cookie_should_be_deleted_via_max_age_zero()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(25));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
@@ -266,13 +266,13 @@ public sealed class CookieSpec
     public async Task Cookie_should_persist_across_redirect_response()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         await using var helper = CreateCookieClient(jar);
 
         // This route sets a cookie and returns a 302 redirect to /cookie/echo.
         // Without automatic redirect following, we get the 302 back —
-        // but the CookieJar should still store the Set-Cookie from the response.
+        // but the MemoryCookieStore should still store the Set-Cookie from the response.
         var setRequest = new HttpRequestMessage(HttpMethod.Get, "/cookie/set-and-redirect");
         var setResponse = await helper.Client.SendAsync(setRequest, cts.Token);
         Assert.Equal(HttpStatusCode.Found, setResponse.StatusCode);

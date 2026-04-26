@@ -59,7 +59,7 @@ internal sealed class StateMachine
         _tracker = new StreamTracker(1, options.Http2.MaxConcurrentStreams);
         _connection = new ConnectionState(options.Http2.InitialConnectionWindowSize,
             options.Http2.InitialStreamWindowSize);
-        _requestEncoder = new RequestEncoder(maxFrameSize: options.Http2.MaxFrameSize);
+        _requestEncoder = new RequestEncoder(maxFrameSize: 16_384);
         _statePoolCapacity = Math.Min(
             _tracker.MaxConcurrentStreams > 0 ? _tracker.MaxConcurrentStreams : 100,
             MaxStatePoolCapacity);
@@ -230,22 +230,34 @@ internal sealed class StateMachine
         }
 
         var frames = _requestEncoder.Encode(request, streamId);
-        var first = true;
-        foreach (var frame in frames)
+
+        if (frames.Count == 0)
         {
-            if (first)
-            {
-                first = false;
-
-                if (frame is HeadersFrame headers)
-                {
-                    _tracker.OnStreamOpened(headers.StreamId);
-                    _ops.OnOutbound(new StreamAcquireItem { Key = Endpoint });
-                }
-            }
-
-            EmitFrame(frame);
+            return true;
         }
+
+        if (frames[0] is HeadersFrame headersFrame)
+        {
+            _tracker.OnStreamOpened(headersFrame.StreamId);
+            _ops.OnOutbound(new StreamAcquireItem { Key = Endpoint });
+        }
+
+        var totalSize = 0;
+        for (var i = 0; i < frames.Count; i++)
+        {
+            totalSize += frames[i].SerializedSize;
+        }
+
+        var buf = NetworkBuffer.Rent(totalSize);
+        var span = buf.FullMemory.Span;
+        for (var i = 0; i < frames.Count; i++)
+        {
+            frames[i].WriteTo(ref span);
+        }
+
+        buf.Length = totalSize;
+        buf.Key = Endpoint;
+        _ops.OnOutbound(buf);
 
         return true;
     }

@@ -221,7 +221,7 @@ public sealed class HandlerPipelineSpec : IAsyncLifetime
     [Fact(Timeout = 20000)]
     public async Task HandlerPipeline_should_work_with_cookie_pipeline()
     {
-        var jar = new CookieJar();
+        var jar = new MemoryCookieStore();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await using var helper = ClientHelper.CreateClient(

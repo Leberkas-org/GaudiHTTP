@@ -17,7 +17,7 @@ public sealed class CacheSpec
         _systemFixture = systemFixture;
     }
 
-    private ClientHelper CreateCacheClient(CacheStore store, CachePolicy? policy = null)
+    private ClientHelper CreateCacheClient(ICacheStore store, CachePolicy? policy = null)
     {
         return ClientHelper.CreateClient(
             _server.H1Port,
@@ -35,7 +35,7 @@ public sealed class CacheSpec
     public async Task Cache_should_serve_max_age_response_from_cache()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store);
 
@@ -57,7 +57,7 @@ public sealed class CacheSpec
     public async Task Cache_should_force_revalidation_with_no_cache()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store);
 
@@ -81,7 +81,7 @@ public sealed class CacheSpec
     public async Task Cache_should_never_cache_no_store_response()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store);
 
@@ -105,7 +105,7 @@ public sealed class CacheSpec
     public async Task Cache_should_send_if_none_match_for_etag_revalidation()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store);
 
@@ -128,7 +128,7 @@ public sealed class CacheSpec
     public async Task Cache_should_send_if_modified_since_for_last_modified_revalidation()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store);
 
@@ -151,7 +151,7 @@ public sealed class CacheSpec
     public async Task Cache_should_produce_different_entries_for_vary_header_values()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store);
 
@@ -187,7 +187,7 @@ public sealed class CacheSpec
     public async Task Cache_should_force_revalidation_when_must_revalidate()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store);
 
@@ -211,7 +211,7 @@ public sealed class CacheSpec
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var policy = new CachePolicy { SharedCache = true };
-        var store = new CacheStore(policy);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store, policy);
 
@@ -232,7 +232,7 @@ public sealed class CacheSpec
     public async Task Cache_should_enable_caching_with_expires_header()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store);
 
@@ -253,7 +253,7 @@ public sealed class CacheSpec
     public async Task Cache_should_cache_private_response_by_private_cache()
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        var store = new CacheStore(CachePolicy.Default);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store);
 
@@ -276,7 +276,7 @@ public sealed class CacheSpec
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var policy = new CachePolicy { SharedCache = true };
-        var store = new CacheStore(policy);
+        var store = new MemoryCacheStore();
 
         await using var helper = CreateCacheClient(store, policy);
 
