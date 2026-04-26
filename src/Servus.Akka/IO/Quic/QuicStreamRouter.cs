@@ -112,7 +112,7 @@ public sealed class QuicStreamRouter
     {
         if (_requestStreams.TryGetValue(endItem.StreamId, out var ctx) && ctx.Handle is not null)
         {
-            ctx.Handle.OutboundWriter.TryComplete();
+            ctx.Handle.TryCompleteOutbound();
         }
         else if (_requestStreams.TryGetValue(endItem.StreamId, out var pendingCtx))
         {
@@ -173,7 +173,7 @@ public sealed class QuicStreamRouter
         if (ctx.PendingEndOfRequest)
         {
             ctx.PendingEndOfRequest = false;
-            ctx.Handle!.OutboundWriter.TryComplete();
+            ctx.Handle!.TryCompleteOutbound();
         }
     }
 
@@ -281,7 +281,7 @@ public sealed class QuicStreamRouter
             return;
         }
 
-        _ = handle.OutboundWriter.WriteAsync(buffer)
+        _ = handle.WriteAsync(buffer)
             .PipeTo(_self,
                 success: static () => new OutboundWriteDone(),
                 failure: static ex => new OutboundWriteFailed(ex.GetBaseException()));

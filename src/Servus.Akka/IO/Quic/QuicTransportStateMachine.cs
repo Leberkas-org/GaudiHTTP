@@ -600,7 +600,7 @@ public sealed class QuicTransportStateMachine
                 h3.StreamId = streamId;
             }
 
-            _ = handle.OutboundWriter.WriteAsync(item)
+            _ = handle.WriteAsync(item)
                 .PipeTo(_self,
                     success: static () => new OutboundWriteDone(),
                     failure: static ex => new OutboundWriteFailed(ex.GetBaseException()));

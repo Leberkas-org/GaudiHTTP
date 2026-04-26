@@ -1,117 +1,73 @@
-using System.Threading.Channels;
+using System.IO.Pipelines;
 using Servus.Akka.IO;
 using Servus.Akka.IO.Quic;
-using Servus.Akka.Tests.Utils;
 
 namespace Servus.Akka.Tests.IO;
 
 public sealed class ClientStateSpec
 {
     [Fact(Timeout = 5000)]
-    public void ClientState_should_dispose_inbound_items_when_dispose_async_called()
+    public void ClientState_should_dispose_stream_on_dispose()
     {
-        // Arrange: pre-populate inbound channel with two NetworkBuffers
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
         var stream = new MemoryStream();
+        var state = new ClientState(stream);
 
-        var state = new ClientState(stream, inbound, outbound);
-
-        var buf1 = NetworkBufferTestExtensions.FromArray(new byte[64]);
-        var buf2 = NetworkBufferTestExtensions.FromArray(new byte[128]);
-        state.InboundWriter.TryWrite(buf1);
-        state.InboundWriter.TryWrite(buf2);
-
-        // Act
         state.Dispose();
 
-        // Assert: both inbound buffers must have been disposed (no exception on Dispose)
-        // NetworkBuffer.Dispose() is idempotent so this just verifies the channel was drained
+        Assert.Throws<ObjectDisposedException>(() => stream.ReadByte());
     }
 
     [Fact(Timeout = 5000)]
-    public void ClientState_should_dispose_outbound_items_when_dispose_async_called()
+    public void ClientState_should_create_pipes_by_default()
     {
-        // Arrange: pre-populate outbound channel with one NetworkBuffer
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
         var stream = new MemoryStream();
+        var state = new ClientState(stream);
 
-        var state = new ClientState(stream, inbound, outbound);
-
-        var buf = NetworkBufferTestExtensions.FromArray(new byte[256]);
-        state.OutboundWriter.TryWrite(buf);
-
-        // Act
-        state.Dispose();
-
-        // Assert: outbound buffer must have been disposed (no exception on Dispose)
-        // NetworkBuffer.Dispose() is idempotent so this just verifies the channel was drained
+        Assert.NotNull(state.InboundPipe);
+        Assert.NotNull(state.OutboundPipe);
     }
 
     [Fact(Timeout = 5000)]
-    public void ClientState_should_create_bidirectional_channels_by_default()
+    public async Task ClientState_should_have_working_inbound_pipe()
     {
         var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null);
+        var state = new ClientState(stream);
 
-        Assert.NotNull(state.InboundReader);
-        Assert.NotNull(state.InboundWriter);
-        Assert.NotNull(state.OutboundReader);
-        Assert.NotNull(state.OutboundWriter);
+        // Verify pipe can be written to and read from
+        var writer = state.InboundPipe.Writer;
+        var data = new byte[] { 1, 2, 3 };
+        await writer.WriteAsync(data);
+        writer.Complete();
+
+        var result = await state.InboundPipe.Reader.ReadAsync();
+        Assert.Equal(3, result.Buffer.Length);
+        state.InboundPipe.Reader.AdvanceTo(result.Buffer.End);
+        state.InboundPipe.Reader.Complete();
     }
 
     [Fact(Timeout = 5000)]
-    public void ClientState_should_accept_explicit_channels()
+    public async Task ClientState_should_have_working_outbound_pipe()
     {
         var stream = new MemoryStream();
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var state = new ClientState(stream, inbound, outbound);
+        var state = new ClientState(stream);
 
-        Assert.NotNull(state.InboundReader);
-        Assert.NotNull(state.InboundWriter);
-        Assert.NotNull(state.OutboundReader);
-        Assert.NotNull(state.OutboundWriter);
-    }
+        // Verify pipe can be written to and read from
+        var writer = state.OutboundPipe.Writer;
+        var data = new byte[] { 4, 5, 6 };
+        await writer.WriteAsync(data);
+        writer.Complete();
 
-    [Fact(Timeout = 5000)]
-    public void ClientState_should_have_working_channels()
-    {
-        var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null);
-
-        // Verify channels can be written to and read from
-        var buf = NetworkBufferTestExtensions.FromArray([1, 2, 3]);
-        var writeSuccess = state.InboundWriter.TryWrite(buf);
-        Assert.True(writeSuccess);
-
-        var readSuccess = state.InboundReader.TryRead(out _);
-        Assert.True(readSuccess);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ClientState_should_handle_bidirectional_channels()
-    {
-        var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null);
-
-        // Both inbound and outbound channels should be operational
-        var inboundBuf = NetworkBufferTestExtensions.FromArray([1, 2, 3]);
-        var outboundBuf = NetworkBufferTestExtensions.FromArray([4, 5, 6]);
-
-        Assert.True(state.InboundWriter.TryWrite(inboundBuf));
-        Assert.True(state.OutboundWriter.TryWrite(outboundBuf));
-
-        Assert.True(state.InboundReader.TryRead(out _));
-        Assert.True(state.OutboundReader.TryRead(out _));
+        var result = await state.OutboundPipe.Reader.ReadAsync();
+        Assert.Equal(3, result.Buffer.Length);
+        state.OutboundPipe.Reader.AdvanceTo(result.Buffer.End);
+        state.OutboundPipe.Reader.Complete();
     }
 
     [Fact(Timeout = 5000)]
     public void ClientState_should_expose_stream_property()
     {
         var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null);
+        var state = new ClientState(stream);
 
         Assert.Same(stream, state.Stream);
     }
@@ -120,7 +76,7 @@ public sealed class ClientStateSpec
     public void ClientState_should_allow_on_writes_complete_callback()
     {
         var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null)
+        var state = new ClientState(stream)
         {
             OnWritesComplete = () => { }
         };
@@ -129,117 +85,50 @@ public sealed class ClientStateSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void ClientState_should_drain_both_channels_on_dispose()
+    public void ClientState_should_complete_pipes_on_dispose()
     {
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
         var stream = new MemoryStream();
-        var state = new ClientState(stream, inbound, outbound);
+        var state = new ClientState(stream);
 
-        // Write multiple buffers
-        for (var i = 0; i < 5; i++)
+        state.Dispose();
+
+        // After dispose, pipes should be completed — writing should throw
+        Assert.Throws<InvalidOperationException>(() =>
         {
-            state.InboundWriter.TryWrite(NetworkBufferTestExtensions.FromArray([1, 2, 3]));
-            state.OutboundWriter.TryWrite(NetworkBufferTestExtensions.FromArray([4, 5, 6]));
-        }
-
-        state.Dispose();
-
-        // After dispose, channels should be completed and drained
-        Assert.False(state.InboundReader.TryRead(out _));
-        Assert.False(state.OutboundReader.TryRead(out _));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ClientState_should_complete_writer_on_dispose()
-    {
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var stream = new MemoryStream();
-        var state = new ClientState(stream, inbound, outbound);
-
-        state.Dispose();
-
-        // Writers should be completed after dispose
-        Assert.False(state.InboundWriter.TryWrite(NetworkBufferTestExtensions.FromArray([1, 2, 3])));
-        Assert.False(state.OutboundWriter.TryWrite(NetworkBufferTestExtensions.FromArray([4, 5, 6])));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ClientState_should_dispose_stream_on_dispose()
-    {
-        var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null);
-
-        state.Dispose();
-
-        Assert.Throws<ObjectDisposedException>(() => stream.ReadByte());
+            state.InboundPipe.Writer.GetMemory(1);
+        });
     }
 
     [Fact(Timeout = 5000)]
     public void ClientState_should_handle_double_dispose()
     {
         var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null);
+        var state = new ClientState(stream);
 
         state.Dispose();
         state.Dispose(); // Should not throw
     }
 
     [Fact(Timeout = 5000)]
-    public void ClientState_should_create_write_only_channels()
+    public void ClientState_should_create_with_write_only_direction()
     {
         var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null, StreamDirection.WriteOnly);
+        var state = new ClientState(stream, StreamDirection.WriteOnly);
 
         Assert.Equal(StreamDirection.WriteOnly, state.Direction);
-        Assert.NotNull(state.OutboundReader);
-        Assert.NotNull(state.OutboundWriter);
-
-        var buf = NetworkBufferTestExtensions.FromArray([1, 2, 3]);
-        Assert.True(state.OutboundWriter.TryWrite(buf));
-
-        Assert.False(state.InboundWriter.TryWrite(NetworkBufferTestExtensions.FromArray([4, 5, 6])));
+        Assert.NotNull(state.OutboundPipe);
 
         state.Dispose();
     }
 
     [Fact(Timeout = 5000)]
-    public void ClientState_should_create_read_only_channels()
+    public void ClientState_should_create_with_read_only_direction()
     {
         var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null, StreamDirection.ReadOnly);
+        var state = new ClientState(stream, StreamDirection.ReadOnly);
 
         Assert.Equal(StreamDirection.ReadOnly, state.Direction);
-        Assert.NotNull(state.InboundReader);
-        Assert.NotNull(state.InboundWriter);
-
-        var buf = NetworkBufferTestExtensions.FromArray([1, 2, 3]);
-        Assert.True(state.InboundWriter.TryWrite(buf));
-
-        Assert.False(state.OutboundWriter.TryWrite(NetworkBufferTestExtensions.FromArray([4, 5, 6])));
-
-        state.Dispose();
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ClientState_write_only_should_pre_complete_inbound_channel()
-    {
-        var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null, StreamDirection.WriteOnly);
-
-        Assert.True(state.InboundReader.Completion.IsCompleted);
-
-        state.Dispose();
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ClientState_read_only_should_pre_complete_outbound_channel()
-    {
-        var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null, StreamDirection.ReadOnly);
-
-        Assert.True(state.OutboundReader.Completion.IsCompleted);
+        Assert.NotNull(state.InboundPipe);
 
         state.Dispose();
     }
@@ -248,7 +137,7 @@ public sealed class ClientStateSpec
     public void ClientState_should_default_to_bidirectional_direction()
     {
         var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null);
+        var state = new ClientState(stream);
 
         Assert.Equal(StreamDirection.Bidirectional, state.Direction);
 
@@ -259,7 +148,7 @@ public sealed class ClientStateSpec
     public void ClientState_should_expose_on_writes_complete_as_null_by_default()
     {
         var stream = new MemoryStream();
-        var state = new ClientState(stream, null, null);
+        var state = new ClientState(stream);
 
         Assert.Null(state.OnWritesComplete);
 

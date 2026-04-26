@@ -34,14 +34,14 @@ public sealed class Http2Options
     /// Advertised via SETTINGS_INITIAL_WINDOW_SIZE in the connection preface.
     /// Default is 65,535 (RFC 9113 §6.9.2 default).
     /// </summary>
-    public int InitialStreamWindowSize { get; set; } = 65_535;
+    public int InitialStreamWindowSize { get; set; } = 2_097_152;
 
     /// <summary>
     /// Maximum HTTP/2 frame payload size in bytes (RFC 9113 §4.2).
     /// Advertised via SETTINGS_MAX_FRAME_SIZE in the connection preface.
     /// Default is 16,384 (RFC 9113 minimum/default).
     /// </summary>
-    public int MaxFrameSize { get; set; } = 16_384;
+    public int MaxFrameSize { get; set; } = 65_536;
 
     /// <summary>
     /// HPACK dynamic table size in bytes (RFC 7541 §4.2).

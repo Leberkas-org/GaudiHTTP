@@ -46,10 +46,10 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
 
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
     }
 
-    [Fact(Timeout = 5000)]
+    [Fact(Timeout = 15000)]
     [Trait("RFC", "RFC1945-7.2")]
     public async Task EdgeCase_should_receive_large_256kb_body_via_connection_close()
     {

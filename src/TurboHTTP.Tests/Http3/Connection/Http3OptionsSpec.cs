@@ -9,7 +9,7 @@ public sealed class Http3OptionsSpec
         var options = new Http3Options();
 
         Assert.Equal(4, options.MaxConnectionsPerServer);
-        Assert.Equal(4096, options.QpackMaxTableCapacity);
+        Assert.Equal(16_384, options.QpackMaxTableCapacity);
         Assert.Equal(100, options.QpackBlockedStreams);
         Assert.Equal(65536, options.MaxFieldSectionSize);
         Assert.Equal(TimeSpan.FromSeconds(30), options.IdleTimeout);
@@ -45,6 +45,6 @@ public sealed class Http3OptionsSpec
 
         Assert.NotNull(clientOptions.Http3);
         Assert.Equal(4, clientOptions.Http3.MaxConnectionsPerServer);
-        Assert.Equal(4096, clientOptions.Http3.QpackMaxTableCapacity);
+        Assert.Equal(16_384, clientOptions.Http3.QpackMaxTableCapacity);
     }
 }

@@ -7,9 +7,12 @@ namespace TurboHTTP.Tests.Http2.Connection;
 
 public sealed class Http2StateMachineSpec
 {
-    private static TurboClientOptions MakeConfig(int? maxConcurrentStreams = null, int? maxReconnect = null)
+    private static TurboClientOptions MakeConfig(int? maxConcurrentStreams = null, int? maxReconnect = null,
+        int initialStreamWindowSize = 65_535, int maxFrameSize = 16_384)
     {
         var options = new TurboClientOptions();
+        options.Http2.InitialStreamWindowSize = initialStreamWindowSize;
+        options.Http2.MaxFrameSize = maxFrameSize;
         if (maxConcurrentStreams.HasValue) options.Http2.MaxConcurrentStreams = maxConcurrentStreams.Value;
         if (maxReconnect.HasValue) options.Http2.MaxReconnectAttempts = maxReconnect.Value;
         return options;

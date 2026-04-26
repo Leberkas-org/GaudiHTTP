@@ -132,8 +132,6 @@ public sealed class QuicTransportEventSpec
 
     private static ConnectionLease CreateTestConnectionLease()
     {
-        var inbound = System.Threading.Channels.Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = System.Threading.Channels.Channel.CreateUnbounded<NetworkBuffer>();
         var key = new RequestEndpoint
         {
             Scheme = "https",
@@ -141,8 +139,8 @@ public sealed class QuicTransportEventSpec
             Port = 443,
             Version = new Version(3, 0)
         };
-        var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key);
-        var state = new ClientState(Stream.Null, inbound, outbound);
+        var state = new ClientState(Stream.Null);
+        var handle = ConnectionHandle.CreateDirect(state.OutboundWriter, state.InboundReader, key);
         return new ConnectionLease(handle, state);
     }
 }

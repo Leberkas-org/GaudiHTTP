@@ -1,16 +1,10 @@
 using System.Threading.Channels;
 using Akka.Actor;
 
-// QUIC APIs are platform-guarded; usage is gated at runtime via ConnectItem.Options being QuicOptions.
 #pragma warning disable CA1416
 
 namespace Servus.Akka.IO.Quic;
 
-/// <summary>
-/// Manages the lifecycle of QUIC inbound stream pumps — start, cancel, and the async read loops
-/// that marshal data from QUIC streams into StageActorRef messages.
-/// Extracted from <see cref="QuicTransportStateMachine"/> for single-responsibility.
-/// </summary>
 public sealed class QuicPumpManager
 {
     private readonly IActorRef _self;
@@ -22,10 +16,6 @@ public sealed class QuicPumpManager
         _self = self;
     }
 
-    /// <summary>
-    /// Starts a background pump that reads from the given handle's inbound channel
-    /// and marshals each chunk as a <see cref="InboundData"/> message.
-    /// </summary>
     public void StartInboundPump(ConnectionHandle handle, long streamTypeValue,
         RequestEndpoint key, int connectionGen, long streamId)
     {
@@ -33,9 +23,6 @@ public sealed class QuicPumpManager
         _ = PumpAsync(handle.InboundReader, key, streamTypeValue, _pumpsCts.Token, _self, connectionGen, streamId);
     }
 
-    /// <summary>
-    /// Starts the server-initiated inbound stream accept loop for the given QUIC connection.
-    /// </summary>
     public void StartInboundAcceptLoop(QuicConnectionHandle connectionHandle)
     {
         _inboundAcceptCts?.Cancel();
@@ -45,9 +32,6 @@ public sealed class QuicPumpManager
         _ = AcceptLoopAsync(connectionHandle, _self, _inboundAcceptCts.Token);
     }
 
-    /// <summary>
-    /// Cancels all active inbound pumps and the accept loop.
-    /// </summary>
     public void StopAll()
     {
         _inboundAcceptCts?.Cancel();
@@ -74,7 +58,7 @@ public sealed class QuicPumpManager
 
             if (inbound is null)
             {
-                continue; // unknown stream type or transient error — try again
+                continue;
             }
 
             self.Tell(new InboundStreamReady(inbound));
@@ -82,7 +66,7 @@ public sealed class QuicPumpManager
     }
 
     private static async Task PumpAsync(
-        ChannelReader<NetworkBuffer> reader,
+        ChannelReader<IoBuffer> reader,
         RequestEndpoint key,
         long streamTypeValue,
         CancellationToken ct,
@@ -97,15 +81,12 @@ public sealed class QuicPumpManager
             {
                 while (reader.TryRead(out var chunk))
                 {
-                    chunk.Key = key;
+                    var nb = RoutedNetworkBuffer.Wrap(chunk.Owner, chunk.Length);
+                    nb.Key = key;
+                    nb.StreamTypeValue = streamTypeValue;
+                    nb.StreamId = streamId;
 
-                    if (chunk is RoutedNetworkBuffer h3Buf)
-                    {
-                        h3Buf.StreamTypeValue = streamTypeValue;
-                        h3Buf.StreamId = streamId;
-                    }
-
-                    self.Tell(new InboundData(chunk, gen));
+                    self.Tell(new InboundData(nb, gen));
                 }
             }
         }

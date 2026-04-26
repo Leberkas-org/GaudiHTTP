@@ -20,10 +20,8 @@ internal sealed class FailOnceConnectionFactory : IConnectionFactory
             return Task.FromException<ConnectionLease>(new IOException("Simulated first-call connection failure"));
         }
 
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, endpoint);
-        var state = new ClientState(Stream.Null, inbound, outbound);
+        var state = new ClientState(Stream.Null);
+        var handle = ConnectionHandle.CreateDirect(state.OutboundWriter, state.InboundReader, endpoint);
         return Task.FromResult(new ConnectionLease(handle, state));
     }
 }

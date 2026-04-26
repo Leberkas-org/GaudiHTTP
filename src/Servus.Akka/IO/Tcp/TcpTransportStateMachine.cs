@@ -471,7 +471,7 @@ public sealed class TcpTransportStateMachine
 
     private void WriteToOutbound(NetworkBuffer buffer)
     {
-        _handle!.OutboundWriter.WriteAsync(buffer)
+        _handle!.WriteAsync(buffer)
             .PipeTo(_self,
                 success: () => new OutboundWriteDone(),
                 failure: ex => new OutboundWriteFailed(ex));
@@ -498,15 +498,12 @@ public sealed class TcpTransportStateMachine
 
         if (_handle is { } handle)
         {
-            _ = handle.OutboundWriter.WriteAsync(dataItem).PipeTo(_self,
+            _ = handle.WriteAsync(dataItem).PipeTo(_self,
                 success: () => new FlushNextCompleted(),
                 failure: ex => new OutboundWriteFailed(ex));
         }
         else
         {
-            // No handle — connection was torn down while writes were pending.
-            // Drain and dispose all remaining writes to avoid leaking buffers,
-            // then pull to let upstream know we're ready for new items.
             dataItem.Dispose();
             while (_pendingWrites.TryDequeue(out var orphan))
             {

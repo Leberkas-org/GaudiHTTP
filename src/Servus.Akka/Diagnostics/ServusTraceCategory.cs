@@ -12,5 +12,5 @@ public enum ServusTraceCategory : byte
     Dns = 2,
     Tls = 4,
     Pool = 8,
-    All = 15,
+    All = Connection | Dns | Tls | Pool,
 }

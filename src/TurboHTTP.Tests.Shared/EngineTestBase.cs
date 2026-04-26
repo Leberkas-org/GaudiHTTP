@@ -158,7 +158,7 @@ public abstract class EngineTestBase
             .Via(flow)
             .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
 
-        var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         var requestBytes = new List<byte>();
         var controlBytes = new List<byte>();

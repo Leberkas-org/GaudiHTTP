@@ -9,7 +9,7 @@ namespace Servus.Akka.Diagnostics;
 /// <see cref="Configure"/> is called once at startup before any worker threads exist,
 /// so the thread-creation happens-before guarantees visibility without barriers.
 /// </summary>
-internal static class ServusTrace
+public static class ServusTrace
 {
     private static TraceConfig? _config;
 

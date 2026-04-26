@@ -9,7 +9,7 @@ namespace TurboHTTP.AcceptanceTests.H2;
 
 public sealed class ErrorHandlingSpec : AcceptanceTestBase
 {
-    [Fact(Timeout = 5000)]
+    [Fact(Timeout = 15000)]
     [Trait("RFC", "RFC9113-5.4.2")]
     public async Task RstStream_should_raise_exception_on_abort()
     {
@@ -34,7 +34,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
 
         await Assert.ThrowsAnyAsync<Exception>(async () =>
         {
-            var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+            var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
             await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         });
     }

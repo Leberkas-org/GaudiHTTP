@@ -4,13 +4,9 @@ using Servus.Akka.IO.Tcp;
 
 namespace Servus.Akka.IO;
 
-/// <summary>
-/// Bundles the Channel read/write handles for a single TCP connection,
-/// allowing ConnectionStage to get direct access to TCP I/O without actor messages.
-/// </summary>
 public sealed record ConnectionHandle(
-    ChannelWriter<NetworkBuffer> OutboundWriter,
-    ChannelReader<NetworkBuffer> InboundReader,
+    ChannelWriter<IoBuffer> OutboundWriter,
+    ChannelReader<IoBuffer> InboundReader,
     RequestEndpoint Key,
     IActorRef ConnectionActor)
 {
@@ -18,22 +14,23 @@ public sealed record ConnectionHandle(
 
     public void UpdateMaxConcurrentStreams(int value) => MaxConcurrentStreams = value;
 
-    /// <summary>
-    /// Indicates how the transport connection was closed.
-    /// Set by <see cref="ClientByteMover"/> via <see cref="ClientState"/>
-    /// and read by <see cref="TcpConnectionStage"/> when the inbound pump completes.
-    /// </summary>
     public TlsCloseKind CloseKind { get; private set; }
 
     public void SetCloseKind(TlsCloseKind value) => CloseKind = value;
 
-    /// <summary>
-    /// Creates a <see cref="ConnectionHandle"/> for the direct (non-actor) connection path.
-    /// Uses <see cref="ActorRefs.Nobody"/> as the connection actor since no actor is involved.
-    /// </summary>
+    public ValueTask WriteAsync(NetworkBuffer buffer)
+    {
+        return OutboundWriter.WriteAsync(buffer.DetachAsIoBuffer());
+    }
+
+    public bool TryCompleteOutbound(Exception? error = null)
+    {
+        return OutboundWriter.TryComplete(error);
+    }
+
     public static ConnectionHandle CreateDirect(
-        ChannelWriter<NetworkBuffer> outboundWriter,
-        ChannelReader<NetworkBuffer> inboundReader,
+        ChannelWriter<IoBuffer> outboundWriter,
+        ChannelReader<IoBuffer> inboundReader,
         RequestEndpoint key)
     {
         return new ConnectionHandle(outboundWriter, inboundReader, key, ActorRefs.Nobody);
@@ -44,8 +41,8 @@ public sealed record ConnectionHandle(
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return EqualityContract == other.EqualityContract
-            && EqualityComparer<ChannelWriter<NetworkBuffer>>.Default.Equals(OutboundWriter, other.OutboundWriter)
-            && EqualityComparer<ChannelReader<NetworkBuffer>>.Default.Equals(InboundReader, other.InboundReader)
+            && EqualityComparer<ChannelWriter<IoBuffer>>.Default.Equals(OutboundWriter, other.OutboundWriter)
+            && EqualityComparer<ChannelReader<IoBuffer>>.Default.Equals(InboundReader, other.InboundReader)
             && Key.Equals(other.Key)
             && EqualityComparer<IActorRef>.Default.Equals(ConnectionActor, other.ConnectionActor);
     }

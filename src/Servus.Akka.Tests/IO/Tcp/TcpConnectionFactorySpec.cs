@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using Akka.Actor;
@@ -81,9 +82,11 @@ public sealed class TcpConnectionFactorySpec : IAsyncLifetime
         using var serverClient = await acceptTask;
         var serverStream = serverClient.GetStream();
 
-        // Write data to outbound → should arrive at server
+        // Write data to outbound channel → should arrive at server via MoveChannelToStream
         var testData = "Hello from client"u8.ToArray();
-        Assert.True(lease.Handle.OutboundWriter.TryWrite(NetworkBufferTestExtensions.FromArray(testData)));
+        var owner = MemoryPool<byte>.Shared.Rent(testData.Length);
+        testData.CopyTo(owner.Memory.Span);
+        await lease.Handle.OutboundWriter.WriteAsync(new IoBuffer(owner, testData.Length), TestContext.Current.CancellationToken);
 
         // Read from server side
         var readBuf = new byte[1024];

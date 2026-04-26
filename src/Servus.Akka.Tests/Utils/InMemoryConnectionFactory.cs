@@ -13,27 +13,12 @@ internal sealed class InMemoryConnectionFactory : IConnectionFactory
     {
         ct.ThrowIfCancellationRequested();
 
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>(new UnboundedChannelOptions
-        {
-            SingleReader = true,
-            SingleWriter = true
-        });
-
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>(new UnboundedChannelOptions
-        {
-            SingleReader = true,
-            SingleWriter = true
-        });
+        var state = new ClientState(Stream.Null);
 
         var handle = ConnectionHandle.CreateDirect(
-            outbound.Writer,
-            inbound.Reader,
+            state.OutboundWriter,
+            state.InboundReader,
             endpoint);
-
-        var state = new ClientState(
-            Stream.Null,
-            inbound,
-            outbound);
 
         var lease = new ConnectionLease(handle, state);
         _established.Add(lease);

@@ -76,10 +76,7 @@ public sealed class ConnectionPoolDeadlockSpec : TestKit
     [Fact(Timeout = 5000)]
     public async Task ClientByteMover_should_fire_close_once_when_pump_crashes()
     {
-        var state = new ClientState(
-            stream: new ThrowingStream(),
-            inboundChannel: null,
-            outboundChannel: null);
+        var state = new ClientState(stream: new ThrowingStream());
 
         using var byteMoverCts = new CancellationTokenSource();
         var closeOnce = 0;
@@ -91,10 +88,10 @@ public sealed class ConnectionPoolDeadlockSpec : TestKit
             }
         };
 
-        var streamToChannel = ClientByteMover.MoveStreamToChannel(state, onClose, byteMoverCts.Token);
-        var channelToStream = ClientByteMover.MoveChannelToStream(state, onClose, byteMoverCts.Token);
+        var fillInbound = ClientByteMover.MoveStreamToChannel(state, onClose, byteMoverCts.Token);
+        var drainOutbound = ClientByteMover.MoveChannelToStream(state, onClose, byteMoverCts.Token);
 
-        await Task.WhenAll(streamToChannel, channelToStream)
+        await Task.WhenAll(fillInbound, drainOutbound)
             .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
 
         Assert.Equal(1, Volatile.Read(ref closeOnce));
@@ -104,10 +101,7 @@ public sealed class ConnectionPoolDeadlockSpec : TestKit
     [Fact(Timeout = 5000)]
     public async Task ClientByteMover_should_exit_all_pumps_on_normal_close()
     {
-        var state = new ClientState(
-            stream: new MemoryStream(),
-            inboundChannel: null,
-            outboundChannel: null);
+        var state = new ClientState(stream: new MemoryStream());
 
         using var byteMoverCts = new CancellationTokenSource();
         var closeOnce = 0;
@@ -119,10 +113,13 @@ public sealed class ConnectionPoolDeadlockSpec : TestKit
             }
         };
 
-        var streamToChannel = ClientByteMover.MoveStreamToChannel(state, onClose, byteMoverCts.Token);
-        var channelToStream = ClientByteMover.MoveChannelToStream(state, onClose, byteMoverCts.Token);
+        // Complete the outbound pipe so DrainOutboundPipe exits
+        state.OutboundWriter.TryComplete();
 
-        await Task.WhenAll(streamToChannel, channelToStream)
+        var fillInbound = ClientByteMover.MoveStreamToChannel(state, onClose, byteMoverCts.Token);
+        var drainOutbound = ClientByteMover.MoveChannelToStream(state, onClose, byteMoverCts.Token);
+
+        await Task.WhenAll(fillInbound, drainOutbound)
             .WaitAsync(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
     }
 
@@ -131,12 +128,13 @@ public sealed class ConnectionPoolDeadlockSpec : TestKit
     {
         var state = new ClientState(
             stream: new MemoryStream(),
-            inboundChannel: null,
-            outboundChannel: null,
             direction: StreamDirection.ReadOnly);
 
         using var byteMoverCts = new CancellationTokenSource();
         var onClose = () => { };
+
+        // Complete the outbound pipe to let DrainOutboundPipe exit
+        state.OutboundWriter.TryComplete();
 
         var writePump = ClientByteMover.MoveChannelToStream(state, onClose, byteMoverCts.Token);
 

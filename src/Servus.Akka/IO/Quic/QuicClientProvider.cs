@@ -143,6 +143,13 @@ public sealed class QuicClientProvider(QuicOptions options) : IClientProvider
                 MaxInboundBidirectionalStreams = options.MaxBidirectionalStreams,
                 MaxInboundUnidirectionalStreams = options.MaxUnidirectionalStreams,
                 IdleTimeout = options.IdleTimeout,
+                InitialReceiveWindowSizes = new QuicReceiveWindowSizes
+                {
+                    Connection = 64 * 1024 * 1024,
+                    LocallyInitiatedBidirectionalStream = 2 * 1024 * 1024,
+                    RemotelyInitiatedBidirectionalStream = 2 * 1024 * 1024,
+                    UnidirectionalStream = 2 * 1024 * 1024,
+                },
                 ClientAuthenticationOptions = new SslClientAuthenticationOptions
                 {
                     TargetHost = options.Host,

@@ -19,7 +19,7 @@ public sealed class Http3Options
     /// Larger values improve compression ratio at the cost of memory.
     /// Default is 4096 bytes. RFC 9204 §3.2.3.
     /// </summary>
-    public int QpackMaxTableCapacity { get; set; } = 4096;
+    public int QpackMaxTableCapacity { get; set; } = 16_384;
 
     /// <summary>
     /// Maximum number of streams that can be blocked waiting for QPACK encoder instructions.

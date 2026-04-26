@@ -24,12 +24,12 @@ public sealed class QuicStreamRouterEnhancedSpec
         return (router, ops);
     }
 
-    private static (ConnectionHandle Handle, ChannelReader<NetworkBuffer> OutboundReader) CreateTestHandle(
+    private static (ConnectionHandle Handle, ChannelReader<IoBuffer> OutboundReader) CreateTestHandle(
         RequestEndpoint? endpoint = null)
     {
         var key = endpoint ?? TestEndpoint;
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var inbound = Channel.CreateUnbounded<IoBuffer>();
+        var outbound = Channel.CreateUnbounded<IoBuffer>();
         return (ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key), outbound.Reader);
     }
 
@@ -106,10 +106,15 @@ public sealed class QuicStreamRouterEnhancedSpec
 
         router.FlushPendingWrites(ctx);
 
-        Assert.True(outboundReader.TryRead(out _));
-        Assert.True(outboundReader.TryRead(out _));
-        Assert.True(outboundReader.TryRead(out _));
-        Assert.False(outboundReader.TryRead(out _));
+        Assert.True(outboundReader.TryRead(out var out1));
+        Assert.True(outboundReader.TryRead(out var out2));
+        Assert.True(outboundReader.TryRead(out var out3));
+        Assert.Equal(1, out1.Span[0]);
+        Assert.Equal(2, out2.Span[0]);
+        Assert.Equal(3, out3.Span[0]);
+        out1.Dispose();
+        out2.Dispose();
+        out3.Dispose();
     }
 
     [Fact(Timeout = 5000)]

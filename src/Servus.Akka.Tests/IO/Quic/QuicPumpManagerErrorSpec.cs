@@ -20,10 +20,10 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
         Version = HttpVersion.Version30
     };
 
-    private static (Channel<NetworkBuffer> inbound, ConnectionHandle handle) CreateTestHandle()
+    private static (Channel<IoBuffer> inbound, ConnectionHandle handle) CreateTestHandle()
     {
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var inbound = Channel.CreateUnbounded<IoBuffer>();
+        var outbound = Channel.CreateUnbounded<IoBuffer>();
         var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, TestEndpoint);
         return (inbound, handle);
     }
@@ -36,7 +36,7 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
         var (inbound, handle) = CreateTestHandle();
 
         // streamTypeValue < 0 → request stream; AbruptClose → InboundComplete(ConnectionFailure)
-        inbound.Writer.TryComplete(new AbruptCloseException());
+        inbound.Writer.Complete(new AbruptCloseException());
         pump.StartInboundPump(handle, streamTypeValue: -1, TestEndpoint, connectionGen: 0, streamId: 42);
 
         var msg = await probe.ExpectMsgAsync<InboundComplete>(cancellationToken: TestContext.Current.CancellationToken);
@@ -52,7 +52,7 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
         var (inbound, handle) = CreateTestHandle();
 
         // ChannelClosedException wrapping AbruptCloseException → same outcome for request stream
-        inbound.Writer.TryComplete(new AbruptCloseException());
+        inbound.Writer.Complete(new AbruptCloseException());
         pump.StartInboundPump(handle, streamTypeValue: -1, TestEndpoint, connectionGen: 3, streamId: 7);
 
         var msg = await probe.ExpectMsgAsync<InboundComplete>(cancellationToken: TestContext.Current.CancellationToken);
@@ -68,7 +68,7 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
         var (inbound, handle) = CreateTestHandle();
 
         // streamTypeValue >= 0 → control stream; AbruptClose closes silently with no InboundComplete
-        inbound.Writer.TryComplete(new AbruptCloseException());
+        inbound.Writer.Complete(new AbruptCloseException());
         pump.StartInboundPump(handle, streamTypeValue: 0x00, TestEndpoint, connectionGen: 0, streamId: -2);
 
         await Task.Delay(150, TestContext.Current.CancellationToken);
@@ -85,7 +85,7 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
         var (inbound, handle) = CreateTestHandle();
 
         // A non-AbruptClose exception → InboundPumpFailed(error, streamId)
-        inbound.Writer.TryComplete(new IOException("stream reset by peer"));
+        inbound.Writer.Complete(new IOException("stream reset by peer"));
         pump.StartInboundPump(handle, streamTypeValue: -1, TestEndpoint, connectionGen: 0, streamId: 99);
 
         var msg = await probe.ExpectMsgAsync<InboundPumpFailed>(cancellationToken: TestContext.Current.CancellationToken);

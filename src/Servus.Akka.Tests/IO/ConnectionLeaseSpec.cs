@@ -9,8 +9,7 @@ public sealed class ConnectionLeaseSpec
 {
     private static ConnectionHandle CreateHandle(Version version)
     {
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var ch = Channel.CreateUnbounded<IoBuffer>();
         var key = new RequestEndpoint
         {
             Host = "localhost",
@@ -19,15 +18,12 @@ public sealed class ConnectionLeaseSpec
             Version = version
         };
 
-        return new ConnectionHandle(outbound.Writer, inbound.Reader, key, ActorRefs.Nobody);
+        return new ConnectionHandle(ch.Writer, ch.Reader, key, ActorRefs.Nobody);
     }
 
     private static ClientState CreateState()
     {
-        return new ClientState(
-            stream: new MemoryStream(),
-            inboundChannel: null,
-            outboundChannel: null);
+        return new ClientState(new MemoryStream());
     }
 
     [Fact(Timeout = 5000)]
@@ -332,10 +328,7 @@ public sealed class ConnectionLeaseSpec
     {
         var handle = CreateHandle(HttpVersion.Version11);
         var memStream = new MemoryStream();
-        var state = new ClientState(
-            stream: memStream,
-            inboundChannel: null,
-            outboundChannel: null);
+        var state = new ClientState(memStream);
         var lease = new ConnectionLease(handle, state);
 
         lease.Dispose();

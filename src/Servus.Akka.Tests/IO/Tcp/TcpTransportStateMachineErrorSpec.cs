@@ -38,18 +38,12 @@ public sealed class TcpTransportStateMachineErrorSpec
     private static ConnectionLease CreateTestLease(RequestEndpoint? endpoint = null)
     {
         var key = endpoint ?? TestEndpoint;
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var state = new ClientState(Stream.Null);
 
         var handle = ConnectionHandle.CreateDirect(
-            outbound.Writer,
-            inbound.Reader,
+            state.OutboundWriter,
+            state.InboundReader,
             key);
-
-        var state = new ClientState(
-            Stream.Null,
-            inbound,
-            outbound);
 
         return new ConnectionLease(handle, state);
     }

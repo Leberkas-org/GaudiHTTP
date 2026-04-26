@@ -1,161 +1,197 @@
 using System.Buffers;
+using System.IO.Pipelines;
+using System.Threading.Channels;
 
 namespace Servus.Akka.IO;
 
 public static class ClientByteMover
 {
-    // Threshold below which consecutive small buffers are coalesced into a single write.
-    // Reduces syscall overhead for HTTP/2 frame headers (9 bytes) and small DATA frames.
-    private const int CoalesceThreshold = 32 * 1024;
-
-    // Cached delegates — created once at class init, reused for every connection.
-    // Avoids a delegate heap allocation on each MoveStreamToChannel call.
-    private static readonly Func<int, NetworkBuffer> DefaultFactory = NetworkBuffer.Rent;
-    internal static readonly Func<int, NetworkBuffer> Http3Factory = RoutedNetworkBuffer.Rent;
-
-    public static async Task MoveStreamToChannel(
-        ClientState state,
-        Action onClose,
-        CancellationToken ct,
-        Func<int, NetworkBuffer>? bufferFactory = null)
+    public static Task MoveStreamToChannel(ClientState state, Action onClose, CancellationToken ct)
     {
-        bufferFactory ??= DefaultFactory;
+        var fillTask = FillPipeFromStream(state.Stream, state.InboundPipe.Writer, ct);
+        var drainTask = DrainPipeToChannel(state.InboundPipe.Reader, state.InboundWriter, onClose, ct);
+        return Task.WhenAll(fillTask, drainTask);
+    }
+
+    public static Task MoveChannelToStream(ClientState state, Action onClose, CancellationToken ct)
+    {
+        var fillTask = FillPipeFromChannel(state.OutboundReader, state.OutboundPipe.Writer, ct);
+        var drainTask = DrainPipeToStream(state.OutboundPipe.Reader, state.Stream, state.OnWritesComplete, onClose, ct);
+        return Task.WhenAll(fillTask, drainTask);
+    }
+
+    private static async Task FillPipeFromStream(Stream stream, PipeWriter writer, CancellationToken ct)
+    {
+        Exception? error = null;
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                var mem = writer.GetMemory(512 * 1024);
+                int bytesRead;
+                try
+                {
+                    bytesRead = await stream.ReadAsync(mem, ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { return; }
+                catch (Exception) { error = new AbruptCloseException(); return; }
+
+                if (bytesRead == 0) { return; }
+
+                writer.Advance(bytesRead);
+                var flush = await writer.FlushAsync(ct).ConfigureAwait(false);
+                if (flush.IsCompleted || flush.IsCanceled) { break; }
+            }
+        }
+        finally
+        {
+            try { writer.Complete(error); } catch (InvalidOperationException) { }
+        }
+    }
+
+    private static async Task DrainPipeToChannel(
+        PipeReader reader, ChannelWriter<IoBuffer> channel, Action onClose, CancellationToken ct)
+    {
         var abrupt = false;
         try
         {
             while (!ct.IsCancellationRequested)
             {
-                var buffer = bufferFactory(128 * 1024);
-                int bytesRead;
-                try
+                var result = await reader.ReadAsync(ct).ConfigureAwait(false);
+                var buffer = result.Buffer;
+
+                foreach (var segment in buffer)
                 {
-                    bytesRead = await state.Stream.ReadAsync(buffer.FullMemory, ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    buffer.Dispose();
-                    onClose();
-                    return;
-                }
-                catch (Exception)
-                {
-                    buffer.Dispose();
-                    abrupt = true;
-                    onClose();
-                    return;
+                    var owner = MemoryPool<byte>.Shared.Rent(segment.Length);
+                    segment.Span.CopyTo(owner.Memory.Span);
+                    if (!channel.TryWrite(new IoBuffer(owner, segment.Length)))
+                    {
+                        owner.Dispose();
+                    }
                 }
 
-                if (bytesRead == 0)
-                {
-                    buffer.Dispose();
-                    onClose();
-                    return;
-                }
+                reader.AdvanceTo(buffer.End);
 
-                buffer.Length = bytesRead;
-                if (!state.InboundWriter.TryWrite(buffer))
+                if (result.IsCompleted)
                 {
-                    buffer.Dispose();
+                    if (reader.TryRead(out var final) && !final.Buffer.IsEmpty)
+                    {
+                        reader.AdvanceTo(final.Buffer.End);
+                    }
+
+                    break;
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            onClose();
+            return;
+        }
+        catch (AbruptCloseException)
+        {
+            abrupt = true;
+            onClose();
+            return;
+        }
+        catch (Exception)
+        {
+            abrupt = true;
+            onClose();
+            return;
+        }
         finally
         {
+            try { reader.Complete(); } catch (InvalidOperationException) { }
             if (abrupt)
             {
-                state.InboundWriter.TryComplete(new AbruptCloseException());
+                channel.TryComplete(new AbruptCloseException());
             }
             else
             {
-                state.InboundWriter.TryComplete();
+                channel.TryComplete();
             }
+        }
+
+        onClose();
+    }
+
+    private static async Task FillPipeFromChannel(
+        ChannelReader<IoBuffer> channel, PipeWriter writer, CancellationToken ct)
+    {
+        try
+        {
+            while (await channel.WaitToReadAsync(ct).ConfigureAwait(false))
+            {
+                while (channel.TryRead(out var buf))
+                {
+                    try
+                    {
+                        var span = writer.GetSpan(buf.Length);
+                        buf.Span.CopyTo(span);
+                        writer.Advance(buf.Length);
+                    }
+                    finally
+                    {
+                        buf.Dispose();
+                    }
+                }
+
+                await writer.FlushAsync(ct).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception) { }
+        finally
+        {
+            try { writer.Complete(); } catch (InvalidOperationException) { }
         }
     }
 
-    public static async Task MoveChannelToStream(ClientState state, Action onClose, CancellationToken ct)
+    private static async Task DrainPipeToStream(
+        PipeReader reader, Stream stream, Action? onWritesComplete, Action onClose, CancellationToken ct)
     {
-        // Coalesce buffer lives for the entire connection — rented lazily on first small write,
-        // returned on exit. MemoryPool avoids a raw byte[] heap allocation (ArrayPool is banned).
-        IMemoryOwner<byte>? coalesceOwner = null;
-
         try
         {
-            while (!state.OutboundReader.Completion.IsCompleted)
+            while (true)
             {
+                ReadResult result;
                 try
                 {
-                    while (await state.OutboundReader.WaitToReadAsync(ct).ConfigureAwait(false))
+                    result = await reader.ReadAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { onClose(); return; }
+                catch (Exception) { onClose(); return; }
+
+                var buffer = result.Buffer;
+                try
+                {
+                    if (!buffer.IsEmpty)
                     {
-                        var coalesceLen = 0;
-
-                        while (state.OutboundReader.TryRead(out var buf))
+                        if (buffer.IsSingleSegment)
                         {
-                            try
-                            {
-                                var mem = buf.Memory;
-
-                                if (mem.Length > CoalesceThreshold)
-                                {
-                                    if (coalesceLen > 0)
-                                    {
-                                        await state.Stream.WriteAsync(
-                                            coalesceOwner!.Memory[..coalesceLen], ct).ConfigureAwait(false);
-                                        coalesceLen = 0;
-                                    }
-
-                                    await state.Stream.WriteAsync(mem, ct).ConfigureAwait(false);
-                                }
-                                else
-                                {
-                                    coalesceOwner ??= MemoryPool<byte>.Shared.Rent(CoalesceThreshold);
-
-                                    if (coalesceLen + mem.Length > coalesceOwner.Memory.Length)
-                                    {
-                                        await state.Stream.WriteAsync(
-                                            coalesceOwner.Memory[..coalesceLen], ct).ConfigureAwait(false);
-                                        coalesceLen = 0;
-                                    }
-
-                                    mem.CopyTo(coalesceOwner.Memory[coalesceLen..]);
-                                    coalesceLen += mem.Length;
-                                }
-                            }
-                            finally
-                            {
-                                buf.Dispose();
-                            }
+                            await stream.WriteAsync(buffer.First, ct).ConfigureAwait(false);
                         }
-
-                        if (coalesceLen > 0)
+                        else
                         {
-                            await state.Stream.WriteAsync(
-                                coalesceOwner!.Memory[..coalesceLen], ct).ConfigureAwait(false);
+                            using var owner = MemoryPool<byte>.Shared.Rent((int)buffer.Length);
+                            buffer.CopyTo(owner.Memory.Span);
+                            await stream.WriteAsync(owner.Memory[..(int)buffer.Length], ct).ConfigureAwait(false);
                         }
-
-                        // No FlushAsync needed — Socket.NoDelay = true ensures data is sent immediately.
-                        // For SslStream each WriteAsync already emits a self-contained TLS record.
                     }
                 }
-                catch (OperationCanceledException)
-                {
-                    onClose();
-                    return;
-                }
-                catch (Exception)
-                {
-                    onClose();
-                    return;
-                }
+                catch (OperationCanceledException) { reader.AdvanceTo(buffer.End); onClose(); return; }
+                catch (Exception) { reader.AdvanceTo(buffer.End); onClose(); return; }
+
+                reader.AdvanceTo(buffer.End);
+                if (result.IsCompleted) { break; }
             }
         }
         finally
         {
-            coalesceOwner?.Dispose();
+            try { reader.Complete(); } catch (InvalidOperationException) { }
         }
 
-        // Outbound channel drained normally — signal write-side FIN.
-        // For QUIC request streams this calls QuicStream.CompleteWrites() so the server
-        // sees end-of-request while the read side stays open for the response.
-        state.OnWritesComplete?.Invoke();
+        onWritesComplete?.Invoke();
     }
 }

@@ -105,9 +105,6 @@ public sealed class QuicConnectionHandle : IAsyncDisposable
     /// </summary>
     private ConnectionLease CreateStreamLease(Stream stream, StreamDirection direction)
     {
-        // For bidirectional QUIC request streams, FIN must be sent on the write side after all
-        // request frames have been written. QuicStream.CompleteWrites() does this without closing
-        // the read side so the response can still arrive. RFC 9114 §4.1.
         Action? onWritesComplete = null;
         if (direction == StreamDirection.Bidirectional && stream is System.Net.Quic.QuicStream qs)
         {
@@ -124,11 +121,7 @@ public sealed class QuicConnectionHandle : IAsyncDisposable
             };
         }
 
-        var state = new ClientState(
-            stream: stream,
-            inboundChannel: null,
-            outboundChannel: null,
-            direction: direction)
+        var state = new ClientState(stream, direction)
         {
             OnWritesComplete = onWritesComplete,
         };
@@ -140,14 +133,9 @@ public sealed class QuicConnectionHandle : IAsyncDisposable
 
         var lease = new ConnectionLease(handle, state);
 
-        // on-close is a no-op: the QuicTransportStateMachine disposes leases via
-        // CleanupTransport() on InboundComplete — no additional callback needed.
-        // Only start byte movers appropriate for the stream direction:
-        // write-only streams have no inbound data; read-only streams have no outbound data.
         if (direction != StreamDirection.WriteOnly)
         {
-            _ = ClientByteMover.MoveStreamToChannel(state, static () => { }, lease.Token,
-                bufferFactory: ClientByteMover.Http3Factory);
+            _ = ClientByteMover.MoveStreamToChannel(state, static () => { }, lease.Token);
         }
 
         if (direction != StreamDirection.ReadOnly)

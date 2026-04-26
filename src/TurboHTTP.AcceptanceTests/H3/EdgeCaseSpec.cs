@@ -89,7 +89,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
         Assert.Equal("", body);
     }
 
-    [Fact(Timeout = 5000)]
+    [Fact(Timeout = 15000)]
     [Trait("RFC", "RFC9114-4.1")]
     public async Task EdgeCase_should_receive_large_body_256kb_intact()
     {

@@ -64,7 +64,7 @@ public sealed class QuicConnectionLease : IDisposable
     /// <summary>
     /// Returns <see langword="true"/> when the connection has exceeded the specified
     /// maximum lifetime (measured from creation). Used by connection pool eviction
-    /// to enforce <see cref="TurboClientOptions.PooledConnectionLifetime"/>.
+    /// to enforce the configured maximum connection lifetime.
     /// </summary>
     public bool IsExpired(TimeSpan maxLifetime)
     {
@@ -108,11 +108,18 @@ public sealed class QuicConnectionLease : IDisposable
 
         IsAlive = false;
 
-        _ = Handle.DisposeAsync().AsTask();
-
         var durationMs = Environment.TickCount64 - _createdTicks;
         var host = Key.Host;
         var port = Key.Port;
+
+        _ = Handle.DisposeAsync().AsTask().ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+            {
+                ServusTrace.Connection.Warning(this,
+                    "QUIC connection to {0} async disposal failed: {1}", host, t.Exception?.InnerException?.Message ?? "unknown");
+            }
+        }, TaskScheduler.Default);
 
         ServusMetrics.ConnectionDuration.Record(
             durationMs / 1000.0,

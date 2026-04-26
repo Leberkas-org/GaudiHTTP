@@ -13,8 +13,7 @@ public sealed class TcpTransportEventSpec
     [Fact(Timeout = 5000)]
     public void LeaseAcquired_should_preserve_lease()
     {
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var ch = Channel.CreateUnbounded<IoBuffer>();
         var key = new RequestEndpoint
         {
             Scheme = "http",
@@ -22,8 +21,8 @@ public sealed class TcpTransportEventSpec
             Port = 80,
             Version = HttpVersion.Version11
         };
-        var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key);
-        var state = new ClientState(Stream.Null, inbound, outbound);
+        var handle = ConnectionHandle.CreateDirect(ch.Writer, ch.Reader, key);
+        var state = new ClientState(Stream.Null);
         var lease = new ConnectionLease(handle, state);
 
         var evt = new LeaseAcquired(lease);

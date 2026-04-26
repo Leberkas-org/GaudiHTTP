@@ -72,7 +72,7 @@ public sealed class ConnectionLease : IDisposable
     /// <summary>
     /// Returns <see langword="true"/> when the connection has exceeded the specified
     /// maximum lifetime (measured from creation). Used by connection pool eviction
-    /// to enforce <see cref="TurboClientOptions.PooledConnectionLifetime"/>.
+    /// to enforce the configured maximum connection lifetime.
     /// </summary>
     public bool IsExpired(TimeSpan maxLifetime)
     {

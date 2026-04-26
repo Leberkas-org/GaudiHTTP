@@ -4,11 +4,6 @@ using Akka.Actor;
 
 namespace Servus.Akka.IO.Tcp;
 
-/// <summary>
-/// Manages the lifecycle of the TCP inbound pump — start, cancel, and the async read loop
-/// that marshals batches of <see cref="NetworkBuffer"/> into StageActorRef messages.
-/// Extracted from <see cref="TcpTransportStateMachine"/> for single-responsibility.
-/// </summary>
 internal sealed class TcpPumpManager
 {
     private readonly IActorRef _self;
@@ -40,7 +35,7 @@ internal sealed class TcpPumpManager
     }
 
     private static async Task PumpAsync(
-        ChannelReader<NetworkBuffer> reader,
+        ChannelReader<IoBuffer> reader,
         RequestEndpoint key,
         int gen,
         CancellationToken ct,
@@ -56,10 +51,6 @@ internal sealed class TcpPumpManager
 
                 while (reader.TryRead(out var chunk))
                 {
-                    // Early exit when the connection generation changed — the actor thread
-                    // always cancels the pump CTS after incrementing _connectionGen, so
-                    // checking the token is sufficient. This avoids a cross-thread volatile
-                    // read of _connectionGen from the pump's ThreadPool thread.
                     if (ct.IsCancellationRequested)
                     {
                         chunk.Dispose();
@@ -68,7 +59,8 @@ internal sealed class TcpPumpManager
                         return;
                     }
 
-                    chunk.Key = key;
+                    var nb = NetworkBuffer.Wrap(chunk.Owner, chunk.Length);
+                    nb.Key = key;
                     batch ??= ArrayPool<IInputItem>.Shared.Rent(32);
 
                     if (count == batch.Length)
@@ -78,7 +70,7 @@ internal sealed class TcpPumpManager
                         count = 0;
                     }
 
-                    batch[count++] = chunk;
+                    batch[count++] = nb;
                 }
 
                 if (count > 0)

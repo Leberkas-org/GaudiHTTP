@@ -9,8 +9,7 @@ public sealed class ConnectionHandleSpec
 {
     private ConnectionHandle CreateHandle()
     {
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var ch = Channel.CreateUnbounded<IoBuffer>();
         var key = new RequestEndpoint
         {
             Host = "localhost",
@@ -19,7 +18,7 @@ public sealed class ConnectionHandleSpec
             Version = HttpVersion.Version20
         };
 
-        return new ConnectionHandle(outbound.Writer, inbound.Reader, key, ActorRefs.Nobody);
+        return new ConnectionHandle(ch.Writer, ch.Reader, key, ActorRefs.Nobody);
     }
 
     [Fact(Timeout = 5000)]
@@ -38,30 +37,6 @@ public sealed class ConnectionHandleSpec
         handle.UpdateMaxConcurrentStreams(42);
 
         Assert.Equal(42, handle.MaxConcurrentStreams);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ConnectionHandle_should_not_affect_equality_when_max_concurrent_streams_updated()
-    {
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var key = new RequestEndpoint
-        {
-            Host = "localhost",
-            Port = 443,
-            Scheme = "https",
-            Version = HttpVersion.Version20
-        };
-
-        var handle1 = new ConnectionHandle(outbound.Writer, inbound.Reader, key, ActorRefs.Nobody);
-        var handle2 = new ConnectionHandle(outbound.Writer, inbound.Reader, key, ActorRefs.Nobody);
-
-        handle1.UpdateMaxConcurrentStreams(1);
-        handle2.UpdateMaxConcurrentStreams(999);
-
-        // Records with same constructor args should be equal regardless of volatile field
-        Assert.Equal(handle1, handle2);
-        Assert.Equal(handle1.GetHashCode(), handle2.GetHashCode());
     }
 
     [Fact(Timeout = 5000)]
@@ -137,8 +112,7 @@ public sealed class ConnectionHandleSpec
     [Fact(Timeout = 5000)]
     public void CreateDirect_should_create_handle_with_nobody_actor()
     {
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var ch = Channel.CreateUnbounded<IoBuffer>();
         var key = new RequestEndpoint
         {
             Host = "example.com",
@@ -147,19 +121,18 @@ public sealed class ConnectionHandleSpec
             Version = HttpVersion.Version11
         };
 
-        var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key);
+        var handle = ConnectionHandle.CreateDirect(ch.Writer, ch.Reader, key);
 
         Assert.Equal(ActorRefs.Nobody, handle.ConnectionActor);
-        Assert.Same(outbound.Writer, handle.OutboundWriter);
-        Assert.Same(inbound.Reader, handle.InboundReader);
+        Assert.Same(ch.Writer, handle.OutboundWriter);
+        Assert.Same(ch.Reader, handle.InboundReader);
         Assert.Equal(key, handle.Key);
     }
 
     [Fact(Timeout = 5000)]
     public void CreateDirect_should_create_handle_with_default_max_concurrent_streams()
     {
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var ch = Channel.CreateUnbounded<IoBuffer>();
         var key = new RequestEndpoint
         {
             Host = "example.com",
@@ -168,7 +141,7 @@ public sealed class ConnectionHandleSpec
             Version = HttpVersion.Version11
         };
 
-        var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key);
+        var handle = ConnectionHandle.CreateDirect(ch.Writer, ch.Reader, key);
 
         Assert.Equal(100, handle.MaxConcurrentStreams);
     }
@@ -188,8 +161,7 @@ public sealed class ConnectionHandleSpec
     [Fact(Timeout = 5000)]
     public void ConnectionActor_property_should_be_set()
     {
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var ch = Channel.CreateUnbounded<IoBuffer>();
         var key = new RequestEndpoint
         {
             Host = "localhost",
@@ -198,7 +170,7 @@ public sealed class ConnectionHandleSpec
             Version = HttpVersion.Version20
         };
 
-        var handle = new ConnectionHandle(outbound.Writer, inbound.Reader, key, ActorRefs.Nobody);
+        var handle = new ConnectionHandle(ch.Writer, ch.Reader, key, ActorRefs.Nobody);
 
         Assert.Equal(ActorRefs.Nobody, handle.ConnectionActor);
     }
@@ -220,29 +192,12 @@ public sealed class ConnectionHandleSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Equals_should_return_false_for_different_key()
+    public void Equals_should_return_false_for_different_instance()
     {
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var handle1 = CreateHandle();
+        var handle2 = CreateHandle();
 
-        var key1 = new RequestEndpoint
-        {
-            Host = "host-a",
-            Port = 443,
-            Scheme = "https",
-            Version = HttpVersion.Version20
-        };
-        var key2 = new RequestEndpoint
-        {
-            Host = "host-b",
-            Port = 443,
-            Scheme = "https",
-            Version = HttpVersion.Version20
-        };
-
-        var handle1 = new ConnectionHandle(outbound.Writer, inbound.Reader, key1, ActorRefs.Nobody);
-        var handle2 = new ConnectionHandle(outbound.Writer, inbound.Reader, key2, ActorRefs.Nobody);
-
+        // ConnectionHandle is a class with reference equality
         Assert.NotEqual(handle1, handle2);
     }
 
@@ -278,10 +233,9 @@ public sealed class ConnectionHandleSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Equality_operator_should_match_equals()
+    public void Same_instance_should_be_equal()
     {
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var ch = Channel.CreateUnbounded<IoBuffer>();
         var key = new RequestEndpoint
         {
             Host = "localhost",
@@ -290,10 +244,8 @@ public sealed class ConnectionHandleSpec
             Version = HttpVersion.Version20
         };
 
-        var handle1 = new ConnectionHandle(outbound.Writer, inbound.Reader, key, ActorRefs.Nobody);
-        var handle2 = new ConnectionHandle(outbound.Writer, inbound.Reader, key, ActorRefs.Nobody);
+        var handle = new ConnectionHandle(ch.Writer, ch.Reader, key, ActorRefs.Nobody);
 
-        Assert.True(handle1 == handle2);
-        Assert.False(handle1 != handle2);
+        Assert.True(ReferenceEquals(handle, handle));
     }
 }

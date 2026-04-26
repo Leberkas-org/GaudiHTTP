@@ -63,7 +63,20 @@ public readonly record struct ConnectedSignalItem : IInputItem
     public RequestEndpoint Key { get; init; }
 }
 
-public class NetworkBuffer : IInputItem, IOutputItem
+public readonly record struct IoBuffer(IMemoryOwner<byte> Owner, int Length) : IDisposable
+{
+    public ReadOnlyMemory<byte> Memory => Owner.Memory[..Length];
+    public ReadOnlySpan<byte> Span => Owner.Memory.Span[..Length];
+    public void Dispose() => Owner.Dispose();
+
+    public static IoBuffer Rent(int dataLength)
+    {
+        var owner = MemoryPool<byte>.Shared.Rent(dataLength);
+        return new IoBuffer(owner, dataLength);
+    }
+}
+
+public class NetworkBuffer : IInputItem, IOutputItem, IDisposable
 {
     private static readonly ConcurrentStack<NetworkBuffer> WrapperPool = new();
 
@@ -102,6 +115,32 @@ public class NetworkBuffer : IInputItem, IOutputItem
         return buf;
     }
 
+    public static NetworkBuffer Wrap(IMemoryOwner<byte> owner, int length)
+    {
+        if (!WrapperPool.TryPop(out var buf))
+        {
+            return new NetworkBuffer { Owner = owner, Length = length };
+        }
+
+        buf.Owner = owner;
+        buf.Length = length;
+        buf.Key = RequestEndpoint.Default;
+        return buf;
+    }
+
+    public IoBuffer DetachAsIoBuffer()
+    {
+        var owner = Interlocked.Exchange(ref Owner, null)!;
+        var len = Length;
+        Length = 0;
+        if (MaxPoolSize > 0 && WrapperPool.Count <= MaxPoolSize)
+        {
+            WrapperPool.Push(this);
+        }
+
+        return new IoBuffer(owner, len);
+    }
+
     protected void DisposeOwner()
     {
         var owner = Interlocked.Exchange(ref Owner, null);
@@ -137,6 +176,21 @@ public class RoutedNetworkBuffer : NetworkBuffer
 
         buf.Owner = owner;
         buf.Length = 0;
+        buf.Key = default;
+        buf.StreamTypeValue = null;
+        buf.StreamId = null;
+        return buf;
+    }
+
+    public new static RoutedNetworkBuffer Wrap(IMemoryOwner<byte> owner, int length)
+    {
+        if (!WrapperPool.TryPop(out var buf))
+        {
+            return new RoutedNetworkBuffer { Owner = owner, Length = length };
+        }
+
+        buf.Owner = owner;
+        buf.Length = length;
         buf.Key = default;
         buf.StreamTypeValue = null;
         buf.StreamId = null;

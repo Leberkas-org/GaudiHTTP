@@ -1,3 +1,4 @@
+using System.IO.Pipelines;
 using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
@@ -24,12 +25,12 @@ public sealed class QuicStreamRouterSpec
         return (router, ops);
     }
 
-    private static (ConnectionHandle Handle, ChannelReader<NetworkBuffer> OutboundReader) CreateTestHandle(
+    private static (ConnectionHandle Handle, ChannelReader<IoBuffer> OutboundReader) CreateTestHandle(
         RequestEndpoint? endpoint = null)
     {
         var key = endpoint ?? TestEndpoint;
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var inbound = Channel.CreateUnbounded<IoBuffer>();
+        var outbound = Channel.CreateUnbounded<IoBuffer>();
         return (ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key), outbound.Reader);
     }
 
@@ -276,9 +277,14 @@ public sealed class QuicStreamRouterSpec
 
         router.FlushPendingWrites(ctx);
 
-        Assert.True(outboundReader.TryRead(out _));
-        Assert.True(outboundReader.TryRead(out _));
-        Assert.False(outboundReader.TryRead(out _));
+        Assert.True(outboundReader.TryRead(out var buf1));
+        Assert.True(outboundReader.TryRead(out var buf2));
+        Assert.Equal(1, buf1.Span[0]);
+        Assert.Equal(2, buf1.Span[1]);
+        Assert.Equal(3, buf2.Span[0]);
+        Assert.Equal(4, buf2.Span[1]);
+        buf1.Dispose();
+        buf2.Dispose();
     }
 
     [Fact(Timeout = 5000)]

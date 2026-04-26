@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using System.Threading.Channels;
 using Akka;
@@ -67,12 +68,12 @@ public sealed class ConnectionStageSpec : StreamTestBase
         Flow<IOutputItem, IInputItem, NotUsed> stageFlow,
         ReleaseTracker tracker,
         ConnectionLease lease,
-        ChannelReader<NetworkBuffer> outboundReader,
-        ChannelWriter<NetworkBuffer> inboundWriter)
+        ChannelReader<IoBuffer> outboundReader,
+        ChannelWriter<IoBuffer> inboundWriter)
         Build(RequestEndpoint? key = null)
     {
         var endpoint = key ?? TestKey;
-        var state = new ClientState(Stream.Null, null, null);
+        var state = new ClientState(Stream.Null);
         var handle = ConnectionHandle.CreateDirect(
             state.OutboundWriter, state.InboundReader, endpoint);
         var lease = new ConnectionLease(handle, state);
@@ -105,11 +106,10 @@ public sealed class ConnectionStageSpec : StreamTestBase
         await Task.Delay(300, TestContext.Current.CancellationToken);
 
         // Verify by injecting inbound data — it should appear at outlet.
-        var buf = NetworkBufferTestExtensions.FromArray([0xAB, 0xAB, 0xAB, 0xAB]);
-        await inboundWriter.WriteAsync(buf, TestContext.Current.CancellationToken);
+        WriteIoBuffer(inboundWriter, [0xAB, 0xAB, 0xAB, 0xAB]);
 
         await Task.Delay(200, TestContext.Current.CancellationToken);
-        inboundWriter.Complete();
+        inboundWriter.TryComplete();
     }
 
     [Fact(Timeout = 15_000)]
@@ -131,13 +131,12 @@ public sealed class ConnectionStageSpec : StreamTestBase
         await inputQueue.OfferAsync(connectItem);
         await Task.Delay(300, TestContext.Current.CancellationToken);
 
-        var buf = NetworkBuffer.Rent(4);
-        buf.FullMemory.Span[..4].Fill(0xAB);
-        buf.Length = 4;
-        await inboundWriter.WriteAsync(buf, TestContext.Current.CancellationToken);
+        var bytes = new byte[4];
+        bytes.AsSpan().Fill(0xAB);
+        WriteIoBuffer(inboundWriter, bytes);
 
         await Task.Delay(300, TestContext.Current.CancellationToken);
-        inboundWriter.Complete();
+        inboundWriter.TryComplete();
         await Task.Delay(500, TestContext.Current.CancellationToken);
         inputQueue.Complete();
 
@@ -170,12 +169,11 @@ public sealed class ConnectionStageSpec : StreamTestBase
         await inputQueue.OfferAsync(data);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        var buffer = await outboundReader.ReadAsync(cts.Token);
-        Assert.Equal(8, buffer.Length);
-        Assert.Equal(0xCD, buffer.Span[0]);
-
-        buffer.Dispose();
-        inboundWriter.Complete();
+        var readBuf = await outboundReader.ReadAsync(cts.Token);
+        Assert.Equal(8, readBuf.Length);
+        Assert.Equal(0xCD, readBuf.Span[0]);
+        readBuf.Dispose();
+        inboundWriter.TryComplete();
     }
 
     [Fact(Timeout = 15_000)]
@@ -201,18 +199,17 @@ public sealed class ConnectionStageSpec : StreamTestBase
         await inputQueue.OfferAsync(outData);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-        var outBuffer = await outboundReader.ReadAsync(cts.Token);
-        Assert.Equal(16, outBuffer.Length);
-        Assert.Equal(0x01, outBuffer.Span[0]);
-        outBuffer.Dispose();
+        var outBuf = await outboundReader.ReadAsync(cts.Token);
+        Assert.Equal(16, outBuf.Length);
+        Assert.Equal(0x01, outBuf.Span[0]);
+        outBuf.Dispose();
 
-        var inBuf = NetworkBufferTestExtensions.FromArray([
-            0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02
-        ]);
-        await inboundWriter.WriteAsync(inBuf, TestContext.Current.CancellationToken);
+        var inBytes = new byte[12];
+        inBytes.AsSpan().Fill(0x02);
+        WriteIoBuffer(inboundWriter, inBytes);
 
         await Task.Delay(300, TestContext.Current.CancellationToken);
-        inboundWriter.Complete();
+        inboundWriter.TryComplete();
         // Allow the async inbound pump to detect channel completion and deliver
         // the InboundComplete event before upstream finish stops the pump.
         await Task.Delay(500, TestContext.Current.CancellationToken);
@@ -257,7 +254,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         Assert.False(tracker.ReleasedCanReuse);
         Assert.Same(lease, tracker.ReleasedLease);
 
-        inboundWriter.Complete();
+        inboundWriter.TryComplete();
     }
 
     [Fact(Timeout = 15_000)]
@@ -290,7 +287,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         Assert.True(lease.Reusable);
         Assert.False(tracker.Released);
 
-        inboundWriter.Complete();
+        inboundWriter.TryComplete();
     }
 
     [Fact(Timeout = 15_000)]
@@ -318,7 +315,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
 
         Assert.Equal(50, lease.MaxConcurrentStreams);
 
-        inboundWriter.Complete();
+        inboundWriter.TryComplete();
     }
 
     [Fact(Timeout = 15_000)]
@@ -347,7 +344,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
 
         Assert.True(lease.ActiveStreams > streamsBefore);
 
-        inboundWriter.Complete();
+        inboundWriter.TryComplete();
     }
 
     [Fact(Timeout = 15_000)]
@@ -383,8 +380,8 @@ public sealed class ConnectionStageSpec : StreamTestBase
     public async Task
         ConnectionStage_should_emit_close_signal_and_release_lease_when_outbound_channel_closed_during_write()
     {
-        var state = new ClientState(Stream.Null, null, null);
-        state.OutboundWriter.Complete();
+        var state = new ClientState(Stream.Null);
+        state.OutboundWriter.TryComplete();
 
         var handle = ConnectionHandle.CreateDirect(
             state.OutboundWriter, state.InboundReader, TestKey);
@@ -422,6 +419,13 @@ public sealed class ConnectionStageSpec : StreamTestBase
         var closeSignal = Assert.Single(results.OfType<CloseSignalItem>());
         Assert.Equal(TlsCloseKind.AbruptClose, closeSignal.CloseKind);
 
-        state.InboundWriter.Complete();
+        state.InboundWriter.TryComplete();
+    }
+
+    private static void WriteIoBuffer(ChannelWriter<IoBuffer> writer, byte[] data)
+    {
+        var owner = MemoryPool<byte>.Shared.Rent(data.Length);
+        data.CopyTo(owner.Memory.Span);
+        writer.TryWrite(new IoBuffer(owner, data.Length));
     }
 }

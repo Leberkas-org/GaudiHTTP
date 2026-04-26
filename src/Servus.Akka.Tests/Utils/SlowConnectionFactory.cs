@@ -15,10 +15,8 @@ internal sealed class SlowConnectionFactory(TimeSpan delay) : IConnectionFactory
         // Deliberately ignore ct — simulates a slow network that doesn't respect cancellation.
         await Task.Delay(delay, CancellationToken.None).ConfigureAwait(false);
 
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, endpoint);
-        var state = new ClientState(Stream.Null, inbound, outbound);
+        var state = new ClientState(Stream.Null);
+        var handle = ConnectionHandle.CreateDirect(state.OutboundWriter, state.InboundReader, endpoint);
         return new ConnectionLease(handle, state);
     }
 }
