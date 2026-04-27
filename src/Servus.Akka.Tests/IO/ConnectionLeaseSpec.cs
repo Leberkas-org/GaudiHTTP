@@ -9,7 +9,7 @@ public sealed class ConnectionLeaseSpec
 {
     private static ConnectionHandle CreateHandle(Version version)
     {
-        var ch = Channel.CreateUnbounded<IoBuffer>();
+        var ch = Channel.CreateUnbounded<NetworkBuffer>();
         var key = new RequestEndpoint
         {
             Host = "localhost",

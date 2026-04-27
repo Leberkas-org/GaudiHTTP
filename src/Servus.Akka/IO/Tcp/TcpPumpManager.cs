@@ -35,7 +35,7 @@ internal sealed class TcpPumpManager
     }
 
     private static async Task PumpAsync(
-        ChannelReader<IoBuffer> reader,
+        ChannelReader<NetworkBuffer> reader,
         RequestEndpoint key,
         int gen,
         CancellationToken ct,
@@ -59,8 +59,7 @@ internal sealed class TcpPumpManager
                         return;
                     }
 
-                    var nb = NetworkBuffer.Wrap(chunk.Owner, chunk.Length);
-                    nb.Key = key;
+                    chunk.Key = key;
                     batch ??= ArrayPool<IInputItem>.Shared.Rent(32);
 
                     if (count == batch.Length)
@@ -70,7 +69,7 @@ internal sealed class TcpPumpManager
                         count = 0;
                     }
 
-                    batch[count++] = nb;
+                    batch[count++] = chunk;
                 }
 
                 if (count > 0)

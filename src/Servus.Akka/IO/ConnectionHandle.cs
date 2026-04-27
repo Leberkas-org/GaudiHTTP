@@ -4,8 +4,8 @@ using Akka.Actor;
 namespace Servus.Akka.IO;
 
 public sealed record ConnectionHandle(
-    ChannelWriter<IoBuffer> OutboundWriter,
-    ChannelReader<IoBuffer> InboundReader,
+    ChannelWriter<NetworkBuffer> OutboundWriter,
+    ChannelReader<NetworkBuffer> InboundReader,
     RequestEndpoint Key,
     IActorRef ConnectionActor)
 {
@@ -19,7 +19,7 @@ public sealed record ConnectionHandle(
 
     public ValueTask WriteAsync(NetworkBuffer buffer)
     {
-        return OutboundWriter.WriteAsync(buffer.DetachAsIoBuffer());
+        return OutboundWriter.WriteAsync(buffer);
     }
 
     public bool TryCompleteOutbound(Exception? error = null)
@@ -28,8 +28,8 @@ public sealed record ConnectionHandle(
     }
 
     public static ConnectionHandle CreateDirect(
-        ChannelWriter<IoBuffer> outboundWriter,
-        ChannelReader<IoBuffer> inboundReader,
+        ChannelWriter<NetworkBuffer> outboundWriter,
+        ChannelReader<NetworkBuffer> inboundReader,
         RequestEndpoint key)
     {
         return new ConnectionHandle(outboundWriter, inboundReader, key, ActorRefs.Nobody);
@@ -40,8 +40,8 @@ public sealed record ConnectionHandle(
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return EqualityContract == other.EqualityContract
-            && EqualityComparer<ChannelWriter<IoBuffer>>.Default.Equals(OutboundWriter, other.OutboundWriter)
-            && EqualityComparer<ChannelReader<IoBuffer>>.Default.Equals(InboundReader, other.InboundReader)
+            && EqualityComparer<ChannelWriter<NetworkBuffer>>.Default.Equals(OutboundWriter, other.OutboundWriter)
+            && EqualityComparer<ChannelReader<NetworkBuffer>>.Default.Equals(InboundReader, other.InboundReader)
             && Key.Equals(other.Key)
             && EqualityComparer<IActorRef>.Default.Equals(ConnectionActor, other.ConnectionActor);
     }

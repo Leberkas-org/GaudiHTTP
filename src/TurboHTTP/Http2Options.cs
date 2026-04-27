@@ -51,14 +51,6 @@ public sealed class Http2Options
     public int HeaderTableSize { get; set; } = 4_096;
 
     /// <summary>
-    /// Maximum batch weight in bytes for HTTP/2 frame encoding.
-    /// Frames are accumulated into batches up to this weight before being serialized into a single buffer,
-    /// reducing allocations and memory copies under concurrent load. Higher values increase throughput
-    /// at the cost of latency variance. Default is 256 KiB. TurboHttp-specific.
-    /// </summary>
-    public int MaxBatchWeight { get; set; } = 262_144;
-
-    /// <summary>
     /// Maximum number of reconnect attempts when a TCP connection drops with in-flight requests.
     /// After this many failed reconnects, the connection stage fails with an exception.
     /// Default is 3.

@@ -29,7 +29,6 @@ namespace TurboHTTP
     public sealed class Http1Options
     {
         public Http1Options() { }
-        public long MaxBatchWeight { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxPipelineDepth { get; set; }
         public int MaxReconnectAttempts { get; set; }
@@ -46,7 +45,6 @@ namespace TurboHTTP
         public System.TimeSpan KeepAlivePingDelay { get; set; }
         public TurboHTTP.HttpKeepAlivePingPolicy KeepAlivePingPolicy { get; set; }
         public System.TimeSpan KeepAlivePingTimeout { get; set; }
-        public int MaxBatchWeight { get; set; }
         public int MaxConcurrentStreams { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxFrameSize { get; set; }

@@ -21,14 +21,6 @@ public sealed class Http1Options
     public int MaxPipelineDepth { get; set; } = 16;
 
     /// <summary>
-    /// Maximum batch weight in bytes for HTTP/1.x request encoding.
-    /// Frames are accumulated into batches up to this weight before being serialized into a single buffer,
-    /// reducing allocations and memory copies under concurrent load. Higher values increase throughput
-    /// at the cost of latency variance. Default is 64 KiB. TurboHttp-specific.
-    /// </summary>
-    public long MaxBatchWeight { get; set; } = 65_536;
-
-    /// <summary>
     /// Maximum length of the response headers, in kilobytes (KB).
     /// This limits the combined size of all response header fields received from the server.
     /// Default is 64 (same as <c>SocketsHttpHandler.MaxResponseHeadersLength</c>).

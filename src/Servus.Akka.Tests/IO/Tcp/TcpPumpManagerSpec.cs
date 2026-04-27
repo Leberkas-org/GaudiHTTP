@@ -17,10 +17,10 @@ public sealed class TcpPumpManagerSpec : TestKit
         Version = HttpVersion.Version11
     };
 
-    private static (Channel<IoBuffer> inboundChannel, ConnectionHandle handle) CreateTestHandle()
+    private static (Channel<NetworkBuffer> inboundChannel, ConnectionHandle handle) CreateTestHandle()
     {
-        var inboundChannel = Channel.CreateUnbounded<IoBuffer>();
-        var outboundChannel = Channel.CreateUnbounded<IoBuffer>();
+        var inboundChannel = Channel.CreateUnbounded<NetworkBuffer>();
+        var outboundChannel = Channel.CreateUnbounded<NetworkBuffer>();
         var handle = ConnectionHandle.CreateDirect(outboundChannel.Writer, inboundChannel.Reader, TestEndpoint);
         return (inboundChannel, handle);
     }
@@ -91,13 +91,13 @@ public sealed class TcpPumpManagerSpec : TestKit
         var pump = new TcpPumpManager(probe.Ref);
         var (inboundChannel, handle) = CreateTestHandle();
 
-        // Write a known amount of data as IoBuffers, then complete the channel.
+        // Write a known amount of data as NetworkBuffers, then complete the channel.
         const int totalBytes = 33;
         for (var i = 0; i < totalBytes; i++)
         {
             var owner = MemoryPool<byte>.Shared.Rent(1);
             owner.Memory.Span[0] = (byte)i;
-            await inboundChannel.Writer.WriteAsync(new IoBuffer(owner, 1), TestContext.Current.CancellationToken);
+            await inboundChannel.Writer.WriteAsync(NetworkBuffer.Wrap(owner, 1), TestContext.Current.CancellationToken);
         }
 
         inboundChannel.Writer.Complete();
@@ -145,7 +145,7 @@ public sealed class TcpPumpManagerSpec : TestKit
         // Write to the cancelled pump1 channel — should produce no further messages
         var owner = MemoryPool<byte>.Shared.Rent(1);
         owner.Memory.Span[0] = 0xFF;
-        await inboundChannel1.Writer.WriteAsync(new IoBuffer(owner, 1), TestContext.Current.CancellationToken);
+        await inboundChannel1.Writer.WriteAsync(NetworkBuffer.Wrap(owner, 1), TestContext.Current.CancellationToken);
         await Task.Delay(100, TestContext.Current.CancellationToken);
         await probe.ExpectNoMsgAsync(TimeSpan.Zero, TestContext.Current.CancellationToken);
     }

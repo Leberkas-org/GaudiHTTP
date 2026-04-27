@@ -85,7 +85,7 @@ public sealed class TcpConnectionFactorySpec : IAsyncLifetime
         var testData = "Hello from client"u8.ToArray();
         var owner = MemoryPool<byte>.Shared.Rent(testData.Length);
         testData.CopyTo(owner.Memory.Span);
-        await lease.Handle.OutboundWriter.WriteAsync(new IoBuffer(owner, testData.Length), TestContext.Current.CancellationToken);
+        await lease.Handle.OutboundWriter.WriteAsync(NetworkBuffer.Wrap(owner, testData.Length), TestContext.Current.CancellationToken);
 
         // Read from server side
         var readBuf = new byte[1024];

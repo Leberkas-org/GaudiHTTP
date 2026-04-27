@@ -19,10 +19,10 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
         Version = HttpVersion.Version30
     };
 
-    private static (Channel<IoBuffer> inbound, ConnectionHandle handle) CreateTestHandle()
+    private static (Channel<NetworkBuffer> inbound, ConnectionHandle handle) CreateTestHandle()
     {
-        var inbound = Channel.CreateUnbounded<IoBuffer>();
-        var outbound = Channel.CreateUnbounded<IoBuffer>();
+        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
         var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, TestEndpoint);
         return (inbound, handle);
     }
@@ -143,3 +143,4 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
         pump.StopAll();
     }
 }
+#pragma warning restore CA1416

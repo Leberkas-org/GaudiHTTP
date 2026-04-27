@@ -9,7 +9,7 @@ public sealed class ConnectionHandleSpec
 {
     private ConnectionHandle CreateHandle()
     {
-        var ch = Channel.CreateUnbounded<IoBuffer>();
+        var ch = Channel.CreateUnbounded<NetworkBuffer>();
         var key = new RequestEndpoint
         {
             Host = "localhost",
@@ -112,7 +112,7 @@ public sealed class ConnectionHandleSpec
     [Fact(Timeout = 5000)]
     public void CreateDirect_should_create_handle_with_nobody_actor()
     {
-        var ch = Channel.CreateUnbounded<IoBuffer>();
+        var ch = Channel.CreateUnbounded<NetworkBuffer>();
         var key = new RequestEndpoint
         {
             Host = "example.com",
@@ -132,7 +132,7 @@ public sealed class ConnectionHandleSpec
     [Fact(Timeout = 5000)]
     public void CreateDirect_should_create_handle_with_default_max_concurrent_streams()
     {
-        var ch = Channel.CreateUnbounded<IoBuffer>();
+        var ch = Channel.CreateUnbounded<NetworkBuffer>();
         var key = new RequestEndpoint
         {
             Host = "example.com",
@@ -161,7 +161,7 @@ public sealed class ConnectionHandleSpec
     [Fact(Timeout = 5000)]
     public void ConnectionActor_property_should_be_set()
     {
-        var ch = Channel.CreateUnbounded<IoBuffer>();
+        var ch = Channel.CreateUnbounded<NetworkBuffer>();
         var key = new RequestEndpoint
         {
             Host = "localhost",
@@ -235,7 +235,7 @@ public sealed class ConnectionHandleSpec
     [Fact(Timeout = 5000)]
     public void Same_instance_should_be_equal()
     {
-        var ch = Channel.CreateUnbounded<IoBuffer>();
+        var ch = Channel.CreateUnbounded<NetworkBuffer>();
         var key = new RequestEndpoint
         {
             Host = "localhost",

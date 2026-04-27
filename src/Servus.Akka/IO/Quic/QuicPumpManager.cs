@@ -66,7 +66,7 @@ public sealed class QuicPumpManager
     }
 
     private static async Task PumpAsync(
-        ChannelReader<IoBuffer> reader,
+        ChannelReader<NetworkBuffer> reader,
         RequestEndpoint key,
         long streamTypeValue,
         CancellationToken ct,
@@ -81,7 +81,16 @@ public sealed class QuicPumpManager
             {
                 while (reader.TryRead(out var chunk))
                 {
-                    var nb = RoutedNetworkBuffer.Wrap(chunk.Owner, chunk.Length);
+                    RoutedNetworkBuffer nb;
+                    if (chunk is RoutedNetworkBuffer routed)
+                    {
+                        nb = routed;
+                    }
+                    else
+                    {
+                        nb = RoutedNetworkBuffer.WrapExisting(chunk);
+                    }
+
                     nb.Key = key;
                     nb.StreamTypeValue = streamTypeValue;
                     nb.StreamId = streamId;

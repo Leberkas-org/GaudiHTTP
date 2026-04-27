@@ -83,7 +83,6 @@ public sealed class Http2StateMachineSpec
                 MaxFrameSize = 16384,
                 HeaderTableSize = 4096,
                 MaxReconnectAttempts = 3,
-                MaxBatchWeight = 262_144,
                 KeepAlivePingDelay = Timeout.InfiniteTimeSpan,
                 KeepAlivePingTimeout = TimeSpan.FromSeconds(20),
                 KeepAlivePingPolicy = HttpKeepAlivePingPolicy.Always

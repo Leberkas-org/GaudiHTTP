@@ -24,12 +24,12 @@ public sealed class QuicStreamRouterEnhancedSpec
         return (router, ops);
     }
 
-    private static (ConnectionHandle Handle, ChannelReader<IoBuffer> OutboundReader) CreateTestHandle(
+    private static (ConnectionHandle Handle, ChannelReader<NetworkBuffer> OutboundReader) CreateTestHandle(
         RequestEndpoint? endpoint = null)
     {
         var key = endpoint ?? TestEndpoint;
-        var inbound = Channel.CreateUnbounded<IoBuffer>();
-        var outbound = Channel.CreateUnbounded<IoBuffer>();
+        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
         return (ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key), outbound.Reader);
     }
 

@@ -34,14 +34,14 @@ public sealed class ClientState : IDisposable
     public Pipe InboundPipe { get; }
     public Pipe OutboundPipe { get; }
 
-    private readonly Channel<IoBuffer> _inboundChannel;
-    private readonly Channel<IoBuffer> _outboundChannel;
+    private readonly Channel<NetworkBuffer> _inboundChannel;
+    private readonly Channel<NetworkBuffer> _outboundChannel;
 
-    public ChannelReader<IoBuffer> InboundReader => _inboundChannel.Reader;
-    public ChannelWriter<IoBuffer> InboundWriter => _inboundChannel.Writer;
+    public ChannelReader<NetworkBuffer> InboundReader => _inboundChannel.Reader;
+    public ChannelWriter<NetworkBuffer> InboundWriter => _inboundChannel.Writer;
 
-    public ChannelReader<IoBuffer> OutboundReader => _outboundChannel.Reader;
-    public ChannelWriter<IoBuffer> OutboundWriter => _outboundChannel.Writer;
+    public ChannelReader<NetworkBuffer> OutboundReader => _outboundChannel.Reader;
+    public ChannelWriter<NetworkBuffer> OutboundWriter => _outboundChannel.Writer;
 
     public ClientState(Stream stream, StreamDirection direction = StreamDirection.Bidirectional)
     {
@@ -49,8 +49,8 @@ public sealed class ClientState : IDisposable
         Direction = direction;
         InboundPipe = new Pipe(InboundPipeOptions);
         OutboundPipe = new Pipe(OutboundPipeOptions);
-        _inboundChannel = Channel.CreateUnbounded<IoBuffer>(ChannelOptions);
-        _outboundChannel = Channel.CreateUnbounded<IoBuffer>(ChannelOptions);
+        _inboundChannel = Channel.CreateUnbounded<NetworkBuffer>(ChannelOptions);
+        _outboundChannel = Channel.CreateUnbounded<NetworkBuffer>(ChannelOptions);
     }
 
     public void Dispose()
@@ -61,10 +61,14 @@ public sealed class ClientState : IDisposable
         while (_inboundChannel.Reader.TryRead(out var buf)) { buf.Dispose(); }
         while (_outboundChannel.Reader.TryRead(out var buf)) { buf.Dispose(); }
 
-        try { InboundPipe.Writer.Complete(); } catch (InvalidOperationException) { }
-        try { InboundPipe.Reader.Complete(); } catch (InvalidOperationException) { }
-        try { OutboundPipe.Writer.Complete(); } catch (InvalidOperationException) { }
-        try { OutboundPipe.Reader.Complete(); } catch (InvalidOperationException) { }
+        try { InboundPipe.Writer.Complete(); }
+        catch (InvalidOperationException) { _ = 0; }
+        try { InboundPipe.Reader.Complete(); }
+        catch (InvalidOperationException) { _ = 0; }
+        try { OutboundPipe.Writer.Complete(); }
+        catch (InvalidOperationException) { _ = 0; }
+        try { OutboundPipe.Reader.Complete(); }
+        catch (InvalidOperationException) { _ = 0; }
 
         Stream.Dispose();
     }

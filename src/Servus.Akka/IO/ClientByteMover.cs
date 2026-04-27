@@ -45,12 +45,13 @@ public static class ClientByteMover
         }
         finally
         {
-            try { writer.Complete(error); } catch (InvalidOperationException) { }
+            try { writer.Complete(error); }
+            catch (InvalidOperationException) { _ = 0; }
         }
     }
 
     private static async Task DrainPipeToChannel(
-        PipeReader reader, ChannelWriter<IoBuffer> channel, Action onClose, CancellationToken ct)
+        PipeReader reader, ChannelWriter<NetworkBuffer> channel, Action onClose, CancellationToken ct)
     {
         var abrupt = false;
         try
@@ -62,11 +63,12 @@ public static class ClientByteMover
 
                 foreach (var segment in buffer)
                 {
-                    var owner = MemoryPool<byte>.Shared.Rent(segment.Length);
-                    segment.Span.CopyTo(owner.Memory.Span);
-                    if (!channel.TryWrite(new IoBuffer(owner, segment.Length)))
+                    var nb = NetworkBuffer.Rent(segment.Length);
+                    segment.Span.CopyTo(nb.FullMemory.Span);
+                    nb.Length = segment.Length;
+                    if (!channel.TryWrite(nb))
                     {
-                        owner.Dispose();
+                        nb.Dispose();
                     }
                 }
 
@@ -102,7 +104,8 @@ public static class ClientByteMover
         }
         finally
         {
-            try { reader.Complete(); } catch (InvalidOperationException) { }
+            try { reader.Complete(); }
+            catch (InvalidOperationException) { _ = 0; }
             if (abrupt)
             {
                 channel.TryComplete(new AbruptCloseException());
@@ -117,7 +120,7 @@ public static class ClientByteMover
     }
 
     private static async Task FillPipeFromChannel(
-        ChannelReader<IoBuffer> channel, PipeWriter writer, CancellationToken ct)
+        ChannelReader<NetworkBuffer> channel, PipeWriter writer, CancellationToken ct)
     {
         try
         {
@@ -140,11 +143,12 @@ public static class ClientByteMover
                 await writer.FlushAsync(ct).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException) { }
-        catch (Exception) { }
+        catch (OperationCanceledException) { _ = 0; }
+        catch (Exception) { _ = 0; }
         finally
         {
-            try { writer.Complete(); } catch (InvalidOperationException) { }
+            try { writer.Complete(); }
+            catch (InvalidOperationException) { _ = 0; }
         }
     }
 
@@ -189,7 +193,8 @@ public static class ClientByteMover
         }
         finally
         {
-            try { reader.Complete(); } catch (InvalidOperationException) { }
+            try { reader.Complete(); }
+            catch (InvalidOperationException) { _ = 0; }
         }
 
         onWritesComplete?.Invoke();

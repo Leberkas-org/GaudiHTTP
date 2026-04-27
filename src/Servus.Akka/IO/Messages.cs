@@ -63,19 +63,6 @@ public readonly record struct ConnectedSignalItem : IInputItem
     public RequestEndpoint Key { get; init; }
 }
 
-public readonly record struct IoBuffer(IMemoryOwner<byte> Owner, int Length) : IDisposable
-{
-    public ReadOnlyMemory<byte> Memory => Owner.Memory[..Length];
-    public ReadOnlySpan<byte> Span => Owner.Memory.Span[..Length];
-    public void Dispose() => Owner.Dispose();
-
-    public static IoBuffer Rent(int dataLength)
-    {
-        var owner = MemoryPool<byte>.Shared.Rent(dataLength);
-        return new IoBuffer(owner, dataLength);
-    }
-}
-
 public class NetworkBuffer : IInputItem, IOutputItem, IDisposable
 {
     private static readonly ConcurrentStack<NetworkBuffer> WrapperPool = new();
@@ -128,17 +115,16 @@ public class NetworkBuffer : IInputItem, IOutputItem, IDisposable
         return buf;
     }
 
-    public IoBuffer DetachAsIoBuffer()
+    public IMemoryOwner<byte>? DetachOwner()
     {
-        var owner = Interlocked.Exchange(ref Owner, null)!;
-        var len = Length;
+        var owner = Interlocked.Exchange(ref Owner, null);
         Length = 0;
         if (MaxPoolSize > 0 && WrapperPool.Count <= MaxPoolSize)
         {
             WrapperPool.Push(this);
         }
 
-        return new IoBuffer(owner, len);
+        return owner;
     }
 
     protected void DisposeOwner()
@@ -192,6 +178,24 @@ public class RoutedNetworkBuffer : NetworkBuffer
         buf.Owner = owner;
         buf.Length = length;
         buf.Key = default;
+        buf.StreamTypeValue = null;
+        buf.StreamId = null;
+        return buf;
+    }
+
+    public static RoutedNetworkBuffer WrapExisting(NetworkBuffer source)
+    {
+        var len = source.Length;
+        var sourceKey = source.Key;
+        var owner = source.DetachOwner();
+        if (!WrapperPool.TryPop(out var buf))
+        {
+            return new RoutedNetworkBuffer { Owner = owner, Length = len, Key = sourceKey };
+        }
+
+        buf.Owner = owner;
+        buf.Length = len;
+        buf.Key = sourceKey;
         buf.StreamTypeValue = null;
         buf.StreamId = null;
         return buf;

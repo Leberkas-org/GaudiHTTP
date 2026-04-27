@@ -250,7 +250,7 @@ public sealed class ClientByteMoverSpec
     {
         var owner = MemoryPool<byte>.Shared.Rent(size);
         owner.Memory.Span[..size].Fill(fill);
-        state.OutboundWriter.TryWrite(new IoBuffer(owner, size));
+        state.OutboundWriter.TryWrite(NetworkBuffer.Wrap(owner, size));
     }
 
     private sealed class CapturingStream(List<byte[]> writes) : Stream

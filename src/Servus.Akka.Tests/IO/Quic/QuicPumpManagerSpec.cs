@@ -18,8 +18,8 @@ public sealed class QuicPumpManagerSpec
 
     private static ConnectionHandle CreateTestHandle()
     {
-        var inbound = Channel.CreateUnbounded<IoBuffer>();
-        var outbound = Channel.CreateUnbounded<IoBuffer>();
+        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
+        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
         return ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, TestEndpoint);
     }
 

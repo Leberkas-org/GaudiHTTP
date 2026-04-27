@@ -11,7 +11,7 @@ public sealed class TcpTransportEventSpec
     [Fact(Timeout = 5000)]
     public void LeaseAcquired_should_preserve_lease()
     {
-        var ch = Channel.CreateUnbounded<IoBuffer>();
+        var ch = Channel.CreateUnbounded<NetworkBuffer>();
         var key = new RequestEndpoint
         {
             Scheme = "http",

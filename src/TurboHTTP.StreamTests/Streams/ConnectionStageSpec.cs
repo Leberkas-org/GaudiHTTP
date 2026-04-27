@@ -68,8 +68,8 @@ public sealed class ConnectionStageSpec : StreamTestBase
         Flow<IOutputItem, IInputItem, NotUsed> stageFlow,
         ReleaseTracker tracker,
         ConnectionLease lease,
-        ChannelReader<IoBuffer> outboundReader,
-        ChannelWriter<IoBuffer> inboundWriter)
+        ChannelReader<NetworkBuffer> outboundReader,
+        ChannelWriter<NetworkBuffer> inboundWriter)
         Build(RequestEndpoint? key = null)
     {
         var endpoint = key ?? TestKey;
@@ -422,10 +422,10 @@ public sealed class ConnectionStageSpec : StreamTestBase
         state.InboundWriter.TryComplete();
     }
 
-    private static void WriteIoBuffer(ChannelWriter<IoBuffer> writer, byte[] data)
+    private static void WriteIoBuffer(ChannelWriter<NetworkBuffer> writer, byte[] data)
     {
         var owner = MemoryPool<byte>.Shared.Rent(data.Length);
         data.CopyTo(owner.Memory.Span);
-        writer.TryWrite(new IoBuffer(owner, data.Length));
+        writer.TryWrite(NetworkBuffer.Wrap(owner, data.Length));
     }
 }
