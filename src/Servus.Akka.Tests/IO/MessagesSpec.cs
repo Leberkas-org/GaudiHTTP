@@ -254,9 +254,9 @@ public sealed class MessagesSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Http3EndOfRequestItem_should_preserve_fields()
+    public void StreamFinishedItem_should_preserve_fields()
     {
-        var item = new Http3EndOfRequestItem { Key = TestKey, StreamId = 99 };
+        var item = new StreamFinishedItem { Key = TestKey, StreamId = 99 };
 
         Assert.Equal(TestKey, item.Key);
         Assert.Equal(99, item.StreamId);

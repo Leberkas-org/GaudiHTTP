@@ -1,10 +1,8 @@
 using System.Buffers;
 using System.Net;
 using System.Threading.Channels;
-using Akka.Actor;
 using Servus.Akka.IO;
 using Servus.Akka.IO.Tcp;
-using Servus.Akka.Tests.Utils;
 
 namespace Servus.Akka.Tests.IO.Tcp;
 

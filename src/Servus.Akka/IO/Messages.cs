@@ -207,7 +207,7 @@ public class RoutedNetworkBuffer : NetworkBuffer
     }
 }
 
-public readonly record struct Http3EndOfRequestItem : IOutputItem
+public readonly record struct StreamFinishedItem : IOutputItem
 {
     public RequestEndpoint Key { get; init; }
     public long StreamId { get; init; }

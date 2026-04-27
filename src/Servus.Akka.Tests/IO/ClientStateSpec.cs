@@ -1,4 +1,3 @@
-using System.IO.Pipelines;
 using Servus.Akka.IO;
 using Servus.Akka.IO.Quic;
 
@@ -36,13 +35,13 @@ public sealed class ClientStateSpec
         // Verify pipe can be written to and read from
         var writer = state.InboundPipe.Writer;
         var data = new byte[] { 1, 2, 3 };
-        await writer.WriteAsync(data);
-        writer.Complete();
+        await writer.WriteAsync(data, TestContext.Current.CancellationToken);
+        await writer.CompleteAsync();
 
-        var result = await state.InboundPipe.Reader.ReadAsync();
+        var result = await state.InboundPipe.Reader.ReadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, result.Buffer.Length);
         state.InboundPipe.Reader.AdvanceTo(result.Buffer.End);
-        state.InboundPipe.Reader.Complete();
+        await state.InboundPipe.Reader.CompleteAsync();
     }
 
     [Fact(Timeout = 5000)]
@@ -54,13 +53,13 @@ public sealed class ClientStateSpec
         // Verify pipe can be written to and read from
         var writer = state.OutboundPipe.Writer;
         var data = new byte[] { 4, 5, 6 };
-        await writer.WriteAsync(data);
-        writer.Complete();
+        await writer.WriteAsync(data, TestContext.Current.CancellationToken);
+        await writer.CompleteAsync();
 
-        var result = await state.OutboundPipe.Reader.ReadAsync();
+        var result = await state.OutboundPipe.Reader.ReadAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, result.Buffer.Length);
         state.OutboundPipe.Reader.AdvanceTo(result.Buffer.End);
-        state.OutboundPipe.Reader.Complete();
+        await state.OutboundPipe.Reader.CompleteAsync();
     }
 
     [Fact(Timeout = 5000)]

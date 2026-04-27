@@ -118,24 +118,24 @@ public sealed class QuicStreamRouterEnhancedSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void HandleEndOfRequest_with_pending_writes_should_mark_and_signal()
+    public void HandleStreamFinished_with_pending_writes_should_mark_and_signal()
     {
         var (router, ops) = CreateRouter();
         router.GetOrCreateContext(1);
         router.GetOrCreateContext(1).PendingWrites.Enqueue(NetworkBufferTestExtensions.FromArray([1, 2]));
 
-        router.HandleEndOfRequest(new Http3EndOfRequestItem { Key = TestEndpoint, StreamId = 1 });
+        router.HandleStreamFinished(new StreamFinishedItem { Key = TestEndpoint, StreamId = 1 });
 
-        Assert.True(router.RequestStreams[1].PendingEndOfRequest);
+        Assert.True(router.RequestStreams[1].PendingStreamFinished);
         Assert.True(ops.PullInputCount > 0);
     }
 
     [Fact(Timeout = 5000)]
-    public void HandleEndOfRequest_unknown_stream_should_signal_only()
+    public void HandleStreamFinished_unknown_stream_should_signal_only()
     {
         var (router, ops) = CreateRouter();
 
-        router.HandleEndOfRequest(new Http3EndOfRequestItem { Key = TestEndpoint, StreamId = 999 });
+        router.HandleStreamFinished(new StreamFinishedItem { Key = TestEndpoint, StreamId = 999 });
 
         Assert.True(ops.PullInputCount > 0);
     }

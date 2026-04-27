@@ -415,7 +415,7 @@ internal sealed class StateMachine : IDisposable
             EmitSerializedFrame(f, streamId);
         }
 
-        _ops.OnOutbound(new Http3EndOfRequestItem { Key = endpoint, StreamId = streamId });
+        _ops.OnOutbound(new StreamFinishedItem { Key = endpoint, StreamId = streamId });
         return true;
     }
 

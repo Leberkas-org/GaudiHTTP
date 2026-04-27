@@ -1,4 +1,3 @@
-using System.IO.Pipelines;
 using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
@@ -203,27 +202,27 @@ public sealed class QuicStreamRouterSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void HandleEndOfRequest_should_complete_outbound_writer()
+    public void HandleStreamFinished_should_complete_outbound_writer()
     {
         var (router, ops) = CreateRouter();
         var (handle, _) = CreateTestHandle();
         var ctx = router.GetOrCreateContext(1);
         ctx.Handle = handle;
 
-        router.HandleEndOfRequest(new Http3EndOfRequestItem { Key = TestEndpoint, StreamId = 1 });
+        router.HandleStreamFinished(new StreamFinishedItem { Key = TestEndpoint, StreamId = 1 });
 
         Assert.True(ops.PullInputCount > 0);
     }
 
     [Fact(Timeout = 5000)]
-    public void HandleEndOfRequest_should_mark_pending_when_no_handle()
+    public void HandleStreamFinished_should_mark_pending_when_no_handle()
     {
         var (router, ops) = CreateRouter();
         router.GetOrCreateContext(1);
 
-        router.HandleEndOfRequest(new Http3EndOfRequestItem { Key = TestEndpoint, StreamId = 1 });
+        router.HandleStreamFinished(new StreamFinishedItem { Key = TestEndpoint, StreamId = 1 });
 
-        Assert.True(router.RequestStreams[1].PendingEndOfRequest);
+        Assert.True(router.RequestStreams[1].PendingStreamFinished);
         Assert.True(ops.PullInputCount > 0);
     }
 
@@ -294,12 +293,12 @@ public sealed class QuicStreamRouterSpec
         var (handle, _) = CreateTestHandle();
         var ctx = router.GetOrCreateContext(1);
 
-        ctx.PendingEndOfRequest = true;
+        ctx.PendingStreamFinished = true;
         ctx.Handle = handle;
 
         router.FlushPendingWrites(ctx);
 
-        Assert.False(ctx.PendingEndOfRequest);
+        Assert.False(ctx.PendingStreamFinished);
     }
 
     [Fact(Timeout = 5000)]

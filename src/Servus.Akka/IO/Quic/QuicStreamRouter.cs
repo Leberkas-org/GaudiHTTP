@@ -106,9 +106,9 @@ public sealed class QuicStreamRouter
     }
 
     /// <summary>
-    /// Handles an end-of-request item: completes the outbound channel or marks as pending.
+    /// Handles an stream-finished item: completes the outbound channel or marks as pending.
     /// </summary>
-    public void HandleEndOfRequest(Http3EndOfRequestItem endItem)
+    public void HandleStreamFinished(StreamFinishedItem endItem)
     {
         if (_requestStreams.TryGetValue(endItem.StreamId, out var ctx) && ctx.Handle is not null)
         {
@@ -116,7 +116,7 @@ public sealed class QuicStreamRouter
         }
         else if (_requestStreams.TryGetValue(endItem.StreamId, out var pendingCtx))
         {
-            pendingCtx.PendingEndOfRequest = true;
+            pendingCtx.PendingStreamFinished = true;
         }
 
         _ops.OnSignalPullInput();
@@ -161,7 +161,7 @@ public sealed class QuicStreamRouter
     }
 
     /// <summary>
-    /// Flushes all pending writes for a stream context and completes the writer if end-of-request was pending.
+    /// Flushes all pending writes for a stream context and completes the writer if stream-finished was pending.
     /// </summary>
     public void FlushPendingWrites(RequestStreamContext ctx)
     {
@@ -170,9 +170,9 @@ public sealed class QuicStreamRouter
             WriteToHandle(ctx.Handle, buffered);
         }
 
-        if (ctx.PendingEndOfRequest)
+        if (ctx.PendingStreamFinished)
         {
-            ctx.PendingEndOfRequest = false;
+            ctx.PendingStreamFinished = false;
             ctx.Handle!.TryCompleteOutbound();
         }
     }
@@ -288,14 +288,14 @@ public sealed class QuicStreamRouter
     }
 
     /// <summary>
-    /// Per-stream transport state: tracks the handle, pending writes, and end-of-request flag
+    /// Per-stream transport state: tracks the handle, pending writes, and stream-finished flag
     /// for each concurrent request stream on the QUIC connection.
     /// </summary>
     public sealed class RequestStreamContext
     {
         public ConnectionHandle? Handle;
         public readonly Queue<NetworkBuffer> PendingWrites = new();
-        public bool PendingEndOfRequest;
+        public bool PendingStreamFinished;
     }
 
     public enum StreamContextResult
@@ -305,3 +305,5 @@ public sealed class QuicStreamRouter
         NeedsConnection
     }
 }
+
+#pragma warning restore CA1416

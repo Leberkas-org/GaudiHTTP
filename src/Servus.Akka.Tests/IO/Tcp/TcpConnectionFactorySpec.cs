@@ -4,7 +4,6 @@ using System.Net.Sockets;
 using Akka.Actor;
 using Servus.Akka.IO;
 using Servus.Akka.IO.Tcp;
-using Servus.Akka.Tests.Utils;
 
 namespace Servus.Akka.Tests.IO.Tcp;
 

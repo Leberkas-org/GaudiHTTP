@@ -153,7 +153,7 @@ public sealed class QuicTransportStateMachine
         var streamId = item switch
         {
             RoutedNetworkBuffer t => t.StreamId,
-            Http3EndOfRequestItem e => e.StreamId,
+            StreamFinishedItem e => e.StreamId,
             _ => null
         };
 
@@ -190,14 +190,14 @@ public sealed class QuicTransportStateMachine
                 _router.RouteUntaggedData(dataItem);
                 break;
 
-            case Http3EndOfRequestItem endItem:
+            case StreamFinishedItem endItem:
                 if (endItem.StreamId < 0)
                 {
                     throw new InvalidOperationException(
-                        "QuicConnectionStage: End-of-request requires an explicit non-negative StreamId.");
+                        "QuicConnectionStage: StreamFinished requires an explicit non-negative StreamId.");
                 }
 
-                _router.HandleEndOfRequest(endItem);
+                _router.HandleStreamFinished(endItem);
                 break;
 
             case ConnectionReuseItem:
@@ -609,3 +609,5 @@ public sealed class QuicTransportStateMachine
         _ops.OnSignalPullInput();
     }
 }
+
+#pragma warning restore CA1416

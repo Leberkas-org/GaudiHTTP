@@ -216,7 +216,7 @@ public sealed class QuicTransportStateMachineSpec
 
         sm.HandlePush(new ConnectItem(TestQuicOptions) { Key = TestEndpoint });
 
-        sm.HandlePush(new Http3EndOfRequestItem { Key = TestEndpoint, StreamId = 1 });
+        sm.HandlePush(new StreamFinishedItem { Key = TestEndpoint, StreamId = 1 });
 
         Assert.True(ops.PullInputCount > 0);
     }

@@ -1,4 +1,3 @@
-using Servus.Akka.IO;
 using Servus.Akka.IO.Quic;
 using Servus.Akka.Tests.Utils;
 

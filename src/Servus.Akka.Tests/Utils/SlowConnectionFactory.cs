@@ -1,4 +1,3 @@
-using System.Threading.Channels;
 using Servus.Akka.IO;
 
 namespace Servus.Akka.Tests.Utils;

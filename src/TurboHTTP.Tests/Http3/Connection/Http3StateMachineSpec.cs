@@ -567,8 +567,8 @@ public sealed class Http3StateMachineSpec
         Assert.NotEmpty(tagged);
         Assert.All(tagged, t => Assert.Equal(0L, t.StreamId));
 
-        // End-of-request marker should carry the same stream ID
-        var endItem = _ops.Outbound.OfType<Http3EndOfRequestItem>().Single();
+        // Stream-finished marker should carry the same stream ID
+        var endItem = _ops.Outbound.OfType<StreamFinishedItem>().Single();
         Assert.Equal(0L, endItem.StreamId);
     }
 
@@ -581,7 +581,7 @@ public sealed class Http3StateMachineSpec
         sm.EncodeRequest(CreateGetRequest("https://example.com/a"));
         sm.EncodeRequest(CreateGetRequest("https://example.com/b"));
 
-        var endItems = _ops.Outbound.OfType<Http3EndOfRequestItem>().ToList();
+        var endItems = _ops.Outbound.OfType<StreamFinishedItem>().ToList();
         Assert.Equal(2, endItems.Count);
         Assert.NotEqual(endItems[0].StreamId, endItems[1].StreamId);
     }

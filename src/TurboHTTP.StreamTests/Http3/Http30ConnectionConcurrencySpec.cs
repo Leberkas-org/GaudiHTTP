@@ -99,9 +99,9 @@ public sealed class Http30ConnectionConcurrencySpec : StreamTestBase
         return result;
     }
 
-    private static List<long> ExtractEndOfRequestStreamIds(IReadOnlyList<IOutputItem> items)
+    private static List<long> ExtractStreamFinishedIds(IReadOnlyList<IOutputItem> items)
     {
-        return items.OfType<Http3EndOfRequestItem>().Select(e => e.StreamId).ToList();
+        return items.OfType<StreamFinishedItem>().Select(e => e.StreamId).ToList();
     }
 
     [Fact(Timeout = 5000)]
@@ -154,7 +154,7 @@ public sealed class Http30ConnectionConcurrencySpec : StreamTestBase
         var (outbound, responses) = await RunConcurrentAsync(requests, responseStreamIds);
 
         // Assert: all 3 requests produced end-of-request markers
-        var eorStreamIds = ExtractEndOfRequestStreamIds(outbound);
+        var eorStreamIds = ExtractStreamFinishedIds(outbound);
         Assert.True(eorStreamIds.Count >= 3,
             $"Expected at least 3 end-of-request items (slot reuse), got {eorStreamIds.Count}");
 

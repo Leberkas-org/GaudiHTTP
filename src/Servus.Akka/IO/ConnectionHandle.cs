@@ -1,6 +1,5 @@
 using System.Threading.Channels;
 using Akka.Actor;
-using Servus.Akka.IO.Tcp;
 
 namespace Servus.Akka.IO;
 

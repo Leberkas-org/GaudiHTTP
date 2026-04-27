@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Net;
 using System.Threading.Channels;
-using Akka.Actor;
 using Akka.TestKit.Xunit;
 using Servus.Akka.IO;
 using Servus.Akka.IO.Tcp;
