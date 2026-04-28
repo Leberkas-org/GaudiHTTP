@@ -1,4 +1,4 @@
-using System.Threading.Channels;
+using System.Buffers;
 using Akka.Actor;
 
 namespace Servus.Akka.IO.Quic;
@@ -16,11 +16,11 @@ public sealed class QuicPumpManager
 
     public bool IsAcceptLoopRunning => _inboundAcceptCts is { IsCancellationRequested: false };
 
-    public void StartInboundPump(ConnectionHandle handle, long streamTypeValue,
+    public void StartInboundPump(StreamHandle handle, long streamTypeValue,
         RequestEndpoint key, int connectionGen, long streamId)
     {
         _pumpsCts ??= new CancellationTokenSource();
-        _ = PumpAsync(handle.InboundReader, key, streamTypeValue, _pumpsCts.Token, _self, connectionGen, streamId);
+        _ = DirectStreamPumpAsync(handle, key, streamTypeValue, _pumpsCts.Token, _self, connectionGen, streamId);
     }
 
     public void StartInboundAcceptLoop(QuicConnectionHandle connectionHandle)
@@ -65,8 +65,8 @@ public sealed class QuicPumpManager
         }
     }
 
-    private static async Task PumpAsync(
-        ChannelReader<NetworkBuffer> reader,
+    private static async Task DirectStreamPumpAsync(
+        StreamHandle handle,
         RequestEndpoint key,
         long streamTypeValue,
         CancellationToken ct,
@@ -75,28 +75,35 @@ public sealed class QuicPumpManager
         long streamId)
     {
         var closeKind = QuicCloseKind.RequestStreamComplete;
+        var pool = MemoryPool<byte>.Shared;
         try
         {
-            while (await reader.WaitToReadAsync(ct).ConfigureAwait(false))
+            while (!ct.IsCancellationRequested)
             {
-                while (reader.TryRead(out var chunk))
+                var owner = pool.Rent(16384);
+                int bytesRead;
+                try
                 {
-                    RoutedNetworkBuffer nb;
-                    if (chunk is RoutedNetworkBuffer routed)
-                    {
-                        nb = routed;
-                    }
-                    else
-                    {
-                        nb = RoutedNetworkBuffer.WrapExisting(chunk);
-                    }
-
-                    nb.Key = key;
-                    nb.StreamTypeValue = streamTypeValue;
-                    nb.StreamId = streamId;
-
-                    self.Tell(new InboundData(nb, gen));
+                    bytesRead = await handle.ReadAsync(owner.Memory, ct).ConfigureAwait(false);
                 }
+                catch
+                {
+                    owner.Dispose();
+                    throw;
+                }
+
+                if (bytesRead == 0)
+                {
+                    owner.Dispose();
+                    break;
+                }
+
+                var nb = RoutedNetworkBuffer.Wrap(owner, bytesRead);
+                nb.Key = key;
+                nb.StreamTypeValue = streamTypeValue;
+                nb.StreamId = streamId;
+
+                self.Tell(new InboundData(nb, gen));
             }
         }
         catch (OperationCanceledException)
@@ -104,10 +111,6 @@ public sealed class QuicPumpManager
             return;
         }
         catch (AbruptCloseException)
-        {
-            closeKind = QuicCloseKind.ConnectionFailure;
-        }
-        catch (ChannelClosedException ex) when (ex.InnerException is AbruptCloseException)
         {
             closeKind = QuicCloseKind.ConnectionFailure;
         }

@@ -56,3 +56,4 @@ public sealed class QuicTransportFactorySpec
         Assert.NotNull(flow);
     }
 }
+#pragma warning restore CA1416

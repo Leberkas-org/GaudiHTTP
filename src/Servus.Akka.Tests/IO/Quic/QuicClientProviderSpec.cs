@@ -189,9 +189,10 @@ public sealed class QuicClientProviderSpec
         {
             await provider.GetStreamAsync(CancellationToken.None);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Expected: connection failure
+            // Expected: connection failure - the test verifies disposal works even after failed connection
+            _ = ex;
         }
 
         // Should be disposable
@@ -243,3 +244,4 @@ public sealed class QuicClientProviderSpec
         // Assert: all should complete without exception
     }
 }
+#pragma warning restore CA1416

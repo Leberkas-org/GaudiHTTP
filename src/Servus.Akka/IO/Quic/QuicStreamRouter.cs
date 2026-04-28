@@ -112,7 +112,7 @@ public sealed class QuicStreamRouter
     {
         if (_requestStreams.TryGetValue(endItem.StreamId, out var ctx) && ctx.Handle is not null)
         {
-            ctx.Handle.TryCompleteOutbound();
+            ctx.Handle.CompleteWrites();
         }
         else if (_requestStreams.TryGetValue(endItem.StreamId, out var pendingCtx))
         {
@@ -173,7 +173,7 @@ public sealed class QuicStreamRouter
         if (ctx.PendingStreamFinished)
         {
             ctx.PendingStreamFinished = false;
-            ctx.Handle!.TryCompleteOutbound();
+            ctx.Handle!.CompleteWrites();
         }
     }
 
@@ -253,7 +253,7 @@ public sealed class QuicStreamRouter
         }
     }
 
-    private void RouteToTypedStream(ConnectionHandle? handle, Queue<NetworkBuffer> pendingQueue,
+    private void RouteToTypedStream(StreamHandle? handle, Queue<NetworkBuffer> pendingQueue,
         NetworkBuffer dataItem, long streamId)
     {
         if (handle is not null)
@@ -272,7 +272,7 @@ public sealed class QuicStreamRouter
         }
     }
 
-    private void WriteToHandle(ConnectionHandle? handle, NetworkBuffer buffer)
+    private void WriteToHandle(StreamHandle? handle, NetworkBuffer buffer)
     {
         if (handle is null)
         {
@@ -293,7 +293,7 @@ public sealed class QuicStreamRouter
     /// </summary>
     public sealed class RequestStreamContext
     {
-        public ConnectionHandle? Handle;
+        public StreamHandle? Handle;
         public readonly Queue<NetworkBuffer> PendingWrites = new();
         public bool PendingStreamFinished;
     }

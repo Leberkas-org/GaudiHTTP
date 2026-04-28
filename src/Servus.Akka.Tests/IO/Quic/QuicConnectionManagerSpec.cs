@@ -150,7 +150,7 @@ public sealed class QuicConnectionManagerSpec
 
         var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true,
             TestContext.Current.CancellationToken);
-        var inbound = new QuicConnectionHandle.InboundStream(lease, 0x00, 3);
+        var inbound = new InboundStream(lease, 0x00, 3);
 
         Assert.Same(lease, inbound.Lease);
         Assert.Equal(0x00, inbound.StreamTypeValue);
@@ -237,3 +237,4 @@ public sealed class QuicConnectionManagerSpec
         Assert.True(provider.Disposed);
     }
 }
+#pragma warning restore CA1416

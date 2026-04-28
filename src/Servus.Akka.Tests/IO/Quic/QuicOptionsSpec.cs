@@ -5,8 +5,6 @@ using Servus.Akka.IO.Quic;
 
 namespace Servus.Akka.Tests.IO.Quic;
 
-#pragma warning disable CA1416
-
 public sealed class QuicOptionsSpec
 {
     [Fact(Timeout = 5000)]
@@ -420,3 +418,4 @@ public sealed class QuicOptionsSpec
         Assert.Equal(TimeSpan.FromSeconds(15), options.ConnectTimeout);
     }
 }
+#pragma warning restore CA1416

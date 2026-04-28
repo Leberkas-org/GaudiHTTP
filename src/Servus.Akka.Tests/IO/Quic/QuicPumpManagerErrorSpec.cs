@@ -1,5 +1,4 @@
 using System.Net;
-using System.Threading.Channels;
 using Akka.TestKit.Xunit;
 using Servus.Akka.IO;
 using Servus.Akka.IO.Quic;
@@ -19,12 +18,40 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
         Version = HttpVersion.Version30
     };
 
-    private static (Channel<NetworkBuffer> inbound, ConnectionHandle handle) CreateTestHandle()
+    private sealed class FakeErrorStream : MemoryStream
     {
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var handle = ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, TestEndpoint);
-        return (inbound, handle);
+        private readonly Exception? _readException;
+        private readonly TaskCompletionSource? _blockForever;
+
+        public FakeErrorStream(Exception? readException = null, bool blockForever = false)
+        {
+            _readException = readException;
+            if (blockForever)
+            {
+                _blockForever = new TaskCompletionSource();
+            }
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (_blockForever is not null)
+            {
+                await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+                return 0;
+            }
+
+            if (_readException is not null)
+            {
+                throw _readException;
+            }
+
+            return 0;
+        }
+    }
+
+    private static StreamHandle CreateTestHandle(Stream stream)
+    {
+        return new StreamHandle(stream, TestEndpoint, onWritesComplete: null);
     }
 
     [Fact(Timeout = 5000)]
@@ -32,10 +59,10 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
     {
         var probe = CreateTestProbe();
         var pump = new QuicPumpManager(probe.Ref);
-        var (inbound, handle) = CreateTestHandle();
+        var stream = new FakeErrorStream(new AbruptCloseException());
+        var handle = CreateTestHandle(stream);
 
         // streamTypeValue < 0 → request stream; AbruptClose → InboundComplete(ConnectionFailure)
-        inbound.Writer.Complete(new AbruptCloseException());
         pump.StartInboundPump(handle, streamTypeValue: -1, TestEndpoint, connectionGen: 0, streamId: 42);
 
         var msg = await probe.ExpectMsgAsync<InboundComplete>(cancellationToken: TestContext.Current.CancellationToken);
@@ -48,10 +75,10 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
     {
         var probe = CreateTestProbe();
         var pump = new QuicPumpManager(probe.Ref);
-        var (inbound, handle) = CreateTestHandle();
+        var stream = new FakeErrorStream(new AbruptCloseException());
+        var handle = CreateTestHandle(stream);
 
-        // ChannelClosedException wrapping AbruptCloseException → same outcome for request stream
-        inbound.Writer.Complete(new AbruptCloseException());
+        // AbruptCloseException on request stream → InboundComplete(ConnectionFailure)
         pump.StartInboundPump(handle, streamTypeValue: -1, TestEndpoint, connectionGen: 3, streamId: 7);
 
         var msg = await probe.ExpectMsgAsync<InboundComplete>(cancellationToken: TestContext.Current.CancellationToken);
@@ -64,10 +91,10 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
     {
         var probe = CreateTestProbe();
         var pump = new QuicPumpManager(probe.Ref);
-        var (inbound, handle) = CreateTestHandle();
+        var stream = new FakeErrorStream(new AbruptCloseException());
+        var handle = CreateTestHandle(stream);
 
         // streamTypeValue >= 0 → control stream; AbruptClose closes silently with no InboundComplete
-        inbound.Writer.Complete(new AbruptCloseException());
         pump.StartInboundPump(handle, streamTypeValue: 0x00, TestEndpoint, connectionGen: 0, streamId: -2);
 
         await Task.Delay(150, TestContext.Current.CancellationToken);
@@ -81,10 +108,10 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
     {
         var probe = CreateTestProbe();
         var pump = new QuicPumpManager(probe.Ref);
-        var (inbound, handle) = CreateTestHandle();
+        var stream = new FakeErrorStream(new IOException("stream reset by peer"));
+        var handle = CreateTestHandle(stream);
 
         // A non-AbruptClose exception → InboundPumpFailed(error, streamId)
-        inbound.Writer.Complete(new IOException("stream reset by peer"));
         pump.StartInboundPump(handle, streamTypeValue: -1, TestEndpoint, connectionGen: 0, streamId: 99);
 
         var msg = await probe.ExpectMsgAsync<InboundPumpFailed>(cancellationToken: TestContext.Current.CancellationToken);
@@ -97,7 +124,8 @@ public sealed class QuicPumpManagerErrorSpec : TestKit
     {
         var probe = CreateTestProbe();
         var pump = new QuicPumpManager(probe.Ref);
-        var (_, handle) = CreateTestHandle();
+        var stream = new FakeErrorStream(blockForever: true);
+        var handle = CreateTestHandle(stream);
 
         pump.StartInboundPump(handle, streamTypeValue: -1, TestEndpoint, connectionGen: 0, streamId: 1);
         pump.StopAll();

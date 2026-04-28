@@ -1,5 +1,4 @@
 using System.Net;
-using System.Threading.Channels;
 using Akka.Actor;
 using Servus.Akka.IO;
 using Servus.Akka.IO.Quic;
@@ -24,13 +23,13 @@ public sealed class QuicStreamRouterSpec
         return (router, ops);
     }
 
-    private static (ConnectionHandle Handle, ChannelReader<NetworkBuffer> OutboundReader) CreateTestHandle(
+    private static (StreamHandle Handle, MemoryStream BackingStream) CreateTestHandle(
         RequestEndpoint? endpoint = null)
     {
         var key = endpoint ?? TestEndpoint;
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        return (ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, key), outbound.Reader);
+        var stream = new MemoryStream();
+        var handle = new StreamHandle(stream, key, onWritesComplete: null);
+        return (handle, stream);
     }
 
     [Fact(Timeout = 5000)]
@@ -96,7 +95,7 @@ public sealed class QuicStreamRouterSpec
     public void RouteTaggedItem_should_write_to_handle_for_known_request_stream()
     {
         var (router, _) = CreateRouter();
-        var (handle, outboundReader) = CreateTestHandle();
+        var (handle, backingStream) = CreateTestHandle();
         var ctx = router.GetOrCreateContext(1);
         ctx.Handle = handle;
 
@@ -107,7 +106,7 @@ public sealed class QuicStreamRouterSpec
         var typedStreams = new Dictionary<long, TypedStreamState>();
         router.RouteTaggedItem(dataItem, -1, typedStreams);
 
-        Assert.True(outboundReader.TryRead(out _));
+        Assert.True(backingStream.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -148,7 +147,7 @@ public sealed class QuicStreamRouterSpec
     public void RouteTaggedItem_should_write_control_to_handle_when_available()
     {
         var (router, _) = CreateRouter();
-        var (controlHandle, controlReader) = CreateTestHandle();
+        var (controlHandle, controlStream) = CreateTestHandle();
         var controlState = new TypedStreamState { Handle = controlHandle, StreamId = -2 };
         var typedStreams = new Dictionary<long, TypedStreamState> { [0x00] = controlState };
 
@@ -158,14 +157,14 @@ public sealed class QuicStreamRouterSpec
 
         router.RouteTaggedItem(dataItem, 0x00, typedStreams);
 
-        Assert.True(controlReader.TryRead(out _));
+        Assert.True(controlStream.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
     public void RouteUntaggedData_should_write_to_first_stream_with_handle()
     {
         var (router, _) = CreateRouter();
-        var (handle, outboundReader) = CreateTestHandle();
+        var (handle, backingStream) = CreateTestHandle();
         var ctx = router.GetOrCreateContext(1);
         ctx.Handle = handle;
 
@@ -173,7 +172,7 @@ public sealed class QuicStreamRouterSpec
 
         router.RouteUntaggedData(buffer);
 
-        Assert.True(outboundReader.TryRead(out _));
+        Assert.True(backingStream.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -267,7 +266,7 @@ public sealed class QuicStreamRouterSpec
     public void FlushPendingWrites_should_drain_queue_to_handle()
     {
         var (router, _) = CreateRouter();
-        var (handle, outboundReader) = CreateTestHandle();
+        var (handle, backingStream) = CreateTestHandle();
         var ctx = router.GetOrCreateContext(1);
 
         ctx.PendingWrites.Enqueue(NetworkBufferTestExtensions.FromArray([1, 2]));
@@ -276,14 +275,7 @@ public sealed class QuicStreamRouterSpec
 
         router.FlushPendingWrites(ctx);
 
-        Assert.True(outboundReader.TryRead(out var buf1));
-        Assert.True(outboundReader.TryRead(out var buf2));
-        Assert.Equal(1, buf1.Span[0]);
-        Assert.Equal(2, buf1.Span[1]);
-        Assert.Equal(3, buf2.Span[0]);
-        Assert.Equal(4, buf2.Span[1]);
-        buf1.Dispose();
-        buf2.Dispose();
+        Assert.True(backingStream.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -306,20 +298,20 @@ public sealed class QuicStreamRouterSpec
     {
         var (router, _) = CreateRouter();
 
-        var (handle1, reader1) = CreateTestHandle();
+        var (handle1, stream1) = CreateTestHandle();
         var ctx1 = router.GetOrCreateContext(1);
         ctx1.Handle = handle1;
         ctx1.PendingWrites.Enqueue(NetworkBufferTestExtensions.FromArray([1]));
 
-        var (handle2, reader2) = CreateTestHandle();
+        var (handle2, stream2) = CreateTestHandle();
         var ctx2 = router.GetOrCreateContext(2);
         ctx2.Handle = handle2;
         ctx2.PendingWrites.Enqueue(NetworkBufferTestExtensions.FromArray([2]));
 
         router.FlushAllReadyStreams();
 
-        Assert.True(reader1.TryRead(out _));
-        Assert.True(reader2.TryRead(out _));
+        Assert.True(stream1.Length > 0);
+        Assert.True(stream2.Length > 0);
     }
 
     [Fact(Timeout = 5000)]

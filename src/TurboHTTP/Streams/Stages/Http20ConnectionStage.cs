@@ -33,6 +33,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
         private readonly Http20ConnectionStage _stage;
         private readonly StateMachine _sm;
         private readonly List<IOutputItem> _pendingOutbound = [];
+        private readonly Queue<IOutputItem> _outboundQueue = new();
         private readonly List<HttpResponseMessage> _pendingResponses = [];
         private bool _reconnectFailed;
         private readonly bool _keepAliveEnabled;
@@ -73,7 +74,8 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
             SetHandler(stage._inApp, onPush: OnAppPush,
                 onUpstreamFinish: () =>
                 {
-                    if (_sm is { HasInFlightRequests: false, IsReconnecting: false })
+                    if (_sm is { HasInFlightRequests: false, IsReconnecting: false }
+                        && _outboundQueue.Count == 0)
                     {
                         CompleteStage();
                     }
@@ -219,6 +221,18 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 return;
             }
 
+            if (_outboundQueue.Count > 0)
+            {
+                Push(_stage._outNetwork, _outboundQueue.Dequeue());
+                return;
+            }
+
+            if (CanComplete)
+            {
+                CompleteStage();
+                return;
+            }
+
             TryPullRequest();
         }
 
@@ -285,11 +299,14 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
             }
         }
 
+        private bool CanComplete =>
+            IsClosed(_stage._inApp) && !_sm.HasInFlightRequests && _outboundQueue.Count == 0;
+
         private void FlushResponses()
         {
             if (_pendingResponses.Count == 0)
             {
-                if (IsClosed(_stage._inApp) && !_sm.HasInFlightRequests)
+                if (CanComplete)
                 {
                     CompleteStage();
                     return;
@@ -305,7 +322,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 _pendingResponses.Clear();
                 Push(_stage._outResponse, response);
 
-                if (IsClosed(_stage._inApp) && !_sm.HasInFlightRequests)
+                if (CanComplete)
                 {
                     CompleteStage();
                     return;
@@ -318,7 +335,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
             EmitMultiple(_stage._outResponse, _pendingResponses.ToArray(),
                 () =>
                 {
-                    if (IsClosed(_stage._inApp) && !_sm.HasInFlightRequests)
+                    if (CanComplete)
                     {
                         CompleteStage();
                         return;
@@ -336,16 +353,17 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 return;
             }
 
-            if (_pendingOutbound.Count == 1 && IsAvailable(_stage._outNetwork))
+            for (var i = 0; i < _pendingOutbound.Count; i++)
             {
-                var item = _pendingOutbound[0];
-                _pendingOutbound.Clear();
-                Push(_stage._outNetwork, item);
-                return;
+                _outboundQueue.Enqueue(_pendingOutbound[i]);
             }
 
-            EmitMultiple(_stage._outNetwork, _pendingOutbound.ToArray());
             _pendingOutbound.Clear();
+
+            if (IsAvailable(_stage._outNetwork) && _outboundQueue.Count > 0)
+            {
+                Push(_stage._outNetwork, _outboundQueue.Dequeue());
+            }
         }
 
         private void TryPullRequest()

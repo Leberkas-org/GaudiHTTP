@@ -1,5 +1,4 @@
 using System.Net;
-using System.Threading.Channels;
 using Akka.Actor;
 using Servus.Akka.IO;
 using Servus.Akka.IO.Quic;
@@ -16,11 +15,9 @@ public sealed class QuicPumpManagerSpec
         Version = HttpVersion.Version30
     };
 
-    private static ConnectionHandle CreateTestHandle()
+    private static StreamHandle CreateTestHandle()
     {
-        var inbound = Channel.CreateUnbounded<NetworkBuffer>();
-        var outbound = Channel.CreateUnbounded<NetworkBuffer>();
-        return ConnectionHandle.CreateDirect(outbound.Writer, inbound.Reader, TestEndpoint);
+        return new StreamHandle(new MemoryStream(), TestEndpoint, onWritesComplete: null);
     }
 
     [Fact(Timeout = 5000)]

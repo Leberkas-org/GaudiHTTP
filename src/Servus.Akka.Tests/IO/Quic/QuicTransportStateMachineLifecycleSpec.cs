@@ -62,17 +62,11 @@ public sealed class QuicTransportStateMachineLifecycleSpec
         return new QuicConnectionLease(handle);
     }
 
-    private static ConnectionLease CreateTestLease(RequestEndpoint? endpoint = null)
+    private static QuicStreamLease CreateTestLease(RequestEndpoint? endpoint = null)
     {
         var key = endpoint ?? TestEndpoint;
-        var state = new ClientState(Stream.Null);
-
-        var handle = ConnectionHandle.CreateDirect(
-            state.OutboundWriter,
-            state.InboundReader,
-            key);
-
-        return new ConnectionLease(handle, state);
+        var handle = new StreamHandle(Stream.Null, key, onWritesComplete: null);
+        return new QuicStreamLease(handle);
     }
 
     [Fact(Timeout = 5000)]
@@ -339,3 +333,4 @@ public sealed class QuicTransportStateMachineLifecycleSpec
         Assert.Empty(ops.PushedOutputs);
     }
 }
+#pragma warning restore CA1416

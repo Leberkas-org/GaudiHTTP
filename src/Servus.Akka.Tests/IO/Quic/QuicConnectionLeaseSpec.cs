@@ -147,3 +147,4 @@ public sealed class QuicConnectionLeaseSpec
         Assert.Equal(1, lease.MaxConcurrentStreams);
     }
 }
+#pragma warning restore CA1416

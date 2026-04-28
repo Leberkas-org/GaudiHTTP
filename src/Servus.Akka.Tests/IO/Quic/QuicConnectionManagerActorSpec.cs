@@ -565,3 +565,4 @@ public sealed class QuicConnectionManagerActorSpec : TestKit
         actor.Tell(new QuicConnectionManagerActor.Release(lease2, CanReuse: false));
     }
 }
+#pragma warning restore CA1416

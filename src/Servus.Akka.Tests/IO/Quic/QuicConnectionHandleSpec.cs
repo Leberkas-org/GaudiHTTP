@@ -3,9 +3,9 @@ using Servus.Akka.IO;
 using Servus.Akka.IO.Quic;
 using Servus.Akka.Tests.Utils;
 
-#pragma warning disable CA1416
-
 namespace Servus.Akka.Tests.IO.Quic;
+
+#pragma warning disable CA1416
 
 public sealed class QuicConnectionHandleSpec
 {
@@ -163,7 +163,7 @@ public sealed class QuicConnectionHandleSpec
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
         var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true, TestContext.Current.CancellationToken);
 
-        var inboundStream = new QuicConnectionHandle.InboundStream(lease, 0x00, 3);
+        var inboundStream = new InboundStream(lease, 0x00, 3);
 
         Assert.Same(lease, inboundStream.Lease);
         Assert.Equal(0x00, inboundStream.StreamTypeValue);
@@ -176,8 +176,8 @@ public sealed class QuicConnectionHandleSpec
         var handle = new QuicConnectionHandle(provider, TestOptions, TestEndpoint);
         var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true, TestContext.Current.CancellationToken);
 
-        var stream1 = new QuicConnectionHandle.InboundStream(lease, 0x00, 3);
-        var stream2 = new QuicConnectionHandle.InboundStream(lease, 0x00, 3);
+        var stream1 = new InboundStream(lease, 0x00, 3);
+        var stream2 = new InboundStream(lease, 0x00, 3);
 
         // Records with same lease and stream type value should be equal
         Assert.Equal(stream1, stream2);
@@ -191,8 +191,8 @@ public sealed class QuicConnectionHandleSpec
 
         var lease = await handle.OpenStreamAsLeaseAsync(bidirectional: true, TestContext.Current.CancellationToken);
 
-        // Stream lease should have a valid ClientState
-        Assert.NotNull(lease.State);
+        // Stream lease should have a valid Handle
+        Assert.NotNull(lease.Handle);
     }
 
     [Fact(Timeout = 5000)]
@@ -207,3 +207,6 @@ public sealed class QuicConnectionHandleSpec
         Assert.Equal(TestEndpoint, lease.Key);
     }
 }
+
+#pragma warning restore CA1416
+

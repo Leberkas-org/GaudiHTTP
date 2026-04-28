@@ -46,7 +46,7 @@ public sealed class QuicTransportStateMachine
     private bool _protocolReady;
 
     /// <summary>All active stream leases for this connection (disposed on Cleanup).</summary>
-    private readonly List<ConnectionLease> _activeLeases = [];
+    private readonly List<QuicStreamLease> _activeLeases = [];
 
     private RequestEndpoint _currentKey;
     private ConnectItem? _pendingConnect;
@@ -325,7 +325,7 @@ public sealed class QuicTransportStateMachine
                 failure: ex => new AcquisitionFailed(ex.GetBaseException()));
     }
 
-    private void OnRequestLeaseAcquired(ConnectionLease lease, long streamId)
+    private void OnRequestLeaseAcquired(QuicStreamLease lease, long streamId)
     {
         _ops.OnCancelTimer(ConnectTimerKey);
         _pendingConnect = null;
@@ -360,7 +360,7 @@ public sealed class QuicTransportStateMachine
         }
     }
 
-    private void OnTypedLeaseAcquired(ConnectionLease lease, long streamTypeValue, long streamId)
+    private void OnTypedLeaseAcquired(QuicStreamLease lease, long streamTypeValue, long streamId)
     {
         _activeLeases.Add(lease);
 
@@ -481,15 +481,14 @@ public sealed class QuicTransportStateMachine
         }
     }
 
-    private void OnInboundStreamReady(QuicConnectionHandle.InboundStream inbound)
+    private void OnInboundStreamReady(InboundStream inbound)
     {
         _activeLeases.Add(inbound.Lease);
         var streamId = inbound.StreamId >= 0
             ? inbound.StreamId
             : LookupSyntheticStreamId(inbound.StreamTypeValue);
 
-        _pumpManager.StartInboundPump(inbound.Lease.Handle, inbound.StreamTypeValue, _currentKey, _connectionGen,
-            streamId);
+        _pumpManager.StartInboundPump(inbound.Lease.Handle, inbound.StreamTypeValue, _currentKey, _connectionGen, streamId);
     }
 
     private void AcquireQuicConnection(QuicOptions options, ConnectItem connect)
@@ -614,7 +613,7 @@ public sealed class QuicTransportStateMachine
 
     private void FlushPendingQuicItems(
         Queue<NetworkBuffer> pending,
-        ConnectionHandle handle,
+        StreamHandle handle,
         long streamId)
     {
         while (pending.TryDequeue(out var item))

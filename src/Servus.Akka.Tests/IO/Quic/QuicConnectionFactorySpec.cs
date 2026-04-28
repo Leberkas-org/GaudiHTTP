@@ -21,3 +21,4 @@ public sealed class QuicConnectionFactorySpec
         Assert.NotNull(QuicConnectionFactory.Instance);
     }
 }
+#pragma warning restore CA1416

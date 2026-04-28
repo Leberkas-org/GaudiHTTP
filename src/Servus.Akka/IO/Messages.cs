@@ -183,24 +183,6 @@ public class RoutedNetworkBuffer : NetworkBuffer
         return buf;
     }
 
-    public static RoutedNetworkBuffer WrapExisting(NetworkBuffer source)
-    {
-        var len = source.Length;
-        var sourceKey = source.Key;
-        var owner = source.DetachOwner();
-        if (!WrapperPool.TryPop(out var buf))
-        {
-            return new RoutedNetworkBuffer { Owner = owner, Length = len, Key = sourceKey };
-        }
-
-        buf.Owner = owner;
-        buf.Length = len;
-        buf.Key = sourceKey;
-        buf.StreamTypeValue = null;
-        buf.StreamId = null;
-        return buf;
-    }
-
     public override void Dispose()
     {
         DisposeOwner();
