@@ -4,17 +4,10 @@ using Servus.Akka.IO.Quic;
 
 namespace Servus.Akka.IO.Tcp;
 
-public sealed class TcpConnectionFactory : IConnectionFactory
+public sealed class TcpConnectionFactory : IConnectionFactory<ConnectionLease>
 {
-    public static readonly TcpConnectionFactory Instance = new();
-
-    Task<ConnectionLease> IConnectionFactory.EstablishAsync(ITransportOptions options, RequestEndpoint endpoint,
-        CancellationToken ct)
-        => EstablishAsync(options, endpoint, ct);
-
-    public static async Task<ConnectionLease> EstablishAsync(
-        ITransportOptions options,
-        RequestEndpoint endpoint,
+    public async Task<ConnectionLease> EstablishAsync(
+        TransportOptions options,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -28,7 +21,7 @@ public sealed class TcpConnectionFactory : IConnectionFactory
 
         var uri = new Uri($"{(options is TlsOptions ? "https" : "http")}://{endpoint.Host}:{endpoint.Port}/");
         var connectActivity = ServusInstrumentation.StartConnect(uri);
-        ServusTrace.Connection.Debug(Instance, "Connecting to {0}:{1}", endpoint.Host, endpoint.Port);
+        ServusTrace.Connection.Debug(this, "Connecting to {0}:{1}", options.Host, options.Port);
 
         try
         {
@@ -40,7 +33,7 @@ public sealed class TcpConnectionFactory : IConnectionFactory
             }
 
             connectActivity?.Stop();
-            ServusTrace.Connection.Debug(Instance, "Connected to {0}:{1}", endpoint.Host, endpoint.Port);
+            ServusTrace.Connection.Debug(this, "Connected to {0}:{1}", options.Host, options.Port);
 
             var state = new ClientState(stream, StreamDirection.Bidirectional);
 
@@ -72,7 +65,8 @@ public sealed class TcpConnectionFactory : IConnectionFactory
         }
         catch (Exception ex)
         {
-            ServusTrace.Connection.Warning(Instance, "Connection to {0}:{1} failed: {2}", endpoint.Host, endpoint.Port, ex.Message);
+            ServusTrace.Connection.Warning(this, "Connection to {0}:{1} failed: {2}", options.Host, options.Port,
+                ex.Message);
 
             if (connectActivity is not null)
             {

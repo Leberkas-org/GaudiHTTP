@@ -1,0 +1,90 @@
+using Servus.Akka.Transport;
+
+namespace Servus.Akka.Tests.Transport;
+
+public sealed class MultiplexedMessagesSpec
+{
+    [Fact(Timeout = 5000)]
+    public void OpenStream_should_implement_ITransportOutbound()
+    {
+        ITransportOutbound msg = new OpenStream(42, StreamDirection.Bidirectional);
+
+        Assert.IsType<OpenStream>(msg);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void OpenStream_should_carry_stream_id_and_direction()
+    {
+        var msg = new OpenStream(7, StreamDirection.Unidirectional);
+
+        Assert.Equal(7, msg.StreamId);
+        Assert.Equal(StreamDirection.Unidirectional, msg.Direction);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void CloseStream_should_implement_ITransportOutbound()
+    {
+        ITransportOutbound msg = new CloseStream(99);
+
+        Assert.IsType<CloseStream>(msg);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void CloseStream_should_carry_stream_id()
+    {
+        var msg = new CloseStream(55);
+
+        Assert.Equal(55, msg.StreamId);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void StreamOpened_should_implement_ITransportInbound()
+    {
+        ITransportInbound msg = new StreamOpened(1, StreamDirection.Bidirectional);
+
+        Assert.IsType<StreamOpened>(msg);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void StreamOpened_should_carry_stream_id_and_direction()
+    {
+        var msg = new StreamOpened(3, StreamDirection.Unidirectional);
+
+        Assert.Equal(3, msg.StreamId);
+        Assert.Equal(StreamDirection.Unidirectional, msg.Direction);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void StreamClosed_should_implement_ITransportInbound()
+    {
+        ITransportInbound msg = new StreamClosed(10, DisconnectReason.Graceful);
+
+        Assert.IsType<StreamClosed>(msg);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void StreamClosed_should_carry_stream_id_and_reason()
+    {
+        var msg = new StreamClosed(22, DisconnectReason.Error);
+
+        Assert.Equal(22, msg.StreamId);
+        Assert.Equal(DisconnectReason.Error, msg.Reason);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void InboundStreamAccepted_should_implement_ITransportInbound()
+    {
+        ITransportInbound msg = new InboundStreamAccepted(5, 0x00);
+
+        Assert.IsType<InboundStreamAccepted>(msg);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void InboundStreamAccepted_should_carry_stream_id_and_type()
+    {
+        var msg = new InboundStreamAccepted(8, 0x01);
+
+        Assert.Equal(8, msg.StreamId);
+        Assert.Equal(0x01, msg.StreamType);
+    }
+}

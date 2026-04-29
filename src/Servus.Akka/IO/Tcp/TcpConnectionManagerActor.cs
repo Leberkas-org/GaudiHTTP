@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Akka.Actor;
 using Servus.Akka.Diagnostics;
 using Servus.Akka.IO.Quic;
@@ -58,7 +59,7 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
     }
 
     private readonly Dictionary<RequestEndpoint, HostState> _hosts = new();
-    private readonly IConnectionFactory _factory;
+    private readonly IConnectionFactory<ConnectionLease> _factory;
     private readonly TimeSpan _idleTimeout;
     private readonly TimeSpan _connectionLifetime;
     private readonly int _maxConnectionsPerServer;
@@ -89,11 +90,12 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
     }
 
     public TcpConnectionManagerActor(TimeSpan idleTimeout, TimeSpan connectionLifetime, int maxConnectionsPerServer = 6)
-        : this(TcpConnectionFactory.Instance, idleTimeout, connectionLifetime, maxConnectionsPerServer)
+        : this(new TcpConnectionFactory(), idleTimeout, connectionLifetime, maxConnectionsPerServer)
     {
     }
 
-    public TcpConnectionManagerActor(IConnectionFactory factory, TimeSpan idleTimeout, TimeSpan connectionLifetime,
+    public TcpConnectionManagerActor(IConnectionFactory<ConnectionLease> factory, TimeSpan idleTimeout,
+        TimeSpan connectionLifetime,
         int maxConnectionsPerServer = 6)
     {
         _factory = factory;
