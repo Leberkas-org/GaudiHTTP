@@ -3,8 +3,6 @@ using Akka.Actor;
 using Akka.Streams.Dsl;
 using Servus.Akka.IO.Tcp;
 
-#pragma warning disable CA1416
-
 namespace Servus.Akka.IO.Quic;
 
 /// <summary>
@@ -14,11 +12,13 @@ namespace Servus.Akka.IO.Quic;
 /// </summary>
 public sealed class QuicTransportFactory(
     IActorRef connectionManager,
-    bool allowConnectionMigration = true) : ITransportFactory
+    bool allowConnectionMigration = true)
 {
     /// <summary>
     /// Creates a QUIC transport stage wired to the shared connection manager actor.
     /// </summary>
+#pragma warning disable CA1416
     public Flow<IOutputItem, IInputItem, NotUsed> Create()
         => Flow.FromGraph(new QuicConnectionStage(connectionManager, allowConnectionMigration));
+#pragma warning restore CA1416
 }

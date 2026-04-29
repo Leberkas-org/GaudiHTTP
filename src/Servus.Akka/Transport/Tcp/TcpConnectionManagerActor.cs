@@ -12,6 +12,7 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
     public sealed record Release(ConnectionLease Lease, bool CanReuse);
 
     private sealed record Established(ConnectionLease Lease, Acquire Original);
+
     private sealed record EstablishFailed(Exception Ex, Acquire Original);
 
     private sealed class Evict
@@ -19,10 +20,10 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
         public static readonly Evict Instance = new();
     }
 
-    private sealed class HostState(TransportOptions options, int maxConnections)
+    private sealed class HostState(TransportOptions options, TcpPoolConfig config)
     {
         public readonly TransportOptions Options = options;
-        public readonly int MaxConnections = maxConnections;
+        public readonly TcpPoolConfig Config = config;
         public readonly List<ConnectionLease> Leases = [];
         public readonly Queue<ConnectionLease> Idle = new();
         public readonly Queue<Acquire> Pending = new();
@@ -31,7 +32,7 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
 
     private readonly Dictionary<TransportOptions, HostState> _hosts = new();
     private readonly ITcpConnectionFactory _factory;
-    private readonly IPoolingStrategy _poolingStrategy;
+    private readonly PoolConfigRegistry _registry;
     private const string EvictTimerKey = "evict-idle";
 
     public ITimerScheduler Timers { get; set; } = null!;
@@ -52,10 +53,15 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
         return tcs.Task;
     }
 
-    public TcpConnectionManagerActor(ITcpConnectionFactory factory, IPoolingStrategy poolingStrategy)
+    public TcpConnectionManagerActor(PoolConfigRegistry registry) : this(new TcpConnectionFactory(),
+        registry)
+    {
+    }
+
+    internal TcpConnectionManagerActor(ITcpConnectionFactory factory, PoolConfigRegistry registry)
     {
         _factory = factory;
-        _poolingStrategy = poolingStrategy;
+        _registry = registry;
 
         Receive<Acquire>(OnAcquire);
         Receive<Release>(OnRelease);
@@ -66,11 +72,8 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
 
     protected override void PreStart()
     {
-        if (_poolingStrategy.IdleTimeout > TimeSpan.Zero)
-        {
-            Timers.StartPeriodicTimer(EvictTimerKey, Evict.Instance,
-                _poolingStrategy.IdleTimeout, _poolingStrategy.IdleTimeout);
-        }
+        Timers.StartPeriodicTimer(EvictTimerKey, Evict.Instance,
+            TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
     }
 
     private void OnAcquire(Acquire msg)
@@ -81,7 +84,7 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
 
         while (host.Idle.TryDequeue(out var idle))
         {
-            if (idle.IsAlive() && !idle.IsExpired(_poolingStrategy.ConnectionLifetime))
+            if (idle.IsAlive() && !idle.IsExpired(host.Config.ConnectionLifetime))
             {
                 if (msg.Tcs.TrySetResult(idle))
                 {
@@ -95,7 +98,7 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
             }
         }
 
-        if (host.Leases.Count + host.Establishing < host.MaxConnections)
+        if (host.Leases.Count + host.Establishing < host.Config.MaxConnectionsPerHost)
         {
             Establish(host, msg);
         }
@@ -180,7 +183,7 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
 
             while (host.Idle.TryDequeue(out var lease))
             {
-                if (!lease.IsAlive() || lease.IsExpired(_poolingStrategy.ConnectionLifetime))
+                if (!lease.IsAlive() || lease.IsExpired(host.Config.ConnectionLifetime))
                 {
                     toRemove.Add(lease);
                 }
@@ -240,9 +243,11 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
     {
         if (!_hosts.TryGetValue(options, out var state))
         {
-            state = new HostState(options, _poolingStrategy.MaxConnectionsPerHost);
+            var config = _registry.Resolve(options.PoolKey);
+            state = new HostState(options, config);
             _hosts[options] = state;
         }
+
         return state;
     }
 
@@ -262,7 +267,7 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
         {
             if (!next.Tcs.Task.IsCompleted)
             {
-                if (host.Leases.Count + host.Establishing < host.MaxConnections)
+                if (host.Leases.Count + host.Establishing < host.Config.MaxConnectionsPerHost)
                 {
                     Establish(host, next);
                     return;

@@ -6,10 +6,9 @@ namespace TurboHTTP.Streams;
 
 internal sealed class TransportRegistry
 {
-    private readonly Dictionary<Version, Func<Flow<ITransportOutbound, ITransportInbound, NotUsed>>> _transports = new();
+    private readonly Dictionary<Version, ITransportFactory> _transports = new();
 
-    public TransportRegistry Register(Version version,
-        Func<Flow<ITransportOutbound, ITransportInbound, NotUsed>> factory)
+    public TransportRegistry Register(Version version, ITransportFactory factory)
     {
         _transports[version] = factory ?? throw new ArgumentNullException(nameof(factory));
         return this;
@@ -19,7 +18,7 @@ internal sealed class TransportRegistry
     {
         if (_transports.TryGetValue(version, out var factory))
         {
-            return factory();
+            return factory.Create();
         }
 
         throw new InvalidOperationException(

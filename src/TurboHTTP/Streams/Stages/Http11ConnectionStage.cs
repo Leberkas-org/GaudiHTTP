@@ -1,17 +1,17 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Http11;
 
 namespace TurboHTTP.Streams.Stages;
 
 internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 {
-    private readonly Inlet<IInputItem> _inServer = new("Http11Connection.In.Server");
+    private readonly Inlet<ITransportInbound> _inServer = new("Http11Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http11Connection.Out.Response");
     private readonly Inlet<HttpRequestMessage> _inApp = new("Http11Connection.In.App");
-    private readonly Outlet<IOutputItem> _outNetwork = new("Http11Connection.Out.Network");
+    private readonly Outlet<ITransportOutbound> _outNetwork = new("Http11Connection.Out.Network");
 
     private readonly TurboClientOptions _options;
 
@@ -29,7 +29,7 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
     {
         private readonly Http11ConnectionStage _stage;
         private readonly StateMachine _sm;
-        private readonly List<IOutputItem> _pendingOutbound = [];
+        private readonly List<ITransportOutbound> _pendingOutbound = [];
         private readonly List<HttpResponseMessage> _pendingResponses = [];
         private bool _serverFinished;
         private bool _emittingResponses;
@@ -120,7 +120,7 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
             _pendingResponses.Add(response);
         }
 
-        void IStageOperations.OnOutbound(IOutputItem item)
+        void IStageOperations.OnOutbound(ITransportOutbound item)
         {
             _pendingOutbound.Add(item);
         }
@@ -139,12 +139,11 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
         {
             var item = Grab(_stage._inServer);
 
-            if (item is ConnectedSignalItem)
+            if (item is TransportConnected)
             {
                 _sm.OnConnectionRestored();
                 FlushOutbound();
                 TryPullRequest();
-                // Pull to receive the response from the new connection
                 if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                 {
                     Pull(_stage._inServer);
@@ -153,7 +152,7 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
                 return;
             }
 
-            if (item is CloseSignalItem && _sm.IsReconnecting)
+            if (item is TransportDisconnected && _sm.IsReconnecting)
             {
                 _sm.OnReconnectAttemptFailed();
                 if (_reconnectFailed)
@@ -166,7 +165,6 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
                 }
 
                 FlushOutbound();
-                // Pull to receive ConnectedSignalItem or next CloseSignalItem
                 if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                 {
                     Pull(_stage._inServer);
@@ -175,11 +173,10 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
                 return;
             }
 
-            if (item is CloseSignalItem && _sm.HasInFlightRequests)
+            if (item is TransportDisconnected && _sm.HasInFlightRequests)
             {
                 _sm.StartReconnect();
                 FlushOutbound();
-                // Pull to receive ConnectedSignalItem from the reconnected transport
                 if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                 {
                     Pull(_stage._inServer);
@@ -188,10 +185,8 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
                 return;
             }
 
-            if (item is CloseSignalItem)
+            if (item is TransportDisconnected)
             {
-                // Connection closed with no in-flight requests and no reconnect pending.
-                // If EmitMultiple is still delivering responses, defer completion.
                 if (_emittingResponses)
                 {
                     _serverFinished = true;
@@ -333,12 +328,11 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 
         public override void PostStop()
         {
-            // Return any pending pooled items
             foreach (var item in _pendingOutbound)
             {
                 switch (item)
                 {
-                    case NetworkBuffer buffer:
+                    case TransportData { Buffer: var buffer }:
                         buffer.Dispose();
                         break;
                 }

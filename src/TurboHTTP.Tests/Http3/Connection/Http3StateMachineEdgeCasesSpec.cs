@@ -1,4 +1,5 @@
 using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Http3;
 using TurboHTTP.Tests.Shared;
 
@@ -70,10 +71,10 @@ public sealed class Http3StateMachineEdgeCasesSpec
         var preface = sm.TryBuildControlPreface();
 
         Assert.NotNull(preface);
-        var buf = (RoutedNetworkBuffer)preface;
+        var buf = (MultiplexedData)preface;
         // Without MaxPushIdFrame, still contains StreamType VarInt + Settings frame
-        Assert.Equal((long)StreamType.Control, buf.StreamTypeValue);
-        Assert.True(buf.Length > 0);
+        Assert.Equal(-2, buf.StreamId);
+        Assert.True(buf.Buffer.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -96,8 +97,8 @@ public sealed class Http3StateMachineEdgeCasesSpec
     public void DecodeServerData_should_delegate_to_stream_manager()
     {
         var sm = CreateMachine();
-        var buffer = RoutedNetworkBuffer.Rent(10);
-        buffer.FullMemory.Span[..1].Fill(0x00); // minimal DATA frame
+        var buffer = TransportBuffer.Rent(10);
+        buffer.FullMemory.Span[..1].Clear(); // minimal DATA frame
         buffer.Length = 1;
 
         var frames = sm.DecodeServerData(buffer, streamId: 0);
@@ -112,11 +113,11 @@ public sealed class Http3StateMachineEdgeCasesSpec
     {
         var sm = CreateMachine();
 
-        var buffer1 = RoutedNetworkBuffer.Rent(1);
+        var buffer1 = TransportBuffer.Rent(1);
         buffer1.FullMemory.Span[0] = 0x00;
         buffer1.Length = 1;
 
-        var buffer4 = RoutedNetworkBuffer.Rent(1);
+        var buffer4 = TransportBuffer.Rent(1);
         buffer4.FullMemory.Span[0] = 0x00;
         buffer4.Length = 1;
 
@@ -175,7 +176,8 @@ public sealed class Http3StateMachineEdgeCasesSpec
     {
         // StateMachine replaces zero timeout with DefaultIdleTimeout (30s)
         // so IsTimeoutDisabled is never true in normal operation
-        var sm = CreateMachine(new TurboClientOptions { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromSeconds(1) } });
+        var sm = CreateMachine(new TurboClientOptions
+            { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromSeconds(1) } });
 
         Assert.False(sm.IsTimeoutDisabled);
     }
@@ -184,7 +186,8 @@ public sealed class Http3StateMachineEdgeCasesSpec
     [Trait("RFC", "RFC9114-5.1")]
     public void IsTimeoutDisabled_should_be_false_for_nonzero_timeout()
     {
-        var sm = CreateMachine(new TurboClientOptions { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromSeconds(30) } });
+        var sm = CreateMachine(new TurboClientOptions
+            { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromSeconds(30) } });
 
         Assert.False(sm.IsTimeoutDisabled);
     }
@@ -193,7 +196,8 @@ public sealed class Http3StateMachineEdgeCasesSpec
     [Trait("RFC", "RFC9114-5.1")]
     public void TimeUntilExpiry_should_return_remaining_time()
     {
-        var sm = CreateMachine(new TurboClientOptions { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromSeconds(10) } });
+        var sm = CreateMachine(new TurboClientOptions
+            { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromSeconds(10) } });
 
         var remaining = sm.TimeUntilExpiry();
 
@@ -205,7 +209,8 @@ public sealed class Http3StateMachineEdgeCasesSpec
     [Trait("RFC", "RFC9114-5.1")]
     public void TimeUntilExpiry_should_return_remaining_time_on_active_connection()
     {
-        var sm = CreateMachine(new TurboClientOptions { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromSeconds(60) } });
+        var sm = CreateMachine(new TurboClientOptions
+            { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromSeconds(60) } });
 
         var remaining = sm.TimeUntilExpiry();
 
@@ -469,7 +474,8 @@ public sealed class Http3StateMachineEdgeCasesSpec
     [Trait("RFC", "RFC9114-6")]
     public async Task ProcessFrame_should_record_activity_on_all_frames()
     {
-        var sm = CreateMachine(new TurboClientOptions { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromMilliseconds(50) } });
+        var sm = CreateMachine(new TurboClientOptions
+            { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromMilliseconds(50) } });
 
         await Task.Delay(100, TestContext.Current.CancellationToken);
 

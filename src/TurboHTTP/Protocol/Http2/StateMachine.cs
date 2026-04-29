@@ -1,5 +1,5 @@
 using System.Buffers;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Protocol.Semantics;
@@ -29,7 +29,7 @@ internal sealed class StateMachine
 
     private readonly Dictionary<int, StreamState> _streams = new();
     private readonly Stack<StreamState> _statePool;
-    private ITransportOptions? _transportOptions;
+    private TransportOptions? _transportOptions;
     private int _statePoolCapacity;
 
     private bool _prefaceSent;
@@ -68,10 +68,7 @@ internal sealed class StateMachine
         _responseDecoder = new ResponseDecoder(new HpackDecoder());
     }
 
-    /// <summary>
-    /// Builds the connection preface if not yet sent. Returns null if already sent or disabled.
-    /// </summary>
-    public NetworkBuffer? TryBuildPreface()
+    public TransportData? TryBuildPreface()
     {
         if (_options.Http2.InitialConnectionWindowSize <= 0 || _prefaceSent)
         {
@@ -83,17 +80,17 @@ internal sealed class StateMachine
             _options.Http2.InitialConnectionWindowSize,
             _options.Http2.HeaderTableSize,
             _options.Http2.MaxFrameSize);
-        var prefaceBuf = NetworkBuffer.Rent(prefaceLength);
+        var prefaceBuf = TransportBuffer.Rent(prefaceLength);
         prefaceOwner.Memory.Span[..prefaceLength].CopyTo(prefaceBuf.FullMemory.Span);
         prefaceOwner.Dispose();
         prefaceBuf.Length = prefaceLength;
-        return prefaceBuf;
+        return new TransportData(prefaceBuf);
     }
 
     /// <summary>
     /// Decodes a NetworkBuffer into HTTP/2 frames.
     /// </summary>
-    public IReadOnlyList<Http2Frame> DecodeServerData(NetworkBuffer buffer)
+    public IReadOnlyList<Http2Frame> DecodeServerData(TransportBuffer buffer)
     {
         return _frameDecoder.Decode(buffer);
     }
@@ -214,11 +211,7 @@ internal sealed class StateMachine
         {
             Endpoint = endpoint;
             _transportOptions = OptionsFactory.Build(Endpoint, _options);
-            _ops.OnOutbound(new ConnectItem
-            {
-                Key = Endpoint,
-                Options = _transportOptions
-            });
+            _ops.OnOutbound(new ConnectTransport(_transportOptions));
         }
 
         _correlationMap.TryAdd(streamId, request);
@@ -226,7 +219,6 @@ internal sealed class StateMachine
         if (request.RequestUri is null)
         {
             _tracker.OnStreamOpened(streamId);
-            _ops.OnOutbound(new StreamAcquireItem { Key = Endpoint });
             return true;
         }
 
@@ -240,7 +232,6 @@ internal sealed class StateMachine
         if (frames[0] is HeadersFrame headersFrame)
         {
             _tracker.OnStreamOpened(headersFrame.StreamId);
-            _ops.OnOutbound(new StreamAcquireItem { Key = Endpoint });
         }
 
         var totalSize = 0;
@@ -249,7 +240,7 @@ internal sealed class StateMachine
             totalSize += frames[i].SerializedSize;
         }
 
-        var buf = NetworkBuffer.Rent(totalSize);
+        var buf = TransportBuffer.Rent(totalSize);
         var span = buf.FullMemory.Span;
         for (var i = 0; i < frames.Count; i++)
         {
@@ -257,20 +248,18 @@ internal sealed class StateMachine
         }
 
         buf.Length = totalSize;
-        buf.Key = Endpoint;
-        _ops.OnOutbound(buf);
+        _ops.OnOutbound(new TransportData(buf));
 
         return true;
     }
 
     private void EmitFrame(Http2Frame frame)
     {
-        var buf = NetworkBuffer.Rent(frame.SerializedSize);
+        var buf = TransportBuffer.Rent(frame.SerializedSize);
         var span = buf.FullMemory.Span;
         frame.WriteTo(ref span);
         buf.Length = frame.SerializedSize;
-        buf.Key = Endpoint;
-        _ops.OnOutbound(buf);
+        _ops.OnOutbound(new TransportData(buf));
     }
 
     private void HandleSettings(SettingsFrame frame)
@@ -288,10 +277,6 @@ internal sealed class StateMachine
             _statePoolCapacity = Math.Min(
                 _tracker.MaxConcurrentStreams > 0 ? _tracker.MaxConcurrentStreams : 100,
                 MaxStatePoolCapacity);
-            _ops.OnOutbound(new MaxConcurrentStreamsItem(_tracker.MaxConcurrentStreams)
-            {
-                Key = Endpoint
-            });
         }
 
         _requestEncoder.ApplyServerSettings(frame.Parameters);
@@ -305,9 +290,7 @@ internal sealed class StateMachine
         if (result.IsConnectionViolation)
         {
             _ops.OnWarning("RFC 9113 §6.9 — connection flow control window exceeded. Triggering reconnect.");
-            var item = new ConnectionReuseItem(false)
-            { Key = Endpoint };
-            _ops.OnOutbound(item);
+            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return false;
         }
 
@@ -315,9 +298,7 @@ internal sealed class StateMachine
         {
             _ops.OnWarning(
                 $"RFC 9113 §6.9 — stream {frame.StreamId} flow control window exceeded. Triggering reconnect.");
-            var item = new ConnectionReuseItem(false)
-            { Key = Endpoint };
-            _ops.OnOutbound(item);
+            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return false;
         }
 
@@ -417,7 +398,7 @@ internal sealed class StateMachine
 
         IsReconnecting = true;
         _reconnectAttempts = 1;
-        _ops.OnOutbound(new ConnectItem { Key = Endpoint, IsReconnect = true, Options = _transportOptions! });
+        _ops.OnOutbound(new ConnectTransport(_transportOptions!));
     }
 
     private void ClassifyStreamsForReplay(int lastStreamId)
@@ -510,7 +491,7 @@ internal sealed class StateMachine
         }
 
         _reconnectAttempts++;
-        _ops.OnOutbound(new ConnectItem { Key = Endpoint, IsReconnect = true, Options = _transportOptions! });
+        _ops.OnOutbound(new ConnectTransport(_transportOptions!));
     }
 
     private static bool IsIdempotentMethod(HttpMethod method)

@@ -4,7 +4,7 @@ using Akka.Streams.Dsl;
 
 namespace Servus.Akka.Transport.Quic;
 
-public sealed class QuicTransportFactory
+public sealed class QuicTransportFactory : ITransportFactory
 {
     private readonly IActorRef _connectionManager;
 

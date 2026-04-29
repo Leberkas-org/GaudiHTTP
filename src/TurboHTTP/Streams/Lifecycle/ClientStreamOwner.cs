@@ -3,26 +3,17 @@ using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using Servus.Akka.IO.Quic;
-using Servus.Akka.IO.Tcp;
+using Servus.Akka.Transport;
+using Servus.Akka.Transport.Quic;
+using Servus.Akka.Transport.Tcp;
+using TurboHTTP.Internal;
+using TurboHTTP.Streams.Pooling;
 
 // QuicConnectionManagerActor is guarded on linux/macOS/windows — all desktop platforms.
 #pragma warning disable CA1416
 
 namespace TurboHTTP.Streams.Lifecycle;
 
-/// <summary>
-/// Manages both the lifecycle and materialization of the Akka.Streams pipeline
-/// for a single client. Receives <see cref="ClientStreamOwner.CreateStreamInstance"/>,
-/// materializes the stream directly, tracks pending work from feature BidiStages,
-/// coordinates graceful shutdown, and handles retry with exponential backoff.
-/// <para>
-/// Merged design (was: Owner + Instance actors): This single actor handles all
-/// concerns — initialization, materialization, retry cleanup, and shutdown.
-/// Resources are cleaned up explicitly on retry (via <see cref="CleanupForRetry"/>)
-/// and on actor termination (via <see cref="PostStop"/>).
-/// </para>
-/// </summary>
 internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
 {
     internal sealed record CreateStreamInstance(
@@ -44,7 +35,6 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
 
     private const int MaxRetryAttempts = 10;
 
-    // Exponential backoff: initialBackoff * 2^attempt, capped at MaxBackoff.
     private static TimeSpan CalculateBackoff(int attempt) =>
         TimeSpan.FromMilliseconds(
             Math.Min(InitialBackoff.TotalMilliseconds * Math.Pow(BackoffMultiplier, attempt),
@@ -101,29 +91,40 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
 
         try
         {
-            // Create TCP and QUIC connection manager actors as sibling children.
-            // Both fall back to the default dispatcher if no TurboHTTP HOCON is present.
+            var opts = create.ClientOptions;
+
+            var poolRegistry = new PoolConfigRegistry(
+                    new TcpPoolConfig(
+                        opts.Http1.MaxConnectionsPerServer,
+                        opts.PooledConnectionIdleTimeout,
+                        opts.PooledConnectionLifetime,
+                        ReuseOnUpstreamFinish: true))
+                .Register(PoolKeys.Http10, new TcpPoolConfig(
+                    MaxConnectionsPerHost: int.MaxValue,
+                    IdleTimeout: TimeSpan.Zero,
+                    ConnectionLifetime: TimeSpan.Zero,
+                    ReuseOnUpstreamFinish: false))
+                .Register(PoolKeys.Http11, new TcpPoolConfig(
+                    opts.Http1.MaxConnectionsPerServer,
+                    opts.PooledConnectionIdleTimeout,
+                    opts.PooledConnectionLifetime,
+                    ReuseOnUpstreamFinish: true))
+                .Register(PoolKeys.Http2, new TcpPoolConfig(
+                    opts.Http2.MaxConnectionsPerServer,
+                    opts.PooledConnectionIdleTimeout,
+                    opts.PooledConnectionLifetime,
+                    ReuseOnUpstreamFinish: false));
+
             _tcpConnectionManager = Context.ActorOf(
-                Props.Create(() => new TcpConnectionManagerActor(
-                    create.ClientOptions.PooledConnectionIdleTimeout,
-                    create.ClientOptions.PooledConnectionLifetime,
-                    create.ClientOptions.Http1.MaxConnectionsPerServer)),
-                "tcp-pool");
+                Props.Create(() => new TcpConnectionManagerActor(poolRegistry)), "tcp-pool");
 
-            _quicConnectionManager = Context.ActorOf(
-                Props.Create(() => new QuicConnectionManagerActor(
-                    create.ClientOptions.PooledConnectionIdleTimeout,
-                    create.ClientOptions.PooledConnectionLifetime)),
-                "quic-pool");
-
-            // Build transport registry and engine flow
+            _quicConnectionManager = Context.ActorOf(Props.Create(() => new QuicConnectionManagerActor()), "quic-pool");
 
             var transports = new TransportRegistry()
-                .Register(new Version(1, 0), new TcpTransportFactory(_tcpConnectionManager))
-                .Register(new Version(1, 1), new TcpTransportFactory(_tcpConnectionManager))
-                .Register(new Version(2, 0), new TcpTransportFactory(_tcpConnectionManager))
-                .Register(new Version(3, 0), new QuicTransportFactory(_quicConnectionManager,
-                    create.ClientOptions.Http3.AllowConnectionMigration));
+                .Register(new Version(1, 0), new TcpTransportFactory(_tcpConnectionManager, new Http10PoolingStrategy()))
+                .Register(new Version(1, 1), new TcpTransportFactory(_tcpConnectionManager, new Http11PoolingStrategy()))
+                .Register(new Version(2, 0), new TcpTransportFactory(_tcpConnectionManager, new Http2PoolingStrategy()))
+                .Register(new Version(3, 0), new QuicTransportFactory(_quicConnectionManager));
 
             var engine = new Engine();
             var engineFlow = engine.CreateFlow(

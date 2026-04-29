@@ -1,4 +1,4 @@
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Streams.Stages;
@@ -22,16 +22,11 @@ internal sealed class StateMachine
     private Queue<HttpRequestMessage>? _reconnectBufferedQueue;
     private int _effectivePipelineDepth;
     private int _reconnectAttempts;
-    private ITransportOptions? _transportOptions;
+    private TransportOptions? _transportOptions;
 
-    /// <summary>
-    /// Holds a response whose body is delimited by connection close (no Content-Length,
-    /// no Transfer-Encoding). Body data is accumulated in <see cref="_bodyOwners"/>
-    /// until a <see cref="CloseSignalItem"/> arrives.
-    /// </summary>
     private HttpResponseMessage? _pendingCloseDelimitedResponse;
 
-    private List<NetworkBuffer>? _bodyOwners;
+    private List<TransportBuffer>? _bodyOwners;
 
     /// <summary>
     /// Body bytes flushed from the decoder remainder when the close-delimited response
@@ -70,10 +65,6 @@ internal sealed class StateMachine
         _effectivePipelineDepth = options.Http1.MaxPipelineDepth;
     }
 
-    /// <summary>
-    /// Encodes an outbound HTTP/1.1 request into a NetworkBuffer and emits it via callbacks.
-    /// Emits StreamAcquireItem before the encoded data.
-    /// </summary>
     public void EncodeRequest(HttpRequestMessage request)
     {
         _inFlightQueue.Enqueue(request);
@@ -84,38 +75,27 @@ internal sealed class StateMachine
         {
             Endpoint = endpoint;
             _transportOptions = OptionsFactory.Build(Endpoint, _options);
-            _ops.OnOutbound(new ConnectItem
-            {
-                Key = Endpoint,
-                Options = _transportOptions
-            });
+            _ops.OnOutbound(new ConnectTransport(_transportOptions));
         }
 
-        // Emit StreamAcquireItem before request data
-        _ops.OnOutbound(new StreamAcquireItem { Key = endpoint });
-
-        NetworkBuffer? item = null;
+        TransportBuffer? item = null;
         try
         {
             var contentLength = Convert.ToInt32(request.Content?.Headers.ContentLength ?? 0);
             var estimatedSize = _minBufferSize + contentLength;
             var bufferSize = Math.Min(estimatedSize, _maxBufferSize);
-            item = NetworkBuffer.Rent(bufferSize);
-            item.Key = endpoint;
+            item = TransportBuffer.Rent(bufferSize);
             var span = item.FullMemory.Span;
 
             var written = Encoder.Encode(request, ref span);
             item.Length = written;
 
-            _ops.OnOutbound(item);
+            _ops.OnOutbound(new TransportData(item));
         }
         catch (Exception ex)
         {
             item?.Dispose();
             _ops.OnWarning($"Failed to encode request [{request.RequestUri}]: {ex.Message}");
-            // Remove request from queue since encoding failed
-            // It was the last one enqueued, but we can't easily remove from a Queue,
-            // so we dequeue all, skip the failed one, and re-enqueue
             var count = _inFlightQueue.Count;
             for (var i = 0; i < count; i++)
             {
@@ -128,20 +108,15 @@ internal sealed class StateMachine
         }
     }
 
-    /// <summary>
-    /// Processes inbound server data (NetworkBuffer or CloseSignalItem).
-    /// Decodes responses and emits them via callbacks along with ConnectionReuseItem.
-    /// Returns true if more server data should be pulled (i.e. not all data decoded yet).
-    /// </summary>
-    public bool DecodeServerData(IInputItem inputItem)
+    public bool DecodeServerData(ITransportInbound inputItem)
     {
-        if (inputItem is CloseSignalItem closeSignal)
+        if (inputItem is TransportDisconnected disconnect)
         {
-            HandleCloseSignal(closeSignal);
+            HandleDisconnect(disconnect);
             return false;
         }
 
-        if (inputItem is not NetworkBuffer buffer)
+        if (inputItem is not TransportData { Buffer: var buffer })
         {
             return true;
         }
@@ -154,14 +129,14 @@ internal sealed class StateMachine
         return DecodeNormalResponse(buffer);
     }
 
-    private bool AccumulateCloseDelimitedBody(NetworkBuffer buffer)
+    private bool AccumulateCloseDelimitedBody(TransportBuffer buffer)
     {
         _bodyOwners ??= [];
         _bodyOwners.Add(buffer);
         return true;
     }
 
-    private bool DecodeNormalResponse(NetworkBuffer buffer)
+    private bool DecodeNormalResponse(TransportBuffer buffer)
     {
         try
         {
@@ -255,10 +230,6 @@ internal sealed class StateMachine
         _effectivePipelineDepth = 1;
     }
 
-    /// <summary>
-    /// Buffers all in-flight requests and emits a ConnectItem (reconnect) to trigger a new TCP connection.
-    /// Call when a CloseSignalItem arrives with in-flight requests and we are not yet reconnecting.
-    /// </summary>
     public void StartReconnect()
     {
         _reconnectBufferedQueue = new Queue<HttpRequestMessage>(_inFlightQueue);
@@ -266,18 +237,9 @@ internal sealed class StateMachine
         IsReconnecting = true;
         _reconnectAttempts = 1;
         _decoder.Reset();
-        _ops.OnOutbound(new ConnectItem
-        {
-            Key = Endpoint,
-            IsReconnect = true,
-            Options = _transportOptions!
-        });
+        _ops.OnOutbound(new ConnectTransport(_transportOptions!));
     }
 
-    /// <summary>
-    /// Called when ConnectedSignalItem arrives. Replays all buffered requests over the new connection.
-    /// Resets the decoder so stale partial response data from the old connection is discarded.
-    /// </summary>
     public void OnConnectionRestored()
     {
         IsReconnecting = false;
@@ -294,10 +256,6 @@ internal sealed class StateMachine
         }
     }
 
-    /// <summary>
-    /// Called when a CloseSignalItem arrives while already reconnecting (reconnect attempt failed).
-    /// Increments the attempt counter; emits a new ConnectItem (reconnect) or calls OnReconnectFailed.
-    /// </summary>
     public void OnReconnectAttemptFailed()
     {
         if (_reconnectAttempts >= _options.Http1.MaxReconnectAttempts)
@@ -307,17 +265,9 @@ internal sealed class StateMachine
         }
 
         _reconnectAttempts++;
-        _ops.OnOutbound(new ConnectItem
-        {
-            Key = Endpoint,
-            IsReconnect = true,
-            Options = _transportOptions!
-        });
+        _ops.OnOutbound(new ConnectTransport(_transportOptions!));
     }
 
-    /// <summary>
-    /// Returns pooled resources. Called from PostStop.
-    /// </summary>
     public void Cleanup()
     {
         _inFlightQueue.Clear();
@@ -338,13 +288,14 @@ internal sealed class StateMachine
         _initialBodyBytes = null;
     }
 
-    private void HandleCloseSignal(CloseSignalItem closeSignal)
+    private void HandleDisconnect(TransportDisconnected disconnect)
     {
+        var isGraceful = disconnect.Reason == DisconnectReason.Graceful;
+
         if (_pendingCloseDelimitedResponse is not null)
         {
-            if (closeSignal.CloseKind == TlsCloseKind.CleanClose)
+            if (isGraceful)
             {
-                // RFC 9112 §9.8: connection close is a valid body delimiter.
                 var content = PooledBodyContent.FromChunks(_initialBodyBytes, _bodyOwners);
                 _pendingCloseDelimitedResponse.Content = content;
                 var response = _pendingCloseDelimitedResponse;
@@ -374,9 +325,8 @@ internal sealed class StateMachine
             return;
         }
 
-        if (closeSignal.CloseKind == TlsCloseKind.CleanClose)
+        if (isGraceful)
         {
-            // Flush any partially buffered response whose body was delimited by close.
             if (_decoder.TryDecodeEof(out var response) && response is not null)
             {
                 CompleteResponse(response);
@@ -398,7 +348,6 @@ internal sealed class StateMachine
             response.RequestMessage = request;
         }
 
-        // Check for Connection: close header
         if (HasConnectionClose(response))
         {
             if (queueCountBeforeDequeue > 1)
@@ -416,18 +365,9 @@ internal sealed class StateMachine
             _ops.OnWarning(partialContentResult.ErrorMessage!);
         }
 
-        var endpoint = RequestEndpoint.FromRequest(response.RequestMessage!);
-        var decision = ConnectionReuseEvaluator.Evaluate(response, response.Version);
-
         _ops.OnResponse(response);
-        var item = new ConnectionReuseItem(decision.CanReuse) { Key = endpoint };
-        _ops.OnOutbound(item);
     }
 
-    /// <summary>
-    /// RFC 9112 §6.3: A response without Content-Length or Transfer-Encoding
-    /// has its body delimited by connection close.
-    /// </summary>
     private static bool IsCloseDelimited(HttpResponseMessage response)
     {
         var status = (int)response.StatusCode;

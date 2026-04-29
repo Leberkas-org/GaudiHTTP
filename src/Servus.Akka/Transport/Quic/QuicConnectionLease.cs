@@ -7,7 +7,7 @@ namespace Servus.Akka.Transport.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-internal sealed class QuicConnectionLease : IDisposable
+public sealed class QuicConnectionLease : IDisposable
 {
     private readonly long _createdTicks = Environment.TickCount64;
     private bool _alive = true;

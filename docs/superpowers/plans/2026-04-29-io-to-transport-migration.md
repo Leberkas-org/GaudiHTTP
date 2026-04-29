@@ -4,340 +4,77 @@
 
 **Goal:** Replace all `Servus.Akka.IO` usage in TurboHTTP with `Servus.Akka.Transport`, implement `IPoolingStrategy` per HTTP version **in TurboHTTP** (not Servus.Akka), and delete the IO namespace.
 
-**Architecture:** The old IO layer uses `IInputItem`/`IOutputItem` with `NetworkBuffer`, `ConnectItem`, `StreamAcquireItem`, `ConnectionReuseItem`, `CloseSignalItem` as the protocol boundary. The new Transport layer uses `ITransportInbound`/`ITransportOutbound` with `TransportBuffer`, `ConnectTransport`, `TransportData`, `TransportDisconnected`, `TransportConnected`. Connection pooling behavior (which was hard-coded per HTTP version in the old `TcpConnectionManagerActor`) moves to `IPoolingStrategy` implementations. Protocol-level ConnectionReuseEvaluator decisions map to `PoolAction.Reuse`/`PoolAction.Dispose` via the strategy.
+**Architecture:** The old IO layer uses `IInputItem`/`IOutputItem` with `NetworkBuffer`, `ConnectItem`, `StreamAcquireItem`, `ConnectionReuseItem`, `CloseSignalItem` as the protocol boundary. The new Transport layer uses `ITransportInbound`/`ITransportOutbound` with `TransportBuffer`, `ConnectTransport`, `TransportData`, `TransportDisconnected`, `TransportConnected`. Connection pooling is split into two layers:
 
-**Boundary rule:** `IPoolingStrategy` (interface), `PoolAction`, `DisconnectReason`, `TransportOptions` stay in `Servus.Akka.Transport` — they are generic transport abstractions. The **HTTP-version-specific implementations** (`Http10PoolingStrategy`, `Http11PoolingStrategy`, `Http2PoolingStrategy`) live in `TurboHTTP.Streams.Pooling` because they encode HTTP semantics. Tests live in `TurboHTTP.Tests`.
+1. **Pool sizing & eviction** (`TcpPoolConfig` + `PoolConfigRegistry`) — lives in `Servus.Akka.Transport`. The `TcpConnectionManagerActor` takes a `PoolConfigRegistry` and resolves per-host config via `TransportOptions.PoolKey`. `TcpPoolConfig` holds `MaxConnectionsPerHost`, `IdleTimeout`, `ConnectionLifetime`, `ReuseOnUpstreamFinish`. This is protocol-agnostic — the transport layer doesn't know about HTTP versions, only pool keys.
+2. **Lease-return decisions** (`IPoolingStrategy`) — used by the `TcpConnectionStage`/`TcpTransportStateMachine` to decide `PoolAction.Reuse` vs `PoolAction.Dispose` on disconnect and upstream finish. The interface has only two methods: `OnDisconnect(object lease, DisconnectReason reason)` and `OnUpstreamFinish(object lease)`.
+
+**Boundary rule:**
+- `Servus.Akka.Transport` owns: `IPoolingStrategy` (slim, 2 methods), `PoolAction`, `DisconnectReason`, `TransportOptions` (with `string? PoolKey`), `TcpPoolConfig`, `PoolConfigRegistry`
+- `TurboHTTP.Streams.Pooling` owns the **HTTP-version-specific** `IPoolingStrategy` implementations (`Http10PoolingStrategy`, `Http11PoolingStrategy`, `Http2PoolingStrategy`) — they encode HTTP semantics (e.g. HTTP/1.1 reuses on upstream finish, HTTP/1.0 and HTTP/2 always dispose)
+- `TurboHTTP.Internal.PoolKeys` owns the pool key constants (`"http10"`, `"http11"`, `"http2"`) that bridge `OptionsFactory` and `ClientStreamOwner`
+- `TurboHTTP.Internal.OptionsFactory` sets `PoolKey` on `TransportOptions` based on the HTTP version
+- Tests live in `TurboHTTP.Tests`
 
 **Tech Stack:** C# 12, Akka.NET, Akka.Streams, xUnit v3
 
 ---
 
-## Phase 1: IPoolingStrategy Implementations
+## Phase 1: IPoolingStrategy Implementations + PoolConfigRegistry
 
-### Task 1: HTTP/1.0 Pooling Strategy
+> **DONE** — Phase 1 is already implemented. The strategies and registry exist in the codebase.
 
-**Files:**
-- Create: `src/TurboHTTP/Streams/Pooling/Http10PoolingStrategy.cs`
-- Test: `src/TurboHTTP.Tests/Streams/Pooling/Http10PoolingStrategySpec.cs`
+### Design
 
-HTTP/1.0: No reuse by default. Connections are always new. MaxConnectionsPerHost = unlimited (int.MaxValue).
-When server sends `Connection: Keep-Alive`, the *caller* (protocol SM) decides via `PoolAction` — strategy says "always dispose".
-
-- [ ] **Step 1: Write the failing test**
+`IPoolingStrategy` is a slim interface with only two methods — it governs **stage-level lease-return decisions**:
 
 ```csharp
-// src/TurboHTTP.Tests/Streams/Pooling/Http10PoolingStrategySpec.cs
-using Servus.Akka.Transport;
-using TurboHTTP.Streams.Pooling;
-
-namespace TurboHTTP.Tests.Streams.Pooling;
-
-public sealed class Http10PoolingStrategySpec
+// Servus.Akka.Transport.IPoolingStrategy
+public interface IPoolingStrategy
 {
-    private static readonly TransportOptions TestOptions = new TcpTransportOptions
-    {
-        Host = "example.com",
-        Port = 80
-    };
-
-    [Fact(Timeout = 5000)]
-    public void MaxConnectionsPerHost_should_be_unlimited()
-    {
-        var strategy = new Http10PoolingStrategy();
-        Assert.Equal(int.MaxValue, strategy.MaxConnectionsPerHost);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void CanReuse_should_return_false()
-    {
-        var strategy = new Http10PoolingStrategy();
-        Assert.False(strategy.CanReuse(TestOptions));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void OnRelease_should_return_Dispose()
-    {
-        var strategy = new Http10PoolingStrategy();
-        Assert.Equal(PoolAction.Dispose, strategy.OnRelease(TestOptions));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void IdleTimeout_should_be_zero()
-    {
-        var strategy = new Http10PoolingStrategy();
-        Assert.Equal(TimeSpan.Zero, strategy.IdleTimeout);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ConnectionLifetime_should_be_zero()
-    {
-        var strategy = new Http10PoolingStrategy();
-        Assert.Equal(TimeSpan.Zero, strategy.ConnectionLifetime);
-    }
+    PoolAction OnDisconnect(object lease, DisconnectReason reason);
+    PoolAction OnUpstreamFinish(object lease);
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `dotnet run --project TurboHTTP.Tests/TurboHTTP.Tests.csproj -- -class "TurboHTTP.Tests.Streams.Pooling.Http10PoolingStrategySpec"`
-Expected: FAIL — `Http10PoolingStrategy` does not exist
-
-- [ ] **Step 3: Write implementation**
+Pool sizing and eviction (max connections, idle timeout, connection lifetime) are handled by `TcpPoolConfig` + `PoolConfigRegistry`, which the `TcpConnectionManagerActor` uses. The connection manager resolves the right config per host via `TransportOptions.PoolKey`.
 
 ```csharp
-// src/TurboHTTP/Streams/Pooling/Http10PoolingStrategy.cs
-using Servus.Akka.Transport;
+// Servus.Akka.Transport.TcpPoolConfig
+public sealed record TcpPoolConfig(
+    int MaxConnectionsPerHost,
+    TimeSpan IdleTimeout,
+    TimeSpan ConnectionLifetime,
+    bool ReuseOnUpstreamFinish);
 
-namespace TurboHTTP.Streams.Pooling;
-
-public sealed class Http10PoolingStrategy : IPoolingStrategy
+// Servus.Akka.Transport.PoolConfigRegistry
+public sealed class PoolConfigRegistry
 {
-    public int MaxConnectionsPerHost => int.MaxValue;
-    public TimeSpan IdleTimeout => TimeSpan.Zero;
-    public TimeSpan ConnectionLifetime => TimeSpan.Zero;
-
-    public bool CanReuse(TransportOptions options) => false;
-    public PoolAction OnRelease(TransportOptions options) => PoolAction.Dispose;
-    public PoolAction OnIdle(object lease) => PoolAction.Dispose;
-    public PoolAction OnDisconnect(object lease, DisconnectReason reason) => PoolAction.Dispose;
-    public PoolAction OnUpstreamFinish(object lease) => PoolAction.Dispose;
+    public PoolConfigRegistry(TcpPoolConfig defaultConfig);
+    public PoolConfigRegistry Register(string poolKey, TcpPoolConfig config);
+    public TcpPoolConfig Resolve(string? poolKey);
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+`TransportOptions` has a `string? PoolKey` property. TurboHTTP sets it via `OptionsFactory` using constants from `TurboHTTP.Internal.PoolKeys` (`"http10"`, `"http11"`, `"http2"`).
 
-Run: `dotnet run --project TurboHTTP.Tests/TurboHTTP.Tests.csproj -- -class "TurboHTTP.Tests.Http10PoolingStrategySpec"`
-Expected: PASS (5 tests)
+### Existing files
 
-- [ ] **Step 5: Commit**
+- `src/Servus.Akka/Transport/IPoolingStrategy.cs` — slim interface (2 methods)
+- `src/Servus.Akka/Transport/TcpPoolConfig.cs` — pool config record
+- `src/Servus.Akka/Transport/PoolConfigRegistry.cs` — string-key → config registry
+- `src/Servus.Akka/Transport/TransportOptions.cs` — has `PoolKey` property
+- `src/TurboHTTP/Streams/Pooling/Http10PoolingStrategy.cs` — always Dispose
+- `src/TurboHTTP/Streams/Pooling/Http11PoolingStrategy.cs` — Reuse on upstream finish, Dispose on disconnect
+- `src/TurboHTTP/Streams/Pooling/Http2PoolingStrategy.cs` — always Dispose
+- `src/TurboHTTP/Internal/PoolKeys.cs` — pool key constants
+- `src/TurboHTTP.Tests/Streams/Pooling/Http10PoolingStrategySpec.cs`
+- `src/TurboHTTP.Tests/Streams/Pooling/Http11PoolingStrategySpec.cs`
+- `src/TurboHTTP.Tests/Streams/Pooling/Http2PoolingStrategySpec.cs`
 
----
+### Important: Do NOT revert to the old design
 
-### Task 2: HTTP/1.1 Pooling Strategy
-
-**Files:**
-- Create: `src/TurboHTTP/Streams/Pooling/Http11PoolingStrategy.cs`
-- Test: `src/TurboHTTP.Tests/Streams/Pooling/Http11PoolingStrategySpec.cs`
-
-HTTP/1.1: Persistent connections by default. MaxConnectionsPerHost = 6 (browser convention). Idle timeout and connection lifetime configurable.
-
-- [ ] **Step 1: Write the failing test**
-
-```csharp
-// src/TurboHTTP.Tests/Http11PoolingStrategySpec.cs
-using Servus.Akka.Transport;
-using TurboHTTP.Streams.Pooling;
-
-namespace TurboHTTP.Tests.Steams.Pooling;
-
-public sealed class Http11PoolingStrategySpec
-{
-    private static readonly TransportOptions TestOptions = new TcpTransportOptions
-    {
-        Host = "example.com",
-        Port = 80
-    };
-
-    [Fact(Timeout = 5000)]
-    public void MaxConnectionsPerHost_should_default_to_6()
-    {
-        var strategy = new Http11PoolingStrategy();
-        Assert.Equal(6, strategy.MaxConnectionsPerHost);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void MaxConnectionsPerHost_should_accept_custom_value()
-    {
-        var strategy = new Http11PoolingStrategy(maxConnectionsPerHost: 10);
-        Assert.Equal(10, strategy.MaxConnectionsPerHost);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void CanReuse_should_return_true()
-    {
-        var strategy = new Http11PoolingStrategy();
-        Assert.True(strategy.CanReuse(TestOptions));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void OnRelease_should_return_Reuse()
-    {
-        var strategy = new Http11PoolingStrategy();
-        Assert.Equal(PoolAction.Reuse, strategy.OnRelease(TestOptions));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void IdleTimeout_should_have_default()
-    {
-        var strategy = new Http11PoolingStrategy();
-        Assert.True(strategy.IdleTimeout > TimeSpan.Zero);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void IdleTimeout_should_accept_custom_value()
-    {
-        var strategy = new Http11PoolingStrategy(idleTimeout: TimeSpan.FromMinutes(5));
-        Assert.Equal(TimeSpan.FromMinutes(5), strategy.IdleTimeout);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void ConnectionLifetime_should_accept_custom_value()
-    {
-        var strategy = new Http11PoolingStrategy(connectionLifetime: TimeSpan.FromMinutes(20));
-        Assert.Equal(TimeSpan.FromMinutes(20), strategy.ConnectionLifetime);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void OnUpstreamFinish_should_return_Reuse()
-    {
-        var strategy = new Http11PoolingStrategy();
-        Assert.Equal(PoolAction.Reuse, strategy.OnUpstreamFinish(new object()));
-    }
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `dotnet run --project TurboHTTP.Tests/TurboHTTP.Tests.csproj -- -class "TurboHTTP.Tests.Streams.Pooling.Http11PoolingStrategySpec"`
-Expected: FAIL
-
-- [ ] **Step 3: Write implementation**
-
-```csharp
-// src/TurboHTTP/Streams/Pooling/Http11PoolingStrategy.cs
-using Servus.Akka.Transport;
-
-namespace TurboHTTP.Streams.Pooling;
-
-public sealed class Http11PoolingStrategy : IPoolingStrategy
-{
-    public int MaxConnectionsPerHost { get; }
-    public TimeSpan IdleTimeout { get; }
-    public TimeSpan ConnectionLifetime { get; }
-
-    public Http11PoolingStrategy(
-        int maxConnectionsPerHost = 6,
-        TimeSpan? idleTimeout = null,
-        TimeSpan? connectionLifetime = null)
-    {
-        MaxConnectionsPerHost = maxConnectionsPerHost;
-        IdleTimeout = idleTimeout ?? TimeSpan.FromMinutes(2);
-        ConnectionLifetime = connectionLifetime ?? TimeSpan.FromMinutes(10);
-    }
-
-    public bool CanReuse(TransportOptions options) => true;
-    public PoolAction OnRelease(TransportOptions options) => PoolAction.Reuse;
-    public PoolAction OnIdle(object lease) => PoolAction.Dispose;
-    public PoolAction OnDisconnect(object lease, DisconnectReason reason) => PoolAction.Dispose;
-    public PoolAction OnUpstreamFinish(object lease) => PoolAction.Reuse;
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-- [ ] **Step 5: Commit**
-
----
-
-### Task 3: HTTP/2 Pooling Strategy
-
-**Files:**
-- Create: `src/TurboHTTP/Streams/Pooling/Http2PoolingStrategy.cs`
-- Test: `src/TurboHTTP.Tests/Streams/Pooling/Http2PoolingStrategySpec.cs`
-
-HTTP/2: Multiplexed connections. Each `TcpConnectionStage` gets its own connection — no reuse at transport layer (the multiplexing happens at the HTTP/2 stream layer). MaxConnectionsPerHost = 1 per stage instance, but multiple stages can coexist.
-
-- [ ] **Step 1: Write the failing test**
-
-```csharp
-// src/TurboHTTP.Tests/Streams/Pooling/Http2PoolingStrategySpec.cs
-using Servus.Akka.Transport;
-using TurboHTTP.Streams.Pooling;
-
-namespace TurboHTTP.Tests.Streams.Pooling;
-
-public sealed class Http2PoolingStrategySpec
-{
-    private static readonly TransportOptions TestOptions = new TlsTransportOptions
-    {
-        Host = "example.com",
-        Port = 443
-    };
-
-    [Fact(Timeout = 5000)]
-    public void MaxConnectionsPerHost_should_be_1()
-    {
-        var strategy = new Http2PoolingStrategy();
-        Assert.Equal(1, strategy.MaxConnectionsPerHost);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void CanReuse_should_return_false()
-    {
-        var strategy = new Http2PoolingStrategy();
-        Assert.False(strategy.CanReuse(TestOptions));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void OnRelease_should_return_Dispose()
-    {
-        var strategy = new Http2PoolingStrategy();
-        Assert.Equal(PoolAction.Dispose, strategy.OnRelease(TestOptions));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void OnUpstreamFinish_should_return_Dispose()
-    {
-        var strategy = new Http2PoolingStrategy();
-        Assert.Equal(PoolAction.Dispose, strategy.OnUpstreamFinish(new object()));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void IdleTimeout_should_accept_custom_value()
-    {
-        var strategy = new Http2PoolingStrategy(idleTimeout: TimeSpan.FromMinutes(3));
-        Assert.Equal(TimeSpan.FromMinutes(3), strategy.IdleTimeout);
-    }
-}
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-- [ ] **Step 3: Write implementation**
-
-```csharp
-// src/TurboHTTP/Streams/Pooling/Http2PoolingStrategy.cs
-using Servus.Akka.Transport;
-
-namespace TurboHTTP.Streams.Pooling;
-
-public sealed class Http2PoolingStrategy : IPoolingStrategy
-{
-    public int MaxConnectionsPerHost { get; }
-    public TimeSpan IdleTimeout { get; }
-    public TimeSpan ConnectionLifetime { get; }
-
-    public Http2PoolingStrategy(
-        int maxConnectionsPerHost = 1,
-        TimeSpan? idleTimeout = null,
-        TimeSpan? connectionLifetime = null)
-    {
-        MaxConnectionsPerHost = maxConnectionsPerHost;
-        IdleTimeout = idleTimeout ?? TimeSpan.FromMinutes(2);
-        ConnectionLifetime = connectionLifetime ?? Timeout.InfiniteTimeSpan;
-    }
-
-    public bool CanReuse(TransportOptions options) => false;
-    public PoolAction OnRelease(TransportOptions options) => PoolAction.Dispose;
-    public PoolAction OnIdle(object lease) => PoolAction.Dispose;
-    public PoolAction OnDisconnect(object lease, DisconnectReason reason) => PoolAction.Dispose;
-    public PoolAction OnUpstreamFinish(object lease) => PoolAction.Dispose;
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-- [ ] **Step 5: Commit**
+The old `IPoolingStrategy` had properties (`MaxConnectionsPerHost`, `IdleTimeout`, `ConnectionLifetime`) and additional methods (`CanReuse`, `OnRelease`, `OnIdle`). These are **gone by design**. Pool config is now in `TcpPoolConfig`/`PoolConfigRegistry`. The `TcpConnectionManagerActor` takes a `PoolConfigRegistry`, NOT an `IPoolingStrategy`. The `TcpConnectionStage`/`TcpTransportStateMachine` take an `IPoolingStrategy` for lease-return decisions only.
 
 ---
 
@@ -345,91 +82,19 @@ public sealed class Http2PoolingStrategy : IPoolingStrategy
 
 ### Task 4: Migrate OptionsFactory from IO types to Transport types
 
+> **DONE** — `OptionsFactory` already uses Transport types and sets `PoolKey`.
+
 **Files:**
-- Modify: `src/TurboHTTP/Internal/OptionsFactory.cs`
+- `src/TurboHTTP/Internal/OptionsFactory.cs` — already migrated
+- `src/TurboHTTP/Internal/PoolKeys.cs` — pool key constants
 
-Replace `TcpOptions`/`TlsOptions`/`QuicOptions` with `TcpTransportOptions`/`TlsTransportOptions`/`QuicTransportOptions`. Return `TransportOptions` instead of `TcpOptions`. Note: Port changes from `int` to `ushort`.
+`OptionsFactory.Build(RequestEndpoint, TurboClientOptions)` returns `TransportOptions` with `PoolKey` set based on HTTP version:
+- HTTP/1.0 → `PoolKeys.Http10` (`"http10"`)
+- HTTP/1.1 → `PoolKeys.Http11` (`"http11"`)
+- HTTP/2.0 → `PoolKeys.Http2` (`"http2"`)
+- HTTP/3.0 → no `PoolKey` (QUIC uses its own `QuicConnectionManagerActor` without `PoolConfigRegistry`)
 
-- [ ] **Step 1: Replace OptionsFactory**
-
-```csharp
-// src/TurboHTTP/Internal/OptionsFactory.cs
-using System.Net.Security;
-using Servus.Akka.Transport;
-
-namespace TurboHTTP.Internal;
-
-internal static class OptionsFactory
-{
-    internal static TransportOptions Build(string host, ushort port, string scheme, Version version,
-        TurboClientOptions clientOptions)
-    {
-        var isTls = scheme.Equals("https", StringComparison.OrdinalIgnoreCase)
-                    || scheme.Equals("wss", StringComparison.OrdinalIgnoreCase);
-        var effectivePort = port != 0 ? port : (ushort)(isTls ? 443 : 80);
-        List<SslApplicationProtocol>? alpn = version switch
-        {
-            { Major: 3, Minor: 0 } => [SslApplicationProtocol.Http3],
-            { Major: 2, Minor: 0 } => [SslApplicationProtocol.Http2],
-            { Major: 1, Minor: 1 } => [SslApplicationProtocol.Http11],
-            _ => null
-        };
-
-        if (version is { Major: 3, Minor: 0 })
-        {
-            return new QuicTransportOptions
-            {
-                Host = host,
-                Port = effectivePort,
-                ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
-                ConnectTimeout = clientOptions.ConnectTimeout,
-                SocketSendBufferSize = clientOptions.SocketSendBufferSize,
-                SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
-                AllowConnectionMigration = clientOptions.Http3.AllowConnectionMigration,
-                AllowEarlyData = clientOptions.Http3.AllowEarlyData,
-                ApplicationProtocols = alpn,
-                AutoReconnect = true
-            };
-        }
-
-        if (isTls)
-        {
-            return new TlsTransportOptions
-            {
-                Host = host,
-                Port = effectivePort,
-                TargetHost = host,
-                ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
-                ClientCertificates = clientOptions.ClientCertificates,
-                EnabledSslProtocols = clientOptions.EnabledSslProtocols,
-                ConnectTimeout = clientOptions.ConnectTimeout,
-                SocketSendBufferSize = clientOptions.SocketSendBufferSize,
-                SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
-                UseProxy = clientOptions.UseProxy,
-                Proxy = clientOptions.Proxy,
-                DefaultProxyCredentials = clientOptions.DefaultProxyCredentials,
-                ApplicationProtocols = alpn,
-            };
-        }
-
-        return new TcpTransportOptions
-        {
-            Host = host,
-            Port = effectivePort,
-            ConnectTimeout = clientOptions.ConnectTimeout,
-            SocketSendBufferSize = clientOptions.SocketSendBufferSize,
-            SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
-            UseProxy = clientOptions.UseProxy,
-            Proxy = clientOptions.Proxy,
-            DefaultProxyCredentials = clientOptions.DefaultProxyCredentials,
-        };
-    }
-}
-```
-
-Note: Removed `RequestEndpoint` parameter — caller now passes `host`, `port`, `scheme`, `version` directly.
-
-- [ ] **Step 2: Verify build compiles** (will fail on callers — that's expected, fixed in later tasks)
+The `PoolKey` is set on `TcpTransportOptions` and `TlsTransportOptions`. QUIC transport options don't use it.
 
 ---
 
@@ -562,7 +227,7 @@ internal interface IStageOperations
 
 ## Phase 3: Protocol StateMachine Migration (HTTP/1.0, 1.1, 2, 3)
 
-Each protocol StateMachine emits old IO messages (`ConnectItem`, `StreamAcquireItem`, `NetworkBuffer`, `ConnectionReuseItem`). These need to be replaced with Transport messages (`ConnectTransport`, `TransportData`). The `ConnectionReuseItem` is removed — pooling decisions are now made by `IPoolingStrategy` inside the `TcpConnectionManagerActor`.
+Each protocol StateMachine emits old IO messages (`ConnectItem`, `StreamAcquireItem`, `NetworkBuffer`, `ConnectionReuseItem`). These need to be replaced with Transport messages (`ConnectTransport`, `TransportData`). The `ConnectionReuseItem` is removed — pooling decisions are now split: pool sizing/eviction is in `TcpPoolConfig` via `PoolConfigRegistry` (inside `TcpConnectionManagerActor`), and lease-return decisions are in `IPoolingStrategy` (inside `TcpTransportStateMachine`).
 
 ### Task 7: Migrate Http11 StateMachine
 
@@ -959,53 +624,43 @@ HTTP/3 uses `RoutedNetworkBuffer` (with `StreamId` and `StreamTypeValue`). Map t
 
 ## Phase 4: ClientStreamOwner + Routing Stages Migration
 
-### Task 12: Migrate ClientStreamOwner to use Transport ConnectionManagers with IPoolingStrategy
+### Task 12: Migrate ClientStreamOwner to use Transport ConnectionManagers with PoolConfigRegistry + IPoolingStrategy
+
+> **DONE** — `ClientStreamOwner` already uses `PoolConfigRegistry` + per-version `IPoolingStrategy`.
 
 **Files:**
-- Modify: `src/TurboHTTP/Streams/Lifecycle/ClientStreamOwner.cs`
+- `src/TurboHTTP/Streams/Lifecycle/ClientStreamOwner.cs` — already migrated
 
-Replace old IO `TcpConnectionManagerActor(idleTimeout, connectionLifetime, maxConns)` and `QuicConnectionManagerActor(idleTimeout, connectionLifetime)` with new Transport constructors that take `IPoolingStrategy`.
-
-- [ ] **Step 1: Update actor creation with pooling strategies**
+**Architecture:** A single `TcpConnectionManagerActor` serves all TCP-based HTTP versions (1.0, 1.1, 2.0). It receives a `PoolConfigRegistry` with per-version pool configs keyed by pool key strings. The transport stage gets the correct `IPoolingStrategy` per version for lease-return decisions.
 
 ```csharp
-using Servus.Akka.Transport;
-using Servus.Akka.Transport.Tcp;
-using Servus.Akka.Transport.Quic;
-using TurboHTTP.Streams.Pooling;
-
 // In MaterializeStream:
+var opts = create.ClientOptions;
 
-var http10Strategy = new Http10PoolingStrategy();
-var http11Strategy = new Http11PoolingStrategy(
-    maxConnectionsPerHost: create.ClientOptions.Http1.MaxConnectionsPerServer,
-    idleTimeout: create.ClientOptions.PooledConnectionIdleTimeout,
-    connectionLifetime: create.ClientOptions.PooledConnectionLifetime);
-var http2Strategy = new Http2PoolingStrategy(
-    idleTimeout: create.ClientOptions.PooledConnectionIdleTimeout,
-    connectionLifetime: create.ClientOptions.PooledConnectionLifetime);
+var poolRegistry = new PoolConfigRegistry(
+        new TcpPoolConfig(/* default = http11 config */))
+    .Register(PoolKeys.Http10, new TcpPoolConfig(
+        MaxConnectionsPerHost: int.MaxValue,
+        IdleTimeout: TimeSpan.Zero,
+        ConnectionLifetime: TimeSpan.Zero,
+        ReuseOnUpstreamFinish: false))
+    .Register(PoolKeys.Http11, new TcpPoolConfig(/* from Http1Options */))
+    .Register(PoolKeys.Http2, new TcpPoolConfig(/* from Http2Options */));
 
 _tcpConnectionManager = Context.ActorOf(
-    Props.Create(() => new TcpConnectionManagerActor(
-        new TcpConnectionFactory(), http11Strategy)),
-    "tcp-pool");
+    Props.Create(() => new TcpConnectionManagerActor(poolRegistry)), "tcp-pool");
 
 _quicConnectionManager = Context.ActorOf(
-    Props.Create(() => new QuicConnectionManagerActor(
-        new QuicConnectionFactory())),
-    "quic-pool");
-
-var tcpFactory = new TcpTransportFactory(_tcpConnectionManager, http11Strategy);
-var quicFactory = new QuicTransportFactory(_quicConnectionManager);
+    Props.Create(() => new QuicConnectionManagerActor()), "quic-pool");
 
 var transports = new TransportRegistry()
-    .Register(new Version(1, 0), () => new TcpTransportFactory(_tcpConnectionManager, http10Strategy).Create())
-    .Register(new Version(1, 1), () => tcpFactory.Create())
-    .Register(new Version(2, 0), () => new TcpTransportFactory(_tcpConnectionManager, http2Strategy).Create())
-    .Register(new Version(3, 0), () => quicFactory.Create());
+    .Register(new Version(1, 0), new TcpTransportFactory(_tcpConnectionManager, new Http10PoolingStrategy()))
+    .Register(new Version(1, 1), new TcpTransportFactory(_tcpConnectionManager, new Http11PoolingStrategy()))
+    .Register(new Version(2, 0), new TcpTransportFactory(_tcpConnectionManager, new Http2PoolingStrategy()))
+    .Register(new Version(3, 0), new QuicTransportFactory(_quicConnectionManager));
 ```
 
-- [ ] **Step 2: Commit**
+**Important:** Do NOT create separate `TcpConnectionManagerActor` instances per HTTP version. A single connection manager with the `PoolConfigRegistry` handles all TCP versions — it resolves the right `TcpPoolConfig` per host via `TransportOptions.PoolKey`. Each `TcpTransportFactory` gets its own `IPoolingStrategy` for stage-level lease decisions.
 
 ---
 

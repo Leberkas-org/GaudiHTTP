@@ -1,7 +1,7 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Protocol.Http2;
 
@@ -9,10 +9,10 @@ namespace TurboHTTP.Streams.Stages;
 
 internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
 {
-    private readonly Inlet<IInputItem> _inServer = new("Http20Connection.In.Server");
+    private readonly Inlet<ITransportInbound> _inServer = new("Http20Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http20Connection.Out.Response");
     private readonly Inlet<HttpRequestMessage> _inApp = new("Http20Connection.In.App");
-    private readonly Outlet<IOutputItem> _outNetwork = new("Http20Connection.Out.Network");
+    private readonly Outlet<ITransportOutbound> _outNetwork = new("Http20Connection.Out.Network");
     private readonly TurboClientOptions _options;
 
     public override ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
@@ -32,8 +32,8 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
 
         private readonly Http20ConnectionStage _stage;
         private readonly StateMachine _sm;
-        private readonly List<IOutputItem> _pendingOutbound = [];
-        private readonly Queue<IOutputItem> _outboundQueue = new();
+        private readonly List<ITransportOutbound> _pendingOutbound = [];
+        private readonly Queue<ITransportOutbound> _outboundQueue = new();
         private readonly List<HttpResponseMessage> _pendingResponses = [];
         private bool _reconnectFailed;
         private readonly bool _keepAliveEnabled;
@@ -94,7 +94,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
             _pendingResponses.Add(response);
         }
 
-        void IStageOperations.OnOutbound(IOutputItem item)
+        void IStageOperations.OnOutbound(ITransportOutbound item)
         {
             _pendingOutbound.Add(item);
         }
@@ -116,7 +116,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
             switch (item)
             {
                 // Reconnect: new connection ready — replay buffered requests
-                case ConnectedSignalItem:
+                case TransportConnected:
                     {
                         _sm.OnConnectionRestored();
                         FlushOutbound();
@@ -130,7 +130,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                         return;
                     }
                 // Reconnect: connection dropped again while already reconnecting
-                case CloseSignalItem when _sm.IsReconnecting:
+                case TransportDisconnected when _sm.IsReconnecting:
                     {
                         _sm.OnReconnectAttemptFailed();
                         if (_reconnectFailed)
@@ -149,7 +149,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                         return;
                     }
                 // Reconnect: abrupt close with in-flight requests (no GOAWAY)
-                case CloseSignalItem when _sm.HasInFlightRequests:
+                case TransportDisconnected when _sm.HasInFlightRequests:
                     {
                         _sm.OnConnectionLost(lastStreamId: 0);
                         FlushOutbound();
@@ -160,13 +160,13 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
 
                         return;
                     }
-                // CloseSignalItem with no in-flight — complete normally
-                case CloseSignalItem:
+                // TransportDisconnected with no in-flight — complete normally
+                case TransportDisconnected:
                     CompleteStage();
                     return;
             }
 
-            if (item is not NetworkBuffer buffer)
+            if (item is not TransportData { Buffer: var buffer })
             {
                 Pull(_stage._inServer);
                 return;

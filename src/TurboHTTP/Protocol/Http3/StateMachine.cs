@@ -1,6 +1,6 @@
 using System.Buffers;
 using System.Security.Cryptography.X509Certificates;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3.Qpack;
 using TurboHTTP.Streams.Stages;
@@ -36,7 +36,7 @@ internal sealed class StateMachine : IDisposable
 
     private readonly TurboClientOptions _options;
     private readonly IStageOperations _ops;
-    private ITransportOptions? _transportOptions;
+    private TransportOptions? _transportOptions;
 
     private readonly RequestEncoder _requestEncoder;
     private readonly ResponseDecoder _responseDecoder;
@@ -110,7 +110,7 @@ internal sealed class StateMachine : IDisposable
     /// Emits: stream type VarInt(0x00) + SETTINGS frame + optional MAX_PUSH_ID.
     /// Returns null if already sent.
     /// </summary>
-    public IOutputItem? TryBuildControlPreface()
+    public ITransportOutbound? TryBuildControlPreface()
     {
         if (_controlPrefaceSent)
         {
@@ -142,21 +142,19 @@ internal sealed class StateMachine : IDisposable
 
         maxPushIdFrame?.WriteTo(ref span);
 
-        var buf = RoutedNetworkBuffer.Rent(totalSize);
+        var buf = TransportBuffer.Rent(totalSize);
         owner.Memory.Span[..totalSize].CopyTo(buf.FullMemory.Span);
         buf.Length = totalSize;
-        buf.Key = Endpoint;
-        buf.StreamTypeValue = 0x00;
 
-        return buf;
+        return new MultiplexedData(buf, -2);
     }
 
     /// <summary>
-    /// Decodes a NetworkBuffer into HTTP/3 frames using a per-stream decoder.
+    /// Decodes a TransportBuffer into HTTP/3 frames using a per-stream decoder.
     /// </summary>
-    public IReadOnlyList<Http3Frame> DecodeServerData(NetworkBuffer buffer, long? streamId)
+    public IReadOnlyList<Http3Frame> DecodeServerData(TransportBuffer buffer, long streamId)
     {
-        return _streamManager.DecodeServerData(buffer, streamId!.Value);
+        return _streamManager.DecodeServerData(buffer, streamId);
     }
 
     /// <summary>
@@ -395,11 +393,7 @@ internal sealed class StateMachine : IDisposable
         {
             Endpoint = endpoint;
             _transportOptions = OptionsFactory.Build(Endpoint, _options);
-            _ops.OnOutbound(new ConnectItem
-            {
-                Key = Endpoint,
-                Options = _transportOptions
-            });
+            _ops.OnOutbound(new ConnectTransport(_transportOptions));
         }
 
         var streamId = Tracker.AllocateStreamId();
@@ -415,7 +409,7 @@ internal sealed class StateMachine : IDisposable
             EmitSerializedFrame(f, streamId);
         }
 
-        _ops.OnOutbound(new StreamFinishedItem { Key = endpoint, StreamId = streamId });
+        _ops.OnOutbound(new CloseStream(streamId));
         return true;
     }
 
@@ -472,19 +466,19 @@ internal sealed class StateMachine : IDisposable
 
     private void EmitSerializedFrame(Http3Frame frame, long streamId = -1)
     {
-        var buf = RoutedNetworkBuffer.Rent(frame.SerializedSize);
+        var buf = TransportBuffer.Rent(frame.SerializedSize);
         var span = buf.FullMemory.Span;
         frame.WriteTo(ref span);
         buf.Length = frame.SerializedSize;
-        buf.Key = Endpoint;
 
         if (streamId >= 0)
         {
-            buf.StreamTypeValue = null;
-            buf.StreamId = streamId;
+            _ops.OnOutbound(new MultiplexedData(buf, streamId));
         }
-
-        _ops.OnOutbound(buf);
+        else
+        {
+            _ops.OnOutbound(new TransportData(buf));
+        }
     }
 
     private void OnStreamClosed(long streamId)

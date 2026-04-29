@@ -1,6 +1,6 @@
 using System.Buffers;
 using System.Buffers.Binary;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 
 namespace TurboHTTP.Protocol.Http2;
 
@@ -57,7 +57,7 @@ internal sealed class FrameDecoder : IDisposable
 
     // Owned working buffer. Kept alive between Decode() calls so that returned frame slices
     // remain valid until the next call (Akka back-pressure guarantees frames are consumed first).
-    private NetworkBuffer? _workingBuffer;
+    private TransportBuffer? _workingBuffer;
 
     // Slice within _workingBuffer that was not yet consumed as a complete frame.
     private int _remainderOffset;
@@ -77,7 +77,7 @@ internal sealed class FrameDecoder : IDisposable
     /// Transfers ownership of <paramref name="buffer"/>: the caller must not use it after this call.
     /// Incomplete trailing bytes are retained inside the decoder for the next call.
     /// </summary>
-    public IReadOnlyList<Http2Frame> Decode(NetworkBuffer buffer)
+    public IReadOnlyList<Http2Frame> Decode(TransportBuffer buffer)
     {
         // Fast path: nothing new and nothing buffered.
         if (buffer.Length == 0 && _remainderLength == 0)
@@ -92,7 +92,7 @@ internal sealed class FrameDecoder : IDisposable
         {
             // Combine the buffered remainder with the new data into a single pooled buffer.
             workingLength = _remainderLength + buffer.Length;
-            var combined = NetworkBuffer.Rent(workingLength);
+            var combined = TransportBuffer.Rent(workingLength);
             _workingBuffer!.FullMemory.Span.Slice(_remainderOffset, _remainderLength)
                 .CopyTo(combined.FullMemory.Span);
             buffer.Memory.Span
@@ -163,7 +163,7 @@ internal sealed class FrameDecoder : IDisposable
             return [];
         }
 
-        var buf = NetworkBuffer.Rent(Math.Max(1, data.Length));
+        var buf = TransportBuffer.Rent(Math.Max(1, data.Length));
         data.CopyTo(buf.FullMemory);
         buf.Length = data.Length;
         return Decode(buf);

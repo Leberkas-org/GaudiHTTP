@@ -9,15 +9,21 @@ public sealed class TcpConnectionManagerActorSpec : TestKit
 {
     private readonly InMemoryTcpConnectionFactory _factory = new();
 
+    private static readonly TcpPoolConfig DefaultPoolConfig = new(
+        MaxConnectionsPerHost: 6,
+        IdleTimeout: TimeSpan.FromSeconds(5),
+        ConnectionLifetime: Timeout.InfiniteTimeSpan,
+        ReuseOnUpstreamFinish: true);
+
     private static TcpTransportOptions CreateOptions() => new()
     {
         Host = "127.0.0.1",
         Port = 8080
     };
 
-    private IActorRef CreateActor(IPoolingStrategy? strategy = null)
+    private IActorRef CreateActor(PoolConfigRegistry? registry = null)
         => Sys.ActorOf(Props.Create(() =>
-            new TcpConnectionManagerActor(_factory, strategy ?? new ReusePoolingStrategy())));
+            new TcpConnectionManagerActor(_factory, registry ?? new PoolConfigRegistry(DefaultPoolConfig))));
 
     [Fact(Timeout = 5000)]
     public async Task Acquire_should_create_new_connection()
@@ -104,10 +110,12 @@ public sealed class TcpConnectionManagerActorSpec : TestKit
     [Fact(Timeout = 5000)]
     public async Task EvictIdle_should_remove_expired_connections()
     {
-        var strategy = new ReusePoolingStrategy(
-            idleTimeout: TimeSpan.FromMilliseconds(50),
-            connectionLifetime: TimeSpan.FromMilliseconds(50));
-        var actor = CreateActor(strategy);
+        var registry = new PoolConfigRegistry(new TcpPoolConfig(
+            MaxConnectionsPerHost: 6,
+            IdleTimeout: TimeSpan.FromMilliseconds(50),
+            ConnectionLifetime: TimeSpan.FromMilliseconds(50),
+            ReuseOnUpstreamFinish: true));
+        var actor = CreateActor(registry);
         var options = CreateOptions();
 
         var lease1 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
@@ -272,10 +280,12 @@ public sealed class TcpConnectionManagerActorSpec : TestKit
     [Fact(Timeout = 5000)]
     public async Task Idle_timeout_zero_should_disable_eviction()
     {
-        var strategy = new ReusePoolingStrategy(
-            idleTimeout: TimeSpan.Zero,
-            connectionLifetime: Timeout.InfiniteTimeSpan);
-        var actor = CreateActor(strategy);
+        var registry = new PoolConfigRegistry(new TcpPoolConfig(
+            MaxConnectionsPerHost: 6,
+            IdleTimeout: TimeSpan.Zero,
+            ConnectionLifetime: Timeout.InfiniteTimeSpan,
+            ReuseOnUpstreamFinish: true));
+        var actor = CreateActor(registry);
         var options = CreateOptions();
 
         var lease1 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
@@ -317,9 +327,9 @@ public sealed class TcpConnectionManagerActorSpec : TestKit
     public async Task Established_with_cancelled_caller_should_release_back_to_pool()
     {
         var slowFactory = new SlowTcpConnectionFactory(TimeSpan.FromMilliseconds(200));
+        var registry = new PoolConfigRegistry(DefaultPoolConfig with { MaxConnectionsPerHost = 1 });
         var actor = Sys.ActorOf(Props.Create(() =>
-            new TcpConnectionManagerActor(slowFactory,
-                new ReusePoolingStrategy(maxConnectionsPerHost: 1))));
+            new TcpConnectionManagerActor(slowFactory, registry)));
         var options = CreateOptions();
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(30));
@@ -364,9 +374,9 @@ public sealed class TcpConnectionManagerActorSpec : TestKit
     public async Task EstablishFailed_should_cascade_to_pending_waiter()
     {
         var failOnce = new FailOnceTcpConnectionFactory();
+        var registry = new PoolConfigRegistry(DefaultPoolConfig with { MaxConnectionsPerHost = 1 });
         var actor = Sys.ActorOf(Props.Create(() =>
-            new TcpConnectionManagerActor(failOnce,
-                new ReusePoolingStrategy(maxConnectionsPerHost: 1))));
+            new TcpConnectionManagerActor(failOnce, registry)));
         var options = CreateOptions();
 
         var task1 = TcpConnectionManagerActor.AcquireAsync(actor, options,
@@ -389,10 +399,12 @@ public sealed class TcpConnectionManagerActorSpec : TestKit
     [Fact(Timeout = 5000)]
     public async Task Evicted_idle_connection_should_not_be_reused()
     {
-        var strategy = new ReusePoolingStrategy(
-            idleTimeout: TimeSpan.FromMilliseconds(50),
-            connectionLifetime: TimeSpan.FromMilliseconds(50));
-        var actor = CreateActor(strategy);
+        var registry = new PoolConfigRegistry(new TcpPoolConfig(
+            MaxConnectionsPerHost: 6,
+            IdleTimeout: TimeSpan.FromMilliseconds(50),
+            ConnectionLifetime: TimeSpan.FromMilliseconds(50),
+            ReuseOnUpstreamFinish: true));
+        var actor = CreateActor(registry);
         var options = CreateOptions();
 
         var lease1 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
@@ -404,22 +416,6 @@ public sealed class TcpConnectionManagerActorSpec : TestKit
         Assert.NotNull(lease2);
 
         lease2.Dispose();
-    }
-
-    private sealed class ReusePoolingStrategy(
-        int maxConnectionsPerHost = 6,
-        TimeSpan? idleTimeout = null,
-        TimeSpan? connectionLifetime = null) : IPoolingStrategy
-    {
-        public int MaxConnectionsPerHost => maxConnectionsPerHost;
-        public TimeSpan IdleTimeout => idleTimeout ?? TimeSpan.FromSeconds(5);
-        public TimeSpan ConnectionLifetime => connectionLifetime ?? Timeout.InfiniteTimeSpan;
-
-        public bool CanReuse(TransportOptions options) => true;
-        public PoolAction OnRelease(TransportOptions options) => PoolAction.Reuse;
-        public PoolAction OnIdle(object lease) => PoolAction.Dispose;
-        public PoolAction OnDisconnect(object lease, DisconnectReason reason) => PoolAction.Dispose;
-        public PoolAction OnUpstreamFinish(object lease) => PoolAction.Reuse;
     }
 
 }

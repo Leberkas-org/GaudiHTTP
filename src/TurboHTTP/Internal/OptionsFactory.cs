@@ -1,5 +1,4 @@
 using System.Net.Security;
-using Servus.Akka.IO;
 using Servus.Akka.Transport;
 
 namespace TurboHTTP.Internal;
@@ -16,6 +15,14 @@ internal static class OptionsFactory
             { Major: 3, Minor: 0 } => [SslApplicationProtocol.Http3],
             { Major: 2, Minor: 0 } => [SslApplicationProtocol.Http2],
             { Major: 1, Minor: 1 } => [SslApplicationProtocol.Http11],
+            _ => null
+        };
+
+        var poolKey = endpoint.Version switch
+        {
+            { Major: 2, Minor: 0 } => PoolKeys.Http2,
+            { Major: 1, Minor: 1 } => PoolKeys.Http11,
+            { Major: 1, Minor: 0 } => PoolKeys.Http10,
             _ => null
         };
 
@@ -42,6 +49,7 @@ internal static class OptionsFactory
             {
                 Host = endpoint.Host,
                 Port = port,
+                PoolKey = poolKey,
                 TargetHost = endpoint.Host,
                 ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
                 ClientCertificates = clientOptions.ClientCertificates,
@@ -60,6 +68,7 @@ internal static class OptionsFactory
         {
             Host = endpoint.Host,
             Port = port,
+            PoolKey = poolKey,
             ConnectTimeout = clientOptions.ConnectTimeout,
             SocketSendBufferSize = clientOptions.SocketSendBufferSize,
             SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,

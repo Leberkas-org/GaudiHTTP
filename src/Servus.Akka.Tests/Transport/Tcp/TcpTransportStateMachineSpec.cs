@@ -319,13 +319,6 @@ public sealed class TcpTransportStateMachineSpec
 
     private sealed class TestPoolingStrategy : IPoolingStrategy
     {
-        public int MaxConnectionsPerHost => 6;
-        public TimeSpan IdleTimeout => TimeSpan.FromSeconds(5);
-        public TimeSpan ConnectionLifetime => Timeout.InfiniteTimeSpan;
-
-        public bool CanReuse(TransportOptions options) => true;
-        public PoolAction OnRelease(TransportOptions options) => PoolAction.Reuse;
-        public PoolAction OnIdle(object lease) => PoolAction.Dispose;
         public PoolAction OnDisconnect(object lease, DisconnectReason reason) => PoolAction.Dispose;
         public PoolAction OnUpstreamFinish(object lease) => PoolAction.Reuse;
     }

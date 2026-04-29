@@ -1,10 +1,11 @@
 using Akka;
 using Akka.Actor;
 using Akka.Streams.Dsl;
+using Servus.Akka.IO;
 
 namespace Servus.Akka.Transport.Tcp;
 
-public sealed class TcpTransportFactory
+public sealed class TcpTransportFactory : ITransportFactory
 {
     private readonly IActorRef _connectionManager;
     private readonly IPoolingStrategy _poolingStrategy;

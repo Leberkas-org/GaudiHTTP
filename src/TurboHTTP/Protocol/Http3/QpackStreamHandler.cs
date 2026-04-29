@@ -1,4 +1,5 @@
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
+using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3.Qpack;
 using TurboHTTP.Streams.Stages;
 
@@ -80,7 +81,7 @@ internal sealed class QpackStreamHandler
     {
         var sectionAck = _responseDecoder.DecoderInstructions;
 
-        var buf = RoutedNetworkBuffer.Rent(1 + sectionAck.Length + 16);
+        var buf = TransportBuffer.Rent(1 + sectionAck.Length + 16);
         var dest = buf.FullMemory.Span;
         var offset = 0;
 
@@ -108,9 +109,7 @@ internal sealed class QpackStreamHandler
 
         _decoderPrefaceSent = true;
         buf.Length = offset;
-        buf.Key = endpoint;
-        buf.StreamTypeValue = 0x03;
-        _ops.OnOutbound(buf);
+        _ops.OnOutbound(new MultiplexedData(buf, -4));
     }
 
     /// <summary>
@@ -143,13 +142,11 @@ internal sealed class QpackStreamHandler
             totalLength = instructions.Length;
         }
 
-        var buf = RoutedNetworkBuffer.Rent(totalLength);
+        var buf = TransportBuffer.Rent(totalLength);
         owner.Memory.Span[..totalLength].CopyTo(buf.FullMemory.Span);
         buf.Length = totalLength;
-        buf.Key = endpoint;
-        buf.StreamTypeValue = 0x02;
 
-        _ops.OnOutbound(buf);
+        _ops.OnOutbound(new MultiplexedData(buf, -3));
     }
 
     /// <summary>

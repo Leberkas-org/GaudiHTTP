@@ -4,6 +4,7 @@ public abstract record TransportOptions
 {
     public required string Host { get; init; }
     public required ushort Port { get; init; }
+    public string? PoolKey { get; init; }
     public TimeSpan ConnectTimeout { get; init; } = TimeSpan.FromSeconds(10);
     public int? SocketSendBufferSize { get; init; }
     public int? SocketReceiveBufferSize { get; init; }

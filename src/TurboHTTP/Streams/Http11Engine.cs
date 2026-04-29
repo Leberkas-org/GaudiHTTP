@@ -1,7 +1,7 @@
 ﻿using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Streams;
@@ -16,7 +16,7 @@ internal class Http11Engine : IHttpProtocolEngine
         _options = options;
     }
 
-    public BidiFlow<HttpRequestMessage, IOutputItem, IInputItem, HttpResponseMessage, NotUsed> CreateFlow()
+    public BidiFlow<HttpRequestMessage, ITransportOutbound, ITransportInbound, HttpResponseMessage, NotUsed> CreateFlow()
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
@@ -24,8 +24,8 @@ internal class Http11Engine : IHttpProtocolEngine
 
             return new BidiShape<
                 HttpRequestMessage,
-                IOutputItem,
-                IInputItem,
+                ITransportOutbound,
+                ITransportInbound,
                 HttpResponseMessage>(
                 connection.InApp,
                 connection.OutNetwork,

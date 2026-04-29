@@ -1,4 +1,5 @@
 using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
 using TurboHTTP.Tests.Shared;
@@ -51,7 +52,7 @@ public sealed class Http2StateMachineSpec
         var preface = sm.TryBuildPreface();
 
         Assert.NotNull(preface);
-        Assert.True(preface.Length > 0);
+        Assert.True(preface.Buffer.Length > 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -207,7 +208,7 @@ public sealed class Http2StateMachineSpec
         var sm = new StateMachine(MakeConfig(), ops);
 
         var frame = new SettingsFrame([]);
-        var buffer = NetworkBuffer.Rent(frame.SerializedSize);
+        var buffer = TransportBuffer.Rent(frame.SerializedSize);
         var span = buffer.FullMemory.Span;
         frame.WriteTo(ref span);
         buffer.Length = frame.SerializedSize;

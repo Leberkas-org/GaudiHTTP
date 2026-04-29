@@ -1,14 +1,9 @@
 using System.Buffers;
 using System.Net;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 
 namespace TurboHTTP.Internal;
 
-/// <summary>
-/// An <see cref="HttpContent"/> backed by a pooled <see cref="IMemoryOwner{T}"/>.
-/// Writes directly from the rented memory without copying. The memory is returned
-/// to the pool when the content is disposed.
-/// </summary>
 internal sealed class PooledBodyContent : HttpContent
 {
     private IMemoryOwner<byte>? _owner;
@@ -20,7 +15,7 @@ internal sealed class PooledBodyContent : HttpContent
         _length = length;
     }
 
-    public static PooledBodyContent FromChunks(byte[]? initial, List<NetworkBuffer>? chunks)
+    public static PooledBodyContent FromChunks(byte[]? initial, List<TransportBuffer>? chunks)
     {
         var totalLength = initial?.Length ?? 0;
         if (chunks is not null)

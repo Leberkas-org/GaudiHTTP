@@ -1,17 +1,17 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Http10;
 
 namespace TurboHTTP.Streams.Stages;
 
 internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
 {
-    private readonly Inlet<IInputItem> _inServer = new("Http10Connection.In.Server");
+    private readonly Inlet<ITransportInbound> _inServer = new("Http10Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http10Connection.Out.Response");
     private readonly Inlet<HttpRequestMessage> _inApp = new("Http10Connection.In.App");
-    private readonly Outlet<IOutputItem> _outNetwork = new("Http10Connection.Out.Network");
+    private readonly Outlet<ITransportOutbound> _outNetwork = new("Http10Connection.Out.Network");
     private readonly TurboClientOptions _options;
 
     public Http10ConnectionStage(TurboClientOptions options)
@@ -28,7 +28,7 @@ internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
     {
         private readonly Http10ConnectionStage _stage;
         private readonly StateMachine _sm;
-        private readonly List<IOutputItem> _pendingOutbound = [];
+        private readonly List<ITransportOutbound> _pendingOutbound = [];
         private readonly List<HttpResponseMessage> _pendingResponses = [];
         private bool _serverFinished;
         private bool _reconnectFailed;
@@ -109,7 +109,7 @@ internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
             _pendingResponses.Add(response);
         }
 
-        void IStageOperations.OnOutbound(IOutputItem item)
+        void IStageOperations.OnOutbound(ITransportOutbound item)
         {
             _pendingOutbound.Add(item);
         }
@@ -128,61 +128,56 @@ internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
         {
             var item = Grab(_stage._inServer);
 
-            switch (item)
+            if (item is TransportConnected)
             {
-                case ConnectedSignalItem:
-                    {
-                        _sm.OnConnectionRestored();
-                        FlushOutbound();
-                        TryPullRequest();
-                        // Pull to receive the response from the new connection
-                        if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
-                        {
-                            Pull(_stage._inServer);
-                        }
+                _sm.OnConnectionRestored();
+                FlushOutbound();
+                TryPullRequest();
+                if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+                {
+                    Pull(_stage._inServer);
+                }
 
-                        return;
-                    }
-                case CloseSignalItem when _sm.IsReconnecting:
-                    {
-                        _sm.OnReconnectAttemptFailed();
-                        if (_reconnectFailed)
-                        {
-                            Log.Warning(
-                                "Http10ConnectionStage: Reconnect failed after max attempts — discarding {0} in-flight request(s).",
-                                _sm.PendingRequestCount);
-                            CompleteStage();
-                            return;
-                        }
+                return;
+            }
 
-                        FlushOutbound();
-                        // Pull to receive ConnectedSignalItem or next CloseSignalItem
-                        if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
-                        {
-                            Pull(_stage._inServer);
-                        }
+            if (item is TransportDisconnected && _sm.IsReconnecting)
+            {
+                _sm.OnReconnectAttemptFailed();
+                if (_reconnectFailed)
+                {
+                    Log.Warning(
+                        "Http10ConnectionStage: Reconnect failed after max attempts — discarding {0} in-flight request(s).",
+                        _sm.PendingRequestCount);
+                    CompleteStage();
+                    return;
+                }
 
-                        return;
-                    }
-                case CloseSignalItem when _sm.HasInFlightRequest:
-                    {
-                        _sm.StartReconnect();
-                        FlushOutbound();
-                        // Pull to receive ConnectedSignalItem from the reconnected transport
-                        if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
-                        {
-                            Pull(_stage._inServer);
-                        }
+                FlushOutbound();
+                if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+                {
+                    Pull(_stage._inServer);
+                }
 
-                        return;
-                    }
-                case CloseSignalItem:
-                    {
-                        // Connection closed with no in-flight request and no reconnect pending.
-                        // App upstream is either already finished or will complete via onUpstreamFinish.
-                        CompleteStage();
-                        return;
-                    }
+                return;
+            }
+
+            if (item is TransportDisconnected && _sm.HasInFlightRequest)
+            {
+                _sm.StartReconnect();
+                FlushOutbound();
+                if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+                {
+                    Pull(_stage._inServer);
+                }
+
+                return;
+            }
+
+            if (item is TransportDisconnected)
+            {
+                CompleteStage();
+                return;
             }
 
             try
@@ -293,12 +288,11 @@ internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
 
         public override void PostStop()
         {
-            // Return any pending pooled items
             foreach (var item in _pendingOutbound)
             {
                 switch (item)
                 {
-                    case NetworkBuffer buffer:
+                    case TransportData { Buffer: var buffer }:
                         buffer.Dispose();
                         break;
                 }

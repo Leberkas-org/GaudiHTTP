@@ -8,7 +8,7 @@ namespace Servus.Akka.Transport.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-internal sealed class QuicConnectionHandle : IAsyncDisposable
+public sealed class QuicConnectionHandle : IAsyncDisposable
 {
     private readonly Func<StreamDirection, CancellationToken, Task<(Stream, long)>> _openStream;
     private readonly Func<CancellationToken, Task<(Stream, long)?>> _acceptInboundStream;

@@ -270,9 +270,8 @@ public sealed class TcpTransportStateMachine
 
     private void OnOutboundWriteFailed(Exception ex)
     {
-        var poolAction = _poolingStrategy.OnDisconnect(_currentLease!, DisconnectReason.Error);
         _leaseReturned = false;
-        ReturnLeaseToPool(poolAction);
+        ReturnLeaseToPool(_poolingStrategy.OnDisconnect(_currentLease!, DisconnectReason.Error));
 
         _ops.OnPushInbound(new TransportDisconnected(DisconnectReason.Error));
         _pumpManager?.StopPumps();

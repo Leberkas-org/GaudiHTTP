@@ -9,7 +9,7 @@ namespace Servus.Akka.IO.Tcp;
 /// Encapsulates connection management and client options, creating a new
 /// <see cref="TcpConnectionStage"/> on demand.
 /// </summary>
-public sealed class TcpTransportFactory : ITransportFactory
+public sealed class TcpTransportFactory
 {
     private readonly IActorRef _connectionManager;
 

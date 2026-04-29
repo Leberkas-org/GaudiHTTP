@@ -1,5 +1,6 @@
 using System.Buffers;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
+using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3.Qpack;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Streams.Stages;
@@ -41,11 +42,11 @@ internal sealed class StreamManager
     }
 
     /// <summary>
-    /// Decodes a NetworkBuffer into HTTP/3 frames using a per-stream decoder.
+    /// Decodes a TransportBuffer into HTTP/3 frames using a per-stream decoder.
     /// Each QUIC stream has independent framing, so decoders must not share
     /// partial-frame remainder state across streams.
     /// </summary>
-    public IReadOnlyList<Http3Frame> DecodeServerData(NetworkBuffer buffer, long streamId)
+    public IReadOnlyList<Http3Frame> DecodeServerData(TransportBuffer buffer, long streamId)
     {
         if (!_streamDecoders.TryGetValue(streamId, out var decoder))
         {

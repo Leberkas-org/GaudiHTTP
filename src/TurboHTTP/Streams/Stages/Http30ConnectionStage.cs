@@ -1,17 +1,17 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Http3;
 
 namespace TurboHTTP.Streams.Stages;
 
 internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 {
-    private readonly Inlet<IInputItem> _inServer = new("Http30Connection.In.Server");
+    private readonly Inlet<ITransportInbound> _inServer = new("Http30Connection.In.Server");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http30Connection.Out.Response");
     private readonly Inlet<HttpRequestMessage> _inApp = new("Http30Connection.In.App");
-    private readonly Outlet<IOutputItem> _outNetwork = new("Http30Connection.Out.Network");
+    private readonly Outlet<ITransportOutbound> _outNetwork = new("Http30Connection.Out.Network");
 
     private readonly TurboClientOptions _options;
 
@@ -36,7 +36,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
         private readonly Http30ConnectionStage _stage;
         private readonly StateMachine _sm;
-        private readonly List<IOutputItem> _pendingOutbound = [];
+        private readonly List<ITransportOutbound> _pendingOutbound = [];
         private readonly List<HttpResponseMessage> _pendingResponses = [];
         private bool _reconnectFailed;
 
@@ -95,11 +95,10 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
         public override void PreStart()
         {
-            EmitMultiple<IOutputItem>(_stage._outNetwork, [
-                new OpenTypedStreamItem(0x00, -2, Outbound: true),
-                new OpenTypedStreamItem(0x02, -3, Outbound: true),
-                new OpenTypedStreamItem(0x03, -4, Outbound: false),
-                new ProtocolReadyItem(),
+            EmitMultiple<ITransportOutbound>(_stage._outNetwork, [
+                new OpenStream(-2, StreamDirection.Bidirectional),
+                new OpenStream(-3, StreamDirection.Bidirectional),
+                new OpenStream(-4, StreamDirection.Unidirectional),
             ]);
             ScheduleIdleCheck();
         }
@@ -114,13 +113,11 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             var goAway = _sm.CheckIdleTimeout();
             if (goAway is not null)
             {
-                // Serialize and emit the GOAWAY frame
-                var buf = RoutedNetworkBuffer.Rent(goAway.SerializedSize);
+                var buf = TransportBuffer.Rent(goAway.SerializedSize);
                 var span = buf.FullMemory.Span;
                 goAway.WriteTo(ref span);
                 buf.Length = goAway.SerializedSize;
-                buf.StreamTypeValue = (long)StreamType.Control;
-                _pendingOutbound.Add(buf);
+                _pendingOutbound.Add(new MultiplexedData(buf, -2));
                 FlushOutbound();
                 CompleteStage();
                 return;
@@ -134,7 +131,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             _pendingResponses.Add(response);
         }
 
-        void IStageOperations.OnOutbound(IOutputItem item)
+        void IStageOperations.OnOutbound(ITransportOutbound item)
         {
             _pendingOutbound.Add(item);
         }
@@ -155,17 +152,18 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
             switch (item)
             {
-                case ConnectedSignalItem:
-                case QuicCloseItem:
+                case TransportConnected:
+                case TransportDisconnected:
+                case StreamClosed:
                     HandleSignalItem(item);
                     return;
-                case RoutedNetworkBuffer tagged:
-                    HandleTaggedStreamData(tagged);
+                case MultiplexedData multiplexed:
+                    HandleTaggedStreamData(multiplexed);
                     return;
-                case NetworkBuffer rawBuffer:
+                case TransportData rawData:
                     Log.Warning(
-                        "Http30ConnectionStage: Received untagged NetworkBuffer — dropping to prevent stream ID misrouting.");
-                    rawBuffer.Dispose();
+                        "Http30ConnectionStage: Received untagged TransportData — dropping to prevent stream ID misrouting.");
+                    rawData.Buffer.Dispose();
                     Pull(_stage._inServer);
                     return;
                 default:
@@ -174,12 +172,11 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             }
         }
 
-        private void HandleSignalItem(IInputItem item)
+        private void HandleSignalItem(ITransportInbound item)
         {
             switch (item)
             {
-                // Reconnect: new connection ready — replay buffered requests
-                case ConnectedSignalItem:
+                case TransportConnected:
                     {
                         _sm.OnConnectionRestored();
                         FlushOutbound();
@@ -191,24 +188,21 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
                         return;
                     }
-                // Request stream FIN — server finished sending the response.
-                case QuicCloseItem { Kind: QuicCloseKind.RequestStreamComplete } close:
+                case StreamClosed { StreamId: >= 0 } streamClosed:
                     {
-                        if (close.StreamId >= 0)
-                        {
-                            _sm.FlushPendingResponse(close.StreamId);
-                        }
-                        else
-                        {
-                            _sm.FlushPendingResponse();
-                        }
-
+                        _sm.FlushPendingResponse(streamClosed.StreamId);
                         FlushResponses();
                         TryPullRequest();
                         return;
                     }
-                // Reconnect: connection dropped again while already reconnecting
-                case QuicCloseItem when _sm.IsReconnecting:
+                case StreamClosed:
+                    {
+                        _sm.FlushPendingResponse();
+                        FlushResponses();
+                        TryPullRequest();
+                        return;
+                    }
+                case TransportDisconnected when _sm.IsReconnecting:
                     {
                         _sm.OnReconnectAttemptFailed();
                         if (_reconnectFailed)
@@ -226,8 +220,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
                         return;
                     }
-                // Abrupt close with in-flight requests — reconnect
-                case QuicCloseItem when _sm.HasInFlightRequests:
+                case TransportDisconnected when _sm.HasInFlightRequests:
                     {
                         _sm.OnConnectionLost();
                         FlushOutbound();
@@ -238,54 +231,44 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
                         return;
                     }
-                // QuicCloseItem with no in-flight — complete normally
-                case QuicCloseItem:
+                case TransportDisconnected:
                     CompleteStage();
                     return;
             }
         }
 
-        private void HandleTaggedStreamData(RoutedNetworkBuffer tagged)
+        private void HandleTaggedStreamData(MultiplexedData tagged)
         {
-            StreamType? type = tagged switch
-            {
-                { StreamTypeValue: (long)StreamType.Control } => StreamType.Control,
-                { StreamTypeValue: (long)StreamType.QpackEncoder } => StreamType.QpackEncoder,
-                { StreamTypeValue: (long)StreamType.QpackDecoder } => StreamType.QpackDecoder,
-                { StreamTypeValue: null or < 0 } => null,
-                _ => throw new ArgumentOutOfRangeException(nameof(tagged), tagged, null)
-            };
+            var streamId = tagged.StreamId;
 
-            switch (type)
+            switch (streamId)
             {
-                case StreamType.QpackDecoder:
+                case -4:
                     {
-                        _sm.ProcessQpackDecoderBytes(tagged.Memory);
-                        tagged.Dispose();
+                        _sm.ProcessQpackDecoderBytes(tagged.Buffer.Memory);
+                        tagged.Buffer.Dispose();
                         Pull(_stage._inServer);
                         return;
                     }
-                case StreamType.QpackEncoder:
+                case -3:
                     {
-                        _sm.ProcessQpackEncoderBytes(tagged.Memory);
-                        tagged.Dispose();
+                        _sm.ProcessQpackEncoderBytes(tagged.Buffer.Memory);
+                        tagged.Buffer.Dispose();
                         Pull(_stage._inServer);
                         return;
                     }
-                case StreamType.Control:
-                    ProcessFrameData(tagged, streamId: ControlStreamDecoderId);
+                case -2:
+                    ProcessFrameData(tagged.Buffer, streamId: ControlStreamDecoderId);
                     return;
-                case StreamType.Push:
-                    break;
                 default:
                     {
-                        ProcessFrameData(tagged, tagged.StreamId!.Value);
+                        ProcessFrameData(tagged.Buffer, streamId);
                         return;
                     }
             }
         }
 
-        private void ProcessFrameData(NetworkBuffer buffer, long streamId)
+        private void ProcessFrameData(TransportBuffer buffer, long streamId)
         {
             var frames = _sm.DecodeServerData(buffer, streamId);
 
@@ -394,7 +377,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 return;
             }
 
-            EmitMultiple(_stage._outNetwork, _pendingOutbound.ToArray());
+            EmitMultiple<ITransportOutbound>(_stage._outNetwork, _pendingOutbound.ToArray());
             _pendingOutbound.Clear();
         }
 

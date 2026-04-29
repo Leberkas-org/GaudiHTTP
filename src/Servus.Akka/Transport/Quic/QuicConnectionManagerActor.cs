@@ -8,7 +8,7 @@ namespace Servus.Akka.Transport.Quic;
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
+public sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
 {
     public sealed record Acquire(
         QuicTransportOptions Options,
@@ -18,8 +18,13 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
     public sealed record Release(QuicConnectionLease Lease, bool CanReuse);
 
     private sealed record Established(QuicConnectionLease Lease, Acquire Original);
+
     private sealed record EstablishFailed(Exception Ex, Acquire Original);
-    private sealed class Evict { public static readonly Evict Instance = new(); }
+
+    private sealed class Evict
+    {
+        public static readonly Evict Instance = new();
+    }
 
     private sealed class HostState(TransportOptions options, int maxConnections)
     {
@@ -46,11 +51,16 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
                 static (state, token) => ((TaskCompletionSource<QuicConnectionLease>)state!).TrySetCanceled(token),
                 tcs);
         }
+
         actor.Tell(new Acquire(options, tcs, ct));
         return tcs.Task;
     }
 
-    public QuicConnectionManagerActor(IQuicConnectionFactory factory)
+    public QuicConnectionManagerActor() : this(new QuicConnectionFactory())
+    {
+    }
+
+    internal QuicConnectionManagerActor(IQuicConnectionFactory factory)
     {
         _factory = factory;
         Receive<Acquire>(OnAcquire);
@@ -84,6 +94,7 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
             {
                 return;
             }
+
             lease.MarkIdle();
         }
 
@@ -110,10 +121,12 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
                     break;
                 }
             }
+
             if (msg.Lease.ActiveStreams == 0)
             {
                 msg.Lease.Dispose();
             }
+
             return;
         }
     }
@@ -173,11 +186,13 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
             {
                 pending.Tcs.TrySetException(new ObjectDisposedException(nameof(QuicConnectionManagerActor)));
             }
+
             foreach (var lease in host.Leases)
             {
                 lease.Dispose();
             }
         }
+
         _hosts.Clear();
     }
 
@@ -188,6 +203,7 @@ internal sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
             state = new HostState(options, options.MaxConnectionsPerHost);
             _hosts[options] = state;
         }
+
         return state;
     }
 

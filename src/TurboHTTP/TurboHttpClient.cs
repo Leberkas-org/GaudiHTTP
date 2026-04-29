@@ -4,7 +4,7 @@ using System.Net.Http.Headers;
 using System.Threading.Channels;
 using System.Threading.Tasks.Sources;
 using Akka.Actor;
-using Servus.Akka.IO;
+using Servus.Akka.Transport;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Lifecycle;
 
@@ -177,7 +177,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
         _credentials = clientOptions.Credentials;
         _preAuthenticate = clientOptions.PreAuthenticate;
         UpdateCachedOptions();
-        NetworkBuffer.ConfigurePoolSize(512);
+        TransportBuffer.ConfigurePoolSize(512);
         Manager = new ClientStreamManager(clientOptions, OptionsFactory, system, pipeline);
         return;
 
