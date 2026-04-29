@@ -1,22 +1,16 @@
 using System.Net.Security;
 using Servus.Akka.IO;
-using Servus.Akka.IO.Quic;
-using Servus.Akka.IO.Tcp;
+using Servus.Akka.Transport;
 
 namespace TurboHTTP.Internal;
 
 internal static class OptionsFactory
 {
-    private static bool IsHttp3(Version? requestVersion)
-    {
-        return requestVersion is { Major: 3, Minor: 0 };
-    }
-
-    internal static TcpOptions Build(RequestEndpoint endpoint, TurboClientOptions clientOptions)
+    internal static TransportOptions Build(RequestEndpoint endpoint, TurboClientOptions clientOptions)
     {
         var isTls = endpoint.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)
                     || endpoint.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase);
-        var port = endpoint.Port != 0 ? endpoint.Port : isTls ? 443 : 80;
+        var port = (ushort)(endpoint.Port != 0 ? endpoint.Port : isTls ? 443 : 80);
         List<SslApplicationProtocol>? alpn = endpoint.Version switch
         {
             { Major: 3, Minor: 0 } => [SslApplicationProtocol.Http3],
@@ -25,9 +19,9 @@ internal static class OptionsFactory
             _ => null
         };
 
-        if (IsHttp3(endpoint.Version))
+        if (endpoint.Version is { Major: 3, Minor: 0 })
         {
-            return new QuicOptions
+            return new QuicTransportOptions
             {
                 Host = endpoint.Host,
                 Port = port,
@@ -37,13 +31,14 @@ internal static class OptionsFactory
                 SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
                 AllowConnectionMigration = clientOptions.Http3.AllowConnectionMigration,
                 AllowEarlyData = clientOptions.Http3.AllowEarlyData,
-                ApplicationProtocols = alpn
+                ApplicationProtocols = alpn,
+                AutoReconnect = true
             };
         }
 
         if (isTls)
         {
-            return new TlsOptions
+            return new TlsTransportOptions
             {
                 Host = endpoint.Host,
                 Port = port,
@@ -61,7 +56,7 @@ internal static class OptionsFactory
             };
         }
 
-        return new TcpOptions
+        return new TcpTransportOptions
         {
             Host = endpoint.Host,
             Port = port,
