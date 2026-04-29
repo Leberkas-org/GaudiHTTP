@@ -16,4 +16,7 @@ public sealed record QuicTransportOptions : TransportOptions
     public RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; init; }
     public SslProtocols EnabledSslProtocols { get; init; } = SslProtocols.None;
     public List<SslApplicationProtocol>? ApplicationProtocols { get; init; }
+    public bool AutoReconnect { get; init; }
+    public int MaxConnectionsPerHost { get; init; } = 1;
+    public TimeSpan ConnectionLifetime { get; init; } = TimeSpan.FromMinutes(10);
 }

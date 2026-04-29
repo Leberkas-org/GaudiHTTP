@@ -2,6 +2,7 @@ using Servus.Akka.Transport;
 
 namespace Servus.Akka.Tests.Transport;
 
+[Collection("TransportBuffer")]
 public sealed class TransportBufferSpec
 {
     [Fact(Timeout = 5000)]

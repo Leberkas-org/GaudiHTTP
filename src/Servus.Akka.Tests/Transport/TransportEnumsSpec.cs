@@ -5,11 +5,11 @@ namespace Servus.Akka.Tests.Transport;
 public sealed class TransportEnumsSpec
 {
     [Fact(Timeout = 5000)]
-    public void DisconnectReason_should_have_four_values()
+    public void DisconnectReason_should_have_five_values()
     {
         var values = Enum.GetValues<DisconnectReason>();
 
-        Assert.Equal(4, values.Length);
+        Assert.Equal(5, values.Length);
     }
 
     [Fact(Timeout = 5000)]

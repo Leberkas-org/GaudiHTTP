@@ -30,7 +30,7 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
     }
 
     private readonly Dictionary<TransportOptions, HostState> _hosts = new();
-    private readonly IConnectionFactory<ConnectionLease> _factory;
+    private readonly ITcpConnectionFactory _factory;
     private readonly IPoolingStrategy _poolingStrategy;
     private const string EvictTimerKey = "evict-idle";
 
@@ -52,7 +52,7 @@ public sealed class TcpConnectionManagerActor : ReceiveActor, IWithTimers
         return tcs.Task;
     }
 
-    public TcpConnectionManagerActor(IConnectionFactory<ConnectionLease> factory, IPoolingStrategy poolingStrategy)
+    public TcpConnectionManagerActor(ITcpConnectionFactory factory, IPoolingStrategy poolingStrategy)
     {
         _factory = factory;
         _poolingStrategy = poolingStrategy;

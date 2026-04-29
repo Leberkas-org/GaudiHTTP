@@ -13,3 +13,9 @@ public sealed record StreamOpened(long StreamId, StreamDirection Direction) : IT
 public sealed record StreamClosed(long StreamId, DisconnectReason Reason) : ITransportInbound;
 
 public sealed record InboundStreamAccepted(long StreamId, long StreamType) : ITransportInbound;
+
+public sealed record DataRejected(TransportBuffer Buffer) : ITransportInbound;
+
+public sealed record ConnectionMigrationDetected(
+    System.Net.EndPoint OldEndPoint,
+    System.Net.EndPoint NewEndPoint) : ITransportInbound;
