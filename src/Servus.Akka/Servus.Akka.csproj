@@ -12,6 +12,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="Servus.Akka.Tests"/>
+        <InternalsVisibleTo Include="TurboHTTP.Tests"/>
     </ItemGroup>
 
 </Project>

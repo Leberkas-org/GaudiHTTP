@@ -74,6 +74,9 @@ public sealed class PoolingStrategySpec
 
         public bool CanReuse(TransportOptions options) => false;
         public PoolAction OnRelease(TransportOptions options) => PoolAction.Dispose;
+        public PoolAction OnIdle(object lease) => PoolAction.Dispose;
+        public PoolAction OnDisconnect(object lease, DisconnectReason reason) => PoolAction.Dispose;
+        public PoolAction OnUpstreamFinish(object lease) => PoolAction.Reuse;
     }
 
     private sealed class ReuseStrategy(int maxConnectionsPerHost) : IPoolingStrategy
@@ -84,5 +87,8 @@ public sealed class PoolingStrategySpec
 
         public bool CanReuse(TransportOptions options) => true;
         public PoolAction OnRelease(TransportOptions options) => PoolAction.Reuse;
+        public PoolAction OnIdle(object lease) => PoolAction.Dispose;
+        public PoolAction OnDisconnect(object lease, DisconnectReason reason) => PoolAction.Dispose;
+        public PoolAction OnUpstreamFinish(object lease) => PoolAction.Reuse;
     }
 }
