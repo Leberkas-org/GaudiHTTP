@@ -3,8 +3,6 @@ using Akka.Actor;
 
 namespace Servus.Akka.Transport.Quic;
 
-#pragma warning disable CA1416
-
 internal sealed class QuicPumpManager
 {
     private readonly IActorRef _self;
@@ -115,5 +113,3 @@ internal sealed class QuicPumpManager
         self.Tell(new InboundComplete(closeReason, gen, streamId));
     }
 }
-
-#pragma warning restore CA1416

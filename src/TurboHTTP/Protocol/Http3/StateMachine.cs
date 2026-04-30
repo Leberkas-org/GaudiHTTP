@@ -50,6 +50,10 @@ internal sealed class StateMachine : IDisposable
     // Preface tracking
     private bool _controlPrefaceSent;
 
+    // Server-initiated stream mapping (QUIC stream ID → logical stream ID)
+    private readonly Dictionary<long, long> _serverStreamMap = new();
+    private readonly HashSet<long> _pendingStreamType = [];
+
     /// <summary>Whether a new request can be accepted (no GOAWAY + not reconnecting + concurrency budget).</summary>
     public bool CanAcceptRequest => !Connection.GoAwayReceived && !IsReconnecting && Tracker.CanOpenStream();
 
@@ -147,6 +151,67 @@ internal sealed class StateMachine : IDisposable
         buf.Length = totalSize;
 
         return new MultiplexedData(buf, -2);
+    }
+
+    /// <summary>
+    /// Registers a server-initiated stream that needs stream-type identification.
+    /// Only call for streams NOT opened by us — i.e. streams from the QUIC accept loop.
+    /// </summary>
+    public void OnServerStreamOpened(long quicStreamId)
+    {
+        if (quicStreamId < 0 || (quicStreamId & 1) == 0)
+        {
+            return;
+        }
+
+        _pendingStreamType.Add(quicStreamId);
+    }
+
+    /// <summary>
+    /// Resolves a QUIC stream ID to its logical stream ID (-2 control, -3 QPACK encoder, -4 QPACK decoder).
+    /// For server-initiated streams, strips the stream-type prefix from the first buffer and establishes the mapping.
+    /// Returns the logical stream ID and (potentially trimmed) buffer. The caller must use the returned values.
+    /// </summary>
+    public (long LogicalStreamId, TransportBuffer Buffer) ResolveStreamId(long quicStreamId, TransportBuffer buffer)
+    {
+        if (_pendingStreamType.Remove(quicStreamId))
+        {
+            var span = buffer.Span;
+            if (!QuicVarInt.TryDecode(span, out var rawType, out var typeBytes))
+            {
+                return (quicStreamId, buffer);
+            }
+
+            var logicalId = (StreamType)rawType switch
+            {
+                StreamType.Control => -2L,
+                StreamType.QpackEncoder => -3L,
+                StreamType.QpackDecoder => -4L,
+                _ => quicStreamId
+            };
+
+            _serverStreamMap[quicStreamId] = logicalId;
+
+            var remaining = span.Length - typeBytes;
+            if (remaining <= 0)
+            {
+                buffer.Dispose();
+                return (logicalId, null!);
+            }
+
+            var trimmed = TransportBuffer.Rent(remaining);
+            span[typeBytes..].CopyTo(trimmed.FullMemory.Span);
+            trimmed.Length = remaining;
+            buffer.Dispose();
+            return (logicalId, trimmed);
+        }
+
+        if (_serverStreamMap.TryGetValue(quicStreamId, out var mapped))
+        {
+            return (mapped, buffer);
+        }
+
+        return (quicStreamId, buffer);
     }
 
     /// <summary>
@@ -325,6 +390,8 @@ internal sealed class StateMachine : IDisposable
         _controlPrefaceSent = false;
         _qpackHandler.Reset();
         TableSync.Reset();
+        _serverStreamMap.Clear();
+        _pendingStreamType.Clear();
     }
 
     /// <summary>
@@ -332,6 +399,7 @@ internal sealed class StateMachine : IDisposable
     /// </summary>
     public void OnConnectionRestored()
     {
+        var wasReconnecting = IsReconnecting;
         IsReconnecting = false;
         _reconnectAttempts = 0;
 
@@ -341,7 +409,10 @@ internal sealed class StateMachine : IDisposable
             _ops.OnOutbound(preface);
         }
 
-        ReplayBufferedFrames();
+        if (wasReconnecting)
+        {
+            ReplayBufferedFrames();
+        }
     }
 
     /// <summary>
@@ -402,6 +473,8 @@ internal sealed class StateMachine : IDisposable
 
         _streamManager.Correlate(streamId, request);
 
+        _ops.OnOutbound(new OpenStream(streamId, StreamDirection.Bidirectional));
+
         FlushEncoderInstructions();
 
         foreach (var f in encoded)
@@ -409,7 +482,7 @@ internal sealed class StateMachine : IDisposable
             EmitSerializedFrame(f, streamId);
         }
 
-        _ops.OnOutbound(new CloseStream(streamId));
+        _ops.OnOutbound(new CompleteWrites(streamId));
         return true;
     }
 

@@ -28,7 +28,7 @@ public sealed class ClientByteMoverSpec
         await ClientByteMover.MoveStreamToChannel(state, () => { }, cts.Token);
 
         Assert.True(state.InboundReader.TryRead(out var buf));
-        Assert.Equal(2, buf!.Length);
+        Assert.Equal(2, buf.Length);
         Assert.Equal(0xAB, buf.Span[0]);
         Assert.Equal(0xCD, buf.Span[1]);
         buf.Dispose();

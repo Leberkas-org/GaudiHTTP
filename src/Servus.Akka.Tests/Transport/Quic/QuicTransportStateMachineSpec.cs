@@ -38,7 +38,7 @@ public sealed class QuicTransportStateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void HandlePush_OpenStream_should_enqueue_when_not_connected()
+    public void HandlePush_OpenStream_should_reject_when_not_connected()
     {
         var ops = new StubOps();
         var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
@@ -69,6 +69,28 @@ public sealed class QuicTransportStateMachineSpec
         var buffer = TransportBuffer.Rent(16);
         buffer.Length = 4;
         sm.HandlePush(new MultiplexedData(buffer, 1));
+
+        Assert.True(ops.PullCount > 0);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void HandlePush_CompleteWrites_should_signal_pull_when_no_stream()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+
+        sm.HandlePush(new CompleteWrites(99));
+
+        Assert.True(ops.PullCount > 0);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void HandlePush_ResetStream_should_signal_pull_when_no_stream()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+
+        sm.HandlePush(new ResetStream(99));
 
         Assert.True(ops.PullCount > 0);
     }

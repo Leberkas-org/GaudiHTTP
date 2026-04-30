@@ -10,6 +10,10 @@ public sealed record OpenStream(long StreamId, StreamDirection Direction) : ITra
 
 public sealed record CloseStream(long StreamId) : ITransportOutbound;
 
+public sealed record CompleteWrites(long StreamId) : ITransportOutbound;
+
+public sealed record ResetStream(long StreamId, long ErrorCode = 0) : ITransportOutbound;
+
 public sealed record TransportData(TransportBuffer Buffer) : ITransportOutbound, ITransportInbound;
 
 public sealed record MultiplexedData(TransportBuffer Buffer, long StreamId) : ITransportOutbound, ITransportInbound;

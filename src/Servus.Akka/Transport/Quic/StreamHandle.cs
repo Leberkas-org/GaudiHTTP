@@ -3,12 +3,10 @@ namespace Servus.Akka.Transport.Quic;
 public sealed class StreamHandle : IAsyncDisposable
 {
     private readonly Stream _stream;
-    private readonly Action? _onWritesComplete;
 
-    internal StreamHandle(Stream stream, Action? onWritesComplete)
+    internal StreamHandle(Stream stream)
     {
         _stream = stream;
-        _onWritesComplete = onWritesComplete;
     }
 
     public ValueTask WriteAsync(TransportBuffer buffer)
@@ -24,6 +22,13 @@ public sealed class StreamHandle : IAsyncDisposable
         return AwaitAndDispose(task, buffer);
     }
 
+    public void Write(TransportBuffer buffer)
+    {
+        var memory = buffer.Memory;
+        _stream.Write(memory.Span);
+        buffer.Dispose();
+    }
+
     public ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct)
     {
         return _stream.ReadAsync(buffer, ct);
@@ -31,7 +36,18 @@ public sealed class StreamHandle : IAsyncDisposable
 
     public void CompleteWrites()
     {
-        _onWritesComplete?.Invoke();
+        if (_stream is System.Net.Quic.QuicStream qs)
+        {
+            qs.CompleteWrites();
+        }
+    }
+
+    public void Abort(long errorCode)
+    {
+        if (_stream is System.Net.Quic.QuicStream qs)
+        {
+            qs.Abort(System.Net.Quic.QuicAbortDirection.Both, errorCode);
+        }
     }
 
     public ValueTask DisposeAsync() => _stream.DisposeAsync();

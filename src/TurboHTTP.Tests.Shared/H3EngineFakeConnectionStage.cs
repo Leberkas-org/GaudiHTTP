@@ -2,7 +2,6 @@ using System.Threading.Channels;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Http3;
 
 namespace TurboHTTP.Tests.Shared;
 
@@ -29,9 +28,9 @@ internal sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<ITransp
     private sealed class Logic : GraphStageLogic
     {
         private readonly H3EngineFakeConnectionStage _stage;
-        private int _serverFrameIndex;
-        private int _unlockedFrames;
-        private bool _downstreamWaiting;
+        private readonly Queue<ITransportInbound> _pendingItems = new();
+        private bool _connectedSent;
+        private bool _serverFramesEnqueued;
 
         public Logic(H3EngineFakeConnectionStage stage) : base(stage.Shape)
         {
@@ -48,43 +47,55 @@ internal sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<ITransp
                         streamType = h3Data.StreamId;
                     }
 
-                    if (item is TransportData { Buffer: var dataChunk } || item is MultiplexedData { Buffer: var buf })
+                    if (item is TransportData { Buffer: var dataChunk })
                     {
-                        var buffer = item is TransportData { Buffer: var d } ? d : (item as MultiplexedData)!.Buffer;
-                        stage.OutboundChannel.Writer.TryWrite((
-                            TransportBufferTestExtensions.FromArray(buffer.Span.ToArray()), streamType));
-                        buffer.Dispose();
+                        _stage.OutboundChannel.Writer.TryWrite((
+                            TransportBufferTestExtensions.FromArray(dataChunk.Span.ToArray()), streamType));
+                        dataChunk.Dispose();
+                    }
+                    else if (item is MultiplexedData { Buffer: var buf })
+                    {
+                        _stage.OutboundChannel.Writer.TryWrite((
+                            TransportBufferTestExtensions.FromArray(buf.Span.ToArray()), streamType));
+                        buf.Dispose();
+                    }
 
-                        Unlock();
+                    if (item is CompleteWrites && !_serverFramesEnqueued)
+                    {
+                        _serverFramesEnqueued = true;
+                        EnqueueServerFrames();
                     }
 
                     if (!IsClosed(stage.In))
                     {
                         Pull(stage.In);
                     }
+
+                    TryPushNext();
                 },
                 onUpstreamFinish: () =>
                 {
+                    if (!_serverFramesEnqueued)
+                    {
+                        _serverFramesEnqueued = true;
+                        EnqueueServerFrames();
+                    }
+
+                    _stage.OutboundChannel.Writer.TryComplete();
+
                     if (!IsClosed(stage.Out))
                     {
-                        Complete(stage.Out);
+                        TryPushNext();
+                        if (_pendingItems.Count == 0)
+                        {
+                            Complete(stage.Out);
+                        }
                     }
                 },
                 onUpstreamFailure: FailStage);
 
             SetHandler(stage.Out,
-                onPull: () =>
-                {
-                    if (_unlockedFrames > 0 && _serverFrameIndex < _stage._serverFrames.Count)
-                    {
-                        _unlockedFrames--;
-                        PushNextFrame();
-                    }
-                    else
-                    {
-                        _downstreamWaiting = true;
-                    }
-                },
+                onPull: TryPushNext,
                 onDownstreamFinish: _ =>
                 {
                     if (!IsClosed(stage.In))
@@ -94,40 +105,52 @@ internal sealed class H3EngineFakeConnectionStage : GraphStage<FlowShape<ITransp
                 });
         }
 
-        private void Unlock()
+        private void EnqueueServerFrames()
         {
-            if (_downstreamWaiting && _serverFrameIndex < _stage._serverFrames.Count)
+            for (var i = 0; i < _stage._serverFrames.Count; i++)
             {
-                _downstreamWaiting = false;
-                PushNextFrame();
+                var frameBytes = _stage._serverFrames[i];
+                var buf = TransportBufferTestExtensions.FromArray(frameBytes);
+
+                if (i == 0)
+                {
+                    _pendingItems.Enqueue(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
+                    _pendingItems.Enqueue(new MultiplexedData(buf, 3));
+                }
+                else
+                {
+                    _pendingItems.Enqueue(new MultiplexedData(buf, 0));
+                }
             }
-            else
+
+            if (_stage._serverFrames.Count > 1)
             {
-                _unlockedFrames++;
+                _pendingItems.Enqueue(new StreamReadCompleted(0));
             }
         }
 
-        private void PushNextFrame()
+        private void TryPushNext()
         {
-            var frameBytes = _stage._serverFrames[_serverFrameIndex++];
-            var buf = TransportBufferTestExtensions.FromArray(frameBytes);
-
-            long streamId;
-            if (_serverFrameIndex == 1)
+            if (!IsAvailable(_stage.Out))
             {
-                streamId = (long)StreamType.Control;
-            }
-            else
-            {
-                streamId = 0;
+                return;
             }
 
-            ITransportInbound item = new MultiplexedData(buf, streamId);
-            Push(_stage.Out, item);
-
-            if (_serverFrameIndex >= _stage._serverFrames.Count)
+            if (!_connectedSent)
             {
-                Complete(_stage.Out);
+                _connectedSent = true;
+                Push(_stage.Out, new TransportConnected(default!));
+                return;
+            }
+
+            if (_pendingItems.TryDequeue(out var next))
+            {
+                Push(_stage.Out, next);
+
+                if (_pendingItems.Count == 0 && IsClosed(_stage.In))
+                {
+                    Complete(_stage.Out);
+                }
             }
         }
 

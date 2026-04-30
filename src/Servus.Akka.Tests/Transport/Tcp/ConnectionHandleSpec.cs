@@ -26,7 +26,7 @@ public sealed class ConnectionHandleSpec
         handle.Write(buf);
 
         Assert.True(outbound.Reader.TryRead(out var received));
-        Assert.Equal(0xAA, received!.Span[0]);
+        Assert.Equal(0xAA, received.Span[0]);
         received.Dispose();
         cts.Dispose();
     }

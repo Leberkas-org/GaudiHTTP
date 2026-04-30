@@ -91,6 +91,6 @@ public sealed class SmokeSpec : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.TryGetValues("X-Smoke-Test", out var values));
-        Assert.Equal("h3-value", values!.Single());
+        Assert.Equal("h3-value", values.Single());
     }
 }

@@ -3,8 +3,8 @@ namespace Servus.Akka.Transport.Quic;
 public sealed class QuicConnectionLease : IAsyncDisposable
 {
     private readonly long _createdTicks = Environment.TickCount64;
+    private readonly int _maxConcurrentStreams;
     private bool _alive = true;
-    private int _maxConcurrentStreams;
 
     public QuicConnectionLease(QuicConnectionHandle handle, int maxConcurrentStreams)
     {

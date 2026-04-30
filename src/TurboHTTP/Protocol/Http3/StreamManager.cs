@@ -149,6 +149,8 @@ internal sealed class StreamManager
         _correlationMap[streamId] = request;
     }
 
+    public bool HasCorrelation(long streamId) => _correlationMap.ContainsKey(streamId);
+
     /// <summary>
     /// Returns all correlated requests as a list and clears the correlation map.
     /// Used during reconnection to snapshot old correlations for replay.

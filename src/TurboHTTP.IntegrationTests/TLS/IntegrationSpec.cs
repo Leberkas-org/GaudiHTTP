@@ -73,7 +73,7 @@ public sealed class IntegrationSpec
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.True(response.Headers.TryGetValues("X-Custom-Tls", out var values));
-        Assert.Equal("secure-value", values!.First());
+        Assert.Equal("secure-value", values.First());
     }
 
 

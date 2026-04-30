@@ -64,7 +64,7 @@ public sealed class EdgeCaseSpec
             Assert.True(
                 response.Headers.TryGetValues($"X-Custom-{i:D3}", out var values),
                 $"Header X-Custom-{i:D3} missing");
-            Assert.Equal($"value-{i:D3}", string.Join("", values!));
+            Assert.Equal($"value-{i:D3}", string.Join("", values));
         }
     }
 
@@ -83,7 +83,7 @@ public sealed class EdgeCaseSpec
 
         // Verify at least one of the large headers arrived
         Assert.True(response.Headers.TryGetValues("X-Large-00", out var headerValues));
-        Assert.Equal(90, string.Join("", headerValues!).Length);
+        Assert.Equal(90, string.Join("", headerValues).Length);
     }
 
     [Fact(Timeout = 20000)]

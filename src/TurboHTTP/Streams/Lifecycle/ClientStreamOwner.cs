@@ -156,8 +156,6 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
                 .RunWith(
                     Sink.ForEach<HttpResponseMessage>(msg =>
                     {
-                        // Direct PendingRequest completion — no dictionary lookup (G2).
-                        // Version guard prevents stale completions when PendingRequest is pooled (E4).
                         if (msg.RequestMessage is { } req &&
                             req.Options.TryGetValue(TcsCorrelation.Key, out var pending) &&
                             req.Options.TryGetValue(TcsCorrelation.VersionKey, out var ver))
@@ -166,7 +164,6 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
                             return;
                         }
 
-                        // Also write to the response channel for ITurboHttpClient.Responses consumers.
                         create.ResponseWriter.TryWrite(msg);
                     }),
                     _materializer);

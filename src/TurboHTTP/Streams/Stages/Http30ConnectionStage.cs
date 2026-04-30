@@ -38,6 +38,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
         private readonly StateMachine _sm;
         private readonly List<ITransportOutbound> _pendingOutbound = [];
         private readonly List<HttpResponseMessage> _pendingResponses = [];
+        private bool _transportConnected;
         private bool _reconnectFailed;
 
         public Logic(Http30ConnectionStage stage) : base(stage.Shape)
@@ -95,21 +96,16 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
         public override void PreStart()
         {
-            var preface = _sm.TryBuildControlPreface();
-            var itemsToEmit = new List<ITransportOutbound>();
+            _pendingOutbound.Add(new OpenStream(-2, StreamDirection.Unidirectional));
+            _pendingOutbound.Add(new OpenStream(-3, StreamDirection.Unidirectional));
+            _pendingOutbound.Add(new OpenStream(-4, StreamDirection.Unidirectional));
 
+            var preface = _sm.TryBuildControlPreface();
             if (preface is not null)
             {
-                itemsToEmit.Add(preface);
+                _pendingOutbound.Add(preface);
             }
 
-            itemsToEmit.AddRange([
-                new OpenStream(-2, StreamDirection.Bidirectional),
-                new OpenStream(-3, StreamDirection.Bidirectional),
-                new OpenStream(-4, StreamDirection.Unidirectional),
-            ]);
-
-            EmitMultiple<ITransportOutbound>(_stage._outNetwork, itemsToEmit);
             ScheduleIdleCheck();
         }
 
@@ -165,7 +161,15 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 case TransportConnected:
                 case TransportDisconnected:
                 case StreamClosed:
+                case StreamReadCompleted:
                     HandleSignalItem(item);
+                    return;
+                case ServerStreamAccepted accepted:
+                    _sm.OnServerStreamOpened(accepted.StreamId);
+                    Pull(_stage._inServer);
+                    return;
+                case StreamOpened:
+                    Pull(_stage._inServer);
                     return;
                 case MultiplexedData multiplexed:
                     HandleTaggedStreamData(multiplexed);
@@ -188,6 +192,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             {
                 case TransportConnected:
                     {
+                        _transportConnected = true;
                         _sm.OnConnectionRestored();
                         FlushOutbound();
                         TryPullRequest();
@@ -196,6 +201,13 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                             Pull(_stage._inServer);
                         }
 
+                        return;
+                    }
+                case StreamReadCompleted { StreamId: >= 0 } readCompleted:
+                    {
+                        _sm.FlushPendingResponse(readCompleted.StreamId);
+                        FlushResponses();
+                        TryPullRequest();
                         return;
                     }
                 case StreamClosed { StreamId: >= 0 } streamClosed:
@@ -249,30 +261,36 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
         private void HandleTaggedStreamData(MultiplexedData tagged)
         {
-            var streamId = tagged.StreamId;
+            var (streamId, buffer) = _sm.ResolveStreamId(tagged.StreamId, tagged.Buffer);
+
+            if (buffer is null)
+            {
+                Pull(_stage._inServer);
+                return;
+            }
 
             switch (streamId)
             {
                 case -4:
                     {
-                        _sm.ProcessQpackDecoderBytes(tagged.Buffer.Memory);
-                        tagged.Buffer.Dispose();
+                        _sm.ProcessQpackDecoderBytes(buffer.Memory);
+                        buffer.Dispose();
                         Pull(_stage._inServer);
                         return;
                     }
                 case -3:
                     {
-                        _sm.ProcessQpackEncoderBytes(tagged.Buffer.Memory);
-                        tagged.Buffer.Dispose();
+                        _sm.ProcessQpackEncoderBytes(buffer.Memory);
+                        buffer.Dispose();
                         Pull(_stage._inServer);
                         return;
                     }
                 case -2:
-                    ProcessFrameData(tagged.Buffer, streamId: ControlStreamDecoderId);
+                    ProcessFrameData(buffer, streamId: ControlStreamDecoderId);
                     return;
                 default:
                     {
-                        ProcessFrameData(tagged.Buffer, streamId);
+                        ProcessFrameData(buffer, streamId);
                         return;
                     }
             }
@@ -376,6 +394,22 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
         {
             if (_pendingOutbound.Count == 0)
             {
+                return;
+            }
+
+            if (!_transportConnected)
+            {
+                for (var i = _pendingOutbound.Count - 1; i >= 0; i--)
+                {
+                    if (_pendingOutbound[i] is ConnectTransport && IsAvailable(_stage._outNetwork))
+                    {
+                        var connect = _pendingOutbound[i];
+                        _pendingOutbound.RemoveAt(i);
+                        Push(_stage._outNetwork, connect);
+                        return;
+                    }
+                }
+
                 return;
             }
 
