@@ -1,6 +1,11 @@
 using System.Net;
+using System.Net.Security;
+using System.Net.Sockets;
 using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
 
@@ -109,8 +114,7 @@ public sealed class TlsClientProviderSpec
     {
         var proxyStream = new MockProxyStream("HTTP/1.1 407 Proxy Authentication Required\r\n\r\n");
 
-        var ex = await Assert.ThrowsAsync<HttpRequestException>(
-            () => TlsClientProvider.EstablishConnectTunnelAsync(
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => TlsClientProvider.EstablishConnectTunnelAsync(
                 proxyStream,
                 "example.com",
                 443,
@@ -128,8 +132,7 @@ public sealed class TlsClientProviderSpec
     {
         var proxyStream = new MockProxyStream("HTTP/1.1 503 Service Unavailable\r\n\r\n");
 
-        var ex = await Assert.ThrowsAsync<HttpRequestException>(
-            () => TlsClientProvider.EstablishConnectTunnelAsync(
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => TlsClientProvider.EstablishConnectTunnelAsync(
                 proxyStream,
                 "example.com",
                 443,
@@ -236,8 +239,7 @@ public sealed class TlsClientProviderSpec
     {
         var proxyStream = new MockProxyStream("");
 
-        var ex = await Assert.ThrowsAsync<HttpRequestException>(
-            () => TlsClientProvider.EstablishConnectTunnelAsync(
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => TlsClientProvider.EstablishConnectTunnelAsync(
                 proxyStream,
                 "example.com",
                 443,
@@ -275,8 +277,7 @@ public sealed class TlsClientProviderSpec
 
         var proxyStream = new MockProxyStream("HTTP/1.1 200 Connection Established\r\n\r\n");
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
-            () => TlsClientProvider.EstablishConnectTunnelAsync(
+        await Assert.ThrowsAsync<OperationCanceledException>(() => TlsClientProvider.EstablishConnectTunnelAsync(
                 proxyStream,
                 "example.com",
                 443,
@@ -287,105 +288,22 @@ public sealed class TlsClientProviderSpec
         );
     }
 
-    private sealed class MockProxyStream : Stream
+    [Fact(Timeout = 5000)]
+    public async Task GetStreamAsync_should_throw_on_connection_refused()
     {
-        private readonly byte[] _responseBytes;
-        private readonly MemoryStream _writeBuffer = new();
-        private int _readPosition;
-        private bool _responseWritten;
-
-        public MockProxyStream(string response)
+        var options = new TlsTransportOptions
         {
-            _responseBytes = Encoding.ASCII.GetBytes(response);
-        }
+            Host = "localhost",
+            Port = (ushort)1,
+            ConnectTimeout = TimeSpan.FromSeconds(2),
+            ServerCertificateValidationCallback = (_, _, _, _) => true
+        };
 
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => true;
-        public override long Length => throw new NotSupportedException();
-        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        var provider = new TlsClientProvider(options);
 
-        public override void Flush()
-        {
-        }
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            provider.GetStreamAsync(TestContext.Current.CancellationToken));
 
-        public override async Task FlushAsync(CancellationToken cancellationToken)
-        {
-            _responseWritten = true;
-            _readPosition = 0;
-            await Task.CompletedTask;
-        }
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException("Use ReadAsync instead");
-        }
-
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (!_responseWritten)
-            {
-                await Task.Yield();
-                return 0;
-            }
-
-            if (_readPosition >= _responseBytes.Length)
-            {
-                return 0;
-            }
-
-            var bytesToRead = Math.Min(buffer.Length, _responseBytes.Length - _readPosition);
-            _responseBytes.AsMemory(_readPosition, bytesToRead).CopyTo(buffer);
-            _readPosition += bytesToRead;
-
-            return bytesToRead;
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException("Use WriteAsync instead");
-        }
-
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            await _writeBuffer.WriteAsync(buffer, cancellationToken);
-            await Task.CompletedTask;
-        }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
-
-        public string GetRequestContent()
-        {
-            return Encoding.ASCII.GetString(_writeBuffer.ToArray());
-        }
-    }
-
-    private sealed class TestProxy(Uri? proxyUri, string? bypassedHost = null, ICredentials? credentials = null)
-        : IWebProxy
-    {
-        public ICredentials? Credentials { get; set; } = credentials;
-
-        public Uri? GetProxy(Uri destination) => proxyUri;
-
-        public bool IsBypassed(Uri host)
-        {
-            if (bypassedHost is null)
-            {
-                return false;
-            }
-
-            return host.Host == bypassedHost;
-        }
+        await provider.DisposeAsync();
     }
 }

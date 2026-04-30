@@ -1,7 +1,7 @@
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
 
-namespace Servus.Akka.Tests.Transport.Tcp;
+namespace Servus.Akka.Tests.Utils;
 
 internal sealed class InMemoryTcpConnectionFactory : ITcpConnectionFactory
 {

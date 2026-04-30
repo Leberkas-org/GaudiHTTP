@@ -1,3 +1,4 @@
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
 
@@ -247,6 +248,154 @@ public sealed class ClientByteMoverSpec
         Assert.Equal(1, closeCount);
     }
 
+    [Fact(Timeout = 5000)]
+    public async Task ClientByteMover_should_handle_drain_pipe_to_channel_with_abrupt_close()
+    {
+        var stream = new MemoryStream([0xAA, 0xBB], writable: false);
+        var state = new ClientState(stream);
+        var closeCount = 0;
+
+        var task = Task.Run(async () =>
+        {
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+            try
+            {
+                await state.InboundPipe.Writer.CompleteAsync(new AbruptCloseException());
+            }
+            catch
+            {
+                // noop - writer might already be completed
+            }
+        });
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await ClientByteMover.MoveStreamToChannel(state, () => Interlocked.Increment(ref closeCount), cts.Token);
+        await task;
+
+        Assert.Equal(1, closeCount);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ClientByteMover_should_handle_drain_pipe_to_channel_generic_exception()
+    {
+        var stream = new MemoryStream([0xAA, 0xBB], writable: false);
+        var state = new ClientState(stream);
+        var closeCount = 0;
+
+        var task = Task.Run(async () =>
+        {
+            await Task.Delay(50, TestContext.Current.CancellationToken);
+            try
+            {
+                await state.InboundPipe.Writer.CompleteAsync(new InvalidOperationException("Test error"));
+            }
+            catch
+            {
+                // noop - writer might already be completed
+            }
+        });
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await ClientByteMover.MoveStreamToChannel(state, () => Interlocked.Increment(ref closeCount), cts.Token);
+        await task;
+
+        Assert.Equal(1, closeCount);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ClientByteMover_should_read_final_data_after_pipe_completion()
+    {
+        var stream = new MemoryStream([0xAA, 0xBB, 0xCC], writable: false);
+        var state = new ClientState(stream);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await ClientByteMover.MoveStreamToChannel(state, () => { }, cts.Token);
+
+        Assert.True(state.InboundReader.TryRead(out var buf));
+        Assert.Equal(3, buf.Length);
+        buf.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ClientByteMover_should_handle_drain_pipe_to_stream_with_multi_segment_buffer()
+    {
+        var capturedWrites = new List<byte[]>();
+        var stream = new CapturingStream(capturedWrites);
+        var state = new ClientState(stream);
+
+        WriteToChannel(state, 100, 0x11);
+        WriteToChannel(state, 100, 0x22);
+        WriteToChannel(state, 100, 0x33);
+        state.OutboundWriter.TryComplete();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await ClientByteMover.MoveChannelToStream(state, () => { }, cts.Token);
+
+        var totalBytes = capturedWrites.Sum(w => w.Length);
+        Assert.Equal(300, totalBytes);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ClientByteMover_should_handle_drain_pipe_to_stream_write_cancellation()
+    {
+        var stream = new SlowStream();
+        var state = new ClientState(stream);
+        var closeCount = 0;
+
+        WriteToChannel(state, 100, 0x44);
+        state.OutboundWriter.TryComplete();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+
+        await ClientByteMover.MoveChannelToStream(state, () => Interlocked.Increment(ref closeCount), cts.Token);
+
+        Assert.Equal(1, closeCount);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ClientByteMover_should_handle_fill_pipe_from_channel_generic_exception()
+    {
+        var stream = new MemoryStream();
+        var state = new ClientState(stream);
+
+        WriteToChannel(state, 10, 0x00);
+        state.OutboundWriter.TryComplete(new InvalidOperationException("Channel error"));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await ClientByteMover.MoveChannelToStream(state, () => { }, cts.Token);
+
+        Assert.True(stream.Length > 0);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ClientByteMover_should_complete_channel_with_abrupt_exception_on_drain_error()
+    {
+        var stream = new FailingStream();
+        var state = new ClientState(stream);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await ClientByteMover.MoveStreamToChannel(state, () => { }, cts.Token);
+
+        // Verify channel is completed with AbruptCloseException
+        var exceptionThrown = false;
+        try
+        {
+            await state.InboundReader.WaitToReadAsync(TestContext.Current.CancellationToken);
+        }
+        catch (AbruptCloseException)
+        {
+            exceptionThrown = true;
+        }
+
+        Assert.True(exceptionThrown);
+    }
+
     private static void WriteToChannel(ClientState state, int size, byte fill)
     {
         var buf = TransportBuffer.Rent(size);
@@ -255,84 +404,5 @@ public sealed class ClientByteMoverSpec
         state.OutboundWriter.TryWrite(buf);
     }
 
-    private sealed class CapturingStream(List<byte[]> writes) : Stream
-    {
-        public override bool CanRead => false;
-        public override bool CanSeek => false;
-        public override bool CanWrite => true;
-        public override long Length => throw new NotSupportedException();
-
-        public override long Position
-        {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
-        }
-
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default)
-        {
-            writes.Add(buffer.ToArray());
-            await Task.CompletedTask;
-        }
-
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override void Flush() { }
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-    }
-
-    private sealed class SlowStream : Stream
-    {
-        public override bool CanRead => false;
-        public override bool CanSeek => false;
-        public override bool CanWrite => true;
-        public override long Length => throw new NotSupportedException();
-
-        public override long Position
-        {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
-        }
-
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(30), ct);
-        }
-
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override void Flush() { }
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-    }
-
-    private sealed class FailingStream : Stream
-    {
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => true;
-        public override long Length => throw new NotSupportedException();
-
-        public override long Position
-        {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
-        }
-
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default)
-        {
-            throw new IOException("Test stream failure");
-        }
-
-        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default)
-        {
-            throw new IOException("Test stream failure");
-        }
-
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override void Flush() { }
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-    }
+    
 }

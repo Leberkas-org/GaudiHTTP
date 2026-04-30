@@ -1,5 +1,5 @@
 using Akka.Actor;
-using Akka.Event;
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Quic;
 
@@ -8,20 +8,38 @@ namespace Servus.Akka.Tests.Transport.Quic;
 [Collection("TransportBuffer")]
 public sealed class QuicTransportStateMachineSpec
 {
-    private sealed class StubOps : ITransportOperations
+    private static QuicConnectionHandle CreateMockHandle()
     {
-        public readonly List<ITransportInbound> PushedInbound = [];
-        public int PullCount;
-        public bool Completed;
-        public readonly Dictionary<string, TimeSpan> Timers = new();
-        public readonly HashSet<string> CancelledTimers = [];
+        return new QuicConnectionHandle(
+            openStream: async (_, ct) =>
+            {
+                await Task.Delay(0, ct).ConfigureAwait(false);
+                return (new MemoryStream(), 1L);
+            },
+            acceptInboundStream: async ct =>
+            {
+                await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                return null;
+            },
+            getLocalEndPoint: () => new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 12345),
+            dispose: () => ValueTask.CompletedTask);
+    }
 
-        public void OnPushInbound(ITransportInbound item) => PushedInbound.Add(item);
-        public void OnSignalPullOutbound() => PullCount++;
-        public void OnCompleteStage() => Completed = true;
-        public void OnScheduleTimer(string key, TimeSpan delay) => Timers[key] = delay;
-        public void OnCancelTimer(string key) => CancelledTimers.Add(key);
-        public ILoggingAdapter Log => NoLogger.Instance;
+    private static (StubOps ops, QuicTransportStateMachine sm)
+        CreateConnectedStateMachine()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+        var options = new QuicTransportOptions { Host = "localhost", Port = 443 };
+
+        sm.HandlePush(new ConnectTransport(options));
+
+        var handle = CreateMockHandle();
+        var lease = new QuicConnectionLease(handle, 100);
+
+        sm.Dispatch(new ConnectionLeaseAcquired(lease));
+
+        return (ops, sm);
     }
 
     [Fact(Timeout = 5000)]
@@ -95,7 +113,6 @@ public sealed class QuicTransportStateMachineSpec
         Assert.True(ops.PullCount > 0);
     }
 
-    // Dispatch tests
     [Fact(Timeout = 5000)]
     public void Dispatch_InboundData_should_dispose_buffer_when_gen_mismatch()
     {
@@ -138,7 +155,6 @@ public sealed class QuicTransportStateMachineSpec
         Assert.IsType<DataRejected>(ops.PushedInbound[0]);
     }
 
-    // HandlePush tests
     [Fact(Timeout = 5000)]
     public void HandlePush_DisconnectTransport_should_signal_pull()
     {
@@ -184,7 +200,6 @@ public sealed class QuicTransportStateMachineSpec
         Assert.True(ops.PullCount > 0);
     }
 
-    // Lifecycle tests
     [Fact(Timeout = 5000)]
     public void HandleDownstreamFinish_should_not_complete_when_upstream_not_finished()
     {
@@ -208,7 +223,6 @@ public sealed class QuicTransportStateMachineSpec
         Assert.True(ops.Completed);
     }
 
-    // Timer tests
     [Fact(Timeout = 5000)]
     public void OnTimer_with_connect_timeout_key_should_push_TransportDisconnected()
     {
@@ -263,7 +277,6 @@ public sealed class QuicTransportStateMachineSpec
         Assert.Contains("connect-timeout", ops.CancelledTimers);
     }
 
-    // Multiple operation tests
     [Fact(Timeout = 5000)]
     public void HandlePush_ResetStream_should_emit_StreamClosed_when_stream_exists()
     {
@@ -401,5 +414,375 @@ public sealed class QuicTransportStateMachineSpec
         Assert.IsType<MultiplexedData>(ops.PushedInbound[0]);
         var pushed = (MultiplexedData)ops.PushedInbound[0];
         Assert.Equal(1, pushed.StreamId);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_StreamLeaseAcquired_should_attach_handle_and_push_StreamOpened()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        const long streamId = 123L;
+        sm.HandlePush(new OpenStream(streamId, StreamDirection.Bidirectional));
+
+        // OpenStream has been queued, now dispatch the StreamLeaseAcquired
+        var handle = new StreamHandle(new MemoryStream());
+        sm.Dispatch(new StreamLeaseAcquired(handle, streamId));
+
+        // Should push StreamOpened
+        var streamOpened = ops.PushedInbound.OfType<StreamOpened>().FirstOrDefault();
+        Assert.NotNull(streamOpened);
+        Assert.Equal(streamId, streamOpened.StreamId);
+        Assert.Equal(StreamDirection.Bidirectional, streamOpened.Direction);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_StreamLeaseAcquired_with_unknown_stream_should_dispose_handle()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+
+        var handle = new StreamHandle(new MemoryStream());
+        sm.Dispatch(new StreamLeaseAcquired(handle, 999));
+
+        // Should not push anything (stream doesn't exist)
+        Assert.Empty(ops.PushedInbound);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_InboundStreamAccepted_should_register_server_stream()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        var streamId = 456L;
+        var stream = new MemoryStream();
+        sm.Dispatch(new Servus.Akka.Transport.Quic.InboundStreamAccepted(stream, streamId));
+
+        // Should push ServerStreamAccepted
+        var accepted = ops.PushedInbound.OfType<ServerStreamAccepted>().FirstOrDefault();
+        Assert.NotNull(accepted);
+        Assert.Equal(streamId, accepted.StreamId);
+        Assert.Equal(StreamDirection.Unidirectional, accepted.Direction);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_InboundComplete_graceful_should_push_StreamReadCompleted()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        var streamId = 789L;
+        sm.HandlePush(new OpenStream(streamId, StreamDirection.Bidirectional));
+        var handle = new StreamHandle(new MemoryStream());
+        sm.Dispatch(new StreamLeaseAcquired(handle, streamId));
+
+        ops.PushedInbound.Clear();
+
+        // Now dispatch InboundComplete with Graceful reason (gen is 2 after CreateConnectedStateMachine)
+        sm.Dispatch(new InboundComplete(DisconnectReason.Graceful, 2, streamId));
+
+        // Should push StreamReadCompleted
+        var completed = ops.PushedInbound.OfType<StreamReadCompleted>().FirstOrDefault();
+        Assert.NotNull(completed);
+        Assert.Equal(streamId, completed.StreamId);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_InboundComplete_error_should_push_StreamClosed()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        var streamId = 999L;
+        sm.HandlePush(new OpenStream(streamId, StreamDirection.Bidirectional));
+        var handle = new StreamHandle(new MemoryStream());
+        sm.Dispatch(new StreamLeaseAcquired(handle, streamId));
+
+        ops.PushedInbound.Clear();
+
+        // Dispatch InboundComplete with error reason (gen is 2 after CreateConnectedStateMachine)
+        sm.Dispatch(new InboundComplete(DisconnectReason.Error, 2, streamId));
+
+        // Should push StreamClosed
+        var closed = ops.PushedInbound.OfType<StreamClosed>().FirstOrDefault();
+        Assert.NotNull(closed);
+        Assert.Equal(streamId, closed.StreamId);
+        Assert.Equal(DisconnectReason.Error, closed.Reason);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void HandleUpstreamFinish_with_connection_should_stop_pumps_and_complete()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        // Now upstream finishes
+        sm.HandleUpstreamFinish();
+
+        // Should complete stage
+        Assert.True(ops.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void HandleConnectTransport_with_existing_lease_should_set_reconnecting()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        ops.PushedInbound.Clear();
+        ops.PullCount = 0;
+
+        // Second connect with existing lease
+        var options2 = new QuicTransportOptions { Host = "other.host", Port = 443 };
+        sm.HandlePush(new ConnectTransport(options2));
+
+        // Should schedule timer and signal pull
+        Assert.Contains("connect-timeout", ops.Timers.Keys);
+        Assert.True(ops.PullCount > 0);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void HandleOpenStream_with_connected_handle_should_create_stream_state()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        ops.PullCount = 0;
+        var streamId = 555L;
+
+        sm.HandlePush(new OpenStream(streamId, StreamDirection.Unidirectional));
+
+        // Should signal pull (PipeTo will be sent to self)
+        Assert.True(ops.PullCount > 0);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void HandleResetStream_with_existing_stream_should_abort_and_close()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        var streamId = 222L;
+        sm.HandlePush(new OpenStream(streamId, StreamDirection.Bidirectional));
+        var handle = new StreamHandle(new MemoryStream());
+        sm.Dispatch(new StreamLeaseAcquired(handle, streamId));
+
+        ops.PushedInbound.Clear();
+        ops.PullCount = 0;
+
+        // Now reset the stream
+        sm.HandlePush(new ResetStream(streamId, 42));
+
+        // Should push StreamClosed
+        var closed = ops.PushedInbound.OfType<StreamClosed>().FirstOrDefault();
+        Assert.NotNull(closed);
+        Assert.Equal(streamId, closed.StreamId);
+        Assert.Equal(DisconnectReason.Error, closed.Reason);
+        Assert.True(ops.PullCount > 0);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_ConnectionLeaseAcquired_should_cancel_timer_and_push_TransportConnected()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+        var options = new QuicTransportOptions { Host = "localhost", Port = 443 };
+
+        sm.HandlePush(new ConnectTransport(options));
+        Assert.Contains("connect-timeout", ops.Timers.Keys);
+
+        ops.PushedInbound.Clear();
+
+        var handle = CreateMockHandle();
+        var lease = new QuicConnectionLease(handle, 100);
+        sm.Dispatch(new ConnectionLeaseAcquired(lease));
+
+        // Should cancel timer
+        Assert.Contains("connect-timeout", ops.CancelledTimers);
+
+        // Should push TransportConnected
+        var connected = ops.PushedInbound.OfType<TransportConnected>().FirstOrDefault();
+        Assert.NotNull(connected);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_InboundComplete_graceful_with_state_becoming_closed_should_remove_and_dispose()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        var streamId = 333L;
+        sm.HandlePush(new OpenStream(streamId, StreamDirection.Bidirectional));
+        var handle = new StreamHandle(new MemoryStream());
+        sm.Dispatch(new StreamLeaseAcquired(handle, streamId));
+
+        // First, complete writes to move to HalfClosedWrite phase
+        sm.HandlePush(new CompleteWrites(streamId));
+
+        ops.PushedInbound.Clear();
+
+        // Now InboundComplete with Graceful moves it to Closed phase (gen is 2 after CreateConnectedStateMachine)
+        sm.Dispatch(new InboundComplete(DisconnectReason.Graceful, 2, streamId));
+
+        // Should push StreamReadCompleted and remove stream from dictionary
+        var readCompleted = ops.PushedInbound.OfType<StreamReadCompleted>().FirstOrDefault();
+        Assert.NotNull(readCompleted);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_OutboundWriteFailed_with_auto_reconnect_should_push_transient_disconnect()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+
+        var options = new QuicTransportOptions { Host = "localhost", Port = 443, AutoReconnect = true };
+        sm.HandlePush(new ConnectTransport(options));
+
+        var handle = CreateMockHandle();
+        var lease = new QuicConnectionLease(handle, 100);
+        sm.Dispatch(new ConnectionLeaseAcquired(lease));
+
+        ops.PushedInbound.Clear();
+
+        var streamId = 111L;
+        sm.HandlePush(new OpenStream(streamId, StreamDirection.Bidirectional));
+        var streamHandle = new StreamHandle(new MemoryStream());
+        sm.Dispatch(new StreamLeaseAcquired(streamHandle, streamId));
+
+        ops.PushedInbound.Clear();
+
+        // Trigger connection failure
+        sm.Dispatch(new OutboundWriteFailed(new IOException("Connection failed"), streamId));
+
+        // Should push TransportDisconnected with Transient reason (auto-reconnect is enabled)
+        var disconnected = ops.PushedInbound.OfType<TransportDisconnected>().FirstOrDefault();
+        Assert.NotNull(disconnected);
+        Assert.Equal(DisconnectReason.Transient, disconnected.Reason);
+        Assert.True(ops.PullCount > 0);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_OutboundWriteFailed_without_auto_reconnect_upstream_finished_should_complete()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+
+        var options = new QuicTransportOptions { Host = "localhost", Port = 443, AutoReconnect = false };
+        sm.HandlePush(new ConnectTransport(options));
+
+        var handle = CreateMockHandle();
+        var lease = new QuicConnectionLease(handle, 100);
+        sm.Dispatch(new ConnectionLeaseAcquired(lease));
+
+        ops.PushedInbound.Clear();
+        ops.Completed = false;
+
+        // Mark upstream finished
+        sm.HandleUpstreamFinish();
+
+        ops.PushedInbound.Clear();
+        ops.Completed = false;
+
+        // Trigger connection failure
+        sm.Dispatch(new OutboundWriteFailed(new IOException("Connection failed"), 1));
+
+        // Should push TransportDisconnected with Error reason
+        var disconnected = ops.PushedInbound.OfType<TransportDisconnected>().FirstOrDefault();
+        Assert.NotNull(disconnected);
+        Assert.Equal(DisconnectReason.Error, disconnected.Reason);
+
+        // Should complete stage
+        Assert.True(ops.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_OutboundWriteFailed_without_auto_reconnect_upstream_not_finished_should_pull()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+
+        var options = new QuicTransportOptions { Host = "localhost", Port = 443, AutoReconnect = false };
+        sm.HandlePush(new ConnectTransport(options));
+
+        var handle = CreateMockHandle();
+        var lease = new QuicConnectionLease(handle, 100);
+        sm.Dispatch(new ConnectionLeaseAcquired(lease));
+
+        ops.PushedInbound.Clear();
+        ops.PullCount = 0;
+
+        // Trigger connection failure (upstream not finished)
+        sm.Dispatch(new OutboundWriteFailed(new IOException("Connection failed"), 1));
+
+        // Should push TransportDisconnected
+        var disconnected = ops.PushedInbound.OfType<TransportDisconnected>().FirstOrDefault();
+        Assert.NotNull(disconnected);
+        Assert.Equal(DisconnectReason.Error, disconnected.Reason);
+
+        // Should signal pull
+        Assert.True(ops.PullCount > 0);
+
+        // Should NOT complete stage
+        Assert.False(ops.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void HandlePush_ConnectTransport_should_create_cts_and_send_acquire()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+
+        var options = new QuicTransportOptions { Host = "localhost", Port = 443 };
+        sm.HandlePush(new ConnectTransport(options));
+
+        // Should schedule timer
+        Assert.Contains("connect-timeout", ops.Timers.Keys);
+
+        // Should signal pull (PipeTo sends message to self)
+        Assert.True(ops.PullCount > 0);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void HandleDownstreamFinish_should_call_cleanup_transport()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        ops.PullCount = 0;
+
+        sm.HandleDownstreamFinish();
+
+        // HandleDownstreamFinish calls CleanupTransport but doesn't complete stage
+        Assert.False(ops.Completed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_InboundPumpFailed_should_remove_stream_on_error()
+    {
+        var (ops, sm) = CreateConnectedStateMachine();
+
+        var streamId = 888L;
+        sm.HandlePush(new OpenStream(streamId, StreamDirection.Bidirectional));
+        var handle = new StreamHandle(new MemoryStream());
+        sm.Dispatch(new StreamLeaseAcquired(handle, streamId));
+
+        ops.PushedInbound.Clear();
+
+        // InboundPumpFailed should call OnInboundComplete with Error reason
+        sm.Dispatch(new InboundPumpFailed(new IOException("Pump failed"), streamId));
+
+        // Should push StreamClosed
+        var closed = ops.PushedInbound.OfType<StreamClosed>().FirstOrDefault();
+        Assert.NotNull(closed);
+        Assert.Equal(streamId, closed.StreamId);
+        Assert.Equal(DisconnectReason.Error, closed.Reason);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_MigrationDetected_should_push_ConnectionMigrationDetected()
+    {
+        var ops = new StubOps();
+        var sm = new QuicTransportStateMachine(ops, ActorRefs.Nobody, ActorRefs.Nobody);
+
+        var oldEndPoint = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 1234);
+        var newEndPoint = new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 5678);
+
+        sm.Dispatch(new MigrationDetected(oldEndPoint, newEndPoint));
+
+        var migrated = ops.PushedInbound.OfType<ConnectionMigrationDetected>().FirstOrDefault();
+        Assert.NotNull(migrated);
+        Assert.Equal(oldEndPoint, migrated.OldEndPoint);
+        Assert.Equal(newEndPoint, migrated.NewEndPoint);
     }
 }

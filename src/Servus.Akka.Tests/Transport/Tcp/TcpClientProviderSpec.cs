@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
 
@@ -244,10 +245,8 @@ public sealed class TcpClientProviderSpec
         using var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var exception = await Assert.ThrowsAnyAsync<Exception>(async () =>
-        {
-            await provider.GetStreamAsync(cts.Token);
-        });
+        var exception =
+            await Assert.ThrowsAnyAsync<Exception>(async () => { await provider.GetStreamAsync(cts.Token); });
 
         Assert.True(
             exception is OperationCanceledException,
@@ -334,23 +333,5 @@ public sealed class TcpClientProviderSpec
         Assert.NotNull(exception);
 
         await provider.DisposeAsync();
-    }
-
-    private sealed class TestProxy(Uri? proxyUri, string? bypassedHost = null, ICredentials? credentials = null)
-        : IWebProxy
-    {
-        public ICredentials? Credentials { get; set; } = credentials;
-
-        public Uri? GetProxy(Uri destination) => proxyUri;
-
-        public bool IsBypassed(Uri host)
-        {
-            if (bypassedHost is null)
-            {
-                return false;
-            }
-
-            return host.Host == bypassedHost;
-        }
     }
 }

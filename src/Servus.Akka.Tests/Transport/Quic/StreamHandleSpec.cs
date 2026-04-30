@@ -1,3 +1,4 @@
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Quic;
 
@@ -161,4 +162,51 @@ public sealed class StreamHandleSpec
 
         Assert.Equal(0, read);
     }
+
+    [Fact(Timeout = 5000)]
+    public async Task WriteAsync_should_dispose_buffer_on_slow_async_path()
+    {
+        var slowStream = new SlowCompletingWriteStream();
+        var handle = new StreamHandle(slowStream);
+
+        var buffer = TransportBuffer.Rent(8);
+        buffer.FullMemory.Span[0] = 0xCC;
+        buffer.FullMemory.Span[1] = 0xDD;
+        buffer.Length = 2;
+
+        var task = handle.WriteAsync(buffer);
+
+        // Task should not be completed synchronously due to slow stream
+        Assert.False(task.IsCompleted);
+
+        // Await completion
+        await task;
+
+        // Verify the buffer is disposed after async completion
+        Assert.Throws<NullReferenceException>(() => _ = buffer.Memory);
+        Assert.Equal(2, slowStream.WrittenBytes);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task WriteAsync_slow_path_should_await_underlying_write()
+    {
+        var completedCount = 0;
+        var slowStream = new CountingSlowWriteStream(() => completedCount++);
+        var handle = new StreamHandle(slowStream);
+
+        var buffer = TransportBuffer.Rent(4);
+        buffer.FullMemory.Span[0] = 0x11;
+        buffer.Length = 1;
+
+        await handle.WriteAsync(buffer);
+
+        // Verify the write actually completed
+        Assert.Equal(1, completedCount);
+        Assert.Equal(1, slowStream.WrittenBytes);
+
+        // Verify buffer is disposed
+        Assert.Throws<NullReferenceException>(() => _ = buffer.Memory);
+    }
+
+
 }

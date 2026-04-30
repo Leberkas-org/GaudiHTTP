@@ -1,4 +1,5 @@
 using Akka.Actor;
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
 
@@ -37,9 +38,4 @@ public sealed class TcpTransportFactorySpec
         Assert.NotSame(flow1, flow2);
     }
 
-    private sealed class TestPoolingStrategy : IPoolingStrategy
-    {
-        public PoolAction OnDisconnect(object lease, DisconnectReason reason) => PoolAction.Dispose;
-        public PoolAction OnUpstreamFinish(object lease) => PoolAction.Reuse;
-    }
 }

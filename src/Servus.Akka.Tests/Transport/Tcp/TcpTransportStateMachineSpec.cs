@@ -1,5 +1,6 @@
 using System.Buffers;
 using Akka.Actor;
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
 
@@ -807,9 +808,78 @@ public sealed class TcpTransportStateMachineSpec
         Assert.Contains(ops.PushedInbound, item => item is TransportDisconnected { Reason: DisconnectReason.Graceful });
     }
 
-    private sealed class TestPoolingStrategy : IPoolingStrategy
+    [Fact(Timeout = 5000)]
+    public void Dispatch_InboundComplete_with_auto_reconnect_should_push_transient_disconnect()
     {
-        public PoolAction OnDisconnect(object lease, DisconnectReason reason) => PoolAction.Dispose;
-        public PoolAction OnUpstreamFinish(object lease) => PoolAction.Reuse;
+        var ops = new MockTransportOperations();
+        var sm = new TcpTransportStateMachine(
+            ops, ActorRefs.Nobody, new ReusablePoolingStrategy(), ActorRefs.Nobody);
+        var options = new TcpTransportOptions { Host = "localhost", Port = 8080, AutoReconnect = true };
+
+        sm.HandlePush(new ConnectTransport(options));
+        var lease = CreateTestLease();
+        sm.Dispatch(new LeaseAcquired(lease));
+        ops.PushedInbound.Clear();
+
+        sm.Dispatch(new InboundComplete(DisconnectReason.Graceful, 2));
+
+        Assert.Contains(ops.PushedInbound, item => item is TransportDisconnected { Reason: DisconnectReason.Transient });
+        Assert.True(ops.PullOutboundCount > 0);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_InboundComplete_with_auto_reconnect_should_dispose_pending_writes()
+    {
+        var ops = new MockTransportOperations();
+        var sm = new TcpTransportStateMachine(
+            ops, ActorRefs.Nobody, new ReusablePoolingStrategy(), ActorRefs.Nobody);
+        var options = new TcpTransportOptions { Host = "localhost", Port = 8080, AutoReconnect = true };
+
+        sm.HandlePush(new ConnectTransport(options));
+
+        var buffer = CreateTestBuffer(1, 2, 3);
+        sm.HandlePush(new TransportData(buffer));
+
+        var lease = CreateTestLease();
+        sm.Dispatch(new LeaseAcquired(lease));
+        ops.PushedInbound.Clear();
+
+        sm.Dispatch(new InboundComplete(DisconnectReason.Graceful, 2));
+
+        Assert.Contains(ops.PushedInbound, item => item is TransportDisconnected { Reason: DisconnectReason.Transient });
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_InboundPumpFailed_with_upstream_finished_should_complete_stage()
+    {
+        var (sm, ops) = CreateStateMachine();
+        var lease = CreateTestLease();
+        sm.Dispatch(new LeaseAcquired(lease));
+
+        sm.HandleUpstreamFinish();
+        ops.CompleteStageCount = 0;
+        ops.PushedInbound.Clear();
+
+        sm.Dispatch(new InboundPumpFailed(new IOException("pump error")));
+
+        Assert.Contains(ops.PushedInbound, item => item is TransportDisconnected { Reason: DisconnectReason.Error });
+        Assert.Equal(1, ops.CompleteStageCount);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Dispatch_InboundPumpFailed_without_upstream_finished_should_signal_pull()
+    {
+        var (sm, ops) = CreateStateMachine();
+        var lease = CreateTestLease();
+        sm.Dispatch(new LeaseAcquired(lease));
+        ops.PushedInbound.Clear();
+        var pullBefore = ops.PullOutboundCount;
+
+        sm.Dispatch(new InboundPumpFailed(new IOException("pump error")));
+
+        Assert.Contains(ops.PushedInbound, item => item is TransportDisconnected { Reason: DisconnectReason.Error });
+        Assert.True(ops.PullOutboundCount > pullBefore);
+        Assert.Equal(0, ops.CompleteStageCount);
+    }
+
 }

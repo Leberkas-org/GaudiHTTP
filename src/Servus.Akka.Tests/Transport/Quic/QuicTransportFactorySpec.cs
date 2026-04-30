@@ -1,7 +1,4 @@
-using Akka;
 using Akka.Actor;
-using Akka.Streams.Dsl;
-using Servus.Akka.Transport;
 using Servus.Akka.Transport.Quic;
 
 namespace Servus.Akka.Tests.Transport.Quic;

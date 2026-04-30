@@ -3,6 +3,8 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <IsTestProject>true</IsTestProject>
+        <!-- slopwatch-ignore: SW005 QUIC APIs (QuicListener, QuicConnection) are platform-specific; tests use runtime guards -->
+        <NoWarn>CA1416</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>

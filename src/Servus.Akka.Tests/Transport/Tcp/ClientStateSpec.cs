@@ -164,4 +164,40 @@ public sealed class ClientStateSpec
 
         state.Dispose();
     }
+
+    [Fact(Timeout = 5000)]
+    public void ClientState_should_dispose_buffered_channel_items()
+    {
+        var stream = new MemoryStream();
+        var state = new ClientState(stream);
+
+        var buf1 = TransportBuffer.Rent(4);
+        buf1.Length = 4;
+        var buf2 = TransportBuffer.Rent(4);
+        buf2.Length = 4;
+
+        state.InboundWriter.TryWrite(buf1);
+        state.OutboundWriter.TryWrite(buf2);
+
+        state.Dispose();
+
+        Assert.False(state.InboundReader.TryRead(out _));
+        Assert.False(state.OutboundReader.TryRead(out _));
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ClientState_should_handle_pre_completed_pipes_on_dispose()
+    {
+        var stream = new MemoryStream();
+        var state = new ClientState(stream);
+
+        await state.InboundPipe.Writer.CompleteAsync();
+        await state.InboundPipe.Reader.CompleteAsync();
+        await state.OutboundPipe.Writer.CompleteAsync();
+        await state.OutboundPipe.Reader.CompleteAsync();
+
+        state.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => stream.ReadByte());
+    }
 }

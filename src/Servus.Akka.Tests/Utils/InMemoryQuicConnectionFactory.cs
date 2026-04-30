@@ -1,7 +1,7 @@
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Quic;
 
-namespace Servus.Akka.Tests.Transport.Quic;
+namespace Servus.Akka.Tests.Utils;
 
 internal sealed class InMemoryQuicConnectionFactory : IQuicConnectionFactory
 {

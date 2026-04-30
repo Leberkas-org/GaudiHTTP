@@ -4,19 +4,19 @@ namespace Servus.Akka.Tests.Transport.Tcp;
 
 public sealed class ConnectionLeaseSpec
 {
-    private static (ConnectionLease Lease, CancellationTokenSource Cts) CreateLease()
+    private static ConnectionLease CreateLease()
     {
         var state = new ClientState(Stream.Null);
         var cts = new CancellationTokenSource();
         var handle = new ConnectionHandle(state.OutboundWriter, state.InboundReader, cts.Token);
         var lease = new ConnectionLease(handle, state, cts);
-        return (lease, cts);
+        return lease;
     }
 
     [Fact(Timeout = 5000)]
     public void ConnectionLease_should_set_handle_from_constructor()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         Assert.NotNull(lease.Handle);
     }
@@ -24,7 +24,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public void ConnectionLease_should_be_alive_when_created()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         Assert.True(lease.IsAlive());
     }
@@ -32,7 +32,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public void ConnectionLease_should_set_is_alive_false_when_disposed()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         lease.Dispose();
 
@@ -42,7 +42,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public void ConnectionLease_should_be_safe_when_disposed_twice()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         lease.Dispose();
         lease.Dispose();
@@ -65,7 +65,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public void IsExpired_should_return_false_for_infinite_lifetime()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         Assert.False(lease.IsExpired(Timeout.InfiniteTimeSpan));
     }
@@ -73,7 +73,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public void IsExpired_should_return_false_for_recent_connection()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         Assert.False(lease.IsExpired(TimeSpan.FromMinutes(1)));
     }
@@ -81,7 +81,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public async Task IsExpired_should_return_true_for_very_short_lifetime()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         await Task.Delay(50, TestContext.Current.CancellationToken);
         Assert.True(lease.IsExpired(TimeSpan.FromMilliseconds(1)));
@@ -90,7 +90,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public void IsExpired_should_treat_minus_one_ms_as_infinite()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         Assert.False(lease.IsExpired(TimeSpan.FromMilliseconds(-1)));
     }
@@ -98,7 +98,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public async Task IsExpired_should_consider_zero_timespan_as_expired_after_tick()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         await Task.Delay(2, TestContext.Current.CancellationToken);
         Assert.True(lease.IsExpired(TimeSpan.Zero));
@@ -107,7 +107,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public void Idempotent_double_dispose_should_not_throw()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         lease.Dispose();
         lease.Dispose();
@@ -118,7 +118,7 @@ public sealed class ConnectionLeaseSpec
     [Fact(Timeout = 5000)]
     public void Handle_should_reflect_cancelled_state_after_dispose()
     {
-        var (lease, _) = CreateLease();
+        var lease = CreateLease();
 
         Assert.False(lease.Handle.IsCancelled);
 

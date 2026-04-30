@@ -1,4 +1,5 @@
 using Akka.TestKit.Xunit;
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
 
@@ -87,7 +88,7 @@ public sealed class TcpPumpManagerSpec : TestKit
         // After StopPumps, the inbound pump is cancelled.
         // The outbound pump may send OutboundWriteDone, but no InboundBatch or InboundComplete.
         var msg = ReceiveOne(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
-        Assert.IsType<OutboundWriteDone>(msg);
+        Assert.IsType<InboundPumpFailed>(msg);
 
         state.Dispose();
     }
@@ -121,66 +122,5 @@ public sealed class TcpPumpManagerSpec : TestKit
         }
 
         state.Dispose();
-    }
-
-    private sealed class SlowStream : Stream
-    {
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => false;
-        public override long Length => throw new NotSupportedException();
-
-        public override long Position
-        {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
-        }
-
-        public override void Flush() => throw new NotSupportedException();
-
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-
-        public override void SetLength(long value) => throw new NotSupportedException();
-
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-
-        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
-            CancellationToken cancellationToken = default)
-        {
-            // Sleep indefinitely until cancellation
-            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
-            return 0;
-        }
-    }
-
-    private sealed class FailingStream : Stream
-    {
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => false;
-        public override long Length => throw new NotSupportedException();
-
-        public override long Position
-        {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
-        }
-
-        public override void Flush() => throw new NotSupportedException();
-
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-
-        public override void SetLength(long value) => throw new NotSupportedException();
-
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-
-        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
-        {
-            return new ValueTask<int>(Task.FromException<int>(new IOException("Stream read failed")));
-        }
     }
 }

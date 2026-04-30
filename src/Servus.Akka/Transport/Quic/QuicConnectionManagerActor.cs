@@ -15,7 +15,7 @@ public sealed class QuicConnectionManagerActor : ReceiveActor, IWithTimers
 
     private sealed record EstablishFailed(Exception Ex, Acquire Original);
 
-    private sealed class Evict
+    internal sealed class Evict
     {
         public static readonly Evict Instance = new();
     }

@@ -1,6 +1,6 @@
 using System.Net;
 using Akka.Actor;
-using Akka.Event;
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Quic;
 
@@ -9,21 +9,6 @@ namespace Servus.Akka.Tests.Transport.Quic;
 [Collection("TransportBuffer")]
 public sealed class QuicConnectionMigrationSpec
 {
-    private sealed class StubOps : ITransportOperations
-    {
-        public readonly List<ITransportInbound> PushedInbound = [];
-        public int PullCount;
-        public bool Completed;
-        public readonly Dictionary<string, TimeSpan> Timers = new();
-        public readonly HashSet<string> CancelledTimers = [];
-
-        public void OnPushInbound(ITransportInbound item) => PushedInbound.Add(item);
-        public void OnSignalPullOutbound() => PullCount++;
-        public void OnCompleteStage() => Completed = true;
-        public void OnScheduleTimer(string key, TimeSpan delay) => Timers[key] = delay;
-        public void OnCancelTimer(string key) => CancelledTimers.Add(key);
-        public ILoggingAdapter Log => NoLogger.Instance;
-    }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9000-9")]

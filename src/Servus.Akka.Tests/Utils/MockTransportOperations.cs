@@ -1,13 +1,13 @@
 using Akka.Event;
 using Servus.Akka.Transport;
 
-namespace Servus.Akka.Tests.Transport.Tcp;
+namespace Servus.Akka.Tests.Utils;
 
 internal sealed class MockTransportOperations : ITransportOperations
 {
     public List<ITransportInbound> PushedInbound { get; } = [];
     public int PullOutboundCount { get; set; }
-    public int CompleteStageCount { get; private set; }
+    public int CompleteStageCount { get; set; }
     public List<(string Key, TimeSpan Delay)> ScheduledTimers { get; } = [];
     public List<string> CancelledTimers { get; } = [];
 

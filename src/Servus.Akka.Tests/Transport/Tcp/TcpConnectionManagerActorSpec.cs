@@ -1,5 +1,6 @@
 using Akka.Actor;
 using Akka.TestKit.Xunit;
+using Servus.Akka.Tests.Utils;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
 
@@ -419,6 +420,229 @@ public sealed class TcpConnectionManagerActorSpec : TestKit
         Assert.NotNull(lease2);
 
         lease2.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task OnEvict_should_dispose_dead_leases()
+    {
+        var actor = CreateActor();
+        var options = CreateOptions();
+
+        var lease1 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+        var lease2 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+
+        lease1.Dispose();
+        actor.Tell(new TcpConnectionManagerActor.Release(lease2, CanReuse: true));
+
+        actor.Tell(TcpConnectionManagerActor.Evict.Instance);
+
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        Assert.False(lease1.IsAlive());
+        Assert.True(lease2.IsAlive());
+
+        lease2.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task OnEvict_should_preserve_valid_idle_leases()
+    {
+        var registry = new PoolConfigRegistry(new TcpPoolConfig(
+            MaxConnectionsPerHost: 6,
+            IdleTimeout: TimeSpan.FromSeconds(5),
+            ConnectionLifetime: TimeSpan.FromSeconds(5),
+            ReuseOnUpstreamFinish: true));
+        var actor = CreateActor(registry);
+        var options = CreateOptions();
+
+        var lease = await TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+        actor.Tell(new TcpConnectionManagerActor.Release(lease, CanReuse: true));
+
+        actor.Tell(TcpConnectionManagerActor.Evict.Instance);
+
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        Assert.True(lease.IsAlive());
+
+        lease.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task OnEstablished_with_cancelled_caller_should_release_back()
+    {
+        var slowFactory = new SlowTcpConnectionFactory(TimeSpan.FromMilliseconds(100));
+        var registry = new PoolConfigRegistry(DefaultPoolConfig with { MaxConnectionsPerHost = 2 });
+        var actor = Sys.ActorOf(Props.Create(() =>
+            new TcpConnectionManagerActor(slowFactory, registry)));
+        var options = CreateOptions();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(30));
+        var task1 = TcpConnectionManagerActor.AcquireAsync(actor, options, cts.Token);
+        var task2 = TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task1);
+
+        var lease = await task2.WaitAsync(TimeSpan.FromSeconds(3),
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(lease);
+        Assert.True(lease.IsAlive());
+
+        lease.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task OnFailed_should_decrement_establishing_and_serve_pending()
+    {
+        var failOnce = new FailOnceTcpConnectionFactory();
+        var registry = new PoolConfigRegistry(DefaultPoolConfig with { MaxConnectionsPerHost = 1 });
+        var actor = Sys.ActorOf(Props.Create(() =>
+            new TcpConnectionManagerActor(failOnce, registry)));
+        var options = CreateOptions();
+
+        var task1 = TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+
+        await Task.Delay(10, TestContext.Current.CancellationToken);
+
+        var task2 = TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAnyAsync<IOException>(() => task1);
+
+        var lease = await task2.WaitAsync(TimeSpan.FromSeconds(3),
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(lease);
+        Assert.True(lease.IsAlive());
+
+        lease.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Release_dead_unknown_lease_should_not_crash()
+    {
+        var actor = CreateActor();
+        var options = CreateOptions();
+
+        var lease = await TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+
+        lease.Dispose();
+
+        actor.Tell(new TcpConnectionManagerActor.Release(lease, CanReuse: true));
+
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        var lease2 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+        Assert.NotNull(lease2);
+
+        lease2.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task OnRelease_should_cascade_pending_when_cant_establish()
+    {
+        var registry = new PoolConfigRegistry(DefaultPoolConfig with { MaxConnectionsPerHost = 2 });
+        var actor = CreateActor(registry);
+        var options = CreateOptions();
+
+        var leases = new List<ConnectionLease>();
+        for (var i = 0; i < 2; i++)
+        {
+            leases.Add(await TcpConnectionManagerActor.AcquireAsync(actor, options,
+                TestContext.Current.CancellationToken));
+        }
+
+        var pendingTask = TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        actor.Tell(new TcpConnectionManagerActor.Release(leases[0], CanReuse: true));
+
+        var handed = await pendingTask.WaitAsync(TimeSpan.FromSeconds(3),
+            TestContext.Current.CancellationToken);
+        Assert.Same(leases[0], handed);
+
+        leases[1].Dispose();
+        handed.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task OnAcquire_should_skip_expired_idle_leases()
+    {
+        var registry = new PoolConfigRegistry(new TcpPoolConfig(
+            MaxConnectionsPerHost: 6,
+            IdleTimeout: TimeSpan.FromSeconds(5),
+            ConnectionLifetime: TimeSpan.FromMilliseconds(50),
+            ReuseOnUpstreamFinish: true));
+        var actor = CreateActor(registry);
+        var options = CreateOptions();
+
+        var lease1 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+        actor.Tell(new TcpConnectionManagerActor.Release(lease1, CanReuse: true));
+
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        var lease2 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotSame(lease1, lease2);
+        Assert.True(lease2.IsAlive());
+
+        lease2.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task OnAcquire_should_skip_dead_idle_lease_and_create_new()
+    {
+        var actor = CreateActor();
+        var options = CreateOptions();
+
+        var lease1 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+        actor.Tell(new TcpConnectionManagerActor.Release(lease1, CanReuse: true));
+
+        lease1.Dispose();
+
+        var lease2 = await TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotSame(lease1, lease2);
+        Assert.True(lease2.IsAlive());
+
+        lease2.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task PostStop_should_reject_pending_requests()
+    {
+        var actor = CreateActor();
+        var options = CreateOptions();
+
+        var leases = new List<ConnectionLease>();
+        for (var i = 0; i < 6; i++)
+        {
+            leases.Add(await TcpConnectionManagerActor.AcquireAsync(actor, options,
+                TestContext.Current.CancellationToken));
+        }
+
+        var pendingTask = TcpConnectionManagerActor.AcquireAsync(actor, options,
+            TestContext.Current.CancellationToken);
+
+        await actor.GracefulStop(TimeSpan.FromSeconds(2));
+
+        await Assert.ThrowsAnyAsync<ObjectDisposedException>(() => pendingTask);
+
+        foreach (var lease in leases)
+        {
+            Assert.False(lease.IsAlive());
+        }
     }
 
 }
