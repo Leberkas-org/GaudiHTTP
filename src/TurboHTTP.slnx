@@ -19,6 +19,8 @@
   </Folder>
   <Project Path="Servus.Akka.Tests/Servus.Akka.Tests.csproj" />
   <Project Path="Servus.Akka/Servus.Akka.csproj" />
+  <Project Path="Servus.Akka.TestKit/Servus.Akka.TestKit.csproj" />
+  <Project Path="Servus.Akka.TestKit.Tests/Servus.Akka.TestKit.Tests.csproj" />
   <Project Path="TurboHTTP.AcceptanceTests/TurboHTTP.AcceptanceTests.csproj" />
   <Project Path="TurboHTTP.API.Tests/TurboHTTP.API.Tests.csproj" />
   <Project Path="TurboHTTP.Benchmarks/TurboHTTP.Benchmarks.csproj" />

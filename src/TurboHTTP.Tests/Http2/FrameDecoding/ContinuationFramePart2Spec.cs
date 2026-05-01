@@ -208,11 +208,11 @@ public sealed class ContinuationFramePart2Spec
 
         // Feed first half of CONTINUATION bytes — incomplete frame: no new frames yet.
         var halfCont = contBytes.Length / 2;
-        var partialBatch = decoder.Decode(contBytes.AsMemory()[..halfCont]);
+        var partialBatch = decoder.Decode(contBytes[..halfCont]);
         Assert.Empty(partialBatch);
 
         // Feed remaining bytes — CONTINUATION frame now complete.
-        var finalBatch = decoder.Decode(contBytes.AsMemory()[halfCont..]);
+        var finalBatch = decoder.Decode(contBytes[halfCont..]);
         Assert.Single(finalBatch);
 
         var allDecoded = firstBatch.Concat(finalBatch).ToList();
@@ -231,7 +231,7 @@ public sealed class ContinuationFramePart2Spec
         var halfHeader = headersBytes.Length / 2;
 
         var decoder = new FrameDecoder();
-        var partial = decoder.Decode(headersBytes.AsMemory()[..halfHeader]);
+        var partial = decoder.Decode(headersBytes[..halfHeader]);
         Assert.Empty(partial); // frame not yet complete
 
         // Reset clears the partial frame buffer.

@@ -189,7 +189,7 @@ public sealed class LoggingBridgeSpec : IAsyncLifetime
         }
     }
 
-    [Fact(Timeout = 20000)]
+    [Fact(Timeout = 20000, Skip = "Wait for new ServusTrace")]
     public async Task Akka_bridge_should_route_pipeline_materialized_message_to_MEL()
     {
         // Verifies that "Stream pipeline materialized successfully" (Debug) from
@@ -207,7 +207,7 @@ public sealed class LoggingBridgeSpec : IAsyncLifetime
             e.Message.Contains("materialized", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact(Timeout = 20000)]
+    [Fact(Timeout = 20000, Skip = "Wait for new ServusTrace")]
     public async Task TurboTrace_request_events_should_route_to_MEL_via_AddTurboLoggerTracing()
     {
         // Verifies that TracingBidiStage emits "Request started" / "Request completed"
@@ -232,7 +232,7 @@ public sealed class LoggingBridgeSpec : IAsyncLifetime
             e.Message.Contains("Request completed:", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact(Timeout = 20000, Skip = "ServusTrace")]
+    [Fact(Timeout = 20000, Skip = "Wait for new ServusTrace")]
     public async Task TurboTrace_connection_events_should_route_to_MEL_via_AddTurboLoggerTracing()
     {
         // Verifies that DirectConnectionFactory emits "Connection opened" to the

@@ -3,11 +3,11 @@ using Akka;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http3;
 using Xunit;
-using FrameDecoder = TurboHTTP.Protocol.Http3.FrameDecoder;
 
 namespace TurboHTTP.Tests.Shared;
 
@@ -30,55 +30,55 @@ public abstract class EngineTestBase
         HttpRequestMessage request,
         Func<byte[]> responseFactory)
     {
-        var fake = new EngineFakeConnectionStage(responseFactory);
-        var flow = engine.Join(Flow.FromGraph<ITransportOutbound, ITransportInbound, NotUsed>(fake));
+        var stage = new TestConnectionStageBuilder()
+            .AutoConnect()
+            .Build();
 
-        var tcs = new TaskCompletionSource<HttpResponseMessage>();
+        stage.PushResponse(outbound => outbound is TransportData
+            ? new TransportData(responseFactory())
+            : null);
 
-        _ = Source.Single(request)
-            .Via(flow)
-            .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
-
-        var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var response = await TestPipeline.RunAsync(
+            engine.Join(stage.AsFlow()), request, Materializer,
+            TestContext.Current.CancellationToken);
 
         var rawBuilder = new StringBuilder();
-        while (fake.OutboundChannel.Reader.TryRead(out var chunk))
+        foreach (var outbound in stage.ReceivedOutbound)
         {
-            rawBuilder.Append(Encoding.Latin1.GetString(chunk.Span));
+            if (outbound is TransportData { Buffer: var buf })
+            {
+                rawBuilder.Append(Encoding.Latin1.GetString(buf.Span));
+            }
         }
 
         return (response, rawBuilder.ToString());
     }
 
-    internal async Task<(List<HttpResponseMessage> Responses, string RawRequests)> SendManyAsync(
+    internal async Task<(IReadOnlyList<HttpResponseMessage> Responses, string RawRequests)> SendManyAsync(
         BidiFlow<HttpRequestMessage, ITransportOutbound, ITransportInbound, HttpResponseMessage, NotUsed> engine,
         IEnumerable<HttpRequestMessage> requests,
         Func<byte[]> responseFactory,
         int expectedCount)
     {
-        var fake = new EngineFakeConnectionStage(responseFactory);
-        var flow = engine.Join(Flow.FromGraph<ITransportOutbound, ITransportInbound, NotUsed>(fake));
+        var stage = new TestConnectionStageBuilder()
+            .AutoConnect()
+            .Build();
 
-        var results = new List<HttpResponseMessage>();
-        var tcs = new TaskCompletionSource();
+        stage.PushResponse(outbound => outbound is TransportData
+            ? new TransportData(responseFactory())
+            : null);
 
-        _ = Source.From(requests)
-            .Via(flow)
-            .RunWith(Sink.ForEach<HttpResponseMessage>(res =>
-            {
-                results.Add(res);
-                if (results.Count == expectedCount)
-                {
-                    tcs.TrySetResult();
-                }
-            }), Materializer);
-
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var results = await TestPipeline.RunManyAsync(
+            engine.Join(stage.AsFlow()), requests, expectedCount, Materializer,
+            TestContext.Current.CancellationToken);
 
         var rawBuilder = new StringBuilder();
-        while (fake.OutboundChannel.Reader.TryRead(out var chunk))
+        foreach (var outbound in stage.ReceivedOutbound)
         {
-            rawBuilder.Append(Encoding.Latin1.GetString(chunk.Span));
+            if (outbound is TransportData { Buffer: var buf })
+            {
+                rawBuilder.Append(Encoding.Latin1.GetString(buf.Span));
+            }
         }
 
         return (results, rawBuilder.ToString());
@@ -103,7 +103,7 @@ public abstract class EngineTestBase
         var outboundBytes = await DrainOutboundH2Async(fake);
 
         var frames = outboundBytes.Count > 0
-            ? new Protocol.Http2.FrameDecoder().Decode(outboundBytes.ToArray().AsMemory())
+            ? new Protocol.Http2.FrameDecoder().Decode(outboundBytes.ToArray())
             : [];
 
         return (response, frames);
@@ -138,7 +138,7 @@ public abstract class EngineTestBase
         var outboundBytes = await DrainOutboundH2Async(fake);
 
         var frames = outboundBytes.Count > 0
-            ? new Protocol.Http2.FrameDecoder().Decode(outboundBytes.ToArray().AsMemory())
+            ? new Protocol.Http2.FrameDecoder().Decode(outboundBytes.ToArray())
             : [];
 
         return (results, frames);
@@ -172,7 +172,6 @@ public abstract class EngineTestBase
                     controlBytes.AddRange(bytes);
                     break;
                 case -4:  // QPACK decoder stream
-                    break;
                 case -3:  // QPACK encoder stream
                     break;
                 default:
@@ -185,7 +184,7 @@ public abstract class EngineTestBase
 
         if (requestBytes.Count > 0)
         {
-            frames.AddRange(new FrameDecoder().DecodeAll(requestBytes.ToArray(), out _));
+            frames.AddRange(new Protocol.Http3.FrameDecoder().DecodeAll(requestBytes.ToArray(), out _));
         }
 
         if (controlBytes.Count > 0)
@@ -199,7 +198,7 @@ public abstract class EngineTestBase
 
             if (controlSpan.Length > 0)
             {
-                frames.AddRange(new FrameDecoder().DecodeAll(controlSpan.ToArray(), out _));
+                frames.AddRange(new Protocol.Http3.FrameDecoder().DecodeAll(controlSpan.ToArray(), out _));
             }
         }
 

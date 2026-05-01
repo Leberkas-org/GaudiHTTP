@@ -118,7 +118,7 @@ public sealed class Http2CrossComponentValidationPart1Spec
     public void Http2FrameDecoder_should_be_connection_level_error_when_hpack_compression_fails()
     {
         var corruptHpack = new byte[] { 0x80 }; // index 0 is reserved → HpackException
-        var headersFrame = BuildHeadersFrame(3, corruptHpack);
+        byte[] headersFrame = BuildHeadersFrame(3, corruptHpack);
 
         var decoder = new FrameDecoder();
         var frames = decoder.Decode(headersFrame);

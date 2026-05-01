@@ -8,7 +8,7 @@ public sealed class Http2FrameParsingPart1Spec
     [Trait("RFC", "RFC9113-4.1")]
     public void Http2FrameDecoder_should_return_empty_when_zero_bytes_provided()
     {
-        var frames = new FrameDecoder().Decode(ReadOnlyMemory<byte>.Empty);
+        var frames = new FrameDecoder().Decode(Array.Empty<byte>());
         Assert.Empty(frames);
     }
 

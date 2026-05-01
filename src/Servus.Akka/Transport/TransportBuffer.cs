@@ -41,6 +41,14 @@ public sealed class TransportBuffer : IDisposable
         return buf;
     }
 
+    public static implicit operator TransportBuffer(byte[] data)
+    {
+        var buf = Rent(data.Length);
+        data.AsSpan().CopyTo(buf.FullMemory.Span);
+        buf.Length = data.Length;
+        return buf;
+    }
+
     public void Dispose()
     {
         var owner = Interlocked.Exchange(ref _owner, null);

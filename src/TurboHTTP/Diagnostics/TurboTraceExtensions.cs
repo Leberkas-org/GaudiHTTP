@@ -2,7 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
-using Servus.Akka.Diagnostics;
 
 namespace TurboHTTP.Diagnostics;
 
@@ -58,14 +57,14 @@ public static class TurboTraceExtensions
     public static TracerProviderBuilder AddTurboHttpInstrumentation(this TracerProviderBuilder builder)
     {
         return builder
-            .AddSource(TurboHttpInstrumentation.SourceName)
-            .AddSource(ServusInstrumentation.SourceName);
+            .AddSource(TurboHttpInstrumentation.SourceName);
+            // .AddSource(ServusInstrumentation.SourceName);
     }
 
     public static MeterProviderBuilder AddTurboHttpInstrumentation(this MeterProviderBuilder builder)
     {
         return builder
-            .AddMeter(TurboHttpMetrics.MeterName)
-            .AddMeter(ServusMetrics.MeterName);
+            .AddMeter(TurboHttpMetrics.MeterName);
+        // .AddMeter(ServusMetrics.MeterName);
     }
 }

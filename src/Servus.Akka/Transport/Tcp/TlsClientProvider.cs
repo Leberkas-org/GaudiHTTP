@@ -1,8 +1,6 @@
 using System.Buffers;
 using System.Net;
 using System.Net.Security;
-using System.Security.Authentication;
-using Servus.Akka.Diagnostics;
 
 namespace Servus.Akka.Transport.Tcp;
 
@@ -53,37 +51,14 @@ internal class TlsClientProvider(TlsTransportOptions options) : IAsyncDisposable
             ApplicationProtocols = options.ApplicationProtocols,
         };
 
-        var tlsActivity = ServusInstrumentation.StartTlsHandshake(targetHost);
-        ServusTrace.Tls.Debug(this, "TLS handshake starting with '{0}'", targetHost);
         try
         {
             await _sslStream.AuthenticateAsClientAsync(authOptions, ct)
                 .WaitAsync(options.ConnectTimeout, ct)
                 .ConfigureAwait(false);
-
-            if (tlsActivity is not null)
-            {
-                var protocolVersion = _sslStream.SslProtocol switch
-                {
-                    SslProtocols.Tls12 => "1.2",
-                    SslProtocols.Tls13 => "1.3",
-                    _ => _sslStream.SslProtocol.ToString()
-                };
-                ServusInstrumentation.SetTlsInfo(tlsActivity, "tls", protocolVersion);
-                tlsActivity.Stop();
-            }
-
-            ServusTrace.Tls.Debug(this, "TLS handshake completed with '{0}'", targetHost);
         }
-        catch (Exception ex)
+        catch
         {
-            if (tlsActivity is not null)
-            {
-                ServusInstrumentation.SetError(tlsActivity, ex);
-                tlsActivity.Stop();
-            }
-
-            ServusTrace.Tls.Warning(this, "TLS handshake with '{0}' failed: {1}", targetHost, ex.Message);
             throw;
         }
 

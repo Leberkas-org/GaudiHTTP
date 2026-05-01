@@ -4,21 +4,6 @@ using Servus.Akka.Transport;
 
 namespace TurboHTTP.Protocol.Http2;
 
-/// <summary>
-/// Decodes raw bytes into HTTP/2 frame objects.
-/// Handles TCP fragmentation via an internal working buffer.
-/// Pure frame parsing — no HPACK, no stream state.
-///
-/// <para>
-/// <b>Ownership model:</b> the primary <see cref="Decode(NetworkBuffer)"/> overload
-/// takes ownership of the supplied <see cref="NetworkBuffer"/>. The returned frames hold
-/// <see cref="ReadOnlyMemory{T}"/> slices into the decoder's internal working buffer, which
-/// remains valid until the next <see cref="Decode(NetworkBuffer)"/> or
-/// <see cref="Reset"/> call. Akka.Streams back-pressure guarantees that all frames from call N
-/// are fully consumed by downstream stages before call N+1 fires, so callers in the Akka
-/// pipeline never need to copy frame payloads defensively.
-/// </para>
-/// </summary>
 internal sealed class FrameDecoder : IDisposable
 {
     // RFC 9113 §4.1: all frames begin with a fixed 9-octet header.
@@ -149,24 +134,6 @@ internal sealed class FrameDecoder : IDisposable
         }
 
         return _frames.ToArray();
-    }
-
-    /// <summary>
-    /// Convenience overload for tests and callers that already hold a <see cref="ReadOnlyMemory{T}"/>.
-    /// Copies <paramref name="data"/> into a pooled buffer and delegates to
-    /// <see cref="Decode(NetworkBuffer)"/>.
-    /// </summary>
-    public IReadOnlyList<Http2Frame> Decode(ReadOnlyMemory<byte> data)
-    {
-        if (data.IsEmpty && _remainderLength == 0)
-        {
-            return [];
-        }
-
-        var buf = TransportBuffer.Rent(Math.Max(1, data.Length));
-        data.CopyTo(buf.FullMemory);
-        buf.Length = data.Length;
-        return Decode(buf);
     }
 
     /// <summary>

@@ -19,7 +19,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.Decode(new ReadOnlyMemory<byte>(bytes));
+        var frames = decoder.Decode(bytes);
 
         Assert.Equal(4, frames.Count);
 
@@ -56,7 +56,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.Decode(new ReadOnlyMemory<byte>(bytes));
+        var frames = decoder.Decode(bytes);
 
         Assert.Single(frames);
         var settings = Assert.IsType<SettingsFrame>(frames[0]);
@@ -73,7 +73,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.Decode(new ReadOnlyMemory<byte>(bytes));
+        var frames = decoder.Decode(bytes);
 
         Assert.Equal(2, frames.Count);
 
@@ -94,7 +94,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.Decode(new ReadOnlyMemory<byte>(bytes));
+        var frames = decoder.Decode(bytes);
 
         Assert.Single(frames);
         var headers = Assert.IsType<HeadersFrame>(frames[0]);
@@ -117,7 +117,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.Decode(new ReadOnlyMemory<byte>(bytes));
+        var frames = decoder.Decode(bytes);
 
         Assert.Single(frames);
         var goaway = Assert.IsType<GoAwayFrame>(frames[0]);
@@ -133,7 +133,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.Decode(new ReadOnlyMemory<byte>(bytes));
+        var frames = decoder.Decode(bytes);
 
         Assert.Single(frames);
         var rst = Assert.IsType<RstStreamFrame>(frames[0]);
@@ -154,7 +154,7 @@ public sealed class H2ResponseBuilderSpec
             .Build();
 
         using var decoder = new FrameDecoder();
-        var frames = decoder.Decode(new ReadOnlyMemory<byte>(bytes));
+        var frames = decoder.Decode(bytes);
 
         Assert.Equal(5, frames.Count);
         Assert.IsType<SettingsFrame>(frames[0]);

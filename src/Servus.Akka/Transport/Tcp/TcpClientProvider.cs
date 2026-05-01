@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using Servus.Akka.Diagnostics;
 
 namespace Servus.Akka.Transport.Tcp;
 
@@ -20,7 +19,7 @@ internal class TcpClientProvider(TcpTransportOptions options) : IAsyncDisposable
 
         _socket = CreateSocket(options.SocketSendBufferSize, options.SocketReceiveBufferSize);
 
-        var dnsActivity = ServusInstrumentation.StartDnsLookup(connectHost);
+        //var dnsActivity = ServusInstrumentation.StartDnsLookup(connectHost);
         IPAddress[] addresses;
         try
         {
@@ -33,49 +32,49 @@ internal class TcpClientProvider(TcpTransportOptions options) : IAsyncDisposable
                 throw new InvalidOperationException($"Could not resolve any IP addresses for host '{connectHost}'.");
             }
 
-            if (dnsActivity is not null)
-            {
-                ServusInstrumentation.SetDnsAnswers(dnsActivity,
-                    Array.ConvertAll(addresses, a => a.ToString()));
-            }
-
-            ServusMetrics.DnsLookupDuration.Record(dnsDuration,
-                new KeyValuePair<string, object?>("dns.question.name", connectHost));
-            dnsActivity?.Stop();
-            ServusTrace.Dns.Debug(this, "DNS '{0}' resolved {1} address(es)", connectHost, addresses.Length);
+            // if (dnsActivity is not null)
+            // {
+            //     ServusInstrumentation.SetDnsAnswers(dnsActivity,
+            //         Array.ConvertAll(addresses, a => a.ToString()));
+            // }
+            //
+            // ServusMetrics.DnsLookupDuration.Record(dnsDuration,
+            //     new KeyValuePair<string, object?>("dns.question.name", connectHost));
+            // dnsActivity?.Stop();
+            // ServusTrace.Dns.Debug(this, "DNS '{0}' resolved {1} address(es)", connectHost, addresses.Length);
         }
         catch (Exception ex)
         {
-            if (dnsActivity is not null)
-            {
-                ServusInstrumentation.SetError(dnsActivity, ex);
-                dnsActivity.Stop();
-            }
-
-            ServusTrace.Dns.Warning(this, "DNS '{0}' failed: {1}", connectHost, ex.Message);
+            // if (dnsActivity is not null)
+            // {
+            //     ServusInstrumentation.SetError(dnsActivity, ex);
+            //     dnsActivity.Stop();
+            // }
+            //
+            // ServusTrace.Dns.Warning(this, "DNS '{0}' failed: {1}", connectHost, ex.Message);
             throw;
         }
 
         var networkType = addresses[0].AddressFamily == AddressFamily.InterNetworkV6
             ? "ipv6"
             : "ipv4";
-        var socketActivity = ServusInstrumentation.StartSocketConnect(
-            addresses[0].ToString(), connectPort, "tcp", networkType);
+        // var socketActivity = ServusInstrumentation.StartSocketConnect(
+        //     addresses[0].ToString(), connectPort, "tcp", networkType);
         try
         {
             await _socket.ConnectAsync(addresses, connectPort, ct).ConfigureAwait(false);
-            socketActivity?.Stop();
-            ServusTrace.Connection.Debug(this, "TCP connected to {0}:{1}", addresses[0], connectPort);
+            // socketActivity?.Stop();
+            // ServusTrace.Connection.Debug(this, "TCP connected to {0}:{1}", addresses[0], connectPort);
         }
         catch (Exception ex)
         {
-            if (socketActivity is not null)
-            {
-                ServusInstrumentation.SetError(socketActivity, ex);
-                socketActivity.Stop();
-            }
-
-            ServusTrace.Connection.Warning(this, "TCP connect to {0}:{1} failed: {2}", addresses[0], connectPort, ex.Message);
+            // if (socketActivity is not null)
+            // {
+            //     ServusInstrumentation.SetError(socketActivity, ex);
+            //     socketActivity.Stop();
+            // }
+            //
+            // ServusTrace.Connection.Warning(this, "TCP connect to {0}:{1} failed: {2}", addresses[0], connectPort, ex.Message);
             throw;
         }
 
