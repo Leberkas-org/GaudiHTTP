@@ -1,6 +1,7 @@
 using System.Net;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Quic;
+using Servus.Akka.Transport.Quic.Client;
 using QuicInboundStreamAccepted = Servus.Akka.Transport.Quic.InboundStreamAccepted;
 
 namespace Servus.Akka.Tests.Transport.Quic;

@@ -10,6 +10,7 @@
 
     <ItemGroup>
         <PackageReference Include="Akka.Hosting"/>
+        <PackageReference Include="Servus.Core" />
     </ItemGroup>
 
     <ItemGroup>

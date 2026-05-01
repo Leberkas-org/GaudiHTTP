@@ -1,6 +1,6 @@
 namespace Servus.Akka.Transport.Quic;
 
-public sealed class StreamHandle : IAsyncDisposable
+internal sealed class StreamHandle : IAsyncDisposable
 {
     private readonly Stream _stream;
 

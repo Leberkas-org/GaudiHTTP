@@ -1,6 +1,6 @@
 namespace Servus.Akka.Transport;
 
-public enum PipeMode
+internal enum PipeMode
 {
     Bidirectional,
     WriteOnly,

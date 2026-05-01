@@ -5,7 +5,7 @@ using Akka.Streams.Stage;
 
 namespace Servus.Akka.Transport.Tcp.Listener;
 
-public sealed class TcpServerConnectionStage : GraphStage<FlowShape<ITransportOutbound, ITransportInbound>>
+internal sealed class TcpServerConnectionStage : GraphStage<FlowShape<ITransportOutbound, ITransportInbound>>
 {
     private readonly Stream _stream;
     private readonly ConnectionInfo _connectionInfo;

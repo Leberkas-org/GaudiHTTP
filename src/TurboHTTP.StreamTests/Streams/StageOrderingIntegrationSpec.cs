@@ -65,10 +65,10 @@ public sealed class StageOrderingIntegrationSpec : EngineTestBase
             Handlers: []);
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => Http10Flow(Ok11Response)))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => Http11Flow(Ok11Response)))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Http10Flow(Ok11Response))
+            .Register(new Version(1, 1), Http11Flow(Ok11Response))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/page")
@@ -88,10 +88,10 @@ public sealed class StageOrderingIntegrationSpec : EngineTestBase
         // and BidiFlow chain. No features needed — empty descriptor proves the bare pipeline wires correctly.
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => Http10Flow(Ok11Response)))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => Http11Flow(Ok11Response)))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0),  Http10Flow(Ok11Response))
+            .Register(new Version(1, 1), Http11Flow(Ok11Response))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/api")
@@ -121,10 +121,10 @@ public sealed class StageOrderingIntegrationSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => Http10Flow(() => responseBytes)))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => Http11Flow(() => responseBytes)))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Http10Flow(() => responseBytes))
+            .Register(new Version(1, 1), Http11Flow(() => responseBytes))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/gzipped")
@@ -168,10 +168,10 @@ public sealed class StageOrderingIntegrationSpec : EngineTestBase
             Handlers: []);
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => Http10Flow(ResponseFactory)))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => Http11Flow(ResponseFactory)))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0),  Http10Flow(ResponseFactory))
+            .Register(new Version(1, 1), Http11Flow(ResponseFactory))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/old")
@@ -195,10 +195,10 @@ public sealed class StageOrderingIntegrationSpec : EngineTestBase
         // It passes through all BidiStages in the response direction to the final output.
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => Http10Flow(Ok11Response)))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => Http11Flow(Ok11Response)))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Http10Flow(Ok11Response))
+            .Register(new Version(1, 1), Http11Flow(Ok11Response))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/stable")
@@ -211,4 +211,3 @@ public sealed class StageOrderingIntegrationSpec : EngineTestBase
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 }
-

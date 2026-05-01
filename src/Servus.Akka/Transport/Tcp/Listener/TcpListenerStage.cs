@@ -14,7 +14,7 @@ internal sealed record TcpClientAccepted(TcpClient Client);
 
 internal sealed record TcpAcceptFailed(Exception Error);
 
-public sealed class TcpListenerStage : GraphStage<SourceShape<Flow<ITransportOutbound, ITransportInbound, NotUsed>>>
+internal sealed class TcpListenerStage : GraphStage<SourceShape<Flow<ITransportOutbound, ITransportInbound, NotUsed>>>
 {
     private readonly TcpListenerOptions _options;
 

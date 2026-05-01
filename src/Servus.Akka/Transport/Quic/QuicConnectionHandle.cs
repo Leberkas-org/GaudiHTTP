@@ -2,7 +2,7 @@ using System.Net;
 
 namespace Servus.Akka.Transport.Quic;
 
-public sealed class QuicConnectionHandle : IAsyncDisposable
+internal sealed class QuicConnectionHandle : IAsyncDisposable
 {
     private readonly Func<StreamDirection, CancellationToken, Task<(Stream, long)>> _openStream;
     private readonly Func<CancellationToken, Task<(Stream, long)?>> _acceptInboundStream;

@@ -91,6 +91,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
 
         void IStageOperations.OnResponse(HttpResponseMessage response)
         {
+            TurboTrace.Protocol.Debug(this, "H2 ← {0}", (int)response.StatusCode);
             _pendingResponses.Add(response);
         }
 
@@ -120,6 +121,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 // Reconnect: new connection ready — replay buffered requests
                 case TransportConnected:
                 {
+                    TurboTrace.Protocol.Debug(this, "H2 connected");
                     _sm.OnConnectionRestored();
                     FlushOutbound();
                     ScheduleKeepAlivePing();
@@ -153,6 +155,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 // Reconnect: abrupt close with in-flight requests (no GOAWAY)
                 case TransportDisconnected when _sm.HasInFlightRequests:
                 {
+                    TurboTrace.Protocol.Warning(this, "H2 closed, in-flight requests");
                     _sm.OnConnectionLost(lastStreamId: 0);
                     FlushOutbound();
                     if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
@@ -208,6 +211,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
         private void OnAppPush()
         {
             var request = Grab(_stage._inApp);
+            TurboTrace.Protocol.Debug(this, "H2 → {0} {1}", request.Method, request.RequestUri);
             _sm.EncodeRequest(request);
             FlushOutbound();
             TryPullRequest();

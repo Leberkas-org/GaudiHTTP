@@ -1,5 +1,6 @@
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
+using Servus.Akka.Transport.Tcp.Client;
 
 namespace Servus.Akka.Tests.Utils;
 

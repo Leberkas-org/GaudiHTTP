@@ -22,7 +22,7 @@ internal sealed record QuicListenerBound(QuicListener Listener);
 [SupportedOSPlatform("linux")]
 [SupportedOSPlatform("macOS")]
 [SupportedOSPlatform("windows")]
-public sealed class QuicListenerStage
+internal sealed class QuicListenerStage
     : GraphStage<SourceShape<Flow<ITransportOutbound, ITransportInbound, NotUsed>>>
 {
     private readonly QuicListenerOptions _options;

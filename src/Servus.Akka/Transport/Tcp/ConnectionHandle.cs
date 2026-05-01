@@ -2,7 +2,7 @@ using System.Threading.Channels;
 
 namespace Servus.Akka.Transport.Tcp;
 
-public sealed class ConnectionHandle
+internal sealed class ConnectionHandle
 {
     private readonly ChannelWriter<TransportBuffer> _outboundWriter;
     private readonly ChannelReader<TransportBuffer> _inboundReader;

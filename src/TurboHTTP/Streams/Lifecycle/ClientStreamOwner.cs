@@ -1,16 +1,13 @@
+using System.Net;
 using System.Threading.Channels;
 using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using Servus.Akka.Transport.Quic;
-using Servus.Akka.Transport.Tcp;
+using TurboHTTP.Diagnostics;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Pooling;
-
-// QuicConnectionManagerActor is guarded on linux/macOS/windows — all desktop platforms.
-#pragma warning disable CA1416
 
 namespace TurboHTTP.Streams.Lifecycle;
 
@@ -53,7 +50,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
     private IActorRef _createRequester = Nobody.Instance;
     private bool _shuttingDown;
 
-    private IActorRef? _tcpConnectionManager;
+    private IActorRef? _tcpManager;
     private IActorRef? _quicConnectionManager;
     private ActorMaterializer? _materializer;
     private SharedKillSwitch? _killSwitch;
@@ -86,6 +83,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
 
     private void MaterializeStream(CreateStreamInstance create)
     {
+        TurboTrace.Request.Info(this, "Materializing pipeline");
         _log.Debug("Materializing stream pipeline (BaseAddress={0})",
             create.ClientOptions.BaseAddress);
 
@@ -114,18 +112,15 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
                     opts.PooledConnectionLifetime,
                     ReuseOnUpstreamFinish: false));
 
-            _tcpConnectionManager = Context.ActorOf(
-                Props.Create(() => new TcpConnectionManagerActor(poolRegistry)), "tcp-pool");
+            _tcpManager = Context.ActorOf(TransportFactory.CreateTcpConnectionManager(poolRegistry), "tcp-pool");
 
-            _quicConnectionManager = Context.ActorOf(Props.Create(() => new QuicConnectionManagerActor()), "quic-pool");
+            _quicConnectionManager = Context.ActorOf(TransportFactory.CreateQuicConnectionManager(), "quic-pool");
 
             var transports = new TransportRegistry()
-                .Register(new Version(1, 0),
-                    new TcpTransportFactory(_tcpConnectionManager, new Http10PoolingStrategy()))
-                .Register(new Version(1, 1),
-                    new TcpTransportFactory(_tcpConnectionManager, new Http11PoolingStrategy()))
-                .Register(new Version(2, 0), new TcpTransportFactory(_tcpConnectionManager, new Http2PoolingStrategy()))
-                .Register(new Version(3, 0), new QuicTransportFactory(_quicConnectionManager));
+                .Register(HttpVersion.Version10, TransportFactory.CreateTcpClient(_tcpManager, new Http10PoolingStrategy()))
+                .Register(HttpVersion.Version11, TransportFactory.CreateTcpClient(_tcpManager, new Http11PoolingStrategy()))
+                .Register(HttpVersion.Version20, TransportFactory.CreateTcpClient(_tcpManager, new Http2PoolingStrategy()))
+                .Register(HttpVersion.Version30, TransportFactory.CreateQuicClient(_quicConnectionManager));
 
             var engine = new Engine();
             var engineFlow = engine.CreateFlow(
@@ -173,6 +168,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
                 ex => new StreamSinkCompleted(ex.GetBaseException()));
 
             _streamRunning = true;
+            TurboTrace.Request.Debug(this, "Pipeline ready");
             _log.Debug("Stream pipeline materialized successfully");
 
             // Notify requester of successful materialization
@@ -183,6 +179,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
         }
         catch (Exception ex)
         {
+            TurboTrace.Request.Warning(this, "Pipeline failed: {0}", ex.Message);
             _log.Error(ex, "Failed to materialize stream pipeline");
             CleanupResources();
             HandleMaterializationFailed(ex);
@@ -254,6 +251,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
             return;
         }
 
+        TurboTrace.Request.Debug(this, "Pipeline retry {0}/{1}", _retryAttempts, MaxRetryAttempts);
         _log.Info("Executing retry attempt {0}/{1}", _retryAttempts, MaxRetryAttempts);
         CleanupForRetry();
         MaterializeStream(_createRequest);
@@ -267,6 +265,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
         }
 
         _shuttingDown = true;
+        TurboTrace.Request.Debug(this, "Pipeline shutdown");
 
         if (_killSwitch is not null)
         {
@@ -362,18 +361,18 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
         }
 
         // Stop connection manager actors (PostStop disposes all leases)
-        if (_tcpConnectionManager is not null)
+        if (_tcpManager is not null)
         {
             try
             {
-                Context.Stop(_tcpConnectionManager);
+                Context.Stop(_tcpManager);
             }
             catch (Exception ex)
             {
                 _log.Warning("Error stopping TCP connection manager: {0}", ex.Message);
             }
 
-            _tcpConnectionManager = null;
+            _tcpManager = null;
         }
 
         if (_quicConnectionManager is not null)

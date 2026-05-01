@@ -44,11 +44,10 @@ public sealed class EnginePipelineDescriptorSpec : EngineTestBase
         var fake = new EngineFakeConnectionStage(Ok200);
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Ok200))))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => Flow.FromGraph(fake)))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Flow.FromGraph(new EngineFakeConnectionStage(Ok200)))
+            .Register(new Version(1, 1), Flow.FromGraph(fake))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
@@ -72,12 +71,10 @@ public sealed class EnginePipelineDescriptorSpec : EngineTestBase
     {
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Response503))))
-            .Register(new Version(1, 1),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Response503))))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Flow.FromGraph(new EngineFakeConnectionStage(Response503)))
+            .Register(new Version(1, 1), Flow.FromGraph(new EngineFakeConnectionStage(Response503)))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
@@ -95,12 +92,10 @@ public sealed class EnginePipelineDescriptorSpec : EngineTestBase
     {
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Response301))))
-            .Register(new Version(1, 1),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Response301))))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Flow.FromGraph(new EngineFakeConnectionStage(Response301)))
+            .Register(new Version(1, 1), Flow.FromGraph(new EngineFakeConnectionStage(Response301)))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
@@ -135,11 +130,10 @@ public sealed class EnginePipelineDescriptorSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Ok200))))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => Flow.FromGraph(fake)))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Flow.FromGraph(new EngineFakeConnectionStage(Ok200)))
+            .Register(new Version(1, 1), Flow.FromGraph(fake))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
@@ -178,12 +172,10 @@ public sealed class EnginePipelineDescriptorSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Ok200))))
-            .Register(new Version(1, 1),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(StatefulFactory))))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Flow.FromGraph(new EngineFakeConnectionStage(Ok200)))
+            .Register(new Version(1, 1), Flow.FromGraph(new EngineFakeConnectionStage(StatefulFactory)))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
@@ -215,12 +207,10 @@ public sealed class EnginePipelineDescriptorSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Ok200))))
-            .Register(new Version(1, 1),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(StatefulFactory))))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Flow.FromGraph(new EngineFakeConnectionStage(Ok200)))
+            .Register(new Version(1, 1), Flow.FromGraph(new EngineFakeConnectionStage(StatefulFactory)))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
@@ -234,4 +224,3 @@ public sealed class EnginePipelineDescriptorSpec : EngineTestBase
         Assert.Equal(2, callCount);
     }
 }
-

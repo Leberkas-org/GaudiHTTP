@@ -1,6 +1,6 @@
 namespace Servus.Akka.Transport.Quic;
 
-public enum StreamPhase
+internal enum StreamPhase
 {
     Opening,
     Active,

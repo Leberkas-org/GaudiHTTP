@@ -1,6 +1,6 @@
 namespace Servus.Akka.Transport.Tcp;
 
-public sealed class ConnectionLease : IDisposable
+internal sealed class ConnectionLease : IDisposable
 {
     private readonly CancellationTokenSource _cts;
     private readonly ClientState _state;

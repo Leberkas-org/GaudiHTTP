@@ -2,6 +2,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
+using TurboHTTP.Diagnostics;
 using TurboHTTP.Protocol.Http10;
 
 namespace TurboHTTP.Streams.Stages;
@@ -106,6 +107,7 @@ internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
 
         void IStageOperations.OnResponse(HttpResponseMessage response)
         {
+            TurboTrace.Protocol.Debug(this, "HTTP/1.0 ← {0}", (int)response.StatusCode);
             _pendingResponses.Add(response);
         }
 
@@ -132,6 +134,7 @@ internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
 
             if (item is TransportConnected)
             {
+                TurboTrace.Protocol.Debug(this, "HTTP/1.0 connected");
                 _sm.OnConnectionRestored();
                 FlushOutbound();
                 TryPullRequest();
@@ -166,6 +169,7 @@ internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
 
             if (item is TransportDisconnected && _sm.HasInFlightRequest)
             {
+                TurboTrace.Protocol.Warning(this, "HTTP/1.0 closed, {0} pending", _sm.PendingRequestCount);
                 _sm.StartReconnect();
                 FlushOutbound();
                 if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
@@ -211,6 +215,7 @@ internal sealed class Http10ConnectionStage : GraphStage<ConnectionShape>
         private void OnAppPush()
         {
             var request = Grab(_stage._inApp);
+            TurboTrace.Protocol.Debug(this, "HTTP/1.0 → {0} {1}", request.Method, request.RequestUri);
             _sm.EncodeRequest(request);
             FlushOutbound();
             TryPullRequest();

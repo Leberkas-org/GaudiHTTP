@@ -315,6 +315,7 @@ internal sealed class RedirectStateMachine
         }
         catch (RedirectException)
         {
+            TurboTrace.Redirect.Warning(_ops, "Max redirects exceeded for {0}", original.RequestUri);
             _inFlightCount--;
             _ops.OnPushResponse(response);
         }

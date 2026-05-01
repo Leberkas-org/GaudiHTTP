@@ -1,23 +1,22 @@
 using Akka;
+using Akka.Actor;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
 using TurboHTTP.Streams;
+using TurboHTTP.Streams.Pooling;
 
 namespace TurboHTTP.Tests.Streams;
 
 public sealed class EngineSpec
 {
-    private sealed class TestTransportFactory : ITransportFactory
+    public static Flow<ITransportOutbound, ITransportInbound, NotUsed> CreateMock()
     {
-        public Flow<ITransportOutbound, ITransportInbound, NotUsed> Create()
-        {
-            throw new NotImplementedException("This factory should not be called in unit tests");
-        }
+        return TransportFactory.CreateTcpClient(ActorRefs.Nobody, new Http2PoolingStrategy());
     }
 
     private static TransportRegistry CreateMockTransportRegistry()
     {
-        var mockFactory = new TestTransportFactory();
+        var mockFactory = CreateMock();
 
         var registry = new TransportRegistry();
         registry.Register(System.Net.HttpVersion.Version10, mockFactory);

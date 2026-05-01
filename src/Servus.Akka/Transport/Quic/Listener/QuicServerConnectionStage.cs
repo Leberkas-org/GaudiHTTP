@@ -5,7 +5,7 @@ using Akka.Streams.Stage;
 
 namespace Servus.Akka.Transport.Quic.Listener;
 
-public sealed class QuicServerConnectionStage : GraphStage<FlowShape<ITransportOutbound, ITransportInbound>>
+internal sealed class QuicServerConnectionStage : GraphStage<FlowShape<ITransportOutbound, ITransportInbound>>
 {
     private readonly QuicConnectionHandle _connectionHandle;
     private readonly ConnectionInfo _connectionInfo;

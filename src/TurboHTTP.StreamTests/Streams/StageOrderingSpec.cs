@@ -368,10 +368,10 @@ public sealed class StageOrderingSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => Http10Flow(ResponseWithCookieAndCache)))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => Http11Flow(ResponseWithCookieAndCache)))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), Http10Flow(ResponseWithCookieAndCache))
+            .Register(new Version(1, 1), Http11Flow(ResponseWithCookieAndCache))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/resource")

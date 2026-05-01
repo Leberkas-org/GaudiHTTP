@@ -1,6 +1,8 @@
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Quic;
+using Servus.Akka.Transport.Quic.Client;
 using Servus.Akka.Transport.Tcp;
+using Servus.Akka.Transport.Tcp.Client;
 
 namespace Servus.Akka.Tests.Utils;
 
@@ -17,7 +19,7 @@ internal sealed class SlowTcpConnectionFactory(TimeSpan delay) : ITcpConnectionF
     }
 }
 
-public sealed class SlowQuicConnectionFactory(TimeSpan delay) : IQuicConnectionFactory
+internal sealed class SlowQuicConnectionFactory(TimeSpan delay) : IQuicConnectionFactory
 {
     public async Task<QuicConnectionLease> EstablishAsync(QuicTransportOptions options,
         CancellationToken ct = default)
@@ -33,7 +35,7 @@ public sealed class SlowQuicConnectionFactory(TimeSpan delay) : IQuicConnectionF
     }
 }
 
-public sealed class MockFactory : IQuicConnectionFactory
+internal sealed class MockFactory : IQuicConnectionFactory
 {
     private readonly bool _shouldFail;
     private readonly int _maxStreams;

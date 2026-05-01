@@ -12,11 +12,12 @@ public sealed class PipeModeSpec
     }
 
     [Theory(Timeout = 5000)]
-    [InlineData(PipeMode.Bidirectional, 0)]
-    [InlineData(PipeMode.WriteOnly, 1)]
-    [InlineData(PipeMode.ReadOnly, 2)]
-    public void PipeMode_should_have_correct_ordinal(PipeMode mode, int expected)
+    [InlineData(0, 0)]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    public void PipeMode_should_have_correct_ordinal(int modeValue, int expected)
     {
+        var mode = (PipeMode)modeValue;
         Assert.Equal(expected, (int)mode);
     }
 }

@@ -18,7 +18,7 @@ public sealed class ListenerOptionsSpec
 
         Assert.True(options.ReuseAddress);
         Assert.True(options.NoDelay);
-        Assert.Equal(128, options.Backlog);
+        Assert.Equal(int.MaxValue, options.Backlog);
         Assert.Null(options.ServerCertificate);
         Assert.Equal(SslProtocols.None, options.EnabledSslProtocols);
     }
@@ -103,7 +103,7 @@ public sealed class ListenerOptionsSpec
             Port = 0
         };
 
-        Assert.Equal(128, options.Backlog);
+        Assert.Equal(int.MaxValue, options.Backlog);
     }
 
     [Fact(Timeout = 5000)]

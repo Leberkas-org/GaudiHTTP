@@ -19,13 +19,13 @@ public sealed class LoopbackBenchmarkStageSpec : EngineTestBase
         var engine = new Engine();
         var transports = new TransportRegistry()
             .Register(new Version(1, 0),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse))))
+                Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse)))
             .Register(new Version(1, 1),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse))))
+                Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse)))
             .Register(new Version(2, 0),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse))))
+                Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse)))
             .Register(new Version(3, 0),
-                new DelegateTransportFactory(() => Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse))));
+                Flow.FromGraph(new EngineFakeConnectionStage(Http11OkResponse)));
         var flow = engine.CreateFlow(transports, PipelineDescriptor.Empty);
 
         var (queue, _) = Source.Queue<HttpRequestMessage>(16, OverflowStrategy.Backpressure)

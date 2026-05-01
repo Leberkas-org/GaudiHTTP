@@ -1,4 +1,5 @@
 using System.Net;
+using Servus.Akka.Transport.Quic.Client;
 
 namespace Servus.Akka.Transport.Quic;
 

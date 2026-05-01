@@ -1,5 +1,6 @@
 using System.Buffers;
 using Akka.Actor;
+using Servus.Akka.Transport.Tcp.Client;
 
 namespace Servus.Akka.Transport.Tcp;
 

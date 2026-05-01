@@ -66,10 +66,10 @@ public sealed class FeedbackBufferOptimizationSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => SequentialFlow(Ok200())))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => SequentialFlow(Redirect301("http://example.com/target"), Ok200())))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), SequentialFlow(Ok200()))
+            .Register(new Version(1, 1), SequentialFlow(Redirect301("http://example.com/target"), Ok200()))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/origin")
@@ -97,14 +97,14 @@ public sealed class FeedbackBufferOptimizationSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => SequentialFlow(Ok200())))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => SequentialFlow(
+            .Register(new Version(1, 0), SequentialFlow(Ok200()))
+            .Register(new Version(1, 1),  SequentialFlow(
                 Redirect301("http://example.com/step2"),
                 Redirect301("http://example.com/step3"),
                 Redirect301("http://example.com/step4"),
-                Ok200())))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+                Ok200()))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/step1")
@@ -132,10 +132,10 @@ public sealed class FeedbackBufferOptimizationSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => SequentialFlow(Ok200())))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => SequentialFlow(Retry408(), Ok200())))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), SequentialFlow(Ok200()))
+            .Register(new Version(1, 1), SequentialFlow(Retry408(), Ok200()))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
@@ -163,10 +163,10 @@ public sealed class FeedbackBufferOptimizationSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => SequentialFlow(Ok200())))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => SequentialFlow(Retry408(), Retry408(), Ok200())))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), SequentialFlow(Ok200()))
+            .Register(new Version(1, 1), SequentialFlow(Retry408(), Retry408(), Ok200()))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
@@ -194,10 +194,10 @@ public sealed class FeedbackBufferOptimizationSpec : EngineTestBase
 
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => SequentialFlow(Ok200())))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => SequentialFlow(Redirect307("http://example.com/target"), Ok200())))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), SequentialFlow(Ok200()))
+            .Register(new Version(1, 1), SequentialFlow(Redirect307("http://example.com/target"), Ok200()))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, descriptor);
 
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/origin")
@@ -215,10 +215,10 @@ public sealed class FeedbackBufferOptimizationSpec : EngineTestBase
     {
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0), new DelegateTransportFactory(() => SequentialFlow(Ok200())))
-            .Register(new Version(1, 1), new DelegateTransportFactory(() => SequentialFlow(Ok200())))
-            .Register(new Version(2, 0), new DelegateTransportFactory(NoOpH2Flow))
-            .Register(new Version(3, 0), new DelegateTransportFactory(NoOpH2Flow));
+            .Register(new Version(1, 0), SequentialFlow(Ok200()))
+            .Register(new Version(1, 1), SequentialFlow(Ok200()))
+            .Register(new Version(2, 0), NoOpH2Flow())
+            .Register(new Version(3, 0), NoOpH2Flow());
         var flow = engine.CreateFlow(transports, PipelineDescriptor.Empty);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
