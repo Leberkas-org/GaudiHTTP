@@ -96,6 +96,41 @@ internal sealed class StreamManager
     }
 
     /// <summary>
+    /// Fails an in-flight request on the given stream due to a transport error.
+    /// Removes the correlation and stream state, and completes the <see cref="PendingRequest"/>
+    /// with an exception so the caller's <c>SendAsync</c> or <c>ReadAsStringAsync</c> throws.
+    /// Returns true if a correlated request was found and failed.
+    /// </summary>
+    public bool FailInflightRequest(long streamId, Exception exception)
+    {
+        if (_streams.TryGetValue(streamId, out var state))
+        {
+            state.Reset();
+            if (_statePool.Count < MaxPoolSize)
+            {
+                _statePool.Push(state);
+            }
+
+            _streams.Remove(streamId);
+        }
+
+        if (!_correlationMap.Remove(streamId, out var request))
+        {
+            return false;
+        }
+
+        OnStreamClosedCallback?.Invoke(streamId);
+        ReturnDecoder(streamId);
+
+        if (request.Options.TryGetValue(TcsCorrelation.Key, out var pending))
+        {
+            pending.TrySetException(exception);
+        }
+
+        return true;
+    }
+
+    /// <summary>
     /// Completes all in-progress response assemblies (upstream finish / connection close).
     /// </summary>
     public void FlushAllPendingResponses()

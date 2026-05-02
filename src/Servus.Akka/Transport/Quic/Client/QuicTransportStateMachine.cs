@@ -71,7 +71,15 @@ public sealed class QuicTransportStateMachine
 
                 break;
             case InboundPumpFailed e:
-                OnInboundComplete(DisconnectReason.Error, e.StreamId);
+                if (IsConnectionLevelError(e.Error))
+                {
+                    HandleConnectionFailure(DisconnectReason.Error);
+                }
+                else
+                {
+                    OnInboundComplete(DisconnectReason.Error, e.StreamId);
+                }
+
                 break;
             case OutboundWriteDone:
                 _ops.OnSignalPullOutbound();
@@ -313,29 +321,30 @@ public sealed class QuicTransportStateMachine
         _ops.OnCancelTimer(ConnectTimerKey);
         Tracing.For("Connection").Warning(this, "QUIC acquisition failed: {0}", ex.Message);
 
-        if (_pendingConnect is null)
+        if (_pendingConnect is not null)
         {
+            _pendingConnect = null;
+            _ops.OnPushInbound(new TransportDisconnected(DisconnectReason.Error));
+            _ops.OnSignalPullOutbound();
             return;
         }
 
-        _pendingConnect = null;
-        _ops.OnPushInbound(new TransportDisconnected(DisconnectReason.Error));
-        _ops.OnSignalPullOutbound();
+        HandleConnectionFailure(DisconnectReason.Error);
     }
 
     private void HandleConnectionFailure(DisconnectReason reason)
     {
         Tracing.For("Connection").Debug(this, "QUIC disconnected: {0}", reason);
-        foreach (var (streamId, state) in _streams)
-        {
-            _ops.OnPushInbound(new StreamClosed(streamId, reason));
-            _ = state.DisposeAsync();
-        }
-
-        _streams.Clear();
 
         if (_autoReconnect && !_upstreamFinished)
         {
+            foreach (var (_, state) in _streams)
+            {
+                _ = state.DisposeAsync();
+            }
+
+            _streams.Clear();
+
             _ops.OnPushInbound(new TransportDisconnected(DisconnectReason.Transient));
             _isReconnecting = true;
             _pumpManager?.StopAll();
@@ -345,6 +354,14 @@ public sealed class QuicTransportStateMachine
             _ops.OnSignalPullOutbound();
             return;
         }
+
+        foreach (var (streamId, state) in _streams)
+        {
+            _ops.OnPushInbound(new StreamClosed(streamId, reason));
+            _ = state.DisposeAsync();
+        }
+
+        _streams.Clear();
 
         _ops.OnPushInbound(new TransportDisconnected(reason));
         _pumpManager?.StopAll();
@@ -438,6 +455,18 @@ public sealed class QuicTransportStateMachine
         ReturnConnectionToPool(false);
         _connectionHandle = null;
         _connectionLease = null;
+    }
+    private static bool IsConnectionLevelError(Exception ex)
+    {
+        if (ex is System.Net.Quic.QuicException qe)
+        {
+            return qe.QuicError is System.Net.Quic.QuicError.ConnectionAborted
+                or System.Net.Quic.QuicError.ConnectionIdle
+                or System.Net.Quic.QuicError.ConnectionRefused
+                or System.Net.Quic.QuicError.ConnectionTimeout;
+        }
+
+        return ex is ObjectDisposedException;
     }
 }
 

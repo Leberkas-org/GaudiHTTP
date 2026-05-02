@@ -69,6 +69,13 @@ internal sealed class StateMachine : IDisposable
     /// <summary>Whether there are in-flight requests awaiting responses.</summary>
     public bool HasInFlightRequests => _streamManager.HasInFlightRequests;
 
+    /// <summary>
+    /// Fails an in-flight request on the given stream due to a transport error.
+    /// Returns true if a correlated request was found and failed.
+    /// </summary>
+    public bool FailInflightRequest(long streamId, Exception exception) =>
+        _streamManager.FailInflightRequest(streamId, exception);
+
     /// <summary>The current connection endpoint.</summary>
     public RequestEndpoint Endpoint { get; private set; }
 
@@ -392,6 +399,14 @@ internal sealed class StateMachine : IDisposable
         TableSync.Reset();
         _serverStreamMap.Clear();
         _pendingStreamType.Clear();
+
+        if (_transportOptions is not null)
+        {
+            _ops.OnOutbound(new OpenStream(-2, StreamDirection.Unidirectional));
+            _ops.OnOutbound(new OpenStream(-3, StreamDirection.Unidirectional));
+            _ops.OnOutbound(new OpenStream(-4, StreamDirection.Unidirectional));
+            _ops.OnOutbound(new ConnectTransport(_transportOptions));
+        }
     }
 
     /// <summary>
@@ -535,6 +550,11 @@ internal sealed class StateMachine : IDisposable
         }
 
         ArrayPool<Http3Frame>.Shared.Return(replayArray, true);
+
+        for (var i = correlationIndex; i < oldCorrelations.Count; i++)
+        {
+            EncodeAndEmit(oldCorrelations[i]);
+        }
     }
 
     private void EmitSerializedFrame(Http3Frame frame, long streamId = -1)

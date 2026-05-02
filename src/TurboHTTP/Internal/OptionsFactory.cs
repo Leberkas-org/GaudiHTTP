@@ -39,7 +39,8 @@ internal static class OptionsFactory
                 AllowConnectionMigration = clientOptions.Http3.AllowConnectionMigration,
                 AllowEarlyData = clientOptions.Http3.AllowEarlyData,
                 ApplicationProtocols = alpn,
-                AutoReconnect = true
+                AutoReconnect = true,
+                ConnectionLifetime = clientOptions.PooledConnectionLifetime
             };
         }
 

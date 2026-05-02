@@ -217,7 +217,16 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 }
                 case StreamClosed { StreamId: >= 0 } streamClosed:
                 {
-                    _sm.FlushPendingResponse(streamClosed.StreamId);
+                    if (streamClosed.Reason == DisconnectReason.Error)
+                    {
+                        _sm.FailInflightRequest(streamClosed.StreamId,
+                            new HttpRequestException("HTTP/3 stream aborted by transport."));
+                    }
+                    else
+                    {
+                        _sm.FlushPendingResponse(streamClosed.StreamId);
+                    }
+
                     FlushResponses();
                     TryPullRequest();
                     return;
