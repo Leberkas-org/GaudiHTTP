@@ -31,7 +31,7 @@ public sealed class TestConnectionStageBuilderExtensionsSpec : global::Akka.Test
             })
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new TransportData(new byte[] { 0xAA })
             ])
@@ -70,7 +70,7 @@ public sealed class TestConnectionStageBuilderExtensionsSpec : global::Akka.Test
             })
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new OpenStream(42, StreamDirection.Bidirectional)
             ])
@@ -111,7 +111,7 @@ public sealed class TestConnectionStageBuilderExtensionsSpec : global::Akka.Test
             })
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new MultiplexedData(buf, 7)
             ])
@@ -138,7 +138,7 @@ public sealed class TestConnectionStageBuilderExtensionsSpec : global::Akka.Test
             })
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new DisconnectTransport(DisconnectReason.Timeout)
             ])
@@ -172,7 +172,7 @@ public sealed class TestConnectionStageBuilderExtensionsSpec : global::Akka.Test
             .AutoStreamOpened(42, StreamDirection.Bidirectional)
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new OpenStream(42, StreamDirection.Bidirectional)
             ])
@@ -207,7 +207,7 @@ public sealed class TestConnectionStageBuilderExtensionsSpec : global::Akka.Test
             .AutoStreamOpened(42)
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new OpenStream(99, StreamDirection.Bidirectional)
             ])
@@ -253,7 +253,7 @@ public sealed class TestConnectionStageBuilderExtensionsSpec : global::Akka.Test
         originalData.CopyTo(originalBuf.FullMemory.Span);
         originalBuf.Length = originalData.Length;
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new MultiplexedData(originalBuf, 7)
             ])
@@ -295,7 +295,7 @@ public sealed class TestConnectionStageBuilderExtensionsSpec : global::Akka.Test
             })
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new CompleteWrites(0)
             ])
@@ -334,7 +334,7 @@ public sealed class TestConnectionStageBuilderExtensionsSpec : global::Akka.Test
             })
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new ResetStream(99, 0)
             ])

@@ -209,7 +209,7 @@ public sealed class Http10StateMachineSpec
         var ops = new FakeOps();
         var sm = new StateMachine(ops, MakeConfig());
 
-        var item = new TransportConnected(default);
+        var item = new TransportConnected(default!);
 
         // Should return early without crashing
         sm.DecodeServerData(item);

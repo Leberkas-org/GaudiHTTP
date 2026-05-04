@@ -46,7 +46,7 @@ public sealed class TestListenerStageSpec : global::Akka.TestKit.Xunit.TestKit
             .RunWith(Sink.Seq<Flow<ITransportOutbound, ITransportInbound, NotUsed>>(), _materializer)
             .WaitAsync(TimeSpan.FromSeconds(5), ct);
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(flows[0])
             .RunWith(Sink.ForEach<ITransportInbound>(msg => tcs.TrySetResult(msg)), _materializer);
 
@@ -165,7 +165,7 @@ public sealed class TestListenerStageSpec : global::Akka.TestKit.Xunit.TestKit
             .RunWith(Sink.Seq<Flow<ITransportOutbound, ITransportInbound, NotUsed>>(), _materializer)
             .WaitAsync(TimeSpan.FromSeconds(5), ct);
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(connectionFlows[0])
             .RunWith(Sink.ForEach<ITransportInbound>(msg => tcs.TrySetResult(msg)), _materializer);
 
@@ -232,7 +232,7 @@ public sealed class TestListenerStageSpec : global::Akka.TestKit.Xunit.TestKit
             .RunWith(Sink.Seq<Flow<ITransportOutbound, ITransportInbound, NotUsed>>(), _materializer)
             .WaitAsync(TimeSpan.FromSeconds(5), ct);
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(connectionFlows[0])
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {

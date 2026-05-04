@@ -94,7 +94,6 @@ public sealed class TestConnectionStage : GraphStage<FlowShape<ITransportOutboun
         private readonly TestConnectionStage _stage;
         private readonly Queue<ITransportInbound> _pendingInbound = new();
         private bool _downstreamWaiting;
-        private bool _upstreamFinished;
         private Action<ITransportInbound>? _onInboundCallback;
 
         public Logic(TestConnectionStage stage) : base(stage.Shape)
@@ -122,7 +121,6 @@ public sealed class TestConnectionStage : GraphStage<FlowShape<ITransportOutboun
                 },
                 onUpstreamFinish: () =>
                 {
-                    _upstreamFinished = true;
                     _stage._outboundChannel.Writer.TryComplete();
                 },
                 onUpstreamFailure: ex =>

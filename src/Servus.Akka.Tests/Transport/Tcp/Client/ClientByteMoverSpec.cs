@@ -255,9 +255,10 @@ public sealed class ClientByteMoverSpec
         var state = new ClientState(stream);
         var closeCount = 0;
 
+        var ct = TestContext.Current.CancellationToken;
         var task = Task.Run(async () =>
         {
-            await Task.Delay(50, TestContext.Current.CancellationToken);
+            await Task.Delay(50, ct);
             try
             {
                 await state.InboundPipe.Writer.CompleteAsync(new AbruptCloseException());
@@ -266,7 +267,7 @@ public sealed class ClientByteMoverSpec
             {
                 // noop - writer might already be completed
             }
-        });
+        }, ct);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
@@ -283,9 +284,10 @@ public sealed class ClientByteMoverSpec
         var state = new ClientState(stream);
         var closeCount = 0;
 
+        var ct = TestContext.Current.CancellationToken;
         var task = Task.Run(async () =>
         {
-            await Task.Delay(50, TestContext.Current.CancellationToken);
+            await Task.Delay(50, ct);
             try
             {
                 await state.InboundPipe.Writer.CompleteAsync(new InvalidOperationException("Test error"));
@@ -294,7 +296,7 @@ public sealed class ClientByteMoverSpec
             {
                 // noop - writer might already be completed
             }
-        });
+        }, ct);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 

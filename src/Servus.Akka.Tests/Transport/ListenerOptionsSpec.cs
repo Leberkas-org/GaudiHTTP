@@ -1,5 +1,6 @@
 using System.Net.Security;
 using System.Security.Authentication;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Servus.Akka.Transport;
 
@@ -7,6 +8,13 @@ namespace Servus.Akka.Tests.Transport;
 
 public sealed class ListenerOptionsSpec
 {
+    private static X509Certificate2 CreateDummyCert()
+    {
+        using var rsa = RSA.Create(2048);
+        var request = new CertificateRequest("cn=test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        return request.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1));
+    }
+
     [Fact(Timeout = 5000)]
     public void TcpListenerOptions_should_have_correct_defaults()
     {
@@ -26,7 +34,7 @@ public sealed class ListenerOptionsSpec
     [Fact(Timeout = 5000)]
     public void QuicListenerOptions_should_have_correct_defaults()
     {
-        var cert = new X509Certificate2();
+        var cert = CreateDummyCert();
         var protocols = new List<SslApplicationProtocol> { SslApplicationProtocol.Http3 };
 
         var options = new QuicListenerOptions
@@ -69,7 +77,7 @@ public sealed class ListenerOptionsSpec
     [Fact(Timeout = 5000)]
     public void QuicListenerOptions_should_allow_property_override()
     {
-        var cert = new X509Certificate2();
+        var cert = CreateDummyCert();
         var protocols = new List<SslApplicationProtocol> { SslApplicationProtocol.Http3 };
 
         var options = new QuicListenerOptions
@@ -158,7 +166,7 @@ public sealed class ListenerOptionsSpec
     [Fact(Timeout = 5000)]
     public void QuicListenerOptions_should_have_null_client_cert_callback()
     {
-        var cert = new X509Certificate2();
+        var cert = CreateDummyCert();
         var protocols = new List<SslApplicationProtocol> { SslApplicationProtocol.Http3 };
 
         var options = new QuicListenerOptions
@@ -175,7 +183,7 @@ public sealed class ListenerOptionsSpec
     [Fact(Timeout = 5000)]
     public void QuicListenerOptions_should_have_ssl_protocols_none_by_default()
     {
-        var cert = new X509Certificate2();
+        var cert = CreateDummyCert();
         var protocols = new List<SslApplicationProtocol> { SslApplicationProtocol.Http3 };
 
         var options = new QuicListenerOptions

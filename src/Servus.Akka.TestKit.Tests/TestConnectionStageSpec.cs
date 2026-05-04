@@ -24,7 +24,7 @@ public sealed class TestConnectionStageSpec : global::Akka.TestKit.Xunit.TestKit
 
         var tcs = new TaskCompletionSource<ITransportInbound>();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg => tcs.TrySetResult(msg)), _materializer);
 
@@ -40,7 +40,7 @@ public sealed class TestConnectionStageSpec : global::Akka.TestKit.Xunit.TestKit
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.Ignore<ITransportInbound>().MapMaterializedValue(_ => NotUsed.Instance), _materializer);
 
@@ -61,7 +61,7 @@ public sealed class TestConnectionStageSpec : global::Akka.TestKit.Xunit.TestKit
         var results = new List<ITransportInbound>();
         var tcs = new TaskCompletionSource();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -88,7 +88,7 @@ public sealed class TestConnectionStageSpec : global::Akka.TestKit.Xunit.TestKit
         var inboundResults = new List<ITransportInbound>();
         var tcs = new TaskCompletionSource();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new TransportData(new byte[] { 1, 2, 3 })
             ])
@@ -128,7 +128,7 @@ public sealed class TestConnectionStageSpec : global::Akka.TestKit.Xunit.TestKit
 
         var tcs = new TaskCompletionSource<ITransportInbound>();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg => tcs.TrySetResult(msg)), _materializer);
 
@@ -153,7 +153,7 @@ public sealed class TestConnectionStageSpec : global::Akka.TestKit.Xunit.TestKit
         var results = new List<ITransportInbound>();
         var tcs = new TaskCompletionSource();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new TransportData(new byte[] { 1, 2, 3 })
             ])
@@ -185,7 +185,7 @@ public sealed class TestConnectionStageSpec : global::Akka.TestKit.Xunit.TestKit
 
         var tcs = new TaskCompletionSource<ITransportInbound>();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(flow)
             .RunWith(Sink.ForEach<ITransportInbound>(msg => tcs.TrySetResult(msg)), _materializer);
 
@@ -208,7 +208,7 @@ public sealed class TestConnectionStageSpec : global::Akka.TestKit.Xunit.TestKit
         var results = new List<ITransportInbound>();
         var tcs = new TaskCompletionSource();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new TransportData(new byte[] { 1, 2, 3 })
             ])
@@ -241,7 +241,7 @@ public sealed class TestConnectionStageSpec : global::Akka.TestKit.Xunit.TestKit
         var results = new List<ITransportInbound>();
         var tcs = new TaskCompletionSource();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new TransportData(new byte[] { 1 }),
                 new TransportData(new byte[] { 2 })

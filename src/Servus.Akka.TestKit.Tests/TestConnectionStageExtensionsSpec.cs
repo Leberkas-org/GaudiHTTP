@@ -25,7 +25,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -57,7 +57,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -88,7 +88,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -121,7 +121,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -154,7 +154,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -190,7 +190,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -219,7 +219,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new TransportData(new byte[] { 0xAA })
             ])
@@ -238,7 +238,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new OpenStream(1, StreamDirection.Bidirectional)
             ])
@@ -261,7 +261,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -294,7 +294,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -326,7 +326,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.From<ITransportOutbound>([
+        _ = Source.From<ITransportOutbound>([
                 new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }),
                 new OpenStream(1, StreamDirection.Bidirectional),
                 new MultiplexedData(TransportBuffer.Rent(0), 1)
@@ -349,7 +349,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -381,7 +381,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
@@ -414,7 +414,7 @@ public sealed class TestConnectionStageExtensionsSpec : global::Akka.TestKit.Xun
             .AutoConnect()
             .Build();
 
-        Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
+        _ = Source.Single<ITransportOutbound>(new ConnectTransport(new TcpTransportOptions { Host = "localhost", Port = 80 }))
             .Via(stage.AsFlow())
             .RunWith(Sink.ForEach<ITransportInbound>(msg =>
             {
