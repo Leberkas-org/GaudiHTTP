@@ -4,12 +4,12 @@
     "net10.0": {
       "Akka.Hosting": {
         "type": "Direct",
-        "requested": "[1.5.65, )",
-        "resolved": "1.5.65",
-        "contentHash": "tN6YbKWqZCRhYJoGNzVpTrNgXaaj8cBuBGZSQvrQcWGeu5RrToBrSScwJHPlVmpP7jPcwquzXcbImRvuuO1qoQ==",
+        "requested": "[1.5.67, )",
+        "resolved": "1.5.67",
+        "contentHash": "856rV6pqOSvYk+izS7Ca5f7p+Fu27oZHPV0oe2dyvNeK5SWKkikqj/AQNeAAfxGJ/3ZMCZIQSQJhXfetfx4y6w==",
         "dependencies": {
-          "Akka.DependencyInjection": "1.5.65",
-          "Akka.Streams": "1.5.65",
+          "Akka.DependencyInjection": "1.5.67",
+          "Akka.Streams": "1.5.67",
           "Microsoft.Extensions.Configuration.Abstractions": "8.0.0",
           "Microsoft.Extensions.Diagnostics.HealthChecks": "8.0.0",
           "Microsoft.Extensions.Hosting.Abstractions": "8.0.0",
@@ -19,11 +19,11 @@
       },
       "Akka.Streams": {
         "type": "Direct",
-        "requested": "[1.5.65, )",
-        "resolved": "1.5.65",
-        "contentHash": "wTMcmokp3GBfkC4CDMCccG2PCP1J4QJlNZZLG5zNWDhoD42Ow75BpDXRx3vg5zYKDMQrFyl3xmq3pyYZsDpwfA==",
+        "requested": "[1.5.67, )",
+        "resolved": "1.5.67",
+        "contentHash": "DfxpWPMOCGV7TuYO1Kh1gOVoXDxFWPMtuaFi/h/a+5Fph31fTB7TEHW4oAIQ9QRmk/YuRyLFrHr97uIcBja/8Q==",
         "dependencies": {
-          "Akka": "1.5.65",
+          "Akka": "1.5.67",
           "Google.Protobuf": "3.26.1",
           "Reactive.Streams": "1.0.4"
         }
@@ -47,8 +47,8 @@
       },
       "Akka": {
         "type": "Transitive",
-        "resolved": "1.5.65",
-        "contentHash": "eiei7bvr/X4uMYmCo+fQSCj0ZGBZ7zQsLRY487NExKmeRjY5PeyLGZrOQEwcagRYXuCCGCrZcMJSrvvMuZi8Yw==",
+        "resolved": "1.5.67",
+        "contentHash": "LCqHtJsvxStcwvHBnGpFSRQ1RLfMkGsL50jCd24N0Z1qm/3GRmRKbMYbzhtgxWJvVsYTUMkhMMwGSK7X0xUJTQ==",
         "dependencies": {
           "Akka.Analyzers": "0.3.3",
           "Microsoft.Extensions.ObjectPool": "6.0.36",
@@ -63,10 +63,10 @@
       },
       "Akka.DependencyInjection": {
         "type": "Transitive",
-        "resolved": "1.5.65",
-        "contentHash": "7mcv9//HxaY51o2KoIlJPKZPaZHDcTee1jVcg2RiigfTltNu3pNDjS8+R7HloiyVK/M4xlGo1mdWlSknCqLYaQ==",
+        "resolved": "1.5.67",
+        "contentHash": "O9scFUb7PrOS/8z4El2/nmXoY7rraqaScschB++WACuQV8FYSl/iOxem7R/NZf1juSegzl13NGj7031uT/NXIQ==",
         "dependencies": {
-          "Akka": "1.5.65",
+          "Akka": "1.5.67",
           "Microsoft.Extensions.DependencyInjection.Abstractions": "6.0.0"
         }
       },

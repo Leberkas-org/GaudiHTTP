@@ -3,10 +3,10 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup Label="Akka.NET">
-    <PackageVersion Include="Akka.Hosting" Version="1.5.65" />
-    <PackageVersion Include="Akka.Streams" Version="1.5.65" />
-    <PackageVersion Include="Akka.Streams.TestKit" Version="1.5.65" />
-    <PackageVersion Include="Akka.TestKit.Xunit" Version="1.5.65" />
+    <PackageVersion Include="Akka.Hosting" Version="1.5.67" />
+    <PackageVersion Include="Akka.Streams" Version="1.5.67" />
+    <PackageVersion Include="Akka.Streams.TestKit" Version="1.5.67" />
+    <PackageVersion Include="Akka.TestKit.Xunit" Version="1.5.67" />
   </ItemGroup>
   <ItemGroup Label="Servus">
     <PackageVersion Include="Servus.Akka" Version="0.3.10" />
