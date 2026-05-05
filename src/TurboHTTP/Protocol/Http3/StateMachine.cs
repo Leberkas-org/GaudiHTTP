@@ -107,7 +107,7 @@ internal sealed class StateMachine : IDisposable
             FlushDecoderInstructionsCallback = _ => FlushDecoderInstructions(),
             OnStreamClosedCallback = OnStreamClosed
         };
-        Tracker = new StreamTracker();
+        Tracker = new StreamTracker(maxConcurrentStreams: options.Http3.MaxConcurrentStreams);
 
         var idleTimeout = options.Http3.IdleTimeout == TimeSpan.Zero
             ? DefaultIdleTimeout

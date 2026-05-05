@@ -179,4 +179,18 @@ public sealed class Http3StreamTrackerSpec
         Assert.Equal(1, tracker.ActiveStreamCount);
         Assert.True(tracker.OnStreamClosed(id));
     }
+
+    [Fact(Timeout = 5000)]
+    public void StreamTracker_should_use_configured_max_concurrent_streams()
+    {
+        var tracker = new StreamTracker(maxConcurrentStreams: 250);
+
+        for (var i = 0; i < 250; i++)
+        {
+            Assert.True(tracker.CanOpenStream());
+            tracker.OnStreamOpened(tracker.AllocateStreamId());
+        }
+
+        Assert.False(tracker.CanOpenStream());
+    }
 }
