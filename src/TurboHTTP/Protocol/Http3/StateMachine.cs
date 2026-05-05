@@ -527,6 +527,7 @@ internal sealed class StateMachine : IDisposable
         OriginValidator.Validate(request.RequestUri!, request.Method == HttpMethod.Connect);
         var frames = _requestEncoder.Encode(request);
 
+        // TODO: EarlyData flag is set but not yet consumed by transport layer
         if (_options.Http3.AllowEarlyData && IdempotentMethods.Contains(request.Method))
         {
             foreach (var f in frames)

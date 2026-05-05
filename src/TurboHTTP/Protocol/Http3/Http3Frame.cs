@@ -129,6 +129,7 @@ internal sealed class Http3HeadersFrame : Http3Frame, IDisposable
     /// The transport layer uses this flag to decide whether to send the request
     /// before the TLS handshake completes. RFC 9114 §A.1.
     /// </summary>
+    // TODO: Not yet wired to transport layer — requires QUIC 0-RTT stream coordination
     public bool EarlyData { get; set; }
 
     public Http3HeadersFrame(ReadOnlyMemory<byte> headerBlock)
