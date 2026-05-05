@@ -1,6 +1,6 @@
 # Protocol Engines
 
-The `Engine` demultiplexes requests by HTTP version and routes each request to the appropriate per-version engine. Each engine is a self-contained Akka.Streams sub-graph composed of a **unified ConnectionStage** (which handles encoding, decoding, and request/response correlation internally) and a **NetworkBufferBatchStage** (which coalesces outbound items into fewer, larger writes). The engine's output connects to a transport stage (`TcpConnectionStage` or `QuicConnectionStage`) that manages the actual network connection.
+The `Engine` demultiplexes requests by HTTP version and routes each request to the appropriate per-version engine. Each engine is a self-contained Akka.Streams sub-graph composed of a **unified ConnectionStage** (which handles encoding, decoding, and request/response correlation internally). The engine's output connects to a transport stage (`TcpConnectionStage` or `QuicConnectionStage` from Servus.Akka) that manages the actual network connection.
 
 ---
 
@@ -15,15 +15,14 @@ HTTP/1.0 uses a **close-then-respond** model. Each connection handles exactly on
 **Internal composition:**
 
 ```
-HttpRequestMessage → Http10ConnectionStage → NetworkBufferBatchStage → [TcpConnectionStage] → TCP
+HttpRequestMessage → Http10ConnectionStage → [TcpConnectionStage] → TCP
 TCP → [TcpConnectionStage] → Http10ConnectionStage → HttpResponseMessage
 ```
 
-| Component                 | Role                                                                                                                                                      |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http10ConnectionStage`   | Unified stage: serialises request to wire bytes (sets `Connection: close`), parses the HTTP/1.0 response, and correlates request/response (FIFO, depth 1) |
-| `NetworkBufferBatchStage` | Coalesces consecutive outbound network buffers into fewer, larger writes to reduce syscalls                                                               |
-| `TcpConnectionStage`      | TCP transport — acquires a connection lease from the pool, reads/writes bytes                                                                             |
+| Component               | Role                                                                                                                                                      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Http10ConnectionStage` | Unified stage: serialises request to wire bytes (sets `Connection: close`), parses the HTTP/1.0 response, and correlates request/response (FIFO, depth 1) |
+| `TcpConnectionStage`    | TCP transport (from Servus.Akka) — acquires a connection lease from the manager actor, reads/writes bytes                                                 |
 
 **Notable behaviours:**
 
@@ -44,21 +43,20 @@ HTTP/1.1 adds **persistent connections** and **keep-alive control**. The unified
 **Internal composition:**
 
 ```
-HttpRequestMessage → Http11ConnectionStage → NetworkBufferBatchStage → [TcpConnectionStage] → TCP
+HttpRequestMessage → Http11ConnectionStage → [TcpConnectionStage] → TCP
 TCP → [TcpConnectionStage] → Http11ConnectionStage → HttpResponseMessage
 ```
 
-| Component                 | Role                                                                                                                                                                                                                                                            |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http11ConnectionStage`   | Unified stage: serialises request (adds `Host`, `Connection`, `Transfer-Encoding: chunked` as needed), parses HTTP/1.1 responses (handles chunked decoding), correlates request/response (FIFO, depth > 1 enables pipelining), and evaluates keep-alive signals |
-| `NetworkBufferBatchStage` | Coalesces consecutive outbound network buffers into fewer, larger writes — correctly handles interleaved control items (connection reuse signals) by flushing the buffer before forwarding them                                                                 |
-| `TcpConnectionStage`      | TCP transport with connection reuse — returns leases to the pool on keep-alive, requests new connections on close                                                                                                                                               |
+| Component               | Role                                                                                                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Http11ConnectionStage` | Unified stage: serialises request (adds `Host`, `Connection`, `Transfer-Encoding: chunked` as needed), parses HTTP/1.1 responses (handles chunked decoding), correlates request/response (FIFO, depth > 1 enables pipelining), and evaluates keep-alive signals |
+| `TcpConnectionStage`    | TCP transport with connection reuse (from Servus.Akka) — returns leases to the pool on keep-alive, requests new connections on close                                                                                                 |
 
 **Keep-alive handling:**
 
 After decoding each response, `Http11ConnectionStage` evaluates the `Connection` header internally:
 
-- `Connection: keep-alive` (or HTTP/1.1 default) → the connection lease is returned to `ConnectionPool` for reuse
+- `Connection: keep-alive` (or HTTP/1.1 default) → the connection lease is returned to the connection manager actor for reuse
 - `Connection: close` → the lease is released without returning it to the idle queue; the next request triggers a new connection
 
 **Pipelining:**
@@ -78,15 +76,14 @@ HTTP/2 provides **stream multiplexing** — many logical requests share a single
 **Internal composition:**
 
 ```
-HttpRequestMessage → Http20ConnectionStage → NetworkBufferBatchStage → [TcpConnectionStage] → TCP
+HttpRequestMessage → Http20ConnectionStage → [TcpConnectionStage] → TCP
 TCP → [TcpConnectionStage] → Http20ConnectionStage → HttpResponseMessage
 ```
 
-| Component                 | Role                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http20ConnectionStage`   | Central unified stage: allocates client stream IDs (1, 3, 5, …), HPACK-encodes request headers and emits `HEADERS` + `DATA` frames, handles frame encoding/decoding (9-byte frame header + payload), manages connection-level frames (`SETTINGS`, `PING`, `WINDOW_UPDATE`, `GOAWAY`), tracks connection and stream-level flow control windows, assembles per-stream `HEADERS` + `DATA` frames into `HttpResponseMessage`, and correlates responses by stream ID |
-| `NetworkBufferBatchStage` | Coalesces consecutive outbound frame buffers into fewer, larger writes — reducing syscall count under concurrent multiplexed streams; control items are flushed through immediately to preserve frame ordering                                                                                                                                                                                                                                                  |
-| `TcpConnectionStage`      | TCP transport — emits the HTTP/2 connection preface on first connect                                                                                                                                                                                                                                                                                                                                                                                            |
+| Component               | Role                                                                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Http20ConnectionStage` | Central unified stage: allocates client stream IDs (1, 3, 5, …), HPACK-encodes request headers and emits `HEADERS` + `DATA` frames, handles frame encoding/decoding (9-byte frame header + payload), manages connection-level frames (`SETTINGS`, `PING`, `WINDOW_UPDATE`, `GOAWAY`), tracks connection and stream-level flow control windows, assembles per-stream `HEADERS` + `DATA` frames into `HttpResponseMessage`, and correlates responses by stream ID |
+| `TcpConnectionStage`    | TCP transport (from Servus.Akka) — emits the HTTP/2 connection preface on first connect                                                                                                                                                                                                                                                                                                             |
 
 **HPACK header compression:**
 
@@ -109,15 +106,14 @@ HTTP/3 runs over **QUIC** instead of TCP. Each request uses an independent QUIC 
 **Internal composition:**
 
 ```
-HttpRequestMessage → Http30ConnectionStage → NetworkBufferBatchStage → [QuicConnectionStage] → QUIC
+HttpRequestMessage → Http30ConnectionStage → [QuicConnectionStage] → QUIC
 QUIC → [QuicConnectionStage] → Http30ConnectionStage → HttpResponseMessage
 ```
 
-| Component                 | Role                                                                                                                                                                                                                                                                                                                                                                        |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http30ConnectionStage`   | Central unified stage: QPACK-encodes request headers, emits `HEADERS` + `DATA` frames over QUIC streams, handles frame encoding/decoding using QUIC variable-length encoding, manages connection-level frames (`SETTINGS`, `GOAWAY`), handles stream multiplexing and lifecycle, assembles per-stream frames into `HttpResponseMessage`, and QPACK-decodes response headers |
-| `NetworkBufferBatchStage` | Coalesces consecutive outbound items into fewer, larger writes                                                                                                                                                                                                                                                                                                              |
-| `QuicConnectionStage`     | QUIC transport — acquires a QUIC connection from the pool, writes/reads bytes over QUIC streams                                                                                                                                                                                                                                                                             |
+| Component               | Role                                                                                                                                                                                                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Http30ConnectionStage` | Central unified stage: QPACK-encodes request headers, emits `HEADERS` + `DATA` frames over QUIC streams, handles frame encoding/decoding using QUIC variable-length encoding, manages connection-level frames (`SETTINGS`, `GOAWAY`), handles stream multiplexing and lifecycle, assembles per-stream frames into `HttpResponseMessage`, and QPACK-decodes response headers |
+| `QuicConnectionStage`   | QUIC transport (from Servus.Akka) — acquires a QUIC connection from the manager actor, writes/reads bytes over QUIC streams                                                                                                                                   |
 
 **QPACK header compression:**
 

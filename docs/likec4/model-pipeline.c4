@@ -18,7 +18,7 @@
 //   cache hit  --- cached response  -->  response chain at retry level (bypasses ContentEncoding + engine)
 
 model {
-  turbohttp.client.ITurboHttpClient -[flows]-> turbohttp.streams.RequestEnricher 'HttpRequestMessage'
+  turbohttp.client.TurboHttpClient -[flows]-> turbohttp.streams.RequestEnricher 'HttpRequestMessage'
   turbohttp.streams.RequestEnricher -[flows]-> turbohttp.streams.TracingBidiStage 'request with defaults applied'
   turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'request (tracing started)'
   turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'request'
@@ -34,45 +34,40 @@ model {
   turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http20Engine 'HTTP/2 request'
   turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http30Engine 'HTTP/3 request'
 
-  // HTTP/1.0: ConnectionStage + NetworkBufferBatchStage -> TcpConnectionStage
+  // HTTP/1.0: ConnectionStage -> TcpConnectionStage
   turbohttp.streams.Http10Engine -[flows]-> turbohttp.streams.Http10ConnectionStage 'HttpRequestMessage'
-  turbohttp.streams.Http10ConnectionStage -[flows]-> turbohttp.streams.NetworkBufferBatchStage 'outbound network items'
-  turbohttp.streams.NetworkBufferBatchStage -[flows]-> turbohttp.streams.TcpConnectionStage 'batched outbound bytes'
-  turbohttp.streams.TcpConnectionStage -[flows]-> turbohttp.streams.Http10ConnectionStage 'inbound bytes'
+  turbohttp.streams.Http10ConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
+  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http10ConnectionStage 'inbound bytes'
   turbohttp.streams.Http10ConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'HttpResponseMessage'
 
-  // HTTP/1.1: ConnectionStage + NetworkBufferBatchStage -> TcpConnectionStage
+  // HTTP/1.1: ConnectionStage -> TcpConnectionStage
   turbohttp.streams.Http11Engine -[flows]-> turbohttp.streams.Http11ConnectionStage 'HttpRequestMessage'
-  turbohttp.streams.Http11ConnectionStage -[flows]-> turbohttp.streams.NetworkBufferBatchStage 'outbound network items'
-  turbohttp.streams.NetworkBufferBatchStage -[flows]-> turbohttp.streams.TcpConnectionStage 'batched outbound bytes'
-  turbohttp.streams.TcpConnectionStage -[flows]-> turbohttp.streams.Http11ConnectionStage 'inbound bytes'
+  turbohttp.streams.Http11ConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
+  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http11ConnectionStage 'inbound bytes'
   turbohttp.streams.Http11ConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'HttpResponseMessage'
 
-  // HTTP/2: ConnectionStage + NetworkBufferBatchStage -> TcpConnectionStage
+  // HTTP/2: ConnectionStage -> TcpConnectionStage
   turbohttp.streams.Http20Engine -[flows]-> turbohttp.streams.Http20ConnectionStage 'HttpRequestMessage'
-  turbohttp.streams.Http20ConnectionStage -[flows]-> turbohttp.streams.NetworkBufferBatchStage 'outbound network items'
-  turbohttp.streams.NetworkBufferBatchStage -[flows]-> turbohttp.streams.TcpConnectionStage 'batched outbound bytes'
-  turbohttp.streams.TcpConnectionStage -[flows]-> turbohttp.streams.Http20ConnectionStage 'inbound bytes'
+  turbohttp.streams.Http20ConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
+  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http20ConnectionStage 'inbound bytes'
   turbohttp.streams.Http20ConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'HttpResponseMessage'
 
-  // HTTP/3: ConnectionStage + NetworkBufferBatchStage -> QuicConnectionStage
+  // HTTP/3: ConnectionStage -> QuicConnectionStage
   turbohttp.streams.Http30Engine -[flows]-> turbohttp.streams.Http30ConnectionStage 'HttpRequestMessage'
-  turbohttp.streams.Http30ConnectionStage -[flows]-> turbohttp.streams.NetworkBufferBatchStage 'outbound network items'
-  turbohttp.streams.NetworkBufferBatchStage -[flows]-> turbohttp.streams.QuicConnectionStage 'batched outbound bytes'
-  turbohttp.streams.QuicConnectionStage -[flows]-> turbohttp.streams.Http30ConnectionStage 'inbound bytes'
+  turbohttp.streams.Http30ConnectionStage -[flows]-> servus.QuicConnectionStage 'outbound bytes'
+  servus.QuicConnectionStage -[flows]-> turbohttp.streams.Http30ConnectionStage 'inbound bytes'
   turbohttp.streams.Http30ConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'HttpResponseMessage'
 
   // Transport
-  turbohttp.streams.TcpConnectionStage -[flows]-> turbohttp.transport.ConnectionPool 'AcquireAsync(options, endpoint)'
-  turbohttp.streams.QuicConnectionStage -[flows]-> turbohttp.transport.ConnectionPool 'AcquireAsync(options, endpoint)'
-  turbohttp.transport.ConnectionPool -[flows]-> turbohttp.transport.HostConnections 'acquire from per-host manager'
-  turbohttp.transport.HostConnections -[flows]-> turbohttp.transport.DirectConnectionFactory 'establish if no idle connection'
-  turbohttp.transport.DirectConnectionFactory -[flows]-> turbohttp.transport.ConnectionLease 'lease with live connection'
-  turbohttp.transport.ConnectionLease -[flows]-> turbohttp.streams.TcpConnectionStage 'ready to read/write'
+  servus.TcpConnectionStage -[flows]-> servus.TcpConnectionManagerActor 'request connection lease'
+  servus.TcpConnectionManagerActor -[flows]-> servus.TcpConnectionStage 'ready to read/write'
+  servus.TcpConnectionStage -[flows]-> tcp 'outbound bytes -> socket'
+  tcp -[flows]-> servus.TcpConnectionStage 'socket -> inbound bytes'
 
-  turbohttp.transport.ClientByteMover -[flows]-> tcp 'outbound bytes -> socket'
-  tcp -[flows]-> turbohttp.transport.ClientByteMover 'socket -> inbound bytes'
-  turbohttp.transport.ClientByteMover -[flows]-> turbohttp.streams.TcpConnectionStage 'inbound bytes'
+  servus.QuicConnectionStage -[flows]-> servus.QuicConnectionManagerActor 'request QUIC connection lease'
+  servus.QuicConnectionManagerActor -[flows]-> servus.QuicConnectionStage 'ready to read/write'
+  servus.QuicConnectionStage -[flows]-> tcp 'outbound bytes -> QUIC socket'
+  tcp -[flows]-> servus.QuicConnectionStage 'QUIC socket -> inbound bytes'
 
   // Response chain (innermost -> outermost)
   turbohttp.streams.ContentEncodingBidiStage -[flows]-> turbohttp.streams.CacheBidiStage 'decompressed response'
@@ -81,7 +76,7 @@ model {
   turbohttp.streams.RetryBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'response (no retry needed)'
   turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'response (cookies stored)'
   turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.streams.TracingBidiStage 'final response'
-  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.client.ITurboHttpClient 'final response (tracing complete)'
+  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.client.TurboHttpClient 'final response (tracing complete)'
 
   // Cache hit: cached response bypasses ContentEncoding + Engine; enters response chain at ExpectContinue
   turbohttp.streams.CacheBidiStage -[feedback]-> turbohttp.streams.RetryBidiStage 'cached response (bypasses network)'

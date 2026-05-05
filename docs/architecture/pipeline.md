@@ -21,11 +21,11 @@ Each `HttpRequestMessage` passes through the following stages before reaching th
 | 5   | Cookie Injection (`CookieBidiStage`)          | Looks up matching cookies for the target domain and path and adds a `Cookie` header                                                                                                                                                                 |
 | 6   | Retry (`RetryBidiStage`)                      | On the request side, attaches retry context; on a transient failure, re-enters below the Cookie stage (same URL, cookies already set)                                                                                                               |
 | 7   | Expect-Continue (`ExpectContinueBidiStage`)   | For requests with large bodies, sends `Expect: 100-continue` and holds the body until the server confirms it will accept it                                                                                                                         |
-| 8   | Cache Lookup (`CacheBidiStage`)               | Checks the in-memory cache; on a **cache hit**, returns the cached response immediately — stages 9–12 are skipped entirely                                                                                                                          |
+| 8   | Cache Lookup (`CacheBidiStage`)               | Checks the in-memory cache; on a **cache hit**, returns the cached response immediately — stages 9–11 are skipped entirely                                                                                                                          |
 | 9   | Content Encoding (`ContentEncodingBidiStage`) | Compresses the request body if a compression policy is configured; on the response side, transparently decompresses `gzip`, `deflate`, or Brotli                                                                                                    |
 | 10  | Alt-Svc Discovery (`AltSvcBidiStage`)         | Checks for cached Alt-Svc entries and upgrades the request version if a faster protocol is available; captures Alt-Svc headers from responses                                                                                                       |
 | 11  | Version Router (`Engine`)                     | Routes the request to the correct protocol handler based on the requested HTTP version                                                                                                                                                              |
-| 12  | Protocol ConnectionStage _(per version)_      | Unified stage that serialises the request to bytes, parses the response, and correlates request/response — then `NetworkBufferBatchStage` batches the outbound writes and `TcpConnectionStage`/`QuicConnectionStage` handles the network connection |
+| 12  | Protocol ConnectionStage _(per version)_      | Unified stage that serialises the request to bytes, parses the response, and correlates request/response — then `TcpConnectionStage`/`QuicConnectionStage` (from Servus.Akka) handles the network connection                                       |
 
 ---
 
@@ -59,7 +59,7 @@ If the cache entry is stale but has an `ETag` or `Last-Modified` validator, `Cac
 
 ### 2. Keep-Alive Feedback (HTTP/1.1 only)
 
-After each HTTP/1.1 response, `Http11ConnectionStage` evaluates the `Connection` header internally and decides whether to reuse the TCP connection for the next request or close it and request a new one from the pool.
+After each HTTP/1.1 response, `Http11ConnectionStage` evaluates the `Connection` header internally and decides whether to reuse the TCP connection for the next request or close it and request a new one from the connection manager actor.
 
 This loop is invisible to the caller — the `Engine` and higher layers see only a continuous stream of `HttpResponseMessage` objects.
 
@@ -79,7 +79,7 @@ HTTP/3 uses QPACK for header compression. The server sends decoder table updates
 
 ## Connection Management
 
-The pipeline uses a connection pool to reuse TCP (or QUIC for HTTP/3) connections efficiently:
+The pipeline uses actor-based connection managers (from Servus.Akka) to reuse TCP (or QUIC for HTTP/3) connections efficiently:
 
 - **HTTP/1.0**: Each request gets a new connection; it's closed after the response
 - **HTTP/1.1**: Connections are kept alive and reused for multiple requests to the same host

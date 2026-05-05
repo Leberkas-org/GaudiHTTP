@@ -7,10 +7,10 @@ TurboHTTP automatically manages a pool of connections for each host, so you neve
 Each unique host (scheme + hostname + port + HTTP version) gets its own connection pool. When a request arrives, TurboHTTP tries to reuse an existing open connection. If all connections are busy and the per-host limit has not been reached, a new connection is established. If the limit is already reached, the request waits until a connection becomes free.
 
 ```
-Request → ConnectionPool → HostConnections (per-host manager)
-                                ├─ Idle connection available? → Return lease
-                                ├─ Below per-host limit?      → Establish new connection
-                                └─ At per-host limit?         → Wait for release
+Request → TcpConnectionManagerActor (per-host actor)
+              ├─ Idle connection available? → Return lease
+              ├─ Below per-host limit?      → Establish new connection
+              └─ At per-host limit?         → Wait for release
 ```
 
 The pool runs entirely in the background. Your code just calls `SendAsync` — connection acquisition, reuse, and lifecycle are transparent.

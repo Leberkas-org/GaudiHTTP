@@ -1,43 +1,39 @@
 // TurboHTTP — Engine Views
 // Per-version engine internals and protocol subsystem views.
-// Each engine wraps a unified ConnectionStage + NetworkBufferBatchStage into a BidiFlow,
+// Each engine wraps a unified ConnectionStage into a BidiFlow,
 // which is then joined with the appropriate transport stage (TCP or QUIC).
 
 views {
   view http10Engine of turbohttp.streams.Http10Engine {
     title 'TurboHTTP — HTTP/1.0 Engine Internals'
-    description 'Unified Http10ConnectionStage handles encoding, decoding, and correlation. NetworkBufferBatchStage batches outbound items. TcpConnectionStage provides TCP transport. No keep-alive; connection closes after each response.'
+    description 'Unified Http10ConnectionStage handles encoding, decoding, and correlation. TcpConnectionStage provides TCP transport. No keep-alive; connection closes after each response.'
     include turbohttp.streams.Http10Engine
     include turbohttp.streams.Http10ConnectionStage
-    include turbohttp.streams.NetworkBufferBatchStage
-    include turbohttp.streams.TcpConnectionStage
+    include servus.TcpConnectionStage
   }
 
   view http11Engine of turbohttp.streams.Http11Engine {
     title 'TurboHTTP — HTTP/1.1 Engine Internals'
-    description 'Unified Http11ConnectionStage handles encoding, decoding, correlation, and keep-alive evaluation. NetworkBufferBatchStage batches outbound items. TcpConnectionStage provides TCP transport with connection reuse.'
+    description 'Unified Http11ConnectionStage handles encoding, decoding, correlation, and keep-alive evaluation. TcpConnectionStage provides TCP transport with connection reuse.'
     include turbohttp.streams.Http11Engine
     include turbohttp.streams.Http11ConnectionStage
-    include turbohttp.streams.NetworkBufferBatchStage
-    include turbohttp.streams.TcpConnectionStage
+    include servus.TcpConnectionStage
   }
 
   view http2Engine of turbohttp.streams.Http20Engine {
     title 'TurboHTTP — HTTP/2 Engine Internals'
-    description 'Unified Http20ConnectionStage handles stream ID allocation, HPACK compression, frame encoding/decoding, flow control, SETTINGS/PING/GOAWAY, and response assembly. NetworkBufferBatchStage batches outbound items. TcpConnectionStage provides TCP transport.'
+    description 'Unified Http20ConnectionStage handles stream ID allocation, HPACK compression, frame encoding/decoding, flow control, SETTINGS/PING/GOAWAY, and response assembly. TcpConnectionStage provides TCP transport.'
     include turbohttp.streams.Http20Engine
     include turbohttp.streams.Http20ConnectionStage
-    include turbohttp.streams.NetworkBufferBatchStage
-    include turbohttp.streams.TcpConnectionStage
+    include servus.TcpConnectionStage
   }
 
   view http3Engine of turbohttp.streams.Http30Engine {
     title 'TurboHTTP — HTTP/3 Engine Internals'
-    description 'Unified Http30ConnectionStage handles QPACK compression, frame encoding/decoding, stream multiplexing, flow control, and GOAWAY. NetworkBufferBatchStage batches outbound items. QuicConnectionStage provides QUIC transport.'
+    description 'Unified Http30ConnectionStage handles QPACK compression, frame encoding/decoding, stream multiplexing, flow control, and GOAWAY. QuicConnectionStage provides QUIC transport.'
     include turbohttp.streams.Http30Engine
     include turbohttp.streams.Http30ConnectionStage
-    include turbohttp.streams.NetworkBufferBatchStage
-    include turbohttp.streams.QuicConnectionStage
+    include servus.QuicConnectionStage
   }
 
 }

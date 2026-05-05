@@ -22,9 +22,19 @@ model {
         description 'Channel-based request/response API: ChannelWriter<HttpRequestMessage> / ChannelReader<HttpResponseMessage>, SendAsync, BaseAddress, DefaultRequestVersion'
       }
 
-      TurboClientStreamManager = component 'TurboClientStreamManager' {
+      TurboHttpClient = component 'TurboHttpClient' {
+        technology 'Class'
+        description 'Concrete implementation of ITurboHttpClient: wraps the Akka.Streams pipeline, exposes SendAsync and channel-based APIs'
+      }
+
+      ClientStreamManager = component 'ClientStreamManager' {
         technology 'Class'
         description 'Materialises the Akka.Streams pipeline and manages stream lifecycle'
+      }
+
+      ClientStreamOwner = component 'ClientStreamOwner' {
+        technology 'Class'
+        description 'Owns the materialised stream lifecycle: starts, monitors, and restarts the pipeline on failure'
       }
 
       TurboClientOptions = component 'TurboClientOptions' {
@@ -45,24 +55,24 @@ model {
 
       Http10Engine = component 'Http10Engine' {
         technology 'IHttpProtocolEngine'
-        description 'HTTP/1.0 BidiFlow: wraps Http10ConnectionStage + NetworkBufferBatchStage; joined with TcpConnectionStage for transport'
+        description 'HTTP/1.0 BidiFlow: wraps Http10ConnectionStage; joined with TcpConnectionStage for transport'
       }
 
       Http11Engine = component 'Http11Engine' {
         technology 'IHttpProtocolEngine'
-        description 'HTTP/1.1 BidiFlow: wraps Http11ConnectionStage + NetworkBufferBatchStage; joined with TcpConnectionStage for transport'
+        description 'HTTP/1.1 BidiFlow: wraps Http11ConnectionStage; joined with TcpConnectionStage for transport'
       }
 
       Http20Engine = component 'Http20Engine' {
         #http2
         technology 'IHttpProtocolEngine'
-        description 'HTTP/2 BidiFlow: wraps Http20ConnectionStage + NetworkBufferBatchStage; joined with TcpConnectionStage for transport'
+        description 'HTTP/2 BidiFlow: wraps Http20ConnectionStage; joined with TcpConnectionStage for transport'
       }
 
       Http30Engine = component 'Http30Engine' {
         #http3
         technology 'IHttpProtocolEngine'
-        description 'HTTP/3 BidiFlow: wraps Http30ConnectionStage + NetworkBufferBatchStage; joined with QuicConnectionStage for transport'
+        description 'HTTP/3 BidiFlow: wraps Http30ConnectionStage; joined with QuicConnectionStage for transport'
       }
 
       // Request enrichment (Select transform, not a GraphStage)
@@ -98,25 +108,6 @@ model {
         description 'Unified HTTP/3 stage: QPACK header compression, HEADERS/DATA frame encoding/decoding over QUIC, stream multiplexing, flow control, GOAWAY handling, response assembly, and stream-ID-based correlation'
       }
 
-      // Network batching
-      NetworkBufferBatchStage = component 'NetworkBufferBatchStage' {
-        #graphstage
-        technology 'GraphStage<FlowShape>'
-        description 'Batches outbound network buffer items up to a configured weight limit for efficient transport writes; used by all protocol engines'
-      }
-
-      // Transport stages
-      TcpConnectionStage = component 'TcpConnectionStage' {
-        #graphstage
-        technology 'GraphStage<FlowShape>'
-        description 'TCP/TLS transport bridge: acquires a connection from the pool, writes outbound bytes, reads inbound bytes; used by HTTP/1.x and HTTP/2 engines'
-      }
-
-      QuicConnectionStage = component 'QuicConnectionStage' {
-        #graphstage
-        technology 'GraphStage<FlowShape>'
-        description 'QUIC transport bridge: acquires a QUIC connection, writes outbound bytes, reads inbound bytes; used by the HTTP/3 engine'
-      }
 
       // Feature BidiStages — each handles both request and response direction
       AltSvcBidiStage = component 'AltSvcBidiStage' {
@@ -254,12 +245,6 @@ model {
         description 'Parses HTTP/3 frame headers + payload into typed frame objects'
       }
 
-      Http3FrameEncoder = component 'Http3FrameEncoder' {
-        #staticClass #protocol #http3
-        technology 'Static class'
-        description 'Serialises HTTP/3 frame objects to wire bytes'
-      }
-
       // QPACK (header compression for HTTP/3)
       QpackEncoder = component 'QpackEncoder' {
         #protocol #http3
@@ -338,63 +323,36 @@ model {
       }
     }
 
-    transport = container 'Transport Layer' {
-      description 'Actor-free connection pool with direct async API, zero-copy channels, and metrics'
-      technology 'System.Threading.Channels / System.IO.Pipelines / System.Net.Sockets'
+  }
 
-      // Connection pool (direct async API)
-      ConnectionPool = component 'ConnectionPool' {
-        technology 'Class'
-        description 'Thread-safe per-host connection pool: AcquireAsync / Release API, manages idle timeout, eviction, version-aware reuse'
-      }
+  // External systems
+  servus = externalSystem 'Servus.Akka' {
+    description 'Actor-based transport layer — connection management, TCP/TLS, QUIC'
+    technology 'Akka.NET / System.Net.Sockets / System.Net.Quic'
 
-      HostConnections = component 'HostConnections' {
-        technology 'Inner class'
-        description 'Per-host connection manager: idle queue, concurrent limiter, connection establishment'
-      }
+    TcpConnectionManagerActor = component 'TcpConnectionManagerActor' {
+      technology 'Actor'
+      description 'Manages per-host TCP/TLS connection pools: acquires, releases, and recycles connections via Akka message passing'
+    }
 
-      DirectConnectionFactory = component 'DirectConnectionFactory' {
-        #staticClass
-        technology 'Static class'
-        description 'Establishes TCP/TLS connections, creates channels, spawns ByteMover pump tasks, returns ConnectionLease'
-      }
+    QuicConnectionManagerActor = component 'QuicConnectionManagerActor' {
+      technology 'Actor'
+      description 'Manages per-host QUIC connection pools: acquires, releases, and recycles connections via Akka message passing'
+    }
 
-      ConnectionLease = component 'ConnectionLease' {
-        technology 'Class'
-        description 'Wraps ConnectionHandle + ClientState: lifecycle management, active stream tracking, metrics emission, reusability state'
-      }
+    TcpConnectionStage = component 'TcpConnectionStage' {
+      #graphstage
+      technology 'GraphStage<FlowShape>'
+      description 'TCP/TLS transport bridge: acquires a connection from TcpConnectionManagerActor, writes outbound bytes, reads inbound bytes; used by HTTP/1.x and HTTP/2 engines'
+    }
 
-      // Data path (zero actor hops)
-      ConnectionHandle = component 'ConnectionHandle' {
-        technology 'Record'
-        description 'Bundles outbound writer, inbound reader, endpoint key; provides direct channel I/O without actor hops'
-      }
-
-      ClientByteMover = component 'ClientByteMover' {
-        #staticClass
-        technology 'Static class'
-        description 'Three concurrent async pump tasks per connection: TCP-to-Pipe, Pipe-to-Channel, Channel-to-TCP'
-      }
-
-      ClientState = component 'ClientState' {
-        technology 'Class'
-        description 'Per-connection primitives: network stream, System.IO.Pipelines.Pipe, inbound/outbound channels'
-      }
-
-      // Transport abstractions
-      IClientProvider = component 'IClientProvider' {
-        technology 'Interface'
-        description 'Transport abstraction: GetStreamAsync for TCP/TLS and QUIC providers'
-      }
-
-      QuicClientProvider = component 'QuicClientProvider' {
-        technology 'Class'
-        description 'QUIC transport provider for HTTP/3: establishes QUIC connections and exposes them as streams; implements IClientProvider'
-      }
+    QuicConnectionStage = component 'QuicConnectionStage' {
+      #graphstage
+      technology 'GraphStage<FlowShape>'
+      description 'QUIC transport bridge: acquires a QUIC connection from QuicConnectionManagerActor, writes outbound bytes, reads inbound bytes; used by the HTTP/3 engine'
     }
   }
 
-  // External system
   tcp = externalSystem 'Network' {
     description 'Remote HTTP servers (TCP, TLS, or QUIC)'
     technology 'TCP / TLS / QUIC'
@@ -402,12 +360,14 @@ model {
 
   // User -> Client Layer
   user -> turbohttp.client.ITurboHttpClient 'Sends HttpRequestMessage, receives HttpResponseMessage'
-  turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboClientStreamManager 'Materialises Akka.Streams pipeline'
+  turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboHttpClient 'Implemented by'
+  turbohttp.client.TurboHttpClient -> turbohttp.client.ClientStreamManager 'Delegates to stream pipeline'
+  turbohttp.client.ClientStreamManager -> turbohttp.client.ClientStreamOwner 'Manages stream lifecycle'
   turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboClientOptions 'Reads configuration'
 
   // Client -> Streams
-  turbohttp.client.TurboClientStreamManager -> turbohttp.streams.Engine 'Feeds requests into pipeline'
-  turbohttp.client.TurboClientStreamManager -> turbohttp.streams.RequestEnricher 'Enriches requests with defaults'
+  turbohttp.client.ClientStreamManager -> turbohttp.streams.Engine 'Feeds requests into pipeline'
+  turbohttp.client.ClientStreamManager -> turbohttp.streams.RequestEnricher 'Enriches requests with defaults'
 
   // Engine routing
   turbohttp.streams.Engine -> turbohttp.streams.Http10Engine 'Routes HTTP/1.0 requests'
@@ -415,8 +375,8 @@ model {
   turbohttp.streams.Engine -> turbohttp.streams.Http20Engine 'Routes HTTP/2 requests'
   turbohttp.streams.Engine -> turbohttp.streams.Http30Engine 'Routes HTTP/3 requests'
 
-  // Client -> Network (simplified view for index/system overview)
-  turbohttp.client -> tcp 'HTTP requests / responses'
+  // Client -> Network (via Servus transport)
+  turbohttp.client -> servus 'HTTP requests via actor-managed connections'
 
   // Pipeline BidiStages (applied around engine core)
   turbohttp.streams.Engine -> turbohttp.streams.RequestEnricher 'Applies defaults before routing'
@@ -432,31 +392,25 @@ model {
 
   // HTTP/1.0 engine internals
   turbohttp.streams.Http10Engine -> turbohttp.streams.Http10ConnectionStage 'Encodes, sends, receives, decodes, correlates'
-  turbohttp.streams.Http10Engine -> turbohttp.streams.NetworkBufferBatchStage 'Batches outbound network items'
-  turbohttp.streams.Http10Engine -> turbohttp.streams.TcpConnectionStage 'Reads/writes bytes via TCP'
+  turbohttp.streams.Http10Engine -> servus.TcpConnectionStage 'Reads/writes bytes via TCP'
 
   // HTTP/1.1 engine internals
   turbohttp.streams.Http11Engine -> turbohttp.streams.Http11ConnectionStage 'Encodes, sends, receives, decodes, correlates, manages keep-alive'
-  turbohttp.streams.Http11Engine -> turbohttp.streams.NetworkBufferBatchStage 'Batches outbound network items'
-  turbohttp.streams.Http11Engine -> turbohttp.streams.TcpConnectionStage 'Reads/writes bytes via TCP'
+  turbohttp.streams.Http11Engine -> servus.TcpConnectionStage 'Reads/writes bytes via TCP'
 
   // HTTP/2 engine internals
   turbohttp.streams.Http20Engine -> turbohttp.streams.Http20ConnectionStage 'Stream IDs, HPACK, frame encoding/decoding, flow control, correlation'
-  turbohttp.streams.Http20Engine -> turbohttp.streams.NetworkBufferBatchStage 'Batches outbound network items'
-  turbohttp.streams.Http20Engine -> turbohttp.streams.TcpConnectionStage 'Reads/writes bytes via TCP'
+  turbohttp.streams.Http20Engine -> servus.TcpConnectionStage 'Reads/writes bytes via TCP'
 
   // HTTP/3 engine internals
   turbohttp.streams.Http30Engine -> turbohttp.streams.Http30ConnectionStage 'QPACK, frame encoding/decoding, stream multiplexing, correlation'
-  turbohttp.streams.Http30Engine -> turbohttp.streams.NetworkBufferBatchStage 'Batches outbound network items'
-  turbohttp.streams.Http30Engine -> turbohttp.streams.QuicConnectionStage 'Reads/writes bytes via QUIC'
+  turbohttp.streams.Http30Engine -> servus.QuicConnectionStage 'Reads/writes bytes via QUIC'
 
   // Transport stages -> Transport Layer
-  turbohttp.streams.TcpConnectionStage -> turbohttp.transport.ConnectionPool 'AcquireAsync(options, endpoint) for TCP/TLS'
-  turbohttp.streams.TcpConnectionStage -> turbohttp.transport.ConnectionLease 'Leases connection, reads/writes via handle'
-  turbohttp.streams.TcpConnectionStage -> tcp 'Writes request bytes, reads response bytes via TCP/TLS'
-  turbohttp.streams.QuicConnectionStage -> turbohttp.transport.ConnectionPool 'AcquireAsync(options, endpoint) for QUIC'
-  turbohttp.streams.QuicConnectionStage -> turbohttp.transport.ConnectionLease 'Leases QUIC connection'
-  turbohttp.streams.QuicConnectionStage -> tcp 'Writes request bytes, reads response bytes via QUIC'
+  servus.TcpConnectionStage -> servus.TcpConnectionManagerActor 'Requests connection lease'
+  servus.TcpConnectionStage -> tcp 'Writes request bytes, reads response bytes via TCP/TLS'
+  servus.QuicConnectionStage -> servus.QuicConnectionManagerActor 'Requests QUIC connection lease'
+  servus.QuicConnectionStage -> tcp 'Writes request bytes, reads response bytes via QUIC'
 
   // Connection stages -> Protocol codecs
   turbohttp.streams.Http10ConnectionStage -> turbohttp.protocol.Http10Encoder 'Delegates encoding'
@@ -470,7 +424,6 @@ model {
   turbohttp.streams.Http20ConnectionStage -> turbohttp.protocol.HpackDecoder 'Decompresses response headers'
   turbohttp.streams.Http30ConnectionStage -> turbohttp.protocol.Http3RequestEncoder 'Encodes requests to HEADERS + DATA frames'
   turbohttp.streams.Http30ConnectionStage -> turbohttp.protocol.Http3FrameDecoder 'Decodes inbound frames'
-  turbohttp.streams.Http30ConnectionStage -> turbohttp.protocol.Http3FrameEncoder 'Encodes outbound frames'
   turbohttp.streams.Http30ConnectionStage -> turbohttp.protocol.QpackEncoder 'Compresses request headers'
   turbohttp.streams.Http30ConnectionStage -> turbohttp.protocol.QpackDecoder 'Decompresses response headers'
 
@@ -496,17 +449,4 @@ model {
   turbohttp.streams.CacheBidiStage -> turbohttp.protocol.CacheControlParser 'Parses Cache-Control directives'
   turbohttp.streams.CacheBidiStage -> turbohttp.protocol.CacheValidationRequestBuilder 'Builds conditional revalidation requests'
 
-  // Transport Layer internals
-  turbohttp.transport.ConnectionPool -> turbohttp.transport.HostConnections 'Per-host manager: AcquireAsync delegates'
-  turbohttp.transport.HostConnections -> turbohttp.transport.DirectConnectionFactory 'Establishes new connections'
-  turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.IClientProvider 'Gets TCP/TLS or QUIC stream'
-  turbohttp.transport.QuicClientProvider -> tcp 'QUIC socket operations'
-  turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ClientByteMover 'Spawns async pump tasks'
-  turbohttp.transport.DirectConnectionFactory -> turbohttp.transport.ConnectionLease 'Wraps handle + state with lifecycle'
-  turbohttp.transport.ConnectionLease -> turbohttp.transport.ConnectionHandle 'Provides direct channel I/O'
-  turbohttp.transport.ConnectionLease -> turbohttp.transport.ClientState 'Owns connection state'
-  turbohttp.transport.ClientByteMover -> turbohttp.transport.ClientState 'Reads/writes network stream, pipe, and channels'
-  turbohttp.transport.IClientProvider -> tcp 'TCP / TLS socket operations'
-  turbohttp.transport.QuicClientProvider -> turbohttp.transport.IClientProvider 'implements'
-  turbohttp.transport.ClientByteMover -> tcp 'TCP / TLS socket read + write'
 }

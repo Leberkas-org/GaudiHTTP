@@ -162,7 +162,7 @@ services.AddTurboHttpClient("myapi", options => { ... })
       ↓
 [AltSvcBidiStage]              ← Alt-Svc version upgrade (innermost)
       ↓
-── Engine + ConnectionStage + NetworkBufferBatchStage + Transport ──
+── Engine + ConnectionStage + Transport ──
       ↓
 ── response returns ──
       ↓

@@ -70,11 +70,8 @@ views {
     include turbohttp.streams.Http20ConnectionStage
     include turbohttp.streams.Http30ConnectionStage
 
-    // Network batching
-    include turbohttp.streams.NetworkBufferBatchStage
-
     // Transport
-    include turbohttp.streams.TcpConnectionStage
-    include turbohttp.streams.QuicConnectionStage
+    include servus.TcpConnectionStage
+    include servus.QuicConnectionStage
   }
 }
