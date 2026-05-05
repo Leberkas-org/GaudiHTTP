@@ -472,6 +472,11 @@ internal sealed class StateMachine : IDisposable
 
     private bool BufferForReconnect(HttpRequestMessage request)
     {
+        if (_reconnectBuffer.Count >= _options.Http3.MaxReconnectBufferSize)
+        {
+            return false;
+        }
+
         var frames = EncodeToFrames(request);
         foreach (var f in frames)
         {

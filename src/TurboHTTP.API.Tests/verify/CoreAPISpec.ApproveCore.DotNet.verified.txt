@@ -62,6 +62,7 @@ namespace TurboHTTP
         public int MaxConnectionsPerServer { get; set; }
         public int MaxFieldSectionSize { get; set; }
         public int MaxReconnectAttempts { get; set; }
+        public int MaxReconnectBufferSize { get; set; }
         public int QpackBlockedStreams { get; set; }
         public int QpackMaxTableCapacity { get; set; }
     }

@@ -88,4 +88,11 @@ public sealed class Http3Options
     /// if QUIC is available. Default is false (opt-in).
     /// </summary>
     public bool EnableAltSvcDiscovery { get; set; }
+
+    /// <summary>
+    /// Maximum number of frames that can be buffered during reconnection.
+    /// When this limit is reached, new requests fail instead of being buffered.
+    /// Default is 64.
+    /// </summary>
+    public int MaxReconnectBufferSize { get; set; } = 64;
 }
