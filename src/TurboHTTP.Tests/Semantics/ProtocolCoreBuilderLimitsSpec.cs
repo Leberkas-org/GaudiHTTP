@@ -48,19 +48,19 @@ public sealed class ProtocolCoreBuilderLimitsSpec
     {
         var endpoint = EndpointForVersion(2, 0);
 
-        var result = ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(endpoint, h2Streams: 100, h1Streams: 8);
+        var result = ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(endpoint, h2Streams: 100, h1Streams: 8, h3Streams: 200);
 
         Assert.Equal(100, result);
     }
 
     [Fact(Timeout = 5000)]
-    public void MaxConcurrencyPerSlot_should_use_int_max_for_http3_endpoint()
+    public void MaxConcurrencyPerSlot_should_use_h3_streams_for_http3_endpoint()
     {
         var endpoint = EndpointForVersion(3, 0);
 
-        var result = ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(endpoint, h2Streams: 100, h1Streams: 8);
+        var result = ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(endpoint, h2Streams: 100, h1Streams: 8, h3Streams: 200);
 
-        Assert.Equal(int.MaxValue, result);
+        Assert.Equal(200, result);
     }
 
     [Fact(Timeout = 5000)]
@@ -69,7 +69,7 @@ public sealed class ProtocolCoreBuilderLimitsSpec
         var endpoint = EndpointForVersion(1, 1);
 
         var result =
-            ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(endpoint, h2Streams: 100, h1Streams: 8);
+            ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(endpoint, h2Streams: 100, h1Streams: 8, h3Streams: 200);
 
         Assert.Equal(8, result);
     }
@@ -80,7 +80,7 @@ public sealed class ProtocolCoreBuilderLimitsSpec
         var endpoint = EndpointForVersion(1, 0);
 
         var result =
-            ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(endpoint, h2Streams: 100, h1Streams: 8);
+            ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(endpoint, h2Streams: 100, h1Streams: 8, h3Streams: 200);
 
         Assert.Equal(1, result);
     }
@@ -96,15 +96,15 @@ public sealed class ProtocolCoreBuilderLimitsSpec
         var h3Substreams =
             ProtocolCoreBuilder.GetMaxSubstreamsPerKey(h3Endpoint, maxConnsH1: 10, maxConnsH2: 6, maxConnsH3: 4);
         var h2Concurrency =
-            ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(h2Endpoint, h2Streams: 100, h1Streams: 8);
+            ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(h2Endpoint, h2Streams: 100, h1Streams: 8, h3Streams: 200);
         var h3Concurrency =
-            ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(h3Endpoint, h2Streams: 100, h1Streams: 8);
+            ProtocolCoreBuilder.GetMaxConcurrencyPerSlot(h3Endpoint, h2Streams: 100, h1Streams: 8, h3Streams: 200);
 
         Assert.NotEqual(h2Substreams, h3Substreams);
         Assert.NotEqual(h2Concurrency, h3Concurrency);
         Assert.Equal(6, h2Substreams);
         Assert.Equal(4, h3Substreams);
         Assert.Equal(100, h2Concurrency);
-        Assert.Equal(int.MaxValue, h3Concurrency);
+        Assert.Equal(200, h3Concurrency);
     }
 }

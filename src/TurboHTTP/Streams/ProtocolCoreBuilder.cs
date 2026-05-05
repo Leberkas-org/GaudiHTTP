@@ -29,6 +29,7 @@ internal static class ProtocolCoreBuilder
         var h2Streams = clientOptions.Http2.MaxConcurrentStreams;
 
         var maxConnsH3 = clientOptions.Http3.MaxConnectionsPerServer;
+        var h3Streams = clientOptions.Http3.MaxConcurrentStreams;
 
         var endpointDispatch = Flow.FromGraph(new EndpointDispatchStage(CreateFlowForEndpoint))
             .WithAttributes(highThroughputBuffer);
@@ -44,7 +45,7 @@ internal static class ProtocolCoreBuilder
         return core.WithAttributes(highThroughputBuffer);
 
         int MaxConcurrencyPerSlot(RequestEndpoint endpoint)
-            => GetMaxConcurrencyPerSlot(endpoint, h2Streams, clientOptions.Http1.MaxPipelineDepth);
+            => GetMaxConcurrencyPerSlot(endpoint, h2Streams, clientOptions.Http1.MaxPipelineDepth, h3Streams);
 
         int MaxSubstreamsPerKey(RequestEndpoint endpoint)
             => GetMaxSubstreamsPerKey(endpoint, maxConnsH1, maxConnsH2, maxConnsH3);
@@ -71,14 +72,14 @@ internal static class ProtocolCoreBuilder
         }
     }
 
-    internal static int GetMaxConcurrencyPerSlot(RequestEndpoint endpoint, int h2Streams, int h1Streams)
+    internal static int GetMaxConcurrencyPerSlot(RequestEndpoint endpoint, int h2Streams, int h1Streams, int h3Streams)
     {
         return endpoint.Version switch
         {
-            { Major: 3, Minor: 0 } => int.MaxValue, // QUIC handles stream limits at transport level
+            { Major: 3, Minor: 0 } => h3Streams,
             { Major: 2, Minor: 0 } => h2Streams,
-            { Major: 1, Minor: 1 } => h1Streams, // HTTP/1.1 pre-fill slots
-            { Major: 1, Minor: 0 } => 1, // HTTP/1.0 no pipelining
+            { Major: 1, Minor: 1 } => h1Streams,
+            { Major: 1, Minor: 0 } => 1,
             _ => throw new ArgumentOutOfRangeException(nameof(endpoint), endpoint.Version, "Unsupported HTTP version")
         };
     }
