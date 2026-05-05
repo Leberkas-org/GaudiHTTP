@@ -102,7 +102,7 @@ internal sealed class StateMachine : IDisposable
             maxBlockedStreams: options.Http3.QpackBlockedStreams,
             configuredEncoderLimit: options.Http3.QpackMaxTableCapacity);
         _requestEncoder = new RequestEncoder(TableSync);
-        _responseDecoder = new ResponseDecoder(TableSync);
+        _responseDecoder = new ResponseDecoder(TableSync, options.Http3.MaxFieldSectionSize);
         _qpackHandler = new QpackStreamHandler(ops, _requestEncoder, _responseDecoder, TableSync);
         _streamManager = new StreamManager(ops, _responseDecoder, TableSync)
         {
@@ -593,12 +593,16 @@ internal sealed class StateMachine : IDisposable
             _ops.OnWarning(
                 $"RFC 9114 §7.2.4 — remote SETTINGS received ({settings.Parameters.Count} parameters).");
 
-            var peerQpackCapacity = Connection.RemoteSettings!.QpackMaxTableCapacity;
+            var remoteSettings = Connection.RemoteSettings!;
+
+            var peerQpackCapacity = remoteSettings.QpackMaxTableCapacity;
             if (peerQpackCapacity > 0)
             {
                 TableSync.UpdateEncoderCapacity((int)peerQpackCapacity);
                 FlushEncoderInstructions();
             }
+
+            TableSync.RemoteMaxFieldSectionSize = remoteSettings.MaxFieldSectionSize;
         }
         catch (Http3Exception ex)
         {

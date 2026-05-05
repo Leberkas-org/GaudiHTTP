@@ -80,6 +80,14 @@ internal sealed class RequestEncoder
         var qpackBytesWritten = _tableSync.Encoder.Encode(_reusableHeaders, ref qpackSpan);
         var headerBlock = qpackOwner.Memory[..qpackBytesWritten];
 
+        var peerLimit = _tableSync.RemoteMaxFieldSectionSize;
+        if (peerLimit.HasValue && qpackBytesWritten > peerLimit.Value)
+        {
+            throw new Http3Exception(Http3ErrorCode.ExcessiveLoad,
+                string.Concat("RFC 9114 §4.2.2: Encoded header block (", qpackBytesWritten.ToString(),
+                    " bytes) exceeds peer SETTINGS_MAX_FIELD_SECTION_SIZE (", peerLimit.Value.ToString(), ")"));
+        }
+
         _reusableFrames.Clear();
         _reusableFrames.Add(new Http3HeadersFrame(headerBlock));
 

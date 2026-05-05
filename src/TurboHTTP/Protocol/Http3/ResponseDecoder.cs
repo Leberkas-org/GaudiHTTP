@@ -15,11 +15,13 @@ internal sealed class ResponseDecoder
     private static readonly HttpContent SharedEmptyContent = new ByteArrayContent([]);
 
     private readonly QpackTableSync _tableSync;
+    private readonly int _maxFieldSectionSize;
 
-    public ResponseDecoder(QpackTableSync tableSync)
+    public ResponseDecoder(QpackTableSync tableSync, int maxFieldSectionSize = int.MaxValue)
     {
         ArgumentNullException.ThrowIfNull(tableSync);
         _tableSync = tableSync;
+        _maxFieldSectionSize = maxFieldSectionSize;
     }
 
     /// <summary>
@@ -58,6 +60,7 @@ internal sealed class ResponseDecoder
 
         FieldValidator.ValidateResponsePseudoHeaders(headers);
         FieldValidator.Validate(headers);
+        ValidateFieldSectionSize(headers);
 
         var response = state.InitResponse();
 
@@ -131,4 +134,24 @@ internal sealed class ResponseDecoder
         name.Equals("allow", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("expires", StringComparison.OrdinalIgnoreCase) ||
         name.Equals("last-modified", StringComparison.OrdinalIgnoreCase);
+
+    private void ValidateFieldSectionSize(IReadOnlyList<(string Name, string Value)> headers)
+    {
+        if (_maxFieldSectionSize == int.MaxValue)
+        {
+            return;
+        }
+
+        var totalSize = 0L;
+        foreach (var (name, value) in headers)
+        {
+            totalSize += name.Length + value.Length + 32;
+        }
+
+        if (totalSize > _maxFieldSectionSize)
+        {
+            throw new Http3Exception(Http3ErrorCode.ExcessiveLoad,
+                "RFC 9114 §4.2.2: Received field section exceeds SETTINGS_MAX_FIELD_SECTION_SIZE");
+        }
+    }
 }

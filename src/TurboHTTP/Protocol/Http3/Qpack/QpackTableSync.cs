@@ -77,6 +77,12 @@ internal sealed class QpackTableSync
     public QpackDecoder Decoder { get; private set; }
 
     /// <summary>
+    /// RFC 9114 §7.2.4.1 — The peer's advertised SETTINGS_MAX_FIELD_SECTION_SIZE.
+    /// Set after receiving remote SETTINGS. Null means no limit was advertised.
+    /// </summary>
+    public long? RemoteMaxFieldSectionSize { get; set; }
+
+    /// <summary>
     /// RFC 9204 §2.1.1 — The Known Received Count: the largest value of Insert Count
     /// that the encoder knows the decoder has received.
     /// </summary>
@@ -256,6 +262,7 @@ internal sealed class QpackTableSync
         Encoder = new QpackEncoder(_encoderMaxCapacity);
         Decoder = new QpackDecoder(_decoderMaxCapacity, _maxBlockedStreams);
         KnownReceivedCount = 0;
+        RemoteMaxFieldSectionSize = null;
         _blockedStreams.Clear();
     }
 
