@@ -189,6 +189,7 @@ internal sealed class QuicListenerStage
                     }
                 },
                 getLocalEndPoint: () => connection.LocalEndPoint,
+                getRemoteEndPoint: () => connection.RemoteEndPoint,
                 dispose: () => connection.DisposeAsync());
 
             var connectionFlow = Flow.FromGraph(

@@ -22,6 +22,7 @@ public sealed class QuicConnectionHandleSpec
             },
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
         var result = await handle.OpenStreamAsync(StreamDirection.Bidirectional, TestContext.Current.CancellationToken);
@@ -43,6 +44,7 @@ public sealed class QuicConnectionHandleSpec
             },
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
         await handle.OpenStreamAsync(StreamDirection.Bidirectional, TestContext.Current.CancellationToken);
@@ -67,6 +69,7 @@ public sealed class QuicConnectionHandleSpec
             },
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
         await handle.OpenStreamAsync(StreamDirection.Bidirectional, cts.Token);
@@ -82,6 +85,7 @@ public sealed class QuicConnectionHandleSpec
             openStream: (_, _) => Task.FromResult((Stream: (Stream)new MemoryStream(), StreamId: 0L)),
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
         var result = await handle.AcceptInboundStreamAsync(TestContext.Current.CancellationToken);
@@ -100,6 +104,7 @@ public sealed class QuicConnectionHandleSpec
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(
                 (expectedStream, expectedStreamId)),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
         var result = await handle.AcceptInboundStreamAsync(TestContext.Current.CancellationToken);
@@ -123,6 +128,7 @@ public sealed class QuicConnectionHandleSpec
                 return Task.FromResult<(Stream, long)?>(null);
             },
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
         await handle.AcceptInboundStreamAsync(cts.Token);
@@ -145,6 +151,7 @@ public sealed class QuicConnectionHandleSpec
                 getLocalEndPointCalled = true;
                 return endPoint;
             },
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
         var result = handle.LocalEndPoint();
@@ -160,6 +167,7 @@ public sealed class QuicConnectionHandleSpec
             openStream: (_, _) => Task.FromResult((Stream: (Stream)new MemoryStream(), StreamId: 0L)),
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
         var result = handle.LocalEndPoint();
@@ -176,6 +184,7 @@ public sealed class QuicConnectionHandleSpec
             openStream: (_, _) => Task.FromResult((Stream: (Stream)new MemoryStream(), StreamId: 0L)),
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () =>
             {
                 disposeCalled = true;
@@ -196,6 +205,7 @@ public sealed class QuicConnectionHandleSpec
             openStream: (_, _) => Task.FromResult((Stream: (Stream)new MemoryStream(), StreamId: 0L)),
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
         // Should not throw

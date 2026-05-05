@@ -30,6 +30,7 @@ internal sealed class SlowQuicConnectionFactory(TimeSpan delay) : IQuicConnectio
             openStream: (_, _) => Task.FromResult((Stream: (Stream)new MemoryStream(), StreamId: 0L)),
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
         return new QuicConnectionLease(handle, options.MaxBidirectionalStreams);
     }
@@ -60,6 +61,7 @@ internal sealed class MockFactory : IQuicConnectionFactory
             openStream: (_, _) => Task.FromResult((Stream: (Stream)new MemoryStream(), StreamId: 0L)),
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
         return Task.FromResult(new QuicConnectionLease(handle, options.MaxBidirectionalStreams));
     }

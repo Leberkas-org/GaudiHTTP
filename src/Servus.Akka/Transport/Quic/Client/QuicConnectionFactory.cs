@@ -1,12 +1,5 @@
-using System.Runtime.Versioning;
-
 namespace Servus.Akka.Transport.Quic.Client;
 
-#pragma warning disable CA1416
-
-[SupportedOSPlatform("linux")]
-[SupportedOSPlatform("macOS")]
-[SupportedOSPlatform("windows")]
 internal sealed class QuicConnectionFactory : IQuicConnectionFactory
 {
     public static readonly QuicConnectionFactory Instance = new();
@@ -45,6 +38,7 @@ internal sealed class QuicConnectionFactory : IQuicConnectionFactory
                 return (stream, streamId);
             },
             getLocalEndPoint: () => provider.LocalEndPoint,
+            getRemoteEndPoint: () => provider.RemoteEndPoint,
             dispose: () => provider.DisposeAsync());
 
         return new QuicConnectionLease(handle, options.MaxBidirectionalStreams);

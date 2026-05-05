@@ -10,6 +10,7 @@ public sealed class QuicConnectionLeaseSpec
             openStream: (_, _) => Task.FromResult((Stream: (Stream)new MemoryStream(), StreamId: 0L)),
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
 
     [Fact(Timeout = 5000)]
@@ -223,6 +224,7 @@ public sealed class QuicConnectionLeaseSpec
             openStream: (_, _) => Task.FromResult((Stream: (Stream)new MemoryStream(), StreamId: 0L)),
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () =>
             {
                 disposeCalled = true;
@@ -248,6 +250,7 @@ public sealed class QuicConnectionLeaseSpec
             openStream: (_, _) => Task.FromResult((Stream: (Stream)new MemoryStream(), StreamId: 0L)),
             acceptInboundStream: _ => Task.FromResult<(Stream, long)?>(null),
             getLocalEndPoint: () => null,
+            getRemoteEndPoint: () => null,
             dispose: () =>
             {
                 disposeCount++;

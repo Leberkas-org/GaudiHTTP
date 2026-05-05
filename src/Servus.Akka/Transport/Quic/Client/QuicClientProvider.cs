@@ -16,6 +16,7 @@ internal sealed class QuicClientProvider : IAsyncDisposable
     }
 
     public EndPoint? LocalEndPoint => _connection?.LocalEndPoint;
+    public EndPoint? RemoteEndPoint => _connection?.RemoteEndPoint;
 
     public async Task<Stream> GetStreamAsync(CancellationToken ct = default)
     {

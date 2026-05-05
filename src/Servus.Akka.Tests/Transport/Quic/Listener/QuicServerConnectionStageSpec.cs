@@ -15,6 +15,7 @@ public sealed class QuicServerConnectionStageSpec
             openStream: (_, _) => Task.FromResult<(Stream, long)>((Stream.Null, 1)),
             acceptInboundStream: async ct => { await Task.Delay(Timeout.Infinite, ct); return null; },
             getLocalEndPoint: () => new IPEndPoint(IPAddress.Loopback, 5000),
+            getRemoteEndPoint: () => null,
             dispose: () => default);
 
         var connectionInfo = new ConnectionInfo(
@@ -36,6 +37,7 @@ public sealed class QuicServerConnectionStageSpec
             openStream: (_, _) => Task.FromResult<(Stream, long)>((Stream.Null, 1)),
             acceptInboundStream: async ct => { await Task.Delay(Timeout.Infinite, ct); return null; },
             getLocalEndPoint: () => new IPEndPoint(IPAddress.Loopback, 5000),
+            getRemoteEndPoint: () => null,
             dispose: () => default);
 
         var connectionInfo = new ConnectionInfo(

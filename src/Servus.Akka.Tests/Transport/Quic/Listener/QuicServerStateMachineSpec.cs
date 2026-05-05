@@ -25,6 +25,7 @@ public sealed class QuicServerStateMachineSpec
                 return null;
             },
             getLocalEndPoint: () => new IPEndPoint(IPAddress.Loopback, 5000),
+            getRemoteEndPoint: () => null,
             dispose: () => default);
     }
 

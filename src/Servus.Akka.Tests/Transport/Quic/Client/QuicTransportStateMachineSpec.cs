@@ -22,6 +22,7 @@ public sealed class QuicTransportStateMachineSpec
                 return null;
             },
             getLocalEndPoint: () => new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 12345),
+            getRemoteEndPoint: () => null,
             dispose: () => ValueTask.CompletedTask);
     }
 

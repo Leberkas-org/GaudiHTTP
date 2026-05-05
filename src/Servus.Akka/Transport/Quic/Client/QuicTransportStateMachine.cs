@@ -22,7 +22,7 @@ public sealed class QuicTransportStateMachine
     private bool _upstreamFinished;
     private bool _isReconnecting;
     private CancellationTokenSource? _acquireCts;
-    private EndPoint? _lastLocalEndPoint;
+    private EndPoint? _lastRemoteEndPoint;
 
     private readonly Dictionary<long, QuicStreamState> _streams = new();
     private QuicPumpManager? _pumpManager;
@@ -246,7 +246,7 @@ public sealed class QuicTransportStateMachine
         _connectionGen++;
         _connectionLease = lease;
         _connectionHandle = lease.Handle;
-        _lastLocalEndPoint = _connectionHandle.LocalEndPoint();
+        _lastRemoteEndPoint = _connectionHandle.RemoteEndPoint();
         _ops.OnScheduleTimer(MigrationCheckTimerKey, MigrationCheckInterval);
 
         _pumpManager = new QuicPumpManager(_self);
@@ -392,17 +392,17 @@ public sealed class QuicTransportStateMachine
 
     private void CheckForConnectionMigration()
     {
-        var currentLocal = _connectionHandle?.LocalEndPoint();
-        if (currentLocal is null || _lastLocalEndPoint is null)
+        var currentRemote = _connectionHandle?.RemoteEndPoint();
+        if (currentRemote is null || _lastRemoteEndPoint is null)
         {
             return;
         }
 
-        if (!currentLocal.Equals(_lastLocalEndPoint))
+        if (!currentRemote.Equals(_lastRemoteEndPoint))
         {
-            var old = _lastLocalEndPoint;
-            _lastLocalEndPoint = currentLocal;
-            _self.Tell(new MigrationDetected(old, currentLocal));
+            var old = _lastRemoteEndPoint;
+            _lastRemoteEndPoint = currentRemote;
+            _ops.OnPushInbound(new ConnectionMigrationDetected(old, currentRemote));
         }
     }
 
