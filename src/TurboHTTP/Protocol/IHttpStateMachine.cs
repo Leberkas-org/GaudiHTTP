@@ -1,6 +1,6 @@
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Streams.Stages;
+namespace TurboHTTP.Protocol;
 
 internal interface IHttpStateMachine
 {
