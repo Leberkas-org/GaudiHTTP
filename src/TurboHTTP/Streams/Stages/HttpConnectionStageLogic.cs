@@ -33,10 +33,15 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
         _sm = smFactory(this);
 
         SetHandler(_inServer, onPush: OnServerPush,
-            onUpstreamFinish: () => _sm.OnUpstreamFinished(),
+            onUpstreamFinish: () =>
+            {
+                _sm.OnUpstreamFinished();
+                CompleteStage();
+            },
             onUpstreamFailure: ex =>
             {
                 _sm.OnUpstreamFinished();
+                CompleteStage();
             });
 
         SetHandler(_outResponse, onPull: () =>
@@ -131,11 +136,6 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
         TryPushOutbound();
     }
 
-    void IStageOperations.OnWarning(string message)
-    {
-        Log.Warning(message);
-    }
-
     void IStageOperations.OnScheduleTimer(string name, TimeSpan duration)
     {
         ScheduleOnce(name, duration);
@@ -144,16 +144,6 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
     void IStageOperations.OnCancelTimer(string name)
     {
         CancelTimer(name);
-    }
-
-    void IStageOperations.OnComplete()
-    {
-        CompleteStage();
-    }
-
-    void IStageOperations.OnFail(Exception exception)
-    {
-        FailStage(exception);
     }
 
     ILoggingAdapter IStageOperations.Log => Log;

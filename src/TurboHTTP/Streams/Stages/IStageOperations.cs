@@ -7,10 +7,7 @@ internal interface IStageOperations
 {
     void OnResponse(HttpResponseMessage response);
     void OnOutbound(ITransportOutbound item);
-    void OnWarning(string message);
     void OnScheduleTimer(string name, TimeSpan duration);
     void OnCancelTimer(string name);
-    void OnComplete();
-    void OnFail(Exception exception);
     ILoggingAdapter Log { get; }
 }
