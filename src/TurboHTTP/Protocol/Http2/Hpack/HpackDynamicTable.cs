@@ -12,12 +12,20 @@ namespace TurboHTTP.Protocol.Http2.Hpack;
 /// </summary>
 internal sealed class HpackDynamicTable
 {
-    // Each slot stores the header, its name byte length, and total RFC 7541 §4.1 entry size.
-    private readonly List<(HpackHeader Header, int NameByteLength, int EncodedSize)> _entries = [];
+    private (HpackHeader Header, int NameByteLength, int EncodedSize)[] _ring;
+    private int _head;
+    private int _count;
 
     private readonly Dictionary<string, int> _nameIndex = new(StringComparer.OrdinalIgnoreCase);
 
     private int _evictedCount;
+
+    public HpackDynamicTable() : this(16) { }
+
+    private HpackDynamicTable(int initialCapacity)
+    {
+        _ring = new (HpackHeader, int, int)[initialCapacity];
+    }
 
     /// <summary>Currently configured maximum table size in bytes.</summary>
     public int MaxSize { get; private set; } = 4096;
@@ -56,8 +64,15 @@ internal sealed class HpackDynamicTable
             return;
         }
 
-        var absolutePos = _evictedCount + _entries.Count;
-        _entries.Add((new HpackHeader(name, value), nameByteLength, entrySize));
+        if (_count == _ring.Length)
+        {
+            Grow();
+        }
+
+        var absolutePos = _evictedCount + _count;
+        var index = (_head + _count) % _ring.Length;
+        _ring[index] = (new HpackHeader(name, value), nameByteLength, entrySize);
+        _count++;
         _nameIndex[name] = absolutePos;
         CurrentSize += entrySize;
         Evict();
@@ -69,12 +84,14 @@ internal sealed class HpackDynamicTable
     /// </summary>
     public HpackHeader? GetEntry(int dynamicIndex)
     {
-        if (dynamicIndex <= 0 || dynamicIndex > _entries.Count)
+        if (dynamicIndex <= 0 || dynamicIndex > _count)
         {
             return null;
         }
 
-        return _entries[^dynamicIndex].Header;
+        var listIndex = _count - dynamicIndex;
+        var ringIndex = (_head + listIndex) % _ring.Length;
+        return _ring[ringIndex].Header;
     }
 
     /// <summary>
@@ -83,17 +100,19 @@ internal sealed class HpackDynamicTable
     /// </summary>
     public (HpackHeader Header, int NameByteLength, int EncodedSize)? GetEntryWithSizes(int dynamicIndex)
     {
-        if (dynamicIndex <= 0 || dynamicIndex > _entries.Count)
+        if (dynamicIndex <= 0 || dynamicIndex > _count)
         {
             return null;
         }
 
-        var entry = _entries[^dynamicIndex];
+        var listIndex = _count - dynamicIndex;
+        var ringIndex = (_head + listIndex) % _ring.Length;
+        var entry = _ring[ringIndex];
         return (entry.Header, entry.NameByteLength, entry.EncodedSize);
     }
 
     /// <summary>Number of entries currently in the dynamic table.</summary>
-    public int Count => _entries.Count;
+    public int Count => _count;
 
     /// <summary>
     /// O(1) lookup: finds the 1-based dynamic index for a full (name+value) match.
@@ -107,24 +126,26 @@ internal sealed class HpackDynamicTable
         }
 
         var listIndex = absolutePos - _evictedCount;
-        if (listIndex < 0 || listIndex >= _entries.Count)
+        if (listIndex < 0 || listIndex >= _count)
         {
             return 0;
         }
 
-        var entry = _entries[listIndex];
+        var ringIndex = (_head + listIndex) % _ring.Length;
+        var entry = _ring[ringIndex];
         if (string.Equals(entry.Header.Value, value, StringComparison.Ordinal))
         {
-            return _entries.Count - listIndex;
+            return _count - listIndex;
         }
 
-        for (var i = _entries.Count - 1; i >= 0; i--)
+        for (var i = _count - 1; i >= 0; i--)
         {
-            var e = _entries[i];
+            var ri = (_head + i) % _ring.Length;
+            var e = _ring[ri];
             if (string.Equals(e.Header.Name, name, StringComparison.OrdinalIgnoreCase) &&
                 string.Equals(e.Header.Value, value, StringComparison.Ordinal))
             {
-                return _entries.Count - i;
+                return _count - i;
             }
         }
 
@@ -143,19 +164,19 @@ internal sealed class HpackDynamicTable
         }
 
         var listIndex = absolutePos - _evictedCount;
-        if (listIndex < 0 || listIndex >= _entries.Count)
+        if (listIndex < 0 || listIndex >= _count)
         {
             return 0;
         }
 
-        return _entries.Count - listIndex;
+        return _count - listIndex;
     }
 
     private void Evict()
     {
-        while (CurrentSize > MaxSize && _entries.Count > 0)
+        while (CurrentSize > MaxSize && _count > 0)
         {
-            var oldest = _entries[0];
+            var oldest = _ring[_head];
             CurrentSize -= oldest.EncodedSize;
 
             if (_nameIndex.TryGetValue(oldest.Header.Name, out var pos) && pos == _evictedCount)
@@ -163,15 +184,33 @@ internal sealed class HpackDynamicTable
                 _nameIndex.Remove(oldest.Header.Name);
             }
 
-            _entries.RemoveAt(0);
+            _ring[_head] = default;
+            _head = (_head + 1) % _ring.Length;
+            _count--;
             _evictedCount++;
         }
     }
 
     private void Clear()
     {
-        _entries.Clear();
+        Array.Clear(_ring, 0, _ring.Length);
+        _head = 0;
+        _count = 0;
         _nameIndex.Clear();
         CurrentSize = 0;
+    }
+
+    private void Grow()
+    {
+        var newCapacity = _ring.Length * 2;
+        var newRing = new (HpackHeader, int, int)[newCapacity];
+
+        for (var i = 0; i < _count; i++)
+        {
+            newRing[i] = _ring[(_head + i) % _ring.Length];
+        }
+
+        _ring = newRing;
+        _head = 0;
     }
 }
