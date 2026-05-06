@@ -1,4 +1,5 @@
 using System.Buffers;
+using static Servus.Core.Servus;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Stages;
@@ -62,7 +63,6 @@ internal sealed class StateMachine : IHttpStateMachine
                 return;
 
             case TransportDisconnected:
-                _ops.OnComplete();
                 return;
         }
 
@@ -93,11 +93,16 @@ internal sealed class StateMachine : IHttpStateMachine
     {
         if (IsReconnecting)
         {
-            _ops.OnFail(new HttpRequestException("TurboHTTP: HTTP/2 transport closed during reconnect."));
+            if (_reconnectBuffer.Count > 0)
+            {
+                RequestFault.FailAll(_reconnectBuffer, new HttpRequestException("HTTP/2 transport closed during reconnect."));
+            }
+
+            IsReconnecting = false;
+            _reconnectAttempts = 0;
+            Tracing.For("Protocol").Debug(this, "HTTP/2 transport closed during reconnect");
             return;
         }
-
-        _ops.OnComplete();
     }
 
     public void OnTimerFired(string name)
@@ -120,14 +125,10 @@ internal sealed class StateMachine : IHttpStateMachine
             {
                 if (_protocol.IsKeepAliveTimedOut(_options.Http2.KeepAlivePingTimeout))
                 {
-                    _ops.OnWarning("Keep-alive PING timeout — closing connection.");
+                    Tracing.For("Protocol").Info(this, "HTTP/2: Keep-alive PING timeout — closing connection");
                     if (_protocol.HasInFlightRequests)
                     {
                         OnConnectionLost(lastStreamId: 0);
-                    }
-                    else
-                    {
-                        _ops.OnComplete();
                     }
                 }
 
@@ -164,8 +165,8 @@ internal sealed class StateMachine : IHttpStateMachine
             }
             else
             {
-                _ops.OnWarning(
-                    $"TurboHTTP: Dropping non-idempotent or partially-responded request {request.Method} {request.RequestUri} on reconnect.");
+                Tracing.For("Protocol").Info(this, "HTTP/2: Dropping non-idempotent or partially-responded request {0} {1} on reconnect", request.Method, request.RequestUri);
+                RequestFault.Fail(request, new HttpRequestException("Non-idempotent or partially-responded request dropped on reconnect."));
                 request.Dispose();
             }
         }
@@ -211,7 +212,16 @@ internal sealed class StateMachine : IHttpStateMachine
     {
         if (_reconnectAttempts >= _options.Http2.MaxReconnectAttempts)
         {
-            _ops.OnFail(new HttpRequestException("TurboHTTP: HTTP/2 reconnect failed after max attempts."));
+            Tracing.For("Protocol").Info(this, "HTTP/2 reconnect failed after {0} attempts", _reconnectAttempts);
+            if (_reconnectBuffer.Count > 0)
+            {
+                var exception = new HttpRequestException("HTTP/2 reconnect failed after max attempts.");
+                RequestFault.FailAll(_reconnectBuffer, exception);
+                _reconnectBuffer.Clear();
+            }
+
+            IsReconnecting = false;
+            _reconnectAttempts = 0;
             return;
         }
 

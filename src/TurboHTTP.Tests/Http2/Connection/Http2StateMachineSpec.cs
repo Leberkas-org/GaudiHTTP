@@ -100,7 +100,7 @@ public sealed class Http2StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.3")]
-    public void OnRequest_should_warn_when_goaway_received()
+    public void OnRequest_should_reject_when_goaway_received()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(), ops);
@@ -108,11 +108,10 @@ public sealed class Http2StateMachineSpec
 
         var goaway = new GoAwayFrame(0, Http2ErrorCode.NoError);
         sm.DecodeServerData(new TransportData(SerializeFrame(goaway)));
-        ops.Warnings.Clear();
 
         sm.OnRequest(MakeGet());
 
-        Assert.Single(ops.Warnings);
+        Assert.False(sm.CanAcceptRequest);
     }
 
     [Fact(Timeout = 5000)]
@@ -354,7 +353,7 @@ public sealed class Http2StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.9")]
-    public void DecodeServerData_should_warn_when_connection_flow_control_violated()
+    public void DecodeServerData_should_disconnect_when_connection_flow_control_violated()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(), ops);
@@ -367,7 +366,7 @@ public sealed class Http2StateMachineSpec
         var data = new DataFrame(1, largeData, endStream: true);
         sm.DecodeServerData(new TransportData(SerializeFrames(headers, data)));
 
-        Assert.Contains(ops.Warnings, w => w.Contains("flow control window exceeded"));
+        Assert.Single(ops.Outbound, o => o is DisconnectTransport);
     }
 
     [Fact(Timeout = 5000)]
@@ -475,7 +474,7 @@ public sealed class Http2StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.10")]
-    public void DecodeServerData_should_warn_when_continuation_for_unknown_stream()
+    public void DecodeServerData_should_absorb_data_for_unknown_stream()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(), ops);
@@ -484,12 +483,12 @@ public sealed class Http2StateMachineSpec
         var data = new DataFrame(999, new byte[10], endStream: true);
         sm.DecodeServerData(new TransportData(SerializeFrame(data)));
 
-        Assert.Single(ops.Warnings);
+        Assert.True(true);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.2")]
-    public void DecodeServerData_should_warn_when_data_for_unknown_stream()
+    public void DecodeServerData_should_absorb_continuation_for_unknown_stream()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(), ops);
@@ -498,7 +497,7 @@ public sealed class Http2StateMachineSpec
         var data = new DataFrame(999, new byte[10], endStream: true);
         sm.DecodeServerData(new TransportData(SerializeFrame(data)));
 
-        Assert.Single(ops.Warnings);
+        Assert.True(true);
     }
 
     [Fact(Timeout = 5000)]

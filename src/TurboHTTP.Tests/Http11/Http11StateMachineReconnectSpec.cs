@@ -13,6 +13,19 @@ public sealed class Http11StateMachineReconnectSpec
             Version = new Version(1, 1)
         };
 
+    private static (HttpRequestMessage Request, PendingRequest Pending, short Version) MakeTrackedRequest(string path = "/")
+    {
+        var pending = PendingRequest.Rent();
+        var version = pending.Version;
+        var request = new HttpRequestMessage(HttpMethod.Get, $"http://example.com{path}")
+        {
+            Version = new Version(1, 1)
+        };
+        request.Options.Set(TcsCorrelation.Key, pending);
+        request.Options.Set(TcsCorrelation.VersionKey, version);
+        return (request, pending, version);
+    }
+
     private static TurboClientOptions MakeConfig(int maxPipelineDepth = 4, int maxReconnectAttempts = 3) =>
         new() { Http1 = new Http1Options { MaxPipelineDepth = maxPipelineDepth, MaxReconnectAttempts = maxReconnectAttempts } };
 
@@ -72,16 +85,20 @@ public sealed class Http11StateMachineReconnectSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.3")]
-    public void DecodeServerData_should_complete_stage_when_max_reconnect_attempts_exceeded()
+    public void DecodeServerData_should_fail_requests_when_max_reconnect_attempts_exceeded()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, MakeConfig(maxReconnectAttempts: 1));
-        sm.OnRequest(MakeRequest());
+        var (request, pending, version) = MakeTrackedRequest();
+        sm.OnRequest(request);
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
 
-        Assert.True(ops.StageCompleted);
+        var task = pending.GetValueTask();
+        Assert.True(task.IsFaulted);
+        Assert.False(sm.IsReconnecting);
+        Assert.True(sm.CanAcceptRequest);
     }
 
     [Fact(Timeout = 5000)]
@@ -97,7 +114,7 @@ public sealed class Http11StateMachineReconnectSpec
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
 
-        Assert.Null(ops.FailException);
+        Assert.True(sm.IsReconnecting);
         Assert.Equal(countAfterFirst + 1, ops.Outbound.OfType<ConnectTransport>().Count());
     }
 }

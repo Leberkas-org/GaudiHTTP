@@ -1,4 +1,5 @@
 using System.Buffers;
+using static Servus.Core.Servus;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3.Qpack;
@@ -280,7 +281,7 @@ internal sealed class StreamManager
     {
         if (!_responseDecoder.AccumulateData(frame, state))
         {
-            _ops.OnWarning("RFC 9114 §4.1 — DATA frame received before HEADERS; dropping.");
+            Tracing.For("Protocol").Warning(this, "RFC 9114 §4.1 — DATA frame received before HEADERS; dropping.");
         }
     }
 
@@ -303,7 +304,7 @@ internal sealed class StreamManager
         var partialContentResult = PartialContentValidator.Validate(response);
         if (!partialContentResult.IsValid)
         {
-            _ops.OnWarning(partialContentResult.ErrorMessage!);
+            Tracing.For("Protocol").Warning(this, "{0}", partialContentResult.ErrorMessage!);
         }
 
         _ops.OnResponse(response);

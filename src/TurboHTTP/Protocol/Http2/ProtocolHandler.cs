@@ -1,3 +1,4 @@
+using static Servus.Core.Servus;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http2.Hpack;
@@ -73,8 +74,8 @@ internal sealed class ProtocolHandler
 
         if (GoAwayReceived)
         {
-            _ops.OnWarning(
-                $"RFC 9113 §6.8 — GOAWAY received; dropping new request (stream {streamId}).");
+            Tracing.For("Protocol").Warning(this, "HTTP/2: RFC 9113 §6.8 — GOAWAY received; dropping new request (stream {0})", streamId);
+            RequestFault.Fail(request, new HttpRequestException("HTTP/2 GOAWAY received."));
             return;
         }
 
@@ -265,15 +266,14 @@ internal sealed class ProtocolHandler
 
         if (result.IsConnectionViolation)
         {
-            _ops.OnWarning("RFC 9113 §6.9 — connection flow control window exceeded. Triggering reconnect.");
+            Tracing.For("Protocol").Info(this, "HTTP/2: RFC 9113 §6.9 — connection flow control window exceeded. Triggering reconnect");
             _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
 
         if (result.IsStreamViolation)
         {
-            _ops.OnWarning(
-                $"RFC 9113 §6.9 — stream {data.StreamId} flow control window exceeded. Triggering reconnect.");
+            Tracing.For("Protocol").Info(this, "HTTP/2: RFC 9113 §6.9 — stream {0} flow control window exceeded. Triggering reconnect", data.StreamId);
             _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
@@ -315,8 +315,7 @@ internal sealed class ProtocolHandler
     {
         _flow.OnGoAway();
         GoAwayLastStreamId = goAway.LastStreamId;
-        _ops.OnWarning(
-            $"TurboHTTP: GOAWAY received from {Endpoint.Host} — LastStreamId={goAway.LastStreamId}, ErrorCode={goAway.ErrorCode}. Reconnecting.");
+        Tracing.For("Protocol").Info(this, "HTTP/2: GOAWAY received from {0} — LastStreamId={1}, ErrorCode={2}. Reconnecting", Endpoint.Host, goAway.LastStreamId, goAway.ErrorCode);
     }
 
     private void CloseStream(int streamId)
@@ -364,7 +363,7 @@ internal sealed class ProtocolHandler
     {
         if (!_streams.TryGetValue(frame.StreamId, out var state))
         {
-            _ops.OnWarning($"Received CONTINUATION for unknown stream {frame.StreamId} — dropping.");
+            Tracing.For("Protocol").Warning(this, "HTTP/2: Received CONTINUATION for unknown stream {0} — dropping", frame.StreamId);
             return;
         }
 
@@ -380,7 +379,7 @@ internal sealed class ProtocolHandler
     {
         if (!_streams.TryGetValue(frame.StreamId, out var state))
         {
-            _ops.OnWarning($"Received DATA for unknown stream {frame.StreamId} — dropping.");
+            Tracing.For("Protocol").Warning(this, "HTTP/2: Received DATA for unknown stream {0} — dropping", frame.StreamId);
             return;
         }
 
@@ -401,7 +400,7 @@ internal sealed class ProtocolHandler
         var partialContentResult = PartialContentValidator.Validate(response);
         if (!partialContentResult.IsValid)
         {
-            _ops.OnWarning(partialContentResult.ErrorMessage!);
+            Tracing.For("Protocol").Warning(this, "HTTP/2: {0}", partialContentResult.ErrorMessage!);
         }
 
         _ops.OnResponse(response);
@@ -414,7 +413,7 @@ internal sealed class ProtocolHandler
     {
         if (!_streams.TryGetValue(streamId, out var state))
         {
-            _ops.OnWarning($"DecodeHeaders called for unknown stream {streamId} — dropping.");
+            Tracing.For("Protocol").Warning(this, "HTTP/2: DecodeHeaders called for unknown stream {0} — dropping", streamId);
             return;
         }
 
@@ -433,7 +432,7 @@ internal sealed class ProtocolHandler
         var partialContentResult = PartialContentValidator.Validate(response);
         if (!partialContentResult.IsValid)
         {
-            _ops.OnWarning(partialContentResult.ErrorMessage!);
+            Tracing.For("Protocol").Warning(this, "HTTP/2: {0}", partialContentResult.ErrorMessage!);
         }
 
         _ops.OnResponse(response);

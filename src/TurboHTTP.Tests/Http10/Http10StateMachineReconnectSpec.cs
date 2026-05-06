@@ -9,6 +9,18 @@ public sealed class Http10StateMachineReconnectSpec
     private static HttpRequestMessage MakeRequest() =>
         new(HttpMethod.Get, "http://example.com/");
 
+    private static (HttpRequestMessage Request, PendingRequest Pending, short Version) MakeTrackedRequest(
+        string uri = "http://example.com/", HttpContent? content = null)
+    {
+        var pending = PendingRequest.Rent();
+        var version = pending.Version;
+        var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        if (content != null) request.Content = content;
+        request.Options.Set(TcsCorrelation.Key, pending);
+        request.Options.Set(TcsCorrelation.VersionKey, version);
+        return (request, pending, version);
+    }
+
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-8")]
     public void Http10StateMachine_should_buffer_request_and_emit_reconnect_item_on_disconnect_with_inflight()
@@ -62,16 +74,19 @@ public sealed class Http10StateMachineReconnectSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-8")]
-    public void Http10StateMachine_should_fail_when_max_reconnect_attempts_exceeded()
+    public void Http10StateMachine_should_fail_request_when_max_reconnect_attempts_exceeded()
     {
-        var ops = new FakeOps();
-        var sm = new StateMachine(ops, new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 1 } });
-        sm.OnRequest(MakeRequest());
+        var sm = new StateMachine(new FakeOps(), new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 1 } });
+        var (request, pending, version) = MakeTrackedRequest();
+        sm.OnRequest(request);
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error)); // attempt 1
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error)); // attempt 2 — exceeds max of 1
 
-        Assert.True(ops.StageCompleted);
+        var task = pending.GetValueTask();
+        Assert.True(task.IsFaulted);
+        Assert.False(sm.IsReconnecting);
+        Assert.True(sm.CanAcceptRequest);
     }
 
     [Fact(Timeout = 5000)]
@@ -86,7 +101,7 @@ public sealed class Http10StateMachineReconnectSpec
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error)); // attempt 2
 
-        Assert.Null(ops.FailException);
+        Assert.True(sm.IsReconnecting);
         Assert.Equal(countAfterFirst + 1, ops.Outbound.OfType<ConnectTransport>().Count());
     }
 }

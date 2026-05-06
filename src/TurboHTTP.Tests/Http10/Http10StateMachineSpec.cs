@@ -20,6 +20,18 @@ public sealed class Http10StateMachineSpec
         return request;
     }
 
+    private static (HttpRequestMessage Request, PendingRequest Pending, short Version) MakeTrackedRequest(
+        string uri = "http://example.com/", HttpContent? content = null)
+    {
+        var pending = PendingRequest.Rent();
+        var version = pending.Version;
+        var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        if (content != null) request.Content = content;
+        request.Options.Set(TcsCorrelation.Key, pending);
+        request.Options.Set(TcsCorrelation.VersionKey, version);
+        return (request, pending, version);
+    }
+
     private static TransportBuffer CreateResponseBuffer(string responseText)
     {
         var bytes = System.Text.Encoding.ASCII.GetBytes(responseText);
@@ -356,53 +368,54 @@ public sealed class Http10StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-7")]
-    public void DecodeServerData_should_warn_on_abrupt_close_with_content_length_mismatch()
+    public void DecodeServerData_should_fail_request_on_abrupt_close_with_content_length_mismatch()
     {
-        var ops = new FakeOps();
         var config = MakeConfig();
         config.Http1.MaxReconnectAttempts = 0;
-        var sm = new StateMachine(ops, config);
-        sm.OnRequest(MakeRequest());
+        var sm = new StateMachine(new FakeOps(), config);
+        var (request, pending, version) = MakeTrackedRequest();
+        sm.OnRequest(request);
 
         var partialBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nhello");
         sm.DecodeServerData(new TransportData(partialBuffer));
 
         var closeSignal = new TransportDisconnected(DisconnectReason.Error);
         sm.DecodeServerData(closeSignal);
-        Assert.Contains(ops.Warnings, w => w.Contains("Content-Length mismatch"));
+
+        var task = pending.GetValueTask();
+        Assert.True(task.IsFaulted);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-7")]
-    public void DecodeServerData_should_warn_on_abrupt_close_without_content_length()
+    public void DecodeServerData_should_fail_request_on_abrupt_close()
     {
-        var ops = new FakeOps();
         var config = MakeConfig();
         config.Http1.MaxReconnectAttempts = 0;
-        var sm = new StateMachine(ops, config);
-        sm.OnRequest(MakeRequest());
+        var sm = new StateMachine(new FakeOps(), config);
+        var (request, pending, version) = MakeTrackedRequest();
+        sm.OnRequest(request);
 
         var closeSignal = new TransportDisconnected(DisconnectReason.Error);
-
         sm.DecodeServerData(closeSignal);
-        Assert.Contains(ops.Warnings, w => w.Contains("Connection was aborted"));
+
+        var task = pending.GetValueTask();
+        Assert.True(task.IsFaulted);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-7")]
-    public void DecodeServerData_should_complete_on_abrupt_close()
+    public void DecodeServerData_should_stay_alive_after_abrupt_close()
     {
-        var ops = new FakeOps();
-        var config = MakeConfig();
-        config.Http1.MaxReconnectAttempts = 0;
-        var sm = new StateMachine(ops, config);
+        var sm = new StateMachine(new FakeOps(), MakeConfig());
         sm.OnRequest(MakeRequest());
 
         var closeSignal = new TransportDisconnected(DisconnectReason.Error);
         sm.DecodeServerData(closeSignal);
 
-        // Should complete on abrupt close
-        Assert.True(ops.StageCompleted);
+        // SM should stay alive to accept more requests
+        Assert.True(sm.CanAcceptRequest);
+        Assert.False(sm.HasInFlightRequest);
     }
 
     [Fact(Timeout = 5000)]

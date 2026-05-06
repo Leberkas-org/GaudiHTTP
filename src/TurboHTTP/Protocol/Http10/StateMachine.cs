@@ -1,5 +1,7 @@
+using static Servus.Core.Servus;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
+using TurboHTTP.Protocol;
 using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Protocol.Http10;
@@ -84,16 +86,20 @@ internal sealed class StateMachine : IHttpStateMachine
     {
         if (IsReconnecting)
         {
-            _ops.OnWarning(string.Concat(
-                "HTTP/1.0 transport closed during reconnect — discarding ",
-                PendingRequestCount.ToString(), " buffered request(s)."));
-            _ops.OnComplete();
+            if (_reconnectBufferedRequest is { } buffered)
+            {
+                RequestFault.Fail(buffered, new HttpRequestException("HTTP/1.0 transport closed during reconnect."));
+                _reconnectBufferedRequest = null;
+            }
+
+            IsReconnecting = false;
+            _reconnectAttempts = 0;
+            Tracing.For("Protocol").Debug(this, "HTTP/1.0 transport closed during reconnect");
             return;
         }
 
         TryDecodeEof();
-        HandleOrphanedRequest();
-        _ops.OnComplete();
+        FailOrphanedRequest();
     }
 
     public void OnTimerFired(string name)
@@ -136,7 +142,8 @@ internal sealed class StateMachine : IHttpStateMachine
         catch (Exception ex)
         {
             item?.Dispose();
-            _ops.OnWarning($"Failed to encode request [{request.RequestUri}]: {ex.Message}");
+            Tracing.For("Protocol").Warning(this, "Failed to encode HTTP/1.0 request [{0}]: {1}", request.RequestUri, ex.Message);
+            RequestFault.Fail(request, ex);
             _inFlightRequest = null;
         }
     }
@@ -160,7 +167,13 @@ internal sealed class StateMachine : IHttpStateMachine
         catch (Exception ex)
         {
             buffer.Dispose();
-            _ops.OnWarning($"Failed to decode response: {ex.Message}");
+            Tracing.For("Protocol").Warning(this, "Failed to decode HTTP/1.0 response: {0}", ex.Message);
+            if (_inFlightRequest is { } req)
+            {
+                RequestFault.Fail(req, new HttpRequestException("Failed to decode HTTP/1.0 response.", ex));
+                _inFlightRequest = null;
+            }
+
             _decoder.Reset();
         }
     }
@@ -169,7 +182,7 @@ internal sealed class StateMachine : IHttpStateMachine
     {
         if (HasInFlightRequest && _options.Http1.MaxReconnectAttempts > 0)
         {
-            _ops.OnWarning(string.Concat("HTTP/1.0 closed, ", PendingRequestCount.ToString(), " pending"));
+            Tracing.For("Protocol").Info(this, "HTTP/1.0 closed, {0} pending — reconnecting", PendingRequestCount);
             StartReconnect();
             return;
         }
@@ -182,9 +195,14 @@ internal sealed class StateMachine : IHttpStateMachine
                 ? "Content-Length mismatch: connection closed before all body data was received."
                 : "Connection was aborted while receiving HTTP/1.0 response.";
 
+            if (_inFlightRequest is { } req)
+            {
+                RequestFault.Fail(req, new HttpRequestException(message));
+                _inFlightRequest = null;
+            }
+
             _decoder.Reset();
-            _ops.OnWarning(string.Concat("HTTP/1.0: ", message));
-            _ops.OnComplete();
+            Tracing.For("Protocol").Info(this, "HTTP/1.0: {0}", message);
             return;
         }
 
@@ -192,8 +210,6 @@ internal sealed class StateMachine : IHttpStateMachine
         {
             CompleteResponse(eofResponse);
         }
-
-        _ops.OnComplete();
     }
 
     private void TryDecodeEof()
@@ -210,16 +226,17 @@ internal sealed class StateMachine : IHttpStateMachine
         }
         catch (Exception ex)
         {
-            _ops.OnWarning($"Failed to decode EOF: {ex.Message}");
+            Tracing.For("Protocol").Warning(this, "Failed to decode HTTP/1.0 EOF: {0}", ex.Message);
             _decoder.Reset();
         }
     }
 
-    private void HandleOrphanedRequest()
+    private void FailOrphanedRequest()
     {
         if (_inFlightRequest is not null)
         {
-            _ops.OnWarning("Connection closed with orphaned request — discarding.");
+            Tracing.For("Protocol").Debug(this, "HTTP/1.0 connection closed with orphaned request — failing");
+            RequestFault.Fail(_inFlightRequest, new HttpRequestException("HTTP/1.0 connection closed with orphaned request."));
             _inFlightRequest = null;
         }
     }
@@ -250,10 +267,15 @@ internal sealed class StateMachine : IHttpStateMachine
     {
         if (_reconnectAttempts >= _options.Http1.MaxReconnectAttempts)
         {
-            _ops.OnWarning(string.Concat(
-                "HTTP/1.0 reconnect failed after max attempts — discarding ",
-                PendingRequestCount.ToString(), " in-flight request(s)."));
-            _ops.OnComplete();
+            Tracing.For("Protocol").Info(this, "HTTP/1.0 reconnect failed after {0} attempts", _reconnectAttempts);
+            if (_reconnectBufferedRequest is { } buffered)
+            {
+                RequestFault.Fail(buffered, new HttpRequestException("HTTP/1.0 reconnect failed after max attempts."));
+                _reconnectBufferedRequest = null;
+            }
+
+            IsReconnecting = false;
+            _reconnectAttempts = 0;
             return;
         }
 

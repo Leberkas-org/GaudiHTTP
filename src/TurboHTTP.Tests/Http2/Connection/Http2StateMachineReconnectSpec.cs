@@ -30,6 +30,16 @@ public sealed class Http2StateMachineReconnectSpec
     private static HttpRequestMessage MakePost(string path = "/") =>
         new(HttpMethod.Post, $"https://example.com{path}");
 
+    private static (HttpRequestMessage Request, PendingRequest Pending, short Version) MakeTrackedGet(string path = "/")
+    {
+        var pending = PendingRequest.Rent();
+        var version = pending.Version;
+        var req = new HttpRequestMessage(HttpMethod.Get, $"https://example.com{path}");
+        req.Options.Set(TcsCorrelation.Key, pending);
+        req.Options.Set(TcsCorrelation.VersionKey, version);
+        return (req, pending, version);
+    }
+
     private static readonly ConnectionInfo DummyConnectionInfo = new(
         new IPEndPoint(IPAddress.Loopback, 5000),
         new IPEndPoint(IPAddress.Loopback, 443),
@@ -63,7 +73,6 @@ public sealed class Http2StateMachineReconnectSpec
         sm.OnRequest(MakeGet("/a"));  // stream 1
         sm.OnRequest(MakePost("/b")); // stream 3
         ops.Outbound.Clear();
-        ops.Warnings.Clear();
 
         var goaway = new GoAwayFrame(3, Http2ErrorCode.NoError);
         sm.DecodeServerData(new TransportData(SerializeFrame(goaway)));
@@ -112,13 +121,14 @@ public sealed class Http2StateMachineReconnectSpec
         var ops = new FakeOps();
         var sm = new StateMachine(MakeConfig(maxReconnect: 1), ops);
         sm.PreStart();
-        sm.OnRequest(MakeGet());
+        var (req, pending, ver) = MakeTrackedGet();
+        sm.OnRequest(req);
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
 
-        Assert.NotNull(ops.FailException);
-        Assert.Contains("reconnect failed after max attempts", ops.FailException.Message);
+        var task = pending.GetValueTask();
+        Assert.True(task.IsFaulted, "Request should be faulted after max reconnect attempts");
     }
 
     [Fact(Timeout = 5000)]

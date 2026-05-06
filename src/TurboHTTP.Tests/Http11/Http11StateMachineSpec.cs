@@ -30,6 +30,32 @@ public sealed class Http11StateMachineSpec
         return req;
     }
 
+    private static (HttpRequestMessage Request, PendingRequest Pending, short Version) MakeTrackedRequest(
+        string path = "/", string? method = null, HttpContent? content = null)
+    {
+        var httpMethod = method switch
+        {
+            "POST" => HttpMethod.Post,
+            "PUT" => HttpMethod.Put,
+            "PATCH" => HttpMethod.Patch,
+            "DELETE" => HttpMethod.Delete,
+            "HEAD" => HttpMethod.Head,
+            _ => HttpMethod.Get
+        };
+
+        var pending = PendingRequest.Rent();
+        var version = pending.Version;
+        var req = new HttpRequestMessage(httpMethod, $"http://example.com{path}")
+        {
+            Version = new Version(1, 1),
+            Content = content
+        };
+        req.Options.Set(TcsCorrelation.Key, pending);
+        req.Options.Set(TcsCorrelation.VersionKey, version);
+
+        return (req, pending, version);
+    }
+
     private static TransportBuffer CreateResponseBuffer(string response)
     {
         var bytes = Encoding.ASCII.GetBytes(response);
@@ -265,7 +291,7 @@ public sealed class Http11StateMachineSpec
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
 
-        Assert.True(ops.StageCompleted);
+        Assert.False(sm.HasInFlightRequests);
     }
 
     [Fact(Timeout = 5000)]
@@ -281,7 +307,7 @@ public sealed class Http11StateMachineSpec
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 2\r\n\r\nOK");
         sm.DecodeServerData(new TransportData(buffer));
 
-        Assert.Contains("pipelined", ops.Warnings.FirstOrDefault() ?? "");
+        Assert.False(sm.CanAcceptRequest);
     }
 
     [Fact(Timeout = 5000)]
@@ -320,11 +346,12 @@ public sealed class Http11StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.8")]
-    public void DecodeServerData_should_warn_on_abrupt_close_with_pending_close_delimited()
+    public void DecodeServerData_should_fail_request_on_abrupt_close_with_pending_close_delimited()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, MakeConfig());
-        sm.OnRequest(MakeRequest());
+        var (request, pending, version) = MakeTrackedRequest();
+        sm.OnRequest(request);
 
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
         sm.DecodeServerData(new TransportData(buffer));
@@ -332,7 +359,8 @@ public sealed class Http11StateMachineSpec
         Assert.Throws<HttpRequestException>(() =>
             sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error)));
 
-        Assert.Contains("Abrupt", ops.Warnings.FirstOrDefault() ?? "");
+        var task = pending.GetValueTask();
+        Assert.True(task.IsFaulted);
     }
 
     [Fact(Timeout = 5000)]
@@ -353,27 +381,29 @@ public sealed class Http11StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.8")]
-    public void DecodeServerData_should_warn_on_abrupt_close_without_pending()
+    public void DecodeServerData_should_stay_alive_after_abrupt_close_when_no_pending()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, MakeConfig());
-        sm.OnRequest(MakeRequest());
+        var (request, pending, version) = MakeTrackedRequest();
+        sm.OnRequest(request);
 
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
         sm.DecodeServerData(new TransportData(buffer));
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
 
-        Assert.Contains("Abrupt", ops.Warnings.FirstOrDefault() ?? "");
+        Assert.True(sm.CanAcceptRequest);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.8")]
-    public void DecodeServerData_should_dispose_body_owners_on_abrupt_close()
+    public void DecodeServerData_should_fail_request_on_abrupt_close_with_body_owners()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, MakeConfig());
-        sm.OnRequest(MakeRequest());
+        var (request, pending, version) = MakeTrackedRequest();
+        sm.OnRequest(request);
 
         var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
         sm.DecodeServerData(new TransportData(buffer1));
@@ -384,35 +414,40 @@ public sealed class Http11StateMachineSpec
             sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error)));
 
         Assert.NotNull(ex);
+        var task = pending.GetValueTask();
+        Assert.True(task.IsFaulted);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.8")]
-    public void OnUpstreamFinished_should_not_warn_when_no_inflight_requests()
+    public void OnUpstreamFinished_should_complete_when_no_inflight_requests()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, MakeConfig());
 
         sm.OnUpstreamFinished();
 
-        Assert.Empty(ops.Warnings);
-        Assert.True(ops.StageCompleted);
+        Assert.True(sm.CanAcceptRequest);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.3")]
-    public void OnUpstreamFinished_should_warn_and_discard_orphaned_requests()
+    public void OnUpstreamFinished_should_fail_orphaned_requests()
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, MakeConfig());
-        sm.OnRequest(MakeRequest("/1"));
-        sm.OnRequest(MakeRequest("/2"));
+        var (request1, pending1, version1) = MakeTrackedRequest("/1");
+        var (request2, pending2, version2) = MakeTrackedRequest("/2");
+        sm.OnRequest(request1);
+        sm.OnRequest(request2);
 
         sm.OnUpstreamFinished();
 
         Assert.False(sm.HasInFlightRequests);
-        Assert.Contains("orphaned", ops.Warnings.FirstOrDefault() ?? "", StringComparison.OrdinalIgnoreCase);
-        Assert.True(ops.StageCompleted);
+        var task1 = pending1.GetValueTask();
+        var task2 = pending2.GetValueTask();
+        Assert.True(task1.IsFaulted);
+        Assert.True(task2.IsFaulted);
     }
 
     [Fact(Timeout = 5000)]
@@ -614,7 +649,8 @@ public sealed class Http11StateMachineSpec
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
         sm.DecodeServerData(new TransportData(buffer));
 
-        var hasWarning = ops.Warnings.Any(w => w.Contains("pipelined"));
-        Assert.True(hasWarning);
+        Assert.Single(ops.Responses);
+        var response = ops.Responses[0];
+        Assert.True(response.Headers.ConnectionClose == true);
     }
 }

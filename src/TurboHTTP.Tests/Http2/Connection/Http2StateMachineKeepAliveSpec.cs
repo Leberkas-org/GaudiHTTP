@@ -55,7 +55,6 @@ public sealed class Http2StateMachineKeepAliveSpec
         sm.OnTimerFired("keep-alive-ping");
         sm.OnTimerFired("keep-alive-ping-timeout");
 
-        Assert.False(ops.StageCompleted);
-        Assert.Null(ops.FailException);
+        Assert.True(sm.CanAcceptRequest);
     }
 }

@@ -1,3 +1,4 @@
+using static Servus.Core.Servus;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Http3.Qpack;
@@ -45,7 +46,7 @@ internal sealed class QpackStreamHandler
         }
         catch (Exception ex)
         {
-            _ops.OnWarning($"QPACK decoder stream error absorbed — {ex.Message}");
+            Tracing.For("Protocol").Warning(this, "QPACK decoder stream error absorbed — {0}", ex.Message);
         }
     }
 
@@ -66,7 +67,7 @@ internal sealed class QpackStreamHandler
         }
         catch (Exception ex)
         {
-            _ops.OnWarning($"QPACK encoder stream error absorbed — {ex.Message}");
+            Tracing.For("Protocol").Warning(this, "QPACK encoder stream error absorbed — {0}", ex.Message);
             return [];
         }
     }

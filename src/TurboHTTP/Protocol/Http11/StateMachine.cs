@@ -1,3 +1,4 @@
+using static Servus.Core.Servus;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Semantics;
@@ -83,7 +84,8 @@ internal sealed class StateMachine : IHttpStateMachine
         catch (Exception ex)
         {
             item?.Dispose();
-            _ops.OnWarning($"Failed to encode request [{request.RequestUri}]: {ex.Message}");
+            Tracing.For("Protocol").Warning(this, "Failed to encode HTTP/1.1 request [{0}]: {1}", request.RequestUri, ex.Message);
+            RequestFault.Fail(request, ex);
             var count = _inFlightQueue.Count;
             for (var i = 0; i < count; i++)
             {
@@ -122,19 +124,22 @@ internal sealed class StateMachine : IHttpStateMachine
     }
 
     public void OnUpstreamFinished()
-    { 
+    {
         if (IsReconnecting)
         {
-            _ops.OnWarning(string.Concat(
-                "HTTP/1.1 transport closed during reconnect — discarding ",
-                PendingRequestCount.ToString(), " buffered request(s)."));
-            _ops.OnComplete();
+            if (_reconnectBufferedQueue is { Count: > 0 })
+            {
+                RequestFault.FailAll(_reconnectBufferedQueue, new HttpRequestException("HTTP/1.1 transport closed during reconnect."));
+            }
+
+            IsReconnecting = false;
+            _reconnectAttempts = 0;
+            Tracing.For("Protocol").Debug(this, "HTTP/1.1 transport closed during reconnect");
             return;
         }
 
         TryDecodeEof();
-        HandleOrphanedRequests();
-        _ops.OnComplete();
+        FailOrphanedRequests();
     }
 
     public void OnTimerFired(string name)
@@ -207,7 +212,7 @@ internal sealed class StateMachine : IHttpStateMachine
         catch (Exception ex)
         {
             buffer.Dispose();
-            _ops.OnWarning($"Failed to decode response: {ex.Message}");
+            Tracing.For("Protocol").Warning(this, "Failed to decode HTTP/1.1 response: {0}", ex.Message);
             _decoder.Reset();
         }
     }
@@ -244,7 +249,7 @@ internal sealed class StateMachine : IHttpStateMachine
             }
             else
             {
-                _ops.OnWarning("Abrupt connection close — discarding incomplete response");
+                Tracing.For("Protocol").Info(this, "HTTP/1.1: Abrupt connection close — discarding incomplete response");
                 if (_bodyOwners is not null)
                 {
                     foreach (var buf in _bodyOwners)
@@ -256,16 +261,21 @@ internal sealed class StateMachine : IHttpStateMachine
                 _pendingCloseDelimitedResponse = null;
                 _bodyOwners = null;
                 _initialBodyBytes = null;
-                throw new HttpRequestException(
-                    "Connection was aborted while receiving close-delimited HTTP/1.1 response.");
+
+                if (_inFlightQueue.Count > 0)
+                {
+                    var exception = new HttpRequestException("Connection was aborted while receiving close-delimited HTTP/1.1 response.");
+                    RequestFault.FailAll(_inFlightQueue, exception);
+                    _inFlightQueue.Clear();
+                }
             }
 
             return;
         }
 
-        if (HasInFlightRequests)
+        if (HasInFlightRequests && _options.Http1.MaxReconnectAttempts > 0)
         {
-            _ops.OnWarning(string.Concat("HTTP/1.1 closed, ", PendingRequestCount.ToString(), " pending"));
+            Tracing.For("Protocol").Info(this, "HTTP/1.1 closed, {0} pending — reconnecting", PendingRequestCount);
             StartReconnect();
             return;
         }
@@ -279,10 +289,14 @@ internal sealed class StateMachine : IHttpStateMachine
         }
         else
         {
-            _ops.OnWarning("Abrupt connection close — discarding incomplete response");
+            Tracing.For("Protocol").Info(this, "HTTP/1.1: Abrupt connection close — discarding incomplete response");
+            if (_inFlightQueue.Count > 0)
+            {
+                var exception = new HttpRequestException("Connection was aborted while receiving HTTP/1.1 response.");
+                RequestFault.FailAll(_inFlightQueue, exception);
+                _inFlightQueue.Clear();
+            }
         }
-
-        _ops.OnComplete();
     }
 
     private void TryDecodeEof()
@@ -299,20 +313,21 @@ internal sealed class StateMachine : IHttpStateMachine
         }
         catch (Exception ex)
         {
-            _ops.OnWarning($"Failed to decode EOF: {ex.Message}");
+            Tracing.For("Protocol").Warning(this, "Failed to decode HTTP/1.1 EOF: {0}", ex.Message);
             _decoder.Reset();
         }
     }
 
-    private void HandleOrphanedRequests()
+    private void FailOrphanedRequests()
     {
         if (_inFlightQueue.Count == 0)
         {
             return;
         }
 
-        _ops.OnWarning(
-            $"Connection closed with {_inFlightQueue.Count} orphaned pipelined request(s) — discarding");
+        Tracing.For("Protocol").Debug(this, "HTTP/1.1 connection closed with {0} orphaned pipelined request(s) — failing", _inFlightQueue.Count);
+        var exception = new HttpRequestException("HTTP/1.1 connection closed with orphaned request(s).");
+        RequestFault.FailAll(_inFlightQueue, exception);
         _inFlightQueue.Clear();
         _effectivePipelineDepth = 1;
     }
@@ -347,10 +362,15 @@ internal sealed class StateMachine : IHttpStateMachine
     {
         if (_reconnectAttempts >= _options.Http1.MaxReconnectAttempts)
         {
-            _ops.OnWarning(string.Concat(
-                "HTTP/1.1 reconnect failed after max attempts — discarding ",
-                PendingRequestCount.ToString(), " in-flight request(s)."));
-            _ops.OnComplete();
+            Tracing.For("Protocol").Info(this, "HTTP/1.1 reconnect failed after {0} attempts", _reconnectAttempts);
+            if (_reconnectBufferedQueue is { Count: > 0 })
+            {
+                var exception = new HttpRequestException("HTTP/1.1 reconnect failed after max attempts.");
+                RequestFault.FailAll(_reconnectBufferedQueue, exception);
+            }
+
+            IsReconnecting = false;
+            _reconnectAttempts = 0;
             return;
         }
 
@@ -372,8 +392,7 @@ internal sealed class StateMachine : IHttpStateMachine
         {
             if (queueCountBeforeDequeue > 1)
             {
-                _ops.OnWarning(
-                    $"Server sent Connection: close with {queueCountBeforeDequeue} pipelined requests in-flight — disabling pipelining");
+                Tracing.For("Protocol").Info(this, "HTTP/1.1: Server sent Connection: close with {0} pipelined requests in-flight — disabling pipelining", queueCountBeforeDequeue);
             }
 
             _effectivePipelineDepth = 1;
@@ -382,7 +401,7 @@ internal sealed class StateMachine : IHttpStateMachine
         var partialContentResult = PartialContentValidator.Validate(response);
         if (!partialContentResult.IsValid)
         {
-            _ops.OnWarning(partialContentResult.ErrorMessage!);
+            Tracing.For("Protocol").Warning(this, "HTTP/1.1: {0}", partialContentResult.ErrorMessage!);
         }
 
         _ops.OnResponse(response);
