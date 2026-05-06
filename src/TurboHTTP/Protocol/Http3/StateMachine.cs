@@ -18,7 +18,7 @@ namespace TurboHTTP.Protocol.Http3;
 /// QPACK instruction streams to <see cref="QpackStreamHandler"/>.
 /// </para>
 /// </summary>
-internal sealed class StateMachine : IDisposable
+internal sealed class StateMachine : IHttpStateMachine, IDisposable
 {
     private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromSeconds(30);
 
@@ -440,7 +440,7 @@ internal sealed class StateMachine : IDisposable
     {
         if (_reconnectAttempts >= _options.Http3.MaxReconnectAttempts)
         {
-            _ops.OnReconnectFailed();
+            _ops.OnFail(new HttpRequestException("TurboHTTP: HTTP/3 reconnect failed after max attempts."));
             return false;
         }
 
@@ -644,5 +644,80 @@ internal sealed class StateMachine : IDisposable
         _ops.OnWarning(
             string.Concat("RFC 9114 §4.6 — push stream ", quicStreamId.ToString(),
                 " (pushId=", pushId.ToString(), ") reset (push response delivery not implemented)"));
+    }
+
+    // --- IHttpStateMachine explicit implementation ---
+
+    void IHttpStateMachine.PreStart()
+    {
+        var preface = TryBuildControlPreface();
+        if (preface is not null)
+        {
+            _ops.OnOutbound(preface);
+        }
+    }
+
+    void IHttpStateMachine.OnRequest(HttpRequestMessage request)
+    {
+        EncodeRequest(request);
+    }
+
+    void IHttpStateMachine.DecodeServerData(ITransportInbound data)
+    {
+        switch (data)
+        {
+            case TransportConnected:
+            {
+                OnConnectionRestored();
+                return;
+            }
+
+            case TransportDisconnected when IsReconnecting:
+            {
+                if (OnReconnectAttemptFailed())
+                {
+                    _ops.OnFail(new HttpRequestException("TurboHTTP: HTTP/3 reconnect failed after max attempts."));
+                }
+                return;
+            }
+
+            case TransportDisconnected when HasInFlightRequests:
+            {
+                OnConnectionLost();
+                return;
+            }
+
+            case TransportDisconnected:
+            {
+                _ops.OnComplete();
+                return;
+            }
+        }
+    }
+
+    void IHttpStateMachine.OnUpstreamFinished()
+    {
+        if (IsReconnecting)
+        {
+            _ops.OnWarning("HTTP/3 transport closed during reconnect — discarding in-flight request(s).");
+            _ops.OnComplete();
+            return;
+        }
+
+        if (!HasInFlightRequests)
+        {
+            _ops.OnComplete();
+        }
+    }
+
+    void IHttpStateMachine.OnTimerFired(string name)
+    {
+        // HTTP/3 doesn't use timer-based logic in the protocol state machine.
+        // Idle timeout is checked explicitly via CheckIdleTimeout().
+    }
+
+    void IHttpStateMachine.Cleanup()
+    {
+        Dispose();
     }
 }

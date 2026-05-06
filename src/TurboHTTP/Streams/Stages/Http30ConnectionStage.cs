@@ -42,7 +42,6 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
         private readonly Queue<ITransportOutbound> _outboundQueue = new();
         private readonly Queue<HttpResponseMessage> _responseQueue = new();
         private bool _transportConnected;
-        private bool _reconnectFailed;
 
         public Logic(Http30ConnectionStage stage) : base(stage.Shape)
         {
@@ -157,11 +156,6 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             Log.Warning("Http30ConnectionStage: {0}", message);
         }
 
-        void IStageOperations.OnReconnectFailed()
-        {
-            _reconnectFailed = true;
-        }
-
         void IStageOperations.OnScheduleTimer(string name, TimeSpan duration) { }
         void IStageOperations.OnCancelTimer(string name) { }
         void IStageOperations.OnComplete() => CompleteStage();
@@ -259,13 +253,6 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 case TransportDisconnected when _sm.IsReconnecting:
                 {
                     _sm.OnReconnectAttemptFailed();
-                    if (_reconnectFailed)
-                    {
-                        FailStage(new HttpRequestException(
-                            "TurboHTTP: HTTP/3 reconnect failed after max attempts."));
-                        return;
-                    }
-
                     FlushOutbound();
                     if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                     {

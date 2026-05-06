@@ -87,7 +87,7 @@ public sealed class Http11StateMachineReconnectSpec
 
         sm.OnReconnectAttemptFailed(); // attempt 2
 
-        Assert.False(ops.ReconnectFailed);
+        Assert.Null(ops.FailException);
         Assert.Equal(countAfterFirst + 1, ops.Outbound.OfType<ConnectTransport>().Count());
     }
 }

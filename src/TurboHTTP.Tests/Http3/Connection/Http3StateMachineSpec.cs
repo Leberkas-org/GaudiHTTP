@@ -380,7 +380,8 @@ public sealed class Http3StateMachineSpec
 
         var canRetry2 = sm.OnReconnectAttemptFailed(); // max reached
         Assert.False(canRetry2);
-        Assert.True(_ops.ReconnectFailed);
+        Assert.NotNull(_ops.FailException);
+        Assert.Contains("reconnect failed after max attempts", _ops.FailException.Message);
     }
 
     [Fact(Timeout = 5000)]
@@ -394,7 +395,8 @@ public sealed class Http3StateMachineSpec
         Assert.True(sm.OnReconnectAttemptFailed()); // attempt 3 = max
         Assert.False(sm.OnReconnectAttemptFailed()); // exceeded
 
-        Assert.True(_ops.ReconnectFailed);
+        Assert.NotNull(_ops.FailException);
+        Assert.Contains("reconnect failed after max attempts", _ops.FailException.Message);
     }
 
     [Fact(Timeout = 5000)]
