@@ -1,4 +1,3 @@
-using System.Buffers;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -40,7 +39,8 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
         private readonly Http30ConnectionStage _stage;
         private readonly StateMachine _sm;
         private readonly List<ITransportOutbound> _pendingOutbound = [];
-        private readonly List<HttpResponseMessage> _pendingResponses = [];
+        private readonly Queue<ITransportOutbound> _outboundQueue = new();
+        private readonly Queue<HttpResponseMessage> _responseQueue = new();
         private bool _transportConnected;
         private bool _reconnectFailed;
 
@@ -52,9 +52,8 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             SetHandler(stage._inServer, onPush: OnServerPush,
                 onUpstreamFinish: () =>
                 {
-                    // Flush any partially assembled response (QUIC FIN)
                     _sm.FlushPendingResponse();
-                    FlushResponses();
+                    TryPushResponse();
 
                     if (_sm.IsReconnecting)
                     {
@@ -74,6 +73,12 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
             SetHandler(stage._outResponse, onPull: () =>
             {
+                if (_responseQueue.Count > 0)
+                {
+                    Push(stage._outResponse, _responseQueue.Dequeue());
+                    return;
+                }
+
                 if (!HasBeenPulled(stage._inServer) && !IsClosed(stage._inServer))
                 {
                     Pull(stage._inServer);
@@ -138,7 +143,8 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
         void IStageOperations.OnResponse(HttpResponseMessage response)
         {
             Tracing.For("Protocol").Debug(this, "H3 ← {0}", (int)response.StatusCode);
-            _pendingResponses.Add(response);
+            _responseQueue.Enqueue(response);
+            TryPushResponse();
         }
 
         void IStageOperations.OnOutbound(ITransportOutbound item)
@@ -213,7 +219,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 case StreamReadCompleted { StreamId: >= 0 } readCompleted:
                 {
                     _sm.FlushPendingResponse(readCompleted.StreamId);
-                    FlushResponses();
+                    TryPushResponse();
                     TryPullRequest();
                     return;
                 }
@@ -234,14 +240,14 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                         _sm.FlushPendingResponse(streamClosed.StreamId);
                     }
 
-                    FlushResponses();
+                    TryPushResponse();
                     TryPullRequest();
                     return;
                 }
                 case StreamClosed:
                 {
                     _sm.FlushPendingResponse();
-                    FlushResponses();
+                    TryPushResponse();
                     TryPullRequest();
                     return;
                 }
@@ -342,8 +348,9 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             }
 
             FlushOutbound();
-            FlushResponses();
+            TryPushResponse();
             TryPullRequest();
+            TryPullServer();
         }
 
         private void OnAppPush()
@@ -364,59 +371,21 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 return;
             }
 
+            if (_outboundQueue.Count > 0)
+            {
+                Push(_stage._outNetwork, _outboundQueue.Dequeue());
+                return;
+            }
+
             TryPullRequest();
         }
 
-        private void FlushResponses()
+        private void TryPushResponse()
         {
-            if (_pendingResponses.Count == 0)
+            if (_responseQueue.Count > 0 && IsAvailable(_stage._outResponse))
             {
-                if (IsClosed(_stage._inApp) && !_sm.HasInFlightRequests)
-                {
-                    CompleteStage();
-                    return;
-                }
-
-                TryPullServer();
-                return;
+                Push(_stage._outResponse, _responseQueue.Dequeue());
             }
-
-            if (_pendingResponses.Count == 1 && IsAvailable(_stage._outResponse))
-            {
-                var response = _pendingResponses[0];
-                _pendingResponses.Clear();
-                Push(_stage._outResponse, response);
-
-                if (IsClosed(_stage._inApp) && !_sm.HasInFlightRequests)
-                {
-                    CompleteStage();
-                    return;
-                }
-
-                TryPullRequest();
-                TryPullServer();
-                return;
-            }
-
-            var respCount = _pendingResponses.Count;
-            var respRented = ArrayPool<HttpResponseMessage>.Shared.Rent(respCount);
-            _pendingResponses.CopyTo(respRented);
-            _pendingResponses.Clear();
-            EmitMultiple(_stage._outResponse,
-                new ArraySegment<HttpResponseMessage>(respRented, 0, respCount),
-                () =>
-                {
-                    ArrayPool<HttpResponseMessage>.Shared.Return(respRented, clearArray: true);
-
-                    if (IsClosed(_stage._inApp) && !_sm.HasInFlightRequests)
-                    {
-                        CompleteStage();
-                        return;
-                    }
-
-                    TryPullRequest();
-                    TryPullServer();
-                });
         }
 
         private void FlushOutbound()
@@ -430,11 +399,11 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             {
                 for (var i = _pendingOutbound.Count - 1; i >= 0; i--)
                 {
-                    if (_pendingOutbound[i] is ConnectTransport && IsAvailable(_stage._outNetwork))
+                    if (_pendingOutbound[i] is ConnectTransport)
                     {
-                        var connect = _pendingOutbound[i];
+                        _outboundQueue.Enqueue(_pendingOutbound[i]);
                         _pendingOutbound.RemoveAt(i);
-                        Push(_stage._outNetwork, connect);
+                        TryPushOutbound();
                         return;
                     }
                 }
@@ -442,21 +411,21 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
                 return;
             }
 
-            if (_pendingOutbound.Count == 1 && IsAvailable(_stage._outNetwork))
+            for (var i = 0; i < _pendingOutbound.Count; i++)
             {
-                var outItem = _pendingOutbound[0];
-                _pendingOutbound.Clear();
-                Push(_stage._outNetwork, outItem);
-                return;
+                _outboundQueue.Enqueue(_pendingOutbound[i]);
             }
 
-            var outCount = _pendingOutbound.Count;
-            var outRented = ArrayPool<ITransportOutbound>.Shared.Rent(outCount);
-            _pendingOutbound.CopyTo(outRented);
             _pendingOutbound.Clear();
-            EmitMultiple(_stage._outNetwork,
-                new ArraySegment<ITransportOutbound>(outRented, 0, outCount),
-                () => ArrayPool<ITransportOutbound>.Shared.Return(outRented, clearArray: true));
+            TryPushOutbound();
+        }
+
+        private void TryPushOutbound()
+        {
+            if (_outboundQueue.Count > 0 && IsAvailable(_stage._outNetwork))
+            {
+                Push(_stage._outNetwork, _outboundQueue.Dequeue());
+            }
         }
 
         private void TryPullServer()
@@ -491,6 +460,29 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
 
         public override void PostStop()
         {
+            while (_outboundQueue.Count > 0)
+            {
+                if (_outboundQueue.Dequeue() is TransportData { Buffer: var buffer })
+                {
+                    buffer.Dispose();
+                }
+            }
+
+            foreach (var item in _pendingOutbound)
+            {
+                if (item is TransportData { Buffer: var buffer })
+                {
+                    buffer.Dispose();
+                }
+            }
+
+            _pendingOutbound.Clear();
+
+            while (_responseQueue.Count > 0)
+            {
+                _responseQueue.Dequeue().Dispose();
+            }
+
             _sm.Dispose();
         }
     }

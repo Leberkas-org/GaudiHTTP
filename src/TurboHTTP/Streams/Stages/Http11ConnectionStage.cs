@@ -31,10 +31,9 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
     {
         private readonly Http11ConnectionStage _stage;
         private readonly StateMachine _sm;
-        private readonly List<ITransportOutbound> _pendingOutbound = [];
-        private readonly List<HttpResponseMessage> _pendingResponses = [];
+        private readonly Queue<ITransportOutbound> _outboundQueue = new();
+        private readonly Queue<HttpResponseMessage> _responseQueue = new();
         private bool _serverFinished;
-        private bool _emittingResponses;
         private bool _reconnectFailed;
 
         public Logic(Http11ConnectionStage stage, Attributes inheritedAttributes) : base(stage.Shape)
@@ -58,25 +57,13 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 
                     _serverFinished = true;
 
-                    // Try to flush any EOF-delimited response
                     if (_sm.TryDecodeEof())
                     {
-                        FlushOutbound();
-                        FlushResponses();
+                        TryPushResponse();
                         return;
                     }
 
-                    // Emit retry for orphaned requests
                     _sm.HandleOrphanedRequests();
-                    FlushOutbound();
-
-                    // If EmitMultiple is still delivering responses to downstream,
-                    // defer completion — the emission callback will complete the stage.
-                    if (_emittingResponses)
-                    {
-                        return;
-                    }
-
                     CompleteStage();
                 },
                 onUpstreamFailure: ex =>
@@ -84,13 +71,17 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
                     Log.Warning("Http11ConnectionStage: Server inlet upstream failure: {0}", ex.Message);
 
                     _sm.HandleOrphanedRequests();
-                    FlushOutbound();
-
                     CompleteStage();
                 });
 
             SetHandler(stage._outResponse, onPull: () =>
             {
+                if (_responseQueue.Count > 0)
+                {
+                    Push(stage._outResponse, _responseQueue.Dequeue());
+                    return;
+                }
+
                 if (!HasBeenPulled(stage._inServer) && !IsClosed(stage._inServer))
                 {
                     Pull(stage._inServer);
@@ -100,10 +91,7 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
             SetHandler(stage._inApp, onPush: OnAppPush,
                 onUpstreamFinish: () =>
                 {
-                    // App upstream finished — complete immediately if nothing is in-flight
-                    // and no responses are being emitted to downstream.
-                    if (_sm is { HasInFlightRequests: false, IsReconnecting: false }
-                        && !_emittingResponses)
+                    if (_sm is { HasInFlightRequests: false, IsReconnecting: false })
                     {
                         CompleteStage();
                     }
@@ -120,12 +108,14 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
         void IStageOperations.OnResponse(HttpResponseMessage response)
         {
             Tracing.For("Protocol").Debug(this, "HTTP/1.1 ← {0}", (int)response.StatusCode);
-            _pendingResponses.Add(response);
+            _responseQueue.Enqueue(response);
+            TryPushResponse();
         }
 
         void IStageOperations.OnOutbound(ITransportOutbound item)
         {
-            _pendingOutbound.Add(item);
+            _outboundQueue.Enqueue(item);
+            TryPushOutbound();
         }
 
         void IStageOperations.OnWarning(string message)
@@ -148,7 +138,6 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
             {
                 Tracing.For("Protocol").Debug(this, "HTTP/1.1 connected");
                 _sm.OnConnectionRestored();
-                FlushOutbound();
                 TryPullRequest();
                 if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                 {
@@ -170,7 +159,6 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
                     return;
                 }
 
-                FlushOutbound();
                 if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                 {
                     Pull(_stage._inServer);
@@ -183,7 +171,6 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
             {
                 Tracing.For("Protocol").Warning(this, "HTTP/1.1 closed, {0} pending", _sm.PendingRequestCount);
                 _sm.StartReconnect();
-                FlushOutbound();
                 if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                 {
                     Pull(_stage._inServer);
@@ -194,12 +181,6 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 
             if (item is TransportDisconnected)
             {
-                if (_emittingResponses)
-                {
-                    _serverFinished = true;
-                    return;
-                }
-
                 CompleteStage();
                 return;
             }
@@ -208,15 +189,12 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
             {
                 var needMore = _sm.DecodeServerData(item);
 
-                FlushOutbound();
-
-                if (_pendingResponses.Count > 0)
+                if (_responseQueue.Count > 0)
                 {
-                    FlushResponses();
+                    TryPushResponse();
                 }
                 else if (needMore && !_serverFinished)
                 {
-                    // No response yet — pull more server data, unless we're done with requests
                     if (IsClosed(_stage._inApp) && !_sm.HasInFlightRequests)
                     {
                         CompleteStage();
@@ -243,85 +221,34 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
             var request = Grab(_stage._inApp);
             Tracing.For("Protocol").Debug(this, "HTTP/1.1 → {0} {1}", request.Method, request.RequestUri);
             _sm.EncodeRequest(request);
-            FlushOutbound();
             TryPullRequest();
         }
 
         private void OnNetworkPull()
         {
+            if (_outboundQueue.Count > 0)
+            {
+                Push(_stage._outNetwork, _outboundQueue.Dequeue());
+                return;
+            }
+
             TryPullRequest();
         }
 
-        private void FlushResponses()
+        private void TryPushResponse()
         {
-            if (_pendingResponses.Count == 0)
+            if (_responseQueue.Count > 0 && IsAvailable(_stage._outResponse))
             {
-                if (IsClosed(_stage._inApp) && !_sm.HasInFlightRequests)
-                {
-                    CompleteStage();
-                    return;
-                }
-
-                if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
-                {
-                    Pull(_stage._inServer);
-                }
-
-                return;
-            }
-
-            var responses = _pendingResponses.ToArray();
-            _pendingResponses.Clear();
-            _emittingResponses = true;
-
-            if (_serverFinished)
-            {
-                EmitMultiple(_stage._outResponse, responses, () =>
-                {
-                    _emittingResponses = false;
-                    CompleteStage();
-                });
-            }
-            else
-            {
-                EmitMultiple(_stage._outResponse, responses,
-                    () =>
-                    {
-                        _emittingResponses = false;
-
-                        // App upstream finished and no more in-flight requests: we will never send
-                        // another request, so the server may never close the connection (HTTP/1.1
-                        // keep-alive). Complete now rather than waiting indefinitely.
-                        if (IsClosed(_stage._inApp) && !_sm.HasInFlightRequests)
-                        {
-                            CompleteStage();
-                            return;
-                        }
-
-                        // Server finished while we were emitting — complete now.
-                        if (_serverFinished)
-                        {
-                            CompleteStage();
-                            return;
-                        }
-
-                        if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
-                        {
-                            Pull(_stage._inServer);
-                        }
-                    });
+                Push(_stage._outResponse, _responseQueue.Dequeue());
             }
         }
 
-        private void FlushOutbound()
+        private void TryPushOutbound()
         {
-            if (_pendingOutbound.Count == 0)
+            if (_outboundQueue.Count > 0 && IsAvailable(_stage._outNetwork))
             {
-                return;
+                Push(_stage._outNetwork, _outboundQueue.Dequeue());
             }
-
-            EmitMultiple(_stage._outNetwork, _pendingOutbound.ToArray());
-            _pendingOutbound.Clear();
         }
 
         private void TryPullRequest()
@@ -336,24 +263,18 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 
         public override void PostStop()
         {
-            foreach (var item in _pendingOutbound)
+            while (_outboundQueue.Count > 0)
             {
-                switch (item)
+                if (_outboundQueue.Dequeue() is TransportData { Buffer: var buffer })
                 {
-                    case TransportData { Buffer: var buffer }:
-                        buffer.Dispose();
-                        break;
+                    buffer.Dispose();
                 }
             }
 
-            _pendingOutbound.Clear();
-
-            foreach (var response in _pendingResponses)
+            while (_responseQueue.Count > 0)
             {
-                response.Dispose();
+                _responseQueue.Dequeue().Dispose();
             }
-
-            _pendingResponses.Clear();
 
             _sm.Cleanup();
         }

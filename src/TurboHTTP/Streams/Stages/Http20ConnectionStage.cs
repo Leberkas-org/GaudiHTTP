@@ -33,9 +33,8 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
 
         private readonly Http20ConnectionStage _stage;
         private readonly StateMachine _sm;
-        private readonly List<ITransportOutbound> _pendingOutbound = [];
         private readonly Queue<ITransportOutbound> _outboundQueue = new();
-        private readonly List<HttpResponseMessage> _pendingResponses = [];
+        private readonly Queue<HttpResponseMessage> _responseQueue = new();
         private bool _reconnectFailed;
         private readonly bool _keepAliveEnabled;
 
@@ -66,6 +65,12 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
 
             SetHandler(stage._outResponse, onPull: () =>
             {
+                if (_responseQueue.Count > 0)
+                {
+                    Push(stage._outResponse, _responseQueue.Dequeue());
+                    return;
+                }
+
                 if (!HasBeenPulled(stage._inServer) && !IsClosed(stage._inServer))
                 {
                     Pull(stage._inServer);
@@ -93,12 +98,14 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
         void IStageOperations.OnResponse(HttpResponseMessage response)
         {
             Tracing.For("Protocol").Debug(this, "H2 ← {0}", (int)response.StatusCode);
-            _pendingResponses.Add(response);
+            _responseQueue.Enqueue(response);
+            TryPushResponse();
         }
 
         void IStageOperations.OnOutbound(ITransportOutbound item)
         {
-            _pendingOutbound.Add(item);
+            _outboundQueue.Enqueue(item);
+            TryPushOutbound();
         }
 
         void IStageOperations.OnWarning(string message)
@@ -124,7 +131,6 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 {
                     Tracing.For("Protocol").Debug(this, "H2 connected");
                     _sm.OnConnectionRestored();
-                    FlushOutbound();
                     ScheduleKeepAlivePing();
                     TryPullRequest();
                     if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
@@ -145,7 +151,6 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                         return;
                     }
 
-                    FlushOutbound();
                     if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                     {
                         Pull(_stage._inServer);
@@ -158,7 +163,6 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 {
                     Tracing.For("Protocol").Warning(this, "H2 closed, in-flight requests");
                     _sm.OnConnectionLost(lastStreamId: 0);
-                    FlushOutbound();
                     if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
                     {
                         Pull(_stage._inServer);
@@ -203,10 +207,14 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                 return;
             }
 
-            FlushOutbound();
-            FlushResponses();
+            TryPushResponse();
             ResetKeepAliveTimer();
             TryPullRequest();
+
+            if (!HasBeenPulled(_stage._inServer) && !IsClosed(_stage._inServer))
+            {
+                Pull(_stage._inServer);
+            }
         }
 
         private void OnAppPush()
@@ -214,7 +222,6 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
             var request = Grab(_stage._inApp);
             Tracing.For("Protocol").Debug(this, "H2 → {0} {1}", request.Method, request.RequestUri);
             _sm.EncodeRequest(request);
-            FlushOutbound();
             TryPullRequest();
         }
 
@@ -256,7 +263,6 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                     }
 
                     _sm.SendKeepAlivePing();
-                    FlushOutbound();
                     ScheduleKeepAlivePingTimeout();
                     break;
                 }
@@ -268,7 +274,6 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
                         if (_sm.HasInFlightRequests)
                         {
                             _sm.OnConnectionLost(lastStreamId: 0);
-                            FlushOutbound();
                         }
                         else
                         {
@@ -307,67 +312,20 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
         }
 
         private bool CanComplete =>
-            IsClosed(_stage._inApp) && !_sm.HasInFlightRequests && _outboundQueue.Count == 0;
+            IsClosed(_stage._inApp) && !_sm.HasInFlightRequests
+            && _outboundQueue.Count == 0 && _responseQueue.Count == 0;
 
-        private void FlushResponses()
+        private void TryPushResponse()
         {
-            if (_pendingResponses.Count == 0)
+            if (_responseQueue.Count > 0 && IsAvailable(_stage._outResponse))
             {
-                if (CanComplete)
-                {
-                    CompleteStage();
-                    return;
-                }
-
-                Pull(_stage._inServer);
-                return;
+                Push(_stage._outResponse, _responseQueue.Dequeue());
             }
-
-            if (_pendingResponses.Count == 1 && IsAvailable(_stage._outResponse))
-            {
-                var response = _pendingResponses[0];
-                _pendingResponses.Clear();
-                Push(_stage._outResponse, response);
-
-                if (CanComplete)
-                {
-                    CompleteStage();
-                    return;
-                }
-
-                Pull(_stage._inServer);
-                return;
-            }
-
-            EmitMultiple(_stage._outResponse, _pendingResponses.ToArray(),
-                () =>
-                {
-                    if (CanComplete)
-                    {
-                        CompleteStage();
-                        return;
-                    }
-
-                    Pull(_stage._inServer);
-                });
-            _pendingResponses.Clear();
         }
 
-        private void FlushOutbound()
+        private void TryPushOutbound()
         {
-            if (_pendingOutbound.Count == 0)
-            {
-                return;
-            }
-
-            for (var i = 0; i < _pendingOutbound.Count; i++)
-            {
-                _outboundQueue.Enqueue(_pendingOutbound[i]);
-            }
-
-            _pendingOutbound.Clear();
-
-            if (IsAvailable(_stage._outNetwork) && _outboundQueue.Count > 0)
+            if (_outboundQueue.Count > 0 && IsAvailable(_stage._outNetwork))
             {
                 Push(_stage._outNetwork, _outboundQueue.Dequeue());
             }
