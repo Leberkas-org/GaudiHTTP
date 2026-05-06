@@ -454,7 +454,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
             var outRented = ArrayPool<ITransportOutbound>.Shared.Rent(outCount);
             _pendingOutbound.CopyTo(outRented);
             _pendingOutbound.Clear();
-            EmitMultiple<ITransportOutbound>(_stage._outNetwork,
+            EmitMultiple(_stage._outNetwork,
                 new ArraySegment<ITransportOutbound>(outRented, 0, outCount),
                 () => ArrayPool<ITransportOutbound>.Shared.Return(outRented, clearArray: true));
         }
