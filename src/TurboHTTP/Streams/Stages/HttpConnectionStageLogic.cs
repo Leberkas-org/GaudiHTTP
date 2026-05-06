@@ -35,11 +35,13 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
         SetHandler(_inServer, onPush: OnServerPush,
             onUpstreamFinish: () =>
             {
+                Tracing.For("Stage").Debug(this, "server upstream finished");
                 _sm.OnUpstreamFinished();
                 CompleteStage();
             },
             onUpstreamFailure: ex =>
             {
+                Tracing.For("Stage").Info(this, "server upstream failure: {0}", ex.Message);
                 _sm.OnUpstreamFinished();
                 CompleteStage();
             });
@@ -66,6 +68,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
         },
         onUpstreamFinish: () =>
         {
+            Tracing.For("Stage").Debug(this, "request upstream finished (inFlight={0}, reconnecting={1})", _sm.HasInFlightRequests, _sm.IsReconnecting);
             if (!_sm.HasInFlightRequests && !_sm.IsReconnecting)
             {
                 CompleteStage();
@@ -178,6 +181,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
 
     public override void PostStop()
     {
+        Tracing.For("Stage").Debug(this, "PostStop: draining {0} outbound, {1} responses", _outboundQueue.Count, _responseQueue.Count);
         while (_outboundQueue.Count > 0)
         {
             if (_outboundQueue.Dequeue() is TransportData { Buffer: var buffer })

@@ -4,6 +4,7 @@ using Akka.Streams.Stage;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Semantics;
+using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;
 
@@ -185,10 +186,11 @@ internal sealed class ContentEncodingBidiProcessor
         _ops.OnPushResponse(Decompress(response));
     }
 
-    private static HttpRequestMessage CompressIfNeeded(HttpRequestMessage request, CompressionPolicy policy)
+    private HttpRequestMessage CompressIfNeeded(HttpRequestMessage request, CompressionPolicy policy)
     {
         if (request.Content is null)
         {
+            Tracing.For("ContentEncoding").Debug(this, "→ skip compression: no body");
             return request;
         }
 
@@ -196,9 +198,11 @@ internal sealed class ContentEncodingBidiProcessor
 
         if (bodySize < policy.MinBodySizeBytes)
         {
+            Tracing.For("ContentEncoding").Debug(this, "→ skip compression: body size {0} < threshold {1}", bodySize, policy.MinBodySizeBytes);
             return request;
         }
 
+        Tracing.For("ContentEncoding").Debug(this, "→ compressing request body ({0} bytes, {1})", bodySize, policy.Encoding);
         request.Content = new CompressingContent(request.Content, policy.Encoding);
         return request;
     }
@@ -220,10 +224,11 @@ internal sealed class ContentEncodingBidiProcessor
 
         if (!ContentEncoding.IsSupported(encoding))
         {
-            _ops.Log.Debug("ContentEncodingBidiStage: unknown encoding '{0}', passing through unchanged", encoding);
+            Tracing.For("ContentEncoding").Info(this, "← unsupported encoding '{0}', passing through", encoding);
             return response;
         }
 
+        Tracing.For("ContentEncoding").Debug(this, "← decompressing response body ({0})", encoding);
         var newContent = new DecompressingContent(response.Content, encoding);
 
         foreach (var header in response.Content.Headers)

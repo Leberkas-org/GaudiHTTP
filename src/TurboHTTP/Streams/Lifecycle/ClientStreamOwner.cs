@@ -284,6 +284,7 @@ internal sealed class ClientStreamOwner : ReceiveActor, IWithTimers
 
     private void HandleShutdownTimeout()
     {
+        Tracing.For("Request").Warning(this, "Shutdown timeout expired — force-stopping");
         _log.Warning("Shutdown safety timeout expired — pipeline did not drain within {0}s. Force-stopping.",
             ShutdownTimeout.TotalSeconds);
         CleanupResources();

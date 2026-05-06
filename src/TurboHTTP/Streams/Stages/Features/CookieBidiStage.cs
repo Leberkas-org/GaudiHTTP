@@ -2,6 +2,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Protocol.Cookies;
+using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;
 
@@ -44,7 +45,9 @@ internal sealed class CookieBidiStage
 
                     if (stage._cookieJar is not null && request.RequestUri is not null)
                     {
-                        stage._cookieJar.AddCookiesToRequest(request.RequestUri, ref request);
+                        var uri = request.RequestUri;
+                        stage._cookieJar.AddCookiesToRequest(uri, ref request);
+                        Tracing.For("Cookie").Debug(this, "→ injected cookies for {0}", uri.Host);
                     }
 
                     Push(stage._outRequest, request);
@@ -69,6 +72,7 @@ internal sealed class CookieBidiStage
                     if (stage._cookieJar is not null && response.RequestMessage?.RequestUri is not null)
                     {
                         stage._cookieJar.ProcessResponse(response.RequestMessage.RequestUri, response);
+                        Tracing.For("Cookie").Debug(this, "← processed Set-Cookie for {0}", response.RequestMessage.RequestUri.Host);
                     }
 
                     Push(stage._outResponse, response);

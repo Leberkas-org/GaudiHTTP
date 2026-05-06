@@ -1,6 +1,7 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
+using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;
 
@@ -46,7 +47,19 @@ internal sealed class HandlerBidiStage
         public Logic(HandlerBidiStage stage) : base(stage.Shape)
         {
             SetHandler(stage._inRequest,
-                onPush: () => Push(stage._outRequest, stage._handler.ProcessRequest(Grab(stage._inRequest))),
+                onPush: () =>
+                {
+                    var request = Grab(stage._inRequest);
+                    try
+                    {
+                        Push(stage._outRequest, stage._handler.ProcessRequest(request));
+                    }
+                    catch (Exception ex)
+                    {
+                        Tracing.For("Handler").Warning(this, "→ ProcessRequest threw: {0}", ex.Message);
+                        Push(stage._outRequest, request);
+                    }
+                },
                 onUpstreamFinish: () => Complete(stage._outRequest),
                 onUpstreamFailure: ex =>
                 {
@@ -62,7 +75,15 @@ internal sealed class HandlerBidiStage
                 onPush: () =>
                 {
                     var resp = Grab(stage._inResponse);
-                    Push(stage._outResponse, stage._handler.ProcessResponse(resp.RequestMessage!, resp));
+                    try
+                    {
+                        Push(stage._outResponse, stage._handler.ProcessResponse(resp.RequestMessage!, resp));
+                    }
+                    catch (Exception ex)
+                    {
+                        Tracing.For("Handler").Warning(this, "← ProcessResponse threw: {0}", ex.Message);
+                        Push(stage._outResponse, resp);
+                    }
                 },
                 onUpstreamFinish: () => Complete(stage._outResponse),
                 onUpstreamFailure: ex =>

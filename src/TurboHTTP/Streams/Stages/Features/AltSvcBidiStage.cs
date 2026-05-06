@@ -3,6 +3,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Protocol.AltSvc;
+using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;
 
@@ -50,6 +51,7 @@ internal sealed class AltSvcBidiStage
                         && stage._cache.TryGetHttp3(request.RequestUri.Host, out var entry))
                     {
                         // Upgrade to HTTP/3. Use the advertised port if different from origin.
+                        Tracing.For("AltSvc").Info(this, "→ upgrading {0} to HTTP/3 (alt-svc cache hit, port {1})", request.RequestUri.Host, entry.Port);
                         request.Version = HttpVersion.Version30;
 
                         if (entry.Port != request.RequestUri.Port)
@@ -100,10 +102,12 @@ internal sealed class AltSvcBidiStage
                                 var entries = AltSvcParser.Parse(value, out var isClear);
                                 if (isClear)
                                 {
+                                    Tracing.For("AltSvc").Debug(this, "← Alt-Svc clear for {0}", host);
                                     stage._cache.Clear(host);
                                 }
                                 else if (entries.Count > 0)
                                 {
+                                    Tracing.For("AltSvc").Debug(this, "← Alt-Svc stored {0} entries for {1}", entries.Count, host);
                                     stage._cache.Store(host, entries);
                                 }
                             }

@@ -3,6 +3,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Protocol.Semantics;
+using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;
 
@@ -115,6 +116,7 @@ internal sealed class ExpectContinueBidiStage
                     {
                         request.Headers.ExpectContinue = true;
                         _expectPending = true;
+                        Tracing.For("Expect100").Debug(this, "→ injected Expect: 100-continue (body {0} bytes)", bodySize);
                     }
                     else
                     {
@@ -143,6 +145,7 @@ internal sealed class ExpectContinueBidiStage
                     {
                         // 100 Continue — informational, never expose to caller.
                         // Consume and pull next response.
+                        Tracing.For("Expect100").Debug(this, "← 100 Continue consumed");
                         _expectPending = false;
                         response.Dispose();
                         TryPullResponse();
@@ -152,6 +155,7 @@ internal sealed class ExpectContinueBidiStage
                     if (_expectPending && response.StatusCode == (HttpStatusCode)417)
                     {
                         // 417 Expectation Failed — request aborted, forward response.
+                        Tracing.For("Expect100").Info(this, "← 417 Expectation Failed — request aborted");
                         _expectPending = false;
                         _responseDemand = false;
                         Push(stage._outResponse, response);
