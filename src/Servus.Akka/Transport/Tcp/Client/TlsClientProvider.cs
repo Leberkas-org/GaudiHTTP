@@ -20,7 +20,10 @@ internal class TlsClientProvider(TlsTransportOptions options) : IAsyncDisposable
 
     private SslStream? _sslStream;
 
+    public EndPoint? LocalEndPoint => _tcpClientProvider.LocalEndPoint;
     public EndPoint? RemoteEndPoint => _tcpClientProvider.RemoteEndPoint;
+    public System.Security.Authentication.SslProtocols? NegotiatedSslProtocol => _sslStream?.SslProtocol;
+    public SslApplicationProtocol? NegotiatedApplicationProtocol => _sslStream?.NegotiatedApplicationProtocol;
 
     public async Task<Stream> GetStreamAsync(CancellationToken ct = default)
     {

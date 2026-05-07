@@ -1,4 +1,3 @@
-using System.Net;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Http2;
 using TurboHTTP.Protocol.Http2.Hpack;
@@ -11,9 +10,14 @@ public sealed class Http2StateMachineSpec
     private static TurboClientOptions MakeConfig(int? maxConcurrentStreams = null, int? maxReconnect = null,
         int initialStreamWindowSize = 65_535, int maxFrameSize = 16_384)
     {
-        var options = new TurboClientOptions();
-        options.Http2.InitialStreamWindowSize = initialStreamWindowSize;
-        options.Http2.MaxFrameSize = maxFrameSize;
+        var options = new TurboClientOptions
+        {
+            Http2 =
+            {
+                InitialStreamWindowSize = initialStreamWindowSize,
+                MaxFrameSize = maxFrameSize
+            }
+        };
         if (maxConcurrentStreams.HasValue) options.Http2.MaxConcurrentStreams = maxConcurrentStreams.Value;
         if (maxReconnect.HasValue) options.Http2.MaxReconnectAttempts = maxReconnect.Value;
         return options;
@@ -59,18 +63,14 @@ public sealed class Http2StateMachineSpec
         var offset = 0;
         foreach (var frame in frames)
         {
-            var frameSpan = span.Slice(offset);
+            var frameSpan = span[offset..];
             frame.WriteTo(ref frameSpan);
             offset += frame.SerializedSize;
         }
+
         buffer.Length = totalSize;
         return buffer;
     }
-
-    private static readonly ConnectionInfo DummyConnectionInfo = new(
-        new IPEndPoint(IPAddress.Loopback, 5000),
-        new IPEndPoint(IPAddress.Loopback, 443),
-        null, null);
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-3.4")]

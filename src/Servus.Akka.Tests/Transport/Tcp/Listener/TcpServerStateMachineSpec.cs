@@ -13,8 +13,7 @@ public sealed class TcpServerStateMachineSpec
     private static readonly ConnectionInfo TestConnectionInfo = new(
         new IPEndPoint(IPAddress.Loopback, 5000),
         new IPEndPoint(IPAddress.Loopback, 12345),
-        null,
-        null);
+        TransportProtocol.Tcp);
 
     private static (TcpServerStateMachine Sm, MockTransportOperations Ops) CreateStateMachine(Stream? stream = null)
     {
@@ -256,9 +255,9 @@ public sealed class TcpServerStateMachineSpec
         var (sm, ops) = CreateStateMachine();
         sm.Start();
 
-        sm.HandlePush(new OpenStream(1, StreamDirection.Bidirectional));
+        sm.HandlePush(new OpenStream(1L, StreamDirection.Bidirectional));
 
-        Assert.True(ops.PullOutboundCount >= 0);
+        Assert.True(ops.PullOutboundCount > 0);
     }
 
     [Fact(Timeout = 5000)]

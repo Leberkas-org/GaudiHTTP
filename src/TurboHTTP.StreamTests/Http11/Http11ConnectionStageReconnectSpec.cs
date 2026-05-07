@@ -76,7 +76,7 @@ public sealed class Http11ConnectionStageReconnectSpec : StreamTestBase
         // Simulate reconnect success → sends TransportConnected
         var remoteEndPoint = new IPEndPoint(IPAddress.Loopback, reconnect.Options.Port);
         var localEndPoint = new IPEndPoint(IPAddress.Loopback, 0);
-        serverSub.SendNext(new TransportConnected(new ConnectionInfo(localEndPoint, remoteEndPoint, null, null)));
+        serverSub.SendNext(new TransportConnected(new ConnectionInfo(localEndPoint, remoteEndPoint, TransportProtocol.Tcp)));
 
         // Stage must replay the request — expect TransportData again
         var item2Retry = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);

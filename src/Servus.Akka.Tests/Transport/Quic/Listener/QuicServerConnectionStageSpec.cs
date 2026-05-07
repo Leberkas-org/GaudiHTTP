@@ -21,8 +21,7 @@ public sealed class QuicServerConnectionStageSpec
         var connectionInfo = new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 5000),
             new IPEndPoint(IPAddress.Loopback, 12345),
-            null,
-            null);
+            TransportProtocol.None);
 
         var stage = new QuicServerConnectionStage(connectionHandle, connectionInfo);
 
@@ -43,8 +42,7 @@ public sealed class QuicServerConnectionStageSpec
         var connectionInfo = new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 5000),
             new IPEndPoint(IPAddress.Loopback, 12345),
-            null,
-            null);
+            TransportProtocol.None);
 
         var stage = new QuicServerConnectionStage(connectionHandle, connectionInfo);
         var shape = stage.Shape;

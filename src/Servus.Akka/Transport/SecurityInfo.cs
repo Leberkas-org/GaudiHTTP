@@ -1,0 +1,8 @@
+using System.Net.Security;
+using System.Security.Authentication;
+
+namespace Servus.Akka.Transport;
+
+public sealed record SecurityInfo(
+    SslProtocols Protocol,
+    SslApplicationProtocol ApplicationProtocol);

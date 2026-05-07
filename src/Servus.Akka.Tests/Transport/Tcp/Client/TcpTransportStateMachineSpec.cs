@@ -33,7 +33,7 @@ public sealed class TcpTransportStateMachineSpec
         var state = new ClientState(Stream.Null);
         var cts = new CancellationTokenSource();
         var handle = new ConnectionHandle(state.OutboundWriter, state.InboundReader, cts.Token);
-        return new ConnectionLease(handle, state, cts);
+        return new ConnectionLease(handle, state, cts, ConnectionInfo.None);
     }
 
     private static TransportBuffer CreateTestBuffer(params byte[] data)

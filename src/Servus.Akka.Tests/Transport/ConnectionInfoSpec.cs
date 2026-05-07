@@ -8,33 +8,32 @@ namespace Servus.Akka.Tests.Transport;
 public sealed class ConnectionInfoSpec
 {
     [Fact(Timeout = 5000)]
-    public void Should_store_all_properties()
+    public void Should_store_endpoints_and_protocol()
     {
         var local = new IPEndPoint(IPAddress.Loopback, 5000);
         var remote = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 443);
-        var sslProtocol = SslProtocols.Tls13;
-        var appProtocol = SslApplicationProtocol.Http2;
 
-        var info = new ConnectionInfo(local, remote, sslProtocol, appProtocol);
+        var info = new ConnectionInfo(local, remote, TransportProtocol.Tcp);
 
         Assert.Equal(local, info.Local);
         Assert.Equal(remote, info.Remote);
-        Assert.Equal(sslProtocol, info.NegotiatedSslProtocol);
-        Assert.Equal(appProtocol, info.NegotiatedApplicationProtocol);
+        Assert.Equal(TransportProtocol.Tcp, info.Protocol);
+        Assert.Null(info.Security);
     }
 
     [Fact(Timeout = 5000)]
-    public void Should_support_null_ssl_properties()
+    public void Should_store_security_info_when_provided()
     {
-        var local = new IPEndPoint(IPAddress.Loopback, 8080);
-        var remote = new IPEndPoint(IPAddress.Parse("10.0.0.1"), 80);
+        var local = new IPEndPoint(IPAddress.Loopback, 5000);
+        var remote = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 443);
+        var security = new SecurityInfo(SslProtocols.Tls13, SslApplicationProtocol.Http2);
 
-        var info = new ConnectionInfo(local, remote, NegotiatedSslProtocol: null, NegotiatedApplicationProtocol: null);
+        var info = new ConnectionInfo(local, remote, TransportProtocol.Tls, security);
 
-        Assert.Equal(local, info.Local);
-        Assert.Equal(remote, info.Remote);
-        Assert.Null(info.NegotiatedSslProtocol);
-        Assert.Null(info.NegotiatedApplicationProtocol);
+        Assert.Equal(TransportProtocol.Tls, info.Protocol);
+        Assert.NotNull(info.Security);
+        Assert.Equal(SslProtocols.Tls13, info.Security.Protocol);
+        Assert.Equal(SslApplicationProtocol.Http2, info.Security.ApplicationProtocol);
     }
 
     [Fact(Timeout = 5000)]
@@ -42,9 +41,10 @@ public sealed class ConnectionInfoSpec
     {
         var local = new IPEndPoint(IPAddress.Loopback, 5000);
         var remote = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 443);
+        var security = new SecurityInfo(SslProtocols.Tls13, SslApplicationProtocol.Http2);
 
-        var info1 = new ConnectionInfo(local, remote, SslProtocols.Tls13, SslApplicationProtocol.Http2);
-        var info2 = new ConnectionInfo(local, remote, SslProtocols.Tls13, SslApplicationProtocol.Http2);
+        var info1 = new ConnectionInfo(local, remote, TransportProtocol.Tls, security);
+        var info2 = new ConnectionInfo(local, remote, TransportProtocol.Tls, security);
 
         Assert.Equal(info1, info2);
         Assert.Equal(info1.GetHashCode(), info2.GetHashCode());
@@ -57,8 +57,8 @@ public sealed class ConnectionInfoSpec
         var local2 = new IPEndPoint(IPAddress.Loopback, 5001);
         var remote = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 443);
 
-        var info1 = new ConnectionInfo(local1, remote, SslProtocols.Tls13, SslApplicationProtocol.Http2);
-        var info2 = new ConnectionInfo(local2, remote, SslProtocols.Tls13, SslApplicationProtocol.Http2);
+        var info1 = new ConnectionInfo(local1, remote, TransportProtocol.Tcp);
+        var info2 = new ConnectionInfo(local2, remote, TransportProtocol.Tcp);
 
         Assert.NotEqual(info1, info2);
     }
@@ -70,50 +70,45 @@ public sealed class ConnectionInfoSpec
         var remote1 = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 443);
         var remote2 = new IPEndPoint(IPAddress.Parse("192.168.1.2"), 443);
 
-        var info1 = new ConnectionInfo(local, remote1, SslProtocols.Tls13, SslApplicationProtocol.Http2);
-        var info2 = new ConnectionInfo(local, remote2, SslProtocols.Tls13, SslApplicationProtocol.Http2);
+        var info1 = new ConnectionInfo(local, remote1, TransportProtocol.Tcp);
+        var info2 = new ConnectionInfo(local, remote2, TransportProtocol.Tcp);
 
         Assert.NotEqual(info1, info2);
     }
 
     [Fact(Timeout = 5000)]
-    public void Inequality_should_work_for_different_ssl_protocol()
+    public void Inequality_should_work_for_different_protocol()
     {
         var local = new IPEndPoint(IPAddress.Loopback, 5000);
         var remote = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 443);
 
-        var info1 = new ConnectionInfo(local, remote, SslProtocols.Tls13, SslApplicationProtocol.Http2);
-        var info2 = new ConnectionInfo(local, remote, SslProtocols.Tls12, SslApplicationProtocol.Http2);
+        var info1 = new ConnectionInfo(local, remote, TransportProtocol.Tcp);
+        var info2 = new ConnectionInfo(local, remote, TransportProtocol.Quic);
 
         Assert.NotEqual(info1, info2);
     }
 
     [Fact(Timeout = 5000)]
-    public void Inequality_should_work_for_different_app_protocol()
+    public void Inequality_should_work_for_different_security()
     {
         var local = new IPEndPoint(IPAddress.Loopback, 5000);
         var remote = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 443);
 
-        var info1 = new ConnectionInfo(local, remote, SslProtocols.Tls13, SslApplicationProtocol.Http2);
-        var info2 = new ConnectionInfo(local, remote, SslProtocols.Tls13, SslApplicationProtocol.Http11);
+        var info1 = new ConnectionInfo(local, remote, TransportProtocol.Tls,
+            new SecurityInfo(SslProtocols.Tls13, SslApplicationProtocol.Http2));
+        var info2 = new ConnectionInfo(local, remote, TransportProtocol.Tls,
+            new SecurityInfo(SslProtocols.Tls12, SslApplicationProtocol.Http2));
 
         Assert.NotEqual(info1, info2);
     }
 
     [Fact(Timeout = 5000)]
-    public void Should_support_mixed_null_ssl_fields()
+    public void None_should_have_sensible_defaults()
     {
-        var local = new IPEndPoint(IPAddress.Loopback, 5000);
-        var remote = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 443);
+        var none = ConnectionInfo.None;
 
-        var info1 = new ConnectionInfo(local, remote, SslProtocols.Tls13, NegotiatedApplicationProtocol: null);
-        var info2 = new ConnectionInfo(local, remote, NegotiatedSslProtocol: null, SslApplicationProtocol.Http2);
-
-        Assert.Equal(SslProtocols.Tls13, info1.NegotiatedSslProtocol);
-        Assert.Null(info1.NegotiatedApplicationProtocol);
-
-        Assert.Null(info2.NegotiatedSslProtocol);
-        Assert.Equal(SslApplicationProtocol.Http2, info2.NegotiatedApplicationProtocol);
+        Assert.Equal(TransportProtocol.None, none.Protocol);
+        Assert.Null(none.Security);
     }
 
     [Fact(Timeout = 5000)]
@@ -122,8 +117,10 @@ public sealed class ConnectionInfoSpec
         var local = new IPEndPoint(IPAddress.Loopback, 5000);
         var remote = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 443);
 
-        var info1 = new ConnectionInfo(local, remote, SslProtocols.Tls13, SslApplicationProtocol.Http2);
-        var info2 = new ConnectionInfo(local, remote, SslProtocols.Tls13, SslApplicationProtocol.Http2);
+        var info1 = new ConnectionInfo(local, remote, TransportProtocol.Tls,
+            new SecurityInfo(SslProtocols.Tls13, SslApplicationProtocol.Http2));
+        var info2 = new ConnectionInfo(local, remote, TransportProtocol.Tls,
+            new SecurityInfo(SslProtocols.Tls13, SslApplicationProtocol.Http2));
 
         var dict = new Dictionary<ConnectionInfo, string> { { info1, "pooled" } };
 

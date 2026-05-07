@@ -154,8 +154,7 @@ internal sealed class TcpListenerStage : GraphStage<SourceShape<Flow<ITransportO
             var connectionInfo = new ConnectionInfo(
                 localEndPoint,
                 remoteEndPoint,
-                null,
-                null);
+                TransportProtocol.Tcp);
 
             var connectionFlow = Flow.FromGraph(
                 new TcpServerConnectionStage(stream, connectionInfo));

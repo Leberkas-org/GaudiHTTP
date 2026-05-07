@@ -63,8 +63,8 @@ internal sealed class TcpServerStateMachine
                 break;
             case OutboundWriteDone:
                 break;
-            case OutboundWriteFailed e:
-                OnOutboundWriteFailed(e.Error);
+            case OutboundWriteFailed:
+                OnOutboundWriteFailed();
                 break;
         }
     }
@@ -79,6 +79,9 @@ internal sealed class TcpServerStateMachine
             case DisconnectTransport:
                 Cleanup();
                 _ops.OnCompleteStage();
+                break;
+            default:
+                _ops.OnSignalPullOutbound();
                 break;
         }
     }
@@ -140,7 +143,7 @@ internal sealed class TcpServerStateMachine
         }
     }
 
-    private void OnOutboundWriteFailed(Exception ex)
+    private void OnOutboundWriteFailed()
     {
         _ops.OnPushInbound(new TransportDisconnected(DisconnectReason.Error));
         _pumpManager?.StopPumps();

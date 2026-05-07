@@ -9,7 +9,7 @@ public sealed class Http11StateMachineDisconnectSpec
     private static HttpRequestMessage MakeRequest(string uri = "http://example.com/") =>
         new(HttpMethod.Get, uri);
 
-    private static (HttpRequestMessage Request, PendingRequest Pending, short Version) MakeTrackedRequest(
+    private static (HttpRequestMessage Request, PendingRequest Pending) MakeTrackedRequest(
         string uri = "http://example.com/")
     {
         var pending = PendingRequest.Rent();
@@ -17,7 +17,7 @@ public sealed class Http11StateMachineDisconnectSpec
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
         request.Options.Set(TcsCorrelation.Key, pending);
         request.Options.Set(TcsCorrelation.VersionKey, version);
-        return (request, pending, version);
+        return (request, pending);
     }
 
     private static TransportBuffer CreateResponseBuffer(string responseText)
@@ -35,7 +35,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 0 } });
-        var (request, pending, _) = MakeTrackedRequest();
+        var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
@@ -91,7 +91,7 @@ public sealed class Http11StateMachineDisconnectSpec
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
         ops.Outbound.Clear();
 
-        sm.DecodeServerData(new TransportConnected(default!));
+        sm.DecodeServerData(new TransportConnected(null!));
 
         Assert.False(sm.IsReconnecting);
         Assert.True(sm.HasInFlightRequests);
@@ -103,7 +103,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 1 } });
-        var (request, pending, _) = MakeTrackedRequest();
+        var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
@@ -120,7 +120,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, new TurboClientOptions());
-        var (request, pending, _) = MakeTrackedRequest();
+        var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
         sm.OnUpstreamFinished();
@@ -135,7 +135,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3 } });
-        var (request, pending, _) = MakeTrackedRequest();
+        var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));

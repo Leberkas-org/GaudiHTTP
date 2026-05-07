@@ -193,7 +193,7 @@ public sealed class TcpTransportStateMachine
         if (_isReconnecting)
         {
             _isReconnecting = false;
-            _ops.OnPushInbound(new TransportConnected(default!));
+            _ops.OnPushInbound(new TransportConnected(_currentLease!.Info));
         }
 
         FlushPendingWrites();

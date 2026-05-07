@@ -13,7 +13,7 @@ public sealed class Http11StateMachineReconnectSpec
             Version = new Version(1, 1)
         };
 
-    private static (HttpRequestMessage Request, PendingRequest Pending, short Version) MakeTrackedRequest(string path = "/")
+    private static (HttpRequestMessage Request, PendingRequest Pending) MakeTrackedRequest(string path = "/")
     {
         var pending = PendingRequest.Rent();
         var version = pending.Version;
@@ -23,7 +23,7 @@ public sealed class Http11StateMachineReconnectSpec
         };
         request.Options.Set(TcsCorrelation.Key, pending);
         request.Options.Set(TcsCorrelation.VersionKey, version);
-        return (request, pending, version);
+        return (request, pending);
     }
 
     private static TurboClientOptions MakeConfig(int maxPipelineDepth = 4, int maxReconnectAttempts = 3) =>
@@ -32,7 +32,7 @@ public sealed class Http11StateMachineReconnectSpec
     private static readonly ConnectionInfo DummyConnectionInfo = new(
         new IPEndPoint(IPAddress.Loopback, 5000),
         new IPEndPoint(IPAddress.Loopback, 80),
-        null, null);
+        TransportProtocol.Tcp);
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.3")]
@@ -89,7 +89,7 @@ public sealed class Http11StateMachineReconnectSpec
     {
         var ops = new FakeOps();
         var sm = new StateMachine(ops, MakeConfig(maxReconnectAttempts: 1));
-        var (request, pending, _) = MakeTrackedRequest();
+        var (request, pending) = MakeTrackedRequest();
         sm.OnRequest(request);
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));

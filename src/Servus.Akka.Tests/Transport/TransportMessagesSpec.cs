@@ -10,8 +10,8 @@ public sealed class TransportMessagesSpec
     private static readonly ConnectionInfo TestConnectionInfo = new(
         Local: new IPEndPoint(IPAddress.Loopback, 12345),
         Remote: new IPEndPoint(IPAddress.Parse("93.184.216.34"), 443),
-        NegotiatedSslProtocol: SslProtocols.Tls13,
-        NegotiatedApplicationProtocol: SslApplicationProtocol.Http2);
+        Protocol: TransportProtocol.Tls,
+        Security: new SecurityInfo(SslProtocols.Tls13, SslApplicationProtocol.Http2));
 
     [Fact(Timeout = 5000)]
     public void ConnectTransport_should_implement_ITransportOutbound()
@@ -105,25 +105,26 @@ public sealed class TransportMessagesSpec
     {
         var local = new IPEndPoint(IPAddress.Loopback, 5000);
         var remote = new IPEndPoint(IPAddress.Parse("10.0.0.1"), 443);
+        var security = new SecurityInfo(SslProtocols.Tls12, SslApplicationProtocol.Http11);
 
-        var info = new ConnectionInfo(local, remote, SslProtocols.Tls12, SslApplicationProtocol.Http11);
+        var info = new ConnectionInfo(local, remote, TransportProtocol.Tls, security);
 
         Assert.Equal(local, info.Local);
         Assert.Equal(remote, info.Remote);
-        Assert.Equal(SslProtocols.Tls12, info.NegotiatedSslProtocol);
-        Assert.Equal(SslApplicationProtocol.Http11, info.NegotiatedApplicationProtocol);
+        Assert.Equal(TransportProtocol.Tls, info.Protocol);
+        Assert.NotNull(info.Security);
+        Assert.Equal(SslProtocols.Tls12, info.Security.Protocol);
+        Assert.Equal(SslApplicationProtocol.Http11, info.Security.ApplicationProtocol);
     }
 
     [Fact(Timeout = 5000)]
-    public void ConnectionInfo_should_allow_null_ssl_fields()
+    public void ConnectionInfo_should_allow_null_security()
     {
         var info = new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 5000),
             new IPEndPoint(IPAddress.Loopback, 80),
-            NegotiatedSslProtocol: null,
-            NegotiatedApplicationProtocol: null);
+            TransportProtocol.Tcp);
 
-        Assert.Null(info.NegotiatedSslProtocol);
-        Assert.Null(info.NegotiatedApplicationProtocol);
+        Assert.Null(info.Security);
     }
 }

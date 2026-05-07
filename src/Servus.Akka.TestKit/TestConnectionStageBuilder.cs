@@ -12,7 +12,7 @@ public sealed class TestConnectionStageBuilder
     public TestConnectionStageBuilder AutoConnect(ConnectionInfo? info = null)
     {
         _autoConnect = true;
-        _autoConnectInfo = info ?? new ConnectionInfo(null!, null!, null, null);
+        _autoConnectInfo = info ?? ConnectionInfo.None;
         return this;
     }
 

@@ -20,6 +20,6 @@ internal sealed class FailOnceTcpConnectionFactory : ITcpConnectionFactory
         var state = new ClientState(Stream.Null);
         var cts = new CancellationTokenSource();
         var handle = new ConnectionHandle(state.OutboundWriter, state.InboundReader, cts.Token);
-        return Task.FromResult(new ConnectionLease(handle, state, cts));
+        return Task.FromResult(new ConnectionLease(handle, state, cts, ConnectionInfo.None));
     }
 }

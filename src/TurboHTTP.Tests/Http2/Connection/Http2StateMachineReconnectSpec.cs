@@ -43,7 +43,7 @@ public sealed class Http2StateMachineReconnectSpec
     private static readonly ConnectionInfo DummyConnectionInfo = new(
         new IPEndPoint(IPAddress.Loopback, 5000),
         new IPEndPoint(IPAddress.Loopback, 443),
-        null, null);
+        TransportProtocol.Tcp);
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.8")]

@@ -1,3 +1,4 @@
+using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp;
 
 namespace Servus.Akka.Tests.Transport.Tcp;
@@ -9,7 +10,7 @@ public sealed class ConnectionLeaseSpec
         var state = new ClientState(Stream.Null);
         var cts = new CancellationTokenSource();
         var handle = new ConnectionHandle(state.OutboundWriter, state.InboundReader, cts.Token);
-        var lease = new ConnectionLease(handle, state, cts);
+        var lease = new ConnectionLease(handle, state, cts, ConnectionInfo.None);
         return lease;
     }
 
@@ -55,7 +56,7 @@ public sealed class ConnectionLeaseSpec
         var state = new ClientState(memStream);
         var cts = new CancellationTokenSource();
         var handle = new ConnectionHandle(state.OutboundWriter, state.InboundReader, cts.Token);
-        var lease = new ConnectionLease(handle, state, cts);
+        var lease = new ConnectionLease(handle, state, cts, ConnectionInfo.None);
 
         lease.Dispose();
 

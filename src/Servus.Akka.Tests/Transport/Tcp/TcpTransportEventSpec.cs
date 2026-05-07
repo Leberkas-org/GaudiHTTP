@@ -11,7 +11,7 @@ public sealed class TcpTransportEventSpec
         var state = new ClientState(Stream.Null);
         var cts = new CancellationTokenSource();
         var handle = new ConnectionHandle(state.OutboundWriter, state.InboundReader, cts.Token);
-        var lease = new ConnectionLease(handle, state, cts);
+        var lease = new ConnectionLease(handle, state, cts, ConnectionInfo.None);
 
         var evt = new LeaseAcquired(lease);
 

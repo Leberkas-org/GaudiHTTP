@@ -13,8 +13,7 @@ public sealed class TcpServerConnectionStageSpec
         var connectionInfo = new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 5000),
             new IPEndPoint(IPAddress.Loopback, 12345),
-            null,
-            null);
+            TransportProtocol.Tcp);
 
         var stage = new TcpServerConnectionStage(Stream.Null, connectionInfo);
 
@@ -28,8 +27,7 @@ public sealed class TcpServerConnectionStageSpec
         var connectionInfo = new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 5000),
             new IPEndPoint(IPAddress.Loopback, 12345),
-            null,
-            null);
+            TransportProtocol.Tcp);
 
         var stage = new TcpServerConnectionStage(Stream.Null, connectionInfo);
         var shape = stage.Shape;

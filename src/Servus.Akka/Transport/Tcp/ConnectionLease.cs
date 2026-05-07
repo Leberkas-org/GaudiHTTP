@@ -7,14 +7,16 @@ internal sealed class ConnectionLease : IDisposable
     private readonly long _createdTicks = Environment.TickCount64;
     private bool _alive = true;
 
-    internal ConnectionLease(ConnectionHandle handle, ClientState state, CancellationTokenSource cts)
+    internal ConnectionLease(ConnectionHandle handle, ClientState state, CancellationTokenSource cts, ConnectionInfo info)
     {
         Handle = handle;
         _state = state;
         _cts = cts;
+        Info = info;
     }
 
     public ConnectionHandle Handle { get; }
+    public ConnectionInfo Info { get; }
 
     internal ClientState State => _state;
 

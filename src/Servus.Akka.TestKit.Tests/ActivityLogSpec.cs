@@ -25,8 +25,7 @@ public sealed class ActivityLogSpec
         var connectionInfo = new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 1000),
             new IPEndPoint(IPAddress.Loopback, 2000),
-            null,
-            null);
+            TransportProtocol.Tcp);
         var inbound = new InboundPushed(0, new TransportConnected(connectionInfo));
         var handler = new HandlerInvoked("TestHandler", new TransportData(new byte[] { 0xBB }));
 
@@ -56,8 +55,7 @@ public sealed class ActivityLogSpec
         var connectionInfo = new ConnectionInfo(
             new IPEndPoint(IPAddress.Loopback, 1000),
             new IPEndPoint(IPAddress.Loopback, 2000),
-            null,
-            null);
+            TransportProtocol.Tcp);
         log.Record(new InboundPushed(0, new TransportConnected(connectionInfo)));
         log.Record(new StageCompleted());
 
@@ -75,7 +73,7 @@ public sealed class ActivityLogSpec
 
         Assert.Equal(42, activity.Index);
         Assert.True(activity.FromFactory);
-        Assert.NotEqual(default(DateTimeOffset), activity.Timestamp);
+        Assert.NotEqual(default, activity.Timestamp);
     }
 
     [Fact(Timeout = 5000)]

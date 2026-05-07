@@ -155,13 +155,17 @@ internal sealed class QuicListenerStage
 
         private void OnConnectionAccepted(QuicConnection connection)
         {
+            SecurityInfo? security = connection.NegotiatedApplicationProtocol.Protocol.Length > 0
+                ? new SecurityInfo(
+                    System.Security.Authentication.SslProtocols.None,
+                    connection.NegotiatedApplicationProtocol)
+                : null;
+
             var connectionInfo = new ConnectionInfo(
                 connection.LocalEndPoint,
                 connection.RemoteEndPoint,
-                connection.NegotiatedApplicationProtocol.Protocol.Length > 0
-                    ? System.Security.Authentication.SslProtocols.None
-                    : null,
-                connection.NegotiatedApplicationProtocol);
+                TransportProtocol.Quic,
+                security);
 
             var handle = new QuicConnectionHandle(
                 openStream: async (direction, token) =>
