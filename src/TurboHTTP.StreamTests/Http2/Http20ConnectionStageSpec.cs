@@ -47,8 +47,8 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
             var netSink = b.Add(Sink.FromSubscriber(networkSub));
             var resSink = b.Add(Sink.FromSubscriber(responseSub));
 
-            b.From(app).To(s.InApp);
-            b.From(server).To(s.InServer);
+            b.From(app).To(s.InRequest);
+            b.From(server).To(s.InNetwork);
             b.From(s.OutNetwork).To(netSink);
             b.From(s.OutResponse).To(resSink);
 
@@ -91,8 +91,8 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
             var netSink = b.Add(Sink.FromSubscriber(networkSub));
             var resSink = b.Add(Sink.FromSubscriber(responseSub));
 
-            b.From(app).To(s.InApp);
-            b.From(server).To(s.InServer);
+            b.From(app).To(s.InRequest);
+            b.From(server).To(s.InNetwork);
             b.From(s.OutNetwork).To(netSink);
             b.From(s.OutResponse).To(resSink);
 
@@ -141,8 +141,8 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
             var netSink = b.Add(Sink.FromSubscriber(networkSub));
             var resSink = b.Add(Sink.FromSubscriber(responseSub));
 
-            b.From(app).To(s.InApp);
-            b.From(server).To(s.InServer);
+            b.From(app).To(s.InRequest);
+            b.From(server).To(s.InNetwork);
             b.From(s.OutNetwork).To(netSink);
             b.From(s.OutResponse).To(resSink);
 
@@ -193,8 +193,8 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
             var netSink = b.Add(Sink.FromSubscriber(networkSub));
             var resSink = b.Add(Sink.FromSubscriber(responseSub));
 
-            b.From(app).To(s.InApp);
-            b.From(server).To(s.InServer);
+            b.From(app).To(s.InRequest);
+            b.From(server).To(s.InNetwork);
             b.From(s.OutNetwork).To(netSink);
             b.From(s.OutResponse).To(resSink);
 
@@ -239,8 +239,8 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
             var netSink = b.Add(Sink.FromSubscriber(networkSub));
             var resSink = b.Add(Sink.FromSubscriber(responseSub));
 
-            b.From(app).To(s.InApp);
-            b.From(server).To(s.InServer);
+            b.From(app).To(s.InRequest);
+            b.From(server).To(s.InNetwork);
             b.From(s.OutNetwork).To(netSink);
             b.From(s.OutResponse).To(resSink);
 
@@ -285,8 +285,8 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
             var netSink = b.Add(Sink.FromSubscriber(networkSub));
             var resSink = b.Add(Sink.FromSubscriber(responseSub));
 
-            b.From(app).To(s.InApp);
-            b.From(server).To(s.InServer);
+            b.From(app).To(s.InRequest);
+            b.From(server).To(s.InNetwork);
             b.From(s.OutNetwork).To(netSink);
             b.From(s.OutResponse).To(resSink);
 

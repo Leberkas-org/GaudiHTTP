@@ -84,8 +84,8 @@ internal sealed class StateMachine : IHttpStateMachine
         catch (Exception ex)
         {
             item?.Dispose();
-            Tracing.For("Protocol").Warning(this, "Failed to encode HTTP/1.1 request [{0}]: {1}", request.RequestUri, ex.Message);
-            RequestFault.Fail(request, ex);
+            Tracing.For("Protocol").Error(this, "Failed to encode HTTP/1.1 request [{0}]: {1}", request.RequestUri, ex.Message);
+            request.Fail(ex);
             var count = _inFlightQueue.Count;
             for (var i = 0; i < count; i++)
             {
@@ -212,7 +212,7 @@ internal sealed class StateMachine : IHttpStateMachine
         catch (Exception ex)
         {
             buffer.Dispose();
-            Tracing.For("Protocol").Warning(this, "Failed to decode HTTP/1.1 response: {0}", ex.Message);
+            Tracing.For("Protocol").Error(this, "Failed to decode HTTP/1.1 response: {0}", ex.Message);
             _decoder.Reset();
         }
     }

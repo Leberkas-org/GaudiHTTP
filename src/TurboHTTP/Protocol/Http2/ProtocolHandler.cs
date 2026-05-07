@@ -75,7 +75,7 @@ internal sealed class ProtocolHandler
         if (GoAwayReceived)
         {
             Tracing.For("Protocol").Warning(this, "HTTP/2: RFC 9113 §6.8 — GOAWAY received; dropping new request (stream {0})", streamId);
-            RequestFault.Fail(request, new HttpRequestException("HTTP/2 GOAWAY received."));
+            request.Fail(new HttpRequestException("HTTP/2 GOAWAY received."));
             return;
         }
 

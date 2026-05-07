@@ -32,9 +32,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                     var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(dsSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;
@@ -150,9 +150,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                     var serverSource = b.Add(Source.From(FramesToInputs([data])));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(dsSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;
@@ -188,9 +188,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                     var serverSource = b.Add(Source.From(FramesToInputs([data])));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(dsSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;
@@ -226,9 +226,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                     var serverSource = b.Add(Source.Never<ITransportInbound>());
                     var requestSource = b.Add(Source.Single(request));
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(dsSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;
@@ -264,9 +264,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                     var ignoreSink =
                         b.Add(Sink.Ignore<HttpResponseMessage>().MapMaterializedValue(_ => NotUsed.Instance));
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(ignoreSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;
@@ -313,9 +313,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
                     var ignoreSink =
                         b.Add(Sink.Ignore<HttpResponseMessage>().MapMaterializedValue(_ => NotUsed.Instance));
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(ignoreSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;

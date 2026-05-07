@@ -38,9 +38,9 @@ public sealed class Http2ConnectionStreamAcquireSpec : StreamTestBase
                     var downstreamSink =
                         b.Add(Sink.Ignore<HttpResponseMessage>().MapMaterializedValue(_ => NotUsed.Instance));
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(downstreamSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;
@@ -74,9 +74,9 @@ public sealed class Http2ConnectionStreamAcquireSpec : StreamTestBase
                     var downstreamSink =
                         b.Add(Sink.Ignore<HttpResponseMessage>().MapMaterializedValue(_ => NotUsed.Instance));
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(downstreamSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;

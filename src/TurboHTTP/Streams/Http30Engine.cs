@@ -19,9 +19,9 @@ internal sealed class Http30Engine(TurboClientOptions options) : IHttpProtocolEn
                 ITransportOutbound,
                 ITransportInbound,
                 HttpResponseMessage>(
-                connection.InApp,
+                connection.InRequest,
                 connection.OutNetwork,
-                connection.InServer,
+                connection.InNetwork,
                 connection.OutResponse);
         }));
     }

@@ -6,33 +6,33 @@ namespace TurboHTTP.Streams.Stages;
 
 internal sealed class ConnectionShape : Shape
 {
-    public Inlet<ITransportInbound> InServer { get; }
+    public Inlet<ITransportInbound> InNetwork { get; }
     public Outlet<HttpResponseMessage> OutResponse { get; }
-    public Inlet<HttpRequestMessage> InApp { get; }
+    public Inlet<HttpRequestMessage> InRequest { get; }
     public Outlet<ITransportOutbound> OutNetwork { get; }
 
     public ConnectionShape(
-        Inlet<ITransportInbound> inServer,
+        Inlet<ITransportInbound> inNetwork,
         Outlet<HttpResponseMessage> outResponse,
-        Inlet<HttpRequestMessage> inApp,
+        Inlet<HttpRequestMessage> inRequest,
         Outlet<ITransportOutbound> outNetwork)
     {
-        InServer = inServer;
+        InNetwork = inNetwork;
         OutResponse = outResponse;
-        InApp = inApp;
+        InRequest = inRequest;
         OutNetwork = outNetwork;
     }
 
-    public override ImmutableArray<Inlet> Inlets => [InServer, InApp];
+    public override ImmutableArray<Inlet> Inlets => [InNetwork, InRequest];
 
     public override ImmutableArray<Outlet> Outlets => [OutResponse, OutNetwork];
 
     public override Shape DeepCopy()
     {
         return new ConnectionShape(
-            (Inlet<ITransportInbound>)InServer.CarbonCopy(),
+            (Inlet<ITransportInbound>)InNetwork.CarbonCopy(),
             (Outlet<HttpResponseMessage>)OutResponse.CarbonCopy(),
-            (Inlet<HttpRequestMessage>)InApp.CarbonCopy(),
+            (Inlet<HttpRequestMessage>)InRequest.CarbonCopy(),
             (Outlet<ITransportOutbound>)OutNetwork.CarbonCopy());
     }
 

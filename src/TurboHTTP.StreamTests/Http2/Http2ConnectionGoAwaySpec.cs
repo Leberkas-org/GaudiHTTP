@@ -26,9 +26,9 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                     var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));
                     var requestSource = b.Add(Source.Never<HttpRequestMessage>());
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(dsSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;
@@ -83,9 +83,9 @@ public sealed class Http2ConnectionGoAwaySpec : StreamTestBase
                             .InitialDelay(TimeSpan.FromMilliseconds(200))
                             .Concat(Source.Never<HttpRequestMessage>()));
 
-                    b.From(serverSource).To(stage.InServer);
+                    b.From(serverSource).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(dsSink);
-                    b.From(requestSource).To(stage.InApp);
+                    b.From(requestSource).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(nwSink);
 
                     return ClosedShape.Instance;

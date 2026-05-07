@@ -19,9 +19,9 @@ internal class Http10Engine(TurboClientOptions options) : IHttpProtocolEngine
                 ITransportOutbound,
                 ITransportInbound,
                 HttpResponseMessage>(
-                connection.InApp,
+                connection.InRequest,
                 connection.OutNetwork,
-                connection.InServer,
+                connection.InNetwork,
                 connection.OutResponse);
         }));
     }

@@ -88,7 +88,7 @@ internal sealed class StateMachine : IHttpStateMachine
         {
             if (_reconnectBufferedRequest is { } buffered)
             {
-                RequestFault.Fail(buffered, new HttpRequestException("HTTP/1.0 transport closed during reconnect."));
+                buffered.Fail(new HttpRequestException("HTTP/1.0 transport closed during reconnect."));
                 _reconnectBufferedRequest = null;
             }
 
@@ -142,8 +142,8 @@ internal sealed class StateMachine : IHttpStateMachine
         catch (Exception ex)
         {
             item?.Dispose();
-            Tracing.For("Protocol").Warning(this, "Failed to encode HTTP/1.0 request [{0}]: {1}", request.RequestUri, ex.Message);
-            RequestFault.Fail(request, ex);
+            Tracing.For("Protocol").Error(this, "Failed to encode HTTP/1.0 request [{0}]: {1}", request.RequestUri, ex.Message);
+            request.Fail(ex);
             _inFlightRequest = null;
         }
     }
@@ -167,10 +167,10 @@ internal sealed class StateMachine : IHttpStateMachine
         catch (Exception ex)
         {
             buffer.Dispose();
-            Tracing.For("Protocol").Warning(this, "Failed to decode HTTP/1.0 response: {0}", ex.Message);
+            Tracing.For("Protocol").Error(this, "Failed to decode HTTP/1.0 response: {0}", ex.Message);
             if (_inFlightRequest is { } req)
             {
-                RequestFault.Fail(req, new HttpRequestException("Failed to decode HTTP/1.0 response.", ex));
+                req.Fail(new HttpRequestException("Failed to decode HTTP/1.0 response.", ex));
                 _inFlightRequest = null;
             }
 
@@ -197,7 +197,7 @@ internal sealed class StateMachine : IHttpStateMachine
 
             if (_inFlightRequest is { } req)
             {
-                RequestFault.Fail(req, new HttpRequestException(message));
+                req.Fail(new HttpRequestException(message));
                 _inFlightRequest = null;
             }
 
@@ -226,7 +226,7 @@ internal sealed class StateMachine : IHttpStateMachine
         }
         catch (Exception ex)
         {
-            Tracing.For("Protocol").Warning(this, "Failed to decode HTTP/1.0 EOF: {0}", ex.Message);
+            Tracing.For("Protocol").Error(this, "Failed to decode HTTP/1.0 EOF: {0}", ex.Message);
             _decoder.Reset();
         }
     }
@@ -235,8 +235,8 @@ internal sealed class StateMachine : IHttpStateMachine
     {
         if (_inFlightRequest is not null)
         {
-            Tracing.For("Protocol").Debug(this, "HTTP/1.0 connection closed with orphaned request — failing");
-            RequestFault.Fail(_inFlightRequest, new HttpRequestException("HTTP/1.0 connection closed with orphaned request."));
+            Tracing.For("Protocol").Error(this, "HTTP/1.0 connection closed with orphaned request — failing");
+            _inFlightRequest.Fail(new HttpRequestException("HTTP/1.0 connection closed with orphaned request."));
             _inFlightRequest = null;
         }
     }
@@ -270,7 +270,7 @@ internal sealed class StateMachine : IHttpStateMachine
             Tracing.For("Protocol").Info(this, "HTTP/1.0 reconnect failed after {0} attempts", _reconnectAttempts);
             if (_reconnectBufferedRequest is { } buffered)
             {
-                RequestFault.Fail(buffered, new HttpRequestException("HTTP/1.0 reconnect failed after max attempts."));
+                buffered.Fail(new HttpRequestException("HTTP/1.0 reconnect failed after max attempts."));
                 _reconnectBufferedRequest = null;
             }
 

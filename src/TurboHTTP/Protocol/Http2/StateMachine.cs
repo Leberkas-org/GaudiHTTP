@@ -166,7 +166,7 @@ internal sealed class StateMachine : IHttpStateMachine
             else
             {
                 Tracing.For("Protocol").Info(this, "HTTP/2: Dropping non-idempotent or partially-responded request {0} {1} on reconnect", request.Method, request.RequestUri);
-                RequestFault.Fail(request, new HttpRequestException("Non-idempotent or partially-responded request dropped on reconnect."));
+                request.Fail(new HttpRequestException("Non-idempotent or partially-responded request dropped on reconnect."));
                 request.Dispose();
             }
         }

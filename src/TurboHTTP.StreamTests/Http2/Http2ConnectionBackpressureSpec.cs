@@ -31,9 +31,9 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
                     { Http2 = { MaxConcurrentStreams = maxConcurrentStreams } }));
                     var srvSrc = b.Add(Source.FromPublisher(serverProbe));
 
-                    b.From(srvSrc).To(stage.InServer);
+                    b.From(srvSrc).To(stage.InNetwork);
                     b.From(stage.OutResponse).To(Sink.FromSubscriber(appOutProbe));
-                    b.From(reqSrc).To(stage.InApp);
+                    b.From(reqSrc).To(stage.InRequest);
                     b.From(stage.OutNetwork).To(Sink.FromSubscriber(networkProbe));
 
                     return ClosedShape.Instance;

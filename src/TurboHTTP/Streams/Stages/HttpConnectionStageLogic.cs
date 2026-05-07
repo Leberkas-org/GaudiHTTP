@@ -2,7 +2,6 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
-using TurboHTTP.Diagnostics;
 using TurboHTTP.Protocol;
 using static Servus.Core.Servus;
 
@@ -25,9 +24,9 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
         Func<IStageOperations, TSM> smFactory) : base(stage.Shape)
     {
         var shape = stage.Shape;
-        _inServer = shape.InServer;
+        _inServer = shape.InNetwork;
         _outResponse = shape.OutResponse;
-        _inApp = shape.InApp;
+        _inApp = shape.InRequest;
         _outNetwork = shape.OutNetwork;
 
         _sm = smFactory(this);
@@ -69,8 +68,8 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
             }
             catch (Exception ex)
             {
-                Tracing.For("Stage").Warning(this, "OnRequest threw: {0}", ex.Message);
-                RequestFault.Fail(request, ex);
+                Tracing.For("Stage").Error(this, "OnRequest threw: {0}", ex.Message);
+                request.Fail(ex);
             }
 
             TryPullRequest();
@@ -83,7 +82,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
                 CompleteStage();
             }
         },
-        onUpstreamFailure: ex =>
+        onUpstreamFailure: _ =>
         {
             _sm.OnUpstreamFinished();
         });

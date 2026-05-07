@@ -16,9 +16,9 @@ public sealed class ConnectionShapeSpec
 
         var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
 
-        Assert.Equal(inServer, shape.InServer);
+        Assert.Equal(inServer, shape.InNetwork);
         Assert.Equal(outResponse, shape.OutResponse);
-        Assert.Equal(inApp, shape.InApp);
+        Assert.Equal(inApp, shape.InRequest);
         Assert.Equal(outNetwork, shape.OutNetwork);
     }
 
@@ -68,15 +68,15 @@ public sealed class ConnectionShapeSpec
         Assert.IsType<ConnectionShape>(copy);
         var copiedShape = (ConnectionShape)copy;
 
-        Assert.NotSame(shape.InServer, copiedShape.InServer);
+        Assert.NotSame(shape.InNetwork, copiedShape.InNetwork);
         Assert.NotSame(shape.OutResponse, copiedShape.OutResponse);
-        Assert.NotSame(shape.InApp, copiedShape.InApp);
+        Assert.NotSame(shape.InRequest, copiedShape.InRequest);
         Assert.NotSame(shape.OutNetwork, copiedShape.OutNetwork);
 
         // Port names should be preserved
-        Assert.Equal(shape.InServer.Name, copiedShape.InServer.Name);
+        Assert.Equal(shape.InNetwork.Name, copiedShape.InNetwork.Name);
         Assert.Equal(shape.OutResponse.Name, copiedShape.OutResponse.Name);
-        Assert.Equal(shape.InApp.Name, copiedShape.InApp.Name);
+        Assert.Equal(shape.InRequest.Name, copiedShape.InRequest.Name);
         Assert.Equal(shape.OutNetwork.Name, copiedShape.OutNetwork.Name);
     }
 
@@ -161,7 +161,7 @@ public sealed class ConnectionShapeSpec
         var copied3 = (ConnectionShape)shape3;
 
         // Different copies should have different port instances
-        Assert.NotSame(copied2.InServer, copied3.InServer);
+        Assert.NotSame(copied2.InNetwork, copied3.InNetwork);
         Assert.NotSame(copied2.OutResponse, copied3.OutResponse);
     }
 
@@ -181,9 +181,9 @@ public sealed class ConnectionShapeSpec
         var copiedShape = shape.CopyFromPorts([.. newInlets], [.. newOutlets]);
         var result = (ConnectionShape)copiedShape;
 
-        Assert.IsType<Inlet<ITransportInbound>>(result.InServer);
+        Assert.IsType<Inlet<ITransportInbound>>(result.InNetwork);
         Assert.IsType<Outlet<HttpResponseMessage>>(result.OutResponse);
-        Assert.IsType<Inlet<HttpRequestMessage>>(result.InApp);
+        Assert.IsType<Inlet<HttpRequestMessage>>(result.InRequest);
         Assert.IsType<Outlet<ITransportOutbound>>(result.OutNetwork);
     }
 }

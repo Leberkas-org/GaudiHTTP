@@ -26,6 +26,10 @@ namespace TurboHTTP
         public Expect100Options() { }
         public long MinBodySizeBytes { get; set; }
     }
+    public static class Extensions
+    {
+        public static System.Threading.Tasks.ValueTask<System.Net.Http.HttpResponseMessage> GetResponseAsync(this System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken ct = default) { }
+    }
     public sealed class Http1Options
     {
         public Http1Options() { }

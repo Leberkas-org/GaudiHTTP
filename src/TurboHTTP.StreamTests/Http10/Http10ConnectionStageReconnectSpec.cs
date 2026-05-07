@@ -40,8 +40,8 @@ public sealed class Http10ConnectionStageReconnectSpec : StreamTestBase
         RunnableGraph.FromGraph(GraphDsl.Create(b =>
         {
             var s = b.Add(stage);
-            b.From(Source.FromPublisher(appProbe)).To(s.InApp);
-            b.From(Source.FromPublisher(serverProbe)).To(s.InServer);
+            b.From(Source.FromPublisher(appProbe)).To(s.InRequest);
+            b.From(Source.FromPublisher(serverProbe)).To(s.InNetwork);
             b.From(s.OutNetwork).To(Sink.FromSubscriber(networkSub));
             b.From(s.OutResponse).To(Sink.FromSubscriber(responseSub));
             return ClosedShape.Instance;
@@ -104,8 +104,8 @@ public sealed class Http10ConnectionStageReconnectSpec : StreamTestBase
         RunnableGraph.FromGraph(GraphDsl.Create(b =>
         {
             var s = b.Add(stage);
-            b.From(Source.FromPublisher(appProbe)).To(s.InApp);
-            b.From(Source.FromPublisher(serverProbe)).To(s.InServer);
+            b.From(Source.FromPublisher(appProbe)).To(s.InRequest);
+            b.From(Source.FromPublisher(serverProbe)).To(s.InNetwork);
             b.From(s.OutNetwork).To(Sink.FromSubscriber(networkSub));
             b.From(s.OutResponse).To(Sink.FromSubscriber(responseSub));
             return ClosedShape.Instance;
@@ -153,8 +153,8 @@ public sealed class Http10ConnectionStageReconnectSpec : StreamTestBase
         RunnableGraph.FromGraph(GraphDsl.Create(b =>
         {
             var s = b.Add(stage);
-            b.From(Source.FromPublisher(appProbe)).To(s.InApp);
-            b.From(Source.FromPublisher(serverProbe)).To(s.InServer);
+            b.From(Source.FromPublisher(appProbe)).To(s.InRequest);
+            b.From(Source.FromPublisher(serverProbe)).To(s.InNetwork);
             b.From(s.OutNetwork).To(Sink.FromSubscriber(networkSub));
             b.From(s.OutResponse).To(Sink.FromSubscriber(responseSub));
             return ClosedShape.Instance;
