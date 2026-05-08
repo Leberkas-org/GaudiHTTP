@@ -1,114 +1,136 @@
 using System.Threading.Channels;
 using Akka.Actor;
+using Akka.Event;
 
 namespace TurboHTTP.Streams.Lifecycle;
 
-// Message Flow Diagrams (Merged Design: Owner handles materialization directly)
-//
-// HAPPY PATH: Create → Materialize → Run → Shutdown
-//
-//   StreamManager                   Owner
-//       │                             │
-//       │──CreateStreamInstance──────▶│
-//       │                             │──materialize pipeline (inline)
-//       │◀─StreamInstanceCreated──────│  (success)
-//       │                             │
-//       │   ... requests flow through channels ...
-//       │                             │   (sink completes when channels close)
-//       │                             │
-//       │──Shutdown──────────────────▶│
-//       │                             │──kill stream via KillSwitch
-//       │                             │──cleanup resources (materializer, pool)
-//       │◀───(actor terminated)───────│
-//
-//
-// ERROR PATH: Materialization Failure → Retry with Backoff
-//
-//   StreamManager                   Owner
-//       │                             │
-//       │──CreateStreamInstance──────▶│
-//       │                             │──materialize pipeline (inline)
-//       │                             │  └─ throws exception
-//       │                             │──CleanupForRetry() [explicit cleanup]
-//       │                             │
-//       │                             │ (retry attempt 1, backoff 100ms)
-//       │                             │──materialize pipeline (inline)
-//       │                             │  └─ throws exception again
-//       │                             │──CleanupForRetry()
-//       │                             │
-//       │                             │ (retry attempt 2, backoff 500ms)
-//       │                             │──materialize pipeline (inline)
-//       │◀─StreamInstanceCreated──────│ (success!)
-//       │                             │
-//
-//
-// ERROR PATH: Retries Exhausted
-//
-//   StreamManager                   Owner
-//       │                             │
-//       │──CreateStreamInstance──────▶│
-//       │                             │ ... 3 failed attempts (100ms, 500ms, 2s) ...
-//       │◀─StreamInstanceFailed───────│ (retries exhausted)
-//       │  (propagate error)          │
-//       │                             ╳
-
 /// <summary>
-/// Internal wrapper around <see cref="ClientStreamOwner"/> that maintains backward
-/// compatibility with the existing <see cref="TurboHttpClient"/> API.
-/// <para>
-/// Owns the stable channel endpoints (<see cref="Requests"/> / <see cref="Responses"/>)
-/// and delegates stream lifecycle management to the Owner actor.
-/// The Owner actor materializes the Akka.Streams pipeline directly using these
-/// externally-owned channels.
-/// </para>
-/// <para>
-/// Lifecycle:
-/// <list type="bullet">
-/// <item>Constructor creates channels and spawns the Owner actor.</item>
-/// <item>Owner materializes the stream directly using the channels.</item>
-/// <item>On failure, Owner retries with exponential backoff (100ms, 500ms, 2s), reconnecting to the same channels.</item>
-/// <item><see cref="Dispose"/> completes the request channel and sends <see cref="ClientStreamOwner.Shutdown"/> to the Owner.</item>
-/// </list>
-/// </para>
+/// Actor-based manager that supervises per-name <see cref="ClientStreamOwner"/> instances.
+/// Clients register via Tell messages, sharing a single owned Owner per unique name.
+/// On Dispose, the factory tells the manager to shutdown all children.
 /// </summary>
-internal sealed class ClientStreamManager : IDisposable
+internal sealed class ClientStreamManager : ReceiveActor
 {
-    private readonly IActorRef _owner;
+    internal sealed record RegisterConsumer(
+        string Name,
+        Guid ConsumerId,
+        ChannelReader<HttpRequestMessage> RequestReader,
+        ChannelWriter<HttpResponseMessage> FallbackResponseWriter,
+        Func<TurboRequestOptions> OptionsFactory,
+        TurboClientOptions ClientOptions,
+        PipelineDescriptor Pipeline);
+
+    internal sealed record UnregisterConsumer(string Name, Guid ConsumerId);
+
+    internal sealed record Shutdown;
+
+    private readonly ILoggingAdapter _log = Context.GetLogger();
+    private readonly Dictionary<string, OwnerState> _owners = [];
+
+    public static Props Props()
+    {
+        return Akka.Actor.Props.Create(() => new ClientStreamManager());
+    }
+
+    public ClientStreamManager()
+    {
+        Receive<RegisterConsumer>(HandleRegisterConsumer);
+        Receive<UnregisterConsumer>(HandleUnregisterConsumer);
+        Receive<ClientStreamOwner.StreamInstanceCreated>(_ => { /* stream ready, noop */ });
+        Receive<Shutdown>(_ => HandleShutdown());
+    }
+
+    private void HandleRegisterConsumer(RegisterConsumer message)
+    {
+        if (!_owners.TryGetValue(message.Name, out var state))
+        {
+            var sanitizedName = SanitizeActorName(message.Name);
+            var owner = Context.ActorOf(
+                Akka.Actor.Props.Create(() => new ClientStreamOwner()),
+                sanitizedName);
+
+            var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>(
+                new UnboundedChannelOptions { SingleReader = true });
+            var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>(
+                new UnboundedChannelOptions { SingleWriter = true });
+
+            owner.Tell(new ClientStreamOwner.CreateStreamInstance(
+                message.ClientOptions,
+                message.Pipeline,
+                requestChannel.Reader,
+                responseChannel.Writer));
+
+            state = new OwnerState(owner, requestChannel, responseChannel);
+            _owners[message.Name] = state;
+        }
+
+        state.Owner.Tell(new ClientStreamOwner.RegisterConsumer(
+            message.ConsumerId,
+            message.RequestReader,
+            message.OptionsFactory,
+            message.FallbackResponseWriter));
+    }
+
+    private void HandleUnregisterConsumer(UnregisterConsumer message)
+    {
+        if (_owners.TryGetValue(message.Name, out var state))
+        {
+            state.Owner.Tell(new ClientStreamOwner.UnregisterConsumer(message.ConsumerId));
+        }
+    }
+
+    private void HandleShutdown()
+    {
+        foreach (var state in _owners.Values)
+        {
+            state.RequestChannel.Writer.TryComplete();
+            state.ResponseChannel.Writer.TryComplete();
+            state.Owner.Tell(new ClientStreamOwner.Shutdown());
+        }
+
+        _owners.Clear();
+        Context.Stop(Self);
+    }
+
+    protected override SupervisorStrategy SupervisorStrategy()
+    {
+        return new OneForOneStrategy(ex =>
+        {
+            _log.Warning("ClientStreamOwner failed, restarting: {0}", ex.Message);
+            return Directive.Restart;
+        });
+    }
+
+    private static string SanitizeActorName(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return "default";
+        }
+
+        return Uri.EscapeDataString(name).Replace("%", "_");
+    }
+
+    private sealed record OwnerState(
+        IActorRef Owner,
+        Channel<HttpRequestMessage> RequestChannel,
+        Channel<HttpResponseMessage> ResponseChannel);
+}
+
+internal sealed class NamedClientConsumerRegistration : IDisposable
+{
+    private readonly IActorRef _manager;
+    private readonly string _name;
     private int _disposed;
 
-    private readonly Channel<HttpRequestMessage> _requests = Channel.CreateUnbounded<HttpRequestMessage>(
-        new UnboundedChannelOptions
-        {
-            SingleReader = true
-        });
-
-    private readonly Channel<HttpResponseMessage> _responses = Channel.CreateUnbounded<HttpResponseMessage>(
-        new UnboundedChannelOptions
-        {
-            SingleWriter = true
-        });
-
-    internal ChannelWriter<HttpRequestMessage> Requests => _requests.Writer;
-    internal ChannelReader<HttpResponseMessage> Responses => _responses.Reader;
-
-    internal ClientStreamManager(TurboClientOptions clientOptions, Func<TurboRequestOptions> requestOptionsFactory,
-        ActorSystem system, PipelineDescriptor descriptor)
+    internal NamedClientConsumerRegistration(IActorRef manager, string name, Guid consumerId)
     {
-        // Create the Owner actor — it materializes the stream directly,
-        // tracks pending work, and handles retry with exponential backoff.
-        // Uses dedicated dispatcher if available; falls back to default for external ActorSystems.
-        _owner = system.ActorOf(Props.Create(() => new ClientStreamOwner()), $"stream-owner-{Guid.NewGuid():N}");
-
-        // Tell the Owner to create a stream instance. The instance will materialize
-        // the Akka.Streams pipeline using our channels. Requests written to the channel
-        // before materialization completes are buffered in the unbounded channel.
-        _owner.Tell(new ClientStreamOwner.CreateStreamInstance(
-            clientOptions,
-            requestOptionsFactory,
-            descriptor,
-            _requests.Reader,
-            _responses.Writer));
+        _manager = manager;
+        _name = name;
+        ConsumerId = consumerId;
     }
+
+    internal Guid ConsumerId { get; }
 
     public void Dispose()
     {
@@ -117,19 +139,6 @@ internal sealed class ClientStreamManager : IDisposable
             return;
         }
 
-        _requests.Writer.TryComplete();
-        _responses.Writer.TryComplete();
-
-        // Signal the Owner to shut down gracefully. It waits for pending work
-        // to drain (up to 5s), then stops the instance and itself.
-        _owner.GracefulStop(TimeSpan.FromSeconds(5), new ClientStreamOwner.Shutdown());
+        _manager.Tell(new ClientStreamManager.UnregisterConsumer(_name, ConsumerId));
     }
-
-    /// <summary>
-    /// Returns a <see cref="Task"/> that completes when the owner actor has fully stopped.
-    /// Sends a <see cref="ClientStreamOwner.Shutdown"/> message (harmlessly ignored if already shutting down)
-    /// and waits for actor termination up to <paramref name="timeout"/>.
-    /// </summary>
-    internal Task WhenTerminatedAsync(TimeSpan timeout)
-        => _owner.GracefulStop(timeout, new ClientStreamOwner.Shutdown());
 }

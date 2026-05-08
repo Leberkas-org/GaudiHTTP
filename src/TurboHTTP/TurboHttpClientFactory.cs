@@ -1,29 +1,73 @@
+using System.Net;
+using System.Threading.Channels;
 using Akka.Actor;
 using Microsoft.Extensions.Options;
 using TurboHTTP.Protocol.AltSvc;
 using TurboHTTP.Protocol.Caching;
 using TurboHTTP.Protocol.Cookies;
 using TurboHTTP.Streams;
+using TurboHTTP.Streams.Lifecycle;
 
 namespace TurboHTTP;
 
-/// <summary>
-/// Default implementation of <see cref="ITurboHttpClientFactory"/>.
-/// Reads per-client configuration from <see cref="IOptionsMonitor{TOptions}"/> at
-/// <see cref="CreateClient"/> time so that changes are picked up without restarting.
-/// </summary>
 internal sealed class TurboHttpClientFactory(
     IOptionsMonitor<TurboClientOptions> options,
     IOptionsMonitor<TurboClientDescriptor> descriptors,
     IServiceProvider provider,
     ActorSystem system)
-    : ITurboHttpClientFactory
+    : ITurboHttpClientFactory, IDisposable
 {
+    private readonly IActorRef _manager =
+        system.ActorOf(ClientStreamManager.Props(), $"stream-manager-{Guid.NewGuid():N}");
+
+    private int _disposed;
+
     public ITurboHttpClient CreateClient(string name)
     {
+        ThrowIfDisposed();
+
         var clientOptions = options.Get(name);
         var descriptor = descriptors.Get(name);
+        var pipeline = BuildPipeline(clientOptions, descriptor);
 
+        var consumerId = Guid.NewGuid();
+        var consumerRequests = Channel.CreateUnbounded<HttpRequestMessage>(
+            new UnboundedChannelOptions { SingleReader = true });
+        var consumerResponses = Channel.CreateUnbounded<HttpResponseMessage>(
+            new UnboundedChannelOptions { SingleWriter = true });
+
+        var registration = new NamedClientConsumerRegistration(_manager, name, consumerId);
+
+        var client = new TurboHttpClient(
+            consumerRequests.Writer,
+            consumerResponses.Reader,
+            CreateRequestOptions(clientOptions),
+            registration);
+
+        _manager.Tell(new ClientStreamManager.RegisterConsumer(
+            name,
+            consumerId,
+            consumerRequests.Reader,
+            consumerResponses.Writer,
+            () => client.CachedOptions,
+            clientOptions,
+            pipeline));
+
+        return client;
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0)
+        {
+            return;
+        }
+
+        _manager.Tell(new ClientStreamManager.Shutdown());
+    }
+
+    private PipelineDescriptor BuildPipeline(TurboClientOptions clientOptions, TurboClientDescriptor descriptor)
+    {
         var cookieJar = descriptor.EnableCookies
             ? descriptor.CustomCookieJar ?? new CookieJar()
             : null;
@@ -40,7 +84,7 @@ internal sealed class TurboHttpClientFactory(
             ? new AltSvcCache()
             : null;
 
-        var pipeline = new PipelineDescriptor(
+        return new PipelineDescriptor(
             RedirectPolicy: descriptor.RedirectPolicy,
             RetryPolicy: descriptor.RetryPolicy,
             Expect100Policy: descriptor.Expect100Policy,
@@ -51,7 +95,25 @@ internal sealed class TurboHttpClientFactory(
             Handlers: middlewares,
             AutomaticDecompression: descriptor.AutomaticDecompression,
             AltSvcCache: altSvcCache);
+    }
 
-        return new TurboHttpClient(clientOptions, system, pipeline);
+    private static TurboRequestOptions CreateRequestOptions(TurboClientOptions clientOptions)
+    {
+        return new TurboRequestOptions(
+            BaseAddress: clientOptions.BaseAddress,
+            DefaultRequestHeaders: new HttpRequestMessage().Headers,
+            DefaultRequestVersion: HttpVersion.Version11,
+            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
+            Timeout: TimeSpan.FromSeconds(60),
+            Credentials: clientOptions.Credentials,
+            PreAuthenticate: clientOptions.PreAuthenticate);
+    }
+
+    private void ThrowIfDisposed()
+    {
+        if (Volatile.Read(ref _disposed) != 0)
+        {
+            throw new ObjectDisposedException(nameof(TurboHttpClientFactory));
+        }
     }
 }
