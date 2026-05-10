@@ -9,6 +9,7 @@
     <Project Path="TurboHTTP.MicroBenchmarks/TurboHTTP.MicroBenchmarks.csproj" />
   </Folder>
   <Folder Name="/Items/">
+    <File Path="../.github/workflows/ci.yml" />
     <File Path="../.github/workflows/docs.yml" />
     <File Path="../CLAUDE.md" />
     <File Path="../CONTRIBUTING.md" />
@@ -29,8 +30,7 @@
   <Folder Name="/Tests/">
     <Project Path="TurboHTTP.AcceptanceTests/TurboHTTP.AcceptanceTests.csproj" />
     <Project Path="TurboHTTP.API.Tests/TurboHTTP.API.Tests.csproj" />
-    <Project Path="TurboHTTP.IntegrationTests.Container/TurboHTTP.IntegrationTests.Container.csproj" />
-    <Project Path="TurboHTTP.IntegrationTests.Kestrel/TurboHTTP.IntegrationTests.Kestrel.csproj" />
+    <Project Path="TurboHTTP.IntegrationTests/TurboHTTP.IntegrationTests.csproj" />
     <Project Path="TurboHTTP.Tests.Shared/TurboHTTP.Tests.Shared.csproj" />
     <Project Path="TurboHTTP.Tests/TurboHTTP.Tests.csproj" />
   </Folder>
