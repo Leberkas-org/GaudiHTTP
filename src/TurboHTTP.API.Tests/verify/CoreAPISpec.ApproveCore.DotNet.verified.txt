@@ -168,9 +168,9 @@ namespace TurboHTTP
         public static TurboHTTP.ITurboHttpClientBuilder UseRequest(this TurboHTTP.ITurboHttpClientBuilder builder, System.Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpRequestMessage> transform) { }
         public static TurboHTTP.ITurboHttpClientBuilder UseResponse(this TurboHTTP.ITurboHttpClientBuilder builder, System.Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpResponseMessage, System.Net.Http.HttpResponseMessage> transform) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithCache(this TurboHTTP.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.CacheOptions>? configure = null) { }
-        public static TurboHTTP.ITurboHttpClientBuilder WithCache(this TurboHTTP.ITurboHttpClientBuilder builder, TurboHTTP.Protocol.Caching.ICacheStore store, System.Action<TurboHTTP.CacheOptions>? configure = null) { }
+        public static TurboHTTP.ITurboHttpClientBuilder WithCache(this TurboHTTP.ITurboHttpClientBuilder builder, TurboHTTP.Features.Caching.ICacheStore store, System.Action<TurboHTTP.CacheOptions>? configure = null) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithCookies(this TurboHTTP.ITurboHttpClientBuilder builder) { }
-        public static TurboHTTP.ITurboHttpClientBuilder WithCookies(this TurboHTTP.ITurboHttpClientBuilder builder, TurboHTTP.Protocol.Cookies.ICookieStore store) { }
+        public static TurboHTTP.ITurboHttpClientBuilder WithCookies(this TurboHTTP.ITurboHttpClientBuilder builder, TurboHTTP.Features.Cookies.ICookieStore store) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithDecompression(this TurboHTTP.ITurboHttpClientBuilder builder, bool enabled = true) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithExpectContinue(this TurboHTTP.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.Expect100Options>? configure = null) { }
         public static TurboHTTP.ITurboHttpClientBuilder WithRedirect(this TurboHTTP.ITurboHttpClientBuilder builder, System.Action<TurboHTTP.RedirectOptions>? configure = null) { }
@@ -199,7 +199,7 @@ namespace TurboHTTP.Diagnostics
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTurboTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Core.Diagnostics.IServusTraceListener listener, Servus.Core.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
     }
 }
-namespace TurboHTTP.Protocol.Caching
+namespace TurboHTTP.Features.Caching
 {
     public sealed class CacheBody : System.IDisposable
     {
@@ -209,7 +209,7 @@ namespace TurboHTTP.Protocol.Caching
         public System.ReadOnlySpan<byte> Span { get; }
         public void Dispose() { }
     }
-    public sealed class CacheControl : System.IEquatable<TurboHTTP.Protocol.Caching.CacheControl>
+    public sealed class CacheControl : System.IEquatable<TurboHTTP.Features.Caching.CacheControl>
     {
         public CacheControl() { }
         public bool Immutable { get; init; }
@@ -229,7 +229,7 @@ namespace TurboHTTP.Protocol.Caching
         public bool Public { get; init; }
         public System.TimeSpan? SMaxAge { get; init; }
     }
-    public sealed class CacheControlStoreEntry : System.IEquatable<TurboHTTP.Protocol.Caching.CacheControlStoreEntry>
+    public sealed class CacheControlStoreEntry : System.IEquatable<TurboHTTP.Features.Caching.CacheControlStoreEntry>
     {
         public CacheControlStoreEntry() { }
         public bool Immutable { get; init; }
@@ -253,8 +253,8 @@ namespace TurboHTTP.Protocol.Caching
     {
         public CacheStoreEntry() { }
         public int? AgeSeconds { get; init; }
-        public required TurboHTTP.Protocol.Caching.CacheBody Body { get; init; }
-        public TurboHTTP.Protocol.Caching.CacheControlStoreEntry? CacheControl { get; init; }
+        public required TurboHTTP.Features.Caching.CacheBody Body { get; init; }
+        public TurboHTTP.Features.Caching.CacheControlStoreEntry? CacheControl { get; init; }
         public System.DateTimeOffset? Date { get; init; }
         public string? ETag { get; init; }
         public System.DateTimeOffset? Expires { get; init; }
@@ -270,7 +270,7 @@ namespace TurboHTTP.Protocol.Caching
     {
         int? AgeSeconds { get; }
         System.ReadOnlyMemory<byte> Body { get; }
-        TurboHTTP.Protocol.Caching.CacheControl? CacheControl { get; }
+        TurboHTTP.Features.Caching.CacheControl? CacheControl { get; }
         System.DateTimeOffset? Date { get; }
         string? ETag { get; }
         System.DateTimeOffset? Expires { get; }
@@ -285,15 +285,15 @@ namespace TurboHTTP.Protocol.Caching
     {
         void Clear();
         bool Remove(string key);
-        void Set(string key, TurboHTTP.Protocol.Caching.CacheStoreEntry entry);
-        bool TryGet(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out TurboHTTP.Protocol.Caching.CacheStoreEntry? entry);
+        void Set(string key, TurboHTTP.Features.Caching.CacheStoreEntry entry);
+        bool TryGet(string key, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out TurboHTTP.Features.Caching.CacheStoreEntry? entry);
     }
 }
-namespace TurboHTTP.Protocol.Cookies
+namespace TurboHTTP.Features.Cookies
 {
-    public sealed class CookieStoreEntry : System.IEquatable<TurboHTTP.Protocol.Cookies.CookieStoreEntry>
+    public sealed class CookieStoreEntry : System.IEquatable<TurboHTTP.Features.Cookies.CookieStoreEntry>
     {
-        public CookieStoreEntry(string Name, string Value, string Domain, string Path, System.DateTimeOffset? ExpiresAt, bool Secure, bool HttpOnly, TurboHTTP.Protocol.Cookies.SameSitePolicy SameSite, bool IsHostOnly, System.DateTimeOffset CreatedAt) { }
+        public CookieStoreEntry(string Name, string Value, string Domain, string Path, System.DateTimeOffset? ExpiresAt, bool Secure, bool HttpOnly, TurboHTTP.Features.Cookies.SameSitePolicy SameSite, bool IsHostOnly, System.DateTimeOffset CreatedAt) { }
         public System.DateTimeOffset CreatedAt { get; init; }
         public string Domain { get; init; }
         public System.DateTimeOffset? ExpiresAt { get; init; }
@@ -301,16 +301,16 @@ namespace TurboHTTP.Protocol.Cookies
         public bool IsHostOnly { get; init; }
         public string Name { get; init; }
         public string Path { get; init; }
-        public TurboHTTP.Protocol.Cookies.SameSitePolicy SameSite { get; init; }
+        public TurboHTTP.Features.Cookies.SameSitePolicy SameSite { get; init; }
         public bool Secure { get; init; }
         public string Value { get; init; }
     }
     public interface ICookieStore
     {
         int Count { get; }
-        void Add(TurboHTTP.Protocol.Cookies.CookieStoreEntry entry);
+        void Add(TurboHTTP.Features.Cookies.CookieStoreEntry entry);
         void Clear();
-        System.Collections.Generic.IReadOnlyList<TurboHTTP.Protocol.Cookies.CookieStoreEntry> GetAll();
+        System.Collections.Generic.IReadOnlyList<TurboHTTP.Features.Cookies.CookieStoreEntry> GetAll();
         void Remove(string name, string domain, string path);
     }
     public enum SameSitePolicy

@@ -1,5 +1,5 @@
 using System.Buffers;
-using System.Net;
+using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Stages;
 
@@ -11,7 +11,8 @@ namespace TurboHTTP.Protocol.Http11;
 /// </summary>
 internal sealed class Decoder : IDisposable
 {
-    private delegate HttpDecodeResult ParseOneFunc(ReadOnlySpan<byte> buffer, out HttpResponseMessage? response, out int consumed);
+    private delegate HttpDecodeResult ParseOneFunc(ReadOnlySpan<byte> buffer, out HttpResponseMessage? response,
+        out int consumed);
 
     private IMemoryOwner<byte>? _remainderOwner;
     private int _remainderLength;
@@ -21,6 +22,10 @@ internal sealed class Decoder : IDisposable
 
     private bool _disposed;
 
+    private HttpResponseMessage? _pendingCloseDelimitedResponse;
+    private List<TransportBuffer>? _closeDelimitedChunks;
+    private byte[]? _closeDelimitedInitialBytes;
+
     private readonly List<HttpResponseMessage> _decodeBuffer = [];
 
     private const int DefaultMaxHeaderSize = 16 * 1024; // 16 KB per header field
@@ -29,6 +34,7 @@ internal sealed class Decoder : IDisposable
     private const int DefaultMaxHeaderCount = 100;
 
     private readonly HeaderDecoder _headerDecoder;
+    private readonly HeaderDecoder _trailerDecoder;
     private readonly int _maxTotalHeaderSize;
     private readonly int _maxBodySize;
 
@@ -46,6 +52,7 @@ internal sealed class Decoder : IDisposable
         int maxHeaderCount = DefaultMaxHeaderCount)
     {
         _headerDecoder = new HeaderDecoder(maxHeaderSize, maxTotalHeaderSize, maxHeaderCount);
+        _trailerDecoder = new HeaderDecoder(maxHeaderSize, maxTotalHeaderSize, maxHeaderCount);
         _maxTotalHeaderSize = maxTotalHeaderSize;
         _maxBodySize = maxBodySize;
     }
@@ -77,7 +84,8 @@ internal sealed class Decoder : IDisposable
         return DecodeLoop(incomingData, TryParseOneNoBody, out responses);
     }
 
-    private bool DecodeLoop(ReadOnlyMemory<byte> incomingData, ParseOneFunc parseOne, out IReadOnlyList<HttpResponseMessage> responses)
+    private bool DecodeLoop(ReadOnlyMemory<byte> incomingData, ParseOneFunc parseOne,
+        out IReadOnlyList<HttpResponseMessage> responses)
     {
         _decodeBuffer.Clear();
         responses = [];
@@ -163,79 +171,7 @@ internal sealed class Decoder : IDisposable
     public bool TryDecodeConnect(ReadOnlyMemory<byte> incomingData, out IReadOnlyList<HttpResponseMessage> responses)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-
-        _decodeBuffer.Clear();
-        responses = [];
-
-        ReadOnlySpan<byte> working;
-        IMemoryOwner<byte>? combinedOwner = null;
-
-        if (_remainderLength > 0)
-        {
-            var combinedLength = _remainderLength + incomingData.Length;
-            combinedOwner = MemoryPool<byte>.Shared.Rent(combinedLength);
-
-            _remainderOwner!.Memory.Span[.._remainderLength].CopyTo(combinedOwner.Memory.Span);
-            incomingData.Span.CopyTo(combinedOwner.Memory.Span[_remainderLength..]);
-
-            working = combinedOwner.Memory.Span[..combinedLength];
-            ClearRemainder();
-        }
-        else
-        {
-            working = incomingData.Span;
-        }
-
-        try
-        {
-            var consumed = 0;
-
-            while (consumed < working.Length)
-            {
-                // Peek at status code to decide parsing strategy
-                var slice = working[consumed..];
-                var statusCode = StatusLineDecoder.PeekCode(slice);
-
-                // 2xx → no body (tunnel begins); non-2xx → normal body handling
-                var result = statusCode is >= 200 and < 300
-                    ? TryParseOneNoBody(slice, out var response, out var bytesConsumed)
-                    : TryParseOne(slice, out response, out bytesConsumed);
-
-                if (result.Success)
-                {
-                    consumed += bytesConsumed;
-
-                    if ((int)response!.StatusCode >= 100 && (int)response.StatusCode < 200)
-                    {
-                        continue;
-                    }
-
-                    _decodeBuffer.Add(response);
-                    continue;
-                }
-
-                if (result.Error == HttpDecoderError.NeedMoreData)
-                {
-                    StoreRemainder(working[consumed..]);
-                    break;
-                }
-
-                ClearRemainder();
-                throw new HttpDecoderException(result.Error!.Value);
-            }
-        }
-        finally
-        {
-            combinedOwner?.Dispose();
-        }
-
-        if (_decodeBuffer.Count <= 0)
-        {
-            return false;
-        }
-
-        responses = new List<HttpResponseMessage>(_decodeBuffer);
-        return true;
+        return DecodeLoop(incomingData, TryParseOneConnect, out responses);
     }
 
     /// <summary>
@@ -291,7 +227,7 @@ internal sealed class Decoder : IDisposable
 
         // RFC 9112 §7.1: Chunked encoding MUST be terminated by a zero-length chunk.
         // If the connection closes before the zero-chunk, the response is incomplete.
-        if (BodyDecoder.GetSingleHeader(headers, WellKnownHeaders.Names.TransferEncoding) is not null)
+        if (GetSingleHeader(headers, WellKnownHeaders.Names.TransferEncoding) is not null)
         {
             ClearRemainder();
             return false;
@@ -304,14 +240,14 @@ internal sealed class Decoder : IDisposable
 
         // RFC 9112 §6.2: If Content-Length is present, the body MUST be exactly that many bytes.
         // A connection close before the full body is received means a truncated (incomplete) response.
-        var contentLength = BodyDecoder.GetContentLengthHeader(headers);
+        var contentLength = GetContentLengthHeader(headers);
         if (contentLength.HasValue && bodySpan.Length < contentLength.Value)
         {
             ClearRemainder();
             return false;
         }
 
-        response = BodyDecoder.BuildResponseFromRemainder(statusCode, reasonPhrase, headers, bodySpan);
+        response = ResponseBuilder.BuildFromRemainder(statusCode, reasonPhrase, headers, bodySpan);
         ClearRemainder();
         return true;
     }
@@ -334,6 +270,55 @@ internal sealed class Decoder : IDisposable
         return result;
     }
 
+    internal bool HasPendingCloseDelimited => _pendingCloseDelimitedResponse is not null;
+
+    internal void BeginCloseDelimited(HttpResponseMessage partialResponse, byte[]? initialBytes)
+    {
+        _pendingCloseDelimitedResponse = partialResponse;
+        _closeDelimitedChunks = [];
+        _closeDelimitedInitialBytes = initialBytes;
+    }
+
+    internal void AccumulateCloseDelimited(TransportBuffer buffer)
+    {
+        _closeDelimitedChunks ??= [];
+        _closeDelimitedChunks.Add(buffer);
+    }
+
+    internal bool TryCompleteCloseDelimited(out HttpResponseMessage? response)
+    {
+        response = null;
+        if (_pendingCloseDelimitedResponse is null)
+        {
+            return false;
+        }
+
+        var content = PooledBodyContent.FromChunks(_closeDelimitedInitialBytes, _closeDelimitedChunks);
+        _pendingCloseDelimitedResponse.Content = content;
+        response = _pendingCloseDelimitedResponse;
+
+        _pendingCloseDelimitedResponse = null;
+        _closeDelimitedChunks = null;
+        _closeDelimitedInitialBytes = null;
+        return true;
+    }
+
+    internal void DiscardCloseDelimited()
+    {
+        if (_closeDelimitedChunks is not null)
+        {
+            foreach (var buf in _closeDelimitedChunks)
+            {
+                buf.Dispose();
+            }
+        }
+
+        _pendingCloseDelimitedResponse?.Dispose();
+        _pendingCloseDelimitedResponse = null;
+        _closeDelimitedChunks = null;
+        _closeDelimitedInitialBytes = null;
+    }
+
     /// <summary>
     /// Resets decoder state for reuse on a new connection.
     /// </summary>
@@ -341,6 +326,7 @@ internal sealed class Decoder : IDisposable
     {
         ClearRemainder();
         ClearBody();
+        DiscardCloseDelimited();
     }
 
     public void Dispose()
@@ -357,7 +343,38 @@ internal sealed class Decoder : IDisposable
 
         _bodyOwner?.Dispose();
         _bodyOwner = null;
+
+        DiscardCloseDelimited();
     }
+
+    private static int? GetContentLengthHeader(Dictionary<string, List<string>> headers)
+    {
+        if (!headers.TryGetValue(WellKnownHeaders.Names.ContentLength, out var values) || values.Count == 0)
+        {
+            return null;
+        }
+
+        if (values.Count > 1)
+        {
+            var first = values[0];
+            for (var i = 1; i < values.Count; i++)
+            {
+                if (!values[i].Equals(first, StringComparison.Ordinal))
+                {
+                    throw new HttpDecoderException(
+                        HttpDecoderError.MultipleContentLengthValues,
+                        $"Values '{first}' and '{values[i]}' conflict.");
+                }
+            }
+        }
+
+        return int.TryParse(values[0], out var len) && len >= 0 ? len : null;
+    }
+
+    private static string? GetSingleHeader(Dictionary<string, List<string>> headers, string name) =>
+        headers.TryGetValue(name, out var values) && values.Count > 0
+            ? values[0]
+            : null;
 
     private void StoreRemainder(ReadOnlySpan<byte> data)
     {
@@ -405,51 +422,13 @@ internal sealed class Decoder : IDisposable
         _bodyOwner = newOwner;
     }
 
-    private HttpDecodeResult AttachBody(HttpResponseMessage response, ReadOnlySpan<byte> bodyData,
-        Dictionary<string, List<string>> headers, int bodyStart, out int consumed)
+    private HttpDecodeResult TryParseOneConnect(ReadOnlySpan<byte> buffer,
+        out HttpResponseMessage? response, out int consumed)
     {
-        consumed = 0;
-
-        // Parse body
-        var (bodyResult, bodyOwner, bodyLength, bodyConsumed, trailerHeaders) = ParseBody(bodyData, headers);
-        if (!bodyResult.Success)
-        {
-            return bodyResult;
-        }
-
-        // Create content — use pooled memory to avoid byte[] allocation
-        HttpContent content = bodyOwner is not null
-            ? new PooledBodyContent(bodyOwner, bodyLength)
-            : new ByteArrayContent([]);
-
-        foreach (var (name, values) in headers)
-        {
-            if (!BodyDecoder.IsContentHeader(name))
-            {
-                continue;
-            }
-
-            foreach (var value in values)
-            {
-                content.Headers.TryAddWithoutValidation(name, value);
-            }
-        }
-
-        // Add trailer headers
-        if (trailerHeaders != null)
-        {
-            foreach (var (name, values) in trailerHeaders)
-            {
-                foreach (var value in values)
-                {
-                    response.TrailingHeaders.TryAddWithoutValidation(name, value);
-                }
-            }
-        }
-
-        response.Content = content;
-        consumed = bodyStart + bodyConsumed;
-        return HttpDecodeResult.Ok();
+        var statusCode = StatusLineDecoder.PeekCode(buffer);
+        return statusCode is >= 200 and < 300
+            ? TryParseOneNoBody(buffer, out response, out consumed)
+            : TryParseOne(buffer, out response, out consumed);
     }
 
     /// <summary>
@@ -467,7 +446,6 @@ internal sealed class Decoder : IDisposable
             return HttpDecodeResult.Incomplete();
         }
 
-        // Early reject: total header section (including status line) exceeds total limit.
         if (headerEnd > _maxTotalHeaderSize)
         {
             return HttpDecodeResult.Fail(HttpDecoderError.TotalHeadersTooLarge);
@@ -490,38 +468,8 @@ internal sealed class Decoder : IDisposable
         var headersData = headerSection[(statusLineEnd + 2)..];
         var headers = _headerDecoder.Parse(headersData);
 
-        response = new HttpResponseMessage
-        {
-            StatusCode = (HttpStatusCode)statusCode,
-            ReasonPhrase = reasonPhrase,
-            Version = HttpVersion.Version11
-        };
-
-        foreach (var (name, values) in headers)
-        {
-            foreach (var value in values)
-            {
-                response.Headers.TryAddWithoutValidation(name, value);
-            }
-        }
-
-        // Always return empty body for HEAD responses (RFC 9112 §6.3)
-        var emptyContent = new ByteArrayContent([]);
-        foreach (var (name, values) in headers)
-        {
-            if (!BodyDecoder.IsContentHeader(name))
-            {
-                continue;
-            }
-
-            foreach (var value in values)
-            {
-                emptyContent.Headers.TryAddWithoutValidation(name, value);
-            }
-        }
-
-        response.Content = emptyContent;
-        consumed = headerEnd + 4; // Skip past \r\n\r\n
+        response = ResponseBuilder.BuildNoBody(statusCode, reasonPhrase, headers);
+        consumed = headerEnd + 4;
         return HttpDecodeResult.Ok();
     }
 
@@ -530,23 +478,19 @@ internal sealed class Decoder : IDisposable
         response = null;
         consumed = 0;
 
-        // 1. Find header/body boundary (CRLF CRLF)
         var headerEnd = BufferSearch.FindCrlfCrlf(buffer);
         if (headerEnd < 0)
         {
             return HttpDecodeResult.Incomplete();
         }
 
-        // Early reject: total header section (including status line) exceeds total limit.
         if (headerEnd > _maxTotalHeaderSize)
         {
             return HttpDecodeResult.Fail(HttpDecoderError.TotalHeadersTooLarge);
         }
 
-        // Include the CRLF that terminates the last header so FindCrlf/ParseHeaders work correctly.
         var headerSection = buffer[..(headerEnd + 2)];
 
-        // 2. Parse status line (RFC 9112 Section 4)
         var statusLineEnd = BufferSearch.FindCrlf(headerSection, 0);
         if (statusLineEnd < 0)
         {
@@ -559,60 +503,36 @@ internal sealed class Decoder : IDisposable
             return HttpDecodeResult.Fail(HttpDecoderError.InvalidStatusLine);
         }
 
-        // 3. Parse headers using span-based parsing
         var headersData = headerSection[(statusLineEnd + 2)..];
         var headers = _headerDecoder.Parse(headersData);
 
-        // 4. Build response object
-        response = new HttpResponseMessage
+        if (ResponseBuilder.IsNoBodyResponse(statusCode))
         {
-            StatusCode = (HttpStatusCode)statusCode,
-            ReasonPhrase = reasonPhrase,
-            Version = HttpVersion.Version11
-        };
-
-        foreach (var (name, values) in headers)
-        {
-            foreach (var value in values)
-            {
-                response.Headers.TryAddWithoutValidation(name, value);
-            }
+            response = ResponseBuilder.BuildNoBody(statusCode, reasonPhrase, headers);
+            consumed = headerEnd + 4;
+            return HttpDecodeResult.Ok();
         }
 
         var bodyStart = headerEnd + 4;
         var bodyData = buffer[bodyStart..];
 
-        // 5. Handle no-body responses (RFC 9112 Section 6.3)
-        if (BodyDecoder.IsNoBodyResponse(statusCode))
+        var (bodyResult, bodyOwner, bodyLength, bodyConsumed, trailerHeaders) = ParseBody(bodyData, headers);
+        if (!bodyResult.Success)
         {
-            var emptyContent = new ByteArrayContent([]);
-            foreach (var (name, values) in headers)
-            {
-                if (!BodyDecoder.IsContentHeader(name))
-                {
-                    continue;
-                }
-
-                foreach (var value in values)
-                {
-                    emptyContent.Headers.TryAddWithoutValidation(name, value);
-                }
-            }
-
-            response.Content = emptyContent;
-            consumed = bodyStart;
-            return HttpDecodeResult.Ok();
+            return bodyResult;
         }
 
-        // 6-8. Attach body and trailers
-        return AttachBody(response, bodyData, headers, bodyStart, out consumed);
+        response = ResponseBuilder.Build(statusCode, reasonPhrase, headers, bodyOwner, bodyLength, trailerHeaders);
+        consumed = bodyStart + bodyConsumed;
+        return HttpDecodeResult.Ok();
     }
 
-    private (HttpDecodeResult result, IMemoryOwner<byte>? bodyOwner, int bodyLength, int consumed, Dictionary<string, List<string>>? trailers)
+    private (HttpDecodeResult result, IMemoryOwner<byte>? bodyOwner, int bodyLength, int consumed,
+        Dictionary<string, List<string>>? trailers)
         ParseBody(ReadOnlySpan<byte> data, Dictionary<string, List<string>> headers)
     {
-        var transferEncoding = BodyDecoder.GetSingleHeader(headers, WellKnownHeaders.Names.TransferEncoding);
-        var contentLength = BodyDecoder.GetContentLengthHeader(headers);
+        var transferEncoding = GetSingleHeader(headers, WellKnownHeaders.Names.TransferEncoding);
+        var contentLength = GetContentLengthHeader(headers);
 
         // RFC 9112 Section 6.3: Transfer-Encoding takes precedence
         if (!string.IsNullOrEmpty(transferEncoding) &&
@@ -653,7 +573,8 @@ internal sealed class Decoder : IDisposable
         // No Content-Length and no Transfer-Encoding: empty body
     }
 
-    private (HttpDecodeResult result, IMemoryOwner<byte>? bodyOwner, int bodyLength, int consumed, Dictionary<string, List<string>>? trailers)
+    private (HttpDecodeResult result, IMemoryOwner<byte>? bodyOwner, int bodyLength, int consumed,
+        Dictionary<string, List<string>>? trailers)
         ParseChunkedBody(ReadOnlySpan<byte> data)
     {
         ClearBody();
@@ -724,7 +645,8 @@ internal sealed class Decoder : IDisposable
         return true;
     }
 
-    private (HttpDecodeResult result, IMemoryOwner<byte>? bodyOwner, int bodyLength, int consumed, Dictionary<string, List<string>>? trailers)
+    private (HttpDecodeResult result, IMemoryOwner<byte>? bodyOwner, int bodyLength, int consumed,
+        Dictionary<string, List<string>>? trailers)
         ParseTrailers(ReadOnlySpan<byte> data, int pos)
     {
         var remaining = data[pos..];
@@ -739,7 +661,7 @@ internal sealed class Decoder : IDisposable
         if (trailerEnd >= 0)
         {
             var trailerData = remaining[..(trailerEnd + 2)];
-            var trailers = _headerDecoder.Parse(trailerData);
+            var trailers = _trailerDecoder.Parse(trailerData);
 
             var (owner, len) = RentBodyOwner();
             return (HttpDecodeResult.Ok(), owner, len, pos + trailerEnd + 4, trailers);
@@ -763,5 +685,4 @@ internal sealed class Decoder : IDisposable
         _bodyOwner!.Memory.Span[.._bodyLength].CopyTo(owner.Memory.Span);
         return (owner, _bodyLength);
     }
-
 }

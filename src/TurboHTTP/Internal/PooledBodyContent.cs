@@ -49,8 +49,7 @@ internal sealed class PooledBodyContent : HttpContent
         return new PooledBodyContent(owner, totalLength);
     }
 
-    protected override void SerializeToStream(Stream stream, TransportContext? context,
-        CancellationToken cancellationToken)
+    protected override void SerializeToStream(Stream stream, TransportContext? context, CancellationToken cancellationToken)
     {
         var mem = AcquireOwner();
         stream.Write(mem.Memory.Span[.._length]);

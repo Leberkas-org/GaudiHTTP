@@ -20,10 +20,6 @@ internal sealed class StateMachine : IHttpStateMachine
     private int _reconnectAttempts;
     private TransportOptions? _transportOptions;
 
-    private HttpResponseMessage? _pendingCloseDelimitedResponse;
-    private List<TransportBuffer>? _bodyOwners;
-    private byte[]? _initialBodyBytes;
-
     public bool CanAcceptRequest => _inFlightQueue.Count < _effectivePipelineDepth && !IsReconnecting;
 
     public bool HasInFlightRequests => _inFlightQueue.Count > 0;
@@ -150,37 +146,17 @@ internal sealed class StateMachine : IHttpStateMachine
     {
         _inFlightQueue.Clear();
         _decoder.Reset();
-
-        if (_bodyOwners is not null)
-        {
-            foreach (var buf in _bodyOwners)
-            {
-                buf.Dispose();
-            }
-
-            _bodyOwners = null;
-        }
-
-        _pendingCloseDelimitedResponse?.Dispose();
-        _pendingCloseDelimitedResponse = null;
-        _initialBodyBytes = null;
     }
 
     private void DecodeResponse(TransportBuffer buffer)
     {
-        if (_pendingCloseDelimitedResponse is not null)
+        if (_decoder.HasPendingCloseDelimited)
         {
-            AccumulateCloseDelimitedBody(buffer);
+            _decoder.AccumulateCloseDelimited(buffer);
             return;
         }
 
         DecodeNormalResponse(buffer);
-    }
-
-    private void AccumulateCloseDelimitedBody(TransportBuffer buffer)
-    {
-        _bodyOwners ??= [];
-        _bodyOwners.Add(buffer);
     }
 
     private void DecodeNormalResponse(TransportBuffer buffer)
@@ -224,44 +200,23 @@ internal sealed class StateMachine : IHttpStateMachine
             CompleteResponse(responses[i]);
         }
 
-        _pendingCloseDelimitedResponse = responses[^1];
-        _bodyOwners = [];
-
         var remainder = _decoder.FlushRemainder();
-        _initialBodyBytes = remainder.Length > 0 ? remainder : null;
+        _decoder.BeginCloseDelimited(responses[^1], remainder.Length > 0 ? remainder : null);
     }
 
     private void HandleDisconnect(TransportDisconnected disconnect)
     {
         var isGraceful = disconnect.Reason == DisconnectReason.Graceful;
 
-        if (_pendingCloseDelimitedResponse is not null)
+        if (_decoder.HasPendingCloseDelimited)
         {
-            if (isGraceful)
+            if (isGraceful && _decoder.TryCompleteCloseDelimited(out var cdResponse))
             {
-                var content = PooledBodyContent.FromChunks(_initialBodyBytes, _bodyOwners);
-                _pendingCloseDelimitedResponse.Content = content;
-                var response = _pendingCloseDelimitedResponse;
-                _pendingCloseDelimitedResponse = null;
-                _bodyOwners = null;
-                _initialBodyBytes = null;
-                CompleteResponse(response);
+                CompleteResponse(cdResponse!);
             }
             else
             {
-                Tracing.For("Protocol").Info(this, "HTTP/1.1: Abrupt connection close — discarding incomplete response");
-                if (_bodyOwners is not null)
-                {
-                    foreach (var buf in _bodyOwners)
-                    {
-                        buf.Dispose();
-                    }
-                }
-
-                _pendingCloseDelimitedResponse = null;
-                _bodyOwners = null;
-                _initialBodyBytes = null;
-
+                _decoder.DiscardCloseDelimited();
                 if (_inFlightQueue.Count > 0)
                 {
                     var exception = new HttpRequestException("Connection was aborted while receiving close-delimited HTTP/1.1 response.");
