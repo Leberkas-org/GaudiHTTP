@@ -48,4 +48,7 @@
     <ItemGroup>
       <ProjectReference Include="..\Servus.Akka\Servus.Akka.csproj" />
     </ItemGroup>
+    <ItemGroup>
+      <Folder Include="Features\" />
+    </ItemGroup>
 </Project>

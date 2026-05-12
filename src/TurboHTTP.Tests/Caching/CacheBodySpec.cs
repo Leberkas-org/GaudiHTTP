@@ -1,5 +1,5 @@
 using System.Buffers;
-using TurboHTTP.Protocol.Caching;
+using TurboHTTP.Features.Caching;
 
 namespace TurboHTTP.Tests.Caching;
 

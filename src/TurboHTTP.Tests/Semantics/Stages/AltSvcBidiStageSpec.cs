@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 using System.Net;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Protocol.AltSvc;
+using TurboHTTP.Features.AltSvc;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Tests.Shared;
 

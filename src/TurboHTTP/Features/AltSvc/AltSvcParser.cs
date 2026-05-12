@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.AltSvc;
+namespace TurboHTTP.Features.AltSvc;
 
 /// <summary>
 /// Parses Alt-Svc header values per RFC 7838 §3.

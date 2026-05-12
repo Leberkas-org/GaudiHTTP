@@ -1,7 +1,7 @@
 using System.Buffers;
 using System.Net;
 
-namespace TurboHTTP.Protocol.Caching;
+namespace TurboHTTP.Features.Caching;
 
 internal sealed class Cache
 {

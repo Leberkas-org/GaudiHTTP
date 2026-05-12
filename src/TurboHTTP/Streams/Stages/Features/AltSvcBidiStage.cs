@@ -2,7 +2,7 @@ using System.Net;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Protocol.AltSvc;
+using TurboHTTP.Features.AltSvc;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;

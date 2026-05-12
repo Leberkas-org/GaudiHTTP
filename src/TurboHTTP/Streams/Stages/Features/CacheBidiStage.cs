@@ -5,7 +5,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Diagnostics;
-using TurboHTTP.Protocol.Caching;
+using TurboHTTP.Features.Caching;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;

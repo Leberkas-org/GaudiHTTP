@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace TurboHTTP.Protocol.Caching;
+namespace TurboHTTP.Features.Caching;
 
 internal sealed class MemoryCacheStore : ICacheStore
 {

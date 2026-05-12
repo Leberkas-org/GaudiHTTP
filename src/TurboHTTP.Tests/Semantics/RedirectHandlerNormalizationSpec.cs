@@ -1,5 +1,5 @@
 using System.Net;
-using TurboHTTP.Protocol.Cookies;
+using TurboHTTP.Features.Cookies;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Tests.Semantics;

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Protocol.Cookies;
+using TurboHTTP.Features.Cookies;
 
 namespace TurboHTTP.Tests.Hosting;
 

@@ -1,6 +1,6 @@
 using System.Net;
+using TurboHTTP.Features.Cookies;
 using TurboHTTP.Internal;
-using TurboHTTP.Protocol.Cookies;
 
 namespace TurboHTTP.Protocol.Semantics;
 

@@ -1,7 +1,7 @@
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using TurboHTTP.Protocol.Cookies;
+using TurboHTTP.Features.Cookies;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;

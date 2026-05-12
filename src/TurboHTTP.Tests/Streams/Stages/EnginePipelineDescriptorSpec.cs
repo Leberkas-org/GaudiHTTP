@@ -3,7 +3,7 @@ using System.Text;
 using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Cookies;
+using TurboHTTP.Features.Cookies;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;

@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace TurboHTTP.Protocol.Caching;
+namespace TurboHTTP.Features.Caching;
 
 /// <summary>
 /// RFC 9111 §4.3 — Builds conditional revalidation requests and merges 304 responses.

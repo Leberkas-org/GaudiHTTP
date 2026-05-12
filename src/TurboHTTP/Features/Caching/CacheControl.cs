@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Caching;
+namespace TurboHTTP.Features.Caching;
 
 /// <summary>
 /// RFC 9111 §5.2 — Parsed representation of the Cache-Control header.

@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Cookies;
+namespace TurboHTTP.Features.Cookies;
 
 public enum SameSitePolicy
 {

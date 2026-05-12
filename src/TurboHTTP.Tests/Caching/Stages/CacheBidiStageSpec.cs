@@ -3,7 +3,7 @@ using System.Net;
 using System.Text;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Protocol.Caching;
+using TurboHTTP.Features.Caching;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Tests.Shared;
 

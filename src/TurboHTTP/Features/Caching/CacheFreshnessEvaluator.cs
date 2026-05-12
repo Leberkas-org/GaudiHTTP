@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Caching;
+namespace TurboHTTP.Features.Caching;
 
 /// <summary>
 /// RFC 9111 §4.2 — Evaluates whether a cached response is still fresh.

@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Akka.Streams;
 using Akka.Streams.Dsl;
-using TurboHTTP.Protocol.Cookies;
+using TurboHTTP.Features.Cookies;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Tests.Shared;
 

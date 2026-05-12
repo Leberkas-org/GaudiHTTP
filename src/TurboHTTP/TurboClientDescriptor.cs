@@ -1,5 +1,5 @@
-using TurboHTTP.Protocol.Caching;
-using TurboHTTP.Protocol.Cookies;
+using TurboHTTP.Features.Caching;
+using TurboHTTP.Features.Cookies;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP;

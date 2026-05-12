@@ -1,4 +1,4 @@
-using TurboHTTP.Protocol.AltSvc;
+using TurboHTTP.Features.AltSvc;
 
 namespace TurboHTTP.Tests.AltSvc;
 

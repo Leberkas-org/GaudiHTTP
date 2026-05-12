@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Akka.Streams.Dsl;
-using TurboHTTP.Protocol.Cookies;
+using TurboHTTP.Features.Cookies;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Tests.Shared;
 

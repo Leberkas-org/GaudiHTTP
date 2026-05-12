@@ -1,6 +1,6 @@
 using System.Buffers;
 
-namespace TurboHTTP.Protocol.Caching;
+namespace TurboHTTP.Features.Caching;
 
 internal sealed class CacheEntry : ICacheEntry
 {

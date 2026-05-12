@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Caching;
+namespace TurboHTTP.Features.Caching;
 
 internal enum CacheLookupStatus { Miss, Fresh, Stale, MustRevalidate }
 

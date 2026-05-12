@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace TurboHTTP.Protocol.Cookies;
+namespace TurboHTTP.Features.Cookies;
 
 /// <summary>
 /// RFC 6265 §5.2 — Parses a Set-Cookie header value into a <see cref="CookieEntry"/>.

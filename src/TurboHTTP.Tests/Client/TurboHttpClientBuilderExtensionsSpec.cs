@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using TurboHTTP.Protocol.Caching;
-using TurboHTTP.Protocol.Cookies;
+using TurboHTTP.Features.Caching;
+using TurboHTTP.Features.Cookies;
 
 namespace TurboHTTP.Tests.Client;
 

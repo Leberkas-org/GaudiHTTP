@@ -1,6 +1,6 @@
 using System.Net;
 using Akka.Streams.Dsl;
-using TurboHTTP.Protocol.Cookies;
+using TurboHTTP.Features.Cookies;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Tests.Shared;

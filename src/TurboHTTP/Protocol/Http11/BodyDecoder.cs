@@ -6,8 +6,8 @@ namespace TurboHTTP.Protocol.Http11;
 
 internal static class BodyDecoder
 {
-    internal static bool IsNoBodyResponse(int statusCode) =>
-        statusCode is >= 100 and < 200 or 204 or 304;
+    internal static bool IsNoBodyResponse(int statusCode)
+        => statusCode is >= 100 and < 200 or 204 or 304;
 
     internal static bool IsContentHeader(string name) =>
         name.StartsWith("content-", StringComparison.OrdinalIgnoreCase) ||

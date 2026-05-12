@@ -1,6 +1,6 @@
 using System.Buffers;
 using System.Net;
-using TurboHTTP.Protocol.Caching;
+using TurboHTTP.Features.Caching;
 
 namespace TurboHTTP.Tests.Caching;
 

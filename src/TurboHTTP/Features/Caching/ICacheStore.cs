@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace TurboHTTP.Protocol.Caching;
+namespace TurboHTTP.Features.Caching;
 
 public interface ICacheStore : IDisposable
 {
