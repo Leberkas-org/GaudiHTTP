@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using Akka.Actor;
+using Akka.TestKit.Xunit;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http10.Server;
@@ -8,7 +9,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http10;
 
-public sealed class Http10ServerStateMachineSpec
+public sealed class Http10ServerStateMachineSpec : TestKit
 {
     private static FakeServerOps MakeOps() => new();
 
@@ -72,42 +73,31 @@ public sealed class Http10ServerStateMachineSpec
     [Trait("RFC", "RFC1945")]
     public async Task OnResponse_with_body_should_emit_transport_data_after_body_chunk()
     {
-        var system = ActorSystem.Create("http10-server-sm-test");
-        try
+        var inbox = Inbox.Create(Sys);
+        var ops = new FakeServerOps { StageActor = inbox.Receiver };
+        var sm = new Http10ServerStateMachine(ops);
+        sm.PreStart();
+
+        var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
-            var inbox = Inbox.Create(system);
-            var ops = new FakeServerOps { StageActor = inbox.Receiver };
-            var sm = new Http10ServerStateMachine(ops);
-            sm.PreStart();
+            Content = new ByteArrayContent("hello"u8.ToArray())
+        };
+        sm.OnResponse(response);
 
-            var response = new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new ByteArrayContent("hello"u8.ToArray())
-            };
-            sm.OnResponse(response);
+        Assert.DoesNotContain(ops.Outbound, o => o is TransportData);
 
-            // No TransportData yet (deferred)
-            Assert.DoesNotContain(ops.Outbound, o => o is TransportData);
+        var msg = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
+        var chunk = Assert.IsType<OutboundBodyChunk>(msg);
+        sm.OnBodyMessage(chunk);
 
-            // Receive the OutboundBodyChunk and feed it back
-            var msg = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-            var chunk = Assert.IsType<OutboundBodyChunk>(msg);
-            sm.OnBodyMessage(chunk);
+        var msg2 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
+        sm.OnBodyMessage(msg2);
 
-            var msg2 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-            sm.OnBodyMessage(msg2); // OutboundBodyComplete
-
-            // Now TransportData should exist
-            Assert.Contains(ops.Outbound, o => o is TransportData);
-            var td = ops.Outbound.OfType<TransportData>().First();
-            var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
-            Assert.Contains("Content-Length: 5", text);
-            Assert.Contains("hello", text);
-        }
-        finally
-        {
-            system.Dispose();
-        }
+        Assert.Contains(ops.Outbound, o => o is TransportData);
+        var td = ops.Outbound.OfType<TransportData>().First();
+        var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
+        Assert.Contains("Content-Length: 5", text);
+        Assert.Contains("hello", text);
     }
 
     [Fact(Timeout = 5000)]
@@ -144,7 +134,6 @@ public sealed class Http10ServerStateMachineSpec
 
         sm.Cleanup();
 
-        // Should not crash
         Assert.True(true);
     }
 }

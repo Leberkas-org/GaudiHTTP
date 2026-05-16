@@ -78,8 +78,10 @@ public sealed class RouteTableSpec
     [Fact(Timeout = 5000)]
     public void Match_should_prefer_static_over_parameterized()
     {
-        Func<TurboHttpContext, Task<HttpResponseMessage>> staticHandler = _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
-        Func<TurboHttpContext, Task<HttpResponseMessage>> paramHandler = _ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Accepted));
+        Func<TurboHttpContext, Task<HttpResponseMessage>> staticHandler = _ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+        Func<TurboHttpContext, Task<HttpResponseMessage>> paramHandler = _ =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.Accepted));
 
         var table = new RouteTableBuilder()
             .Add("GET", "/api/orders/latest", staticHandler)

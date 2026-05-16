@@ -1,13 +1,13 @@
-using Akka.Actor;
+using Akka.TestKit.Xunit;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace TurboHTTP.Tests.Client;
 
-public sealed class NamedClientRuntimeSpec
+public sealed class NamedClientRuntimeSpec : TestKit
 {
     [Fact(Timeout = 15000)]
-    public async Task CreateClient_same_name_should_reuse_single_named_runtime()
+    public void CreateClient_same_name_should_reuse_single_named_runtime()
     {
         const string name = "shared-runtime";
         var services = new ServiceCollection();
@@ -15,32 +15,17 @@ public sealed class NamedClientRuntimeSpec
         services.Configure<TurboClientOptions>(name, _ => { });
         services.Configure<TurboClientDescriptor>(name, _ => { });
 
-        await using var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        var system = ActorSystem.Create($"named-runtime-spec-{Guid.NewGuid():N}");
-        try
-        {
-            using var factory = new TurboHttpClientFactory(options, descriptors, provider, system);
-            using var first = (TurboHttpClient)factory.CreateClient(name);
-            using var second = (TurboHttpClient)factory.CreateClient(name);
+        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
+        using var first = (TurboHttpClient)factory.CreateClient(name);
+        using var second = (TurboHttpClient)factory.CreateClient(name);
 
-            Assert.NotEqual(first.ConsumerId, second.ConsumerId);
-            Assert.NotSame(first.Requests, second.Requests);
-            Assert.NotSame(first.Responses, second.Responses);
-        }
-        finally
-        {
-            try
-            {
-                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-            }
-            catch (TimeoutException)
-            {
-                // noop
-            }
-        }
+        Assert.NotEqual(first.ConsumerId, second.ConsumerId);
+        Assert.NotSame(first.Requests, second.Requests);
+        Assert.NotSame(first.Responses, second.Responses);
     }
 
     [Fact(Timeout = 30000)]
@@ -56,45 +41,30 @@ public sealed class NamedClientRuntimeSpec
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        var system = ActorSystem.Create($"named-runtime-concurrency-spec-{Guid.NewGuid():N}");
+        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
+        var tasks = Enumerable.Range(0, 32)
+            .Select(_ => Task.Run(() => (TurboHttpClient)factory.CreateClient(name),
+                TestContext.Current.CancellationToken))
+            .ToArray();
+        var clients = await Task.WhenAll(tasks);
+
         try
         {
-            using var factory = new TurboHttpClientFactory(options, descriptors, provider, system);
-            var tasks = Enumerable.Range(0, 32)
-                .Select(_ => Task.Run(() => (TurboHttpClient)factory.CreateClient(name),
-                    TestContext.Current.CancellationToken))
-                .ToArray();
-            var clients = await Task.WhenAll(tasks);
-
-            try
-            {
-                Assert.Equal(clients.Length, clients.Select(c => c.ConsumerId).Distinct().Count());
-                Assert.Equal(clients.Length, clients.Select(c => c.Requests).Distinct().Count());
-                Assert.Equal(clients.Length, clients.Select(c => c.Responses).Distinct().Count());
-            }
-            finally
-            {
-                foreach (var client in clients)
-                {
-                    client.Dispose();
-                }
-            }
+            Assert.Equal(clients.Length, clients.Select(c => c.ConsumerId).Distinct().Count());
+            Assert.Equal(clients.Length, clients.Select(c => c.Requests).Distinct().Count());
+            Assert.Equal(clients.Length, clients.Select(c => c.Responses).Distinct().Count());
         }
         finally
         {
-            try
+            foreach (var client in clients)
             {
-                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-            }
-            catch (TimeoutException)
-            {
-                // noop
+                client.Dispose();
             }
         }
     }
 
     [Fact(Timeout = 15000)]
-    public async Task CreateClient_different_names_should_not_share_named_runtime()
+    public void CreateClient_different_names_should_not_share_named_runtime()
     {
         const string firstName = "runtime-a";
         const string secondName = "runtime-b";
@@ -105,35 +75,20 @@ public sealed class NamedClientRuntimeSpec
         services.Configure<TurboClientOptions>(secondName, _ => { });
         services.Configure<TurboClientDescriptor>(secondName, _ => { });
 
-        await using var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        var system = ActorSystem.Create($"named-runtime-name-isolation-spec-{Guid.NewGuid():N}");
-        try
-        {
-            using var factory = new TurboHttpClientFactory(options, descriptors, provider, system);
-            using var first = (TurboHttpClient)factory.CreateClient(firstName);
-            using var second = (TurboHttpClient)factory.CreateClient(secondName);
+        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
+        using var first = (TurboHttpClient)factory.CreateClient(firstName);
+        using var second = (TurboHttpClient)factory.CreateClient(secondName);
 
-            Assert.NotSame(first.Requests, second.Requests);
-            Assert.NotSame(first.Responses, second.Responses);
-        }
-        finally
-        {
-            try
-            {
-                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-            }
-            catch (TimeoutException)
-            {
-                // noop
-            }
-        }
+        Assert.NotSame(first.Requests, second.Requests);
+        Assert.NotSame(first.Responses, second.Responses);
     }
 
     [Fact(Timeout = 15000)]
-    public async Task CreateClient_shared_runtime_should_apply_named_base_address_defaults()
+    public void CreateClient_shared_runtime_should_apply_named_base_address_defaults()
     {
         const string name = "named-defaults";
         var services = new ServiceCollection();
@@ -142,33 +97,18 @@ public sealed class NamedClientRuntimeSpec
             options => { options.BaseAddress = new Uri("https://named.example"); });
         services.Configure<TurboClientDescriptor>(name, _ => { });
 
-        await using var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        var system = ActorSystem.Create($"named-runtime-defaults-spec-{Guid.NewGuid():N}");
-        try
-        {
-            using var factory = new TurboHttpClientFactory(options, descriptors, provider, system);
-            using var client = (TurboHttpClient)factory.CreateClient(name);
+        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
+        using var client = (TurboHttpClient)factory.CreateClient(name);
 
-            Assert.Equal(new Uri("https://named.example"), client.BaseAddress);
-        }
-        finally
-        {
-            try
-            {
-                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-            }
-            catch (TimeoutException)
-            {
-                // noop
-            }
-        }
+        Assert.Equal(new Uri("https://named.example"), client.BaseAddress);
     }
 
     [Fact(Timeout = 15000)]
-    public async Task CreateClient_should_create_named_consumer_registration()
+    public void CreateClient_should_create_named_consumer_registration()
     {
         const string name = "registration-test";
         var services = new ServiceCollection();
@@ -176,28 +116,13 @@ public sealed class NamedClientRuntimeSpec
         services.Configure<TurboClientOptions>(name, _ => { });
         services.Configure<TurboClientDescriptor>(name, _ => { });
 
-        await using var provider = services.BuildServiceProvider();
+        using var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var descriptors = provider.GetRequiredService<IOptionsMonitor<TurboClientDescriptor>>();
 
-        var system = ActorSystem.Create($"named-registration-spec-{Guid.NewGuid():N}");
-        try
-        {
-            using var factory = new TurboHttpClientFactory(options, descriptors, provider, system);
-            using var client = (TurboHttpClient)factory.CreateClient(name);
+        using var factory = new TurboHttpClientFactory(options, descriptors, provider, Sys);
+        using var client = (TurboHttpClient)factory.CreateClient(name);
 
-            Assert.NotEqual(Guid.Empty, client.ConsumerId);
-        }
-        finally
-        {
-            try
-            {
-                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-            }
-            catch (TimeoutException)
-            {
-                // noop
-            }
-        }
+        Assert.NotEqual(Guid.Empty, client.ConsumerId);
     }
 }
