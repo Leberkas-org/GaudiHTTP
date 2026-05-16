@@ -99,13 +99,13 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<List<ITransport
             }
         }
 
-        void ITransportOperations.OnCompleteStage() 
+        void ITransportOperations.OnCompleteStage()
             => CompleteStage();
 
         void ITransportOperations.OnScheduleTimer(string key, TimeSpan delay)
             => ScheduleOnce(key, delay);
 
-        void ITransportOperations.OnCancelTimer(string key) 
+        void ITransportOperations.OnCancelTimer(string key)
             => CancelTimer(key);
 
         ILoggingAdapter ITransportOperations.Log => Log;

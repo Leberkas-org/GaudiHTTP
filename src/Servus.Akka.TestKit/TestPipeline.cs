@@ -29,7 +29,7 @@ public static class TestPipeline
         IMaterializer materializer,
         TimeSpan? timeout = null,
         CancellationToken ct = default)
-    {       
+    {
         var result = Source.From(inputs)
             .Via(flow)
             .Take(expectedCount)

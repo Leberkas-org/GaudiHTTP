@@ -7,6 +7,6 @@ public readonly record struct StreamTarget(long Value)
     public override string ToString() => Value.ToString();
 
     public static implicit operator StreamTarget(long value) => new(value);
-    public static implicit operator StreamTarget(int value) =>  new(value);
+    public static implicit operator StreamTarget(int value) => new(value);
     public static implicit operator long(StreamTarget target) => target.Value;
 }
