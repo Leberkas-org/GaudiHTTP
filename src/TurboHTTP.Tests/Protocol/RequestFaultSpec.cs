@@ -12,14 +12,14 @@ public sealed class RequestFaultSpec
         var request = new HttpRequestMessage();
         var pending = PendingRequest.Rent();
         var version = pending.Version;
-        request.Options.Set(TurboClientCorrelation.Key, pending);
-        request.Options.Set(TurboClientCorrelation.VersionKey, version);
+        request.Options.Set(OptionsKey.Key, pending);
+        request.Options.Set(OptionsKey.VersionKey, version);
 
         var exception = new InvalidOperationException("Test fault");
         var valueTask = new ValueTask<HttpResponseMessage>(pending, version);
 
         // Act
-        RequestFault.Fail(request, exception);
+        request.Fail(exception);
 
         // Assert
         Assert.True(valueTask.IsFaulted);
@@ -37,7 +37,7 @@ public sealed class RequestFaultSpec
         var exception = new InvalidOperationException("Test fault");
 
         // Act & Assert - should not throw
-        RequestFault.Fail(request, exception);
+        request.Fail(exception);
     }
 
     [Fact(Timeout = 5000)]
@@ -46,7 +46,6 @@ public sealed class RequestFaultSpec
         // Arrange
         var requests = new List<HttpRequestMessage>(3);
         var pendings = new List<PendingRequest>(3);
-        var versions = new List<short>(3);
         var valueTasks = new List<ValueTask<HttpResponseMessage>>(3);
         var exception = new InvalidOperationException("Test fault");
 
@@ -55,11 +54,10 @@ public sealed class RequestFaultSpec
             var request = new HttpRequestMessage();
             var pending = PendingRequest.Rent();
             var version = pending.Version;
-            request.Options.Set(TurboClientCorrelation.Key, pending);
-            request.Options.Set(TurboClientCorrelation.VersionKey, version);
+            request.Options.Set(OptionsKey.Key, pending);
+            request.Options.Set(OptionsKey.VersionKey, version);
             requests.Add(request);
             pendings.Add(pending);
-            versions.Add(version);
             valueTasks.Add(new ValueTask<HttpResponseMessage>(pending, version));
         }
 
@@ -86,7 +84,6 @@ public sealed class RequestFaultSpec
         // Arrange
         var queue = new Queue<HttpRequestMessage>(2);
         var pendings = new List<PendingRequest>(2);
-        var versions = new List<short>(2);
         var valueTasks = new List<ValueTask<HttpResponseMessage>>(2);
         var exception = new InvalidOperationException("Test fault");
 
@@ -95,11 +92,10 @@ public sealed class RequestFaultSpec
             var request = new HttpRequestMessage();
             var pending = PendingRequest.Rent();
             var version = pending.Version;
-            request.Options.Set(TurboClientCorrelation.Key, pending);
-            request.Options.Set(TurboClientCorrelation.VersionKey, version);
+            request.Options.Set(OptionsKey.Key, pending);
+            request.Options.Set(OptionsKey.VersionKey, version);
             queue.Enqueue(request);
             pendings.Add(pending);
-            versions.Add(version);
             valueTasks.Add(new ValueTask<HttpResponseMessage>(pending, version));
         }
 
@@ -123,3 +119,4 @@ public sealed class RequestFaultSpec
         }
     }
 }
+

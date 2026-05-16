@@ -1,4 +1,3 @@
-using System.Net;
 using Akka.Actor;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -33,7 +32,14 @@ public sealed class NamedClientRuntimeSpec
         }
         finally
         {
-            await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            try
+            {
+                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                // noop
+            }
         }
     }
 
@@ -55,7 +61,8 @@ public sealed class NamedClientRuntimeSpec
         {
             using var factory = new TurboHttpClientFactory(options, descriptors, provider, system);
             var tasks = Enumerable.Range(0, 32)
-                .Select(_ => Task.Run(() => (TurboHttpClient)factory.CreateClient(name), TestContext.Current.CancellationToken))
+                .Select(_ => Task.Run(() => (TurboHttpClient)factory.CreateClient(name),
+                    TestContext.Current.CancellationToken))
                 .ToArray();
             var clients = await Task.WhenAll(tasks);
 
@@ -75,7 +82,14 @@ public sealed class NamedClientRuntimeSpec
         }
         finally
         {
-            await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            try
+            {
+                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                // noop
+            }
         }
     }
 
@@ -107,7 +121,14 @@ public sealed class NamedClientRuntimeSpec
         }
         finally
         {
-            await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            try
+            {
+                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                // noop
+            }
         }
     }
 
@@ -117,10 +138,8 @@ public sealed class NamedClientRuntimeSpec
         const string name = "named-defaults";
         var services = new ServiceCollection();
         services.AddOptions();
-        services.Configure<TurboClientOptions>(name, options =>
-        {
-            options.BaseAddress = new Uri("https://named.example");
-        });
+        services.Configure<TurboClientOptions>(name,
+            options => { options.BaseAddress = new Uri("https://named.example"); });
         services.Configure<TurboClientDescriptor>(name, _ => { });
 
         await using var provider = services.BuildServiceProvider();
@@ -137,7 +156,14 @@ public sealed class NamedClientRuntimeSpec
         }
         finally
         {
-            await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            try
+            {
+                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                // noop
+            }
         }
     }
 
@@ -164,19 +190,14 @@ public sealed class NamedClientRuntimeSpec
         }
         finally
         {
-            await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            try
+            {
+                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                // noop
+            }
         }
-    }
-
-    private static TurboRequestOptions CreateOptions(string baseAddress)
-    {
-        return new TurboRequestOptions(
-            BaseAddress: new Uri(baseAddress),
-            DefaultRequestHeaders: new HttpRequestMessage().Headers,
-            DefaultRequestVersion: HttpVersion.Version11,
-            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
-            Timeout: TimeSpan.FromSeconds(60),
-            Credentials: null,
-            PreAuthenticate: false);
     }
 }

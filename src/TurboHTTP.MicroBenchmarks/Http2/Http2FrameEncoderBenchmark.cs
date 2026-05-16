@@ -1,13 +1,13 @@
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.MicroBenchmarks.Internal;
-using TurboHTTP.Protocol.Http2;
+using TurboHTTP.Protocol.Syntax.Http2.Client;
 
 namespace TurboHTTP.MicroBenchmarks.Http2;
 
 [Config(typeof(MicroBenchmarkConfig))]
 public class Http2FrameEncoderBenchmark
 {
-    private RequestEncoder _encoder = null!;
+    private Http2ClientEncoder _encoder = null!;
     private HttpRequestMessage _simpleGet = null!;
     private HttpRequestMessage _postWithBody = null!;
     private int _streamId;
@@ -15,7 +15,7 @@ public class Http2FrameEncoderBenchmark
     [GlobalSetup]
     public void Setup()
     {
-        _encoder = new RequestEncoder(useHuffman: true);
+        _encoder = new Http2ClientEncoder(useHuffman: true);
 
         _simpleGet = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path")
         {

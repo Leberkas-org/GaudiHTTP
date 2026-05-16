@@ -57,7 +57,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
         // Declare Content-Length: 100 but only send 5 bytes
         const string raw = "HTTP/1.0 200 OK\r\nContent-Length: 100\r\n\r\nhello";
 
-        var fake = CreateScriptedConnection((_, _) => Encoding.Latin1.GetBytes(raw));
+        var fake = CreateScriptedConnectionWithClose((_, _) => Encoding.Latin1.GetBytes(raw));
         var flow = CreateHttp10Engine().CreateFlow().Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
@@ -146,7 +146,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
         headerBytes.CopyTo(responseBytes, 0);
         truncatedBody.CopyTo(responseBytes, headerBytes.Length);
 
-        var fake = CreateScriptedConnection((_, _) => responseBytes);
+        var fake = CreateScriptedConnectionWithClose((_, _) => responseBytes);
         var flow = CreateHttp10Engine().CreateFlow().Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();

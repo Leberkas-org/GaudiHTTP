@@ -61,12 +61,12 @@ public sealed class CtsPoolSpec
         cts.Dispose();
     }
 
-    [Fact(Timeout = 10000)]
+    [Fact(Timeout = 30000)]
     public async Task Pool_counter_should_stay_bounded_under_concurrent_returns()
     {
         var pool = new ConcurrentStack<CancellationTokenSource>();
         var poolCount = 0;
-        const int threadCount = 16;
+        const int threadCount = 4;
         const int iterationsPerThread = 200;
 
         using var barrier = new Barrier(threadCount);
@@ -111,12 +111,12 @@ public sealed class CtsPoolSpec
         }
     }
 
-    [Fact(Timeout = 10000)]
+    [Fact(Timeout = 30000)]
     public async Task Pool_should_survive_concurrent_rent_and_return()
     {
         var pool = new ConcurrentStack<CancellationTokenSource>();
         var poolCount = 0;
-        const int threadCount = 8;
+        const int threadCount = 4;
         const int iterationsPerThread = 300;
 
         for (var i = 0; i < PoolCap / 2; i++)

@@ -1,5 +1,5 @@
-using TurboHTTP.Protocol.Http3;
-using TurboHTTP.Protocol.Http3.Qpack;
+using TurboHTTP.Protocol.Syntax.Http3;
+using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.Shared;

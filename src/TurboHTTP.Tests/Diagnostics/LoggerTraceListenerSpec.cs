@@ -138,7 +138,7 @@ public sealed class LoggerTraceListenerSpec : IDisposable
     [Fact(Timeout = 5000)]
     public void DiExtension_should_register_singleton_and_configure()
     {
-        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        var services = new ServiceCollection();
         services.AddLogging();
         services.AddTurboLoggerTracing();
 

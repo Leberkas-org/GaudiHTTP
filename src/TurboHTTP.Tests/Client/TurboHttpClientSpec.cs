@@ -21,7 +21,7 @@ public sealed class TurboHttpClientSpec
             ],
             null)!;
 
-    private TurboHttpClient CreateTestClient(
+    private static TurboHttpClient CreateTestClient(
         Channel<HttpRequestMessage>? requests = null,
         Channel<HttpResponseMessage>? responses = null,
         Guid? consumerId = null,
@@ -45,7 +45,7 @@ public sealed class TurboHttpClientSpec
             PreAuthenticate: false);
 
         var client = (TurboHttpClient)TurboHttpClientCtor.Invoke(
-            [requests.Writer, responses.Reader, options, registration])!;
+            [requests.Writer, responses.Reader, options, registration]);
 
         return client;
     }
@@ -63,12 +63,12 @@ public sealed class TurboHttpClientSpec
         var sendTask = client.SendAsync(request, TestContext.Current.CancellationToken);
 
         var observed = await requests.Reader.ReadAsync(TestContext.Current.CancellationToken);
-        Assert.True(observed.Options.TryGetValue(TurboClientCorrelation.ConsumerIdKey, out var observedId));
+        Assert.True(observed.Options.TryGetValue(OptionsKey.ConsumerIdKey, out var observedId));
         Assert.Equal(consumerId, observedId);
 
         // Complete the pending request to allow SendAsync to complete
-        Assert.True(observed.Options.TryGetValue(TurboClientCorrelation.Key, out var pending));
-        Assert.True(observed.Options.TryGetValue(TurboClientCorrelation.VersionKey, out var ver));
+        Assert.True(observed.Options.TryGetValue(OptionsKey.Key, out var pending));
+        Assert.True(observed.Options.TryGetValue(OptionsKey.VersionKey, out var ver));
         var response = new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = observed };
         pending.TrySetResult(response, ver);
 
@@ -88,9 +88,9 @@ public sealed class TurboHttpClientSpec
         var sendTask = client.SendAsync(request, TestContext.Current.CancellationToken);
 
         var observed = await requests.Reader.ReadAsync(TestContext.Current.CancellationToken);
-        Assert.True(observed.Options.TryGetValue(TurboClientCorrelation.Key, out var pending));
+        Assert.True(observed.Options.TryGetValue(OptionsKey.Key, out var pending));
         Assert.NotNull(pending);
-        Assert.True(observed.Options.TryGetValue(TurboClientCorrelation.VersionKey, out var version));
+        Assert.True(observed.Options.TryGetValue(OptionsKey.VersionKey, out var version));
         Assert.NotEqual((short)0, version);
 
         // Complete the pending request
@@ -113,8 +113,8 @@ public sealed class TurboHttpClientSpec
         var sendTask = client.SendAsync(request, TestContext.Current.CancellationToken);
 
         var observed = await requests.Reader.ReadAsync(TestContext.Current.CancellationToken);
-        Assert.True(observed.Options.TryGetValue(TurboClientCorrelation.Key, out var pending));
-        Assert.True(observed.Options.TryGetValue(TurboClientCorrelation.VersionKey, out var ver));
+        Assert.True(observed.Options.TryGetValue(OptionsKey.Key, out var pending));
+        Assert.True(observed.Options.TryGetValue(OptionsKey.VersionKey, out var ver));
 
         var expectedResponse = new HttpResponseMessage(HttpStatusCode.Created)
         {
@@ -195,7 +195,7 @@ public sealed class TurboHttpClientSpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var ex = await Assert.ThrowsAsync<TaskCanceledException>(
             () => client.SendAsync(request, cts.Token));
@@ -234,8 +234,7 @@ public sealed class TurboHttpClientSpec
         client.CancelPendingRequests();
 
         // The send task should be cancelled
-        var ex = await Assert.ThrowsAsync<OperationCanceledException>(
-            () => sendTask);
+        var ex = await Assert.ThrowsAsync<OperationCanceledException>(() => sendTask);
 
         Assert.NotNull(ex);
     }

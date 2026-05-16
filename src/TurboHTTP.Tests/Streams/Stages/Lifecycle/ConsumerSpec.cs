@@ -75,7 +75,7 @@ public sealed class ConsumerSpec : StreamTestBase
         Assert.Single(enrichedRequests);
         var tappedRequest = enrichedRequests[0];
 
-        Assert.True(tappedRequest.Options.TryGetValue(TurboClientCorrelation.ConsumerIdKey, out var stampedId));
+        Assert.True(tappedRequest.Options.TryGetValue(OptionsKey.ConsumerIdKey, out var stampedId));
         Assert.Equal(consumerId, stampedId);
 
         Sys.Stop(actor);
@@ -154,8 +154,8 @@ public sealed class ConsumerSpec : StreamTestBase
         var responseTask = pending.GetValueTask();
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://test.example/test");
-        request.Options.Set(TurboClientCorrelation.Key, pending);
-        request.Options.Set(TurboClientCorrelation.VersionKey, version);
+        request.Options.Set(OptionsKey.Key, pending);
+        request.Options.Set(OptionsKey.VersionKey, version);
 
         await requestChannel.Writer.WriteAsync(request, TestContext.Current.CancellationToken);
 
@@ -196,7 +196,7 @@ public sealed class ConsumerSpec : StreamTestBase
             Materializer));
 
         var request = new HttpRequestMessage(HttpMethod.Get, "https://test.example/test");
-        request.Options.Set(TurboClientCorrelation.ConsumerIdKey, consumerId);
+        request.Options.Set(OptionsKey.ConsumerIdKey, consumerId);
 
         await requestChannel.Writer.WriteAsync(request, TestContext.Current.CancellationToken);
 

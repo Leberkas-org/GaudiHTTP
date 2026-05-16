@@ -58,7 +58,7 @@ public abstract class AcceptanceTestBase : EngineTestBase
         HttpRequestMessage request,
         Func<int, byte[], byte[]?> responseFactory)
     {
-        var stage = CreateScriptedConnection(responseFactory);
+        var stage = CreateAccumulatingScriptedConnection(responseFactory);
         var flow = engine.CreateFlow().Join(stage.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
@@ -69,7 +69,7 @@ public abstract class AcceptanceTestBase : EngineTestBase
         var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
         var rawBuilder = new StringBuilder();
-        foreach (var outbound in stage.ReceivedOutbound)
+        while (stage.TryGetOutbound(out var outbound))
         {
             if (outbound is TransportData { Buffer: var buf })
             {

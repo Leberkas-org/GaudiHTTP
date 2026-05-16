@@ -111,7 +111,7 @@ public sealed class RequestCompressionSpec : AcceptanceTestBase
         HttpRequestMessage request,
         Func<int, byte[], byte[]?> factory)
     {
-        var fake = CreateScriptedConnection(factory);
+        var fake = CreateAccumulatingScriptedConnection(factory);
         var flow = engine.Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();

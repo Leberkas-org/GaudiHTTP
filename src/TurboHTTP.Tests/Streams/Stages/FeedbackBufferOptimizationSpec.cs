@@ -98,7 +98,7 @@ public sealed class FeedbackBufferOptimizationSpec : EngineTestBase
         var engine = new Engine();
         var transports = new TransportRegistry()
             .Register(new Version(1, 0), SequentialFlow(Ok200()))
-            .Register(new Version(1, 1),  SequentialFlow(
+            .Register(new Version(1, 1), SequentialFlow(
                 Redirect301("http://example.com/step2"),
                 Redirect301("http://example.com/step3"),
                 Redirect301("http://example.com/step4"),

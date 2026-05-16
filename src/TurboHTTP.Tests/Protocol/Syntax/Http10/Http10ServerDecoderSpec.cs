@@ -1,0 +1,46 @@
+using System.Text;
+using TurboHTTP.Protocol.Syntax;
+using TurboHTTP.Protocol.Syntax.Http10;
+using TurboHTTP.Protocol.Syntax.Http10.Options;
+using TurboHTTP.Protocol.Syntax.Http10.Server;
+
+namespace TurboHTTP.Tests.Protocol.Syntax.Http10;
+
+public sealed class Http10ServerDecoderSpec
+{
+    private static Http10ServerDecoder MakeDecoder() => new(Http10ServerDecoderOptions.Default, Http10Profile.Default);
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC1945-5")]
+    public void Decoder_should_parse_simple_get_request()
+    {
+        var raw = "GET /foo HTTP/1.0\r\nUser-Agent: t\r\n\r\n"u8.ToArray();
+        var decoder = MakeDecoder();
+        Assert.Equal(DecodeOutcome.Complete, decoder.Feed(raw, out _));
+
+        var request = decoder.GetRequest();
+        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.Equal("/foo", request.RequestUri?.OriginalString);
+        Assert.True(request.Headers.Contains("User-Agent"));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC1945-7")]
+    public async Task Decoder_should_buffer_post_body_with_content_length()
+    {
+        var raw = "POST /submit HTTP/1.0\r\nContent-Length: 5\r\n\r\nhello"u8.ToArray();
+        var decoder = MakeDecoder();
+        Assert.Equal(DecodeOutcome.Complete, decoder.Feed(raw, out _));
+
+        var request = decoder.GetRequest();
+        var bytes = await request.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("hello", Encoding.ASCII.GetString(bytes));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Decoder_should_signal_NeedMore_for_incomplete_request_line()
+    {
+        var partial = "GET /fo"u8.ToArray();
+        Assert.Equal(DecodeOutcome.NeedMore, MakeDecoder().Feed(partial, out _));
+    }
+}

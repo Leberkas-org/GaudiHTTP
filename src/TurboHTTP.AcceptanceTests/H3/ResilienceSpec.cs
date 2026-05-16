@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using Akka.Streams.Dsl;
 using TurboHTTP.Tests.Shared;
 
@@ -193,3 +193,4 @@ public sealed class ResilienceSpec : AcceptanceTestBase
         Assert.Contains("slow-body-second-half", responseBody);
     }
 }
+

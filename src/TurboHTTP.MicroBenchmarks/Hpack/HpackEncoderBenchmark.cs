@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.MicroBenchmarks.Internal;
-using TurboHTTP.Protocol.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
 namespace TurboHTTP.MicroBenchmarks.Hpack;
 

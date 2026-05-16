@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text;
 using Akka;
 using Akka.Streams.Dsl;
@@ -90,4 +90,5 @@ public sealed class ExpectContinueSpec : AcceptanceTestBase
         Assert.Equal(HttpStatusCode.ExpectationFailed, response.StatusCode);
     }
 }
+
 

@@ -1,6 +1,6 @@
-﻿using System.Net;
+using System.Net;
 using Akka.Streams.Dsl;
-using TurboHTTP.Protocol.Http2;
+using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H2;

@@ -88,7 +88,7 @@ public sealed class StageOrderingIntegrationSpec : EngineTestBase
         // and BidiFlow chain. No features needed — empty descriptor proves the bare pipeline wires correctly.
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0),  Http10Flow(Ok11Response))
+            .Register(new Version(1, 0), Http10Flow(Ok11Response))
             .Register(new Version(1, 1), Http11Flow(Ok11Response))
             .Register(new Version(2, 0), NoOpH2Flow())
             .Register(new Version(3, 0), NoOpH2Flow());
@@ -168,7 +168,7 @@ public sealed class StageOrderingIntegrationSpec : EngineTestBase
             Handlers: []);
         var engine = new Engine();
         var transports = new TransportRegistry()
-            .Register(new Version(1, 0),  Http10Flow(ResponseFactory))
+            .Register(new Version(1, 0), Http10Flow(ResponseFactory))
             .Register(new Version(1, 1), Http11Flow(ResponseFactory))
             .Register(new Version(2, 0), NoOpH2Flow())
             .Register(new Version(3, 0), NoOpH2Flow());

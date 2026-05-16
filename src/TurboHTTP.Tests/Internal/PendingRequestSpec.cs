@@ -1,3 +1,5 @@
+using TurboHTTP.Internal;
+
 namespace TurboHTTP.Tests.Internal;
 
 public sealed class PendingRequestSpec

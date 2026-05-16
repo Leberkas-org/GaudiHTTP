@@ -1,3 +1,5 @@
+using TurboHTTP.Internal;
+
 namespace TurboHTTP.Tests.Client;
 
 internal sealed class TestTurboHttpException : TurboHttpException

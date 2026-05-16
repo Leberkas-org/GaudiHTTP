@@ -1,6 +1,9 @@
+using Akka.Actor;
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.MicroBenchmarks.Internal;
-using TurboHTTP.Protocol.Http11;
+using TurboHTTP.Protocol.Syntax;
+using TurboHTTP.Protocol.Syntax.Http11.Client;
+using TurboHTTP.Protocol.Syntax.Http11.Options;
 
 namespace TurboHTTP.MicroBenchmarks.Http11;
 
@@ -10,12 +13,12 @@ public class Http11DecoderBenchmark
     private byte[] _smallResponse = null!;
     private byte[] _largeResponse = null!;
     private byte[] _multipleHeaders = null!;
-    private Decoder _decoder = null!;
+    private Http11ClientDecoder _decoder = null!;
 
     [GlobalSetup]
     public void Setup()
     {
-        _decoder = new Decoder();
+        _decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
 
         _smallResponse = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: keep-alive\r\n\r\nHello"u8.ToArray();
 
@@ -33,27 +36,30 @@ public class Http11DecoderBenchmark
         _multipleHeaders = System.Text.Encoding.Latin1.GetBytes(headers.ToString());
     }
 
-    [GlobalCleanup]
-    public void Cleanup() => _decoder.Dispose();
-
     [Benchmark(Baseline = true)]
     public bool DecodeSmallResponse()
     {
         _decoder.Reset();
-        return _decoder.TryDecode(_smallResponse, out _);
+        var outcome = _decoder.Feed(_smallResponse, false, out _);
+        _decoder.Reset();
+        return outcome == DecodeOutcome.Complete;
     }
 
     [Benchmark]
     public bool DecodeLargeResponse()
     {
         _decoder.Reset();
-        return _decoder.TryDecode(_largeResponse, out _);
+        var outcome = _decoder.Feed(_largeResponse, false, out _);
+        _decoder.Reset();
+        return outcome == DecodeOutcome.Complete;
     }
 
     [Benchmark]
     public bool Decode50Headers()
     {
         _decoder.Reset();
-        return _decoder.TryDecode(_multipleHeaders, out _);
+        var outcome = _decoder.Feed(_multipleHeaders, false, out _);
+        _decoder.Reset();
+        return outcome == DecodeOutcome.Complete;
     }
 }

@@ -1,6 +1,6 @@
 using System.Text;
-using TurboHTTP.Protocol.Http3;
-using TurboHTTP.Protocol.Http3.Qpack;
+using TurboHTTP.Protocol.Syntax.Http3;
+using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
 namespace TurboHTTP.Tests.Shared;
 
@@ -119,3 +119,4 @@ public sealed class H3ResponseBuilder
         return result;
     }
 }
+

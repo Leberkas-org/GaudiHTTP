@@ -116,9 +116,10 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void MaxEndpointSubstreams_CanBeSet()
     {
-        var options = new TurboClientOptions();
-
-        options.MaxEndpointSubstreams = 512;
+        var options = new TurboClientOptions
+        {
+            MaxEndpointSubstreams = 512
+        };
 
         Assert.Equal(512u, options.MaxEndpointSubstreams);
     }
@@ -134,9 +135,10 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void EnabledSslProtocols_CanBeSet()
     {
-        var options = new TurboClientOptions();
-
-        options.EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13;
+        var options = new TurboClientOptions
+        {
+            EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+        };
 
         Assert.Equal(SslProtocols.Tls12 | SslProtocols.Tls13, options.EnabledSslProtocols);
     }
@@ -160,9 +162,10 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void DangerousAcceptAnyServerCertificate_CanBeSet()
     {
-        var options = new TurboClientOptions();
-
-        options.DangerousAcceptAnyServerCertificate = true;
+        var options = new TurboClientOptions
+        {
+            DangerousAcceptAnyServerCertificate = true
+        };
 
         Assert.True(options.DangerousAcceptAnyServerCertificate);
     }
@@ -179,7 +182,7 @@ public sealed class TurboClientOptionsSpec
     public void ServerCertificateValidationCallback_CanBeSet()
     {
         var options = new TurboClientOptions();
-        RemoteCertificateValidationCallback? customCallback = (_, _, _, _) => false;
+        RemoteCertificateValidationCallback customCallback = (_, _, _, _) => false;
 
         options.ServerCertificateValidationCallback = customCallback;
 
@@ -197,9 +200,10 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void SocketSendBufferSize_CanBeSet()
     {
-        var options = new TurboClientOptions();
-
-        options.SocketSendBufferSize = 65536;
+        var options = new TurboClientOptions
+        {
+            SocketSendBufferSize = 65536
+        };
 
         Assert.Equal(65536, options.SocketSendBufferSize);
     }
@@ -215,9 +219,10 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void SocketReceiveBufferSize_CanBeSet()
     {
-        var options = new TurboClientOptions();
-
-        options.SocketReceiveBufferSize = 65536;
+        var options = new TurboClientOptions
+        {
+            SocketReceiveBufferSize = 65536
+        };
 
         Assert.Equal(65536, options.SocketReceiveBufferSize);
     }
@@ -233,9 +238,10 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void UseProxy_CanBeSet()
     {
-        var options = new TurboClientOptions();
-
-        options.UseProxy = false;
+        var options = new TurboClientOptions
+        {
+            UseProxy = false
+        };
 
         Assert.False(options.UseProxy);
     }
@@ -275,9 +281,10 @@ public sealed class TurboClientOptionsSpec
     [Fact(Timeout = 5000)]
     public void PreAuthenticate_CanBeSet()
     {
-        var options = new TurboClientOptions();
-
-        options.PreAuthenticate = true;
+        var options = new TurboClientOptions
+        {
+            PreAuthenticate = true
+        };
 
         Assert.True(options.PreAuthenticate);
     }
@@ -287,7 +294,7 @@ public sealed class TurboClientOptionsSpec
         EffectiveServerCertificateValidationCallback_WhenDangerousAcceptAnyServerCertificateFalse_ReturnsCustomCallback()
     {
         var options = new TurboClientOptions();
-        RemoteCertificateValidationCallback? customCallback = (_, _, _, _) => false;
+        RemoteCertificateValidationCallback customCallback = (_, _, _, _) => false;
         options.ServerCertificateValidationCallback = customCallback;
         options.DangerousAcceptAnyServerCertificate = false;
 
@@ -301,9 +308,11 @@ public sealed class TurboClientOptionsSpec
     public void
         EffectiveServerCertificateValidationCallback_WhenDangerousAcceptAnyServerCertificateTrue_ReturnsAlwaysTrue()
     {
-        var options = new TurboClientOptions();
-        options.ServerCertificateValidationCallback = (_, _, _, _) => false;
-        options.DangerousAcceptAnyServerCertificate = true;
+        var options = new TurboClientOptions
+        {
+            ServerCertificateValidationCallback = (_, _, _, _) => false,
+            DangerousAcceptAnyServerCertificate = true
+        };
 
         var effective = options.EffectiveServerCertificateValidationCallback;
 

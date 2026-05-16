@@ -1,6 +1,9 @@
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.MicroBenchmarks.Internal;
-using TurboHTTP.Protocol.Http10;
+using TurboHTTP.Protocol.Syntax;
+using TurboHTTP.Protocol.Syntax.Http10;
+using TurboHTTP.Protocol.Syntax.Http10.Client;
+using TurboHTTP.Protocol.Syntax.Http10.Options;
 
 namespace TurboHTTP.MicroBenchmarks.Http10;
 
@@ -9,12 +12,12 @@ public class Http10DecoderBenchmark
 {
     private byte[] _smallResponse = null!;
     private byte[] _largeResponse = null!;
-    private Decoder _decoder = null!;
+    private Http10ClientDecoder _decoder = null!;
 
     [GlobalSetup]
     public void Setup()
     {
-        _decoder = new Decoder();
+        _decoder = new Http10ClientDecoder(Http10ClientDecoderOptions.Default, Http10Profile.Default);
 
         _smallResponse = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nHello"u8.ToArray();
 
@@ -24,16 +27,16 @@ public class Http10DecoderBenchmark
     }
 
     [Benchmark(Baseline = true)]
-    public bool DecodeSmallResponse()
+    public object DecodeSmallResponse()
     {
         _decoder.Reset();
-        return _decoder.TryDecode(_smallResponse, out _);
+        return _decoder.Feed(_smallResponse, requestMethodWasHead: false, out _);
     }
 
     [Benchmark]
-    public bool DecodeLargeResponse()
+    public object DecodeLargeResponse()
     {
         _decoder.Reset();
-        return _decoder.TryDecode(_largeResponse, out _);
+        return _decoder.Feed(_largeResponse, requestMethodWasHead: false, out _);
     }
 }

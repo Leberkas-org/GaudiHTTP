@@ -1,4 +1,5 @@
 using System.Threading.Tasks.Sources;
+using TurboHTTP.Internal;
 
 namespace TurboHTTP.Tests.Client;
 

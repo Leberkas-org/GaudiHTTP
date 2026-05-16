@@ -1,24 +1,23 @@
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.MicroBenchmarks.Internal;
-using TurboHTTP.Protocol.Http2;
-using TurboHTTP.Protocol.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2;
+using TurboHTTP.Protocol.Syntax.Http2.Client;
+using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
 namespace TurboHTTP.MicroBenchmarks.Http2;
 
 [Config(typeof(MicroBenchmarkConfig))]
 public class Http2ResponseDecoderBenchmark
 {
-    private HpackDecoder _hpackDecoder = null!;
     private HpackEncoder _hpackEncoder = null!;
-    private ResponseDecoder _responseDecoder = null!;
+    private Http2ClientDecoder _responseDecoder = null!;
     private byte[] _encodedHeaders = null!;
 
     [GlobalSetup]
     public void Setup()
     {
-        _hpackDecoder = new HpackDecoder();
         _hpackEncoder = new HpackEncoder(useHuffman: true);
-        _responseDecoder = new ResponseDecoder(_hpackDecoder);
+        _responseDecoder = new Http2ClientDecoder();
 
         var headers = new List<HpackHeader>
         {

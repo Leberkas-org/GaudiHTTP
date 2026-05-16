@@ -60,7 +60,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
 
         var raw = "HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nhello";
 
-        var fake = CreateScriptedConnection((_, _) => Encoding.Latin1.GetBytes(raw));
+        var fake = CreateScriptedConnectionWithClose((_, _) => Encoding.Latin1.GetBytes(raw));
         var flow = Engine.CreateFlow().Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
@@ -147,7 +147,7 @@ public sealed class ResilienceSpec : AcceptanceTestBase
         headerBytes.CopyTo(responseBytes, 0);
         truncatedBody.CopyTo(responseBytes, headerBytes.Length);
 
-        var fake = CreateScriptedConnection((_, _) => responseBytes);
+        var fake = CreateScriptedConnectionWithClose((_, _) => responseBytes);
         var flow = Engine.CreateFlow().Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();

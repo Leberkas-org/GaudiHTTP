@@ -1,6 +1,6 @@
 using System.Text;
-using TurboHTTP.Protocol.Http2;
-using TurboHTTP.Protocol.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2;
+using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
 namespace TurboHTTP.Tests.Shared;
 

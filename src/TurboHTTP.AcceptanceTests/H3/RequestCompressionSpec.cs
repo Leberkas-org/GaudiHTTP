@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
@@ -218,4 +218,5 @@ public sealed class RequestCompressionSpec : AcceptanceTestBase
         Assert.Single(decompressedBody);
     }
 }
+
 

@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using Servus.Akka.Transport;
 using TurboHTTP.MicroBenchmarks.Internal;
-using TurboHTTP.Protocol.Http2;
+using TurboHTTP.Protocol.Syntax.Http2;
 
 namespace TurboHTTP.MicroBenchmarks.Http2;
 

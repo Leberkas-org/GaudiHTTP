@@ -1,6 +1,9 @@
+using Akka.Actor;
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.MicroBenchmarks.Internal;
-using TurboHTTP.Protocol.Http10;
+using TurboHTTP.Protocol.Syntax.Http10;
+using TurboHTTP.Protocol.Syntax.Http10.Client;
+using TurboHTTP.Protocol.Syntax.Http10.Options;
 
 namespace TurboHTTP.MicroBenchmarks.Http10;
 
@@ -10,6 +13,7 @@ public class Http10EncoderBenchmark
     private HttpRequestMessage _simpleGet = null!;
     private HttpRequestMessage _requestWithHeaders = null!;
     private byte[] _buffer = null!;
+    private Http10ClientEncoder _encoder = null!;
 
     [GlobalSetup]
     public void Setup()
@@ -24,19 +28,21 @@ public class Http10EncoderBenchmark
         _requestWithHeaders.Headers.TryAddWithoutValidation("X-Request-Id", "bench-001");
         _requestWithHeaders.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
         _requestWithHeaders.Content = new ByteArrayContent(new byte[256]);
+
+        _encoder = new Http10ClientEncoder(Http10ClientEncoderOptions.Default, Http10Profile.Default);
     }
 
     [Benchmark(Baseline = true)]
     public int EncodeSimpleGet()
     {
         var span = _buffer.AsSpan();
-        return Encoder.Encode(_simpleGet, ref span);
+        return _encoder.Encode(span, _simpleGet, ActorRefs.Nobody);
     }
 
     [Benchmark]
     public int EncodeWithHeaders()
     {
         var span = _buffer.AsSpan();
-        return Encoder.Encode(_requestWithHeaders, ref span);
+        return _encoder.Encode(span, _requestWithHeaders, ActorRefs.Nobody);
     }
 }

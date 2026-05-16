@@ -86,7 +86,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
         // Content-Length says 10000, but we only send 7 bytes then abort
         var raw = "HTTP/1.0 200 OK\r\nContent-Length: 10000\r\n\r\npartial";
 
-        var fake = CreateScriptedConnection((_, _) => Encoding.Latin1.GetBytes(raw));
+        var fake = CreateScriptedConnectionWithClose((_, _) => Encoding.Latin1.GetBytes(raw));
         var flow = CreateHttp10Engine().CreateFlow().Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();

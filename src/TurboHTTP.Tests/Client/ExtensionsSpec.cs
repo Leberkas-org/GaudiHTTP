@@ -11,9 +11,9 @@ public sealed class ExtensionsSpec
 
         var task = request.GetResponseAsync(ct: TestContext.Current.CancellationToken);
 
-        Assert.True(request.Options.TryGetValue(TurboClientCorrelation.Key, out var pending));
+        Assert.True(request.Options.TryGetValue(OptionsKey.Key, out var pending));
         Assert.NotNull(pending);
-        Assert.True(request.Options.TryGetValue(TurboClientCorrelation.VersionKey, out _));
+        Assert.True(request.Options.TryGetValue(OptionsKey.VersionKey, out _));
         Assert.False(task.IsCompleted);
     }
 
@@ -39,8 +39,8 @@ public sealed class ExtensionsSpec
 
         var task = request.GetResponseAsync(ct: TestContext.Current.CancellationToken);
 
-        request.Options.TryGetValue(TurboClientCorrelation.Key, out var pending);
-        request.Options.TryGetValue(TurboClientCorrelation.VersionKey, out var version);
+        request.Options.TryGetValue(OptionsKey.Key, out var pending);
+        request.Options.TryGetValue(OptionsKey.VersionKey, out var version);
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
         pending!.TrySetResult(response, version);
 

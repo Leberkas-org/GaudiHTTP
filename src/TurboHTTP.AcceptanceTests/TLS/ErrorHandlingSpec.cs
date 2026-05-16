@@ -89,7 +89,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
 
         var raw = "HTTP/1.1 200 OK\r\nContent-Length: 10000\r\n\r\npartial";
 
-        var fake = CreateScriptedConnection((_, _) => Encoding.Latin1.GetBytes(raw));
+        var fake = CreateScriptedConnectionWithClose((_, _) => Encoding.Latin1.GetBytes(raw));
         var flow = Engine.CreateFlow().Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();

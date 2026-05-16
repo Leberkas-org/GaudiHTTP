@@ -1,5 +1,5 @@
-using TurboHTTP.Protocol.Http2;
-using TurboHTTP.Protocol.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2;
+using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.Shared;

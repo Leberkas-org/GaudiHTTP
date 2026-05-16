@@ -5,6 +5,8 @@
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Container")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Kestrel")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.MicroBenchmarks")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Server")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Server.Tests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Tests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Tests.Shared")]
 [assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
@@ -49,7 +51,7 @@ namespace TurboHTTP
         public int InitialConnectionWindowSize { get; set; }
         public int InitialStreamWindowSize { get; set; }
         public System.TimeSpan KeepAlivePingDelay { get; set; }
-        public TurboHTTP.HttpKeepAlivePingPolicy KeepAlivePingPolicy { get; set; }
+        public System.Net.Http.HttpKeepAlivePingPolicy KeepAlivePingPolicy { get; set; }
         public System.TimeSpan KeepAlivePingTimeout { get; set; }
         public int MaxConcurrentStreams { get; set; }
         public int MaxConnectionsPerServer { get; set; }
@@ -69,11 +71,6 @@ namespace TurboHTTP
         public int MaxReconnectBufferSize { get; set; }
         public int QpackBlockedStreams { get; set; }
         public int QpackMaxTableCapacity { get; set; }
-    }
-    public enum HttpKeepAlivePingPolicy
-    {
-        WithActiveRequests = 0,
-        Always = 1,
     }
     public interface ITurboHttpClient : System.IDisposable
     {
@@ -117,6 +114,7 @@ namespace TurboHTTP
         public System.Net.ICredentials? Credentials { get; set; }
         public bool DangerousAcceptAnyServerCertificate { get; set; }
         public System.Net.ICredentials? DefaultProxyCredentials { get; set; }
+        public System.Net.Security.RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback { get; }
         public System.Security.Authentication.SslProtocols EnabledSslProtocols { get; set; }
         public TurboHTTP.Http1Options Http1 { get; init; }
         public TurboHTTP.Http2Options Http2 { get; init; }
