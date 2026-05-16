@@ -211,7 +211,7 @@ public sealed class QuicMultiStreamSpec
         var provider = new QuicClientProvider(new QuicTransportOptions { Host = "example.com", Port = 443 });
 
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         // Should throw TaskCanceledException due to pre-cancelled token
         await Assert.ThrowsAsync<TaskCanceledException>(() =>

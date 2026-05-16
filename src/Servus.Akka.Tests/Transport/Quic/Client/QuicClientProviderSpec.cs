@@ -89,7 +89,7 @@ public sealed class QuicClientProviderSpec
             Assert.NotNull(stream);
             Assert.IsAssignableFrom<QuicStream>(stream);
 
-            stream.Dispose();
+            await stream.DisposeAsync();
         }
         finally
         {
@@ -140,7 +140,7 @@ public sealed class QuicClientProviderSpec
             Assert.NotNull(stream);
             Assert.IsAssignableFrom<QuicStream>(stream);
 
-            stream.Dispose();
+            await stream.DisposeAsync();
         }
         finally
         {
@@ -197,7 +197,7 @@ public sealed class QuicClientProviderSpec
             Assert.NotNull(stream);
             Assert.IsAssignableFrom<QuicStream>(stream);
 
-            stream.Dispose();
+            await stream.DisposeAsync();
         }
         finally
         {
@@ -257,8 +257,8 @@ public sealed class QuicClientProviderSpec
             Assert.NotNull(stream1);
             Assert.NotNull(stream2);
 
-            stream1.Dispose();
-            stream2.Dispose();
+            await stream1.DisposeAsync();
+            await stream2.DisposeAsync();
         }
         finally
         {
@@ -357,7 +357,7 @@ public sealed class QuicClientProviderSpec
         {
             var stream = await GetStreamOrSkipAsync(provider, TestContext.Current.CancellationToken);
             Assert.NotNull(stream);
-            stream.Dispose();
+            await stream.DisposeAsync();
 
             await provider.DisposeAsync();
 
@@ -580,7 +580,7 @@ public sealed class QuicClientProviderSpec
             foreach (var stream in streams)
             {
                 Assert.NotNull(stream);
-                stream.Dispose();
+                await stream.DisposeAsync();
             }
         }
         finally

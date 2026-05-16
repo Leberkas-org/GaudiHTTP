@@ -247,7 +247,7 @@ public sealed class TcpClientProviderSpec
 
         var provider = new TcpClientProvider(options);
         using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var exception =
             await Assert.ThrowsAnyAsync<Exception>(async () => { await provider.GetStreamAsync(cts.Token); });

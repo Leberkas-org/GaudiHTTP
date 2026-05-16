@@ -270,7 +270,7 @@ public sealed class TlsClientProviderSpec
     public async Task ConnectTunnel_should_respect_cancellation_token()
     {
         var cts = new CancellationTokenSource();
-        cts.Cancel();
+        await cts.CancelAsync();
 
         var proxyStream = new MockProxyStream("HTTP/1.1 200 Connection Established\r\n\r\n");
 

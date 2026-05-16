@@ -96,7 +96,7 @@ public sealed class QuicConnectionFactorySpec
         Assert.NotNull(stream);
         Assert.True(streamId >= 0, "Stream ID should be non-negative");
 
-        stream.Dispose();
+        await stream.DisposeAsync();
         await lease.DisposeAsync();
         try
         {
@@ -139,7 +139,7 @@ public sealed class QuicConnectionFactorySpec
         Assert.NotNull(stream);
         Assert.True(streamId >= 0, "Stream ID should be non-negative");
 
-        stream.Dispose();
+        await stream.DisposeAsync();
         await lease.DisposeAsync();
         try
         {
