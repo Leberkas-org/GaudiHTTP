@@ -1,25 +1,15 @@
 using System.Net;
-using Akka.Actor;
-using Akka.Streams;
 using Akka.Streams.Dsl;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Routing;
 using TurboHTTP.Server.Streams.Stages;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Server.Streams;
 
-public sealed class RoutingStageSpec : IDisposable
+public sealed class RoutingStageSpec : StreamTestBase
 {
-    private readonly ActorSystem _system;
-    private readonly IMaterializer _materializer;
-
-    public RoutingStageSpec()
-    {
-        _system = ActorSystem.Create("test");
-        _materializer = _system.Materializer();
-    }
-
     [Fact(Timeout = 5000)]
     public async Task Stage_should_route_request_to_matching_handler()
     {
@@ -37,7 +27,7 @@ public sealed class RoutingStageSpec : IDisposable
         var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/api/health");
         var result = await Source.Single(request)
             .Via(flow)
-            .RunWith(Sink.First<HttpResponseMessage>(), _materializer);
+            .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
 
         Assert.Equal(HttpStatusCode.OK, result.StatusCode);
     }
@@ -57,7 +47,7 @@ public sealed class RoutingStageSpec : IDisposable
         var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/api/unknown");
         var result = await Source.Single(request)
             .Via(flow)
-            .RunWith(Sink.First<HttpResponseMessage>(), _materializer);
+            .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
 
         Assert.Equal(HttpStatusCode.NotFound, result.StatusCode);
     }
@@ -84,13 +74,8 @@ public sealed class RoutingStageSpec : IDisposable
         var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/api/orders/42");
         await Source.Single(request)
             .Via(flow)
-            .RunWith(Sink.First<HttpResponseMessage>(), _materializer);
+            .RunWith(Sink.First<HttpResponseMessage>(), Materializer);
 
         Assert.Equal("42", capturedId);
-    }
-
-    public void Dispose()
-    {
-        _system.Dispose();
     }
 }

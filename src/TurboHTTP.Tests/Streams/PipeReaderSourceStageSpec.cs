@@ -1,22 +1,12 @@
 using System.IO.Pipelines;
-using Akka.Actor;
-using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHTTP.Streams.Shared;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Streams;
 
-public sealed class PipeReaderSourceStageSpec : IDisposable
+public sealed class PipeReaderSourceStageSpec : StreamTestBase
 {
-    private readonly ActorSystem _system;
-    private readonly IMaterializer _materializer;
-
-    public PipeReaderSourceStageSpec()
-    {
-        _system = ActorSystem.Create("test");
-        _materializer = _system.Materializer();
-    }
-
     [Fact(Timeout = 5000)]
     public async Task Source_should_emit_data_written_to_pipe()
     {
@@ -30,7 +20,7 @@ public sealed class PipeReaderSourceStageSpec : IDisposable
                 acc.CopyTo(combined, 0);
                 chunk.Span.CopyTo(combined.AsSpan(acc.Length));
                 return combined;
-            }, _materializer);
+            }, Materializer);
 
         var writer = pipe.Writer;
         var memory = writer.GetMemory(5);
@@ -52,7 +42,7 @@ public sealed class PipeReaderSourceStageSpec : IDisposable
         await pipe.Writer.CompleteAsync();
 
         var result = await source
-            .RunAggregate(0, (acc, chunk) => acc + chunk.Length, _materializer);
+            .RunAggregate(0, (acc, chunk) => acc + chunk.Length, Materializer);
 
         Assert.Equal(0, result);
     }
@@ -64,7 +54,7 @@ public sealed class PipeReaderSourceStageSpec : IDisposable
         var source = Source.FromGraph(new PipeReaderSourceStage(pipe.Reader));
 
         var countTask = source
-            .RunAggregate(0, (acc, chunk) => acc + chunk.Length, _materializer);
+            .RunAggregate(0, (acc, chunk) => acc + chunk.Length, Materializer);
 
         var writer = pipe.Writer;
         for (var i = 0; i < 3; i++)
@@ -79,10 +69,5 @@ public sealed class PipeReaderSourceStageSpec : IDisposable
 
         var total = await countTask;
         Assert.Equal(300, total);
-    }
-
-    public void Dispose()
-    {
-        _system.Terminate().Wait(TimeSpan.FromSeconds(5));
     }
 }
