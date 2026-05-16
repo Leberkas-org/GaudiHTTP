@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <RootNamespace>TurboHTTP.Server</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Remove="packages.lock.json"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Akka.Hosting"/>
+        <PackageReference Include="Akka.Streams"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="TurboHTTP.Tests"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Servus.Akka\Servus.Akka.csproj" />
+        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Lifecycle\" />
+    </ItemGroup>
+
+</Project>
