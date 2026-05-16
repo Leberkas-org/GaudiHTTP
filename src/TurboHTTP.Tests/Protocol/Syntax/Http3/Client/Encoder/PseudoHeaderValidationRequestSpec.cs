@@ -2,7 +2,7 @@ using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Streams;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.Encoder;
 
 public sealed class PseudoHeaderValidationRequestSpec
 {
@@ -322,5 +322,3 @@ public sealed class PseudoHeaderValidationRequestSpec
             $"Last pseudo-header at index {lastPseudoIndex} should be before first regular header at index {firstRegularIndex}");
     }
 }
-
-

@@ -2,7 +2,7 @@ using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
 using TurboHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3StateMachineEdgeCasesSpec
 {
@@ -316,5 +316,3 @@ public sealed class Http3StateMachineEdgeCasesSpec
         return new HttpRequestMessage(HttpMethod.Get, url);
     }
 }
-
-

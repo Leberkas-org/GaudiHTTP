@@ -3,7 +3,7 @@ using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.Decoder;
 
 public sealed class Http3ResponseDecoderSpec
 {

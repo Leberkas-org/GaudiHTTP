@@ -1,6 +1,6 @@
 using TurboHTTP.Protocol.Syntax.Http3;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class ErrorCodeSpec
 {
@@ -52,4 +52,3 @@ public sealed class ErrorCodeSpec
         Assert.Equal(0x110u, max);
     }
 }
-

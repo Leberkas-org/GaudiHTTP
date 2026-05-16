@@ -1,9 +1,10 @@
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
+using Http3Settings = TurboHTTP.Protocol.Syntax.Http3.Settings;
 using TurboHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.Settings;
 
 /// <summary>
 /// Tests for HTTP/3 SETTINGS frame population during connection preface.
@@ -142,7 +143,7 @@ public sealed class Http3SettingsPopulationSpec
         Assert.NotEmpty(controlStreamData);
     }
 
-    private static Settings? ExtractSettingsFromOutbound(FakeOps ops)
+    private static Http3Settings? ExtractSettingsFromOutbound(FakeOps ops)
     {
         // Find the control stream data (-2) that contains SETTINGS
         var controlStreamData = ops.Outbound
@@ -179,8 +180,6 @@ public sealed class Http3SettingsPopulationSpec
 
         // Extract and deserialize SETTINGS
         var payload = span[..(int)payloadLength];
-        return Settings.Deserialize(payload);
+        return Http3Settings.Deserialize(payload);
     }
 }
-
-

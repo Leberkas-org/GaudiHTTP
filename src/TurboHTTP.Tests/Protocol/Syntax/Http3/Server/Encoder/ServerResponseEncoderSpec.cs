@@ -2,7 +2,7 @@ using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.Encoder;
 
 [Trait("Component", "Http3ServerResponseEncoder")]
 public sealed class ServerResponseEncoderSpec
@@ -179,7 +179,3 @@ public sealed class ServerResponseEncoderSpec
         Assert.IsType<HeadersFrame>(frame);
     }
 }
-
-
-
-

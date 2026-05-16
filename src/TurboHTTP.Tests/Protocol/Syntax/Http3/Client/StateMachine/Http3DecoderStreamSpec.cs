@@ -2,7 +2,7 @@ using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
 using TurboHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 /// <summary>
 /// Tests for QPACK decoder stream behavior.
@@ -104,5 +104,3 @@ public sealed class Http3DecoderStreamSpec
         sm.DecodeServerData(new MultiplexedData(buf, -3));
     }
 }
-
-

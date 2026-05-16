@@ -3,7 +3,7 @@ using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
 using TurboHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 /// <summary>
 /// Tests for HTTP/3 stream type uniqueness validation.
@@ -140,6 +140,3 @@ public sealed class Http3DuplicateStreamSpec
         Assert.True(true);
     }
 }
-
-
-

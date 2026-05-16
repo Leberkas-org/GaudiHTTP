@@ -3,7 +3,7 @@ using System.Net.Security;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class SniTlsEnforcementSpec
 {

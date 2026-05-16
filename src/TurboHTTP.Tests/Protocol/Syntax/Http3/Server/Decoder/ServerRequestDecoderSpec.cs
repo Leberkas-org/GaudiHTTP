@@ -2,7 +2,7 @@ using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.Decoder;
 
 [Trait("Component", "Http3ServerRequestDecoder")]
 public sealed class ServerRequestDecoderSpec
@@ -35,6 +35,7 @@ public sealed class ServerRequestDecoderSpec
         {
             _decoderTableSync.ProcessEncoderInstructions(encoderInstructions.Span);
         }
+
         var frame = new HeadersFrame(headerBlock);
         var state = new StreamState();
         state.Initialize(streamId: 1);
@@ -69,6 +70,7 @@ public sealed class ServerRequestDecoderSpec
         {
             _decoderTableSync.ProcessEncoderInstructions(encoderInstructions.Span);
         }
+
         var frame = new HeadersFrame(headerBlock);
         var state = new StreamState();
         state.Initialize(streamId: 1);
@@ -99,15 +101,12 @@ public sealed class ServerRequestDecoderSpec
         {
             _decoderTableSync.ProcessEncoderInstructions(encoderInstructions.Span);
         }
+
         var frame = new HeadersFrame(headerBlock);
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        var ex = Assert.Throws<HttpProtocolException>(
-            () =>
-            {
-                _decoder.DecodeHeaders(frame, state);
-            });
+        var ex = Assert.Throws<HttpProtocolException>(() => { _decoder.DecodeHeaders(frame, state); });
 
         Assert.Contains(":method", ex.Message);
     }
@@ -130,15 +129,12 @@ public sealed class ServerRequestDecoderSpec
         {
             _decoderTableSync.ProcessEncoderInstructions(encoderInstructions.Span);
         }
+
         var frame = new HeadersFrame(headerBlock);
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        var ex = Assert.Throws<HttpProtocolException>(
-            () =>
-            {
-                _decoder.DecodeHeaders(frame, state);
-            });
+        var ex = Assert.Throws<HttpProtocolException>(() => { _decoder.DecodeHeaders(frame, state); });
 
         Assert.Contains(":path", ex.Message);
     }
@@ -160,6 +156,7 @@ public sealed class ServerRequestDecoderSpec
         {
             _decoderTableSync.ProcessEncoderInstructions(encoderInstructions.Span);
         }
+
         var frame = new HeadersFrame(headerBlock);
         var state = new StreamState();
         state.Initialize(streamId: 1);
@@ -193,6 +190,7 @@ public sealed class ServerRequestDecoderSpec
         {
             _decoderTableSync.ProcessEncoderInstructions(encoderInstructions.Span);
         }
+
         var frame = new HeadersFrame(headerBlock);
         var state = new StreamState();
         state.Initialize(streamId: 1);
@@ -222,21 +220,13 @@ public sealed class ServerRequestDecoderSpec
         {
             _decoderTableSync.ProcessEncoderInstructions(encoderInstructions.Span);
         }
+
         var frame = new HeadersFrame(headerBlock);
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        var ex = Assert.Throws<HttpProtocolException>(
-            () =>
-            {
-                _decoder.DecodeHeaders(frame, state);
-            });
+        var ex = Assert.Throws<HttpProtocolException>(() => { _decoder.DecodeHeaders(frame, state); });
 
         Assert.Contains(":authority", ex.Message);
     }
 }
-
-
-
-
-

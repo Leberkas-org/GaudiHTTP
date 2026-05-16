@@ -1,4 +1,4 @@
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.Settings;
 
 public sealed class Http3OptionsSpec
 {
@@ -48,4 +48,3 @@ public sealed class Http3OptionsSpec
         Assert.Equal(16_384, clientOptions.Http3.QpackMaxTableCapacity);
     }
 }
-

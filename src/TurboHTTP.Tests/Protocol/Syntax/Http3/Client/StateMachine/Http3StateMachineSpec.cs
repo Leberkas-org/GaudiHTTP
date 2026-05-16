@@ -4,11 +4,12 @@ using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
 using TurboHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3StateMachineSpec
 {
     private readonly FakeOps _ops = new();
+
     private static readonly ConnectionInfo DummyConnectionInfo = new(
         new IPEndPoint(IPAddress.Loopback, 5000),
         new IPEndPoint(IPAddress.Loopback, 443),
@@ -381,8 +382,10 @@ public sealed class Http3StateMachineSpec
         sm.OnRequest(CreateGetRequest("https://example.com/a"));
         sm.OnRequest(CreateGetRequest("https://example.com/b"));
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new HeadersFrame(qpack.Encode([(":status", "200")]))), 0));
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new HeadersFrame(qpack.Encode([(":status", "201")]))), 4));
+        sm.DecodeServerData(
+            new MultiplexedData(SerializeFrame(new HeadersFrame(qpack.Encode([(":status", "200")]))), 0));
+        sm.DecodeServerData(
+            new MultiplexedData(SerializeFrame(new HeadersFrame(qpack.Encode([(":status", "201")]))), 4));
 
         sm.OnUpstreamFinished();
 
@@ -486,7 +489,8 @@ public sealed class Http3StateMachineSpec
     [Fact(Timeout = 5000)]
     public void OnTimerFired_should_handle_idle_timeout()
     {
-        var sm = CreateMachine(new TurboClientOptions { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromMilliseconds(1) } });
+        var sm = CreateMachine(new TurboClientOptions
+        { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromMilliseconds(1) } });
         sm.PreStart();
 
         // Timer firing should check idle timeout and potentially emit GoAway
@@ -535,6 +539,3 @@ public sealed class Http3StateMachineSpec
         return new HttpRequestMessage(HttpMethod.Get, url);
     }
 }
-
-
-

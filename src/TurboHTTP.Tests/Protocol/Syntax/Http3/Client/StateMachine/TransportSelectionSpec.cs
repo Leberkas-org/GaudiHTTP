@@ -2,7 +2,7 @@ using System.Net;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class TransportSelectionSpec
 {

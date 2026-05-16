@@ -4,7 +4,7 @@ using TurboHTTP.Protocol.Syntax.Http3.Client;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Tests.Shared;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Connection;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3StreamRoutingSpec
 {
@@ -100,12 +100,12 @@ public sealed class Http3StreamRoutingSpec
         sm.DecodeServerData(new MultiplexedData(buf4, 4));
 
         // More DATA for stream 0 (second half)
-        var buf0b = BuildDataBuffer(0xAA, bodySize / 2);
-        sm.DecodeServerData(new MultiplexedData(buf0b, 0));
+        var buf0B = BuildDataBuffer(0xAA, bodySize / 2);
+        sm.DecodeServerData(new MultiplexedData(buf0B, 0));
 
         // More DATA for stream 4 (second half)
-        var buf4b = BuildDataBuffer(0xBB, bodySize / 2);
-        sm.DecodeServerData(new MultiplexedData(buf4b, 4));
+        var buf4B = BuildDataBuffer(0xBB, bodySize / 2);
+        sm.DecodeServerData(new MultiplexedData(buf4B, 4));
 
         // Signal EOF to flush both responses
         sm.DecodeServerData(new StreamReadCompleted(0));
@@ -202,5 +202,3 @@ public sealed class Http3StreamRoutingSpec
         Assert.True(body.All(b => b == 0xDD), "Request stream data corrupted by control stream");
     }
 }
-
-

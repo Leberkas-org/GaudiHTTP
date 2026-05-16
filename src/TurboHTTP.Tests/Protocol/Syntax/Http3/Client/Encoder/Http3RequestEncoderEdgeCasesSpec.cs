@@ -2,7 +2,7 @@ using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
-namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Streams;
+namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.Encoder;
 
 public sealed class Http3RequestEncoderEdgeCasesSpec
 {
@@ -615,6 +615,3 @@ public sealed class Http3RequestEncoderEdgeCasesSpec
         Assert.True(instructions.Length >= 0);
     }
 }
-
-
-
