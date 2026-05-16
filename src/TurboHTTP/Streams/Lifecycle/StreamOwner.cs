@@ -56,7 +56,9 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private bool _streamRunning;
     private readonly Dictionary<Guid, int> _consumerPartitions = [];
     private int _nextPartitionIndex = 1;
-    private bool IsSystemTerminating => Context.System.WhenTerminated.IsCompleted;
+    private bool IsSystemTerminating =>
+        Context.System.WhenTerminated.IsCompleted ||
+        CoordinatedShutdown.Get(Context.System).ShutdownReason is not null;
 
     public ITimerScheduler Timers { get; set; } = null!;
     public IStash Stash { get; set; } = null!;
@@ -82,7 +84,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private void Ready()
     {
         Receive<Shutdown>(_ => HandleShutdown());
-        Receive<RegisterConsumer>(msg => CreateConsumerChild(msg));
+        Receive<RegisterConsumer>(CreateConsumerChild);
         Receive<UnregisterConsumer>(HandleUnregisterConsumer);
         Receive<StreamSinkCompleted>(HandleStreamSinkCompleted);
         Receive<RetryCreateInstance>(_ => ExecuteRetryCreate());
@@ -91,7 +93,17 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
 
     protected override void PreStart()
     {
-        base.PreStart();
+        var self = Self;
+        CoordinatedShutdown.Get(Context.System)
+            .AddTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate,
+                $"stream-owner-{self.Path.Name}",
+                () =>
+                {
+                    self.Tell(new Shutdown());
+                    self.Tell(PoisonPill.Instance);
+                    return Task.FromResult(Done.Instance);
+                });
+
         if (!IsSystemTerminating)
         {
             MaterializeStream();
@@ -106,12 +118,10 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
 
         try
         {
-            var opts = _clientOptions;
-
             var poolRegistry = new PoolConfigRegistry(new TcpPoolConfig(
                     1,
-                    opts.PooledConnectionIdleTimeout,
-                    opts.PooledConnectionLifetime,
+                    _clientOptions.PooledConnectionIdleTimeout,
+                    _clientOptions.PooledConnectionLifetime,
                     ReuseOnUpstreamFinish: true))
                 .Register(PoolKeys.Http10, new TcpPoolConfig(
                     MaxConnectionsPerHost: int.MaxValue,
@@ -119,14 +129,14 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
                     ConnectionLifetime: TimeSpan.Zero,
                     ReuseOnUpstreamFinish: false))
                 .Register(PoolKeys.Http11, new TcpPoolConfig(
-                    opts.Http1.MaxConnectionsPerServer,
-                    opts.PooledConnectionIdleTimeout,
-                    opts.PooledConnectionLifetime,
+                    _clientOptions.Http1.MaxConnectionsPerServer,
+                    _clientOptions.PooledConnectionIdleTimeout,
+                    _clientOptions.PooledConnectionLifetime,
                     ReuseOnUpstreamFinish: true))
                 .Register(PoolKeys.Http2, new TcpPoolConfig(
-                    opts.Http2.MaxConnectionsPerServer,
-                    opts.PooledConnectionIdleTimeout,
-                    opts.PooledConnectionLifetime,
+                    _clientOptions.Http2.MaxConnectionsPerServer,
+                    _clientOptions.PooledConnectionIdleTimeout,
+                    _clientOptions.PooledConnectionLifetime,
                     ReuseOnUpstreamFinish: false));
 
             _tcpManager = Context.ActorOf(TransportFactory.CreateTcpConnectionManager(poolRegistry), "tcp-pool");
@@ -223,7 +233,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private int ResolveResponsePartition(int consumerCount, HttpResponseMessage response)
     {
         if (response.RequestMessage is { } request &&
-            request.Options.TryGetValue(TurboClientCorrelation.ConsumerIdKey, out var consumerId) &&
+            request.Options.TryGetValue(OptionsKey.ConsumerIdKey, out var consumerId) &&
             _consumerPartitions.TryGetValue(consumerId, out var partition) &&
             partition > 0 &&
             partition < consumerCount)
@@ -279,6 +289,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
         }
 
         _shuttingDown = true;
+        Timers.Cancel(RetryTimerKey);
         Tracing.For("Request").Debug(this, "Pipeline shutdown");
 
         if (_killSwitch is not null)
@@ -424,6 +435,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     protected override void PostStop()
     {
         _log.Debug("PostStop: cleaning up resources (streamRunning: {0})", _streamRunning);
+        Timers.CancelAll();
         CleanupResources();
         base.PostStop();
     }

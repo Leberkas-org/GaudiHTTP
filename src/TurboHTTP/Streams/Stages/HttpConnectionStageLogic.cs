@@ -1,3 +1,4 @@
+using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -8,7 +9,7 @@ using static Servus.Core.Servus;
 namespace TurboHTTP.Streams.Stages;
 
 internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, IStageOperations
-    where TSM : IHttpStateMachine
+    where TSM : IClientStateMachine
 {
     private readonly Inlet<ITransportInbound> _inServer;
     private readonly Outlet<HttpResponseMessage> _outResponse;
@@ -18,6 +19,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
     private readonly TSM _sm;
     private readonly Queue<ITransportOutbound> _outboundQueue = new();
     private readonly Queue<HttpResponseMessage> _responseQueue = new();
+    private IActorRef _stageActor = ActorRefs.Nobody;
 
     public HttpConnectionStageLogic(
         GraphStage<ConnectionShape> stage,
@@ -92,7 +94,13 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
 
     public override void PreStart()
     {
+        _stageActor = GetStageActor(OnStageActorMessage).Ref;
         _sm.PreStart();
+    }
+
+    private void OnStageActorMessage((IActorRef sender, object message) args)
+    {
+        _sm.OnBodyMessage(args.message);
     }
 
     private void OnServerPush()
@@ -165,6 +173,8 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
     }
 
     ILoggingAdapter IStageOperations.Log => Log;
+
+    IActorRef IStageOperations.StageActor => _stageActor;
 
     // --- Mechanical helpers ---
 

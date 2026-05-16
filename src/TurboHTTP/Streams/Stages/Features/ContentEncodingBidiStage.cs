@@ -214,18 +214,20 @@ internal sealed class ContentEncodingBidiProcessor
 
         if (bodySize < policy.MinBodySizeBytes)
         {
-            Tracing.For("ContentEncoding").Debug(this, "→ skip compression: body size {0} < threshold {1}", bodySize, policy.MinBodySizeBytes);
+            Tracing.For("ContentEncoding").Debug(this, "→ skip compression: body size {0} < threshold {1}", bodySize,
+                policy.MinBodySizeBytes);
             return request;
         }
 
-        Tracing.For("ContentEncoding").Debug(this, "→ compressing request body ({0} bytes, {1})", bodySize, policy.Encoding);
+        Tracing.For("ContentEncoding")
+            .Debug(this, "→ compressing request body ({0} bytes, {1})", bodySize, policy.Encoding);
         request.Content = new CompressingContent(request.Content, policy.Encoding);
         return request;
     }
 
     private HttpResponseMessage Decompress(HttpResponseMessage response)
     {
-        if (!response.Content.Headers.TryGetValues("Content-Encoding", out var values))
+        if (!response.Content.Headers.TryGetValues(WellKnownHeaders.ContentEncoding, out var values))
         {
             return response;
         }
@@ -233,7 +235,7 @@ internal sealed class ContentEncodingBidiProcessor
         var encoding = string.Join(", ", values).Trim();
 
         if (string.IsNullOrEmpty(encoding) ||
-            encoding.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
+            encoding.Equals(WellKnownHeaders.IdentityValue, StringComparison.OrdinalIgnoreCase))
         {
             return response;
         }
@@ -249,8 +251,8 @@ internal sealed class ContentEncodingBidiProcessor
 
         foreach (var header in response.Content.Headers)
         {
-            if (header.Key.Equals("Content-Encoding", StringComparison.OrdinalIgnoreCase) ||
-                header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
+            if (header.Key.Equals(WellKnownHeaders.ContentEncoding, StringComparison.OrdinalIgnoreCase) ||
+                header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

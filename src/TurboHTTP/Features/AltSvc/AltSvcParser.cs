@@ -81,7 +81,7 @@ internal static class AltSvcParser
         var authorityRaw = protocolAuthority[(eqIndex + 1)..].Trim();
 
         // Strip quotes from authority.
-        if (authorityRaw.Length >= 2 && authorityRaw[0] == '"' && authorityRaw[^1] == '"')
+        if (authorityRaw is ['"', _, ..] && authorityRaw[^1] == '"')
         {
             authorityRaw = authorityRaw[1..^1];
         }

@@ -3,6 +3,14 @@ using Servus.Akka.Transport;
 
 namespace TurboHTTP.Internal;
 
+internal static class PoolKeys
+{
+    internal const string Http10 = "http10";
+    internal const string Http11 = "http11";
+    internal const string Http2 = "http2";
+}
+
+
 internal static class OptionsFactory
 {
     internal static TransportOptions Build(RequestEndpoint endpoint, TurboClientOptions clientOptions)
@@ -32,6 +40,7 @@ internal static class OptionsFactory
             {
                 Host = endpoint.Host,
                 Port = port,
+                PoolKey = poolKey,
                 ServerCertificateValidationCallback = clientOptions.EffectiveServerCertificateValidationCallback,
                 ConnectTimeout = clientOptions.ConnectTimeout,
                 SocketSendBufferSize = clientOptions.SocketSendBufferSize,
@@ -81,3 +90,4 @@ internal static class OptionsFactory
         };
     }
 }
+

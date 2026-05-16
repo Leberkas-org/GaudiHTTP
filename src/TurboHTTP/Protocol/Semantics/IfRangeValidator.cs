@@ -15,10 +15,10 @@ internal static class IfRangeValidator
 {
     private static readonly string[] HttpDateFormats =
     [
-        "r",                                        // RFC 1123
-        "dddd, dd-MMM-yy HH:mm:ss 'GMT'",           // RFC 850
-        "ddd MMM  d HH:mm:ss yyyy",                 // asctime
-        "ddd MMM dd HH:mm:ss yyyy",                 // asctime (two-digit day)
+        "r", // RFC 1123
+        "dddd, dd-MMM-yy HH:mm:ss 'GMT'", // RFC 850
+        "ddd MMM  d HH:mm:ss yyyy", // asctime
+        "ddd MMM dd HH:mm:ss yyyy", // asctime (two-digit day)
     ];
 
     /// <summary>
@@ -27,14 +27,14 @@ internal static class IfRangeValidator
     /// </summary>
     public static void Validate(HttpRequestMessage request)
     {
-        if (!request.Headers.TryGetValues("If-Range", out var ifRangeValues))
+        if (!request.Headers.TryGetValues(WellKnownHeaders.IfRange, out var ifRangeValues))
         {
             return;
         }
 
         // If-Range without Range is meaningless — RFC 9110 §13.1.5:
         // "A client MUST NOT generate an If-Range header field in a request that does not contain a Range header field."
-        if (!request.Headers.Contains("Range"))
+        if (!request.Headers.Contains(WellKnownHeaders.Range))
         {
             throw new InvalidOperationException(
                 "RFC 9110 §13.1.5: If-Range header MUST NOT be sent without a Range header.");
@@ -62,7 +62,7 @@ internal static class IfRangeValidator
             // "A client SHOULD NOT generate an If-Range header field with an HTTP-date validator
             //  if the representation's entity-tag is available."
             // We treat this as a MUST for strict compliance when ETag header is present.
-            if (request.Headers.TryGetValues("ETag", out _))
+            if (request.Headers.TryGetValues(WellKnownHeaders.ETag, out _))
             {
                 throw new InvalidOperationException(
                     "RFC 9110 §13.1.5: If-Range MUST use a strong entity-tag when an ETag is available, not an HTTP-date.");

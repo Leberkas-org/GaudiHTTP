@@ -1,0 +1,592 @@
+using System.Text;
+using Servus.Akka.Transport;
+using TurboHTTP.Internal;
+using TurboHTTP.Protocol.Multiplexed;
+using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Streams;
+using static Servus.Core.Servus;
+
+namespace TurboHTTP.Protocol.Syntax.Http2.Server;
+
+internal sealed class Http2ServerSessionManager
+{
+    private const int MaxStatePoolCapacity = 1000;
+
+    private readonly IServerStageOperations _ops;
+    private readonly FrameDecoder _frameDecoder = new();
+    private readonly Http2ServerDecoder _requestDecoder;
+    private readonly Http2ServerEncoder _responseEncoder = new();
+    private readonly FlowController _flow;
+    private readonly StreamTracker _tracker;
+    private readonly long _maxRequestBodySize;
+
+    private readonly Dictionary<int, StreamState> _streams = new();
+    private readonly StackStreamStatePool<StreamState> _statePool;
+
+    private int _nextContinuationStreamId;
+    private bool _continuationEndStream;
+    private readonly Dictionary<int, BodyRateState> _bodyRateStates = new();
+
+    public int ActiveStreamCount => _streams.Count;
+
+    public Http2ServerSessionManager(
+        IServerStageOperations ops,
+        int maxConcurrentStreams = 100,
+        int initialConnectionWindowSize = 65535,
+        int initialStreamWindowSize = 65535,
+        int maxHeaderSize = 16 * 1024,
+        int maxTotalHeaderSize = 64 * 1024,
+        long maxRequestBodySize = 30 * 1024 * 1024)
+    {
+        _ops = ops ?? throw new ArgumentNullException(nameof(ops));
+        _requestDecoder = new Http2ServerDecoder(maxHeaderSize, maxTotalHeaderSize);
+        _flow = new FlowController(initialConnectionWindowSize, initialStreamWindowSize);
+        _tracker = new StreamTracker(initialNextStreamId: 1, maxConcurrentStreams);
+        _maxRequestBodySize = maxRequestBodySize;
+
+        var statePoolCapacity = Math.Min(
+            maxConcurrentStreams > 0 ? maxConcurrentStreams : 100,
+            MaxStatePoolCapacity);
+        _statePool = new StackStreamStatePool<StreamState>(
+            statePoolCapacity,
+            () => new StreamState());
+    }
+
+    public void PreStart()
+    {
+        var settingsParams = new[]
+        {
+            (SettingsParameter.MaxConcurrentStreams, (uint)_tracker.MaxConcurrentStreams),
+            (SettingsParameter.InitialWindowSize, 65535u),
+            (SettingsParameter.MaxFrameSize, 16384u),
+            (SettingsParameter.HeaderTableSize, 4096u),
+        };
+
+        var settingsFrame = new SettingsFrame(settingsParams, isAck: false);
+        EmitFrame(settingsFrame);
+    }
+
+    public void DecodeClientData(TransportBuffer buffer)
+    {
+        var frames = _frameDecoder.Decode(buffer);
+        for (var i = 0; i < frames.Count; i++)
+        {
+            ProcessFrame(frames[i]);
+        }
+    }
+
+    public void ProcessFrame(Http2Frame frame)
+    {
+        switch (frame)
+        {
+            case HeadersFrame headers:
+                HandleHeadersFrame(headers);
+                break;
+
+            case ContinuationFrame continuation:
+                HandleContinuationFrame(continuation);
+                break;
+
+            case DataFrame data:
+                HandleDataFrame(data);
+                break;
+
+            case SettingsFrame settings:
+                HandleSettingsFrame(settings);
+                break;
+
+            case WindowUpdateFrame windowUpdate:
+                HandleWindowUpdateFrame(windowUpdate);
+                break;
+
+            case PingFrame ping:
+                HandlePingFrame(ping);
+                break;
+
+            case GoAwayFrame goAway:
+                HandleGoAwayFrame(goAway);
+                break;
+
+            case RstStreamFrame rst:
+                HandleRstStreamFrame(rst);
+                break;
+        }
+    }
+
+    public void OnResponse(HttpResponseMessage response)
+    {
+        var streamId = GetStreamIdFromResponse(response);
+        if (!_streams.TryGetValue(streamId, out var state))
+        {
+            Tracing.For("Protocol").Warning(this, "HTTP/2: Response for unknown stream {0}", streamId);
+            return;
+        }
+
+        var hasBody = response.Content.Headers.ContentLength is not 0;
+
+        var frames = _responseEncoder.EncodeHeaders(response, streamId, hasBody);
+        for (var i = 0; i < frames.Count; i++)
+        {
+            EmitFrame(frames[i]);
+        }
+
+        if (!hasBody)
+        {
+            CloseStream(streamId);
+            return;
+        }
+
+        var encoder = BodyEncoderFactory.Create(response.Content);
+        if (encoder is null)
+        {
+            CloseStream(streamId);
+            return;
+        }
+
+        state.InitBodyEncoder(encoder);
+        state.StartBodyEncoder(response.Content, streamId, _ops.StageActor);
+    }
+
+    public void OnBodyMessage(object msg)
+    {
+        switch (msg)
+        {
+            case StreamBodyChunk chunk:
+                HandleOutboundBodyChunk(chunk);
+                break;
+
+            case StreamBodyComplete complete:
+                HandleOutboundBodyComplete(complete.StreamId);
+                break;
+
+            case StreamBodyFailed failed:
+                Tracing.For("Protocol").Warning(this,
+                    "HTTP/2: Response body encoding failed for stream {0}: {1}", failed.StreamId,
+                    failed.Reason.Message);
+                EmitRstStream(failed.StreamId, Http2ErrorCode.InternalError);
+                break;
+        }
+    }
+
+    private void HandleOutboundBodyChunk(StreamBodyChunk chunk)
+    {
+        if (!_streams.TryGetValue(chunk.StreamId, out var state))
+        {
+            chunk.Owner.Dispose();
+            return;
+        }
+
+        var window = _flow.GetSendWindow(chunk.StreamId);
+        if (window >= chunk.Length)
+        {
+            EmitFrame(new DataFrame(chunk.StreamId, chunk.Owner.Memory[..chunk.Length], endStream: false));
+            _flow.OnDataSent(chunk.StreamId, chunk.Length);
+            chunk.Owner.Dispose();
+            return;
+        }
+
+        state.EnqueueBodyChunk(chunk);
+    }
+
+    private void HandleOutboundBodyComplete(int streamId)
+    {
+        if (!_streams.TryGetValue(streamId, out var state))
+        {
+            return;
+        }
+
+        state.MarkBodyEncoderComplete();
+
+        if (!state.HasPendingOutbound)
+        {
+            EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+            CloseStream(streamId);
+        }
+    }
+
+    public void DrainOutboundBuffer(int streamId)
+    {
+        if (!_streams.TryGetValue(streamId, out var state) || !state.HasPendingOutbound)
+        {
+            return;
+        }
+
+        while (state.PeekBodyChunk() is { } next)
+        {
+            var window = _flow.GetSendWindow(streamId);
+            if (window < next.Length)
+            {
+                break;
+            }
+
+            state.TryDequeueBodyChunk(out var chunk);
+            EmitFrame(new DataFrame(streamId, chunk!.Owner.Memory[..chunk.Length], endStream: false));
+            _flow.OnDataSent(streamId, chunk.Length);
+            chunk.Owner.Dispose();
+        }
+
+        if (!state.HasPendingOutbound && state.IsBodyEncoderComplete)
+        {
+            EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+            CloseStream(streamId);
+        }
+    }
+
+    public void Cleanup()
+    {
+        foreach (var (_, state) in _streams)
+        {
+            state.AbortBody();
+        }
+
+        _frameDecoder.Dispose();
+
+        foreach (var state in _streams.Values)
+        {
+            state.Reset();
+            _statePool.Return(state);
+        }
+
+        _streams.Clear();
+    }
+
+    private void HandleHeadersFrame(HeadersFrame headers)
+    {
+        var streamId = headers.StreamId;
+
+        if (_nextContinuationStreamId != 0)
+        {
+            EmitRstStream(streamId, Http2ErrorCode.ProtocolError);
+            return;
+        }
+
+        if (!_tracker.CanOpenStream())
+        {
+            EmitRstStream(streamId, Http2ErrorCode.RefusedStream);
+            return;
+        }
+
+        var state = GetOrCreateStreamState(streamId);
+
+        if (headers.EndHeaders)
+        {
+            state.AppendHeader(headers.HeaderBlockFragment.Span);
+            DecodeAndEmitRequest(streamId, state, headers.EndStream);
+        }
+        else
+        {
+            state.AppendHeader(headers.HeaderBlockFragment.Span);
+            _nextContinuationStreamId = streamId;
+            _continuationEndStream = headers.EndStream;
+            _ops.OnScheduleTimer(string.Concat("headers-timeout:", streamId.ToString()), TimeSpan.FromSeconds(30));
+        }
+    }
+
+    private void HandleContinuationFrame(ContinuationFrame continuation)
+    {
+        var streamId = continuation.StreamId;
+
+        if (_nextContinuationStreamId != streamId)
+        {
+            EmitRstStream(streamId, Http2ErrorCode.ProtocolError);
+            return;
+        }
+
+        if (!_streams.TryGetValue(streamId, out var state))
+        {
+            EmitRstStream(streamId, Http2ErrorCode.StreamClosed);
+            return;
+        }
+
+        state.AppendHeader(continuation.HeaderBlockFragment.Span);
+
+        if (continuation.EndHeaders)
+        {
+            var endStream = _continuationEndStream;
+            _nextContinuationStreamId = 0;
+            _continuationEndStream = false;
+            _ops.OnCancelTimer(string.Concat("headers-timeout:", streamId.ToString()));
+            DecodeAndEmitRequest(streamId, state, endStream);
+        }
+    }
+
+    private void HandleDataFrame(DataFrame data)
+    {
+        var streamId = data.StreamId;
+
+        if (!_streams.TryGetValue(streamId, out var state))
+        {
+            EmitRstStream(streamId, Http2ErrorCode.StreamClosed);
+            return;
+        }
+
+        var flowResult = _flow.OnInboundData(streamId, data.Data.Length);
+
+        if (flowResult.IsConnectionViolation || flowResult.IsStreamViolation)
+        {
+            const Http2ErrorCode errorCode = Http2ErrorCode.FlowControlError;
+
+            if (flowResult.IsConnectionViolation)
+            {
+                EmitGoAway(0, errorCode, "Flow control violation");
+            }
+            else
+            {
+                EmitRstStream(streamId, errorCode);
+            }
+
+            return;
+        }
+
+        if (state.HasBodyDecoder)
+        {
+            try
+            {
+                state.FeedBody(data.Data.Span, data.EndStream);
+            }
+            catch (HttpProtocolException)
+            {
+                state.AbortBody();
+                EmitRstStream(streamId, Http2ErrorCode.Cancel);
+                return;
+            }
+
+            if (!data.Data.IsEmpty)
+            {
+                if (!_bodyRateStates.TryGetValue(streamId, out var rateState))
+                {
+                    rateState = new BodyRateState();
+                    _bodyRateStates[streamId] = rateState;
+                    _ops.OnScheduleTimer("body-rate-check", TimeSpan.FromSeconds(1));
+                }
+
+                rateState.TotalBytes += data.Data.Length;
+            }
+        }
+
+        if (flowResult.StreamWindowUpdate is { } streamWin)
+        {
+            EmitFrame(new WindowUpdateFrame(streamWin.StreamId, streamWin.Increment));
+        }
+
+        if (flowResult.ConnectionWindowUpdate is { } connWin)
+        {
+            EmitFrame(new WindowUpdateFrame(connWin.StreamId, connWin.Increment));
+        }
+    }
+
+    private void HandleSettingsFrame(SettingsFrame settings)
+    {
+        if (settings.IsAck)
+        {
+            return;
+        }
+
+        var result = _flow.OnRemoteSettings(settings);
+
+        if (result.AckFrame is { } ackFrame)
+        {
+            EmitFrame(ackFrame);
+        }
+
+        if (result.MaxConcurrentStreamsChange.HasValue)
+        {
+            _tracker.SetMaxConcurrentStreams(result.MaxConcurrentStreamsChange.Value);
+        }
+
+        _responseEncoder.ApplyClientSettings(settings.Parameters);
+    }
+
+    private void HandleWindowUpdateFrame(WindowUpdateFrame windowUpdate)
+    {
+        _flow.OnSendWindowUpdate(windowUpdate.StreamId, windowUpdate.Increment);
+
+        if (windowUpdate.StreamId == 0)
+        {
+            foreach (var streamId in _streams.Keys.ToList())
+            {
+                DrainOutboundBuffer(streamId);
+            }
+        }
+        else
+        {
+            DrainOutboundBuffer(windowUpdate.StreamId);
+        }
+    }
+
+    private void HandlePingFrame(PingFrame ping)
+    {
+        if (ping.IsAck)
+        {
+            return;
+        }
+
+        var ackPing = new PingFrame(ping.Data, isAck: true);
+        EmitFrame(ackPing);
+    }
+
+    private void HandleGoAwayFrame(GoAwayFrame _)
+    {
+        _flow.OnGoAway();
+    }
+
+    private void HandleRstStreamFrame(RstStreamFrame rst)
+    {
+        CloseStream(rst.StreamId);
+    }
+
+    private void DecodeAndEmitRequest(int streamId, StreamState state, bool endStream)
+    {
+        try
+        {
+            var request = _requestDecoder.DecodeHeaders(streamId, endStream: true, state);
+            if (request is null)
+            {
+                return;
+            }
+
+            request.Options.Set(OptionsKey.Http2, streamId);
+
+            _tracker.OnStreamOpened(streamId);
+            _flow.InitStreamSendWindow(streamId);
+
+            if (!endStream)
+            {
+                state.InitBodyDecoder(new StreamingBodyDecoder(_maxRequestBodySize));
+                request.Content = state.GetContent();
+            }
+
+            _ops.OnRequest(request);
+        }
+        catch (HttpProtocolException ex)
+        {
+            Tracing.For("Protocol")
+                .Warning(this, "HTTP/2: Header decode error on stream {0}: {1}", streamId, ex.Message);
+            EmitRstStream(streamId, Http2ErrorCode.CompressionError);
+        }
+    }
+
+    private int GetStreamIdFromResponse(HttpResponseMessage response)
+    {
+        if (response.RequestMessage?.Options.TryGetValue(OptionsKey.Http2, out var streamId) is true)
+        {
+            return streamId;
+        }
+
+        throw new InvalidOperationException(
+            "Response missing stream ID. Expected StreamIdKey.Http2 in request options.");
+    }
+
+    private StreamState GetOrCreateStreamState(int streamId)
+    {
+        if (_streams.TryGetValue(streamId, out var existing))
+        {
+            return existing;
+        }
+
+        var state = _statePool.Rent();
+        _streams[streamId] = state;
+        return state;
+    }
+
+    private void CloseStream(int streamId)
+    {
+        _bodyRateStates.Remove(streamId);
+
+        if (_streams.TryGetValue(streamId, out var state))
+        {
+            _tracker.OnStreamClosed(streamId);
+
+            var windowUpdateSignal = _flow.OnStreamClosed(streamId);
+            if (windowUpdateSignal is { } signal)
+            {
+                EmitFrame(new WindowUpdateFrame(signal.StreamId, signal.Increment));
+            }
+
+            _flow.RemoveStreamSendWindow(streamId);
+
+            state.Reset();
+            _statePool.Return(state);
+
+            _streams.Remove(streamId);
+        }
+    }
+
+    private void EmitFrame(Http2Frame frame)
+    {
+        var totalSize = frame.SerializedSize;
+        var buf = TransportBuffer.Rent(totalSize);
+        var span = buf.FullMemory.Span;
+        frame.WriteTo(ref span);
+        buf.Length = totalSize;
+        _ops.OnOutbound(new TransportData(buf));
+    }
+
+    public void EmitRstStream(int streamId, Http2ErrorCode errorCode)
+    {
+        EmitFrame(new RstStreamFrame(streamId, errorCode));
+        CloseStream(streamId);
+    }
+
+    public void EmitGoAway(int lastStreamId, Http2ErrorCode errorCode, string? reason = null)
+    {
+        var debugData = reason is not null
+            ? Encoding.UTF8.GetBytes(reason).AsMemory()
+            : ReadOnlyMemory<byte>.Empty;
+
+        EmitFrame(new GoAwayFrame(lastStreamId, errorCode, debugData));
+    }
+
+    public void CheckBodyRates(int minDataRate, TimeSpan gracePeriod)
+    {
+        var now = Environment.TickCount64;
+        var streamsToReset = new List<int>();
+
+        foreach (var (streamId, state) in _bodyRateStates)
+        {
+            var elapsedMs = now - state.LastCheckTimestamp;
+            if (elapsedMs < 500)
+            {
+                continue;
+            }
+
+            var elapsedSeconds = elapsedMs / 1000.0;
+            var bytesTransferred = state.TotalBytes - state.LastCheckBytes;
+            var rate = bytesTransferred / elapsedSeconds;
+
+            state.LastCheckBytes = state.TotalBytes;
+            state.LastCheckTimestamp = now;
+
+            if (rate < minDataRate)
+            {
+                if (!state.InGracePeriod)
+                {
+                    state.InGracePeriod = true;
+                    state.GracePeriodStartTimestamp = now;
+                }
+                else
+                {
+                    var graceElapsedMs = now - state.GracePeriodStartTimestamp;
+                    if (graceElapsedMs > (long)gracePeriod.TotalMilliseconds)
+                    {
+                        streamsToReset.Add(streamId);
+                    }
+                }
+            }
+            else
+            {
+                state.InGracePeriod = false;
+            }
+        }
+
+        foreach (var streamId in streamsToReset)
+        {
+            EmitRstStream(streamId, Http2ErrorCode.EnhanceYourCalm);
+        }
+
+        if (_bodyRateStates.Count > 0)
+        {
+            _ops.OnScheduleTimer("body-rate-check", TimeSpan.FromSeconds(1));
+        }
+    }
+}

@@ -29,7 +29,7 @@ internal static class ContentEncoding
             var token = tokens[i].Trim();
 
             if (string.IsNullOrEmpty(token) ||
-                token.Equals(WellKnownHeaders.Identity, StringComparison.OrdinalIgnoreCase))
+                token.Equals(WellKnownHeaders.IdentityValue, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -45,10 +45,10 @@ internal static class ContentEncoding
 
     private static bool IsSupportedToken(string token)
     {
-        return token.Equals(WellKnownHeaders.Gzip, StringComparison.OrdinalIgnoreCase) ||
-               token.Equals(WellKnownHeaders.XGzip, StringComparison.OrdinalIgnoreCase) ||
-               token.Equals(WellKnownHeaders.Deflate, StringComparison.OrdinalIgnoreCase) ||
-               token.Equals(WellKnownHeaders.Brotli, StringComparison.OrdinalIgnoreCase);
+        return token.Equals(WellKnownHeaders.GzipValue, StringComparison.OrdinalIgnoreCase) ||
+               token.Equals(WellKnownHeaders.XGzipValue, StringComparison.OrdinalIgnoreCase) ||
+               token.Equals(WellKnownHeaders.DeflateValue, StringComparison.OrdinalIgnoreCase) ||
+               token.Equals(WellKnownHeaders.BrValue, StringComparison.OrdinalIgnoreCase);
     }
 
     internal static Stream CreateDecompressor(Stream source, string encoding)
@@ -60,23 +60,22 @@ internal static class ContentEncoding
     internal static Stream CreateCodecStream(Stream stream, string encoding, CompressionMode mode,
         bool leaveOpen = false)
     {
-        if (encoding.Equals(WellKnownHeaders.Gzip, StringComparison.OrdinalIgnoreCase) ||
-            encoding.Equals(WellKnownHeaders.XGzip, StringComparison.OrdinalIgnoreCase))
+        if (encoding.Equals(WellKnownHeaders.GzipValue, StringComparison.OrdinalIgnoreCase) ||
+            encoding.Equals(WellKnownHeaders.XGzipValue, StringComparison.OrdinalIgnoreCase))
         {
             return new GZipStream(stream, mode, leaveOpen);
         }
 
-        if (encoding.Equals(WellKnownHeaders.Brotli, StringComparison.OrdinalIgnoreCase))
+        if (encoding.Equals(WellKnownHeaders.BrValue, StringComparison.OrdinalIgnoreCase))
         {
             return new BrotliStream(stream, mode, leaveOpen);
         }
 
-        if (encoding.Equals(WellKnownHeaders.Deflate, StringComparison.OrdinalIgnoreCase))
+        if (encoding.Equals(WellKnownHeaders.DeflateValue, StringComparison.OrdinalIgnoreCase))
         {
             return new ZLibStream(stream, mode, leaveOpen);
         }
 
-        throw new HttpDecoderException(HttpDecoderError.DecompressionFailed,
-            $"RFC 9110 §8.4: Unknown Content-Encoding '{encoding}'.");
+        throw new HttpProtocolException($"RFC 9110 §8.4: Unknown Content-Encoding '{encoding}'.");
     }
 }

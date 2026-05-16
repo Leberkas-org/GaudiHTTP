@@ -88,9 +88,9 @@ internal sealed class Consumer : ReceiveActor
         ChannelSource.FromReader(_requestReader)
             .Select(request =>
             {
-                if (!request.Options.TryGetValue(TurboClientCorrelation.ConsumerIdKey, out _))
+                if (!request.Options.TryGetValue(OptionsKey.ConsumerIdKey, out _))
                 {
-                    request.Options.Set(TurboClientCorrelation.ConsumerIdKey, cid);
+                    request.Options.Set(OptionsKey.ConsumerIdKey, cid);
                 }
 
                 return enricher.Enrich(request);
@@ -107,8 +107,8 @@ internal sealed class Consumer : ReceiveActor
                 Sink.ForEach<HttpResponseMessage>(response =>
                 {
                     if (response.RequestMessage is { } req
-                        && req.Options.TryGetValue(TurboClientCorrelation.Key, out var pending)
-                        && req.Options.TryGetValue(TurboClientCorrelation.VersionKey, out var ver))
+                        && req.Options.TryGetValue(OptionsKey.Key, out var pending)
+                        && req.Options.TryGetValue(OptionsKey.VersionKey, out var ver))
                     {
                         pending.TrySetResult(response, ver);
                         return;

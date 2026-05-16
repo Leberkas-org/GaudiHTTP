@@ -1,242 +1,820 @@
-﻿namespace TurboHTTP.Protocol;
+using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
-/// <summary>
-/// RFC 9110/9112 well-known header names as UTF-8 byte sequences.
-/// Enables zero-allocation header comparison during parsing.
-/// </summary>
+namespace TurboHTTP.Protocol;
+
+internal readonly struct WellKnownHeader : IEquatable<WellKnownHeader>
+{
+    public string Name { get; }
+    public ReadOnlyMemory<byte> Bytes { get; }
+    public bool IsSensitive { get; }
+
+    public WellKnownHeader(string name, bool isSensitive = false)
+    {
+        Name = name;
+        Bytes = Encoding.ASCII.GetBytes(name);
+        IsSensitive = isSensitive;
+    }
+
+    public WellKnownHeader(ReadOnlySpan<byte> nameBytes, bool isSensitive = false)
+    {
+        Name = Encoding.ASCII.GetString(nameBytes);
+        Bytes = nameBytes.ToArray();
+        IsSensitive = isSensitive;
+    }
+
+    public bool Equals(WellKnownHeader other) => string.Equals(Name, other.Name, StringComparison.OrdinalIgnoreCase);
+    public override bool Equals(object? obj) => obj is WellKnownHeader other && Equals(other);
+    public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Name);
+    public static bool operator ==(WellKnownHeader left, WellKnownHeader right) => left.Equals(right);
+    public static bool operator !=(WellKnownHeader left, WellKnownHeader right) => !left.Equals(right);
+
+    public static WellKnownHeader operator +(WellKnownHeader left, WellKnownHeader right)
+        => new(left.Name + right.Name, left.IsSensitive || right.IsSensitive);
+
+    public static WellKnownHeader operator +(WellKnownHeader left, string right)
+        => new(left.Name + right, left.IsSensitive);
+
+    public static WellKnownHeader operator +(string left, WellKnownHeader right)
+        => new(left + right.Name, right.IsSensitive);
+
+    public static implicit operator WellKnownHeader(string value) => new(value);
+    public static implicit operator WellKnownHeader(byte[] value) => new(value);
+    public static implicit operator WellKnownHeader(ReadOnlyMemory<byte> value) => new(value.Span);
+    public static implicit operator string(WellKnownHeader header) => header.Name;
+    public static implicit operator byte[](WellKnownHeader header) => header.Bytes.ToArray();
+    public static implicit operator ReadOnlySpan<byte>(WellKnownHeader header) => header.Bytes.Span;
+    public static implicit operator ReadOnlyMemory<byte>(WellKnownHeader header) => header.Bytes;
+    public override string ToString() => Name;
+}
+
 internal static class WellKnownHeaders
 {
+    public static readonly WellKnownHeader Colon = new(":");
+    public static readonly WellKnownHeader Comma = new(",");
+    public static readonly WellKnownHeader Space = new(" ");
+    public static readonly WellKnownHeader Crlf = new("\r\n");
 
-    /// <summary>RFC 9110 Section 7.2: Host header (mandatory in HTTP/1.1)</summary>
-    public static ReadOnlySpan<byte> Host => "Host"u8;
+    // General
+    public static readonly WellKnownHeader Http = new("HTTP/");
+    public static readonly WellKnownHeader Http10 = Http + new WellKnownHeader("1.0");
+    public static readonly WellKnownHeader Http11 = Http + new WellKnownHeader("1.1");
+    public static readonly WellKnownHeader Http20 = Http + new WellKnownHeader("2");
+    public static readonly WellKnownHeader Http30 = Http + new WellKnownHeader("3");
+    public static readonly WellKnownHeader Host = new("Host");
+    public static readonly WellKnownHeader Connection = new("Connection");
+    public static readonly WellKnownHeader Upgrade = new("Upgrade");
+    public static readonly WellKnownHeader Via = new("Via");
 
-    /// <summary>RFC 9110 Section 11.6.2: Authorization header</summary>
-    public static ReadOnlySpan<byte> Authorization => "Authorization"u8;
+    //Method
+    public static readonly WellKnownHeader Get = new("GET");
+    public static readonly WellKnownHeader Put = new("PUT");
+    public static readonly WellKnownHeader Post = new("POST");
+    public static readonly WellKnownHeader Head = new("HEAD");
+    public static readonly WellKnownHeader Patch = new("PATCH");
+    public static readonly WellKnownHeader Trace = new("TRACE");
+    public static readonly WellKnownHeader Delete = new("DELETE");
+    public static readonly WellKnownHeader Options = new("OPTIONS");
+    public static readonly WellKnownHeader Connect = new("CONNECT");
 
-    /// <summary>RFC 9110 Section 12.5.1: Accept header</summary>
-    public static ReadOnlySpan<byte> Accept => "Accept"u8;
+    // Content
+    public static readonly WellKnownHeader ContentType = new("Content-Type");
+    public static readonly WellKnownHeader ContentLength = new("Content-Length");
+    public static readonly WellKnownHeader ContentEncoding = new("Content-Encoding");
+    public static readonly WellKnownHeader ContentRange = new("Content-Range");
+    public static readonly WellKnownHeader ContentLanguage = new("Content-Language");
+    public static readonly WellKnownHeader ContentLocation = new("Content-Location");
+    public static readonly WellKnownHeader ContentDisposition = new("Content-Disposition");
+    public static readonly WellKnownHeader ContentMd5 = new("Content-MD5");
 
-    /// <summary>RFC 9110 Section 12.5.3: Accept-Encoding header</summary>
-    public static ReadOnlySpan<byte> AcceptEncoding => "Accept-Encoding"u8;
+    // Auth (sensitive = never-index in HPACK/QPACK)
+    public static readonly WellKnownHeader Authorization = new("Authorization", isSensitive: true);
+    public static readonly WellKnownHeader ProxyAuthorization = new("Proxy-Authorization", isSensitive: true);
+    public static readonly WellKnownHeader ProxyAuthenticate = new("Proxy-Authenticate");
+    public static readonly WellKnownHeader ProxyConnection = new("Proxy-Connection");
+    public static readonly WellKnownHeader Cookie = new("Cookie", isSensitive: true);
+    public static readonly WellKnownHeader SetCookie = new("Set-Cookie", isSensitive: true);
+    public static readonly WellKnownHeader SetCookie2 = new("Set-Cookie2");
+    public static readonly WellKnownHeader WwwAuthenticate = new("WWW-Authenticate");
 
-    /// <summary>RFC 9110 Section 10.1.5: User-Agent header</summary>
-    public static ReadOnlySpan<byte> UserAgent => "User-Agent"u8;
+    // Caching
+    public static readonly WellKnownHeader CacheControl = new("Cache-Control");
+    public static readonly WellKnownHeader ETag = new("ETag");
+    public static readonly WellKnownHeader Expires = new("Expires");
+    public static readonly WellKnownHeader LastModified = new("Last-Modified");
+    public static readonly WellKnownHeader IfNoneMatch = new("If-None-Match");
+    public static readonly WellKnownHeader IfMatch = new("If-Match");
+    public static readonly WellKnownHeader IfModifiedSince = new("If-Modified-Since");
+    public static readonly WellKnownHeader IfUnmodifiedSince = new("If-Unmodified-Since");
+    public static readonly WellKnownHeader IfRange = new("If-Range");
+    public static readonly WellKnownHeader Pragma = new("Pragma");
+    public static readonly WellKnownHeader Vary = new("Vary");
+    public static readonly WellKnownHeader Age = new("Age");
 
+    // Request
+    public static readonly WellKnownHeader Accept = new("Accept");
+    public static readonly WellKnownHeader AcceptEncoding = new("Accept-Encoding");
+    public static readonly WellKnownHeader AcceptLanguage = new("Accept-Language");
+    public static readonly WellKnownHeader AcceptCharset = new("Accept-Charset");
+    public static readonly WellKnownHeader AcceptRanges = new("Accept-Ranges");
+    public static readonly WellKnownHeader UserAgent = new("User-Agent");
+    public static readonly WellKnownHeader Referer = new("Referer");
+    public static readonly WellKnownHeader From = new("From");
+    public static readonly WellKnownHeader Expect = new("Expect");
+    public static readonly WellKnownHeader MaxForwards = new("Max-Forwards");
+    public static readonly WellKnownHeader XForwardedFor = new("X-Forwarded-For");
+    public static readonly WellKnownHeader XForwardedProto = new("X-Forwarded-Proto");
+    public static readonly WellKnownHeader XRequestId = new("X-Request-Id");
 
-    /// <summary>RFC 9110 Section 10.2.4: Server header</summary>
-    public static ReadOnlySpan<byte> Server => "Server"u8;
+    // Response
+    public static readonly WellKnownHeader Server = new("Server");
+    public static readonly WellKnownHeader Date = new("Date");
+    public static readonly WellKnownHeader Location = new("Location");
+    public static readonly WellKnownHeader RetryAfter = new("Retry-After");
+    public static readonly WellKnownHeader Link = new("Link");
+    public static readonly WellKnownHeader AltSvc = new("Alt-Svc");
+    public static readonly WellKnownHeader StrictTransportSecurity = new("Strict-Transport-Security");
+    public static readonly WellKnownHeader Warning = new("Warning");
 
-    /// <summary>RFC 9110 Section 6.6.1: Date header</summary>
-    public static ReadOnlySpan<byte> Date => "Date"u8;
+    // Transfer
+    public static readonly WellKnownHeader TransferEncoding = new("Transfer-Encoding");
+    public static readonly WellKnownHeader Trailer = new("Trailer");
+    public static readonly WellKnownHeader Trailers = new("Trailers");
+    public static readonly WellKnownHeader Te = new("TE");
 
-    /// <summary>RFC 9110 Section 8.8.3: ETag header</summary>
-    public static ReadOnlySpan<byte> ETag => "ETag"u8;
+    // Security
+    public static readonly WellKnownHeader Forwarded = new("Forwarded");
 
-    /// <summary>RFC 9111 Section 5.2: Cache-Control header</summary>
-    public static ReadOnlySpan<byte> CacheControl => "Cache-Control"u8;
+    // HTTP/2+3 Pseudo-Headers
+    public static readonly WellKnownHeader Authority = Colon + new WellKnownHeader("authority");
+    public static readonly WellKnownHeader Method = Colon + new WellKnownHeader("method");
+    public static readonly WellKnownHeader Path = Colon + new WellKnownHeader("path");
+    public static readonly WellKnownHeader Scheme = Colon + new WellKnownHeader("scheme");
+    public static readonly WellKnownHeader Status = Colon + new WellKnownHeader("status");
 
+    // Additional HPACK/QPACK headers
+    public static readonly WellKnownHeader AccessControlAllowOrigin = new("Access-Control-Allow-Origin");
+    public static readonly WellKnownHeader Allow = new("Allow");
+    public static readonly WellKnownHeader Range = new("Range");
+    public static readonly WellKnownHeader Refresh = new("Refresh");
+    public static readonly WellKnownHeader KeepAliveHeader = new("Keep-Alive");
 
-    /// <summary>RFC 9110 Section 8.6: Content-Length header</summary>
-    public static ReadOnlySpan<byte> ContentLength => "Content-Length"u8;
+    // QPACK-only headers
+    public static readonly WellKnownHeader AccessControlAllowHeaders = new("Access-Control-Allow-Headers");
+    public static readonly WellKnownHeader AccessControlAllowCredentials = new("Access-Control-Allow-Credentials");
+    public static readonly WellKnownHeader AccessControlAllowMethods = new("Access-Control-Allow-Methods");
+    public static readonly WellKnownHeader AccessControlExposeHeaders = new("Access-Control-Expose-Headers");
+    public static readonly WellKnownHeader AccessControlRequestHeaders = new("Access-Control-Request-Headers");
+    public static readonly WellKnownHeader AccessControlRequestMethod = new("Access-Control-Request-Method");
+    public static readonly WellKnownHeader ContentSecurityPolicy = new("Content-Security-Policy");
+    public static readonly WellKnownHeader EarlyData = new("Early-Data");
+    public static readonly WellKnownHeader ExpectCt = new("Expect-CT");
+    public static readonly WellKnownHeader Origin = new("Origin");
+    public static readonly WellKnownHeader Purpose = new("Purpose");
+    public static readonly WellKnownHeader TimingAllowOrigin = new("Timing-Allow-Origin");
+    public static readonly WellKnownHeader UpgradeInsecureRequests = new("Upgrade-Insecure-Requests");
+    public static readonly WellKnownHeader XContentTypeOptions = new("X-Content-Type-Options");
+    public static readonly WellKnownHeader XXssProtection = new("X-XSS-Protection");
+    public static readonly WellKnownHeader XFrameOptions = new("X-Frame-Options");
 
-    /// <summary>RFC 9110 Section 8.3: Content-Type header</summary>
-    public static ReadOnlySpan<byte> ContentType => "Content-Type"u8;
+    // Encodings
+    public static readonly WellKnownHeader GzipValue = new("gzip");
+    public static readonly WellKnownHeader DeflateValue = new("deflate");
+    public static readonly WellKnownHeader BrValue = new("br");
+    public static readonly WellKnownHeader CompressValue = new("compress");
+    public static readonly WellKnownHeader IdentityValue = new("identity");
+    public static readonly WellKnownHeader XGzipValue = new("x-gzip");
 
-    /// <summary>RFC 9110 Section 8.4: Content-Encoding header</summary>
-    public static ReadOnlySpan<byte> ContentEncoding => "Content-Encoding"u8;
+    // Connection tokens
+    public static readonly WellKnownHeader CloseValue = new("close");
+    public static readonly WellKnownHeader KeepAliveValue = new("keep-alive");
+    public static readonly WellKnownHeader ChunkedValue = new("chunked");
 
-    /// <summary>RFC 9112 Section 6.1: Transfer-Encoding header</summary>
-    public static ReadOnlySpan<byte> TransferEncoding => "Transfer-Encoding"u8;
+    // Media types
+    public static readonly WellKnownHeader ApplicationJson = new("application/json");
+    public static readonly WellKnownHeader ApplicationOctetStream = new("application/octet-stream");
 
+    // Cache directives
+    public static readonly WellKnownHeader NoCache = new("no-cache");
+    public static readonly WellKnownHeader NoStore = new("no-store");
+    public static readonly WellKnownHeader PublicDirective = new("public");
+    public static readonly WellKnownHeader PrivateDirective = new("private");
+    public static readonly WellKnownHeader MaxAge300 = new("max-age=300");
+    public static readonly WellKnownHeader MaxAge604800 = new("max-age=604800");
 
-    /// <summary>RFC 9110 Section 7.6.1: Connection header</summary>
-    public static ReadOnlySpan<byte> Connection => "Connection"u8;
+    // Misc
+    public static readonly WellKnownHeader BytesValue = new("bytes");
+    public static readonly WellKnownHeader TrailersValue = new("trailers");
+    public static readonly WellKnownHeader TrailerValue = new("trailer");
+    public static readonly WellKnownHeader NoneValue = new("none");
+    private static readonly string[] StatusCodeStrings = BuildStatusCodeStrings();
 
-    /// <summary>RFC 9110 Section 6.6.2: Trailer header</summary>
-    public static ReadOnlySpan<byte> Trailer => "Trailer"u8;
-
-
-    /// <summary>Connection: keep-alive token</summary>
-    public static ReadOnlySpan<byte> KeepAlive => "keep-alive"u8;
-
-    /// <summary>Connection: close token</summary>
-    public static ReadOnlySpan<byte> Close => "close"u8;
-
-    /// <summary>Transfer-Encoding: chunked token</summary>
-    public static ReadOnlySpan<byte> Chunked => "chunked"u8;
-
-
-    /// <summary>HTTP/1.1 version string</summary>
-    public static ReadOnlySpan<byte> Http11Version => "HTTP/1.1"u8;
-
-    /// <summary>HTTP/1.0 version string</summary>
-    public static ReadOnlySpan<byte> Http10Version => "HTTP/1.0"u8;
-
-    /// <summary>CRLF line terminator</summary>
-    public static ReadOnlySpan<byte> Crlf => "\r\n"u8;
-
-    /// <summary>Double CRLF (header/body separator)</summary>
-    public static ReadOnlySpan<byte> CrlfCrlf => "\r\n\r\n"u8;
-
-    /// <summary>Colon-space separator for header name:value</summary>
-    public static ReadOnlySpan<byte> ColonSpace => ": "u8;
-
-    /// <summary>Space character</summary>
-    public static ReadOnlySpan<byte> Space => " "u8;
-
-    /// <summary>Comma-space for multi-value headers</summary>
-    public static ReadOnlySpan<byte> CommaSpace => ", "u8;
-
-    // For use with System.Net.Http APIs that compare header names as strings.
-
-    /// <summary>Header name strings for use with System.Net.Http APIs.</summary>
-#pragma warning disable CS0108 // Nested constants intentionally shadow outer byte-span properties
-    public static class Names
+    public static string GetStatusCodeString(int statusCode)
     {
-        public const string Host = "Host";
-        public const string Connection = "Connection";
-        public const string ContentLength = "Content-Length";
-        public const string ContentEncoding = "Content-Encoding";
-        public const string TransferEncoding = "Transfer-Encoding";
+        if (statusCode is >= 100 and <= 599)
+        {
+            return StatusCodeStrings[statusCode - 100];
+        }
+
+        return statusCode.ToString();
     }
-#pragma warning restore CS0108
+
+    private static string[] BuildStatusCodeStrings()
+    {
+        var strings = new string[500];
+        for (var i = 0; i < strings.Length; i++)
+        {
+            strings[i] = (i + 100).ToString();
+        }
+
+        return strings;
+    }
+
+    public static readonly WellKnownHeader ZeroValue = new("0");
+    public static readonly WellKnownHeader OneValue = new("1");
 
 
-    /// <summary>RFC 9110 §8.4.1: identity encoding (no transformation)</summary>
-    public const string Identity = "identity";
+    public static readonly WellKnownHeader CrlfCrlf = Crlf + Crlf;
+    public static readonly WellKnownHeader ColonSpace = Colon + Space;
+    public static readonly WellKnownHeader CommaSpace = Comma + Space;
 
-    /// <summary>RFC 9110 §8.4.1.3: gzip encoding</summary>
-    public const string Gzip = "gzip";
+    public static bool TryResolve(ReadOnlySpan<byte> bytes, [NotNullWhen(true)] out string? result)
+    {
+        result = bytes.Length switch
+        {
+            1 => TryResolveLen1(bytes),
+            2 => TryResolveLen2(bytes),
+            3 => TryResolveLen3(bytes),
+            4 => TryResolveLen4(bytes),
+            5 => TryResolveLen5(bytes),
+            6 => TryResolveLen6(bytes),
+            7 => TryResolveLen7(bytes),
+            8 => TryResolveLen8(bytes),
+            9 when bytes.SequenceEqual(Forwarded) => Forwarded,
+            10 => TryResolveLen10(bytes),
+            11 when bytes.SequenceEqual(RetryAfter) => RetryAfter,
+            11 when bytes.SequenceEqual(MaxAge300) => MaxAge300,
+            12 => TryResolveLen12(bytes),
+            13 => TryResolveLen13(bytes),
+            14 => TryResolveLen14(bytes),
+            15 => TryResolveLen15(bytes),
+            16 => TryResolveLen16(bytes),
+            17 => TryResolveLen17(bytes),
+            18 when bytes.SequenceEqual(ProxyAuthenticate) => ProxyAuthenticate,
+            19 when bytes.SequenceEqual(IfUnmodifiedSince) => IfUnmodifiedSince,
+            19 when bytes.SequenceEqual(ProxyAuthorization) => ProxyAuthorization,
+            19 when bytes.SequenceEqual(ContentDisposition) => ContentDisposition,
+            24 when bytes.SequenceEqual(ApplicationOctetStream) => ApplicationOctetStream,
+            25 when bytes.SequenceEqual(StrictTransportSecurity) => StrictTransportSecurity,
+            _ => null
+        };
 
-    /// <summary>Legacy alias for gzip</summary>
-    public const string XGzip = "x-gzip";
+        return result is not null;
+    }
 
-    /// <summary>RFC 9110 §8.4.1.2: deflate encoding</summary>
-    public const string Deflate = "deflate";
+    private static string? TryResolveLen1(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(ZeroValue))
+        {
+            return ZeroValue;
+        }
 
-    /// <summary>RFC 7932: Brotli encoding</summary>
-    public const string Brotli = "br";
+        if (b.SequenceEqual(OneValue))
+        {
+            return OneValue;
+        }
 
+        return null;
+    }
 
-    /// <summary>
-    /// Returns the interned string for a well-known HTTP header name, or allocates
-    /// a new string for unknown names. Avoids <see cref="System.Text.Encoding.ASCII"/>
-    /// allocations for the ~25 most common response headers.
-    /// </summary>
-    /// <remarks>
-    /// Uses length as the first discriminator (O(1)) then a byte-sequence comparison
-    /// for candidates at that length — same technique as the .NET runtime's HttpConnection.
-    /// </remarks>
-    public static string GetOrCreateHeaderName(ReadOnlySpan<byte> name)
+    private static string? TryResolveLen2(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(Te))
+        {
+            return Te;
+        }
+
+        if (b.SequenceEqual(BrValue))
+        {
+            return BrValue;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen3(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(Age))
+        {
+            return Age;
+        }
+
+        if (b.SequenceEqual(Via))
+        {
+            return Via;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen4(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(Date))
+        {
+            return Date;
+        }
+
+        if (b.SequenceEqual(ETag))
+        {
+            return ETag;
+        }
+
+        if (b.SequenceEqual(Vary))
+        {
+            return Vary;
+        }
+
+        if (b.SequenceEqual(From))
+        {
+            return From;
+        }
+
+        if (b.SequenceEqual(Host))
+        {
+            return Host;
+        }
+
+        if (b.SequenceEqual(Link))
+        {
+            return Link;
+        }
+
+        if (b.SequenceEqual(GzipValue))
+        {
+            return GzipValue;
+        }
+
+        if (b.SequenceEqual(NoneValue))
+        {
+            return NoneValue;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen5(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(Allow))
+        {
+            return Allow;
+        }
+
+        if (b.SequenceEqual(Range))
+        {
+            return Range;
+        }
+
+        if (b.SequenceEqual(Path))
+        {
+            return Path;
+        }
+
+        if (b.SequenceEqual(CloseValue))
+        {
+            return CloseValue;
+        }
+
+        if (b.SequenceEqual(BytesValue))
+        {
+            return BytesValue;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen6(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(Accept))
+        {
+            return Accept;
+        }
+
+        if (b.SequenceEqual(Cookie))
+        {
+            return Cookie;
+        }
+
+        if (b.SequenceEqual(Expect))
+        {
+            return Expect;
+        }
+
+        if (b.SequenceEqual(Pragma))
+        {
+            return Pragma;
+        }
+
+        if (b.SequenceEqual(Server))
+        {
+            return Server;
+        }
+
+        if (b.SequenceEqual(Origin))
+        {
+            return Origin;
+        }
+
+        if (b.SequenceEqual(PublicDirective))
+        {
+            return PublicDirective;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen7(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(AltSvc))
+        {
+            return AltSvc;
+        }
+
+        if (b.SequenceEqual(Expires))
+        {
+            return Expires;
+        }
+
+        if (b.SequenceEqual(Referer))
+        {
+            return Referer;
+        }
+
+        if (b.SequenceEqual(Trailer))
+        {
+            return Trailer;
+        }
+
+        if (b.SequenceEqual(Upgrade))
+        {
+            return Upgrade;
+        }
+
+        if (b.SequenceEqual(Warning))
+        {
+            return Warning;
+        }
+
+        if (b.SequenceEqual(Method))
+        {
+            return Method;
+        }
+
+        if (b.SequenceEqual(Scheme))
+        {
+            return Scheme;
+        }
+
+        if (b.SequenceEqual(Status))
+        {
+            return Status;
+        }
+
+        if (b.SequenceEqual(ChunkedValue))
+        {
+            return ChunkedValue;
+        }
+
+        if (b.SequenceEqual(DeflateValue))
+        {
+            return DeflateValue;
+        }
+
+        if (b.SequenceEqual(PrivateDirective))
+        {
+            return PrivateDirective;
+        }
+
+        if (b.SequenceEqual(TrailerValue))
+        {
+            return TrailerValue;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen8(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(IfMatch))
+        {
+            return IfMatch;
+        }
+
+        if (b.SequenceEqual(IfRange))
+        {
+            return IfRange;
+        }
+
+        if (b.SequenceEqual(Location))
+        {
+            return Location;
+        }
+
+        if (b.SequenceEqual(CompressValue))
+        {
+            return CompressValue;
+        }
+
+        if (b.SequenceEqual(IdentityValue))
+        {
+            return IdentityValue;
+        }
+
+        if (b.SequenceEqual(NoCache))
+        {
+            return NoCache;
+        }
+
+        if (b.SequenceEqual(NoStore))
+        {
+            return NoStore;
+        }
+
+        if (b.SequenceEqual(TrailersValue))
+        {
+            return TrailersValue;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen10(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(Connection))
+        {
+            return Connection;
+        }
+
+        if (b.SequenceEqual(KeepAliveHeader))
+        {
+            return KeepAliveHeader;
+        }
+
+        if (b.SequenceEqual(SetCookie))
+        {
+            return SetCookie;
+        }
+
+        if (b.SequenceEqual(UserAgent))
+        {
+            return UserAgent;
+        }
+
+        if (b.SequenceEqual(Authority))
+        {
+            return Authority;
+        }
+
+        if (b.SequenceEqual(KeepAliveValue))
+        {
+            return KeepAliveValue;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen12(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(ContentType))
+        {
+            return ContentType;
+        }
+
+        if (b.SequenceEqual(MaxForwards))
+        {
+            return MaxForwards;
+        }
+
+        if (b.SequenceEqual(XRequestId))
+        {
+            return XRequestId;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen13(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(Authorization))
+        {
+            return Authorization;
+        }
+
+        if (b.SequenceEqual(CacheControl))
+        {
+            return CacheControl;
+        }
+
+        if (b.SequenceEqual(ContentRange))
+        {
+            return ContentRange;
+        }
+
+        if (b.SequenceEqual(LastModified))
+        {
+            return LastModified;
+        }
+
+        if (b.SequenceEqual(IfNoneMatch))
+        {
+            return IfNoneMatch;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen14(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(AcceptCharset))
+        {
+            return AcceptCharset;
+        }
+
+        if (b.SequenceEqual(AcceptRanges))
+        {
+            return AcceptRanges;
+        }
+
+        if (b.SequenceEqual(ContentLength))
+        {
+            return ContentLength;
+        }
+
+        if (b.SequenceEqual(MaxAge604800))
+        {
+            return MaxAge604800;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen15(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(AcceptEncoding))
+        {
+            return AcceptEncoding;
+        }
+
+        if (b.SequenceEqual(AcceptLanguage))
+        {
+            return AcceptLanguage;
+        }
+
+        if (b.SequenceEqual(XForwardedFor))
+        {
+            return XForwardedFor;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen16(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(ContentEncoding))
+        {
+            return ContentEncoding;
+        }
+
+        if (b.SequenceEqual(ContentLanguage))
+        {
+            return ContentLanguage;
+        }
+
+        if (b.SequenceEqual(ContentLocation))
+        {
+            return ContentLocation;
+        }
+
+        if (b.SequenceEqual(WwwAuthenticate))
+        {
+            return WwwAuthenticate;
+        }
+
+        if (b.SequenceEqual(ApplicationJson))
+        {
+            return ApplicationJson;
+        }
+
+        return null;
+    }
+
+    private static string? TryResolveLen17(ReadOnlySpan<byte> b)
+    {
+        if (b.SequenceEqual(IfModifiedSince))
+        {
+            return IfModifiedSince;
+        }
+
+        if (b.SequenceEqual(TransferEncoding))
+        {
+            return TransferEncoding;
+        }
+
+        if (b.SequenceEqual(XForwardedProto))
+        {
+            return XForwardedProto;
+        }
+
+        return null;
+    }
+
+    public static WellKnownHeader GetOrCreateHeaderName(ReadOnlySpan<byte> name)
+        => TryResolve(name, out var cached) ? new WellKnownHeader(cached) : new WellKnownHeader(name);
+
+    public static WellKnownHeader GetOrCreateHeaderValue(ReadOnlySpan<byte> value)
+        => TryResolve(value, out var cached) ? new WellKnownHeader(cached) : new WellKnownHeader(value);
+
+    public static WellKnownHeader GetOrCreateHeaderNameIgnoreCase(ReadOnlySpan<byte> name)
         => name.Length switch
         {
-            2 => name.SequenceEqual("TE"u8) ? "TE" : System.Text.Encoding.ASCII.GetString(name),
-            3 => name.SequenceEqual("Age"u8) ? "Age" :
-                 name.SequenceEqual("Via"u8) ? "Via" : System.Text.Encoding.ASCII.GetString(name),
-            4 => name.SequenceEqual("Date"u8) ? "Date" :
-                 name.SequenceEqual("ETag"u8) ? "ETag" :
-                 name.SequenceEqual("Vary"u8) ? "Vary" :
-                 name.SequenceEqual("From"u8) ? "From" :
-                 name.SequenceEqual("Host"u8) ? "Host" :
-                 name.SequenceEqual("Link"u8) ? "Link" : System.Text.Encoding.ASCII.GetString(name),
-            5 => name.SequenceEqual("Allow"u8) ? "Allow" :
-                 name.SequenceEqual("Retry"u8) ? "Retry" : System.Text.Encoding.ASCII.GetString(name),
-            6 => name.SequenceEqual("Accept"u8) ? "Accept" :
-                 name.SequenceEqual("Cookie"u8) ? "Cookie" :
-                 name.SequenceEqual("Expect"u8) ? "Expect" :
-                 name.SequenceEqual("Pragma"u8) ? "Pragma" :
-                 name.SequenceEqual("Server"u8) ? "Server" : System.Text.Encoding.ASCII.GetString(name),
-            7 => name.SequenceEqual("Alt-Svc"u8) ? "Alt-Svc" :
-                 name.SequenceEqual("Expires"u8) ? "Expires" :
-                 name.SequenceEqual("Referer"u8) ? "Referer" :
-                 name.SequenceEqual("Trailer"u8) ? "Trailer" :
-                 name.SequenceEqual("Upgrade"u8) ? "Upgrade" :
-                 name.SequenceEqual("Warning"u8) ? "Warning" : System.Text.Encoding.ASCII.GetString(name),
-            8 => name.SequenceEqual("If-Match"u8) ? "If-Match" :
-                 name.SequenceEqual("If-Range"u8) ? "If-Range" :
-                 name.SequenceEqual("Location"u8) ? "Location" : System.Text.Encoding.ASCII.GetString(name),
-            9 => name.SequenceEqual("Forwarded"u8) ? "Forwarded" : System.Text.Encoding.ASCII.GetString(name),
-            10 => name.SequenceEqual("Connection"u8) ? "Connection" :
-                  name.SequenceEqual("Keep-Alive"u8) ? "Keep-Alive" :
-                  name.SequenceEqual("Set-Cookie"u8) ? "Set-Cookie" :
-                  name.SequenceEqual("User-Agent"u8) ? "User-Agent" : System.Text.Encoding.ASCII.GetString(name),
-            11 => name.SequenceEqual("Retry-After"u8) ? "Retry-After" :
-                  name.SequenceEqual("Set-Cookie2"u8) ? "Set-Cookie2" : System.Text.Encoding.ASCII.GetString(name),
-            12 => name.SequenceEqual("Content-Type"u8) ? "Content-Type" :
-                  name.SequenceEqual("Max-Forwards"u8) ? "Max-Forwards" :
-                  name.SequenceEqual("X-Request-Id"u8) ? "X-Request-Id" : System.Text.Encoding.ASCII.GetString(name),
-            13 => name.SequenceEqual("Authorization"u8) ? "Authorization" :
-                  name.SequenceEqual("Cache-Control"u8) ? "Cache-Control" :
-                  name.SequenceEqual("Content-Range"u8) ? "Content-Range" :
-                  name.SequenceEqual("Last-Modified"u8) ? "Last-Modified" :
-                  name.SequenceEqual("If-None-Match"u8) ? "If-None-Match" : System.Text.Encoding.ASCII.GetString(name),
-            14 => name.SequenceEqual("Accept-Charset"u8) ? "Accept-Charset" :
-                  name.SequenceEqual("Accept-Ranges"u8) ? "Accept-Ranges" :
-                  name.SequenceEqual("Content-Length"u8) ? "Content-Length" : System.Text.Encoding.ASCII.GetString(name),
-            15 => name.SequenceEqual("Accept-Encoding"u8) ? "Accept-Encoding" :
-                  name.SequenceEqual("Accept-Language"u8) ? "Accept-Language" :
-                  name.SequenceEqual("X-Forwarded-For"u8) ? "X-Forwarded-For" : System.Text.Encoding.ASCII.GetString(name),
-            16 => name.SequenceEqual("Content-Encoding"u8) ? "Content-Encoding" :
-                  name.SequenceEqual("Content-Language"u8) ? "Content-Language" :
-                  name.SequenceEqual("Content-Location"u8) ? "Content-Location" :
-                  name.SequenceEqual("WWW-Authenticate"u8) ? "WWW-Authenticate" : System.Text.Encoding.ASCII.GetString(name),
-            17 => name.SequenceEqual("If-Modified-Since"u8) ? "If-Modified-Since" :
-                  name.SequenceEqual("Transfer-Encoding"u8) ? "Transfer-Encoding" :
-                  name.SequenceEqual("X-Forwarded-Proto"u8) ? "X-Forwarded-Proto" : System.Text.Encoding.ASCII.GetString(name),
-            18 => name.SequenceEqual("Proxy-Authenticate"u8) ? "Proxy-Authenticate" : System.Text.Encoding.ASCII.GetString(name),
-            19 => name.SequenceEqual("If-Unmodified-Since"u8) ? "If-Unmodified-Since" :
-                  name.SequenceEqual("Proxy-Authorization"u8) ? "Proxy-Authorization" : System.Text.Encoding.ASCII.GetString(name),
-            25 => name.SequenceEqual("Strict-Transport-Security"u8) ? "Strict-Transport-Security" : System.Text.Encoding.ASCII.GetString(name),
-            _ => System.Text.Encoding.ASCII.GetString(name),
+            0 => new WellKnownHeader(string.Empty),
+            2 => EqualsIgnoreCase(name, Te) ? Te : new WellKnownHeader(name),
+            3 => EqualsIgnoreCase(name, Age) ? Age :
+                EqualsIgnoreCase(name, Via) ? Via : new WellKnownHeader(name),
+            4 => EqualsIgnoreCase(name, Date) ? Date :
+                EqualsIgnoreCase(name, ETag) ? ETag :
+                EqualsIgnoreCase(name, Vary) ? Vary :
+                EqualsIgnoreCase(name, From) ? From :
+                EqualsIgnoreCase(name, Host) ? Host :
+                EqualsIgnoreCase(name, Link) ? Link : new WellKnownHeader(name),
+            5 => EqualsIgnoreCase(name, Allow) ? Allow : new WellKnownHeader(name),
+            6 => EqualsIgnoreCase(name, Accept) ? Accept :
+                EqualsIgnoreCase(name, Cookie) ? Cookie :
+                EqualsIgnoreCase(name, Expect) ? Expect :
+                EqualsIgnoreCase(name, Pragma) ? Pragma :
+                EqualsIgnoreCase(name, Server) ? Server :
+                new WellKnownHeader(name),
+            7 => EqualsIgnoreCase(name, AltSvc) ? AltSvc :
+                EqualsIgnoreCase(name, Expires) ? Expires :
+                EqualsIgnoreCase(name, Referer) ? Referer :
+                EqualsIgnoreCase(name, Trailer) ? Trailer :
+                EqualsIgnoreCase(name, Upgrade) ? Upgrade :
+                EqualsIgnoreCase(name, Warning) ? Warning :
+                new WellKnownHeader(name),
+            8 => EqualsIgnoreCase(name, IfMatch) ? IfMatch :
+                EqualsIgnoreCase(name, IfRange) ? IfRange :
+                EqualsIgnoreCase(name, Location) ? Location :
+                new WellKnownHeader(name),
+            9 => EqualsIgnoreCase(name, Forwarded)
+                ? Forwarded
+                : new WellKnownHeader(name),
+            10 => EqualsIgnoreCase(name, Connection) ? Connection :
+                EqualsIgnoreCase(name, KeepAliveHeader) ? KeepAliveHeader :
+                EqualsIgnoreCase(name, SetCookie) ? SetCookie :
+                EqualsIgnoreCase(name, UserAgent) ? UserAgent :
+                new WellKnownHeader(name),
+            11 => EqualsIgnoreCase(name, RetryAfter) ? RetryAfter :
+                EqualsIgnoreCase(name, SetCookie2) ? SetCookie2 :
+                new WellKnownHeader(name),
+            12 => EqualsIgnoreCase(name, ContentType) ? ContentType :
+                EqualsIgnoreCase(name, MaxForwards) ? MaxForwards :
+                EqualsIgnoreCase(name, XRequestId) ? XRequestId :
+                new WellKnownHeader(name),
+            13 => EqualsIgnoreCase(name, Authorization) ? Authorization :
+                EqualsIgnoreCase(name, CacheControl) ? CacheControl :
+                EqualsIgnoreCase(name, ContentRange) ? ContentRange :
+                EqualsIgnoreCase(name, LastModified) ? LastModified :
+                EqualsIgnoreCase(name, IfNoneMatch) ? IfNoneMatch :
+                new WellKnownHeader(name),
+            14 => EqualsIgnoreCase(name, AcceptCharset) ? AcceptCharset :
+                EqualsIgnoreCase(name, AcceptRanges) ? AcceptRanges :
+                EqualsIgnoreCase(name, ContentLength) ? ContentLength :
+                new WellKnownHeader(name),
+            15 => EqualsIgnoreCase(name, AcceptEncoding) ? AcceptEncoding :
+                EqualsIgnoreCase(name, AcceptLanguage) ? AcceptLanguage :
+                EqualsIgnoreCase(name, XForwardedFor) ? XForwardedFor :
+                new WellKnownHeader(name),
+            16 => EqualsIgnoreCase(name, ContentEncoding) ? ContentEncoding :
+                EqualsIgnoreCase(name, ContentLanguage) ? ContentLanguage :
+                EqualsIgnoreCase(name, ContentLocation) ? ContentLocation :
+                EqualsIgnoreCase(name, WwwAuthenticate) ? WwwAuthenticate :
+                new WellKnownHeader(name),
+            17 => EqualsIgnoreCase(name, IfModifiedSince) ? IfModifiedSince :
+                EqualsIgnoreCase(name, TransferEncoding) ? TransferEncoding :
+                EqualsIgnoreCase(name, XForwardedProto) ? XForwardedProto :
+                new WellKnownHeader(name),
+            18 => EqualsIgnoreCase(name, ProxyAuthenticate)
+                ? ProxyAuthenticate
+                : new WellKnownHeader(name),
+            19 => EqualsIgnoreCase(name, IfUnmodifiedSince) ? IfUnmodifiedSince :
+                EqualsIgnoreCase(name, ProxyAuthorization) ? ProxyAuthorization :
+                new WellKnownHeader(name),
+            25 => EqualsIgnoreCase(name, StrictTransportSecurity)
+                ? StrictTransportSecurity
+                : new WellKnownHeader(name),
+            _ => new WellKnownHeader(name),
         };
 
-    /// <summary>
-    /// Returns an interned string for well-known HTTP header values, or allocates
-    /// a new string for unknown values. Avoids <see cref="System.Text.Encoding.ASCII"/>
-    /// allocations for the most common response header values (Connection tokens,
-    /// Transfer-Encoding tokens, Content-Encoding tokens, Cache-Control directives).
-    /// </summary>
-    /// <remarks>
-    /// Uses length as the first discriminator (O(1)) then a byte-sequence comparison —
-    /// same technique as <see cref="GetOrCreateHeaderName"/>.
-    /// Values are matched case-sensitively; servers should send canonical casing per RFC 9110.
-    /// </remarks>
-    public static string GetOrCreateHeaderValue(ReadOnlySpan<byte> value)
-        => value.Length switch
-        {
-            1 => value.SequenceEqual("0"u8) ? "0" :
-                  value.SequenceEqual("1"u8) ? "1" : System.Text.Encoding.ASCII.GetString(value),
-            2 => value.SequenceEqual("br"u8) ? "br" : System.Text.Encoding.ASCII.GetString(value),
-            4 => value.SequenceEqual("gzip"u8) ? "gzip" :
-                  value.SequenceEqual("none"u8) ? "none" : System.Text.Encoding.ASCII.GetString(value),
-            5 => value.SequenceEqual("close"u8) ? "close" :
-                  value.SequenceEqual("bytes"u8) ? "bytes" : System.Text.Encoding.ASCII.GetString(value),
-            6 => value.SequenceEqual("public"u8) ? "public" : System.Text.Encoding.ASCII.GetString(value),
-            7 => value.SequenceEqual("chunked"u8) ? "chunked" :
-                  value.SequenceEqual("deflate"u8) ? "deflate" :
-                  value.SequenceEqual("private"u8) ? "private" :
-                  value.SequenceEqual("trailer"u8) ? "trailer" : System.Text.Encoding.ASCII.GetString(value),
-            8 => value.SequenceEqual("compress"u8) ? "compress" :
-                  value.SequenceEqual("identity"u8) ? "identity" :
-                  value.SequenceEqual("no-cache"u8) ? "no-cache" :
-                  value.SequenceEqual("no-store"u8) ? "no-store" :
-                  value.SequenceEqual("trailers"u8) ? "trailers" : System.Text.Encoding.ASCII.GetString(value),
-            10 => value.SequenceEqual("keep-alive"u8) ? "keep-alive" : System.Text.Encoding.ASCII.GetString(value),
-            11 => value.SequenceEqual("max-age=300"u8) ? "max-age=300" : System.Text.Encoding.ASCII.GetString(value),
-            14 => value.SequenceEqual("max-age=604800"u8) ? "max-age=604800" : System.Text.Encoding.ASCII.GetString(value),
-            16 => value.SequenceEqual("application/json"u8) ? "application/json" : System.Text.Encoding.ASCII.GetString(value),
-            24 => value.SequenceEqual("application/octet-stream"u8) ? "application/octet-stream" : System.Text.Encoding.ASCII.GetString(value),
-            _ => System.Text.Encoding.ASCII.GetString(value),
-        };
-
-    /// <summary>
-    /// Case-insensitive comparison of ASCII header names.
-    /// RFC 9110 Section 5.1: Header field names are case-insensitive.
-    /// </summary>
-    /// <param name="a">First byte sequence</param>
-    /// <param name="b">Second byte sequence</param>
-    /// <returns>True if sequences are equal ignoring ASCII case</returns>
-    public static bool EqualsIgnoreCase(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    internal static bool EqualsIgnoreCase(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {
         if (a.Length != b.Length)
         {
@@ -245,8 +823,6 @@ internal static class WellKnownHeaders
 
         for (var i = 0; i < a.Length; i++)
         {
-            // ASCII lowercase: set bit 5 (0x20) to normalize 'A'-'Z' to 'a'-'z'
-            // Works for all ASCII letters, preserves non-letters
             if ((a[i] | 0x20) != (b[i] | 0x20))
             {
                 return false;
@@ -256,53 +832,11 @@ internal static class WellKnownHeaders
         return true;
     }
 
-    /// <summary>
-    /// Checks if a header value contains "chunked" (case-insensitive).
-    /// Used for Transfer-Encoding parsing per RFC 9112 Section 6.1.
-    /// </summary>
-    public static bool ContainsChunked(ReadOnlySpan<byte> value)
+    public static bool IsSensitiveHeaderName(string name)
     {
-        var chunked = Chunked;
-        if (value.Length < chunked.Length)
-        {
-            return false;
-        }
-
-        for (var i = 0; i <= value.Length - chunked.Length; i++)
-        {
-            if (EqualsIgnoreCase(value.Slice(i, chunked.Length), chunked))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return name.Equals(Authorization, StringComparison.OrdinalIgnoreCase) ||
+               name.Equals(ProxyAuthorization, StringComparison.OrdinalIgnoreCase) ||
+               name.Equals(Cookie, StringComparison.OrdinalIgnoreCase) ||
+               name.Equals(SetCookie, StringComparison.OrdinalIgnoreCase);
     }
-
-    /// <summary>
-    /// Trims leading and trailing ASCII whitespace (SP, HTAB) from a span.
-    /// RFC 9110 Section 5.5: OWS = *( SP / HTAB )
-    /// </summary>
-    public static ReadOnlySpan<byte> TrimOws(ReadOnlySpan<byte> span)
-    {
-        var start = 0;
-        while (start < span.Length && IsOws(span[start]))
-        {
-            start++;
-        }
-
-        var end = span.Length;
-        while (end > start && IsOws(span[end - 1]))
-        {
-            end--;
-        }
-
-        return span[start..end];
-    }
-
-    /// <summary>
-    /// Checks if byte is optional whitespace (SP or HTAB).
-    /// RFC 9110 Section 5.6.3: OWS = *( SP / HTAB )
-    /// </summary>
-    private static bool IsOws(byte b) => b == ' ' || b == '\t';
 }

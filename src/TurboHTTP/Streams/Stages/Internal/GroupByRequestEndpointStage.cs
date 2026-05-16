@@ -277,7 +277,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             {
                 foreach (var state in group.AllSlots)
                 {
-                    if (!state.IsDead && state.Pending.Count > 0)
+                    if (state is { IsDead: false, Pending.Count: > 0 })
                     {
                         Log.Debug("GroupByHostKeyStage: TryFinish deferred — subflows still draining");
                         return; // still draining

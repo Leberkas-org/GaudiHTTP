@@ -1,5 +1,4 @@
 using System.Net;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Internal;
@@ -24,7 +23,7 @@ internal sealed class DecompressingContent : HttpContent
             using var decompressor = ContentEncoding.CreateDecompressor(source, _encoding);
             decompressor.CopyTo(stream);
         }
-        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or HttpDecoderException)
+        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or Protocol.HttpProtocolException)
         {
         }
     }
@@ -38,7 +37,7 @@ internal sealed class DecompressingContent : HttpContent
             await using var decompressor = ContentEncoding.CreateDecompressor(source, _encoding);
             await decompressor.CopyToAsync(stream).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or HttpDecoderException)
+        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or Protocol.HttpProtocolException)
         {
         }
     }
@@ -52,7 +51,7 @@ internal sealed class DecompressingContent : HttpContent
             await using var decompressor = ContentEncoding.CreateDecompressor(source, _encoding);
             await decompressor.CopyToAsync(stream, ct).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or HttpDecoderException)
+        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or Protocol.HttpProtocolException)
         {
         }
     }

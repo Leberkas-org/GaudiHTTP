@@ -3,7 +3,7 @@
     <PropertyGroup>
         <Authors>st0o0</Authors>
         <Title>TurboHTTP</Title>
-        <PackageTags>HttpClient;Akka;Streams;Turbo</PackageTags>
+        <PackageTags>HttpClient;Kestrel;Akka;Streams;Turbo</PackageTags>
         <PackageIcon>icon.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageLicenseFile>LICENSE</PackageLicenseFile>
@@ -37,6 +37,8 @@
     </ItemGroup>
     <ItemGroup>
         <InternalsVisibleTo Include="TurboHTTP.Tests"/>
+        <InternalsVisibleTo Include="TurboHTTP.Server"/>
+        <InternalsVisibleTo Include="TurboHTTP.Server.Tests"/>
         <InternalsVisibleTo Include="TurboHTTP.AcceptanceTests"/>
         <InternalsVisibleTo Include="TurboHTTP.IntegrationTests"/>
         <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Container"/>

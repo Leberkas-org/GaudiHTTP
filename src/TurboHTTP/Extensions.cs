@@ -8,8 +8,8 @@ public static class Extensions
         CancellationToken ct = default)
     {
         var pending = PendingRequest.Rent();
-        request.Options.Set(TurboClientCorrelation.Key, pending);
-        request.Options.Set(TurboClientCorrelation.VersionKey, pending.Version);
+        request.Options.Set(OptionsKey.Key, pending);
+        request.Options.Set(OptionsKey.VersionKey, pending.Version);
 
         if (ct.CanBeCanceled)
         {

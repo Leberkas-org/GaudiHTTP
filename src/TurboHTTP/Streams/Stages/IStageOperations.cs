@@ -1,3 +1,4 @@
+using Akka.Actor;
 using Akka.Event;
 using Servus.Akka.Transport;
 
@@ -10,4 +11,5 @@ internal interface IStageOperations
     void OnScheduleTimer(string name, TimeSpan duration);
     void OnCancelTimer(string name);
     ILoggingAdapter Log { get; }
+    IActorRef StageActor { get; }
 }

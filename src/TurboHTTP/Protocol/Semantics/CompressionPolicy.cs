@@ -1,3 +1,5 @@
+using TurboHTTP.Protocol;
+
 namespace TurboHTTP.Protocol.Semantics;
 
 /// <summary>
@@ -14,7 +16,7 @@ internal sealed record CompressionPolicy
     /// The content encoding to apply (e.g. "gzip", "deflate", "br").
     /// Default is "gzip".
     /// </summary>
-    public string Encoding { get; init; } = "gzip";
+    public string Encoding { get; init; } = WellKnownHeaders.GzipValue;
 
     /// <summary>
     /// Minimum request body size in bytes that triggers compression.

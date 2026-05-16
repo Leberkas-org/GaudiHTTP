@@ -61,7 +61,7 @@ internal static class PartialContentValidator
         }
 
         // Single-part 206 MUST have Content-Range header
-        if (!response.Content.Headers.Contains("Content-Range"))
+        if (!response.Content.Headers.Contains(WellKnownHeaders.ContentRange))
         {
             return new ValidationResult
             {

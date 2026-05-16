@@ -1,0 +1,93 @@
+using System.Net;
+
+namespace TurboHTTP.Protocol.Semantics;
+
+internal static class MessageVersionCodec
+{
+    public static bool TryParse(ReadOnlySpan<byte> span, out Version version)
+    {
+        if (span.SequenceEqual(WellKnownHeaders.Http10))
+        {
+            version = HttpVersion.Version10;
+            return true;
+        }
+
+        if (span.SequenceEqual(WellKnownHeaders.Http11))
+        {
+            version = HttpVersion.Version11;
+            return true;
+        }
+
+        if (span.SequenceEqual(WellKnownHeaders.Http20))
+        {
+            version = HttpVersion.Version20;
+            return true;
+        }
+
+        if (span.SequenceEqual(WellKnownHeaders.Http30))
+        {
+            version = HttpVersion.Version30;
+            return true;
+        }
+
+        version = null!;
+        return false;
+    }
+
+    public static bool TryParse(string text, out Version version)
+    {
+        if (text.Equals(WellKnownHeaders.Http10))
+        {
+            version = HttpVersion.Version10;
+            return true;
+        }
+
+        if (text.Equals(WellKnownHeaders.Http11))
+        {
+            version = HttpVersion.Version11;
+            return true;
+        }
+
+        if (text.Equals(WellKnownHeaders.Http20))
+        {
+            version = HttpVersion.Version20;
+            return true;
+        }
+
+        if (text.Equals(WellKnownHeaders.Http30))
+        {
+            version = HttpVersion.Version30;
+            return true;
+        }
+
+        version = null!;
+        return false;
+    }
+
+    public static string ToWireFormat(Version version)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+
+        if (version.Equals(HttpVersion.Version10))
+        {
+            return WellKnownHeaders.Http10;
+        }
+
+        if (version.Equals(HttpVersion.Version11))
+        {
+            return WellKnownHeaders.Http11;
+        }
+
+        if (version.Equals(HttpVersion.Version20))
+        {
+            return WellKnownHeaders.Http20;
+        }
+
+        if (version.Equals(HttpVersion.Version30))
+        {
+            return WellKnownHeaders.Http30;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(version), version, "Unsupported HTTP version.");
+    }
+}

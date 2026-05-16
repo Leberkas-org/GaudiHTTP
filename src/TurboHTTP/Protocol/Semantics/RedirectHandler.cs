@@ -161,7 +161,7 @@ internal sealed class RedirectHandler
 
     private static Uri ResolveLocationUri(Uri baseUri, HttpResponseMessage response)
     {
-        if (!response.Headers.TryGetValues("Location", out var locationValues))
+        if (!response.Headers.TryGetValues(WellKnownHeaders.Location, out var locationValues))
         {
             throw new RedirectException(
                 "RFC 9110 §15.4: Redirect response is missing the Location header.",
@@ -285,13 +285,13 @@ internal sealed class RedirectHandler
         {
             // RFC 9110 §15.4: Do NOT forward Authorization header across origins
             if (isCrossOrigin &&
-                header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase))
+                header.Key.Equals(WellKnownHeaders.Authorization, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
             // Do not copy Host — it will be set based on the new URI
-            if (header.Key.Equals("Host", StringComparison.OrdinalIgnoreCase))
+            if (header.Key.Equals(WellKnownHeaders.Host, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -299,7 +299,7 @@ internal sealed class RedirectHandler
             // RFC 6265 §5.4: Do NOT blindly forward Cookie header on redirect.
             // Cookies must be re-evaluated per redirect URI (domain, path, Secure, expiry).
             // Use BuildRedirectRequest(original, response, cookieJar) to re-apply cookies.
-            if (header.Key.Equals("Cookie", StringComparison.OrdinalIgnoreCase))
+            if (header.Key.Equals(WellKnownHeaders.Cookie, StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

@@ -1,7 +1,7 @@
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Http11;
+using TurboHTTP.Protocol.Syntax.Http11.Client;
 
 namespace TurboHTTP.Streams.Stages;
 
@@ -23,11 +23,7 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
     {
-        var memoryBuffer = inheritedAttributes.GetAttribute(
-            new TurboAttributes.MemoryBuffer(4 * 1024, 256 * 1024));
-
-        return new HttpConnectionStageLogic<StateMachine>(
-            this,
-            ops => new StateMachine(ops, _options, memoryBuffer.Initial, memoryBuffer.Max));
+        return new HttpConnectionStageLogic<Http11ClientStateMachine>(
+            this, ops => new Http11ClientStateMachine(ops, _options));
     }
 }

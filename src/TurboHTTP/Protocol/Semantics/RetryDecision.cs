@@ -22,9 +22,18 @@ internal sealed record RetryDecision
 
     /// <summary>Creates a retry decision (request should be retried).</summary>
     public static RetryDecision Retry(string reason, TimeSpan? retryAfterDelay = null)
-        => new() { ShouldRetry = true, Reason = reason, RetryAfterDelay = retryAfterDelay };
+        => new()
+        {
+            ShouldRetry = true,
+            Reason = reason,
+            RetryAfterDelay = retryAfterDelay
+        };
 
     /// <summary>Creates a no-retry decision (request must not be retried automatically).</summary>
     public static RetryDecision NoRetry(string reason)
-        => new() { ShouldRetry = false, Reason = reason };
+        => new()
+        {
+            ShouldRetry = false,
+            Reason = reason
+        };
 }

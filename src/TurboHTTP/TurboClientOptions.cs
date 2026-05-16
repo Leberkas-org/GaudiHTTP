@@ -139,7 +139,7 @@ public sealed class TurboClientOptions
     /// Returns the effective certificate validation callback, taking
     /// <see cref="DangerousAcceptAnyServerCertificate"/> into account.
     /// </summary>
-    internal RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback
+    public RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback
         => DangerousAcceptAnyServerCertificate
             ? static (_, _, _, _) => true
             : ServerCertificateValidationCallback;

@@ -1,7 +1,7 @@
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Http2;
+using TurboHTTP.Protocol.Syntax.Http2.Client;
 
 namespace TurboHTTP.Streams.Stages;
 
@@ -21,7 +21,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new HttpConnectionStageLogic<StateMachine>(
+        => new HttpConnectionStageLogic<Http2ClientStateMachine>(
             this,
-            ops => new StateMachine(_options, ops));
+            ops => new Http2ClientStateMachine(_options, ops));
 }

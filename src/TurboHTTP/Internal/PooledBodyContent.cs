@@ -1,6 +1,5 @@
 using System.Buffers;
 using System.Net;
-using Servus.Akka.Transport;
 
 namespace TurboHTTP.Internal;
 
@@ -13,40 +12,6 @@ internal sealed class PooledBodyContent : HttpContent
     {
         _owner = owner;
         _length = length;
-    }
-
-    public static PooledBodyContent FromChunks(byte[]? initial, List<TransportBuffer>? chunks)
-    {
-        var totalLength = initial?.Length ?? 0;
-        if (chunks is not null)
-        {
-            foreach (var buf in chunks)
-            {
-                totalLength += buf.Length;
-            }
-        }
-
-        var owner = MemoryPool<byte>.Shared.Rent(totalLength);
-        var target = owner.Memory.Span;
-        var offset = 0;
-
-        if (initial is { Length: > 0 })
-        {
-            initial.CopyTo(target);
-            offset += initial.Length;
-        }
-
-        if (chunks is not null)
-        {
-            foreach (var buf in chunks)
-            {
-                buf.Memory.Span.CopyTo(target[offset..]);
-                offset += buf.Length;
-                buf.Dispose();
-            }
-        }
-
-        return new PooledBodyContent(owner, totalLength);
     }
 
     protected override void SerializeToStream(Stream stream, TransportContext? context, CancellationToken cancellationToken)

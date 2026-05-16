@@ -1,7 +1,7 @@
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Http3;
+using TurboHTTP.Protocol.Syntax.Http3.Client;
 
 namespace TurboHTTP.Streams.Stages;
 
@@ -22,7 +22,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
     public override ConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new HttpConnectionStageLogic<StateMachine>(
+        => new HttpConnectionStageLogic<Http3ClientStateMachine>(
             this,
-            ops => new StateMachine(_options, ops));
+            ops => new Http3ClientStateMachine(_options, ops));
 }

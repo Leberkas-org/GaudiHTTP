@@ -520,9 +520,17 @@ internal sealed class CacheStateMachine
     private static async Task<BodyReadComplete> ReadBodyToPoolAsync(HttpResponseMessage response)
     {
         await using var stream = await response.Content.ReadAsStreamAsync();
-        var length = (int)stream.Length;
+        var buffer = new List<byte>(8192);
+        var tempBuffer = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = await stream.ReadAsync(tempBuffer, 0, tempBuffer.Length)) > 0)
+        {
+            buffer.AddRange(tempBuffer[..bytesRead]);
+        }
+
+        var length = buffer.Count;
         var owner = MemoryPool<byte>.Shared.Rent(length);
-        stream.ReadExactly(owner.Memory.Span[..length]);
+        buffer.CopyTo(owner.Memory.Span[..length]);
         return new BodyReadComplete(response, owner, length);
     }
 

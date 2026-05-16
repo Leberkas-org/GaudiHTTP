@@ -133,7 +133,7 @@ internal static class RetryEvaluator
     /// </summary>
     private static TimeSpan? ParseRetryAfter(HttpResponseMessage response)
     {
-        if (!response.Headers.TryGetValues("Retry-After", out var values))
+        if (!response.Headers.TryGetValues(WellKnownHeaders.RetryAfter, out var values))
         {
             return null;
         }

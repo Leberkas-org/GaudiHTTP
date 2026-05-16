@@ -3,49 +3,50 @@ using System.Net;
 
 namespace TurboHTTP.Internal;
 
-internal class PipedStreamContent(PipeReader reader) : HttpContent
+internal class PipedStreamContent : HttpContent
 {
-    private readonly PipeReader _reader = reader ?? throw new ArgumentNullException(nameof(reader));
+    internal PipeReader Reader { get; }
+
+    public PipedStreamContent(PipeReader reader)
+    {
+        Reader = reader ?? throw new ArgumentNullException(nameof(reader));
+    }
 
     protected override Stream CreateContentReadStream(CancellationToken cancellationToken)
     {
-        return _reader.AsStream();
+        return Reader.AsStream();
     }
 
     protected override Task<Stream> CreateContentReadStreamAsync()
     {
-        return Task.FromResult(_reader.AsStream());
+        return Task.FromResult(Reader.AsStream());
     }
 
     protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken)
     {
-        return Task.FromResult(_reader.AsStream());
+        return Task.FromResult(Reader.AsStream());
     }
 
-    protected override void SerializeToStream(Stream stream, TransportContext? context, CancellationToken cancellationToken)
+    protected override void SerializeToStream(Stream stream, TransportContext? context,
+        CancellationToken cancellationToken)
     {
-        _reader.AsStream().CopyTo(stream);
+        Reader.AsStream().CopyTo(stream);
     }
 
     protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
     {
-        return _reader.CopyToAsync(stream);
+        return Reader.CopyToAsync(stream);
     }
 
-    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
+    protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context,
+        CancellationToken cancellationToken)
     {
-        return _reader.AsStream().CopyToAsync(stream, cancellationToken);
+        return Reader.AsStream().CopyToAsync(stream, cancellationToken);
     }
 
     protected override bool TryComputeLength(out long length)
     {
-        if (Headers.ContentLength is null)
-        {
-            length = 0;
-            return false;
-        }
-
-        length = Headers.ContentLength.Value;
-        return true;
+        length = 0;
+        return false;
     }
 }
