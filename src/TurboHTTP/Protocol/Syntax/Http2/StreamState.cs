@@ -21,7 +21,7 @@ internal sealed class StreamState
     private Dictionary<string, string>? _pseudoHeaders;
     private IBodyDecoder? _bodyDecoder;
     private IBodyEncoder? _bodyEncoder;
-    private Queue<StreamBodyChunk>? _outboundBuffer;
+    private Queue<StreamBodyChunk<int>>? _outboundBuffer;
 
     public bool HasResponse => _response is not null;
 
@@ -149,9 +149,9 @@ internal sealed class StreamState
         {
             var tagged = msg switch
             {
-                OutboundBodyChunk chunk => new StreamBodyChunk(streamId, chunk.Owner, chunk.Length),
-                OutboundBodyComplete => new StreamBodyComplete(streamId),
-                OutboundBodyFailed failed => new StreamBodyFailed(streamId, failed.Reason),
+                OutboundBodyChunk chunk => new StreamBodyChunk<int>(streamId, chunk.Owner, chunk.Length),
+                OutboundBodyComplete => new StreamBodyComplete<int>(streamId),
+                OutboundBodyFailed failed => new StreamBodyFailed<int>(streamId, failed.Reason),
                 _ => msg
             };
 
@@ -159,9 +159,9 @@ internal sealed class StreamState
         });
     }
 
-    public void EnqueueBodyChunk(StreamBodyChunk chunk)
+    public void EnqueueBodyChunk(StreamBodyChunk<int> chunk)
     {
-        _outboundBuffer ??= new Queue<StreamBodyChunk>();
+        _outboundBuffer ??= new Queue<StreamBodyChunk<int>>();
         _outboundBuffer.Enqueue(chunk);
     }
 
@@ -170,7 +170,7 @@ internal sealed class StreamState
         IsBodyEncoderComplete = true;
     }
 
-    public bool TryDequeueBodyChunk(out StreamBodyChunk? chunk)
+    public bool TryDequeueBodyChunk(out StreamBodyChunk<int>? chunk)
     {
         if (_outboundBuffer is { Count: > 0 })
         {
@@ -182,7 +182,7 @@ internal sealed class StreamState
         return false;
     }
 
-    public StreamBodyChunk? PeekBodyChunk()
+    public StreamBodyChunk<int>? PeekBodyChunk()
     {
         return _outboundBuffer is { Count: > 0 } ? _outboundBuffer.Peek() : null;
     }

@@ -16,7 +16,7 @@ internal sealed class StreamState
     private Dictionary<string, string>? _pseudoHeaders;
     private IBodyDecoder? _bodyDecoder;
     private IBodyEncoder? _bodyEncoder;
-    private Queue<StreamBodyChunk>? _outboundBuffer;
+    private Queue<StreamBodyChunk<long>>? _outboundBuffer;
 
     public long StreamId { get; private set; } = -1;
 
@@ -140,7 +140,7 @@ internal sealed class StreamState
         _bodyEncoder = encoder;
     }
 
-    public void StartBodyEncoder(HttpContent content, int streamId, IActorRef stageActor)
+    public void StartBodyEncoder(HttpContent content, long streamId, IActorRef stageActor)
     {
         if (_bodyEncoder is null)
         {
@@ -151,9 +151,9 @@ internal sealed class StreamState
         {
             var tagged = msg switch
             {
-                OutboundBodyChunk chunk => new StreamBodyChunk(streamId, chunk.Owner, chunk.Length),
-                OutboundBodyComplete => new StreamBodyComplete(streamId),
-                OutboundBodyFailed failed => new StreamBodyFailed(streamId, failed.Reason),
+                OutboundBodyChunk chunk => new StreamBodyChunk<long>(streamId, chunk.Owner, chunk.Length),
+                OutboundBodyComplete => new StreamBodyComplete<long>(streamId),
+                OutboundBodyFailed failed => new StreamBodyFailed<long>(streamId, failed.Reason),
                 _ => msg
             };
 
@@ -161,18 +161,18 @@ internal sealed class StreamState
         });
     }
 
-    public void EnqueueBodyChunk(StreamBodyChunk chunk)
+    public void EnqueueBodyChunk(StreamBodyChunk<long> chunk)
     {
-        _outboundBuffer ??= new Queue<StreamBodyChunk>();
+        _outboundBuffer ??= new Queue<StreamBodyChunk<long>>();
         _outboundBuffer.Enqueue(chunk);
     }
 
-    public StreamBodyChunk? PeekBodyChunk()
+    public StreamBodyChunk<long>? PeekBodyChunk()
     {
         return _outboundBuffer is { Count: > 0 } ? _outboundBuffer.Peek() : null;
     }
 
-    public bool TryDequeueBodyChunk(out StreamBodyChunk? chunk)
+    public bool TryDequeueBodyChunk(out StreamBodyChunk<long>? chunk)
     {
         if (_outboundBuffer is { Count: > 0 })
         {
@@ -219,4 +219,3 @@ internal sealed class StreamState
         }
     }
 }
-

@@ -483,36 +483,38 @@ internal sealed class Http2ClientSessionManager
     {
         switch (msg)
         {
-            case StreamBodyChunk chunk:
+            case StreamBodyChunk<int> chunk:
                 HandleOutboundBodyChunk(chunk);
                 break;
 
-            case StreamBodyComplete complete:
+            case StreamBodyComplete<int> complete:
                 HandleOutboundBodyComplete(complete.StreamId);
                 break;
 
-            case StreamBodyFailed failed:
+            case StreamBodyFailed<int> failed:
+                var failedStreamId = failed.StreamId;
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/2: Body encoding failed for stream {0}: {1}", failed.StreamId, failed.Reason.Message);
-                EmitFrame(new RstStreamFrame(failed.StreamId, Http2ErrorCode.InternalError));
-                CloseStream(failed.StreamId);
+                    "HTTP/2: Body encoding failed for stream {0}: {1}", failedStreamId, failed.Reason.Message);
+                EmitFrame(new RstStreamFrame(failedStreamId, Http2ErrorCode.InternalError));
+                CloseStream(failedStreamId);
                 break;
         }
     }
 
-    private void HandleOutboundBodyChunk(StreamBodyChunk chunk)
+    private void HandleOutboundBodyChunk(StreamBodyChunk<int> chunk)
     {
-        if (!_streams.TryGetValue(chunk.StreamId, out var state))
+        var streamId = chunk.StreamId;
+        if (!_streams.TryGetValue(streamId, out var state))
         {
             chunk.Owner.Dispose();
             return;
         }
 
-        var window = _flow.GetSendWindow(chunk.StreamId);
+        var window = _flow.GetSendWindow(streamId);
         if (window >= chunk.Length)
         {
-            EmitFrame(new DataFrame(chunk.StreamId, chunk.Owner.Memory[..chunk.Length], endStream: false));
-            _flow.OnDataSent(chunk.StreamId, chunk.Length);
+            EmitFrame(new DataFrame(streamId, chunk.Owner.Memory[..chunk.Length], endStream: false));
+            _flow.OnDataSent(streamId, chunk.Length);
             chunk.Owner.Dispose();
             return;
         }

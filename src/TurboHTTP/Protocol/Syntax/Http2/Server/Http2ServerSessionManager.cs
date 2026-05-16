@@ -75,7 +75,7 @@ internal sealed class Http2ServerSessionManager
         }
     }
 
-    public void ProcessFrame(Http2Frame frame)
+    private void ProcessFrame(Http2Frame frame)
     {
         switch (frame)
         {
@@ -151,36 +151,37 @@ internal sealed class Http2ServerSessionManager
     {
         switch (msg)
         {
-            case StreamBodyChunk chunk:
+            case StreamBodyChunk<int> chunk:
                 HandleOutboundBodyChunk(chunk);
                 break;
 
-            case StreamBodyComplete complete:
+            case StreamBodyComplete<int> complete:
                 HandleOutboundBodyComplete(complete.StreamId);
                 break;
 
-            case StreamBodyFailed failed:
+            case StreamBodyFailed<int>(var failedStreamId, var exception):
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/2: Response body encoding failed for stream {0}: {1}", failed.StreamId,
-                    failed.Reason.Message);
-                EmitRstStream(failed.StreamId, Http2ErrorCode.InternalError);
+                    "HTTP/2: Response body encoding failed for stream {0}: {1}", failedStreamId,
+                    exception.Message);
+                EmitRstStream(failedStreamId, Http2ErrorCode.InternalError);
                 break;
         }
     }
 
-    private void HandleOutboundBodyChunk(StreamBodyChunk chunk)
+    private void HandleOutboundBodyChunk(StreamBodyChunk<int> chunk)
     {
-        if (!_streams.TryGetValue(chunk.StreamId, out var state))
+        var streamId = chunk.StreamId;
+        if (!_streams.TryGetValue(streamId, out var state))
         {
             chunk.Owner.Dispose();
             return;
         }
 
-        var window = _flow.GetSendWindow(chunk.StreamId);
+        var window = _flow.GetSendWindow(streamId);
         if (window >= chunk.Length)
         {
-            EmitFrame(new DataFrame(chunk.StreamId, chunk.Owner.Memory[..chunk.Length], endStream: false));
-            _flow.OnDataSent(chunk.StreamId, chunk.Length);
+            EmitFrame(new DataFrame(streamId, chunk.Owner.Memory[..chunk.Length], endStream: false));
+            _flow.OnDataSent(streamId, chunk.Length);
             chunk.Owner.Dispose();
             return;
         }
@@ -225,7 +226,7 @@ internal sealed class Http2ServerSessionManager
             chunk.Owner.Dispose();
         }
 
-        if (!state.HasPendingOutbound && state.IsBodyEncoderComplete)
+        if (state is { HasPendingOutbound: false, IsBodyEncoderComplete: true })
         {
             EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
             CloseStream(streamId);

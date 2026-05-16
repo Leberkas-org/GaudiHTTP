@@ -67,36 +67,36 @@ internal sealed class Http3ServerSessionManager
         switch (data)
         {
             case ServerStreamAccepted { Id: var id }:
-                {
-                    _streamResolver.OnServerStreamOpened(id);
-                    return;
-                }
+            {
+                _streamResolver.OnServerStreamOpened(id);
+                return;
+            }
 
             case MultiplexedData multiplexed:
-                {
-                    HandleTaggedStreamData(multiplexed);
-                    return;
-                }
+            {
+                HandleTaggedStreamData(multiplexed);
+                return;
+            }
 
             case StreamReadCompleted { Id.Value: >= 0 } readCompleted:
-                {
-                    FlushPendingRequest(readCompleted.Id.Value);
-                    return;
-                }
+            {
+                FlushPendingRequest(readCompleted.Id.Value);
+                return;
+            }
 
             case StreamClosed { Id.Value: >= 0 } streamClosed:
-                {
-                    FlushPendingRequest(streamClosed.Id.Value);
-                    return;
-                }
+            {
+                FlushPendingRequest(streamClosed.Id.Value);
+                return;
+            }
 
             case TransportData rawData:
-                {
-                    Tracing.For("Protocol").Warning(this,
-                        "Received untagged TransportData — dropping to prevent stream ID misrouting.");
-                    rawData.Buffer.Dispose();
-                    return;
-                }
+            {
+                Tracing.For("Protocol").Warning(this,
+                    "Received untagged TransportData — dropping to prevent stream ID misrouting.");
+                rawData.Buffer.Dispose();
+                return;
+            }
         }
     }
 
@@ -142,7 +142,7 @@ internal sealed class Http3ServerSessionManager
         }
 
         state.InitBodyEncoder(encoder);
-        state.StartBodyEncoder(response.Content, (int)streamId, _ops.StageActor);
+        state.StartBodyEncoder(response.Content, streamId, _ops.StageActor);
         _ops.OnScheduleTimer(string.Concat("drain-body:", streamId.ToString()), TimeSpan.FromMilliseconds(0));
     }
 
@@ -150,23 +150,24 @@ internal sealed class Http3ServerSessionManager
     {
         switch (msg)
         {
-            case StreamBodyChunk chunk:
+            case StreamBodyChunk<long> chunk:
                 HandleOutboundBodyChunk(chunk);
                 break;
 
-            case StreamBodyComplete complete:
+            case StreamBodyComplete<long> complete:
                 HandleOutboundBodyComplete(complete.StreamId);
                 break;
 
-            case StreamBodyFailed failed:
+            case StreamBodyFailed<long> failed:
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/3: Response body encoding failed for stream {0}: {1}", failed.StreamId, failed.Reason.Message);
+                    "HTTP/3: Response body encoding failed for stream {0}: {1}", failed.StreamId,
+                    failed.Reason.Message);
                 EmitRstStream(failed.StreamId, ErrorCode.GeneralProtocolError);
                 break;
         }
     }
 
-    private void HandleOutboundBodyChunk(StreamBodyChunk chunk)
+    private void HandleOutboundBodyChunk(StreamBodyChunk<long> chunk)
     {
         if (!_streams.TryGetValue(chunk.StreamId, out var streamData))
         {
@@ -179,7 +180,7 @@ internal sealed class Http3ServerSessionManager
         DrainOutboundBuffer(chunk.StreamId);
     }
 
-    private void HandleOutboundBodyComplete(int streamId)
+    private void HandleOutboundBodyComplete(long streamId)
     {
         if (!_streams.TryGetValue(streamId, out var streamData))
         {
@@ -224,7 +225,7 @@ internal sealed class Http3ServerSessionManager
             }
         }
 
-        if (!state.HasPendingOutbound && state.IsBodyEncoderComplete)
+        if (state is { HasPendingOutbound: false, IsBodyEncoderComplete: true })
         {
             _ops.OnOutbound(new CompleteWrites(streamId));
         }
@@ -366,36 +367,37 @@ internal sealed class Http3ServerSessionManager
                 switch (frame)
                 {
                     case HeadersFrame headersFrame:
+                    {
+                        var decoded = _requestDecoder.DecodeHeaders(headersFrame, state);
+                        if (decoded)
                         {
-                            var decoded = _requestDecoder.DecodeHeaders(headersFrame, state);
-                            if (decoded)
-                            {
-                                var request = state.GetRequest();
-                                request.Options.Set(StreamIdKey.Http3, streamId);
-                            }
-                            else
-                            {
-                                _ops.OnScheduleTimer(string.Concat("headers-timeout:", streamId.ToString()), TimeSpan.FromSeconds(30));
-                            }
-
-                            break;
+                            var request = state.GetRequest();
+                            request.Options.Set(StreamIdKey.Http3, streamId);
                         }
+                        else
+                        {
+                            _ops.OnScheduleTimer(string.Concat("headers-timeout:", streamId.ToString()),
+                                TimeSpan.FromSeconds(30));
+                        }
+
+                        break;
+                    }
 
                     case DataFrame dataFrame:
-                        {
-                            HandleDataFrame(dataFrame, streamId, state);
-                            break;
-                        }
+                    {
+                        HandleDataFrame(dataFrame, streamId, state);
+                        break;
+                    }
 
                     case SettingsFrame:
-                        {
-                            break;
-                        }
+                    {
+                        break;
+                    }
 
                     case GoAwayFrame:
-                        {
-                            break;
-                        }
+                    {
+                        break;
+                    }
                 }
             }
             catch (HttpProtocolException ex)
