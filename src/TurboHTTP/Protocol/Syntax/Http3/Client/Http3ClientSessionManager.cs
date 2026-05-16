@@ -2,8 +2,10 @@ using System.Buffers;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
+using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Streams.Stages;
+using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 
@@ -95,7 +97,49 @@ internal sealed class Http3ClientSessionManager
             EmitSerializedFrame(frame, streamId);
         }
 
-        EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+        if (request.Content is null)
+        {
+            EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+            return;
+        }
+
+        var encoder = BodyEncoderFactory.Create(request.Content);
+        if (encoder is null)
+        {
+            EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+            return;
+        }
+
+        var state = _streamManager.GetOrCreateStreamState(streamId);
+        state.InitBodyEncoder(encoder);
+        state.StartBodyEncoder(request.Content, streamId, _ops.StageActor);
+    }
+
+    public void OnBodyMessage(object msg)
+    {
+        switch (msg)
+        {
+            case StreamBodyChunk<long> chunk:
+                HandleOutboundBodyChunk(chunk);
+                break;
+
+            case StreamBodyComplete<long> complete:
+                EmitOutbound(new CompleteWrites(StreamTarget.FromId(complete.StreamId)));
+                break;
+
+            case StreamBodyFailed<long> failed:
+                Tracing.For("Protocol").Warning(this,
+                    "HTTP/3: Body encoding failed for stream {0}: {1}", failed.StreamId, failed.Reason.Message);
+                EmitOutbound(new ResetStream(failed.StreamId));
+                break;
+        }
+    }
+
+    private void HandleOutboundBodyChunk(StreamBodyChunk<long> chunk)
+    {
+        var dataFrame = new DataFrame(chunk.Owner.Memory[..chunk.Length]);
+        EmitSerializedFrame(dataFrame, chunk.StreamId);
+        chunk.Owner.Dispose();
     }
 
     public void OpenCriticalStreams()

@@ -91,69 +91,6 @@ internal sealed class Http3ClientEncoder
         _reusableFrames.Clear();
         _reusableFrames.Add(new HeadersFrame(headerBlock));
 
-        // DATA frames carry the request body (if any)
-        if (request.Content != null)
-        {
-            var contentStream = request.Content.ReadAsStream();
-            var contentLength = request.Content.Headers.ContentLength;
-
-            if (contentLength is > 0)
-            {
-                var size = (int)Math.Min(contentLength.Value, int.MaxValue);
-                var bodyOwner = MemoryPool<byte>.Shared.Rent(size);
-                var totalRead = 0;
-                int bytesRead;
-
-                while (totalRead < size &&
-                       (bytesRead = contentStream.Read(bodyOwner.Memory.Span[totalRead..size])) > 0)
-                {
-                    totalRead += bytesRead;
-                }
-
-                if (totalRead > 0)
-                {
-                    _rentedOwners.Add(bodyOwner);
-                    _reusableFrames.Add(new DataFrame(bodyOwner.Memory[..totalRead]));
-                }
-                else
-                {
-                    bodyOwner.Dispose();
-                }
-            }
-            else
-            {
-                const int chunkSize = 262_144;
-
-                while (true)
-                {
-                    var chunkOwner = MemoryPool<byte>.Shared.Rent(chunkSize);
-                    var chunkFilled = 0;
-
-                    int bytesRead;
-                    while (chunkFilled < chunkSize &&
-                           (bytesRead = contentStream.Read(chunkOwner.Memory.Span[chunkFilled..chunkSize])) > 0)
-                    {
-                        chunkFilled += bytesRead;
-                    }
-
-                    if (chunkFilled > 0)
-                    {
-                        _rentedOwners.Add(chunkOwner);
-                        _reusableFrames.Add(new DataFrame(chunkOwner.Memory[..chunkFilled]));
-                    }
-                    else
-                    {
-                        chunkOwner.Dispose();
-                    }
-
-                    if (chunkFilled < chunkSize)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
         return _reusableFrames;
     }
 

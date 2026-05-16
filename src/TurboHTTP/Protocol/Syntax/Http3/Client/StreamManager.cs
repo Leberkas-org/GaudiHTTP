@@ -222,6 +222,17 @@ internal sealed class StreamManager
         }
     }
 
+    public StreamState GetOrCreateStreamState(long streamId)
+    {
+        if (!_streams.TryGetValue(streamId, out var state))
+        {
+            state = RentStreamState(streamId);
+            _streams[streamId] = state;
+        }
+
+        return state;
+    }
+
     /// <summary>
     /// Registers a request correlation for the given stream ID.
     /// </summary>

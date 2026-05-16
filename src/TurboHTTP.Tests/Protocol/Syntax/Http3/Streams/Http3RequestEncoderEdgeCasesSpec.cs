@@ -62,7 +62,7 @@ public sealed class Http3RequestEncoderEdgeCasesSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
-    public void Encode_request_with_body_produces_headers_and_data()
+    public void Encode_request_with_body_produces_headers_only()
     {
         var encoder = CreateEncoder();
         var bodyData = new byte[] { 1, 2, 3, 4, 5 };
@@ -73,20 +73,16 @@ public sealed class Http3RequestEncoderEdgeCasesSpec
 
         var frames = encoder.Encode(request);
 
-        Assert.Equal(2, frames.Count);
+        Assert.Single(frames);
         Assert.IsType<HeadersFrame>(frames[0]);
-        Assert.IsType<DataFrame>(frames[1]);
-
-        var dataFrame = (DataFrame)frames[1];
-        Assert.Equal(bodyData, dataFrame.Data.ToArray());
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
-    public void Encode_large_body_splits_into_multiple_data_frames()
+    public void Encode_large_body_request_produces_headers_only()
     {
         var encoder = CreateEncoder();
-        var largeBody = new byte[32768]; // Larger than initial 8192 buffer
+        var largeBody = new byte[32768];
         for (var i = 0; i < largeBody.Length; i++)
         {
             largeBody[i] = (byte)(i % 256);
@@ -99,30 +95,13 @@ public sealed class Http3RequestEncoderEdgeCasesSpec
 
         var frames = encoder.Encode(request);
 
-        // Should have headers + at least one data frame
-        Assert.True(frames.Count >= 2);
+        Assert.Single(frames);
         Assert.IsType<HeadersFrame>(frames[0]);
-
-        // All remaining frames should be data frames
-        for (var i = 1; i < frames.Count; i++)
-        {
-            Assert.IsType<DataFrame>(frames[i]);
-        }
-
-        // Total body should match
-        var totalBody = new List<byte>();
-        for (var i = 1; i < frames.Count; i++)
-        {
-            var dataFrame = (DataFrame)frames[i];
-            totalBody.AddRange(dataFrame.Data.ToArray());
-        }
-
-        Assert.Equal(largeBody, totalBody.ToArray());
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
-    public void Encode_body_with_known_content_length()
+    public void Encode_body_with_known_content_length_produces_headers_only()
     {
         var encoder = CreateEncoder();
         var bodyData = new byte[] { 1, 2, 3 };
@@ -136,9 +115,8 @@ public sealed class Http3RequestEncoderEdgeCasesSpec
 
         var frames = encoder.Encode(request);
 
-        Assert.Equal(2, frames.Count);
-        var dataFrame = (DataFrame)frames[1];
-        Assert.Equal(bodyData, dataFrame.Data.ToArray());
+        Assert.Single(frames);
+        Assert.IsType<HeadersFrame>(frames[0]);
     }
 
     [Fact(Timeout = 5000)]
@@ -281,7 +259,7 @@ public sealed class Http3RequestEncoderEdgeCasesSpec
 
         var frames = encoder.Encode(request);
 
-        Assert.Equal(2, frames.Count);
+        Assert.Single(frames);
         Assert.IsType<HeadersFrame>(frames[0]);
     }
 
@@ -555,16 +533,15 @@ public sealed class Http3RequestEncoderEdgeCasesSpec
 
         var request1 = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path");
         var frames1 = encoder.Encode(request1);
-        Assert.NotEmpty(frames1);
+        Assert.Single(frames1);
 
         var request2 = new HttpRequestMessage(HttpMethod.Post, "https://example.com/path")
         {
             Content = new ByteArrayContent([1, 2, 3])
         };
         var frames2 = encoder.Encode(request2);
-        Assert.NotEmpty(frames2);
+        Assert.Single(frames2);
 
-        // Both should produce valid frames
         Assert.IsType<HeadersFrame>(frames1[0]);
         Assert.IsType<HeadersFrame>(frames2[0]);
     }

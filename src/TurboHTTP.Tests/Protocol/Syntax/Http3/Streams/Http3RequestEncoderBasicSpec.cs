@@ -22,7 +22,7 @@ public sealed class Http3RequestEncoderBasicSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
-    public void Post_with_body_produces_headers_and_data()
+    public void Post_with_body_produces_headers_only()
     {
         var encoder = new Http3ClientEncoder(new QpackTableSync());
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/api")
@@ -32,9 +32,8 @@ public sealed class Http3RequestEncoderBasicSpec
 
         var frames = encoder.Encode(request);
 
-        Assert.Equal(2, frames.Count);
+        Assert.Single(frames);
         Assert.IsType<HeadersFrame>(frames[0]);
-        Assert.IsType<DataFrame>(frames[1]);
     }
 
     [Fact(Timeout = 5000)]
@@ -55,7 +54,7 @@ public sealed class Http3RequestEncoderBasicSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
-    public void Data_frame_contains_exact_body()
+    public void Put_with_body_produces_headers_only()
     {
         var encoder = new Http3ClientEncoder(new QpackTableSync());
         var body = "Hello, HTTP/3!"u8.ToArray();
@@ -66,8 +65,8 @@ public sealed class Http3RequestEncoderBasicSpec
 
         var frames = encoder.Encode(request);
 
-        var dataFrame = Assert.IsType<DataFrame>(frames[1]);
-        Assert.Equal(body, dataFrame.Data.ToArray());
+        Assert.Single(frames);
+        Assert.IsType<HeadersFrame>(frames[0]);
     }
 
     [Fact(Timeout = 5000)]

@@ -207,7 +207,7 @@ public sealed class Http3RequestEncoderAdvancedSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
-    public void Large_body_encoded()
+    public void Large_body_request_produces_headers_only()
     {
         var encoder = new Http3ClientEncoder(new QpackTableSync());
         var body = new byte[64 * 1024]; // 64 KB
@@ -219,10 +219,8 @@ public sealed class Http3RequestEncoderAdvancedSpec
 
         var frames = encoder.Encode(request);
 
-        Assert.Equal(2, frames.Count);
-        var dataFrame = Assert.IsType<DataFrame>(frames[1]);
-        Assert.Equal(body.Length, dataFrame.Data.Length);
-        Assert.Equal(body, dataFrame.Data.ToArray());
+        Assert.Single(frames);
+        Assert.IsType<HeadersFrame>(frames[0]);
     }
 
     [Fact(Timeout = 5000)]

@@ -49,7 +49,7 @@ public sealed class QpackIntegrationSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.1")]
-    public void Encoder_should_emit_data_frame_for_body()
+    public void Encoder_should_produce_headers_only_for_body_request()
     {
         var encoder = new Http3ClientEncoder(new QpackTableSync());
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/api/data")
@@ -59,11 +59,8 @@ public sealed class QpackIntegrationSpec
 
         var frames = encoder.Encode(request);
 
-        Assert.True(frames.Count >= 2, "Should have at least HEADERS + DATA frames");
+        Assert.Single(frames);
         Assert.IsType<HeadersFrame>(frames[0]);
-        var dataFrame = Assert.IsType<DataFrame>(frames[1]);
-        var body = Encoding.UTF8.GetString(dataFrame.Data.Span);
-        Assert.Equal("hello world", body);
     }
 
     [Fact(Timeout = 5000)]
