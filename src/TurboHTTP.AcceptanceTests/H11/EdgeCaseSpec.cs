@@ -1,16 +1,11 @@
 ﻿using System.Net;
 using System.Text;
-using Akka.Streams.Dsl;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H11;
 
-public sealed class EdgeCaseSpec : AcceptanceTestBase
+public sealed class EdgeCaseSpec : ClientAcceptanceTestBase
 {
-    private static Http11Engine Engine =>
-        new(new TurboClientOptions());
-
     private static byte[] BuildResponse(byte[] body, HttpStatusCode status = HttpStatusCode.OK,
         string? extraHeaders = null)
     {
@@ -56,30 +51,16 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
         return Encoding.Latin1.GetBytes(sb.ToString());
     }
 
-    private async Task<HttpResponseMessage> SendScriptedAsync(HttpRequestMessage request,
-        Func<int, byte[], byte[]?> factory)
-    {
-        var fake = CreateScriptedConnection(factory);
-        var flow = Engine.CreateFlow().Join(fake.AsFlow());
-
-        var tcs = new TaskCompletionSource<HttpResponseMessage>();
-        _ = Source.Single(request)
-            .Via(flow)
-            .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
-
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-7.1")]
     public async Task EdgeCase_should_deliver_chunked_response_with_trailers()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/chunked/trailer")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/chunked/trailer")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildChunkedResponse("chunked-with-trailer", "X-Trailer: done\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -91,7 +72,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9112-7.1")]
     public async Task EdgeCase_should_deliver_all_bytes_with_chunked_exact_boundaries()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/chunked/exact/5/1024")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/chunked/exact/5/1024")
         {
             Version = HttpVersion.Version11
         };
@@ -115,7 +96,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
 
         var responseBytes = Encoding.Latin1.GetBytes(sb.ToString());
 
-        var response = await SendScriptedAsync(request, (_, _) => responseBytes);
+        var response = await SendClientAsync(HttpVersion.Version11, request, (_, _) => responseBytes);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var bytes = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -127,12 +108,12 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9112-7.1.2")]
     public async Task EdgeCase_should_receive_chunked_response_with_md5_trailer()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/chunked/md5")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/chunked/md5")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildChunkedResponse("checksum-body", "Content-MD5: fake-md5\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -145,13 +126,13 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     public async Task EdgeCase_should_echo_post_chunked_request_body()
     {
         var payload = new string('Z', 4096);
-        var request = new HttpRequestMessage(HttpMethod.Post, "http://localhost/echo/chunked")
+        var request = new HttpRequestMessage(HttpMethod.Post, "http://fake.test/echo/chunked")
         {
             Version = HttpVersion.Version11,
             Content = new StringContent(payload, Encoding.UTF8, "text/plain")
         };
 
-        var response = await SendScriptedAsync(request, (_, _) => BuildResponse(payload));
+        var response = await SendClientAsync(HttpVersion.Version11, request, (_, _) => BuildResponse(payload));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -162,7 +143,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-8.6")]
     public async Task EdgeCase_should_receive_large_body_256kb_intact()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/large/256")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/large/256")
         {
             Version = HttpVersion.Version11
         };
@@ -170,7 +151,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
         var largeBody = new byte[256 * 1024];
         Array.Fill(largeBody, (byte)'A');
 
-        var response = await SendScriptedAsync(request, (_, _) => BuildResponse(largeBody));
+        var response = await SendClientAsync(HttpVersion.Version11, request, (_, _) => BuildResponse(largeBody));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var bytes = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -182,12 +163,12 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-6.5")]
     public async Task EdgeCase_should_access_multiple_response_headers_with_same_name()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/multiheader")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/multiheader")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildResponse("", extraHeaders: "X-Value: alpha\r\nX-Value: beta\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -202,14 +183,14 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     public async Task EdgeCase_should_return_received_length_for_form_urlencoded_post()
     {
         var formData = "field1=value1&field2=value2&field3=hello+world";
-        var request = new HttpRequestMessage(HttpMethod.Post, "http://localhost/form/urlencoded")
+        var request = new HttpRequestMessage(HttpMethod.Post, "http://fake.test/form/urlencoded")
         {
             Version = HttpVersion.Version11,
             Content = new StringContent(formData, Encoding.UTF8, "application/x-www-form-urlencoded")
         };
 
         var responseBody = $"received:{formData.Length}";
-        var response = await SendScriptedAsync(request, (_, _) => BuildResponse(responseBody));
+        var response = await SendClientAsync(HttpVersion.Version11, request, (_, _) => BuildResponse(responseBody));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -221,7 +202,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-14.2")]
     public async Task EdgeCase_should_return_206_partial_content_for_range_request()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/range/64")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/range/64")
         {
             Version = HttpVersion.Version11
         };
@@ -233,7 +214,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
             bodyBytes[i] = (byte)(i % 256);
         }
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildResponse(bodyBytes, HttpStatusCode.PartialContent,
                 "Content-Range: bytes 0-99/65536\r\n"));
 

@@ -6,7 +6,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H11;
 
-public sealed class ErrorHandlingSpec : AcceptanceTestBase
+public sealed class ErrorHandlingSpec : ClientAcceptanceTestBase
 {
     private static Http11Engine Engine =>
         new(new TurboClientOptions());
@@ -27,30 +27,16 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
         return Encoding.Latin1.GetBytes(sb.ToString());
     }
 
-    private async Task<HttpResponseMessage> SendScriptedAsync(HttpRequestMessage request,
-        Func<int, byte[], byte[]?> factory)
-    {
-        var fake = CreateScriptedConnection(factory);
-        var flow = Engine.CreateFlow().Join(fake.AsFlow());
-
-        var tcs = new TaskCompletionSource<HttpResponseMessage>();
-        _ = Source.Single(request)
-            .Via(flow)
-            .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
-
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.3")]
     public async Task ErrorHandling_should_complete_delay_route_after_server_wait()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/delay/500")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/delay/500")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request, (_, _) => BuildResponse("delayed"));
+        var response = await SendClientAsync(HttpVersion.Version11, request, (_, _) => BuildResponse("delayed"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -61,7 +47,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-15.3")]
     public async Task ErrorHandling_should_abort_in_flight_request_on_timeout_cancellation()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/delay/10000")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/delay/10000")
         {
             Version = HttpVersion.Version11
         };
@@ -82,7 +68,7 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9112-6")]
     public async Task ErrorHandling_should_raise_exception_on_mid_response_connection_abort()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/edge/close-mid-response")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/edge/close-mid-response")
         {
             Version = HttpVersion.Version11
         };
@@ -109,14 +95,14 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-6.5")]
     public async Task ErrorHandling_should_receive_large_response_headers_1kb()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/edge/large-header/1")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/edge/large-header/1")
         {
             Version = HttpVersion.Version11
         };
 
         var headerValue = new string('X', 1 * 1024);
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildResponse("", extraHeaders: $"X-Large-Header: {headerValue}\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -129,14 +115,14 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-6.5")]
     public async Task ErrorHandling_should_receive_large_response_headers_4kb()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/edge/large-header/4")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/edge/large-header/4")
         {
             Version = HttpVersion.Version11
         };
 
         var headerValue = new string('X', 4 * 1024);
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildResponse("", extraHeaders: $"X-Large-Header: {headerValue}\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -149,12 +135,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-8.4")]
     public async Task ErrorHandling_should_return_response_gracefully_with_unknown_content_encoding()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/edge/unknown-encoding")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/edge/unknown-encoding")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildResponse("raw-body", extraHeaders: "Content-Encoding: x-custom-unknown\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -164,12 +150,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9112-6")]
     public async Task ErrorHandling_should_return_empty_for_empty_body_with_no_content_length()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/edge/empty-body")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/edge/empty-body")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -181,12 +167,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9112-6")]
     public async Task ErrorHandling_should_return_empty_body_for_content_length_zero()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/empty-cl")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/empty-cl")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -198,12 +184,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-15.5")]
     public async Task ErrorHandling_should_return_4xx_status_code_400()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/400")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/400")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -213,12 +199,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-15.5")]
     public async Task ErrorHandling_should_return_4xx_status_code_401()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/401")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/401")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -228,12 +214,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-15.5")]
     public async Task ErrorHandling_should_return_4xx_status_code_403()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/403")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/403")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
@@ -243,12 +229,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-15.5")]
     public async Task ErrorHandling_should_return_4xx_status_code_404()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/404")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/404")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
@@ -258,12 +244,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-15.5")]
     public async Task ErrorHandling_should_return_4xx_status_code_429()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/429")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/429")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 429 Too Many Requests\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal((HttpStatusCode)429, response.StatusCode);
@@ -273,12 +259,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-15.6")]
     public async Task ErrorHandling_should_return_5xx_status_code_500()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/500")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/500")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
@@ -288,12 +274,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-15.6")]
     public async Task ErrorHandling_should_return_5xx_status_code_502()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/502")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/502")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
@@ -303,12 +289,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-15.6")]
     public async Task ErrorHandling_should_return_5xx_status_code_503()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/503")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/503")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
@@ -318,12 +304,12 @@ public sealed class ErrorHandlingSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-6.5")]
     public async Task ErrorHandling_should_access_custom_unknown_headers()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/unknown-headers")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/unknown-headers")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildResponse("", extraHeaders: "X-Unknown-Foo: bar\r\nX-Unknown-Bar: baz\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

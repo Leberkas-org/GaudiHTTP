@@ -169,11 +169,22 @@ public abstract class EngineTestBase : StreamTestBase
     internal static TestConnectionStage CreateH2Connection(params byte[][] serverFrames)
     {
         var frameIndex = 0;
+        var transportDataCount = 0;
 
         var stage = new TestConnectionStageBuilder()
             .AutoConnect()
-            .OnOutbound<ConnectTransport>((_, ctx) => PushNextFrame(ctx))
-            .OnOutbound<TransportData>((_, ctx) => PushNextFrame(ctx))
+            .OnOutbound<TransportData>((msg, ctx) =>
+            {
+                transportDataCount++;
+
+                if (transportDataCount == 1)
+                {
+                    // Skip first TransportData (HTTP/2 preface + SETTINGS)
+                    return;
+                }
+
+                PushNextFrame(ctx);
+            })
             .Build();
         return stage;
 
@@ -279,6 +290,11 @@ public abstract class EngineTestBase : StreamTestBase
 
         var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
+        // Wait for body encoder to finish sending DATA frames (async via actor messages).
+        // The body encoder is started in a fire-and-forget task which may not complete
+        // before the response is returned. Give the actor system time to process all messages.
+        await Task.Delay(500, TestContext.Current.CancellationToken);
+
         var outboundBytes = DrainOutboundBytes(stage, stripH2Preface: true);
 
         var frames = outboundBytes.Count > 0
@@ -298,21 +314,14 @@ public abstract class EngineTestBase : StreamTestBase
         var stage = CreateH2Connection(serverFrames);
         var flow = engine.Join(stage.AsFlow());
 
-        var results = new List<HttpResponseMessage>();
-        var tcs = new TaskCompletionSource();
-
-        _ = Source.From(requests)
+        var results = await Source.From(requests)
             .Via(flow)
-            .RunWith(Sink.ForEach<HttpResponseMessage>(res =>
-            {
-                results.Add(res);
-                if (results.Count == expectedCount)
-                {
-                    tcs.TrySetResult();
-                }
-            }), Materializer);
+            .RunWith(Sink.Seq<HttpResponseMessage>(), Materializer);
 
-        await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        // Sink.Seq keeps the stream alive until the source completes, which allows
+        // any buffered DATA frames from async body encoders to be flushed through the outlet.
+        // Additional delay to allow actor system to process any remaining messages.
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var outboundBytes = DrainOutboundBytes(stage, stripH2Preface: true);
 
@@ -320,7 +329,7 @@ public abstract class EngineTestBase : StreamTestBase
             ? new FrameDecoder().Decode(outboundBytes.ToArray())
             : [];
 
-        return (results, frames);
+        return (results.ToList(), frames);
     }
 
     internal async Task<(HttpResponseMessage Response, IReadOnlyList<Http3Frame> OutboundFrames)> SendH3EngineAsync(
@@ -338,6 +347,9 @@ public abstract class EngineTestBase : StreamTestBase
             .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
 
         var response = await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        // Wait for body encoder to finish sending DATA frames (async via actor messages)
+        await Task.Delay(100, TestContext.Current.CancellationToken);
 
         var requestBytes = new List<byte>();
         var controlBytes = new List<byte>();
@@ -396,9 +408,11 @@ public abstract class EngineTestBase : StreamTestBase
         var preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8;
         var bytes = new List<byte>();
         var prefaceStripped = false;
+        int messageCount = 0;
 
         while (stage.TryGetOutbound(out var outbound))
         {
+            messageCount++;
             if (outbound is not TransportData { Buffer: var buf })
             {
                 continue;
@@ -422,6 +436,8 @@ public abstract class EngineTestBase : StreamTestBase
 
             bytes.AddRange(span.ToArray());
         }
+
+        System.Diagnostics.Debug.WriteLine($"DrainOutboundBytes: {messageCount} outbound messages, {bytes.Count} total bytes");
 
         return bytes;
     }

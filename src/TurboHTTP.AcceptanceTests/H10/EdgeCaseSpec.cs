@@ -1,11 +1,10 @@
 ﻿using System.Net;
 using System.Text;
-using Akka.Streams.Dsl;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H10;
 
-public sealed class EdgeCaseSpec : AcceptanceTestBase
+public sealed class EdgeCaseSpec : ClientAcceptanceTestBase
 {
     private static byte[] BuildResponse(byte[] body, HttpStatusCode status = HttpStatusCode.OK,
         string? extraHeaders = null)
@@ -33,25 +32,11 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
         return BuildResponse(Encoding.Latin1.GetBytes(body), status, extraHeaders);
     }
 
-    private async Task<HttpResponseMessage> SendScriptedAsync(HttpRequestMessage request,
-        Func<int, byte[], byte[]?> factory)
-    {
-        var fake = CreateScriptedConnection(factory);
-        var flow = CreateHttp10Engine().CreateFlow().Join(fake.AsFlow());
-
-        var tcs = new TaskCompletionSource<HttpResponseMessage>();
-        _ = Source.Single(request)
-            .Via(flow)
-            .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
-
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-    }
-
     [Fact(Timeout = 15000)]
     [Trait("RFC", "RFC1945-7.2")]
     public async Task EdgeCase_should_receive_large_256kb_body_via_connection_close()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/large/256")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/large/256")
         {
             Version = HttpVersion.Version10
         };
@@ -59,7 +44,7 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
         var largeBody = new byte[256 * 1024];
         Array.Fill(largeBody, (byte)'A');
 
-        var response = await SendScriptedAsync(request, (_, _) => BuildResponse(largeBody));
+        var response = await SendClientAsync(HttpVersion.Version10, request, (_, _) => BuildResponse(largeBody));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var bytes = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -72,13 +57,13 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     public async Task EdgeCase_should_echo_post_body_correctly()
     {
         const string payload = "hello from http10";
-        var request = new HttpRequestMessage(HttpMethod.Post, "http://localhost/echo")
+        var request = new HttpRequestMessage(HttpMethod.Post, "http://fake.test/echo")
         {
             Version = HttpVersion.Version10,
             Content = new StringContent(payload, Encoding.UTF8, "text/plain")
         };
 
-        var response = await SendScriptedAsync(request, (_, _) => BuildResponse(payload));
+        var response = await SendClientAsync(HttpVersion.Version10, request, (_, _) => BuildResponse(payload));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -89,12 +74,12 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC1945-6.1")]
     public async Task EdgeCase_should_return_status_code_200_correctly()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/200")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/200")
         {
             Version = HttpVersion.Version10
         };
 
-        var response = await SendScriptedAsync(request, (_, _) => BuildResponse(""));
+        var response = await SendClientAsync(HttpVersion.Version10, request, (_, _) => BuildResponse(""));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -103,14 +88,14 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC1945-6.1")]
     public async Task EdgeCase_should_return_status_code_404_correctly()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/404")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/404")
         {
             Version = HttpVersion.Version10
         };
 
         var raw = "HTTP/1.0 404 Not Found\r\nContent-Length: 0\r\n\r\n";
 
-        var response = await SendScriptedAsync(request, (_, _) => Encoding.Latin1.GetBytes(raw));
+        var response = await SendClientAsync(HttpVersion.Version10, request, (_, _) => Encoding.Latin1.GetBytes(raw));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -119,14 +104,14 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC1945-6.1")]
     public async Task EdgeCase_should_return_status_code_500_correctly()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/status/500")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/status/500")
         {
             Version = HttpVersion.Version10
         };
 
         var raw = "HTTP/1.0 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n";
 
-        var response = await SendScriptedAsync(request, (_, _) => Encoding.Latin1.GetBytes(raw));
+        var response = await SendClientAsync(HttpVersion.Version10, request, (_, _) => Encoding.Latin1.GetBytes(raw));
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
     }
@@ -135,14 +120,14 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC1945-5.2")]
     public async Task EdgeCase_should_echo_custom_headers_in_response()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/headers/echo")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/headers/echo")
         {
             Version = HttpVersion.Version10
         };
         request.Headers.Add("X-Custom-Test", "h10-value");
         request.Headers.Add("X-Another", "second");
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version10, request,
             (_, _) => BuildResponse("", extraHeaders: "X-Custom-Test: h10-value\r\nX-Another: second\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -156,12 +141,12 @@ public sealed class EdgeCaseSpec : AcceptanceTestBase
     [Trait("RFC", "RFC1945-7.2")]
     public async Task EdgeCase_should_complete_empty_body_response_without_hanging()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/edge/empty-body")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/edge/empty-body")
         {
             Version = HttpVersion.Version10
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version10, request,
             (_, _) => Encoding.Latin1.GetBytes("HTTP/1.0 200 OK\r\nContent-Length: 0\r\n\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

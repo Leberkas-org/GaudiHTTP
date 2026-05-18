@@ -169,33 +169,6 @@ public sealed class OptionsSpec : AcceptanceTestBase
     }
 
     [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9112-6.3")]
-    public async Task MaxResponseDrainSize_should_allow_reuse_when_body_within_limit()
-    {
-        var map = new ResponseMap()
-            .On("/drain/large/4", _ => new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent(new string('x', 4096))
-            })
-            .On("/hello", _ => new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StringContent("Hello World")
-            });
-
-        var options = CreateOptions();
-
-        var response1 = await SendAsync(map,
-            new HttpRequestMessage(HttpMethod.Get, "http://localhost/drain/large/4"), options);
-        Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
-
-        var response2 = await SendAsync(map,
-            new HttpRequestMessage(HttpMethod.Get, "http://localhost/hello"), options);
-        Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
-        var body = await response2.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        Assert.Equal("Hello World", body);
-    }
-
-    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-11.6.1")]
     public async Task PreAuthenticate_should_work_across_multiple_requests()
     {

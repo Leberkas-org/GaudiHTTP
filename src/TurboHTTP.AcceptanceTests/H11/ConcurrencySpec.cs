@@ -1,16 +1,11 @@
 ﻿using System.Net;
 using System.Text;
-using Akka.Streams.Dsl;
-using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H11;
 
-public sealed class ConcurrencySpec : AcceptanceTestBase
+public sealed class ConcurrencySpec : ClientAcceptanceTestBase
 {
-    private static Http11Engine Engine =>
-        new(new TurboClientOptions());
-
     private static byte[] BuildResponse(string body, HttpStatusCode status = HttpStatusCode.OK)
     {
         var sb = new StringBuilder();
@@ -21,31 +16,17 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
         return Encoding.Latin1.GetBytes(sb.ToString());
     }
 
-    private async Task<HttpResponseMessage> SendScriptedAsync(HttpRequestMessage request,
-        Func<int, byte[], byte[]?> factory)
-    {
-        var fake = CreateScriptedConnection(factory);
-        var flow = Engine.CreateFlow().Join(fake.AsFlow());
-
-        var tcs = new TaskCompletionSource<HttpResponseMessage>();
-        _ = Source.Single(request)
-            .Via(flow)
-            .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
-
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Concurrency_should_succeed_with_5_parallel_gets()
     {
         var tasks = Enumerable.Range(0, 5).Select(async _ =>
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/ping")
+            var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/ping")
             {
                 Version = HttpVersion.Version11
             };
-            return await SendScriptedAsync(request, (_, _) => BuildResponse("pong"));
+            return await SendClientAsync(HttpVersion.Version11, request, (_, _) => BuildResponse("pong"));
         }).ToArray();
 
         var responses = await Task.WhenAll(tasks);
@@ -61,12 +42,12 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
         var tasks = Enumerable.Range(0, 3).Select(async i =>
         {
             var payload = $"body-{i}";
-            var request = new HttpRequestMessage(HttpMethod.Post, "http://localhost/echo")
+            var request = new HttpRequestMessage(HttpMethod.Post, "http://fake.test/echo")
             {
                 Version = HttpVersion.Version11,
                 Content = new StringContent(payload, Encoding.UTF8, "text/plain")
             };
-            return await SendScriptedAsync(request, (_, _) => BuildResponse(payload));
+            return await SendClientAsync(HttpVersion.Version11, request, (_, _) => BuildResponse(payload));
         }).ToArray();
 
         var responses = await Task.WhenAll(tasks);
@@ -81,12 +62,12 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
     {
         for (var i = 0; i < 20; i++)
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/hello")
+            var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/hello")
             {
                 Version = HttpVersion.Version11
             };
 
-            var response = await SendScriptedAsync(request, (_, _) => BuildResponse("Hello World"));
+            var response = await SendClientAsync(HttpVersion.Version11, request, (_, _) => BuildResponse("Hello World"));
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
@@ -96,30 +77,30 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Concurrency_should_succeed_with_mixed_methods_concurrent()
     {
-        var getTask1 = SendScriptedAsync(
-            new HttpRequestMessage(HttpMethod.Get, "http://localhost/hello") { Version = HttpVersion.Version11 },
+        var getTask1 = SendClientAsync(HttpVersion.Version11,
+            new HttpRequestMessage(HttpMethod.Get, "http://fake.test/hello") { Version = HttpVersion.Version11 },
             (_, _) => BuildResponse("Hello World"));
 
-        var getTask2 = SendScriptedAsync(
-            new HttpRequestMessage(HttpMethod.Get, "http://localhost/ping") { Version = HttpVersion.Version11 },
+        var getTask2 = SendClientAsync(HttpVersion.Version11,
+            new HttpRequestMessage(HttpMethod.Get, "http://fake.test/ping") { Version = HttpVersion.Version11 },
             (_, _) => BuildResponse("pong"));
 
-        var postRequest = new HttpRequestMessage(HttpMethod.Post, "http://localhost/echo")
+        var postRequest = new HttpRequestMessage(HttpMethod.Post, "http://fake.test/echo")
         {
             Version = HttpVersion.Version11,
             Content = new StringContent("concurrent-post", Encoding.UTF8, "text/plain")
         };
-        var postTask = SendScriptedAsync(postRequest, (_, _) => BuildResponse("concurrent-post"));
+        var postTask = SendClientAsync(HttpVersion.Version11, postRequest, (_, _) => BuildResponse("concurrent-post"));
 
-        var putRequest = new HttpRequestMessage(HttpMethod.Put, "http://localhost/echo")
+        var putRequest = new HttpRequestMessage(HttpMethod.Put, "http://fake.test/echo")
         {
             Version = HttpVersion.Version11,
             Content = new StringContent("concurrent-put", Encoding.UTF8, "text/plain")
         };
-        var putTask = SendScriptedAsync(putRequest, (_, _) => BuildResponse("concurrent-put"));
+        var putTask = SendClientAsync(HttpVersion.Version11, putRequest, (_, _) => BuildResponse("concurrent-put"));
 
-        var getTask3 = SendScriptedAsync(
-            new HttpRequestMessage(HttpMethod.Get, "http://localhost/hello") { Version = HttpVersion.Version11 },
+        var getTask3 = SendClientAsync(HttpVersion.Version11,
+            new HttpRequestMessage(HttpMethod.Get, "http://fake.test/hello") { Version = HttpVersion.Version11 },
             (_, _) => BuildResponse("Hello World"));
 
         var responses = await Task.WhenAll(getTask1, getTask2, postTask, putTask, getTask3);

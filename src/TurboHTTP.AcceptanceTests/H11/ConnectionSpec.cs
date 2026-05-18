@@ -6,7 +6,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H11;
 
-public sealed class ConnectionSpec : AcceptanceTestBase
+public sealed class ConnectionSpec : ClientAcceptanceTestBase
 {
     private static Http11Engine Engine =>
         new(new TurboClientOptions());
@@ -27,30 +27,16 @@ public sealed class ConnectionSpec : AcceptanceTestBase
         return Encoding.Latin1.GetBytes(sb.ToString());
     }
 
-    private async Task<HttpResponseMessage> SendScriptedAsync(HttpRequestMessage request,
-        Func<int, byte[], byte[]?> factory)
-    {
-        var fake = CreateScriptedConnection(factory);
-        var flow = Engine.CreateFlow().Join(fake.AsFlow());
-
-        var tcs = new TaskCompletionSource<HttpResponseMessage>();
-        _ = Source.Single(request)
-            .Via(flow)
-            .RunWith(Sink.ForEach<HttpResponseMessage>(res => tcs.TrySetResult(res)), Materializer);
-
-        return await tcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Connection_should_allow_sequential_requests_with_keep_alive()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/conn/keep-alive")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/conn/keep-alive")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildResponse("keep-alive"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -62,12 +48,12 @@ public sealed class ConnectionSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Connection_should_have_close_header_in_response()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/conn/close")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/conn/close")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildResponse("closing", extraHeaders: "Connection: close\r\n"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -83,12 +69,12 @@ public sealed class ConnectionSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Connection_should_default_to_keep_alive_without_connection_header()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/conn/default")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/conn/default")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request,
+        var response = await SendClientAsync(HttpVersion.Version11, request,
             (_, _) => BuildResponse("default"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -100,7 +86,7 @@ public sealed class ConnectionSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9110-7.8")]
     public async Task Connection_101_switching_protocols_must_not_be_reusable_for_http()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/conn/upgrade-101")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/conn/upgrade-101")
         {
             Version = HttpVersion.Version11
         };
@@ -123,12 +109,12 @@ public sealed class ConnectionSpec : AcceptanceTestBase
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Connection_should_prove_reuse_across_different_endpoints()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/conn/keep-alive")
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://fake.test/conn/keep-alive")
         {
             Version = HttpVersion.Version11
         };
 
-        var response = await SendScriptedAsync(request, (_, _) => BuildResponse("keep-alive"));
+        var response = await SendClientAsync(HttpVersion.Version11, request, (_, _) => BuildResponse("keep-alive"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
