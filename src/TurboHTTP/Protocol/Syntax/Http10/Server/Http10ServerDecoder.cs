@@ -16,7 +16,6 @@ internal sealed class Http10ServerDecoder
     }
 
     private readonly Http10ServerDecoderOptions _options;
-    private readonly Http10Profile _profile;
     private readonly HeaderBlockReader _headerReader;
 
     private Phase _phase = Phase.RequestLine;
@@ -26,11 +25,10 @@ internal sealed class Http10ServerDecoder
     private IBodyDecoder? _bodyDecoder;
     private HttpRequestMessage? _request;
 
-    public Http10ServerDecoder(Http10ServerDecoderOptions options, Http10Profile profile)
+    public Http10ServerDecoder(Http10ServerDecoderOptions options)
     {
         options.Validate();
         _options = options;
-        _profile = profile;
         var s = options.Shared;
         _headerReader = new HeaderBlockReader(s.MaxHeaderBytes, s.MaxHeaderCount, s.HeaderLineMaxLength, s.AllowObsFold);
     }
@@ -42,7 +40,7 @@ internal sealed class Http10ServerDecoder
 
         if (_phase == Phase.RequestLine)
         {
-            if (!RequestLineParser.TryParse(data, out var method, out var target, out var version, out var rlConsumed))
+            if (!RequestLineParser.TryParse(data, _options.Shared.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
             {
                 return DecodeOutcome.NeedMore;
             }
@@ -68,7 +66,9 @@ internal sealed class Http10ServerDecoder
             _bodyDecoder = BodyDecoderFactory.Create(
                 classification,
                 _options.Shared.StreamingThreshold,
-                _options.Shared.BufferPool);
+                _options.Shared.BufferPool,
+                _options.Shared.MaxBufferedBodySize,
+                _options.Shared.MaxStreamedBodySize);
             _phase = Phase.Body;
         }
 

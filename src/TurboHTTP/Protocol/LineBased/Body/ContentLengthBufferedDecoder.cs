@@ -10,6 +10,7 @@ internal sealed class ContentLengthBufferedDecoder : IBodyDecoder
     private bool _complete;
 
     public bool IsBuffered => true;
+    public IReadOnlyList<(string Name, string Value)> Trailers => [];
 
     public ContentLengthBufferedDecoder(int expected, MemoryPool<byte> pool)
     {

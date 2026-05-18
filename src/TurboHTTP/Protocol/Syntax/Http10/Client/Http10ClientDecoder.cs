@@ -17,7 +17,6 @@ internal sealed class Http10ClientDecoder
     }
 
     private readonly Http10ClientDecoderOptions _options;
-    private readonly Http10Profile _profile;
     private readonly HeaderBlockReader _headerReader;
 
     private Phase _phase = Phase.StatusLine;
@@ -28,11 +27,10 @@ internal sealed class Http10ClientDecoder
     private HttpResponseMessage? _response;
     private bool _isHttp09;
 
-    public Http10ClientDecoder(Http10ClientDecoderOptions options, Http10Profile profile)
+    public Http10ClientDecoder(Http10ClientDecoderOptions options)
     {
         options.Validate();
         _options = options;
-        _profile = profile;
         var s = options.Shared;
         _headerReader =
             new HeaderBlockReader(s.MaxHeaderBytes, s.MaxHeaderCount, s.HeaderLineMaxLength, s.AllowObsFold);
@@ -87,7 +85,9 @@ internal sealed class Http10ClientDecoder
             _bodyDecoder = BodyDecoderFactory.Create(
                 classification,
                 _options.Shared.StreamingThreshold,
-                _options.Shared.BufferPool);
+                _options.Shared.BufferPool,
+                _options.Shared.MaxBufferedBodySize,
+                _options.Shared.MaxStreamedBodySize);
 
             _phase = Phase.Body;
         }

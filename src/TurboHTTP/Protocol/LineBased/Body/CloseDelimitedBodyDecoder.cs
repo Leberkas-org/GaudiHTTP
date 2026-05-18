@@ -5,6 +5,7 @@ internal sealed class CloseDelimitedBodyDecoder : IBodyDecoder
     private readonly BodyHandle _handle;
 
     public bool IsBuffered => false;
+    public IReadOnlyList<(string Name, string Value)> Trailers => [];
 
     public CloseDelimitedBodyDecoder(long maxBodySize = 10_485_760)
     {

@@ -61,7 +61,7 @@ internal static class StatusLineParser
 
         statusCode = (codeSlice[0] - '0') * 100 + (codeSlice[1] - '0') * 10 + (codeSlice[2] - '0');
 
-        if (statusCode < 100 || statusCode > 599)
+        if (statusCode is < 100 or > 599)
         {
             return false;
         }

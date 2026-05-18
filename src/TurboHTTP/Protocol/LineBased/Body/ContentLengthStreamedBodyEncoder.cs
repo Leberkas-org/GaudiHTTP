@@ -8,7 +8,7 @@ internal sealed class ContentLengthStreamedBodyEncoder : IBodyEncoder
     private readonly int _chunkSize;
     private readonly CancellationTokenSource _cts = new();
 
-    public ContentLengthStreamedBodyEncoder(int chunkSize = 16_384)
+    public ContentLengthStreamedBodyEncoder(int chunkSize = 16 * 1024)
     {
         _chunkSize = chunkSize;
     }

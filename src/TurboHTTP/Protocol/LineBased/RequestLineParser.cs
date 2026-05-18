@@ -8,6 +8,7 @@ internal static class RequestLineParser
 {
     public static bool TryParse(
         ReadOnlySpan<byte> data,
+        int maxLength,
         [NotNullWhen(true)] out HttpMethod? method,
         [NotNullWhen(true)] out string? targetText,
         [NotNullWhen(true)] out Version? version,
@@ -22,6 +23,11 @@ internal static class RequestLineParser
         if (crlf < 0)
         {
             return false;
+        }
+
+        if (crlf > maxLength)
+        {
+            throw new HttpProtocolException("Request-line exceeds maximum length.");
         }
 
         var line = data[..crlf];

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using Akka.Actor;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.LineBased.Body;
@@ -10,13 +11,11 @@ namespace TurboHTTP.Protocol.Syntax.Http10.Server;
 internal sealed class Http10ServerEncoder
 {
     private readonly Http10ServerEncoderOptions _options;
-    private readonly Http10Profile _profile;
 
-    public Http10ServerEncoder(Http10ServerEncoderOptions options, Http10Profile profile)
+    public Http10ServerEncoder(Http10ServerEncoderOptions options)
     {
         options.Validate();
         _options = options;
-        _profile = profile;
     }
 
     public int Encode(Span<byte> _, HttpResponseMessage response, IActorRef stageActor)
@@ -30,7 +29,7 @@ internal sealed class Http10ServerEncoder
     public int EncodeDeferred(Span<byte> destination, HttpResponseMessage response, ReadOnlySpan<byte> body)
     {
         var writer = SpanWriter.Create(destination);
-        StatusLineWriter.Write(ref writer, _profile.Version, (int)response.StatusCode);
+        StatusLineWriter.Write(ref writer, HttpVersion.Version10, (int)response.StatusCode);
 
         var headers = new HeaderCollection();
         foreach (var h in response.Headers)

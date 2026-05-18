@@ -51,4 +51,71 @@ public sealed class ChunkedBodyDecoderSpec
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(data, out _));
         decoder.Dispose();
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.5")]
+    public async Task Decoder_should_accept_allowed_trailer_fields()
+    {
+        var decoder = new ChunkedBodyDecoder();
+        var data = "5\r\nhello\r\n0\r\nX-Custom-Trailer: value\r\n\r\n"u8.ToArray();
+        Assert.True(decoder.Feed(data, out _));
+
+        var content = Assert.IsType<StreamContent>(decoder.GetContent());
+        var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("hello", Encoding.ASCII.GetString(bytes));
+        decoder.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.5")]
+    public async Task Decoder_should_skip_prohibited_trailer_fields()
+    {
+        var decoder = new ChunkedBodyDecoder();
+        var data = "5\r\nhello\r\n0\r\nTransfer-Encoding: chunked\r\nX-Custom: ok\r\n\r\n"u8.ToArray();
+        Assert.True(decoder.Feed(data, out _));
+
+        var content = Assert.IsType<StreamContent>(decoder.GetContent());
+        var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("hello", Encoding.ASCII.GetString(bytes));
+        decoder.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.5")]
+    public void Decoder_should_collect_allowed_trailer_fields()
+    {
+        var decoder = new ChunkedBodyDecoder();
+        var data = "5\r\nhello\r\n0\r\nX-Checksum: abc123\r\nServer-Timing: dur=42\r\n\r\n"u8.ToArray();
+        Assert.True(decoder.Feed(data, out _));
+
+        Assert.Equal(2, decoder.Trailers.Count);
+        Assert.Equal("abc123", decoder.Trailers[0].Value);
+        Assert.Equal("dur=42", decoder.Trailers[1].Value);
+        decoder.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.5")]
+    public void Decoder_should_filter_prohibited_trailer_fields()
+    {
+        var decoder = new ChunkedBodyDecoder();
+        var data = "5\r\nhello\r\n0\r\nX-Custom: ok\r\nTransfer-Encoding: chunked\r\nContent-Length: 5\r\n\r\n"u8.ToArray();
+        Assert.True(decoder.Feed(data, out _));
+
+        Assert.Single(decoder.Trailers);
+        Assert.Equal("ok", decoder.Trailers[0].Value);
+        decoder.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.5")]
+    public void Decoder_should_have_empty_trailers_when_none_present()
+    {
+        var decoder = new ChunkedBodyDecoder();
+        var data = "5\r\nhello\r\n0\r\n\r\n"u8.ToArray();
+        Assert.True(decoder.Feed(data, out _));
+
+        Assert.Empty(decoder.Trailers);
+        decoder.Dispose();
+    }
 }

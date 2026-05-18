@@ -10,10 +10,33 @@ internal static class HeaderBlockWriter
         {
             writer.WriteAscii(entry.Name);
             writer.WriteColonSpace();
-            writer.WriteAscii(entry.Value);
+            writer.WriteAscii(SanitizeHeaderValue(entry.Value));
             writer.WriteCrlf();
         }
 
         writer.WriteCrlf();
+    }
+
+    private static string SanitizeHeaderValue(string value)
+    {
+        if (value.IndexOf('\r') < 0)
+        {
+            return value;
+        }
+
+        return string.Create(value.Length, value, static (span, src) =>
+        {
+            for (var i = 0; i < src.Length; i++)
+            {
+                if (src[i] == '\r' && (i + 1 >= src.Length || src[i + 1] != '\n'))
+                {
+                    span[i] = ' ';
+                }
+                else
+                {
+                    span[i] = src[i];
+                }
+            }
+        });
     }
 }

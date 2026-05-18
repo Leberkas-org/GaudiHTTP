@@ -76,4 +76,14 @@ public sealed class ChunkExtensionParserSpec
 
         Assert.True(result);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-7.1")]
+    public void ChunkedCodingWithParameters_ShouldBeRejected()
+    {
+        var bytes = "q=1.0"u8.ToArray();
+        var result = ChunkExtensionParser.TryParse(bytes);
+
+        Assert.True(result);
+    }
 }

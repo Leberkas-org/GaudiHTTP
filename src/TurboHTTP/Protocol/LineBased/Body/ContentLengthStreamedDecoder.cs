@@ -8,6 +8,7 @@ internal sealed class ContentLengthStreamedDecoder : IBodyDecoder
     private bool _complete;
 
     public bool IsBuffered => false;
+    public IReadOnlyList<(string Name, string Value)> Trailers => [];
 
     public ContentLengthStreamedDecoder(long expected, long maxBodySize = 10_485_760)
     {

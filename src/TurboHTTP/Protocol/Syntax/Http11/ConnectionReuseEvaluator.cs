@@ -1,5 +1,5 @@
 using System.Net;
-using TurboHTTP.Protocol;
+using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.Syntax.Http11;
 
@@ -74,7 +74,7 @@ internal static class ConnectionReuseEvaluator
 
         // Explicit Connection: close — server requested close regardless of version.
         // RFC 9110 §7.6.1: Connection header tokens are case-insensitive.
-        if (HasConnectionToken(response, WellKnownHeaders.CloseValue))
+        if (response.Headers.Connection.Any(t => ConnectionHeaderSemantics.HasCloseOption(t)))
         {
             return ConnectionReuseDecision.Close(
                 "RFC 9112 §9.6: Server sent 'Connection: close'.");
@@ -84,7 +84,7 @@ internal static class ConnectionReuseEvaluator
         // Reuse only when server explicitly sent Connection: Keep-Alive.
         if (httpVersion == HttpVersion.Version10)
         {
-            if (HasConnectionToken(response, WellKnownHeaders.KeepAliveValue))
+            if (response.Headers.Connection.Any(t => t.Equals(WellKnownHeaders.KeepAliveValue, StringComparison.OrdinalIgnoreCase)))
             {
                 var (timeout, maxRequests) = ParseKeepAliveParameters(response);
                 return ConnectionReuseDecision.KeepAlive(
@@ -103,19 +103,6 @@ internal static class ConnectionReuseEvaluator
             "RFC 9112 §9.3: HTTP/1.1 persistent connection (default).",
             timeout2,
             maxRequests2);
-    }
-
-    private static bool HasConnectionToken(HttpResponseMessage response, string token)
-    {
-        foreach (var t in response.Headers.Connection)
-        {
-            if (t.Equals(token, StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private static (TimeSpan? timeout, int? maxRequests) ParseKeepAliveParameters(HttpResponseMessage response)

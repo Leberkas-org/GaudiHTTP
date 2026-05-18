@@ -1,6 +1,5 @@
 using Akka.Event;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Streams;
 using HttpVersion = System.Net.HttpVersion;
@@ -13,28 +12,35 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     private readonly Http11ServerDecoder _decoder;
     private readonly Http11ServerEncoder _encoder;
     private readonly int _maxPipelineDepth;
+    private readonly TimeSpan _keepAliveTimeout;
+    private readonly TimeSpan _requestHeadersTimeout;
 
     private int _requestsPipelined;
     private int _pendingResponseCount;
     private bool _outboundBodyPending;
+    private bool _requestHeadersTimerActive;
 
     public bool CanAcceptResponse => !_outboundBodyPending && _pendingResponseCount > 0;
     public bool ShouldComplete { get; private set; }
 
-    public Http11ServerStateMachine(IServerStageOperations ops, long maxRequestBodySize = 10_485_760, int maxPipelineDepth = 10)
+    public Http11ServerStateMachine(
+        IServerStageOperations ops,
+        Http11ServerEncoderOptions? encoderOptions = null,
+        Http11ServerDecoderOptions? decoderOptions = null)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
-        if (maxPipelineDepth <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxPipelineDepth), "Must be greater than zero.");
-        }
-        _maxPipelineDepth = maxPipelineDepth;
 
-        var decoderOpts = Http11ServerDecoderOptions.Default;
-        var encoderOpts = Http11ServerEncoderOptions.Default;
+        var encOpts = encoderOptions ?? Http11ServerEncoderOptions.Default;
+        var decOpts = decoderOptions ?? Http11ServerDecoderOptions.Default;
 
-        _decoder = new Http11ServerDecoder(decoderOpts);
-        _encoder = new Http11ServerEncoder(encoderOpts);
+        encOpts.Validate();
+        decOpts.Validate();
+
+        _decoder = new Http11ServerDecoder(decOpts);
+        _encoder = new Http11ServerEncoder(encOpts);
+        _keepAliveTimeout = encOpts.KeepAliveTimeout;
+        _requestHeadersTimeout = encOpts.RequestHeadersTimeout;
+        _maxPipelineDepth = decOpts.MaxPipelinedRequests;
     }
 
     public void PreStart()
@@ -50,6 +56,13 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         try
         {
+            // Schedule request headers timeout if not already active
+            if (!_requestHeadersTimerActive && _pendingResponseCount == 0 && _requestHeadersTimeout > TimeSpan.Zero)
+            {
+                _ops.OnScheduleTimer("request-headers", _requestHeadersTimeout);
+                _requestHeadersTimerActive = true;
+            }
+
             var span = buffer.Memory.Span;
             var pos = 0;
 
@@ -61,6 +74,13 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                 if (outcome != DecodeOutcome.Complete)
                 {
                     break;
+                }
+
+                // Cancel the request headers timer once headers are complete
+                if (_requestHeadersTimerActive)
+                {
+                    _ops.OnCancelTimer("request-headers");
+                    _requestHeadersTimerActive = false;
                 }
 
                 _requestsPipelined++;
@@ -123,6 +143,14 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         {
             _outboundBodyPending = true;
         }
+        else
+        {
+            // Response has no body, schedule keep-alive timer if needed
+            if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
+            {
+                _ops.OnScheduleTimer("keep-alive", _keepAliveTimeout);
+            }
+        }
     }
 
     public void OnDownstreamFinished()
@@ -131,6 +159,17 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
     public void OnTimerFired(string name)
     {
+        if (name == "keep-alive")
+        {
+            // Keep-alive timeout expired, close the connection
+            ShouldComplete = true;
+        }
+        else if (name == "request-headers")
+        {
+            // Request headers timeout expired before headers were fully received
+            _requestHeadersTimerActive = false;
+            ShouldComplete = true;
+        }
     }
 
     public void OnBodyMessage(object msg)
@@ -147,6 +186,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
             case OutboundBodyComplete:
                 _outboundBodyPending = false;
+                // Schedule keep-alive timer after body completes if needed
+                if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
+                {
+                    _ops.OnScheduleTimer("keep-alive", _keepAliveTimeout);
+                }
                 break;
 
             case OutboundBodyFailed failed:
@@ -161,5 +205,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         _encoder.CancelActiveBody();
         _outboundBodyPending = false;
         _pendingResponseCount = 0;
+        if (_requestHeadersTimerActive)
+        {
+            _ops.OnCancelTimer("request-headers");
+            _requestHeadersTimerActive = false;
+        }
+        _ops.OnCancelTimer("keep-alive");
     }
 }

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using Akka.Actor;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.LineBased.Body;
@@ -9,13 +10,11 @@ namespace TurboHTTP.Protocol.Syntax.Http10.Client;
 internal sealed class Http10ClientEncoder
 {
     private readonly Http10ClientEncoderOptions _options;
-    private readonly Http10Profile _profile;
 
-    public Http10ClientEncoder(Http10ClientEncoderOptions options, Http10Profile profile)
+    public Http10ClientEncoder(Http10ClientEncoderOptions options)
     {
         options.Validate();
         _options = options;
-        _profile = profile;
     }
 
     public int Encode(Span<byte> destination, HttpRequestMessage request, IActorRef stageActor)
@@ -35,7 +34,7 @@ internal sealed class Http10ClientEncoder
     {
         var writer = SpanWriter.Create(destination);
         var targetStr = request.ResolveTarget();
-        RequestLineWriter.Write(ref writer, request.Method.Method, targetStr, _profile.Version);
+        RequestLineWriter.Write(ref writer, request.Method.Method, targetStr, HttpVersion.Version10);
 
         var headers = request.GetHeaderCollection();
         headers.Add(WellKnownHeaders.ContentLength, body.Length.ToString(CultureInfo.InvariantCulture));
@@ -53,10 +52,10 @@ internal sealed class Http10ClientEncoder
     {
         var writer = SpanWriter.Create(destination);
         var targetStr = request.ResolveTarget();
-        RequestLineWriter.Write(ref writer, request.Method.Method, targetStr, _profile.Version);
+        RequestLineWriter.Write(ref writer, request.Method.Method, targetStr, HttpVersion.Version10);
         var headers = request.GetHeaderCollection();
         headers.Add(WellKnownHeaders.ContentLength, contentLength.ToString(CultureInfo.InvariantCulture));
-        HeaderBlockWriter.Write(ref writer, request.GetHeaderCollection());
+        HeaderBlockWriter.Write(ref writer, headers);
         return writer.BytesWritten;
     }
 }

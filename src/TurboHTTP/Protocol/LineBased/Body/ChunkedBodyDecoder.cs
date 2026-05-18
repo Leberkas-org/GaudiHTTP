@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.LineBased.Body;
 
@@ -19,9 +20,11 @@ internal sealed class ChunkedBodyDecoder : IBodyDecoder
     private int _currentChunkRemaining;
     private byte[] _stash = [];
     private int _stashLen;
+    private List<(string Name, string Value)>? _trailers;
 
 
     public bool IsBuffered => false;
+    public IReadOnlyList<(string Name, string Value)> Trailers => _trailers ?? (IReadOnlyList<(string Name, string Value)>)[];
 
     public ChunkedBodyDecoder(long maxBodySize = 10_485_760)
     {
@@ -134,6 +137,14 @@ internal sealed class ChunkedBodyDecoder : IBodyDecoder
                             }
 
                             return true;
+                        }
+
+                        var trailerLine = work[pos..crlf];
+                        if (HeaderFieldParser.TryParse(trailerLine, out var fieldName, out var fieldValue)
+                            && TrailerFieldValidator.IsAllowedInTrailer(fieldName))
+                        {
+                            _trailers ??= [];
+                            _trailers.Add((fieldName, fieldValue));
                         }
 
                         pos = crlf + 2;

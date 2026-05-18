@@ -1,6 +1,5 @@
 using System.Buffers;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Streams;
 using static Servus.Core.Servus;
@@ -28,10 +27,9 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
         var decoderOpts = Http10ServerDecoderOptions.Default;
         var encoderOpts = Http10ServerEncoderOptions.Default;
-        var profile = Http10Profile.Default;
 
-        _decoder = new Http10ServerDecoder(decoderOpts, profile);
-        _encoder = new Http10ServerEncoder(encoderOpts, profile);
+        _decoder = new Http10ServerDecoder(decoderOpts);
+        _encoder = new Http10ServerEncoder(encoderOpts);
     }
 
     public void PreStart()

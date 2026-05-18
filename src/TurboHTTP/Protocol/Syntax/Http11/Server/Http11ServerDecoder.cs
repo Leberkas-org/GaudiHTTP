@@ -41,7 +41,7 @@ internal sealed class Http11ServerDecoder
 
         if (_phase == Phase.RequestLine)
         {
-            if (!RequestLineParser.TryParse(data, out var method, out var target, out var version, out var rlConsumed))
+            if (!RequestLineParser.TryParse(data, _options.Shared.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
             {
                 return DecodeOutcome.NeedMore;
             }
@@ -67,7 +67,9 @@ internal sealed class Http11ServerDecoder
             _bodyDecoder = BodyDecoderFactory.Create(
                 classification,
                 _options.Shared.StreamingThreshold,
-                _options.Shared.BufferPool);
+                _options.Shared.BufferPool,
+                _options.Shared.MaxBufferedBodySize,
+                _options.Shared.MaxStreamedBodySize);
             _phase = Phase.Body;
         }
 

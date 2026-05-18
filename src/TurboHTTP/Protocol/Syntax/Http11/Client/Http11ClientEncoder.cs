@@ -30,7 +30,7 @@ internal sealed class Http11ClientEncoder
         var writer = SpanWriter.Create(destination);
         var targetStr = request.ResolveTarget();
         RequestLineWriter.Write(ref writer, request.Method.Method, targetStr, request.Version);
-        var headers = HeaderBuilder.Build(request);
+        var headers = HeaderBuilder.Build(request, _options);
         HeaderBlockWriter.Write(ref writer, headers);
 
         bodyEncoder?.Start(request.Content!, stageActor);

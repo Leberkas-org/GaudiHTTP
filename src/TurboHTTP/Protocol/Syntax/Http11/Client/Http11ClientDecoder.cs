@@ -94,7 +94,9 @@ internal sealed class Http11ClientDecoder
             _bodyDecoder = BodyDecoderFactory.Create(
                 classification,
                 _options.Shared.StreamingThreshold,
-                _options.Shared.BufferPool);
+                _options.Shared.BufferPool,
+                _options.Shared.MaxBufferedBodySize,
+                _options.Shared.MaxStreamedBodySize);
 
             _phase = Phase.Body;
         }
@@ -147,6 +149,14 @@ internal sealed class Http11ClientDecoder
             Content = content,
         };
         HeaderRouter.ApplyToResponse(msg, _headerReader.GetHeaders());
+        if (_bodyDecoder?.Trailers is { Count: > 0 } trailers)
+        {
+            foreach (var (name, value) in trailers)
+            {
+                msg.TrailingHeaders.TryAddWithoutValidation(name, value);
+            }
+        }
+
         _response = msg;
         return msg;
     }

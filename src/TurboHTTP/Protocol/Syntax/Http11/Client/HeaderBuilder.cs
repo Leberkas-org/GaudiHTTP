@@ -1,16 +1,20 @@
 using System.Net.Http.Headers;
 using System.Text;
 using TurboHTTP.Protocol.Semantics;
+using TurboHTTP.Protocol.Syntax.Http11.Options;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Client;
 
 internal static class HeaderBuilder
 {
-    public static HeaderCollection Build(HttpRequestMessage request)
+    public static HeaderCollection Build(HttpRequestMessage request, Http11ClientEncoderOptions options)
     {
         var collection = new HeaderCollection();
 
-        AddHostHeader(collection, request.RequestUri!);
+        if (options.AutoHost)
+        {
+            AddHostHeader(collection, request.RequestUri!);
+        }
 
         var isChunked = request.Headers.TransferEncodingChunked == true;
         if (!isChunked && request.Content is not null && request.Content.Headers.ContentLength is null)
@@ -19,7 +23,10 @@ internal static class HeaderBuilder
             request.Headers.TransferEncodingChunked = true;
         }
 
-        AddAcceptEncodingIfNeeded(collection, request.Headers);
+        if (options.AutoAcceptEncoding)
+        {
+            AddAcceptEncodingIfNeeded(collection, request.Headers);
+        }
         AddHeaders(collection, request.Headers, skipHost: true);
 
         if (request.Content != null)

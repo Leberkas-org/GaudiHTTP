@@ -9,7 +9,7 @@ internal sealed class ChunkedBodyEncoder : IBodyEncoder
     private readonly int _chunkSize;
     private readonly CancellationTokenSource _cts = new();
 
-    public ChunkedBodyEncoder(int chunkSize = 16_384)
+    public ChunkedBodyEncoder(int chunkSize = 16 * 1024)
     {
         _chunkSize = chunkSize;
     }
