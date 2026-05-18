@@ -2,9 +2,9 @@ using System.Net;
 using System.Text.Json;
 using TurboHTTP.IntegrationTests.Shared;
 
-namespace TurboHTTP.IntegrationTests.H2;
+namespace TurboHTTP.IntegrationTests.H3;
 
-[Collection("H2")]
+[Collection("H3")]
 public sealed class HeaderSpec : IntegrationSpecBase
 {
     public HeaderSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)
@@ -12,20 +12,20 @@ public sealed class HeaderSpec : IntegrationSpecBase
     {
     }
 
-    protected override ProtocolVariant Variant => new(TestHttpVersion.H2, Tls: true);
+    protected override ProtocolVariant Variant => new(TestHttpVersion.H3, Tls: true);
 
     [Fact(Timeout = 15000)]
     public async Task Header_should_forward_custom_header()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.Add("X-Custom-Test", "turbohttp-h2");
+        request.Headers.Add("X-Custom-Test", "turbohttp-h3");
 
         var response = await Client.SendAsync(request, CancellationToken);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         var headers = json.RootElement.GetProperty("headers");
-        Assert.Equal("turbohttp-h2", headers.GetHeaderValue("X-Custom-Test"));
+        Assert.Equal("turbohttp-h3", headers.GetHeaderValue("X-Custom-Test"));
     }
 
     [Fact(Timeout = 15000)]
@@ -48,46 +48,6 @@ public sealed class HeaderSpec : IntegrationSpecBase
         {
             Assert.Equal($"value-{i}", headers.GetHeaderValue($"X-Header-{i}"));
         }
-    }
-
-    [Fact(Timeout = 15000)]
-    public async Task Header_should_forward_user_agent()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.UserAgent.ParseAdd("TurboHTTP/2.0 IntegrationTest");
-
-        var response = await Client.SendAsync(request, CancellationToken);
-        var body = await response.Content.ReadAsStringAsync(CancellationToken);
-        var json = JsonDocument.Parse(body);
-
-        var headers = json.RootElement.GetProperty("headers");
-        Assert.Contains("TurboHTTP/2.0", headers.GetHeaderValue("User-Agent"));
-    }
-
-    [Fact(Timeout = 15000)]
-    public async Task Header_should_receive_response_headers()
-    {
-        var response = await Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/response-headers?X-Server-Custom=h2-value"), CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.True(response.Headers.TryGetValues("X-Server-Custom", out var values));
-        Assert.Contains("h2-value", values);
-    }
-
-    [Fact(Timeout = 15000)]
-    public async Task Header_should_handle_large_header_value()
-    {
-        var largeValue = new string('A', 1024);
-        var request = new HttpRequestMessage(HttpMethod.Get, "/headers");
-        request.Headers.Add("X-Large-Header", largeValue);
-
-        var response = await Client.SendAsync(request, CancellationToken);
-        var body = await response.Content.ReadAsStringAsync(CancellationToken);
-        var json = JsonDocument.Parse(body);
-
-        var headers = json.RootElement.GetProperty("headers");
-        Assert.Equal(largeValue, headers.GetHeaderValue("X-Large-Header"));
     }
 
     [Fact(Timeout = 15000)]

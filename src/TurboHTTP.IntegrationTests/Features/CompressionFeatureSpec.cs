@@ -7,19 +7,20 @@ namespace TurboHTTP.IntegrationTests.Features;
 public sealed class CompressionFeatureSpec : FeatureSpecBase
 {
     public CompressionFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)
-        : base(server, systemFixture) { }
+        : base(server, systemFixture)
+    {
+    }
 
     [Theory(Timeout = 15000)]
-    [MemberData(nameof(Protocols))]
-    public async Task Decompression_should_transparently_decompress_gzip(HttpProtocol protocol)
+    [MemberData(nameof(AllVariants))]
+    public async Task Decompression_should_transparently_decompress_gzip(ProtocolVariant variant)
     {
-        await using var helper = CreateClient(protocol, b => b.WithDecompression());
-        var ct = TestContext.Current.CancellationToken;
+        await using var helper = CreateClient(variant, b => b.WithDecompression());
 
         var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/gzip"), ct);
+            new HttpRequestMessage(HttpMethod.Get, "/gzip"), CancellationToken);
 
-        var body = await response.Content.ReadAsStringAsync(ct);
+        var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -27,16 +28,15 @@ public sealed class CompressionFeatureSpec : FeatureSpecBase
     }
 
     [Theory(Timeout = 15000)]
-    [MemberData(nameof(Protocols))]
-    public async Task Decompression_should_transparently_decompress_deflate(HttpProtocol protocol)
+    [MemberData(nameof(AllVariants))]
+    public async Task Decompression_should_transparently_decompress_deflate(ProtocolVariant variant)
     {
-        await using var helper = CreateClient(protocol, b => b.WithDecompression());
-        var ct = TestContext.Current.CancellationToken;
+        await using var helper = CreateClient(variant, b => b.WithDecompression());
 
         var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/deflate"), ct);
+            new HttpRequestMessage(HttpMethod.Get, "/deflate"), CancellationToken);
 
-        var body = await response.Content.ReadAsStringAsync(ct);
+        var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -44,16 +44,15 @@ public sealed class CompressionFeatureSpec : FeatureSpecBase
     }
 
     [Theory(Timeout = 15000)]
-    [MemberData(nameof(Protocols))]
-    public async Task Decompression_should_handle_uncompressed_response(HttpProtocol protocol)
+    [MemberData(nameof(AllVariants))]
+    public async Task Decompression_should_handle_uncompressed_response(ProtocolVariant variant)
     {
-        await using var helper = CreateClient(protocol, b => b.WithDecompression());
-        var ct = TestContext.Current.CancellationToken;
+        await using var helper = CreateClient(variant, b => b.WithDecompression());
 
         var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/get"), ct);
+            new HttpRequestMessage(HttpMethod.Get, "/get"), CancellationToken);
 
-        var body = await response.Content.ReadAsStringAsync(ct);
+        var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -61,20 +60,19 @@ public sealed class CompressionFeatureSpec : FeatureSpecBase
     }
 
     [Theory(Timeout = 15000)]
-    [MemberData(nameof(Protocols))]
-    public async Task Decompression_should_decompress_sequentially(HttpProtocol protocol)
+    [MemberData(nameof(AllVariants))]
+    public async Task Decompression_should_decompress_sequentially(ProtocolVariant variant)
     {
-        await using var helper = CreateClient(protocol, b => b.WithDecompression());
-        var ct = TestContext.Current.CancellationToken;
+        await using var helper = CreateClient(variant, b => b.WithDecompression());
 
         var r1 = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/gzip"), ct);
-        var b1 = await r1.Content.ReadAsStringAsync(ct);
+            new HttpRequestMessage(HttpMethod.Get, "/gzip"), CancellationToken);
+        var b1 = await r1.Content.ReadAsStringAsync(CancellationToken);
         Assert.True(JsonDocument.Parse(b1).RootElement.GetProperty("gzipped").GetBoolean());
 
         var r2 = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/deflate"), ct);
-        var b2 = await r2.Content.ReadAsStringAsync(ct);
+            new HttpRequestMessage(HttpMethod.Get, "/deflate"), CancellationToken);
+        var b2 = await r2.Content.ReadAsStringAsync(CancellationToken);
         Assert.True(JsonDocument.Parse(b2).RootElement.GetProperty("deflated").GetBoolean());
     }
 }

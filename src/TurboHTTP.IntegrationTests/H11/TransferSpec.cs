@@ -6,39 +6,14 @@ using TurboHTTP.IntegrationTests.Shared;
 namespace TurboHTTP.IntegrationTests.H11;
 
 [Collection("H11")]
-public sealed class TransferSpec : IAsyncLifetime
+public sealed class TransferSpec : IntegrationSpecBase
 {
-    private readonly ServerContainerFixture _server;
-    private readonly ActorSystemFixture _systemFixture;
-    private ClientHelper? _helper;
-
     public TransferSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)
+        : base(server, systemFixture)
     {
-        _server = server;
-        _systemFixture = systemFixture;
     }
 
-    public ValueTask InitializeAsync()
-    {
-        if (!_server.IsDockerAvailable)
-        {
-            Assert.Skip("Docker is not available.");
-        }
-
-        _helper = ClientHelper.CreateClient(
-            _server.HttpPort,
-            new Version(1, 1),
-            system: _systemFixture.System);
-        return ValueTask.CompletedTask;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_helper is not null)
-        {
-            await _helper.DisposeAsync();
-        }
-    }
+    protected override ProtocolVariant Variant => new(TestHttpVersion.H11, Tls: false);
 
     [Theory(Timeout = 15000)]
     [InlineData(128)]
@@ -47,11 +22,10 @@ public sealed class TransferSpec : IAsyncLifetime
     [InlineData(65536)]
     public async Task Transfer_should_receive_binary_body_of_exact_size(int size)
     {
-        var ct = TestContext.Current.CancellationToken;
-        var response = await _helper!.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, $"/bytes/{size}"), ct);
+        var response = await Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, $"/bytes/{size}"), CancellationToken);
 
-        var content = await response.Content.ReadAsByteArrayAsync(ct);
+        var content = await response.Content.ReadAsByteArrayAsync(CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(size, content.Length);
@@ -60,12 +34,11 @@ public sealed class TransferSpec : IAsyncLifetime
     [Fact(Timeout = 30000)]
     public async Task Transfer_should_receive_large_100kb_body()
     {
-        var ct = TestContext.Current.CancellationToken;
         const int size = 100 * 1024;
-        var response = await _helper!.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, $"/bytes/{size}"), ct);
+        var response = await Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, $"/bytes/{size}"), CancellationToken);
 
-        var content = await response.Content.ReadAsByteArrayAsync(ct);
+        var content = await response.Content.ReadAsByteArrayAsync(CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(size, content.Length);
@@ -74,9 +47,8 @@ public sealed class TransferSpec : IAsyncLifetime
     [Fact(Timeout = 15000)]
     public async Task Transfer_should_handle_empty_body_for_204()
     {
-        var ct = TestContext.Current.CancellationToken;
-        var response = await _helper!.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/status/204"), ct);
+        var response = await Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/status/204"), CancellationToken);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     }
@@ -97,9 +69,8 @@ public sealed class TransferSpec : IAsyncLifetime
     [InlineData(503, HttpStatusCode.ServiceUnavailable)]
     public async Task Transfer_should_return_correct_status_code(int code, HttpStatusCode expected)
     {
-        var ct = TestContext.Current.CancellationToken;
-        var response = await _helper!.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, $"/status/{code}"), ct);
+        var response = await Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, $"/status/{code}"), CancellationToken);
 
         Assert.Equal(expected, response.StatusCode);
     }
@@ -107,15 +78,14 @@ public sealed class TransferSpec : IAsyncLifetime
     [Fact(Timeout = 15000)]
     public async Task Transfer_should_echo_large_post_body()
     {
-        var ct = TestContext.Current.CancellationToken;
         var payload = new string('X', 8192);
         var request = new HttpRequestMessage(HttpMethod.Post, "/post")
         {
             Content = new StringContent(payload, Encoding.UTF8, "text/plain")
         };
 
-        var response = await _helper!.Client.SendAsync(request, ct);
-        var body = await response.Content.ReadAsStringAsync(ct);
+        var response = await Client.SendAsync(request, CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -125,11 +95,10 @@ public sealed class TransferSpec : IAsyncLifetime
     [Fact(Timeout = 15000)]
     public async Task Transfer_should_receive_streaming_response()
     {
-        var ct = TestContext.Current.CancellationToken;
-        var response = await _helper!.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/stream/5"), ct);
+        var response = await Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/stream/5"), CancellationToken);
 
-        var body = await response.Content.ReadAsStringAsync(ct);
+        var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var lines = body.Split('\n', StringSplitOptions.RemoveEmptyEntries);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -145,7 +114,6 @@ public sealed class TransferSpec : IAsyncLifetime
     [Fact(Timeout = 15000)]
     public async Task Transfer_should_echo_binary_post_body()
     {
-        var ct = TestContext.Current.CancellationToken;
         var payload = new byte[4096];
         Random.Shared.NextBytes(payload);
 
@@ -153,9 +121,10 @@ public sealed class TransferSpec : IAsyncLifetime
         {
             Content = new ByteArrayContent(payload)
         };
-        request.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        request.Content.Headers.ContentType =
+            new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
 
-        var response = await _helper!.Client.SendAsync(request, ct);
+        var response = await Client.SendAsync(request, CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -163,16 +132,44 @@ public sealed class TransferSpec : IAsyncLifetime
     [Fact(Timeout = 30000)]
     public async Task Transfer_should_handle_sequential_large_bodies()
     {
-        var ct = TestContext.Current.CancellationToken;
-
         for (var i = 0; i < 3; i++)
         {
-            var response = await _helper!.Client.SendAsync(
-                new HttpRequestMessage(HttpMethod.Get, "/bytes/32768"), ct);
+            var response = await Client.SendAsync(
+                new HttpRequestMessage(HttpMethod.Get, "/bytes/32768"), CancellationToken);
 
-            var content = await response.Content.ReadAsByteArrayAsync(ct);
+            var content = await response.Content.ReadAsByteArrayAsync(CancellationToken);
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Equal(32768, content.Length);
         }
+    }
+
+    [Theory(Timeout = 30000)]
+    [InlineData(1024)]
+    [InlineData(65536)]
+    [InlineData(102400)]
+    public async Task Transfer_should_receive_large_body_over_tls(int size)
+    {
+        await using var helper = CreateClient(new ProtocolVariant(TestHttpVersion.H11, Tls: true));
+        var response = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, $"/bytes/{size}"), CancellationToken);
+
+        var content = await response.Content.ReadAsByteArrayAsync(CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(size, content.Length);
+    }
+
+    [Fact(Timeout = 15000)]
+    public async Task Transfer_should_receive_streaming_response_over_tls()
+    {
+        await using var helper = CreateClient(new ProtocolVariant(TestHttpVersion.H11, Tls: true));
+        var response = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/stream/3"), CancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(CancellationToken);
+        var lines = body.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(3, lines.Length);
     }
 }

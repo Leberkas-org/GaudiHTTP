@@ -2,9 +2,9 @@ using System.Net;
 using System.Text;
 using TurboHTTP.IntegrationTests.Shared;
 
-namespace TurboHTTP.IntegrationTests.H2;
+namespace TurboHTTP.IntegrationTests.H3;
 
-[Collection("H2")]
+[Collection("H3")]
 public sealed class ConcurrencySpec : IntegrationSpecBase
 {
     public ConcurrencySpec(ServerContainerFixture server, ActorSystemFixture systemFixture)
@@ -12,7 +12,7 @@ public sealed class ConcurrencySpec : IntegrationSpecBase
     {
     }
 
-    protected override ProtocolVariant Variant => new(TestHttpVersion.H2, Tls: true);
+    protected override ProtocolVariant Variant => new(TestHttpVersion.H3, Tls: true);
 
     [Fact(Timeout = 30000)]
     public async Task Concurrency_should_multiplex_parallel_gets()
@@ -41,32 +41,6 @@ public sealed class ConcurrencySpec : IntegrationSpecBase
                 }, CancellationToken));
 
         var responses = await Task.WhenAll(getTasks.Concat(postTasks));
-
-        Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
-    }
-
-    [Fact(Timeout = 30000)]
-    public async Task Concurrency_should_handle_parallel_different_endpoints()
-    {
-        var endpoints = new[] { "/get", "/headers", "/bytes/64", "/status/200", "/gzip", "/deflate" };
-
-        var tasks = endpoints.Select(e =>
-            Client.SendAsync(
-                new HttpRequestMessage(HttpMethod.Get, e), CancellationToken));
-
-        var responses = await Task.WhenAll(tasks);
-
-        Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
-    }
-
-    [Fact(Timeout = 30000)]
-    public async Task Concurrency_should_handle_20_parallel_requests()
-    {
-        var tasks = Enumerable.Range(0, 20).Select(_ =>
-            Client.SendAsync(
-                new HttpRequestMessage(HttpMethod.Get, "/get"), CancellationToken));
-
-        var responses = await Task.WhenAll(tasks);
 
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
     }

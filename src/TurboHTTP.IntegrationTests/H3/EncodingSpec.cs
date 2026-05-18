@@ -2,9 +2,9 @@ using System.Net;
 using System.Text.Json;
 using TurboHTTP.IntegrationTests.Shared;
 
-namespace TurboHTTP.IntegrationTests.H2;
+namespace TurboHTTP.IntegrationTests.H3;
 
-[Collection("H2")]
+[Collection("H3")]
 public sealed class EncodingSpec : IntegrationSpecBase
 {
     public EncodingSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)
@@ -12,7 +12,7 @@ public sealed class EncodingSpec : IntegrationSpecBase
     {
     }
 
-    protected override ProtocolVariant Variant => new(TestHttpVersion.H2, Tls: true);
+    protected override ProtocolVariant Variant => new(TestHttpVersion.H3, Tls: true);
 
     [Fact(Timeout = 15000)]
     public async Task Encoding_should_decompress_gzip_response()
@@ -41,19 +41,6 @@ public sealed class EncodingSpec : IntegrationSpecBase
     }
 
     [Fact(Timeout = 15000)]
-    public async Task Encoding_should_negotiate_accept_encoding()
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, "/get");
-        request.Headers.Add("Accept-Encoding", "gzip, deflate");
-
-        var response = await Client.SendAsync(request, CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync(CancellationToken);
-        Assert.False(string.IsNullOrEmpty(body));
-    }
-
-    [Fact(Timeout = 15000)]
     public async Task Encoding_should_decompress_sequentially_on_same_connection()
     {
         var r1 = await Client.SendAsync(
@@ -65,10 +52,5 @@ public sealed class EncodingSpec : IntegrationSpecBase
             new HttpRequestMessage(HttpMethod.Get, "/deflate"), CancellationToken);
         var b2 = await r2.Content.ReadAsStringAsync(CancellationToken);
         Assert.True(JsonDocument.Parse(b2).RootElement.GetProperty("deflated").GetBoolean());
-
-        var r3 = await Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/gzip"), CancellationToken);
-        var b3 = await r3.Content.ReadAsStringAsync(CancellationToken);
-        Assert.True(JsonDocument.Parse(b3).RootElement.GetProperty("gzipped").GetBoolean());
     }
 }

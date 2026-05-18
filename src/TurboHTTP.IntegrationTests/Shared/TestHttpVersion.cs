@@ -1,9 +1,9 @@
 namespace TurboHTTP.IntegrationTests.Shared;
 
-public enum HttpProtocol
+public enum TestHttpVersion
 {
     H10,
     H11,
     H2,
-    Tls
+    H3
 }

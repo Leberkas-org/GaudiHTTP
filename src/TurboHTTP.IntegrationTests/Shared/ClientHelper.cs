@@ -99,7 +99,6 @@ public sealed class ClientHelper : IAsyncDisposable
             {
                 await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10));
                 await system.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(5));
-                await Task.Delay(TimeSpan.FromMilliseconds(250));
             }
         }
 
