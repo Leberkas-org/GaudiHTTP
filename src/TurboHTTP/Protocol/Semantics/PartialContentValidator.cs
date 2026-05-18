@@ -61,12 +61,23 @@ internal static class PartialContentValidator
         }
 
         // Single-part 206 MUST have Content-Range header
-        if (!response.Content.Headers.Contains(WellKnownHeaders.ContentRange))
+        if (!response.Content.Headers.TryGetValues(WellKnownHeaders.ContentRange, out var contentRangeValues))
         {
             return new ValidationResult
             {
                 IsValid = false,
                 ErrorMessage = "RFC 9110 §15.3.7: A 206 response MUST contain a Content-Range header field or use multipart/byteranges content type."
+            };
+        }
+
+        var contentRangeHeader = string.Concat(contentRangeValues);
+        var parsedRange = RangeParser.ParseContentRange(contentRangeHeader);
+        if (parsedRange is null)
+        {
+            return new ValidationResult
+            {
+                IsValid = false,
+                ErrorMessage = "RFC 9110 §14.4: Invalid Content-Range header format."
             };
         }
 

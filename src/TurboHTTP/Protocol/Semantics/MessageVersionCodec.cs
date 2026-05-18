@@ -30,8 +30,54 @@ internal static class MessageVersionCodec
             return true;
         }
 
+        return TryParseWithLeadingZeros(span, out version);
+    }
+
+    private static bool TryParseWithLeadingZeros(ReadOnlySpan<byte> span, out Version version)
+    {
         version = null!;
-        return false;
+
+        if (!span.StartsWith(WellKnownHeaders.Http))
+        {
+            return false;
+        }
+
+        var afterPrefix = span[WellKnownHeaders.Http.Bytes.Length..];
+        var dot = afterPrefix.IndexOf((byte)'.');
+        if (dot <= 0 || dot >= afterPrefix.Length - 1)
+        {
+            return false;
+        }
+
+        if (!TryParseDigits(afterPrefix[..dot], out var major) ||
+            !TryParseDigits(afterPrefix[(dot + 1)..], out var minor))
+        {
+            return false;
+        }
+
+        version = new Version(major, minor);
+        return true;
+    }
+
+    private static bool TryParseDigits(ReadOnlySpan<byte> span, out int value)
+    {
+        value = 0;
+        if (span.IsEmpty)
+        {
+            return false;
+        }
+
+        foreach (var b in span)
+        {
+            if (b is < (byte)'0' or > (byte)'9')
+            {
+                return false;
+            }
+
+            value = value * 10 + (b - '0');
+        }
+
+        return true;
     }
 
     public static bool TryParse(string text, out Version version)

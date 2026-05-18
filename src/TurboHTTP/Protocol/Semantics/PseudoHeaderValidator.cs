@@ -165,7 +165,7 @@ internal static class PseudoHeaderValidator
         {
             var name = getName(headers[i]);
 
-            if (!name.StartsWith(':'))
+            if (!name.StartsWith(WellKnownHeaders.Colon))
             {
                 if (firstRegularIndex == int.MaxValue)
                 {

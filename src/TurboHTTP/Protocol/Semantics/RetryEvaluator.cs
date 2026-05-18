@@ -58,7 +58,7 @@ internal static class RetryEvaluator
         // Method must be idempotent.
         // RFC 9110 §9.2.2: automatic retry is only safe for idempotent methods.
         var method = request.Method;
-        if (!IsIdempotent(method))
+        if (!MethodProperties.IsIdempotent(method))
         {
             return RetryDecision.NoRetry(
                 $"RFC 9110 §9.2.2: Method {method} is not idempotent; automatic retry is not safe.");
@@ -105,26 +105,6 @@ internal static class RetryEvaluator
         return RetryDecision.NoRetry($"Status {statusCode} is not a retriable error code (not 408 or 503).");
     }
 
-    /// <summary>
-    /// Returns true if the HTTP method is idempotent per RFC 9110 §9.2.2.
-    /// Idempotent methods: GET, HEAD, PUT, DELETE, OPTIONS, TRACE.
-    /// POST, PATCH, and CONNECT are not idempotent.
-    /// </summary>
-    private static bool IsIdempotent(HttpMethod method)
-    {
-        // Use reference equality where possible (HttpMethod caches well-known methods).
-        return method switch
-        {
-            _ when method == HttpMethod.Get => true,
-            _ when method == HttpMethod.Head => true,
-            _ when method == HttpMethod.Put => true,
-            _ when method == HttpMethod.Delete => true,
-            _ when method == HttpMethod.Options => true,
-            _ when method == HttpMethod.Trace => true,
-            // POST, PATCH, CONNECT — not idempotent.
-            _ => false
-        };
-    }
 
     /// <summary>
     /// Parses the <c>Retry-After</c> header from the response.

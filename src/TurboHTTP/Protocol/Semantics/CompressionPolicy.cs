@@ -1,5 +1,3 @@
-using TurboHTTP.Protocol;
-
 namespace TurboHTTP.Protocol.Semantics;
 
 /// <summary>

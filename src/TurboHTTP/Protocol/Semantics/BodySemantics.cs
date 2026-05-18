@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Net;
 
 namespace TurboHTTP.Protocol.Semantics;
@@ -37,7 +36,7 @@ internal static class BodySemantics
             return new BodyClassification(BodyFraming.None, null);
         }
 
-        if (statusCode is >= 100 and < 200 or 204 or 304)
+        if (!ContentLengthSemantics.BodyRequired((HttpStatusCode)statusCode, "GET"))
         {
             return new BodyClassification(BodyFraming.None, null);
         }
@@ -83,9 +82,9 @@ internal static class BodySemantics
         if (cl is not null)
         {
             var clValue = NormalizeContentLength(cl);
-            if (!long.TryParse(clValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) || n < 0)
+            if (!ContentLengthSemantics.TryParse(clValue, out var n))
             {
-                throw new HttpProtocolException($"Invalid Content-Length value '{cl}'.");
+                throw new HttpProtocolException(string.Concat("Invalid Content-Length value '", cl, "'."));
             }
 
             return new BodyClassification(BodyFraming.Length, n);

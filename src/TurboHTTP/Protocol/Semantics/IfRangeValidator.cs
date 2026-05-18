@@ -50,7 +50,7 @@ internal static class IfRangeValidator
         {
             // Weak ETags are not allowed — RFC 9110 §13.1.5:
             // "A client MUST NOT generate an If-Range header field containing an entity-tag that is marked as weak."
-            if (ifRangeValue.StartsWith("W/", StringComparison.Ordinal))
+            if (ETagComparer.IsWeak(ifRangeValue))
             {
                 throw new InvalidOperationException(
                     "RFC 9110 §13.1.5: If-Range MUST NOT contain a weak entity-tag.");

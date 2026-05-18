@@ -17,7 +17,7 @@ internal readonly struct HeaderEntry
 
 internal sealed class HeaderCollection : IEnumerable<HeaderEntry>
 {
-    private readonly List<HeaderEntry> _entries = new();
+    private readonly List<HeaderEntry> _entries = [];
 
     public int Count => _entries.Count;
 

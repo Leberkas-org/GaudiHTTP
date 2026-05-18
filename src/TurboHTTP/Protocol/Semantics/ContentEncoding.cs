@@ -34,7 +34,7 @@ internal static class ContentEncoding
                 continue;
             }
 
-            if (!IsSupportedToken(token))
+            if (!ContentEncodingSupport.IsSupported(token))
             {
                 return false;
             }
@@ -43,13 +43,6 @@ internal static class ContentEncoding
         return true;
     }
 
-    private static bool IsSupportedToken(string token)
-    {
-        return token.Equals(WellKnownHeaders.GzipValue, StringComparison.OrdinalIgnoreCase) ||
-               token.Equals(WellKnownHeaders.XGzipValue, StringComparison.OrdinalIgnoreCase) ||
-               token.Equals(WellKnownHeaders.DeflateValue, StringComparison.OrdinalIgnoreCase) ||
-               token.Equals(WellKnownHeaders.BrValue, StringComparison.OrdinalIgnoreCase);
-    }
 
     internal static Stream CreateDecompressor(Stream source, string encoding)
         => CreateCodecStream(source, encoding, CompressionMode.Decompress);
