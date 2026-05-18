@@ -26,7 +26,7 @@ public sealed class Http3Options
     /// Larger values improve compression ratio at the cost of memory.
     /// Default is 4096 bytes. RFC 9204 §3.2.3.
     /// </summary>
-    public int QpackMaxTableCapacity { get; set; } = 16_384;
+    public int QpackMaxTableCapacity { get; set; } = 16 * 1024;
 
     /// <summary>
     /// Maximum number of streams that can be blocked waiting for QPACK encoder instructions.
@@ -40,7 +40,7 @@ public sealed class Http3Options
     /// Limits the combined size of all header fields in a single request or response.
     /// Default is 65536 bytes (64 KiB). RFC 9114 §7.2.4.1.
     /// </summary>
-    public int MaxFieldSectionSize { get; set; } = 65536;
+    public int MaxFieldSectionSize { get; set; } = 64 * 1024;
 
     /// <summary>
     /// QUIC idle timeout. If no data is exchanged for this duration, the connection is closed.

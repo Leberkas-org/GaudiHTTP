@@ -28,25 +28,23 @@ public sealed class Http1Options
     public int MaxResponseHeadersLength { get; set; } = 64;
 
     /// <summary>
+    /// Automatically add a Host header derived from the request URI if none is present.
+    /// Default is true, matching standard HTTP/1.1 behavior.
+    /// </summary>
+    public bool AutoHost { get; set; } = true;
+
+    /// <summary>
+    /// Automatically add Accept-Encoding: gzip, deflate, br if no Accept-Encoding header is present.
+    /// Default is true.
+    /// </summary>
+    public bool AutoAcceptEncoding { get; set; } = true;
+
+    /// <summary>
     /// Maximum number of reconnect attempts when a TCP connection drops with in-flight requests.
     /// After this many failed reconnects, the connection stage fails with an exception.
     /// Default is 3.
     /// </summary>
     public int MaxReconnectAttempts { get; set; } = 3;
 
-    /// <summary>
-    /// Maximum number of bytes to drain from an incomplete response body before
-    /// closing the connection. When the unconsumed body is smaller than this limit,
-    /// the connection can be returned to the pool instead of being closed.
-    /// Default is 1 MB, matching <c>SocketsHttpHandler.MaxResponseDrainSize</c>.
-    /// </summary>
-    public int MaxResponseDrainSize { get; set; } = 1024 * 1024;
-
-    /// <summary>
-    /// Maximum time allowed to drain an incomplete response body.
-    /// If draining exceeds this timeout the connection is closed instead.
-    /// Default is 2 seconds, matching <c>SocketsHttpHandler.ResponseDrainTimeout</c>.
-    /// </summary>
-    public TimeSpan ResponseDrainTimeout { get; set; } = TimeSpan.FromSeconds(2);
 }
 

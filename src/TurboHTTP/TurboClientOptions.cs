@@ -39,6 +39,18 @@ public sealed class TurboClientOptions
     public Http3Options Http3 { get; init; } = new();
 
     /// <summary>
+    /// Maximum response body size (in bytes) that will be buffered in memory.
+    /// Bodies larger than this are streamed. Default is 4 MB.
+    /// </summary>
+    public long MaxBufferedBodySize { get; set; } = 4 * 1024 * 1024L;
+
+    /// <summary>
+    /// Maximum response body size (in bytes) when streaming.
+    /// Null means unlimited. Default is null.
+    /// </summary>
+    public long? MaxStreamedBodySize { get; set; } = null;
+
+    /// <summary>
     /// Timeout for establishing a new TCP connection.
     /// Default is 15 seconds.
     /// </summary>

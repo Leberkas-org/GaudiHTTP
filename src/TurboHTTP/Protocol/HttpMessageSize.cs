@@ -2,11 +2,14 @@ using System.Net;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
+using TurboHTTP.Protocol.Syntax.Http11.Options;
 
 namespace TurboHTTP.Protocol;
 
 internal static class HttpMessageSize
 {
+    private static readonly Http11ClientEncoderOptions DefaultOptions = new Http11ClientEncoderOptions();
+
     public static int Estimate(HttpRequestMessage request, int bodyLength)
     {
         if (request.Version == HttpVersion.Version20)
@@ -43,7 +46,7 @@ internal static class HttpMessageSize
         var targetLength = request.ResolveTarget().Length;
         var versionLength = MessageVersionCodec.ToWireFormat(request.Version).Length;
         var requestLine = request.Method.Method.Length + 1 + targetLength + 1 + versionLength + 2;
-        return requestLine + HeaderBuilder.Build(request).WireSize() + bodyLength;
+        return requestLine + HeaderBuilder.Build(request, DefaultOptions).WireSize() + bodyLength;
     }
 
     // RFC 1945 §6.1 / RFC 9112 §4: HTTP-version SP status-code SP reason-phrase CRLF + headers + CRLF + body
@@ -208,7 +211,7 @@ internal static class HttpMessageSize
         return n switch
         {
             < 64 => 1,
-            < 16_384 => 2,
+            < 16 * 1024 => 2,
             < 1_073_741_824 => 4,
             _ => 8
         };

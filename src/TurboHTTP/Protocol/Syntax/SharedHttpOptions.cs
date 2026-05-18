@@ -119,9 +119,18 @@ internal static class Extensions
 
             foreach (var v in h.Value)
             {
-                collection.Add(h.Key, v);
+                var value = string.Equals(h.Key, "Referer", StringComparison.OrdinalIgnoreCase)
+                    ? StripFragment(v)
+                    : v;
+                collection.Add(h.Key, value);
             }
         }
+    }
+
+    private static string StripFragment(string uri)
+    {
+        var idx = uri.IndexOf('#');
+        return idx >= 0 ? uri[..idx] : uri;
     }
 
     private static void GetHeaderCollection(this HttpContent content, ref HeaderCollection collection)
