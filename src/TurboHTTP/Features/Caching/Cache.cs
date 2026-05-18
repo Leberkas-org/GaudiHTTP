@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Net;
+using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Features.Caching;
 
@@ -157,24 +158,7 @@ internal sealed class Cache
     }
 
     public static bool IsCacheable(HttpResponseMessage response)
-    {
-        return (int)response.StatusCode switch
-        {
-            200 => true,
-            203 => true,
-            204 => true,
-            206 => true,
-            300 => true,
-            301 => true,
-            308 => true,
-            404 => true,
-            405 => true,
-            410 => true,
-            414 => true,
-            501 => true,
-            _ => false
-        };
-    }
+        => StatusCodeSemantics.IsHeuristicallyCacheable(response.StatusCode);
 
     public static bool ShouldStore(HttpRequestMessage request, HttpResponseMessage response)
     {

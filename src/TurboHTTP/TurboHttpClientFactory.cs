@@ -22,7 +22,9 @@ internal sealed class TurboHttpClientFactory(
 
     private int _disposed;
 
-    public ITurboHttpClient CreateClient(string name)
+    public ITurboHttpClient CreateClient(string name) => CreateClient(name, transportOverride: null);
+
+    internal ITurboHttpClient CreateClient(string name, TransportRegistry? transportOverride)
     {
         ThrowIfDisposed();
 
@@ -51,7 +53,8 @@ internal sealed class TurboHttpClientFactory(
             consumerResponses.Writer,
             () => client.CachedOptions,
             clientOptions,
-            pipeline));
+            pipeline,
+            transportOverride));
 
         return client;
     }

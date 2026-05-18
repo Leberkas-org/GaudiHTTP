@@ -1,4 +1,5 @@
 using System.Net;
+using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Features.Caching;
 
@@ -137,9 +138,8 @@ internal static class CacheValidationRequestBuilder
             return false;
         }
 
-        // Compare ETags — the HEAD 304 must carry an ETag that matches the stored entry
         var headETag = headResponse.Headers.ETag?.ToString();
-        if (headETag is null || entry.ETag is null || !string.Equals(headETag, entry.ETag, StringComparison.Ordinal))
+        if (headETag is null || entry.ETag is null || !ETagComparer.StrongMatch(headETag, entry.ETag))
         {
             return false;
         }

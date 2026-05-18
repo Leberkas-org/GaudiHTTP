@@ -6,6 +6,7 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Features.Caching;
+using TurboHTTP.Protocol.Semantics;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;
@@ -426,10 +427,7 @@ internal sealed class CacheStateMachine
     {
         var request = response.RequestMessage!;
         var method = request.Method;
-        var isUnsafe = method == HttpMethod.Post
-                       || method == HttpMethod.Put
-                       || method == HttpMethod.Delete
-                       || method == HttpMethod.Patch;
+        var isUnsafe = !MethodProperties.IsSafe(method);
 
         if (isUnsafe)
         {

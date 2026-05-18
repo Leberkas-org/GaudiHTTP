@@ -101,6 +101,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
     private void OnStageActorMessage((IActorRef sender, object message) args)
     {
         _sm.OnBodyMessage(args.message);
+        TryCompleteAfterAllResponses();
     }
 
     private void OnServerPush()
@@ -126,6 +127,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
         }
 
         TryPullRequest();
+        TryCompleteAfterAllResponses();
     }
 
     private void OnNetworkPull()
@@ -133,6 +135,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
         if (_outboundQueue.Count > 0)
         {
             Push(_outNetwork, _outboundQueue.Dequeue());
+            TryCompleteAfterAllResponses();
             return;
         }
 
@@ -141,10 +144,26 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
 
     protected override void OnTimer(object timerKey)
     {
-        if (timerKey is string name)
+        if (timerKey is not string name)
         {
-            _sm.OnTimerFired(name);
+            return;
         }
+
+        if (name == DrainCompleteTimerKey)
+        {
+            if (IsClosed(_inApp)
+                && !_sm.HasInFlightRequests
+                && !_sm.IsReconnecting
+                && _responseQueue.Count == 0
+                && _outboundQueue.Count == 0)
+            {
+                CompleteStage();
+            }
+
+            return;
+        }
+
+        _sm.OnTimerFired(name);
     }
 
     // --- IStageOperations implementation ---
@@ -201,6 +220,21 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
             && !IsClosed(_inApp))
         {
             Pull(_inApp);
+        }
+    }
+
+    private const string DrainCompleteTimerKey = "drain-complete";
+
+    private void TryCompleteAfterAllResponses()
+    {
+        if (IsClosed(_inApp)
+            && !_sm.HasInFlightRequests
+            && !_sm.IsReconnecting
+            && _responseQueue.Count == 0
+            && _outboundQueue.Count == 0
+            && !IsTimerActive(DrainCompleteTimerKey))
+        {
+            ScheduleOnce(DrainCompleteTimerKey, TimeSpan.FromMilliseconds(100));
         }
     }
 

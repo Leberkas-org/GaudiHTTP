@@ -1,4 +1,3 @@
-using Akka.Actor;
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.MicroBenchmarks.Internal;
 using TurboHTTP.Protocol.Syntax;

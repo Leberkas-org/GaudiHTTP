@@ -3,7 +3,7 @@ using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Tests.Streams;
 
-public sealed class RequestEnricherSpec
+public sealed class RequestEnricherUriSpec
 {
     private static TurboRequestOptions DefaultOptions
     {

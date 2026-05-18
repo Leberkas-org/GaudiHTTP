@@ -42,6 +42,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
 
     private readonly TurboClientOptions _clientOptions;
     private readonly PipelineDescriptor _pipeline;
+    private readonly TransportRegistry? _transportOverride;
 
     private int _retryAttempts;
     private Exception? _lastError;
@@ -63,10 +64,12 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     public ITimerScheduler Timers { get; set; } = null!;
     public IStash Stash { get; set; } = null!;
 
-    public StreamOwner(TurboClientOptions clientOptions, PipelineDescriptor pipeline)
+    public StreamOwner(TurboClientOptions clientOptions, PipelineDescriptor pipeline,
+        TransportRegistry? transportOverride = null)
     {
         _clientOptions = clientOptions;
         _pipeline = pipeline;
+        _transportOverride = transportOverride;
 
         Initializing();
     }
@@ -118,36 +121,44 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
 
         try
         {
-            var poolRegistry = new PoolConfigRegistry(new TcpPoolConfig(
-                    1,
-                    _clientOptions.PooledConnectionIdleTimeout,
-                    _clientOptions.PooledConnectionLifetime,
-                    ReuseOnUpstreamFinish: true))
-                .Register(PoolKeys.Http10, new TcpPoolConfig(
-                    MaxConnectionsPerHost: int.MaxValue,
-                    IdleTimeout: TimeSpan.Zero,
-                    ConnectionLifetime: TimeSpan.Zero,
-                    ReuseOnUpstreamFinish: false))
-                .Register(PoolKeys.Http11, new TcpPoolConfig(
-                    _clientOptions.Http1.MaxConnectionsPerServer,
-                    _clientOptions.PooledConnectionIdleTimeout,
-                    _clientOptions.PooledConnectionLifetime,
-                    ReuseOnUpstreamFinish: true))
-                .Register(PoolKeys.Http2, new TcpPoolConfig(
-                    _clientOptions.Http2.MaxConnectionsPerServer,
-                    _clientOptions.PooledConnectionIdleTimeout,
-                    _clientOptions.PooledConnectionLifetime,
-                    ReuseOnUpstreamFinish: false));
+            TransportRegistry transports;
+            if (_transportOverride is not null)
+            {
+                transports = _transportOverride;
+            }
+            else
+            {
+                var poolRegistry = new PoolConfigRegistry(new TcpPoolConfig(
+                        1,
+                        _clientOptions.PooledConnectionIdleTimeout,
+                        _clientOptions.PooledConnectionLifetime,
+                        ReuseOnUpstreamFinish: true))
+                    .Register(PoolKeys.Http10, new TcpPoolConfig(
+                        MaxConnectionsPerHost: int.MaxValue,
+                        IdleTimeout: TimeSpan.Zero,
+                        ConnectionLifetime: TimeSpan.Zero,
+                        ReuseOnUpstreamFinish: false))
+                    .Register(PoolKeys.Http11, new TcpPoolConfig(
+                        _clientOptions.Http1.MaxConnectionsPerServer,
+                        _clientOptions.PooledConnectionIdleTimeout,
+                        _clientOptions.PooledConnectionLifetime,
+                        ReuseOnUpstreamFinish: true))
+                    .Register(PoolKeys.Http2, new TcpPoolConfig(
+                        _clientOptions.Http2.MaxConnectionsPerServer,
+                        _clientOptions.PooledConnectionIdleTimeout,
+                        _clientOptions.PooledConnectionLifetime,
+                        ReuseOnUpstreamFinish: false));
 
-            _tcpManager = Context.ActorOf(TransportFactory.CreateTcpConnectionManager(poolRegistry), "tcp-pool");
+                _tcpManager = Context.ActorOf(TransportFactory.CreateTcpConnectionManager(poolRegistry), "tcp-pool");
 
-            _quicConnectionManager = Context.ActorOf(TransportFactory.CreateQuicConnectionManager(), "quic-pool");
+                _quicConnectionManager = Context.ActorOf(TransportFactory.CreateQuicConnectionManager(), "quic-pool");
 
-            var transports = new TransportRegistry()
-                .Register(HttpVersion.Version10, TransportFactory.CreateTcpClient(_tcpManager, new Http10PoolingStrategy()))
-                .Register(HttpVersion.Version11, TransportFactory.CreateTcpClient(_tcpManager, new Http11PoolingStrategy()))
-                .Register(HttpVersion.Version20, TransportFactory.CreateTcpClient(_tcpManager, new Http2PoolingStrategy()))
-                .Register(HttpVersion.Version30, TransportFactory.CreateQuicClient(_quicConnectionManager));
+                transports = new TransportRegistry()
+                    .Register(HttpVersion.Version10, TransportFactory.CreateTcpClient(_tcpManager, new Http10PoolingStrategy()))
+                    .Register(HttpVersion.Version11, TransportFactory.CreateTcpClient(_tcpManager, new Http11PoolingStrategy()))
+                    .Register(HttpVersion.Version20, TransportFactory.CreateTcpClient(_tcpManager, new Http2PoolingStrategy()))
+                    .Register(HttpVersion.Version30, TransportFactory.CreateQuicClient(_quicConnectionManager));
+            }
 
             var engine = new Engine();
             var engineFlow = engine.CreateFlow(

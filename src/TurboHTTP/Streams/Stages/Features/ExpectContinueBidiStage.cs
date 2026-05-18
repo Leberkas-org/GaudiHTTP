@@ -45,7 +45,10 @@ internal sealed class ExpectContinueBidiStage
     private readonly Inlet<HttpResponseMessage> _inResponse = new("Expect100.In.Response");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Expect100.Out.Response");
 
-    public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape { get; }
+    public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape
+    {
+        get;
+    }
 
     /// <summary>
     /// Creates a new <see cref="ExpectContinueBidiStage"/> with the given policy.
@@ -116,7 +119,8 @@ internal sealed class ExpectContinueBidiStage
                     {
                         request.Headers.ExpectContinue = true;
                         _expectPending = true;
-                        Tracing.For("Expect100").Debug(this, "→ injected Expect: 100-continue (body {0} bytes)", bodySize);
+                        Tracing.For("Expect100").Debug(this, "→ injected Expect: 100-continue (body {0} bytes)",
+                            bodySize);
                     }
                     else
                     {
@@ -127,10 +131,10 @@ internal sealed class ExpectContinueBidiStage
                 },
                 onUpstreamFinish: () => Complete(stage._outRequest),
                 onUpstreamFailure: ex =>
-                    {
-                        Log.Warning("ExpectContinueBidiStage: Request upstream failure absorbed: {0}", ex.Message);
-                        Complete(stage._outRequest);
-                    });
+                {
+                    Log.Warning("ExpectContinueBidiStage: Request upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outRequest);
+                });
 
             SetHandler(stage._outRequest,
                 onPull: () => Pull(stage._inRequest),
@@ -152,7 +156,7 @@ internal sealed class ExpectContinueBidiStage
                         return;
                     }
 
-                    if (_expectPending && response.StatusCode == (HttpStatusCode)417)
+                    if (_expectPending && response.StatusCode == HttpStatusCode.ExpectationFailed)
                     {
                         // 417 Expectation Failed — request aborted, forward response.
                         Tracing.For("Expect100").Info(this, "← 417 Expectation Failed — request aborted");
@@ -169,10 +173,10 @@ internal sealed class ExpectContinueBidiStage
                 },
                 onUpstreamFinish: () => Complete(stage._outResponse),
                 onUpstreamFailure: ex =>
-                    {
-                        Log.Warning("ExpectContinueBidiStage: Response upstream failure absorbed: {0}", ex.Message);
-                        Complete(stage._outResponse);
-                    });
+                {
+                    Log.Warning("ExpectContinueBidiStage: Response upstream failure absorbed: {0}", ex.Message);
+                    Complete(stage._outResponse);
+                });
 
             SetHandler(stage._outResponse,
                 onPull: () =>

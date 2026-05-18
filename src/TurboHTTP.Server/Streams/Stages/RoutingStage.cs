@@ -1,5 +1,4 @@
 using System.Net;
-using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.Stage;

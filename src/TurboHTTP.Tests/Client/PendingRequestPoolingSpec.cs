@@ -3,7 +3,7 @@ using TurboHTTP.Internal;
 
 namespace TurboHTTP.Tests.Client;
 
-public sealed class PendingRequestSpec
+public sealed class PendingRequestPoolingSpec
 {
     [Fact(Timeout = 5000)]
     public void Rent_Returns_PendingRequest()

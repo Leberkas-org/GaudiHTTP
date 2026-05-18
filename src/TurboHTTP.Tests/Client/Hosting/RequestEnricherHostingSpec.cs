@@ -4,7 +4,7 @@ using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Tests.Client.Hosting;
 
-public sealed class RequestEnricherSpec
+public sealed class RequestEnricherHostingSpec
 {
     private static RequestEnricher CreateEnricher(
         Uri? baseAddress = null,

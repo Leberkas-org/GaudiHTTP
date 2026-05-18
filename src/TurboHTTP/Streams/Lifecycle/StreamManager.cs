@@ -1,6 +1,7 @@
 using System.Threading.Channels;
 using Akka.Actor;
 using Akka.Event;
+using TurboHTTP.Streams;
 
 namespace TurboHTTP.Streams.Lifecycle;
 
@@ -13,7 +14,8 @@ internal sealed class ClientStreamManager : ReceiveActor
         ChannelWriter<HttpResponseMessage> ResponseWriter,
         Func<TurboRequestOptions> OptionsFactory,
         TurboClientOptions ClientOptions,
-        PipelineDescriptor Pipeline);
+        PipelineDescriptor Pipeline,
+        TransportRegistry? TransportOverride = null);
 
     internal sealed record UnregisterConsumer(string Name, Guid ConsumerId);
 
@@ -42,7 +44,8 @@ internal sealed class ClientStreamManager : ReceiveActor
             var owner = Context.ActorOf(
                 Akka.Actor.Props.Create(() => new StreamOwner(
                     message.ClientOptions,
-                    message.Pipeline)),
+                    message.Pipeline,
+                    message.TransportOverride)),
                 sanitizedName);
 
             var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>(

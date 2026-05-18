@@ -1,7 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.MicroBenchmarks.Internal;
-using TurboHTTP.Protocol.Syntax;
-using TurboHTTP.Protocol.Syntax.Http10;
 using TurboHTTP.Protocol.Syntax.Http10.Client;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 
@@ -17,7 +15,7 @@ public class Http10DecoderBenchmark
     [GlobalSetup]
     public void Setup()
     {
-        _decoder = new Http10ClientDecoder(Http10ClientDecoderOptions.Default, Http10Profile.Default);
+        _decoder = new Http10ClientDecoder(Http10ClientDecoderOptions.Default);
 
         _smallResponse = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nHello"u8.ToArray();
 

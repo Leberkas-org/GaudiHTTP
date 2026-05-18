@@ -1,7 +1,6 @@
 using Akka.Actor;
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.MicroBenchmarks.Internal;
-using TurboHTTP.Protocol.Syntax.Http10;
 using TurboHTTP.Protocol.Syntax.Http10.Client;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 
@@ -29,7 +28,7 @@ public class Http10EncoderBenchmark
         _requestWithHeaders.Headers.TryAddWithoutValidation("Cache-Control", "no-cache");
         _requestWithHeaders.Content = new ByteArrayContent(new byte[256]);
 
-        _encoder = new Http10ClientEncoder(Http10ClientEncoderOptions.Default, Http10Profile.Default);
+        _encoder = new Http10ClientEncoder(Http10ClientEncoderOptions.Default);
     }
 
     [Benchmark(Baseline = true)]

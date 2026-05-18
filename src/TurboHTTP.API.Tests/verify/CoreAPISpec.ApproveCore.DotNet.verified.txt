@@ -37,12 +37,12 @@ namespace TurboHTTP
     public sealed class Http1Options
     {
         public Http1Options() { }
+        public bool AutoAcceptEncoding { get; set; }
+        public bool AutoHost { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxPipelineDepth { get; set; }
         public int MaxReconnectAttempts { get; set; }
-        public int MaxResponseDrainSize { get; set; }
         public int MaxResponseHeadersLength { get; set; }
-        public System.TimeSpan ResponseDrainTimeout { get; set; }
     }
     public sealed class Http2Options
     {
@@ -119,7 +119,9 @@ namespace TurboHTTP
         public TurboHTTP.Http1Options Http1 { get; init; }
         public TurboHTTP.Http2Options Http2 { get; init; }
         public TurboHTTP.Http3Options Http3 { get; init; }
+        public long MaxBufferedBodySize { get; set; }
         public uint MaxEndpointSubstreams { get; set; }
+        public long? MaxStreamedBodySize { get; set; }
         public System.TimeSpan PooledConnectionIdleTimeout { get; set; }
         public System.TimeSpan PooledConnectionLifetime { get; set; }
         public bool PreAuthenticate { get; set; }

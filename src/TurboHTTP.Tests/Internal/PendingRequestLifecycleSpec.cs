@@ -2,7 +2,7 @@ using TurboHTTP.Internal;
 
 namespace TurboHTTP.Tests.Internal;
 
-public sealed class PendingRequestSpec
+public sealed class PendingRequestLifecycleSpec
 {
     [Fact(Timeout = 5000)]
     public async Task TrySetResult_should_succeed_when_version_matches()
