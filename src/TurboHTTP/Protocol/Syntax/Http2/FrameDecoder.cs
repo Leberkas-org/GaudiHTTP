@@ -21,8 +21,8 @@ internal sealed class FrameDecoder : IDisposable
     private const int SettingsValueOffset = 2; // value is at bytes [2..6) within the entry
 
     // RFC 9113 §6.5.2: SETTINGS_MAX_FRAME_SIZE must be in [2^14, 2^24−1].
-    private const uint MinMaxFrameSize = 16_384;
-    private const uint MaxMaxFrameSize = 16_777_215;
+    private const uint MinMaxFrameSize = 16 * 1024;
+    private const uint MaxMaxFrameSize = (16 * 1024 * 1024) - 1;
 
     // RFC 9113 §6.7: PING payload is exactly 8 bytes.
     private const int PingPayloadSize = 8;

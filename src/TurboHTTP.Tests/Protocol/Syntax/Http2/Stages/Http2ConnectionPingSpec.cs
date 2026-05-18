@@ -41,7 +41,7 @@ public sealed class Http2ConnectionPingSpec : StreamTestBase
         var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         var networkItems = await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        return (downstream, DecodeFrames(networkItems, skipPreface: true), ExtractSignals(networkItems));
+        return (downstream, DecodeFrames(networkItems, skipPreface: false), ExtractSignals(networkItems));
     }
 
     [Fact(Timeout = 10_000)]

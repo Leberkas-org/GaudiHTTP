@@ -60,6 +60,24 @@ internal sealed class Http2ClientDecoder(
         return response;
     }
 
+    public void DecodeTrailers(StreamState state)
+    {
+        var headers = _hpack.Decode(state.GetHeaderSpan());
+
+        foreach (var h in headers)
+        {
+            if (h.Name.StartsWith(WellKnownHeaders.Colon))
+            {
+                continue;
+            }
+
+            if (TrailerFieldValidator.IsAllowedInTrailer(h.Name))
+            {
+                state.GetResponse().TrailingHeaders.TryAddWithoutValidation(h.Name, h.Value);
+            }
+        }
+    }
+
     internal static void ValidateResponseHeaders(List<HpackHeader> headers)
     {
         PseudoHeaderValidator.ValidateResponsePseudoHeaders(

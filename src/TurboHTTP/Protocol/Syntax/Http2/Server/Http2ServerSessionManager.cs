@@ -3,6 +3,7 @@ using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Streams;
 using static Servus.Core.Servus;
 
@@ -12,6 +13,8 @@ internal sealed class Http2ServerSessionManager
 {
     private const int MaxStatePoolCapacity = 1000;
 
+    private readonly Http2ServerEncoderOptions _encoderOptions;
+    private readonly Http2ServerDecoderOptions _decoderOptions;
     private readonly IServerStageOperations _ops;
     private readonly FrameDecoder _frameDecoder = new();
     private readonly Http2ServerDecoder _requestDecoder;
@@ -30,22 +33,23 @@ internal sealed class Http2ServerSessionManager
     public int ActiveStreamCount => _streams.Count;
 
     public Http2ServerSessionManager(
+        Http2ServerEncoderOptions encoderOptions,
+        Http2ServerDecoderOptions decoderOptions,
         IServerStageOperations ops,
-        int maxConcurrentStreams = 100,
         int initialConnectionWindowSize = 65535,
         int initialStreamWindowSize = 65535,
-        int maxHeaderSize = 16 * 1024,
-        int maxTotalHeaderSize = 64 * 1024,
         long maxRequestBodySize = 30 * 1024 * 1024)
     {
+        _encoderOptions = encoderOptions;
+        _decoderOptions = decoderOptions;
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
-        _requestDecoder = new Http2ServerDecoder(maxHeaderSize, maxTotalHeaderSize);
+        _requestDecoder = new Http2ServerDecoder(16 * 1024, 64 * 1024);
         _flow = new FlowController(initialConnectionWindowSize, initialStreamWindowSize);
-        _tracker = new StreamTracker(initialNextStreamId: 1, maxConcurrentStreams);
+        _tracker = new StreamTracker(initialNextStreamId: 1, decoderOptions.MaxConcurrentStreams);
         _maxRequestBodySize = maxRequestBodySize;
 
         var statePoolCapacity = Math.Min(
-            maxConcurrentStreams > 0 ? maxConcurrentStreams : 100,
+            decoderOptions.MaxConcurrentStreams > 0 ? decoderOptions.MaxConcurrentStreams : 100,
             MaxStatePoolCapacity);
         _statePool = new StackStreamStatePool<StreamState>(
             statePoolCapacity,
@@ -56,10 +60,10 @@ internal sealed class Http2ServerSessionManager
     {
         var settingsParams = new[]
         {
-            (SettingsParameter.MaxConcurrentStreams, (uint)_tracker.MaxConcurrentStreams),
+            (SettingsParameter.MaxConcurrentStreams, (uint)_decoderOptions.MaxConcurrentStreams),
             (SettingsParameter.InitialWindowSize, 65535u),
-            (SettingsParameter.MaxFrameSize, 16384u),
-            (SettingsParameter.HeaderTableSize, 4096u),
+            (SettingsParameter.MaxFrameSize, (uint)_encoderOptions.MaxFrameSize),
+            (SettingsParameter.HeaderTableSize, (uint)_encoderOptions.HeaderTableSize),
         };
 
         var settingsFrame = new SettingsFrame(settingsParams, isAck: false);

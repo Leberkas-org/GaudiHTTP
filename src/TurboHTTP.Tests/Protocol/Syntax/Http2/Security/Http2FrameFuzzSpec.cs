@@ -46,6 +46,7 @@ public sealed class Http2FrameFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4")]
     [InlineData(42)]
     [InlineData(137)]
     [InlineData(7)]
@@ -78,6 +79,7 @@ public sealed class Http2FrameFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4")]
     [InlineData(42)]
     [InlineData(137)]
     [InlineData(7)]
@@ -119,6 +121,7 @@ public sealed class Http2FrameFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4")]
     [InlineData(42)]
     [InlineData(137)]
     [InlineData(7)]
@@ -162,6 +165,7 @@ public sealed class Http2FrameFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4")]
     [InlineData(42)]
     [InlineData(137)]
     [InlineData(7)]
@@ -204,6 +208,7 @@ public sealed class Http2FrameFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4")]
     [InlineData(42)]
     [InlineData(137)]
     [InlineData(7)]
@@ -242,6 +247,7 @@ public sealed class Http2FrameFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4")]
     [InlineData(42)]
     [InlineData(137)]
     [InlineData(7)]

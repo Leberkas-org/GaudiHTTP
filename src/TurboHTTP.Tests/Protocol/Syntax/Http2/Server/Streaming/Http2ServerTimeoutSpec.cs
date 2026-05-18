@@ -117,6 +117,7 @@ public sealed class Http2ServerTimeoutSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4")]
     public void PreStart_should_schedule_keep_alive_timeout()
     {
         var ops = new FakeServerOps();
@@ -134,6 +135,7 @@ public sealed class Http2ServerTimeoutSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4")]
     public void KeepAlive_timeout_should_emit_goaway()
     {
         var ops = new FakeServerOps();
@@ -154,6 +156,7 @@ public sealed class Http2ServerTimeoutSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4")]
     public void KeepAlive_should_cancel_on_stream_open()
     {
         var ops = new FakeServerOps();
@@ -178,6 +181,7 @@ public sealed class Http2ServerTimeoutSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4")]
     public void Headers_timeout_should_rst_stream_on_continuation_timeout()
     {
         var ops = new FakeServerOps();
@@ -222,6 +226,7 @@ public sealed class Http2ServerTimeoutSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4")]
     public void Headers_timeout_should_cancel_on_endheaders()
     {
         var ops = new FakeServerOps();
@@ -261,6 +266,7 @@ public sealed class Http2ServerTimeoutSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4")]
     public void Body_rate_check_should_schedule_on_data_frame()
     {
         var ops = new FakeServerOps();

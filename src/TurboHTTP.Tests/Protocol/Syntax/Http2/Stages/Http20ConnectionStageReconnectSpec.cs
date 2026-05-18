@@ -44,14 +44,12 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
         netSub.Request(20);
         resSub.Request(10);
 
-        // Consume connection preface (emitted on first network pull)
-        var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        Assert.IsType<TransportData>(preface);
-
-        // Send a request — first request also emits ConnectTransport before HEADERS
+        // Send a request — first request emits ConnectTransport → preface → HEADERS
         appSub.SendNext(MakeRequest());
         var connectItem = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connectItem);
+        var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        Assert.IsType<TransportData>(preface);
         var headers = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var td = Assert.IsType<TransportData>(headers);
         td.Buffer.Dispose();
@@ -93,10 +91,9 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
         netSub.Request(20);
         resSub.Request(10);
 
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // preface
-
         appSub.SendNext(MakeRequest());
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // ConnectTransport
+        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // preface
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // HEADERS frame
 
         // First drop → reconnect attempt 1 (hits max immediately)
@@ -141,9 +138,7 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
         netSub.Request(20);
         resSub.Request(10);
 
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken); // preface
-
-        // Close with no in-flight requests
+        // Close with no in-flight requests (no request sent, no preface emitted)
         serverSub.SendNext(new TransportDisconnected(DisconnectReason.Graceful));
         serverSub.SendComplete();
 

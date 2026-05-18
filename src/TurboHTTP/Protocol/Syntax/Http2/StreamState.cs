@@ -31,9 +31,13 @@ internal sealed class StreamState
 
     public bool HasBodyDecoder => _bodyDecoder is not null;
 
+    public bool HasBodyEncoder => _bodyEncoder is not null;
+
     public bool HasPendingOutbound => _outboundBuffer is { Count: > 0 };
 
     public bool IsBodyEncoderComplete { get; private set; }
+
+    public bool IsRemoteClosed { get; private set; }
 
     public ReadOnlySpan<byte> GetHeaderSpan()
     {
@@ -110,6 +114,11 @@ internal sealed class StreamState
         _bodyDecoder = decoder;
     }
 
+    public void DetachBodyDecoder()
+    {
+        _bodyDecoder = null;
+    }
+
     public void FeedBody(ReadOnlySpan<byte> data, bool endStream)
     {
         if (HasBodyDecoder)
@@ -170,6 +179,11 @@ internal sealed class StreamState
         IsBodyEncoderComplete = true;
     }
 
+    public void MarkRemoteClosed()
+    {
+        IsRemoteClosed = true;
+    }
+
     public bool TryDequeueBodyChunk(out StreamBodyChunk<int>? chunk)
     {
         if (_outboundBuffer is { Count: > 0 })
@@ -205,6 +219,7 @@ internal sealed class StreamState
         DisposeOutboundBuffer();
         _outboundBuffer = null;
         IsBodyEncoderComplete = false;
+        IsRemoteClosed = false;
     }
 
     public void AppendHeader(ReadOnlySpan<byte> data)

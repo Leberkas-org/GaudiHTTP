@@ -6,6 +6,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Security;
 public sealed class HpackBombSpec
 {
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_bound_dynamic_table_memory_when_size_update_to_maximum()
     {
         // Attack: Peer sends SETTINGS_HEADER_TABLE_SIZE=65535, then floods with entries
@@ -46,6 +47,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_reject_table_size_update_when_exceeds_settings()
     {
         // Attack: Peer sends a table size update larger than SETTINGS_HEADER_TABLE_SIZE
@@ -63,6 +65,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDynamicTable_should_evict_all_entries_when_table_size_set_to_zero()
     {
         // Attacker: oscillate table size between large and 0 to churn memory
@@ -85,6 +88,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_enforce_header_list_size_limit_when_hpack_bomb_via_indexed_references()
     {
         // Attack: Attacker inserts one large entry via incremental indexing, then
@@ -140,6 +144,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_enforce_string_length_limit_when_hpack_bomb_via_oversized_string()
     {
         // Attack: Crafted HPACK block with a string literal claiming 100KB length
@@ -169,6 +174,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_enforce_header_list_size_limit_when_many_small_headers()
     {
         // Attack: Many tiny headers that individually pass but cumulatively exceed limits.
@@ -199,6 +205,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_accept_huffman_encoded_header_when_within_string_length_limit()
     {
         // Legitimate: Huffman-encoded string that decodes to reasonable size
@@ -218,6 +225,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_throw_on_invalid_huffman_padding_when_decoding_adversarial_input()
     {
         // Attack: Malformed Huffman data with invalid EOS padding should not
@@ -242,6 +250,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_enforce_string_length_limit_when_huffman_claims_large_expansion()
     {
         // Attack: Huffman-encoded string whose declared wire length is within limits
@@ -296,6 +305,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDynamicTable_should_correctly_evict_when_more_than_100_entries_inserted()
     {
         // Attack: Flood the dynamic table with many entries to exhaust memory.
@@ -325,6 +335,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDynamicTable_should_not_grow_memory_when_rapid_fill_evict_cycles()
     {
         // Attack: Repeatedly fill and clear table to trigger GC pressure / memory leak
@@ -353,6 +364,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDynamicTable_should_clear_table_without_inserting_when_entry_size_larger_than_max_size()
     {
         // Attack: Single entry larger than table size should not corrupt table state
@@ -372,6 +384,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_throw_hpack_exception_when_indexed_header_references_index_zero()
     {
         // Attack: Index 0 is reserved and must never be used (RFC 7541 §2.3.3)
@@ -385,6 +398,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_throw_hpack_exception_when_index_exceeds_table_size()
     {
         // Attack: Reference index 200 when only static table (61) exists
@@ -401,6 +415,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_throw_hpack_exception_when_integer_overflow()
     {
         // Attack: Craft an integer with continuation bytes that would overflow int.MaxValue
@@ -420,6 +435,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_throw_hpack_exception_when_empty_header_name_literal()
     {
         // Attack: Literal header with zero-length name — RFC 7541 §7.2 violation
@@ -438,6 +454,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackEncoder_should_throw_hpack_exception_when_encoder_receives_empty_name()
     {
         // Verify encoder also rejects empty names
@@ -461,6 +478,7 @@ public sealed class HpackBombSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_throw_hpack_exception_when_table_size_update_after_header_field()
     {
         // Attack: Sending a table size update mid-block to manipulate table state

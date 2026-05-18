@@ -527,4 +527,72 @@ public sealed class Http2ResponseDecoderSpec
 
         Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.5")]
+    public void DecodeTrailers_should_populate_trailing_headers()
+    {
+        var encoder = new HpackEncoder(useHuffman: false);
+        var statusEncoded = encoder.Encode([(":status", "200")]);
+        var state = new StreamState();
+        state.AppendHeader(statusEncoded.Span);
+        var decoder = new Http2ClientDecoder();
+
+        var response = decoder.DecodeHeaders(streamId: 1, endStream: false, state);
+        Assert.Null(response);
+        Assert.True(state.HasResponse);
+
+        var trailerEncoded = encoder.Encode([("x-trailer-field", "trailer-value")]);
+        var trailerState = state;
+        trailerState.AppendHeader(trailerEncoded.Span);
+        decoder.DecodeTrailers(trailerState);
+
+        var trailingResponse = state.GetResponse();
+        Assert.True(trailingResponse.TrailingHeaders.Contains("x-trailer-field"));
+        Assert.Equal("trailer-value", trailingResponse.TrailingHeaders.GetValues("x-trailer-field").FirstOrDefault());
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.5")]
+    public void DecodeTrailers_should_filter_prohibited_fields()
+    {
+        var encoder = new HpackEncoder(useHuffman: false);
+        var statusEncoded = encoder.Encode([(":status", "200")]);
+        var state = new StreamState();
+        state.AppendHeader(statusEncoded.Span);
+        var decoder = new Http2ClientDecoder();
+
+        var response = decoder.DecodeHeaders(streamId: 1, endStream: false, state);
+        Assert.Null(response);
+
+        var trailerEncoded = encoder.Encode([("transfer-encoding", "chunked"), ("x-allowed", "yes")]);
+        state.AppendHeader(trailerEncoded.Span);
+        decoder.DecodeTrailers(state);
+
+        var trailingResponse = state.GetResponse();
+        Assert.False(trailingResponse.TrailingHeaders.Contains("transfer-encoding"));
+        Assert.True(trailingResponse.TrailingHeaders.Contains("x-allowed"));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-8.1.2.2")]
+    public void DecodeTrailers_should_skip_pseudo_headers()
+    {
+        var encoder = new HpackEncoder(useHuffman: false);
+        var statusEncoded = encoder.Encode([(":status", "200")]);
+        var state = new StreamState();
+        state.AppendHeader(statusEncoded.Span);
+        var decoder = new Http2ClientDecoder();
+
+        var response = decoder.DecodeHeaders(streamId: 1, endStream: false, state);
+        Assert.Null(response);
+
+        var trailerEncoded = encoder.Encode([(":status", "200"), ("x-trailer", "value")]);
+        state.AppendHeader(trailerEncoded.Span);
+        decoder.DecodeTrailers(state);
+
+        var trailingResponse = state.GetResponse();
+        Assert.False(trailingResponse.TrailingHeaders.Contains(":status"));
+        Assert.True(trailingResponse.TrailingHeaders.Contains("x-trailer"));
+    }
 }

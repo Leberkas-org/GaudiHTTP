@@ -52,10 +52,11 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
         var networkItems = await networkTask.WaitAsync(
             TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        return (downstream, DecodeFrames(networkItems, skipPreface: true));
+        return (downstream, DecodeFrames(networkItems, skipPreface: false));
     }
 
     [Fact(Timeout = 5_000)]
+    [Trait("RFC", "RFC9113-6.9")]
     public void Http2Engine_should_have_64_mib_initial_connection_window_when_default_options_used()
     {
         var options = new Http2Options();

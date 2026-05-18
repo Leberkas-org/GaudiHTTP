@@ -46,7 +46,7 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
         var downstream = await downstreamTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         var networkItems = await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        return (downstream, DecodeFrames(networkItems, skipPreface: true));
+        return (downstream, DecodeFrames(networkItems, skipPreface: false));
     }
 
     [Fact(Timeout = 10_000)]
@@ -276,10 +276,9 @@ public sealed class Http2ConnectionFlowControlSpec : StreamTestBase
 
         var firstItem = await networkTask.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        // The combined stage emits the connection preface as its first output on OutNetwork.
-        // Sink.First captures only this first item — a TransportData containing magic + SETTINGS + WINDOW_UPDATE.
-        var td = Assert.IsType<TransportData>(firstItem);
-        td.Buffer.Dispose();
+        // The first outbound message is ConnectTransport (connection setup), emitted when the
+        // first request triggers EncodeRequest. Sink.First captures this initial item.
+        Assert.IsType<ConnectTransport>(firstItem);
     }
 
     [Fact(Timeout = 10_000)]

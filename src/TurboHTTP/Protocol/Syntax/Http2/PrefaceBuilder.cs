@@ -7,7 +7,7 @@ internal static class PrefaceBuilder
     public static (IMemoryOwner<byte> Owner, int Length) Build(
         int initialWindowSize,
         int headerTableSize = 4096,
-        int maxFrameSize = 16384)
+        int maxFrameSize = 16 * 1024)
     {
         const int frameHeaderSize = 9;
         var magic = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8;

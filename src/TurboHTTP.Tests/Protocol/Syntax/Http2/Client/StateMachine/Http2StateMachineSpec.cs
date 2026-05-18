@@ -80,19 +80,19 @@ public sealed class Http2StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-3.4")]
-    public void PreStart_should_emit_preface()
+    public void PreStart_should_not_emit_preface()
     {
         var ops = new FakeOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
 
         sm.PreStart();
 
-        Assert.NotEmpty(ops.Outbound.OfType<TransportData>());
+        Assert.Empty(ops.Outbound);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.3")]
-    public void OnRequest_should_emit_headers_frame()
+    public void OnRequest_should_emit_preface_and_headers_frame_on_first_request()
     {
         var ops = new FakeOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
@@ -101,7 +101,8 @@ public sealed class Http2StateMachineSpec
 
         sm.OnRequest(MakeGet());
 
-        Assert.Single(ops.Outbound.OfType<TransportData>());
+        var transportItems = ops.Outbound.OfType<TransportData>().ToList();
+        Assert.Equal(2, transportItems.Count);
     }
 
     [Fact(Timeout = 5000)]
@@ -164,7 +165,8 @@ public sealed class Http2StateMachineSpec
         sm.OnRequest(MakeGet("/b"));
         sm.OnRequest(MakeGet("/c"));
 
-        Assert.Equal(3, ops.Outbound.OfType<TransportData>().Count());
+        var transportItems = ops.Outbound.OfType<TransportData>().ToList();
+        Assert.Equal(4, transportItems.Count);
     }
 
     [Fact(Timeout = 5000)]

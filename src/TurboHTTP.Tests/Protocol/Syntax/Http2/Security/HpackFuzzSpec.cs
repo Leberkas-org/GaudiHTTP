@@ -10,6 +10,7 @@ public sealed class HpackFuzzSpec
     private const int MaxHeaderTableSize = 65536;
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     [InlineData(42)]
     [InlineData(137)]
     [InlineData(7)]
@@ -32,6 +33,7 @@ public sealed class HpackFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     [InlineData(42)]
     [InlineData(137)]
     [InlineData(7)]
@@ -59,6 +61,7 @@ public sealed class HpackFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     [InlineData(42)]
     [InlineData(137)]
     public void HpackDecoder_should_bound_dynamic_table_size_update(int seed)
@@ -114,6 +117,7 @@ public sealed class HpackFuzzSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_throw_when_indexed_reference_is_out_of_bounds()
     {
         var decoder = new HpackDecoder();
@@ -130,6 +134,7 @@ public sealed class HpackFuzzSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_gracefully_fail_when_string_length_exceeds_remaining_bytes()
     {
         var decoder = new HpackDecoder();
@@ -148,6 +153,7 @@ public sealed class HpackFuzzSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_throw_when_string_length_exceeds_max()
     {
         var decoder = new HpackDecoder();
@@ -167,6 +173,7 @@ public sealed class HpackFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     [InlineData(42)]
     [InlineData(137)]
     public void HpackDecoder_should_preserve_never_indexed_sensitive_header_flag(int seed)
@@ -199,6 +206,7 @@ public sealed class HpackFuzzSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     public void HpackDecoder_should_handle_dynamic_table_eviction_without_bomb()
     {
         var decoder = new HpackDecoder();
@@ -233,6 +241,7 @@ public sealed class HpackFuzzSpec
     }
 
     [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC7541")]
     [InlineData(42)]
     [InlineData(137)]
     public void HpackDecoder_should_gracefully_fail_when_header_block_is_truncated(int seed)

@@ -1,4 +1,5 @@
 using Servus.Akka.Transport;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Streams;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Server;
@@ -36,13 +37,20 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
         TimeSpan? minRequestBodyDataRateGracePeriod = null)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
+
+        var encoderOpts = new Http2ServerEncoderOptions();
+
+        var decoderOpts = new Http2ServerDecoderOptions
+        {
+            MaxConcurrentStreams = maxConcurrentStreams,
+        };
+
         _sessionManager = new Http2ServerSessionManager(
+            encoderOpts,
+            decoderOpts,
             ops,
-            maxConcurrentStreams,
             initialConnectionWindowSize,
             initialStreamWindowSize,
-            maxHeaderSize,
-            maxTotalHeaderSize,
             maxRequestBodySize);
 
         _keepAliveTimeout = keepAliveTimeout ?? TimeSpan.FromSeconds(130);

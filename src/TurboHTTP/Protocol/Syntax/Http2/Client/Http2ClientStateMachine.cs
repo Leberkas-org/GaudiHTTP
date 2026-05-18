@@ -1,6 +1,7 @@
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Streams.Stages;
 using static Servus.Core.Servus;
 
@@ -31,17 +32,33 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
     {
         _options = options;
         _ops = ops;
-        _clientSession = new Http2ClientSessionManager(options, ops);
+
+        var shared = SharedHttpOptions.Default with
+        {
+            MaxBufferedBodySize = options.MaxBufferedBodySize,
+            MaxStreamedBodySize = options.MaxStreamedBodySize,
+        };
+
+        var encoderOpts = new Http2ClientEncoderOptions
+        {
+            HeaderTableSize = options.Http2.HeaderTableSize,
+            Shared = shared,
+        };
+
+        var decoderOpts = new Http2ClientDecoderOptions
+        {
+            MaxConcurrentStreams = options.Http2.MaxConcurrentStreams,
+            InitialConnectionWindowSize = options.Http2.InitialConnectionWindowSize,
+            InitialStreamWindowSize = options.Http2.InitialStreamWindowSize,
+            Shared = shared,
+        };
+
+        _clientSession = new Http2ClientSessionManager(encoderOpts, decoderOpts, options, ops);
         _reconnect = new ReconnectionManager(options.Http2.MaxReconnectAttempts);
     }
 
     public void PreStart()
     {
-        var preface = _clientSession.TryBuildPreface();
-        if (preface is not null)
-        {
-            _ops.OnOutbound(preface);
-        }
     }
 
     public void OnRequest(HttpRequestMessage request)

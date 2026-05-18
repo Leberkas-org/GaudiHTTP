@@ -21,7 +21,7 @@ internal sealed class Http2ServerEncoder
     // Tracks MemoryPool rentals from the previous EncodeHeaders() call
     private readonly List<IMemoryOwner<byte>> _rentedBodyOwners = new(4);
 
-    public int MaxFrameSize { get; private set; } = 16384;
+    public int MaxFrameSize { get; private set; } = 16 * 1024;
 
     /// <summary>
     /// Encodes response headers into HEADERS and optional CONTINUATION frames.

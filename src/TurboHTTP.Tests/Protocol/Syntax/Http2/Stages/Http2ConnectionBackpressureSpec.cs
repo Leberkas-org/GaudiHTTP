@@ -69,20 +69,14 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
             await OfferAsync(queue, new HttpRequestMessage(HttpMethod.Get, "http://example.com/"));
             if (i == 0)
             {
-                // First request also emits ConnectTransport before TransportData
+                // First request emits ConnectTransport + preface TransportData + HEADERS TransportData
                 await networkProbe.ExpectNextAsync(TestContext.Current.CancellationToken);
+                ExpectRequestOutput(networkProbe);
             }
 
-            // Each request produces TransportData (frame data)
+            // Each request produces TransportData (HEADERS frame data)
             ExpectRequestOutput(networkProbe);
         }
-    }
-
-    private static void DrainPreface(TestSubscriber.ManualProbe<ITransportOutbound> networkProbe)
-    {
-        var preface = networkProbe.ExpectNext(TestContext.Current.CancellationToken);
-        var td = Assert.IsType<TransportData>(preface);
-        td.Buffer.Dispose();
     }
 
     [Fact(Timeout = 10_000)]
@@ -97,7 +91,6 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
         appOutSub.Request(100);
         networkSub.Request(100);
 
-        DrainPreface(networkProbe);
 
         await FillStreamsAsync(requestQueue, networkProbe, 3);
 
@@ -118,7 +111,6 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
         appOutSub.Request(100);
         networkSub.Request(100);
 
-        DrainPreface(networkProbe);
 
         var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
@@ -148,7 +140,6 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
         appOutSub.Request(100);
         networkSub.Request(100);
 
-        DrainPreface(networkProbe);
 
         var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
@@ -176,7 +167,6 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
         appOutSub.Request(100);
         networkSub.Request(100);
 
-        DrainPreface(networkProbe);
 
         var srvSub = await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 

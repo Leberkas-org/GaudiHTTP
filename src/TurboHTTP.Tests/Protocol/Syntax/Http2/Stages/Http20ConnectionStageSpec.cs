@@ -29,7 +29,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
 
     [Fact(Timeout = 10_000)]
     [Trait("RFC", "RFC9113-3.2")]
-    public async Task Http20ConnectionStage_should_emit_preface_on_first_network_pull()
+    public async Task Http20ConnectionStage_should_emit_connect_then_preface_on_first_request()
     {
         var stage = new Http20ConnectionStage(new TurboClientOptions
         { Http2 = { MaxReconnectAttempts = 3 } });
@@ -57,13 +57,17 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
 
         var netSubscription = await networkSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         var resSubscription = await responseSub.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
-        await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
+        var appSubscription = await appProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
         await serverProbe.ExpectSubscriptionAsync(TestContext.Current.CancellationToken);
 
         netSubscription.Request(5);
         resSubscription.Request(5);
 
-        // First item should be HTTP/2 preface (connection preface)
+        appSubscription.SendNext(MakeRequest("/"));
+
+        var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        Assert.IsType<ConnectTransport>(connect);
+
         var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         var prefaceData = Assert.IsType<TransportData>(preface);
         var data = Encoding.ASCII.GetString(prefaceData.Buffer.Span);
@@ -107,16 +111,18 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(10);
         resSubscription.Request(10);
 
-        // Consume preface
-        var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        Assert.IsType<TransportData>(preface);
-
         // Send request
         appSubscription.SendNext(MakeRequest("/test"));
 
-        // First request: ConnectTransport (transport connect) + HEADERS frame (as TransportData)
+        // First request: ConnectTransport → preface → HEADERS frame
         var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connect);
+
+        var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        var prefaceData = Assert.IsType<TransportData>(preface);
+        var data = Encoding.ASCII.GetString(prefaceData.Buffer.Span);
+        Assert.StartsWith("PRI * HTTP/2.0", data);
+        prefaceData.Buffer.Dispose();
 
         var headers = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<TransportData>(headers);
@@ -157,21 +163,22 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(20);
         resSubscription.Request(10);
 
-        // Consume preface
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-
         // Send two requests simultaneously (multiplexing)
         appSubscription.SendNext(MakeRequest("/req1"));
         appSubscription.SendNext(MakeRequest("/req2"));
 
-        // Both should be encoded: first ConnectTransport + TransportData, then TransportData
-        for (var i = 0; i < 3; i++)
-        {
-            await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-        }
+        // First request: ConnectTransport + preface + HEADERS, second request: HEADERS
+        var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        Assert.IsType<ConnectTransport>(connect);
 
-        // All requests accepted
-        Assert.True(true);
+        var preface = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        Assert.IsType<TransportData>(preface);
+
+        var headers1 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        Assert.IsType<TransportData>(headers1);
+
+        var headers2 = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        Assert.IsType<TransportData>(headers2);
     }
 
     [Fact(Timeout = 10_000)]
@@ -209,14 +216,9 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(10);
         resSubscription.Request(10);
 
-        // Consume preface
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-
-        // Server sends SETTINGS frame (normally part of handshake but can be sent at any time)
+        // Server sends SETTINGS frame before any client request
         serverSubscription.SendNext(new TransportData(MakeResponseBuffer("\x00\x00\x00\x04\x00\x00\x00\x00\x00")));
 
-        // Stage should handle it gracefully (no immediate response expected from app)
-        // Can send request after SETTINGS
         Assert.True(true);
     }
 
@@ -255,10 +257,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(10);
         resSubscription.Request(10);
 
-        // Consume preface
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
-
-        // Server sends GOAWAY
+        // Server sends GOAWAY before any client request
         serverSubscription.SendNext(new TransportDisconnected(DisconnectReason.Graceful));
         serverSubscription.SendComplete();
 
@@ -300,9 +299,6 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
 
         netSubscription.Request(10);
         resSubscription.Request(10);
-
-        // Consume preface
-        await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         // Complete app without sending request
         appSubscription.SendComplete();

@@ -37,14 +37,14 @@ internal static class Http2ConnectionTestHelper
     {
         var decoder = new FrameDecoder();
         var result = new List<Http2Frame>();
-        var skippedFirst = false;
+        var skippedPrefaceData = false;
         foreach (var item in items)
         {
             if (item is TransportData { Buffer: var buffer })
             {
-                if (skipPreface && !skippedFirst)
+                if (skipPreface && !skippedPrefaceData)
                 {
-                    skippedFirst = true;
+                    skippedPrefaceData = true;
                     continue;
                 }
 

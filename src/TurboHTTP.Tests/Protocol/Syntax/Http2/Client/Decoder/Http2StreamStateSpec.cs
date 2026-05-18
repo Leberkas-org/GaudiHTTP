@@ -5,6 +5,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
 public sealed class Http2StreamStateSpec
 {
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void StreamState_should_initialize_with_no_response()
     {
         var state = new StreamState();
@@ -13,6 +14,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void StreamState_should_initialize_with_no_content_headers()
     {
         var state = new StreamState();
@@ -21,6 +23,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void InitResponse_should_store_response()
     {
         var state = new StreamState();
@@ -32,6 +35,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void GetResponse_should_return_initialized_response()
     {
         var state = new StreamState();
@@ -44,6 +48,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void GetResponse_should_throw_when_no_response_initialized()
     {
         var state = new StreamState();
@@ -52,6 +57,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void GetOrCreateResponse_should_return_existing_response()
     {
         var state = new StreamState();
@@ -64,6 +70,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void GetOrCreateResponse_should_create_response_if_none_exists()
     {
         var state = new StreamState();
@@ -75,6 +82,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void GetOrCreateResponse_should_return_same_instance_on_multiple_calls()
     {
         var state = new StreamState();
@@ -86,6 +94,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void AddContentHeader_should_store_header()
     {
         var state = new StreamState();
@@ -96,6 +105,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void AddContentHeader_should_accumulate_multiple_headers()
     {
         var state = new StreamState();
@@ -107,6 +117,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void ApplyContentHeadersTo_should_apply_stored_headers()
     {
         var state = new StreamState();
@@ -121,6 +132,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void ApplyContentHeadersTo_should_not_throw_when_no_content_headers()
     {
         var state = new StreamState();
@@ -130,6 +142,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void AppendHeader_should_allocate_buffer_on_first_call()
     {
         var state = new StreamState();
@@ -143,6 +156,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void AppendHeader_should_accumulate_multiple_calls()
     {
         var state = new StreamState();
@@ -159,6 +173,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void AppendHeader_should_grow_buffer_when_capacity_exceeded()
     {
         var state = new StreamState();
@@ -176,6 +191,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void AppendHeader_should_copy_existing_data_on_reallocation()
     {
         var state = new StreamState();
@@ -193,6 +209,7 @@ public sealed class Http2StreamStateSpec
 
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void GetHeaderSpan_should_return_correct_slice()
     {
         var state = new StreamState();
@@ -208,6 +225,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void GetHeaderSpan_should_return_empty_when_no_data_appended()
     {
         var state = new StreamState();
@@ -219,6 +237,7 @@ public sealed class Http2StreamStateSpec
 
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void Reset_should_clear_all_state()
     {
         var state = new StreamState();
@@ -235,6 +254,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void Reset_should_dispose_owned_buffers()
     {
         var state = new StreamState();
@@ -246,6 +266,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void Reset_should_allow_reuse()
     {
         var state = new StreamState();
@@ -260,6 +281,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void Multiple_appends_should_handle_large_accumulation()
     {
         var state = new StreamState();
@@ -278,6 +300,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void ContentHeaders_should_not_interfere_with_buffers()
     {
         var state = new StreamState();
@@ -289,6 +312,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void GetOrCreateResponse_should_create_once_and_reuse()
     {
         var state = new StreamState();
@@ -302,6 +326,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void AppendHeader_with_empty_span_should_not_allocate()
     {
         var state = new StreamState();
@@ -312,6 +337,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void Reset_clear_content_headers_list()
     {
         var state = new StreamState();
@@ -324,6 +350,7 @@ public sealed class Http2StreamStateSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1")]
     public void ApplyContentHeadersTo_multiple_headers()
     {
         var state = new StreamState();

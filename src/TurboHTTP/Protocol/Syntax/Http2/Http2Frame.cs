@@ -144,6 +144,7 @@ internal sealed class DataFrame : Http2Frame
         var flags = EndStream ? (byte)DataFlags.EndStream : (byte)DataFlags.None;
         WriteHeader(ref w, Data.Length, FrameType.Data, flags, StreamId);
         w.WriteBytes(Data.Span);
+        span = span[w.BytesWritten..];
     }
 }
 
@@ -180,6 +181,7 @@ internal sealed class HeadersFrame : Http2Frame
 
         WriteHeader(ref w, HeaderBlockFragment.Length, FrameType.Headers, (byte)flags, StreamId);
         w.WriteBytes(HeaderBlockFragment.Span);
+        span = span[w.BytesWritten..];
     }
 }
 
@@ -203,6 +205,7 @@ internal sealed class ContinuationFrame : Http2Frame
         var flags = EndHeaders ? (byte)ContinuationFlags.EndHeaders : (byte)0;
         WriteHeader(ref w, HeaderBlockFragment.Length, FrameType.Continuation, flags, StreamId);
         w.WriteBytes(HeaderBlockFragment.Span);
+        span = span[w.BytesWritten..];
     }
 }
 
@@ -221,6 +224,7 @@ internal sealed class RstStreamFrame : Http2Frame
         var w = SpanWriter.Create(span);
         WriteHeader(ref w, 4, FrameType.RstStream, 0, StreamId);
         w.WriteUInt32BigEndian((uint)ErrorCode);
+        span = span[w.BytesWritten..];
     }
 }
 
@@ -250,6 +254,8 @@ internal sealed class SettingsFrame : Http2Frame
             w.WriteUInt16BigEndian((ushort)key);
             w.WriteUInt32BigEndian(val);
         }
+
+        span = span[w.BytesWritten..];
     }
 
     public static byte[] SettingsAck()
@@ -287,6 +293,7 @@ internal sealed class PingFrame : Http2Frame
         var flags = IsAck ? (byte)PingFlags.Ack : (byte)0;
         WriteHeader(ref w, 8, FrameType.Ping, flags, 0);
         w.WriteBytes(Data.Span);
+        span = span[w.BytesWritten..];
     }
 }
 
@@ -319,6 +326,7 @@ internal sealed class GoAwayFrame : Http2Frame
         w.WriteUInt32BigEndian((uint)LastStreamId & 0x7FFFFFFFu);
         w.WriteUInt32BigEndian((uint)ErrorCode);
         w.WriteBytes(DebugData.Span);
+        span = span[w.BytesWritten..];
     }
 }
 
@@ -344,6 +352,7 @@ internal sealed class WindowUpdateFrame : Http2Frame
         var w = SpanWriter.Create(span);
         WriteHeader(ref w, 4, FrameType.WindowUpdate, 0, StreamId);
         w.WriteUInt32BigEndian((uint)Increment & 0x7FFFFFFFu);
+        span = span[w.BytesWritten..];
     }
 }
 
@@ -373,5 +382,6 @@ internal sealed class PushPromiseFrame : Http2Frame
         WriteHeader(ref w, payloadSize, FrameType.PushPromise, flags, StreamId);
         w.WriteUInt32BigEndian((uint)PromisedStreamId & 0x7FFFFFFFu);
         w.WriteBytes(HeaderBlockFragment.Span);
+        span = span[w.BytesWritten..];
     }
 }
