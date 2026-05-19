@@ -9,7 +9,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <FrameworkReference Include="Microsoft.AspNetCore.App"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -22,12 +22,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Servus.Akka\Servus.Akka.csproj" />
-        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Lifecycle\" />
+        <ProjectReference Include="..\Servus.Akka\Servus.Akka.csproj"/>
+        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj"/>
     </ItemGroup>
 
 </Project>

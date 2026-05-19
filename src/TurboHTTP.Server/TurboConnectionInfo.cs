@@ -1,14 +1,17 @@
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Http;
 
 namespace TurboHTTP.Server;
 
-public sealed class TurboConnectionInfo
+public sealed class TurboConnectionInfo : ConnectionInfo
 {
-    public string Id { get; }
-    public IPAddress? RemoteIpAddress { get; }
-    public int RemotePort { get; }
-    public IPAddress? LocalIpAddress { get; }
-    public int LocalPort { get; }
+    public override string Id { get; set; }
+    public override IPAddress? RemoteIpAddress { get; set; }
+    public override int RemotePort { get; set; }
+    public override IPAddress? LocalIpAddress { get; set; }
+    public override int LocalPort { get; set; }
+    public override X509Certificate2? ClientCertificate { get; set; }
 
     public TurboConnectionInfo(
         string id,
@@ -23,4 +26,7 @@ public sealed class TurboConnectionInfo
         LocalIpAddress = localIpAddress;
         LocalPort = localPort;
     }
+
+    public override Task<X509Certificate2?> GetClientCertificateAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult(ClientCertificate);
 }

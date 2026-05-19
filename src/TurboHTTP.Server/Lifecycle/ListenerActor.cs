@@ -16,7 +16,7 @@ internal sealed class ListenerActor : ReceiveActor
     private readonly IListenerFactory _factory;
     private readonly ListenerOptions _listenerOptions;
     private readonly TurboServerOptions _serverOptions;
-    private readonly IReadOnlyList<IServerBidiStage> _middleware;
+    private readonly TurboRequestDelegate _pipeline;
     private readonly RouteTable _routeTable;
     private readonly IServiceProvider _services;
     private readonly IMaterializer _materializer;
@@ -26,18 +26,24 @@ internal sealed class ListenerActor : ReceiveActor
     private readonly HashSet<IActorRef> _activeConnections = [];
 
     public sealed record StartListening;
+
     public sealed record StopAccepting;
+
     public sealed record GracefulStop(TimeSpan Timeout);
+
     internal sealed record ConnectionStarted(string ConnectionId, IActorRef ConnectionActor);
+
     internal sealed record IncomingConnection(Flow<ITransportOutbound, ITransportInbound, NotUsed> ConnectionFlow);
+
     internal sealed record ListenerStopped;
+
     internal sealed record ListenerFailed(Exception? Error);
 
     public ListenerActor(
         IListenerFactory factory,
         ListenerOptions listenerOptions,
         TurboServerOptions serverOptions,
-        IReadOnlyList<IServerBidiStage> middleware,
+        TurboRequestDelegate pipeline,
         RouteTable routeTable,
         IServiceProvider services,
         IMaterializer materializer)
@@ -45,7 +51,7 @@ internal sealed class ListenerActor : ReceiveActor
         _factory = factory;
         _listenerOptions = listenerOptions;
         _serverOptions = serverOptions;
-        _middleware = middleware;
+        _pipeline = pipeline;
         _routeTable = routeTable;
         _services = services;
         _materializer = materializer;
@@ -55,7 +61,8 @@ internal sealed class ListenerActor : ReceiveActor
         Receive<StopAccepting>(_ => OnStopAccepting());
         Receive<GracefulStop>(OnGracefulStop);
         Receive<ConnectionActor.ConnectionCompleted>(OnConnectionCompleted);
-        Receive<ListenerStopped>(_ => _log.Info("Listener on {0}:{1} stopped", _listenerOptions.Host, _listenerOptions.Port));
+        Receive<ListenerStopped>(_ =>
+            _log.Info("Listener on {0}:{1} stopped", _listenerOptions.Host, _listenerOptions.Port));
         Receive<ListenerFailed>(OnListenerFailed);
         Receive<Terminated>(OnChildTerminated);
     }
@@ -96,7 +103,7 @@ internal sealed class ListenerActor : ReceiveActor
         child.Tell(new ConnectionActor.Materialize(
             msg.ConnectionFlow,
             engine,
-            _middleware,
+            _pipeline,
             _routeTable,
             connectionInfo,
             _services,
@@ -158,11 +165,11 @@ internal sealed class ListenerActor : ReceiveActor
         IListenerFactory factory,
         ListenerOptions listenerOptions,
         TurboServerOptions serverOptions,
-        IReadOnlyList<IServerBidiStage> middleware,
+        TurboRequestDelegate pipeline,
         RouteTable routeTable,
         IServiceProvider services,
         IMaterializer materializer)
         => Props.Create(() => new ListenerActor(
-            factory, listenerOptions, serverOptions, middleware,
-            routeTable, services, materializer));
+            factory, listenerOptions, serverOptions,
+            pipeline, routeTable, services, materializer));
 }

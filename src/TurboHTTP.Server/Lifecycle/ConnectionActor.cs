@@ -22,14 +22,16 @@ internal sealed class ConnectionActor : ReceiveActor
     public sealed record Materialize(
         Flow<ITransportOutbound, ITransportInbound, NotUsed> ConnectionFlow,
         IServerProtocolEngine Engine,
-        IReadOnlyList<IServerBidiStage> Middleware,
+        TurboRequestDelegate Pipeline,
         RouteTable RouteTable,
         TurboConnectionInfo ConnectionInfo,
         IServiceProvider Services,
         IMaterializer Materializer);
 
     public sealed record GracefulStop(TimeSpan Timeout);
+
     public sealed record StreamCompleted(Exception? Error);
+
     public sealed record ConnectionCompleted(string ConnectionId, ConnectionCompletionReason Reason);
 
     public ConnectionActor(string connectionId)
@@ -48,18 +50,42 @@ internal sealed class ConnectionActor : ReceiveActor
 
         _killSwitch = KillSwitches.Shared("connection-" + _connectionId);
 
-        var routingFlow = Flow.FromGraph(
-            new RoutingStage(msg.RouteTable, msg.ConnectionInfo, msg.Services, _cts.Token));
-
-        var httpPipeline = ServerMiddlewarePipelineBuilder.Build(routingFlow, msg.Middleware, msg.Services);
+        var contextBidi = BidiFlow.FromGraph(
+            new HttpContextBidiStage(msg.ConnectionInfo, msg.Services, _cts.Token));
+        var middleware = Flow.FromGraph(new MiddlewarePipelineStage(msg.Pipeline));
+        var routing = Flow.FromGraph(new RoutingStage(msg.RouteTable));
+        var innerFlow = middleware.Via(routing);
+        var httpFlow = contextBidi.Join(innerFlow);
 
         var protocolBidi = msg.Engine.CreateFlow();
-        var composed = protocolBidi.Join(httpPipeline);
+        var composed = protocolBidi.Join(httpFlow);
 
-        _ = msg.ConnectionFlow
+        var self = Self;
+        var connectionInfo = msg.ConnectionInfo;
+        var inboundTap = Flow.Create<ITransportInbound>()
+            .Select(item =>
+            {
+                if (item is TransportConnected { Info.Remote: System.Net.IPEndPoint remote })
+                {
+                    connectionInfo.RemoteIpAddress = remote.Address;
+                    connectionInfo.RemotePort = remote.Port;
+                }
+
+                return item;
+            });
+
+        var completionTask = msg.ConnectionFlow
             .Via(_killSwitch.Flow<ITransportInbound>())
+            .Via(inboundTap)
+            .ViaMaterialized(
+                Flow.Create<ITransportInbound>().WatchTermination(Keep.Right),
+                Keep.Right)
             .Join(composed)
             .Run(msg.Materializer);
+
+        completionTask.PipeTo(self,
+            success: () => new StreamCompleted(null),
+            failure: ex => new StreamCompleted(ex));
     }
 
     private void OnStreamCompleted(StreamCompleted msg)
@@ -81,7 +107,6 @@ internal sealed class ConnectionActor : ReceiveActor
 
         var completion = new ConnectionCompleted(_connectionId, reason);
         Context.Parent.Tell(completion);
-        // Defer the stop to ensure the message is delivered first
         Self.Tell(PoisonPill.Instance);
     }
 
@@ -99,7 +124,6 @@ internal sealed class ConnectionActor : ReceiveActor
         _log.Warning("Connection {0} drain timeout expired", _connectionId);
         var completion = new ConnectionCompleted(_connectionId, ConnectionCompletionReason.Timeout);
         Context.Parent.Tell(completion);
-        // Defer the stop to ensure the message is delivered first
         Self.Tell(PoisonPill.Instance);
     }
 

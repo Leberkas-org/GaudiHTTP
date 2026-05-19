@@ -4,22 +4,22 @@ namespace TurboHTTP.Server.Routing;
 
 internal sealed class RouteEntry
 {
-    public string Method { get; }
+    public HttpMethod Method { get; }
     public string Pattern { get; }
     public string[] Segments { get; }
-    public Func<TurboHttpContext, Task<HttpResponseMessage>> Handler { get; }
+    public IRouteDispatcher Dispatcher { get; }
 
-    public RouteEntry(string method, string pattern, Func<TurboHttpContext, Task<HttpResponseMessage>> handler)
+    public RouteEntry(HttpMethod method, string pattern, IRouteDispatcher dispatcher)
     {
         Method = method;
         Pattern = pattern;
         Segments = pattern.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        Handler = handler;
+        Dispatcher = dispatcher;
     }
 
-    public bool TryMatch(string method, ReadOnlySpan<char> path, RouteValueDictionary routeValues)
+    public bool TryMatch(HttpMethod method, ReadOnlySpan<char> path, RouteValueDictionary routeValues)
     {
-        if (Method != "*" && !string.Equals(Method, method, StringComparison.OrdinalIgnoreCase))
+        if (Method.Method != "*" && !Method.Equals(method))
         {
             return false;
         }

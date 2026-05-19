@@ -1,6 +1,6 @@
 namespace TurboHTTP.Server.Routing;
 
 internal sealed record TurboRouteEntry(
-    string Method,
+    HttpMethod Method,
     string Pattern,
-    Func<TurboHttpContext, Task<HttpResponseMessage>> Handler);
+    IRouteDispatcher Dispatcher);

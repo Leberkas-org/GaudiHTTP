@@ -1,3 +1,4 @@
+using System.Net;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp.Listener;
 using Servus.Akka.Transport.Quic.Listener;
@@ -22,15 +23,17 @@ public sealed class TurboServerOptions
     public Http2ServerOptions Http2 { get; } = new();
     public Http3ServerOptions Http3 { get; } = new();
 
-    public IList<Func<IServiceProvider, IServerBidiStage>> MiddlewareFactories { get; } = new List<Func<IServiceProvider, IServerBidiStage>>();
+    public IList<Func<IServiceProvider, ITurboMiddleware>> MiddlewareFactories { get; } =
+        new List<Func<IServiceProvider, ITurboMiddleware>>();
+
     public IList<ListenerBinding> Endpoints { get; } = new List<ListenerBinding>();
 
-    public void Use<T>() where T : IServerBidiStage, new()
+    public void Use<T>() where T : class, ITurboMiddleware, new()
     {
         MiddlewareFactories.Add(_ => new T());
     }
 
-    public void Use(Func<IServiceProvider, IServerBidiStage> factory)
+    public void Use(Func<IServiceProvider, ITurboMiddleware> factory)
     {
         MiddlewareFactories.Add(factory);
     }
@@ -43,6 +46,51 @@ public sealed class TurboServerOptions
     public void Bind(QuicListenerOptions options)
     {
         Endpoints.Add(new ListenerBinding { Options = options, Factory = new QuicListenerFactory() });
+    }
+
+    public void BindTcp(string host, ushort port) => Bind(new TcpListenerOptions() { Host = host, Port = port });
+
+    internal IList<TurboListenOptions> ListenOptions { get; } = new List<TurboListenOptions>();
+    internal Action<TurboHttpsOptions>? HttpsDefaultsCallback { get; private set; }
+
+    public IList<string> Urls { get; } = new List<string>();
+
+    public void ConfigureHttpsDefaults(Action<TurboHttpsOptions> configure)
+    {
+        HttpsDefaultsCallback = configure;
+    }
+
+    public void Listen(IPAddress address, ushort port)
+    {
+        var listenOptions = new TurboListenOptions(address, port);
+        ListenOptions.Add(listenOptions);
+    }
+
+    public void Listen(IPAddress address, ushort port, Action<TurboListenOptions> configure)
+    {
+        var listenOptions = new TurboListenOptions(address, port);
+        configure(listenOptions);
+        ListenOptions.Add(listenOptions);
+    }
+
+    public void ListenLocalhost(ushort port)
+    {
+        Listen(IPAddress.Loopback, port);
+    }
+
+    public void ListenLocalhost(ushort port, Action<TurboListenOptions> configure)
+    {
+        Listen(IPAddress.Loopback, port, configure);
+    }
+
+    public void ListenAnyIP(ushort port)
+    {
+        Listen(IPAddress.Any, port);
+    }
+
+    public void ListenAnyIP(ushort port, Action<TurboListenOptions> configure)
+    {
+        Listen(IPAddress.Any, port, configure);
     }
 
     public void Bind(ListenerOptions options, IListenerFactory factory)

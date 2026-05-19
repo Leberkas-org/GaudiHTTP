@@ -4,20 +4,28 @@ namespace TurboHTTP.Server.Routing;
 
 public sealed class TurboRouteTable
 {
-    private readonly List<TurboRouteEntry> _entries = new();
+    private readonly List<TurboRouteEntry> _entries = [];
     private RouteTable? _frozen;
 
-    public ITurboRouteBuilder Add(string method, string pattern, Func<TurboHttpContext, Task<HttpResponseMessage>> handler)
+    public TurboRouteHandlerBuilder Add(HttpMethod method, string pattern, Func<TurboHttpContext, Task> handler)
     {
-        _entries.Add(new TurboRouteEntry(method, pattern, handler));
-        return new TurboRouteBuilder();
+        var dispatcher = new DelegateDispatcher(handler);
+        _entries.Add(new TurboRouteEntry(method, pattern, dispatcher));
+        return new TurboRouteHandlerBuilder();
     }
 
-    public ITurboRouteBuilder Add(string method, string pattern, Delegate handler)
+    public TurboRouteHandlerBuilder Add(HttpMethod method, string pattern, Delegate handler)
     {
         var bound = DelegateHandlerBinder.Bind(pattern, handler);
-        _entries.Add(new TurboRouteEntry(method, pattern, ctx => bound(ctx, ctx.RequestServices!)));
-        return new TurboRouteBuilder();
+        var dispatcher = new DelegateDispatcher((ctx) => bound(ctx, ctx.RequestServices));
+        _entries.Add(new TurboRouteEntry(method, pattern, dispatcher));
+        return new TurboRouteHandlerBuilder();
+    }
+
+    internal TurboRouteHandlerBuilder AddWithDispatcher(HttpMethod method, string pattern, IRouteDispatcher dispatcher)
+    {
+        _entries.Add(new TurboRouteEntry(method, pattern, dispatcher));
+        return new TurboRouteHandlerBuilder();
     }
 
     public TurboRouteGroupBuilder CreateGroup(string prefix)
@@ -35,7 +43,7 @@ public sealed class TurboRouteTable
         var builder = new RouteTableBuilder();
         foreach (var entry in _entries)
         {
-            builder.Add(entry.Method, entry.Pattern, entry.Handler);
+            builder.Add(entry.Method, entry.Pattern, entry.Dispatcher);
         }
 
         _frozen = builder.Build();
