@@ -10,6 +10,7 @@ public sealed class PipeWriterSinkStageSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Sink_should_write_data_to_pipe_reader()
     {
+        var ct = TestContext.Current.CancellationToken;
         var pipe = new Pipe();
         var sink = Sink.FromGraph(new PipeWriterSinkStage(pipe.Writer));
 
@@ -17,11 +18,11 @@ public sealed class PipeWriterSinkStageSpec : StreamTestBase
         await Source.Single((ReadOnlyMemory<byte>)data.AsMemory())
             .RunWith(sink, Materializer);
 
-        var readResult = await pipe.Reader.ReadAsync();
+        var readResult = await pipe.Reader.ReadAsync(ct);
         Assert.Equal(data, readResult.Buffer.FirstSpan.ToArray());
         pipe.Reader.AdvanceTo(readResult.Buffer.End);
 
-        var finalRead = await pipe.Reader.ReadAsync();
+        var finalRead = await pipe.Reader.ReadAsync(ct);
         Assert.True(finalRead.IsCompleted);
         await pipe.Reader.CompleteAsync();
     }
@@ -29,6 +30,7 @@ public sealed class PipeWriterSinkStageSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Sink_should_write_multiple_chunks_to_pipe_reader()
     {
+        var ct = TestContext.Current.CancellationToken;
         var pipe = new Pipe();
         var sink = Sink.FromGraph(new PipeWriterSinkStage(pipe.Writer));
 
@@ -45,7 +47,7 @@ public sealed class PipeWriterSinkStageSpec : StreamTestBase
         var total = new List<byte>();
         while (true)
         {
-            var readResult = await pipe.Reader.ReadAsync();
+            var readResult = await pipe.Reader.ReadAsync(ct);
             foreach (var segment in readResult.Buffer)
             {
                 total.AddRange(segment.ToArray());
@@ -67,6 +69,7 @@ public sealed class PipeWriterSinkStageSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Sink_should_complete_task_when_upstream_finishes()
     {
+        var ct = TestContext.Current.CancellationToken;
         var pipe = new Pipe();
         var sink = Sink.FromGraph(new PipeWriterSinkStage(pipe.Writer));
 
@@ -75,7 +78,7 @@ public sealed class PipeWriterSinkStageSpec : StreamTestBase
 
         await task;
 
-        var readResult = await pipe.Reader.ReadAsync();
+        var readResult = await pipe.Reader.ReadAsync(ct);
         Assert.True(readResult.IsCompleted);
         Assert.True(readResult.Buffer.IsEmpty);
         await pipe.Reader.CompleteAsync();
@@ -99,6 +102,7 @@ public sealed class PipeWriterSinkStageSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Sink_should_skip_empty_chunks()
     {
+        var ct = TestContext.Current.CancellationToken;
         var pipe = new Pipe();
         var sink = Sink.FromGraph(new PipeWriterSinkStage(pipe.Writer));
 
@@ -115,7 +119,7 @@ public sealed class PipeWriterSinkStageSpec : StreamTestBase
         var total = new List<byte>();
         while (true)
         {
-            var readResult = await pipe.Reader.ReadAsync();
+            var readResult = await pipe.Reader.ReadAsync(ct);
             foreach (var segment in readResult.Buffer)
             {
                 total.AddRange(segment.ToArray());

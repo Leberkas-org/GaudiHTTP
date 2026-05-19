@@ -9,17 +9,18 @@ public sealed class PipeSinkSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Sink_should_deliver_data_to_reader()
     {
+        var ct = TestContext.Current.CancellationToken;
         await using var pipeSink = new PipeSink();
 
         var data = new byte[] { 1, 2, 3, 4, 5 };
         var writeTask = Source.Single((ReadOnlyMemory<byte>)data.AsMemory())
             .RunWith(pipeSink.Sink, Materializer);
 
-        var readResult = await pipeSink.Reader.ReadAsync();
+        var readResult = await pipeSink.Reader.ReadAsync(ct);
         Assert.Equal(data, readResult.Buffer.FirstSpan.ToArray());
         pipeSink.Reader.AdvanceTo(readResult.Buffer.End);
 
-        var finalRead = await pipeSink.Reader.ReadAsync();
+        var finalRead = await pipeSink.Reader.ReadAsync(ct);
         Assert.True(finalRead.IsCompleted);
         await pipeSink.Reader.CompleteAsync();
         await writeTask;
@@ -28,6 +29,7 @@ public sealed class PipeSinkSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Sink_should_deliver_multiple_chunks_to_reader()
     {
+        var ct = TestContext.Current.CancellationToken;
         await using var pipeSink = new PipeSink();
 
         var chunks = new[]
@@ -43,7 +45,7 @@ public sealed class PipeSinkSpec : StreamTestBase
         var total = new List<byte>();
         while (true)
         {
-            var readResult = await pipeSink.Reader.ReadAsync();
+            var readResult = await pipeSink.Reader.ReadAsync(ct);
             foreach (var segment in readResult.Buffer)
             {
                 total.AddRange(segment.ToArray());
@@ -65,6 +67,7 @@ public sealed class PipeSinkSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Sink_should_complete_task_when_source_finishes()
     {
+        var ct = TestContext.Current.CancellationToken;
         await using var pipeSink = new PipeSink();
 
         var task = Source.Empty<ReadOnlyMemory<byte>>()
@@ -72,7 +75,7 @@ public sealed class PipeSinkSpec : StreamTestBase
 
         await task;
 
-        var readResult = await pipeSink.Reader.ReadAsync();
+        var readResult = await pipeSink.Reader.ReadAsync(ct);
         Assert.True(readResult.IsCompleted);
         Assert.True(readResult.Buffer.IsEmpty);
         await pipeSink.Reader.CompleteAsync();
@@ -81,6 +84,7 @@ public sealed class PipeSinkSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task AsStream_should_read_from_sink()
     {
+        var ct = TestContext.Current.CancellationToken;
         await using var pipeSink = new PipeSink();
 
         var data = new byte[] { 10, 20, 30 };
@@ -89,7 +93,7 @@ public sealed class PipeSinkSpec : StreamTestBase
 
         var stream = pipeSink.AsStream();
         var buffer = new byte[3];
-        var bytesRead = await stream.ReadAsync(buffer);
+        var bytesRead = await stream.ReadAsync(buffer, ct);
 
         Assert.Equal(3, bytesRead);
         Assert.Equal(data, buffer);
@@ -102,7 +106,7 @@ public sealed class PipeSinkSpec : StreamTestBase
         var pipeSink = new PipeSink();
 
         var task = Source.From(Enumerable.Range(0, 1000)
-                .Select(i => (ReadOnlyMemory<byte>)new byte[] { (byte)i }.AsMemory()))
+                .Select(i => (ReadOnlyMemory<byte>)new[] { (byte)i }.AsMemory()))
             .RunWith(pipeSink.Sink, Materializer);
 
         await pipeSink.DisposeAsync();

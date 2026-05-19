@@ -8,6 +8,7 @@ public sealed class PipeSourceSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Source_should_emit_data_written_to_writer()
     {
+        var ct = TestContext.Current.CancellationToken;
         await using var pipeSource = new PipeSource();
 
         var resultTask = pipeSource.Source
@@ -22,7 +23,7 @@ public sealed class PipeSourceSpec : StreamTestBase
         var memory = pipeSource.Writer.GetMemory(5);
         new byte[] { 1, 2, 3, 4, 5 }.CopyTo(memory);
         pipeSource.Writer.Advance(5);
-        await pipeSource.Writer.FlushAsync();
+        await pipeSource.Writer.FlushAsync(ct);
         await pipeSource.CompleteAsync();
 
         var result = await resultTask;
@@ -45,6 +46,7 @@ public sealed class PipeSourceSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Source_should_emit_multiple_chunks()
     {
+        var ct = TestContext.Current.CancellationToken;
         await using var pipeSource = new PipeSource();
 
         var countTask = pipeSource.Source
@@ -55,7 +57,7 @@ public sealed class PipeSourceSpec : StreamTestBase
             var mem = pipeSource.Writer.GetMemory(100);
             new byte[100].CopyTo(mem);
             pipeSource.Writer.Advance(100);
-            await pipeSource.Writer.FlushAsync();
+            await pipeSource.Writer.FlushAsync(ct);
         }
 
         await pipeSource.CompleteAsync();
@@ -67,6 +69,7 @@ public sealed class PipeSourceSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task AsStream_should_write_to_source()
     {
+        var ct = TestContext.Current.CancellationToken;
         await using var pipeSource = new PipeSource();
 
         var resultTask = pipeSource.Source
@@ -79,8 +82,8 @@ public sealed class PipeSourceSpec : StreamTestBase
             }, Materializer);
 
         var stream = pipeSource.AsStream();
-        await stream.WriteAsync(new byte[] { 10, 20, 30 });
-        await stream.FlushAsync();
+        await stream.WriteAsync(new byte[] { 10, 20, 30 }, ct);
+        await stream.FlushAsync(ct);
         await pipeSource.CompleteAsync();
 
         var result = await resultTask;
@@ -90,6 +93,7 @@ public sealed class PipeSourceSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public async Task Dispose_should_complete_both_ends()
     {
+        var ct = TestContext.Current.CancellationToken;
         await using var pipeSource = new PipeSource();
 
         var resultTask = pipeSource.Source
@@ -98,7 +102,7 @@ public sealed class PipeSourceSpec : StreamTestBase
         var mem = pipeSource.Writer.GetMemory(50);
         new byte[50].CopyTo(mem);
         pipeSource.Writer.Advance(50);
-        await pipeSource.Writer.FlushAsync();
+        await pipeSource.Writer.FlushAsync(ct);
 
         await pipeSource.CompleteAsync();
 

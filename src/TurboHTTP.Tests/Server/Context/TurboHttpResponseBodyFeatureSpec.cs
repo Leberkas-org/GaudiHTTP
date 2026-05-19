@@ -20,10 +20,11 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
     [Fact(Timeout = 5000)]
     public async Task Stream_write_should_be_readable_from_GetResponseSource()
     {
+        var ct = TestContext.Current.CancellationToken;
         var feature = new TurboHttpResponseBodyFeature();
-        var bodyBytes = Encoding.UTF8.GetBytes("hello");
+        var bodyBytes = "hello"u8.ToArray();
 
-        await feature.Stream.WriteAsync(bodyBytes);
+        await feature.Stream.WriteAsync(bodyBytes, ct);
         await feature.CompleteAsync();
 
         var result = await feature.GetResponseSource()
@@ -36,13 +37,14 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
     [Fact(Timeout = 5000)]
     public async Task PipeWriter_write_should_be_readable_from_GetResponseSource()
     {
+        var ct = TestContext.Current.CancellationToken;
         var feature = new TurboHttpResponseBodyFeature();
-        var bodyBytes = Encoding.UTF8.GetBytes("pipe-data");
+        var bodyBytes = "pipe-data"u8.ToArray();
 
         var memory = feature.Writer.GetMemory(bodyBytes.Length);
         bodyBytes.CopyTo(memory);
         feature.Writer.Advance(bodyBytes.Length);
-        await feature.Writer.FlushAsync();
+        await feature.Writer.FlushAsync(ct);
         await feature.CompleteAsync();
 
         var result = await feature.GetResponseSource()
@@ -56,7 +58,7 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
     public async Task BodySink_should_receive_data_from_akka_source()
     {
         var feature = new TurboHttpResponseBodyFeature();
-        var chunk = new ReadOnlyMemory<byte>(Encoding.UTF8.GetBytes("akka-data"));
+        var chunk = new ReadOnlyMemory<byte>("akka-data"u8.ToArray());
 
         await Source.Single(chunk).RunWith(feature.BodySink, _materializer);
         await feature.CompleteAsync();
@@ -92,15 +94,16 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
     [Fact(Timeout = 5000)]
     public async Task GetResponseStream_should_return_readable_stream()
     {
+        var ct = TestContext.Current.CancellationToken;
         var feature = new TurboHttpResponseBodyFeature();
-        var bodyBytes = Encoding.UTF8.GetBytes("stream-data");
+        var bodyBytes = "stream-data"u8.ToArray();
 
-        await feature.Stream.WriteAsync(bodyBytes);
+        await feature.Stream.WriteAsync(bodyBytes, ct);
         await feature.CompleteAsync();
 
         var responseStream = feature.GetResponseStream();
         var buffer = new byte[1024];
-        var bytesRead = await responseStream.ReadAsync(buffer);
+        var bytesRead = await responseStream.ReadAsync(buffer, ct);
 
         Assert.Equal("stream-data", Encoding.UTF8.GetString(buffer, 0, bytesRead));
     }
@@ -108,12 +111,13 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
     [Fact(Timeout = 5000)]
     public async Task GetResponseStream_should_return_empty_stream_when_nothing_written()
     {
+        var ct = TestContext.Current.CancellationToken;
         var feature = new TurboHttpResponseBodyFeature();
         await feature.CompleteAsync();
 
         var responseStream = feature.GetResponseStream();
         var buffer = new byte[1024];
-        var bytesRead = await responseStream.ReadAsync(buffer);
+        var bytesRead = await responseStream.ReadAsync(buffer, ct);
 
         Assert.Equal(0, bytesRead);
     }
@@ -121,14 +125,15 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
     [Fact(Timeout = 5000)]
     public async Task CompleteAsync_should_be_idempotent()
     {
+        var ct = TestContext.Current.CancellationToken;
         var feature = new TurboHttpResponseBodyFeature();
-        await feature.Stream.WriteAsync(Encoding.UTF8.GetBytes("data"));
+        await feature.Stream.WriteAsync("data"u8.ToArray(), ct);
         await feature.CompleteAsync();
         await feature.CompleteAsync();
 
         var responseStream = feature.GetResponseStream();
         var buffer = new byte[1024];
-        var bytesRead = await responseStream.ReadAsync(buffer);
+        var bytesRead = await responseStream.ReadAsync(buffer, ct);
 
         Assert.Equal("data", Encoding.UTF8.GetString(buffer, 0, bytesRead));
     }

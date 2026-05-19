@@ -30,7 +30,7 @@ public sealed class Http10ServerDecoderSecuritySpec
     [Trait("RFC", "RFC9110-8.6")]
     public void Feed_should_reject_non_numeric_content_length()
     {
-        var raw = Encoding.ASCII.GetBytes("POST /submit HTTP/1.0\r\nContent-Length: abc\r\n\r\n");
+        var raw = "POST /submit HTTP/1.0\r\nContent-Length: abc\r\n\r\n"u8.ToArray();
         var decoder = MakeDecoder();
 
         var ex = Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, out _));
@@ -41,7 +41,7 @@ public sealed class Http10ServerDecoderSecuritySpec
     [Trait("RFC", "RFC9110-8.6")]
     public void Feed_should_reject_negative_content_length()
     {
-        var raw = Encoding.ASCII.GetBytes("POST /submit HTTP/1.0\r\nContent-Length: -1\r\n\r\n");
+        var raw = "POST /submit HTTP/1.0\r\nContent-Length: -1\r\n\r\n"u8.ToArray();
         var decoder = MakeDecoder();
 
         var ex = Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, out _));
@@ -91,7 +91,7 @@ public sealed class Http10ServerDecoderSecuritySpec
     {
         var shared = new SharedHttpOptions { MaxHeaderCount = 2 };
         var decoder = MakeDecoder(shared);
-        var raw = Encoding.ASCII.GetBytes("GET / HTTP/1.0\r\nX-One: 1\r\nX-Two: 2\r\nX-Three: 3\r\n\r\n");
+        var raw = "GET / HTTP/1.0\r\nX-One: 1\r\nX-Two: 2\r\nX-Three: 3\r\n\r\n"u8.ToArray();
 
         Assert.ThrowsAny<Exception>(() => decoder.Feed(raw, out _));
     }
