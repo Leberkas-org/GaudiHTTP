@@ -42,6 +42,10 @@ await app.RunAsync();
 
 This creates a server listening on `http://localhost:5000` with HTTP/1.1 and HTTP/2 enabled by default.
 
+::: tip About AddTurboKestrel
+TurboHTTP Server is a fully standalone HTTP server — it does not use or depend on Kestrel. The `AddTurboKestrel` method name follows ASP.NET Core configuration conventions for familiarity. Under the hood, TurboHTTP uses its own TCP/QUIC transport layer (Servus.Akka.Transport).
+:::
+
 ::: tip
 `ListenLocalhost(5000)` is equivalent to listening on `127.0.0.1:5000`. Use `ListenAnyIP(5000)` to listen on all IPv4 addresses.
 :::

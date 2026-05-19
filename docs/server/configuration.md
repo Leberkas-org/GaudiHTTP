@@ -2,6 +2,10 @@
 
 TurboHTTP Server exposes all configuration through `TurboServerOptions` — connection limits, timeouts, buffer thresholds, and protocol-specific settings. Configuration is code-first and applies when you call `AddTurboKestrel()`.
 
+::: tip About AddTurboKestrel
+TurboHTTP Server is a fully standalone HTTP server — it does not use or depend on Kestrel. The `AddTurboKestrel` method name follows ASP.NET Core configuration conventions for familiarity.
+:::
+
 ## General Options
 
 `TurboServerOptions` controls server-wide behavior across all connections and protocols.
@@ -324,7 +328,7 @@ You can also configure endpoints through `appsettings.json` and bind them to `Tu
 
 ```json
 {
-  "Kestrel": {
+  "TurboKestrel": {
     "Limits": {
       "MaxConcurrentConnections": 1000,
       "KeepAliveTimeout": "00:02:00",
@@ -395,6 +399,6 @@ This ensures slow-sending clients are eventually disconnected, freeing resources
 
 ## See Also
 
-- [Installation & Setup](./installation) — NuGet packages and Kestrel integration
+- [Installation & Setup](./installation) — NuGet packages and endpoint configuration
 - [Hosting & Deployment](./hosting) — health checks, graceful shutdown, containerization
 - [Architecture Overview](/architecture/) — protocol engines and data flow

@@ -1,9 +1,9 @@
 # Getting Started with TurboHTTP Server
 
-TurboHTTP Server is a high-performance HTTP server for .NET built on Akka.Streams. It integrates with ASP.NET Core via Kestrel and provides middleware, routing, entity gateway, parameter binding, and actor-based connection lifecycle management — all with zero buffer copies and minimal allocations.
+TurboHTTP Server is a high-performance, standalone HTTP server for .NET built on Akka.Streams. It provides middleware, routing, entity gateway, parameter binding, and actor-based connection lifecycle management — all with zero buffer copies and minimal allocations.
 
 ::: tip New to TurboHTTP Server?
-See [Installation & Setup](./installation) for NuGet packages and Kestrel configuration.
+See [Installation & Setup](./installation) for NuGet packages and endpoint configuration.
 :::
 
 ## Quick Start
@@ -21,7 +21,7 @@ using TurboHTTP.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register TurboHTTP Server with Kestrel
+// Register TurboHTTP Server
 builder.Services.AddTurboKestrel(options =>
 {
     // Configure HTTP endpoint
@@ -52,9 +52,9 @@ app.MapTurboGet("/", () => "Hello, TurboHTTP!");
 
 // Route group with sub-routes
 var api = app.MapTurboGroup("/api/v1");
-api.MapTurboGet("/users", GetUsers);
-api.MapTurboPost("/users", CreateUser);
-api.MapTurboGet("/users/{id}", GetUser);
+api.MapGet("/users", GetUsers);
+api.MapPost("/users", CreateUser);
+api.MapGet("/users/{id}", GetUser);
 
 await app.RunAsync();
 
@@ -172,9 +172,6 @@ Route directly to stateful Akka.NET actors for entity management. Each entity (e
 ```csharp
 app.MapTurboEntity<int>("/orders/{id}", entity =>
 {
-    // Specify which route parameter is the entity key
-    entity.WithEntityKey("id");
-    
     // Inject the resolver (how to spawn/route to the actor)
     entity.UseResolver<OrderEntityResolver>();
     
@@ -268,6 +265,10 @@ Or use `appsettings.json`:
 }
 ```
 
+::: tip
+The configuration section name `Kestrel` follows ASP.NET Core conventions for familiarity. TurboHTTP reads this section but does not use Kestrel — it's a standalone server.
+:::
+
 Then use configuration in `Program.cs`:
 
 ```csharp
@@ -287,14 +288,14 @@ TurboHTTP Server works out of the box with minimal configuration.
 | **Routing**                  | Minimal API-style route registration with `MapGet`, `MapPost`, `MapPut`, `MapDelete`, `MapPatch`                 |
 | **Entity Gateway**           | Route HTTP requests directly to stateful Akka.NET actors for per-entity state management                          |
 | **Parameter Binding**        | Automatic binding of route parameters, query strings, and request bodies to handler function arguments            |
-| **Kestrel Integration**      | Runs alongside ASP.NET Core via `AddTurboKestrel`; supports HTTP/1.1, HTTP/2, and certificate configuration      |
+| **Standalone Server**        | Actor-based HTTP server with TCP/QUIC transport via Servus.Akka.Transport                                         |
 | **Actor Lifecycle**          | Supervisor → Listener → Connection actor hierarchy with graceful shutdown and coordinated termination             |
 
 ## Next Steps
 
 **Setup:**
 
-- [Installation & Setup](./installation) — NuGet packages, Kestrel configuration, DI registration
+- [Installation & Setup](./installation) — NuGet packages, endpoint configuration, DI registration
 
 **Feature guides:**
 

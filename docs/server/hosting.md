@@ -289,3 +289,12 @@ app.MapTurboGet("/health", () => new { status = "ok" });
 
 This way, load balancers detect the server is draining and route new requests elsewhere, while existing connections finish their work.
 :::
+
+## Transport Layer
+
+TurboHTTP uses Servus.Akka.Transport for network I/O:
+
+- **TCP**: `TcpListenerFactory` handles HTTP/1.0, HTTP/1.1, and HTTP/2 connections
+- **QUIC**: `QuicListenerFactory` handles HTTP/3 connections
+
+Protocol engines (`Http10ServerEngine`, `Http11ServerEngine`, `Http20ServerEngine`, `Http30ServerEngine`) are selected via ALPN negotiation when TLS is enabled, or default to HTTP/1.1 for plaintext connections.
