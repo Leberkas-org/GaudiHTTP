@@ -233,7 +233,9 @@ internal static class HttpbinEndpoints
     {
         foreach (var (key, value) in ctx.Request.Query)
         {
-            ctx.Response.Headers.Append(key, value.ToString());
+            var sanitizedKey = SanitizeHeaderToken(key);
+            var sanitizedValue = SanitizeHeaderToken(value.ToString());
+            ctx.Response.Headers.Append(sanitizedKey, sanitizedValue);
         }
 
         await ctx.Response.WriteAsJsonAsync(BuildEchoResponse(ctx, "GET"));
@@ -750,6 +752,11 @@ internal static class HttpbinEndpoints
     private static string SanitizeCookieToken(string value)
     {
         return new string(value.Where(c => c >= 0x20 && c != ';' && c != ',' && c != 0x7F).ToArray());
+    }
+
+    private static string SanitizeHeaderToken(string value)
+    {
+        return new string(value.Where(c => c >= 0x20 && c != '\r' && c != '\n' && c != 0x7F).ToArray());
     }
 
     private static bool IsAllowedRedirectUrl(string url, HttpContext ctx)
