@@ -39,10 +39,8 @@ public sealed class FeatureInteractionSpec : FeatureSpecBase
             .WithDecompression()
             .WithRedirect());
 
-        var targetUrl = $"{helper.Client.BaseAddress}gzip";
         var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get,
-                $"/redirect-to?url={Uri.EscapeDataString(targetUrl)}"), CancellationToken);
+            new HttpRequestMessage(HttpMethod.Get, "/redirect-to?url=%2Fgzip"), CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
@@ -62,10 +60,8 @@ public sealed class FeatureInteractionSpec : FeatureSpecBase
                 opts.PreAuthenticate = true;
             });
 
-        var targetUrl = $"{helper.Client.BaseAddress}basic-auth/user/pass";
         var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get,
-                $"/redirect-to?url={Uri.EscapeDataString(targetUrl)}"), CancellationToken);
+            new HttpRequestMessage(HttpMethod.Get, "/redirect-to?url=%2Fbasic-auth%2Fuser%2Fpass"), CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

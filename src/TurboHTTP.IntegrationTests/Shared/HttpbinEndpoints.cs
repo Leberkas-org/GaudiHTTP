@@ -132,14 +132,15 @@ internal static class HttpbinEndpoints
     private static async Task HandleRedirectTo(HttpContext ctx)
     {
         var url = ctx.Request.Query["url"].ToString();
-        if (!IsAllowedRedirectUrl(url, ctx))
+        if (!Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out var parsed) || parsed.IsAbsoluteUri)
         {
             ctx.Response.StatusCode = 400;
-            await ctx.Response.WriteAsJsonAsync(new { error = "Invalid redirect URL" });
+            await ctx.Response.WriteAsJsonAsync(new { error = "Only relative redirect URLs are allowed" });
             return;
         }
+
         ctx.Response.StatusCode = 302;
-        ctx.Response.Redirect(url, permanent: false);
+        ctx.Response.Redirect(parsed.ToString(), permanent: false);
         await ctx.Response.CompleteAsync();
     }
 

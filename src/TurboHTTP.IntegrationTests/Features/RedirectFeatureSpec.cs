@@ -54,9 +54,8 @@ public sealed class RedirectFeatureSpec : FeatureSpecBase
     {
         await using var helper = CreateClient(variant, b => b.WithRedirect());
 
-        var targetUrl = $"{helper.Client.BaseAddress}get";
         var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, $"/redirect-to?url={Uri.EscapeDataString(targetUrl)}"),
+            new HttpRequestMessage(HttpMethod.Get, "/redirect-to?url=%2Fget"),
             CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
