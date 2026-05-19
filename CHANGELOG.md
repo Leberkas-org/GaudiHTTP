@@ -1,5 +1,62 @@
 # Changelog
 
+## [0.4.0](https://github.com/Leberkas-org/TurboHTTP/compare/v0.3.0...v0.4.0) (2026-05-19)
+
+
+### Features
+
+* add generic HttpConnectionStageLogic&lt;TSM&gt; base stage ([4901d10](https://github.com/Leberkas-org/TurboHTTP/commit/4901d1004a5fb6e662c94c1c0d9032a9d9b9c05b))
+* add pipeline tracing across all BidiStages and stage logic ([3d31bbe](https://github.com/Leberkas-org/TurboHTTP/commit/3d31bbe540d02d6551e13d113ce49afadf0ace92))
+* add RequestFault helper for shared request error handling ([5c7f491](https://github.com/Leberkas-org/TurboHTTP/commit/5c7f491e5af5c2d56f2d2f8c9f30114c58811a52))
+* **bench:** add microbenchmark project with baseline comparisons ([3d5a6b0](https://github.com/Leberkas-org/TurboHTTP/commit/3d5a6b0ae635ffb3bdb6d91d9c249147181f383c))
+* define IHttpStateMachine interface and expand IStageOperations ([6876159](https://github.com/Leberkas-org/TurboHTTP/commit/68761591d4a763b9d9c3448ad103fda09edb4ccc))
+* **h11:** implement IHttpStateMachine on Http11 StateMachine ([5420762](https://github.com/Leberkas-org/TurboHTTP/commit/5420762806eba3f4b22bff8ed71599af19c20284))
+* **lifecycle:** add ConsumerActor for per-consumer ingress and response sink ([b135cd3](https://github.com/Leberkas-org/TurboHTTP/commit/b135cd386d7484cfb2b379840282bd913a95c542))
+* **protocol:** extract encoder/decoder options for HTTP/2 and HTTP/3 ([138b68a](https://github.com/Leberkas-org/TurboHTTP/commit/138b68aed7b16ffc6b9706857a43b6461b04b3dd))
+* **semantics:** add RFC-compliant HTTP semantic validators ([8566489](https://github.com/Leberkas-org/TurboHTTP/commit/8566489631ec8e4d4de0fc02252fce8b9188d90e))
+* **server:** implement entity gateway with ASP.NET-style middleware pipeline ([04d4b50](https://github.com/Leberkas-org/TurboHTTP/commit/04d4b5013c20d6b1cf5ae6555218532ed4cfaf81))
+* **server:** Inject IMaterializer into HttpContext ([a01f5bf](https://github.com/Leberkas-org/TurboHTTP/commit/a01f5bf853822caecd0c3cdde5e23b14a4a55a96))
+* **streams:** add Pipe stages for bidirectional IO bridging ([9865763](https://github.com/Leberkas-org/TurboHTTP/commit/9865763a79ff4560f7dc1022139ca4d432fa96a3))
+* **tests:** configure xunit parallelization and timeouts ([143003f](https://github.com/Leberkas-org/TurboHTTP/commit/143003f207ae992e8c94e1ea8d32b48f3597c234))
+* **tests:** Migrate integration tests to new structure ([f981f7a](https://github.com/Leberkas-org/TurboHTTP/commit/f981f7abb306d65b48c91ebae2395351d3d9d1f4))
+* **TurboHTTP.Server:** add Akka.Streams-based HTTP server ([2cab2cf](https://github.com/Leberkas-org/TurboHTTP/commit/2cab2cfe0705f24b162ace599dedab3834418929))
+
+
+### Bug Fixes
+
+* add exception safety to all pipeline onPush handlers ([7e481e4](https://github.com/Leberkas-org/TurboHTTP/commit/7e481e4bf0fe5418867b7d88d811764a2f082c03))
+* EntityDispatcher tests ([e89a3f2](https://github.com/Leberkas-org/TurboHTTP/commit/e89a3f2f34d74933dbe72dc1e87af1458081ddca))
+* fix namespace errors ([bc5d0f9](https://github.com/Leberkas-org/TurboHTTP/commit/bc5d0f91e29e6b5e73b859f03af3fe4192313a54))
+* **h11:** handle reconnect failure gracefully instead of failing stage ([dc6066a](https://github.com/Leberkas-org/TurboHTTP/commit/dc6066ae9058c0ea7c1b1a3867392dc472927e4d))
+* **h11:** use OnComplete for reconnect exhaustion instead of OnFail ([eafefdd](https://github.com/Leberkas-org/TurboHTTP/commit/eafefdd0bd82e521523a63a0d024f7621990bbea))
+* obsolete ctor ([acffe6c](https://github.com/Leberkas-org/TurboHTTP/commit/acffe6cc87d339e04765f5b73393c28caf1b14d8))
+* resolve H11 POST redirect deadlock and enable skipped acceptance tests ([f5e0564](https://github.com/Leberkas-org/TurboHTTP/commit/f5e05649728fa5bf36b521125bdbbe2fb077f050))
+* **security:** address CodeQL findings for cookie injection and open redirect ([6bfb4ee](https://github.com/Leberkas-org/TurboHTTP/commit/6bfb4ee87ac4f133d2c4cc4ec2c64f6a69647971))
+* **security:** prevent open redirect in HandleRedirectTo and harden Redirect() ([57b0b88](https://github.com/Leberkas-org/TurboHTTP/commit/57b0b885ddda319b7e5cd9b821ebeaa766912360))
+* **security:** reject CRLF and normalize URLs in TurboHttpResponse.Redirect() ([81e1aa9](https://github.com/Leberkas-org/TurboHTTP/commit/81e1aa9f56e04fcec5bbba4b9aa5d68b891ed22d))
+* **security:** sanitize response header values in test httpbin endpoint ([5a34979](https://github.com/Leberkas-org/TurboHTTP/commit/5a3497994cbf12f134d91396dc7224502711cb53))
+* **Servus.Akka:** use async dispose and cancellation ([ac318f4](https://github.com/Leberkas-org/TurboHTTP/commit/ac318f4ad3939acfb76f9a3f3e142b87de7d40b1))
+* **test:** generate HTTPS test certificate programmatically ([7d5a954](https://github.com/Leberkas-org/TurboHTTP/commit/7d5a95464b8a82d79c5414d37c9a8f53f3e6be74))
+* **transport:** make TLS handshake async with configurable timeout ([92bc679](https://github.com/Leberkas-org/TurboHTTP/commit/92bc679bf74ed0afc2cde349f5f31961f4978c75))
+* wire TurboHttpRequest.BodySource to ITurboRequestBodyFeature ([132a30d](https://github.com/Leberkas-org/TurboHTTP/commit/132a30d903df31277890dca088d5c6c2d5259180))
+
+
+### Documentation
+
+* add eager pipeline materialization spec and plan ([a77a1f4](https://github.com/Leberkas-org/TurboHTTP/commit/a77a1f434153fc7056a25d13f2d0fb93624468e8))
+* add planning documents and update CLAUDE.md ([a3c59d1](https://github.com/Leberkas-org/TurboHTTP/commit/a3c59d1b4a3d6b981316799a72031c1d74905b5b))
+* add StreamTests consolidation and microbenchmark plans ([6cbcf00](https://github.com/Leberkas-org/TurboHTTP/commit/6cbcf004fad93b74ca4ffd57599127de3d476e79))
+* remove completed planning documents ([ed2d79e](https://github.com/Leberkas-org/TurboHTTP/commit/ed2d79e862507a872536ff50aba0ba259b54a28a))
+* restructure documentation into client and server sections ([524035d](https://github.com/Leberkas-org/TurboHTTP/commit/524035da0ba38a94d29742511728f5d078b9f72f))
+* update CLAUDE.md for server project and code style rules ([75b617a](https://github.com/Leberkas-org/TurboHTTP/commit/75b617ae248a8ad4da83ccbe9801a01c99e01e3d))
+* Update GitHub repository link ([bc7af3b](https://github.com/Leberkas-org/TurboHTTP/commit/bc7af3bd1f430859026b99776100d8b31f37e604))
+
+
+### Dependencies
+
+* Bump Testcontainers from 4.6.0 to 4.11.0 ([9d7d0ea](https://github.com/Leberkas-org/TurboHTTP/commit/9d7d0ead5416f0e57e4ff51df8e7b88360934b85))
+* Bump Verify.XunitV3 from 31.16.1 to 31.16.3 ([6bfe8bd](https://github.com/Leberkas-org/TurboHTTP/commit/6bfe8bd20359f47dde45b682d368ce4f98cb822c))
+
 ## [0.3.0](https://github.com/st0o0/TurboHTTP/compare/v0.2.0...v0.3.0) (2026-05-07)
 
 
