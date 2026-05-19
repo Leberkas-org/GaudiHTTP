@@ -52,31 +52,16 @@ builder.Services.AddTurboHttpClient("http3-api", options =>
 
 ### All HTTP/3 options
 
-| Property                   | Type       | Default            | Description                                   |
-| -------------------------- | ---------- | ------------------ | --------------------------------------------- |
-| `MaxConnectionsPerServer`  | `int`      | `4`                | Max concurrent QUIC connections per host      |
-| `QpackMaxTableCapacity`    | `int`      | `4096`             | QPACK dynamic table size in bytes             |
-| `QpackBlockedStreams`      | `int`      | `100`              | Max streams blocked waiting for QPACK encoder |
-| `MaxFieldSectionSize`      | `int`      | `65536` (64 KiB)   | Max header block size                         |
-| `IdleTimeout`              | `TimeSpan` | `30 s`             | QUIC idle timeout                             |
-| `MaxReconnectAttempts`     | `int`      | `3`                | Max reconnect attempts on connection drop     |
-| `AllowEarlyData`           | `bool`     | `false`            | Allow QUIC 0-RTT early data                   |
-| `AllowConnectionMigration` | `bool`     | `true`             | Allow QUIC connection migration               |
-| `AllowServerPush`          | `bool`     | `false`            | Allow server push via PUSH_PROMISE            |
-| `MaxBatchWeight`           | `long`     | `262144` (256 KiB) | Max batch weight for frame encoding           |
-| `EnableAltSvcDiscovery`    | `bool`     | `false`            | Auto-discover HTTP/3 via Alt-Svc headers      |
-
-## 0-RTT Early Data
-
-When enabled, TurboHTTP can send idempotent requests (GET, HEAD, OPTIONS, TRACE, DELETE) before the TLS handshake completes on repeat connections to known servers. This reduces latency by one round trip.
-
-```csharp
-options.Http3.AllowEarlyData = true;
-```
-
-::: warning
-0-RTT data can be replayed by an attacker. TurboHTTP only sends idempotent requests as early data — POST and PATCH are never sent early. If the server rejects 0-RTT, the request is automatically re-sent after the full handshake.
-:::
+| Property                   | Type       | Default              | Description                                   |
+| -------------------------- | ---------- | -------------------- | --------------------------------------------- |
+| `MaxConnectionsPerServer`  | `int`      | `4`                  | Max concurrent QUIC connections per host      |
+| `QpackMaxTableCapacity`    | `int`      | `16 * 1024` (16 KiB) | QPACK dynamic table size in bytes             |
+| `QpackBlockedStreams`      | `int`      | `100`                | Max streams blocked waiting for QPACK encoder |
+| `MaxFieldSectionSize`      | `int`      | `64 * 1024` (64 KiB) | Max header block size                         |
+| `IdleTimeout`              | `TimeSpan` | `30 s`               | QUIC idle timeout                             |
+| `MaxReconnectAttempts`     | `int`      | `3`                  | Max reconnect attempts on connection drop     |
+| `AllowConnectionMigration` | `bool`     | `true`               | Allow QUIC connection migration               |
+| `EnableAltSvcDiscovery`    | `bool`     | `false`              | Auto-discover HTTP/3 via Alt-Svc headers      |
 
 ## Connection Migration
 

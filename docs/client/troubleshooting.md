@@ -8,7 +8,7 @@ No. Akka.NET is a transitive dependency of TurboHTTP — it is pulled in automat
 
 ### Can I use TurboHTTP alongside HttpClient?
 
-Yes. Both can coexist in the same application. Use `IHttpClientFactory` for your existing services and `ITurboHttpClientFactory` for new ones. See [Gradual Migration](./migration#gradual-migration).
+Yes. Both can coexist in the same application. Use `IHttpClientFactory` for your existing services and `ITurboHttpClientFactory` for new ones. See [Gradual Migration](/getting-started/migration#gradual-migration).
 
 ### Is TurboHTTP thread-safe?
 

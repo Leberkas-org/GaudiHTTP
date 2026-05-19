@@ -246,7 +246,7 @@ TurboHTTP has two sides — use either or both:
 | | Client | Server |
 |---|---|---|
 | **What it does** | Makes HTTP requests with built-in retries, caching, cookies, and connection pooling | Handles HTTP requests with middleware, routing, and actor-based entity gateway |
-| **Get started** | [Client Quick Start →](./client) | [Server Quick Start →](./server) |
+| **Get started** | [Client Quick Start →](/getting-started/client) | [Server Quick Start →](/getting-started/server) |
 | **Full docs** | [Client Guide →](/client/) | [Server Guide →](/server/) |
 
 ## Quick Look
@@ -298,10 +298,10 @@ Despite the name, TurboHTTP Server is a fully standalone HTTP server built on Ak
 
 ## Next Steps
 
-- [Client Quick Start](./client) — build your first TurboHTTP client
-- [Server Quick Start](./server) — build your first TurboHTTP server
-- [Architecture Overview](./architecture) — understand how the pipeline works
-- [Migration from HttpClient](./migration) — coming from `System.Net.Http`?
+- [Client Quick Start](/getting-started/client) — build your first TurboHTTP client
+- [Server Quick Start](/getting-started/server) — build your first TurboHTTP server
+- [Architecture Overview](/getting-started/architecture) — understand how the pipeline works
+- [Migration from HttpClient](/getting-started/migration) — coming from `System.Net.Http`?
 ```
 
 - [ ] **Step 3: Create client.md quick start**
@@ -837,22 +837,22 @@ TurboHTTP's public API is organized into client, server, and feature configurati
 
 | Type | Description | Reference |
 |------|-------------|-----------|
-| `ITurboHttpClientFactory` | Creates named client instances | [Client API](./client) |
-| `ITurboHttpClient` | The HTTP client — `SendAsync` and channel-based API | [Client API](./client) |
-| `TurboClientOptions` | Connection, TLS, proxy, and protocol settings | [Client Options](./client-options) |
-| `Http1Options` / `Http2Options` / `Http3Options` | Per-protocol tuning | [Client Options](./client-options) |
-| `RetryOptions` / `CacheOptions` / `RedirectOptions` | Feature configuration | [Feature Options](./feature-options) |
-| Builder extensions (`.WithRetry()`, `.WithCache()`, etc.) | Fluent feature composition | [Feature Options](./feature-options) |
+| `ITurboHttpClientFactory` | Creates named client instances | [Client API](/api/client) |
+| `ITurboHttpClient` | The HTTP client — `SendAsync` and channel-based API | [Client API](/api/client) |
+| `TurboClientOptions` | Connection, TLS, proxy, and protocol settings | [Client Options](/api/client-options) |
+| `Http1Options` / `Http2Options` / `Http3Options` | Per-protocol tuning | [Client Options](/api/client-options) |
+| `RetryOptions` / `CacheOptions` / `RedirectOptions` | Feature configuration | [Feature Options](/api/feature-options) |
+| Builder extensions (`.WithRetry()`, `.WithCache()`, etc.) | Fluent feature composition | [Feature Options](/api/feature-options) |
 
 ## Server
 
 | Type | Description | Reference |
 |------|-------------|-----------|
-| `AddTurboKestrel()` | Server registration (standalone, not Kestrel) | [Server API](./server) |
-| `TurboServerOptions` | Endpoints, protocols, timeouts | [Server API](./server) |
-| `MapTurboGet/Post/Put/Delete/Patch()` | Route registration | [Server API](./server) |
-| `UseTurbo()` / `ITurboMiddleware` | Middleware pipeline | [Server API](./server) |
-| `TurboEntityBuilder` | Actor-based entity routing | [Entity Gateway API](./entity-gateway) |
+| `AddTurboKestrel()` | Server registration (standalone, not Kestrel) | [Server API](/api/server) |
+| `TurboServerOptions` | Endpoints, protocols, timeouts | [Server API](/api/server) |
+| `MapTurboGet/Post/Put/Delete/Patch()` | Route registration | [Server API](/api/server) |
+| `UseTurbo()` / `ITurboMiddleware` | Middleware pipeline | [Server API](/api/server) |
+| `TurboEntityBuilder` | Actor-based entity routing | [Entity Gateway API](/api/entity-gateway) |
 
 ## DI Registration
 
@@ -908,7 +908,7 @@ Apply these changes to `docs/server/index.md`:
    > TurboHTTP Server is a high-performance, standalone HTTP server for .NET built on Akka.Streams. It provides middleware, routing, entity gateway, parameter binding, and actor-based connection lifecycle management — all with zero buffer copies and minimal allocations.
 
 2. **Line 6**: Change tip from "See Installation & Setup for NuGet packages and Kestrel configuration" to:
-   > See [Installation & Setup](./installation) for NuGet packages and endpoint configuration.
+   > See [Installation & Setup](/server/installation) for NuGet packages and endpoint configuration.
 
 3. **Line 25**: Change comment "Register TurboHTTP Server with Kestrel" to:
    > // Register TurboHTTP Server

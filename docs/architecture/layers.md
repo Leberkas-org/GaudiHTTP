@@ -122,7 +122,6 @@ Route to Akka.NET actors for stateful request handling:
 ```csharp
 app.MapTurboEntity<int>("/orders/{id:int}", entity =>
 {
-    entity.WithEntityKey("id");
     entity.UseResolver<OrderActorResolver>();
     entity.OnGet((int id) => new GetOrder(id));
     entity.MapResponse<OrderResponse>(async (ctx, response) =>
