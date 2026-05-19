@@ -62,6 +62,7 @@ public sealed class EntityDispatcherSpec : StreamTestBase
 
         var services = new ServiceCollection()
             .AddSingleton(registry)
+            .AddSingleton<IReadOnlyActorRegistry>(registry)
             .BuildServiceProvider();
 
         var turboTable = new TurboRouteTable();
@@ -108,6 +109,7 @@ public sealed class EntityDispatcherSpec : StreamTestBase
 
         var services = new ServiceCollection()
             .AddSingleton(registry)
+            .AddSingleton<IReadOnlyActorRegistry>(registry)
             .BuildServiceProvider();
 
         var turboTable = new TurboRouteTable();
@@ -136,6 +138,7 @@ public sealed class EntityDispatcherSpec : StreamTestBase
 
         var services = new ServiceCollection()
             .AddSingleton(registry)
+            .AddSingleton<IReadOnlyActorRegistry>(registry)
             .BuildServiceProvider();
 
         var turboTable = new TurboRouteTable();
@@ -164,6 +167,7 @@ public sealed class EntityDispatcherSpec : StreamTestBase
 
         var services = new ServiceCollection()
             .AddSingleton(registry)
+            .AddSingleton<IReadOnlyActorRegistry>(registry)
             .BuildServiceProvider();
 
         var turboTable = new TurboRouteTable();
