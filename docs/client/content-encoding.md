@@ -75,3 +75,7 @@ var response = await client.SendAsync(request);
 ```
 
 Decompression itself works the same regardless of protocol version — if the server includes a `Content-Encoding` header, TurboHTTP decodes the body.
+
+::: info How it works
+See [Architecture: Request Pipeline](/architecture/pipeline) to understand how this feature fits into the processing pipeline.
+:::

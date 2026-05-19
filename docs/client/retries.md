@@ -92,3 +92,7 @@ builder.Services.AddTurboHttpClient(options =>
 ```
 
 `.WithRetry()` with no arguments retries up to 3 times and honours `Retry-After` delays from the server.
+
+::: info How it works
+See [Architecture: Request Pipeline](/architecture/pipeline) to understand how this feature fits into the processing pipeline.
+:::

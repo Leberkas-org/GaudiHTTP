@@ -1,43 +1,18 @@
-# Getting Started
+# Client
 
 TurboHTTP is a high-performance HTTP client for .NET built on Akka.Streams. It supports HTTP/1.0, HTTP/1.1, HTTP/2, and HTTP/3 (QUIC) with automatic retries, caching, cookies, and connection pooling — all built in.
 
 ::: tip New to TurboHTTP?
-See [Installation & Setup](./installation) for DI registration, named clients, and the fluent builder API. Coming from HttpClient? Check the [Migration Guide](./migration).
+Start with the [Client Quick Start](/getting-started/client) for a step-by-step setup guide.
+:::
+
+::: tip Coming from HttpClient?
+See [Installation & Setup](./installation) for DI registration, named clients, and the fluent builder API. Check the [Migration Guide](/getting-started/migration) for a detailed comparison.
 :::
 
 ::: info Looking for the server?
 TurboHTTP also provides a server with middleware, routing, and entity gateway. See the [Server Guide](/server/).
 :::
-
-## Quick Start
-
-```bash
-dotnet add package TurboHTTP
-```
-
-```csharp
-using TurboHTTP;
-
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddTurboHttpClient(options =>
-{
-    options.BaseAddress = new Uri("https://api.example.com");
-});
-
-var app = builder.Build();
-
-var factory = app.Services.GetRequiredService<ITurboHttpClientFactory>();
-var client = factory.CreateClient();
-
-var response = await client.SendAsync(
-    new HttpRequestMessage(HttpMethod.Get, "/users"),
-    CancellationToken.None);
-
-Console.WriteLine($"Status: {response.StatusCode}");
-Console.WriteLine(await response.Content.ReadAsStringAsync());
-```
 
 ## High-Throughput Usage
 
@@ -120,7 +95,7 @@ TurboHTTP works out of the box — no middleware to wire up, no Polly policies t
 **Setup & migration:**
 
 - [Installation & Setup](./installation) — DI registration, named clients, typed clients, fluent builder
-- [Migration from HttpClient](./migration) — side-by-side comparison, step-by-step migration
+- [Migration from HttpClient](/getting-started/migration) — side-by-side comparison, step-by-step migration
 
 **Feature guides:**
 

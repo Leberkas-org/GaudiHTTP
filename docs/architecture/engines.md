@@ -137,3 +137,9 @@ When a connection arrives at TurboHTTP Server, the server mirrors the client arc
 | `Http30ServerEngine`    | HTTP/3   | QUIC-based multiplexing with per-stream flow control; uses QPACK header compression; eliminates head-of-line blocking          |
 
 Each server engine implements `IServerProtocolEngine` and registers itself with the `ProtocolRouter`. When a connection arrives, the router detects the protocol from the initial bytes (HTTP/1.x format, HTTP/2 preface `PRI * HTTP/2.0`, or QUIC Initial packet) and routes the connection to the appropriate engine's state machine for the duration of that connection.
+
+## Related Guides
+
+- [HTTP/2 & Multiplexing](/client/http2) — HTTP/2 configuration
+- [HTTP/3 & QUIC](/client/http3) — HTTP/3 configuration
+- [Server Configuration](/server/configuration) — server protocol settings

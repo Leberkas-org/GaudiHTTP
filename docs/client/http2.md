@@ -121,3 +121,7 @@ var results = await Task.WhenAll(
 ```
 
 No pooling, no batching, no special API needed — just `Task.WhenAll`.
+
+::: info How it works
+See [Architecture: Protocol Engines](/architecture/engines) for details on how protocol negotiation and engine selection work.
+:::

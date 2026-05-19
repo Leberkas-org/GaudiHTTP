@@ -301,3 +301,8 @@ The engine reads this descriptor and wires up only the stages you have actually 
 | Handler base  | `DelegatingHandler` (sync/async, per request)     | `TurboHandler` (async, stream-compatible)  |
 | Factory       | `IHttpClientFactory`                              | `ITurboHttpClientFactory`                  |
 | Typed Clients | `AddHttpClient<TClient>()`                        | `AddTurboHttpClient<TClient>()`            |
+
+## Related Guides
+
+- [Middleware Pipeline](/server/middleware) — server middleware composition
+- [Feature Options](/api/feature-options) — client pipeline extensions

@@ -177,3 +177,7 @@ When an `ICacheStore` is shared across multiple clients it will receive concurre
 :::
 
 See the [Configuration guide](./configuration) for more details on cache setup.
+
+::: info How it works
+See [Architecture: Request Pipeline](/architecture/pipeline) to understand how this feature fits into the processing pipeline.
+:::

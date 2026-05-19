@@ -129,3 +129,8 @@ catch (RedirectException ex) when (ex.Error == RedirectError.ProtocolDowngrade)
     Console.WriteLine($"Blocked HTTPS→HTTP downgrade: {ex.Message}");
 }
 ```
+
+::: info How it works
+See [Architecture: Request Pipeline](/architecture/pipeline) to understand how this feature fits into the processing pipeline.
+:::
+```

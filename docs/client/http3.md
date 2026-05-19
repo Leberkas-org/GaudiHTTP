@@ -118,3 +118,7 @@ options.Http3.QpackBlockedStreams = 200;      // default: 100
 ```
 
 Larger tables improve compression ratio for APIs with many repeated headers but use more memory per connection.
+
+::: info How it works
+See [Architecture: Protocol Engines](/architecture/engines) for details on how protocol negotiation and engine selection work.
+:::

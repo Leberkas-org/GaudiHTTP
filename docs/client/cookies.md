@@ -135,3 +135,7 @@ A cookie set during login on the `auth` client will now be available to the `api
 ::: warning Thread safety
 When an `ICookieStore` is shared across multiple clients it will receive concurrent reads and writes. Your implementation must be thread-safe.
 :::
+
+::: info How it works
+See [Architecture: Request Pipeline](/architecture/pipeline) to understand how this feature fits into the processing pipeline.
+:::

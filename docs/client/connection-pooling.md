@@ -109,3 +109,8 @@ var response = await client.SendAsync(request, ct);
 // Disposing client drains all pools and closes all connections
 client.Dispose();
 ```
+
+::: info How it works
+See [Architecture: Request Pipeline](/architecture/pipeline) to understand how this feature fits into the processing pipeline.
+:::
+```

@@ -134,3 +134,11 @@ Each connection is bound to a single `ConnectionActor` that owns the entire Akka
 | `ParameterBindingStage`      | (within dispatcher) Binds route parameters, query string, body, and headers to handler parameters using reflection and model binding                                                                                 |
 
 After the handler returns a response, the response object flows back through the pipeline in reverse — middleware response hooks can transform or log the response, and the protocol engine serialises it back to wire bytes.
+
+## Related Guides
+
+- [Automatic Retries](/client/retries) — configure retry behavior
+- [HTTP Caching](/client/caching) — configure caching
+- [Cookie Management](/client/cookies) — configure cookie handling
+- [Redirects](/client/redirects) — configure redirect following
+- [Connection Pooling](/client/connection-pooling) — pool tuning
