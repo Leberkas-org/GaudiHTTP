@@ -97,9 +97,9 @@ export default defineConfig({
                 {
                     text: 'Server Architecture',
                     items: [
-                        { text: 'Handler Design', link: '/architecture/handlers' },
-                        { text: 'E2E Scenarios', link: '/architecture/scenarios' },
-                        { text: 'Hosting & Actor Lifecycle', link: '/server/hosting' },
+                        { text: 'Request Pipeline', link: '/architecture/server-pipeline' },
+                        { text: 'Protocol Engines', link: '/architecture/server-engines' },
+                        { text: 'Extending the Pipeline', link: '/architecture/server-extending' },
                     ],
                 },
             ],
