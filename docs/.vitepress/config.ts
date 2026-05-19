@@ -17,6 +17,7 @@ export default defineConfig({
             { text: 'Getting Started', link: '/getting-started/' },
             { text: 'Client', link: '/client/' },
             { text: 'Server', link: '/server/' },
+            { text: 'Architecture', link: '/architecture/pipeline' },
             { text: 'API', link: '/api/' },
         ],
 
@@ -86,13 +87,19 @@ export default defineConfig({
             ],
             '/architecture/': [
                 {
-                    text: 'Architecture',
+                    text: 'Client Architecture',
                     items: [
                         { text: 'Request Pipeline', link: '/architecture/pipeline' },
                         { text: 'Protocol Engines', link: '/architecture/engines' },
+                        { text: 'Extending the Pipeline', link: '/architecture/extending' },
+                    ],
+                },
+                {
+                    text: 'Server Architecture',
+                    items: [
                         { text: 'Handler Design', link: '/architecture/handlers' },
                         { text: 'E2E Scenarios', link: '/architecture/scenarios' },
-                        { text: 'Extending the Pipeline', link: '/architecture/extending' },
+                        { text: 'Hosting & Actor Lifecycle', link: '/server/hosting' },
                     ],
                 },
             ],
