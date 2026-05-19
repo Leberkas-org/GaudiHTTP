@@ -2,6 +2,7 @@
 
     <PropertyGroup>
         <RootNamespace>TurboHTTP.Server</RootNamespace>
+        <IsPackable>false</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>
