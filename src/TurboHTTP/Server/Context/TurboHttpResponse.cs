@@ -74,14 +74,22 @@ public sealed class TurboHttpResponse : HttpResponse
     {
         ArgumentNullException.ThrowIfNull(location);
 
-        if (!location.StartsWith('/') &&
-            Uri.TryCreate(location, UriKind.Absolute, out var uri) &&
-            uri.Scheme is not ("http" or "https"))
+        if (location.AsSpan().ContainsAny('\r', '\n'))
+        {
+            throw new ArgumentException("Redirect location must not contain CR or LF characters.", nameof(location));
+        }
+
+        if (!Uri.TryCreate(location, UriKind.RelativeOrAbsolute, out var parsed))
+        {
+            throw new ArgumentException("Redirect location is not a valid URI.", nameof(location));
+        }
+
+        if (parsed.IsAbsoluteUri && parsed.Scheme is not ("http" or "https"))
         {
             throw new ArgumentException("Redirect location must be a relative path or an HTTP/HTTPS URL.", nameof(location));
         }
 
         StatusCode = permanent ? 301 : 302;
-        Headers["Location"] = location;
+        Headers["Location"] = parsed.IsAbsoluteUri ? parsed.AbsoluteUri : parsed.ToString();
     }
 }
