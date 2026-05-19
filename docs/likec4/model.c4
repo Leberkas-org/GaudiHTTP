@@ -1,7 +1,7 @@
 // TurboHTTP — Model
 // All elements (person, system, containers, components, actors) and their
 // structural relationships. Pipeline-specific flow/feedback/delegates
-// relationships live in model-pipeline.c4.
+// relationships live in model-pipeline.c4 (client) and model-server.c4 (server).
 
 model {
   app = person 'Application' {
@@ -9,44 +9,179 @@ model {
   }
 
   network = externalSystem 'Network' {
-    description 'Remote HTTP servers (TCP, TLS, or QUIC)'
+    description 'Remote HTTP servers and clients (TCP, TLS, or QUIC)'
     technology 'TCP / TLS / QUIC'
   }
 
   turbohttp = system 'TurboHTTP' {
-    description 'High-performance HTTP client library for .NET built on Akka.Streams'
+    description 'High-performance HTTP client and server for .NET built on Akka.Streams'
     technology '.NET 10 / Akka.Streams 1.5'
 
+    // ─── Client API ───────────────────────────────────────────────────
+
     client = container 'Client Layer' {
+      #client
       description 'Public API and Akka.Streams lifecycle management'
       technology 'C# / .NET 10'
 
       ITurboHttpClient = component 'ITurboHttpClient' {
-        #api
+        #client #api
         technology 'Interface'
         description 'Channel-based request/response API: ChannelWriter<HttpRequestMessage> / ChannelReader<HttpResponseMessage>, SendAsync, BaseAddress, DefaultRequestVersion'
       }
 
       TurboHttpClient = component 'TurboHttpClient' {
+        #client
         technology 'Class'
         description 'Concrete implementation of ITurboHttpClient: wraps the Akka.Streams pipeline, exposes SendAsync and channel-based APIs'
       }
 
       ClientStreamManager = component 'ClientStreamManager' {
+        #client
         technology 'Class'
         description 'Materialises the Akka.Streams pipeline and manages stream lifecycle'
       }
 
       ClientStreamOwner = component 'ClientStreamOwner' {
+        #client
         technology 'Class'
         description 'Owns the materialised stream lifecycle: starts, monitors, and restarts the pipeline on failure'
       }
 
       TurboClientOptions = component 'TurboClientOptions' {
+        #client
         technology 'Record'
         description 'BaseAddress, DefaultRequestVersion, DefaultRequestHeaders'
       }
     }
+
+    // ─── Client Stages ────────────────────────────────────────────────
+
+    streams = container 'Client Stages' {
+      #client
+      description 'Client-side Akka.Streams GraphStages — request enrichment, protocol routing, response processing'
+      technology 'Akka.Streams / C#'
+
+      // Engine routing
+      Engine = component 'Engine' {
+        #client
+        technology 'Class'
+        description 'Version demultiplexer: groups requests by endpoint, then dispatches each substream to the matching protocol engine (HTTP/1.0, 1.1, 2, or 3)'
+      }
+
+      Http10Engine = component 'Http10Engine' {
+        #client
+        technology 'IHttpProtocolEngine'
+        description 'HTTP/1.0 BidiFlow: wraps Http10ConnectionStage; joined with TcpConnectionStage for transport'
+      }
+
+      Http11Engine = component 'Http11Engine' {
+        #client
+        technology 'IHttpProtocolEngine'
+        description 'HTTP/1.1 BidiFlow: wraps Http11ConnectionStage; joined with TcpConnectionStage for transport'
+      }
+
+      Http20Engine = component 'Http20Engine' {
+        #client #http2
+        technology 'IHttpProtocolEngine'
+        description 'HTTP/2 BidiFlow: wraps Http20ConnectionStage; joined with TcpConnectionStage for transport'
+      }
+
+      Http30Engine = component 'Http30Engine' {
+        #client #http3
+        technology 'IHttpProtocolEngine'
+        description 'HTTP/3 BidiFlow: wraps Http30ConnectionStage; joined with QuicConnectionStage for transport'
+      }
+
+      // Request enrichment (Select transform, not a GraphStage)
+      RequestEnricher = component 'RequestEnricher' {
+        #client
+        technology 'Select transform'
+        description 'Applies BaseAddress, DefaultRequestVersion, DefaultRequestHeaders, Referer sanitization, and If-Range validation to every request (inline Select, not a separate GraphStage)'
+      }
+
+      // Protocol connection stages — each is a single unified GraphStage<ConnectionShape>
+      Http10ConnectionStage = component 'Http10ConnectionStage' {
+        #client #stage
+        technology 'GraphStage<ConnectionShape>'
+        description 'Unified HTTP/1.0 stage: encodes requests to wire bytes, decodes response bytes, correlates request-response pairs. Connection closes after each response.'
+      }
+
+      Http11ConnectionStage = component 'Http11ConnectionStage' {
+        #client #stage
+        technology 'GraphStage<ConnectionShape>'
+        description 'Unified HTTP/1.1 stage: encodes requests (Host header, chunked TE), decodes responses (chunked transfer), correlates pairs, evaluates keep-alive/close for connection reuse'
+      }
+
+      Http20ConnectionStage = component 'Http20ConnectionStage' {
+        #client #stage #http2
+        technology 'GraphStage<ConnectionShape>'
+        description 'Unified HTTP/2 stage: stream ID allocation, HPACK header compression, HEADERS/DATA frame encoding, SETTINGS/PING/WINDOW_UPDATE/GOAWAY handling, frame decoding, response assembly, and stream-ID-based correlation'
+      }
+
+      Http30ConnectionStage = component 'Http30ConnectionStage' {
+        #client #stage #http3
+        technology 'GraphStage<ConnectionShape>'
+        description 'Unified HTTP/3 stage: QPACK header compression, HEADERS/DATA frame encoding/decoding over QUIC, stream multiplexing, flow control, GOAWAY handling, response assembly, and stream-ID-based correlation'
+      }
+
+      // Feature BidiStages — each handles both request and response direction
+      AltSvcBidiStage = component 'AltSvcBidiStage' {
+        #client #stage
+        technology 'BidiStage'
+        description 'Alt-Svc discovery: upgrades request version based on cached Alt-Svc headers from previous responses; captures Alt-Svc headers from responses'
+      }
+
+      ContentEncodingBidiStage = component 'ContentEncodingBidiStage' {
+        #client #stage
+        technology 'BidiStage'
+        description 'Bidirectional compression/decompression: adds Accept-Encoding to requests, compresses request bodies, decompresses gzip/deflate/brotli response bodies automatically'
+      }
+
+      TracingBidiStage = component 'TracingBidiStage' {
+        #client #stage
+        technology 'BidiStage'
+        description 'Observability stage: traces request/response events for logging and metrics collection'
+      }
+
+      CacheBidiStage = component 'CacheBidiStage' {
+        #client #stage #cache
+        technology 'BidiStage'
+        description 'Returns cached responses on hit (skipping the network); stores cacheable responses; handles conditional revalidation with 304 merging'
+      }
+
+      CookieBidiStage = component 'CookieBidiStage' {
+        #client #stage #cookie
+        technology 'BidiStage'
+        description 'Injects matching cookies into outgoing requests; stores incoming Set-Cookie headers in the cookie jar'
+      }
+
+      RedirectBidiStage = component 'RedirectBidiStage' {
+        #client #stage #redirect
+        technology 'BidiStage'
+        description 'Follows redirects automatically; rewrites HTTP methods where needed (POST becomes GET for 301/302/303); detects loops and blocks HTTPS-to-HTTP downgrades'
+      }
+
+      RetryBidiStage = component 'RetryBidiStage' {
+        #client #stage #retry
+        technology 'BidiStage'
+        description 'Retries safe (idempotent) requests on transient failures; respects Retry-After delays'
+      }
+
+      ExpectContinueBidiStage = component 'ExpectContinueBidiStage' {
+        #client #stage
+        technology 'BidiStage'
+        description 'Handles 100-continue negotiation: holds request body until the server confirms readiness'
+      }
+
+      HandlerBidiStage = component 'HandlerBidiStage' {
+        #client #stage
+        technology 'BidiStage'
+        description 'Bridge for custom TurboHandler middleware; allows user-defined request/response processing'
+      }
+    }
+
+    // ─── Server API ───────────────────────────────────────────────────
 
     server = container 'Server Layer' {
       #server
@@ -84,59 +219,20 @@ model {
       }
 
       TurboServerOptions = component 'TurboServerOptions' {
-        #server
+        #server #api
         technology 'Class'
         description 'Server configuration: endpoints, protocols, timeouts, graceful shutdown, per-protocol Http1/Http2/Http3 server options'
       }
     }
+
+    // ─── Server Stages ────────────────────────────────────────────────
 
     serverStages = container 'Server Stages' {
       #server
       description 'Server-side Akka.Streams stages — protocol decoding, context creation, middleware, routing'
       technology 'Akka.Streams / C#'
 
-      HttpContextBidiStage = component 'HttpContextBidiStage' {
-        #stage #server
-        technology 'BidiStage'
-        description 'Creates TurboHttpContext from decoded HTTP requests; writes response back to the protocol layer'
-      }
-
-      MiddlewarePipelineStage = component 'MiddlewarePipelineStage' {
-        #stage #server
-        technology 'GraphStage'
-        description 'Executes the middleware chain (Use/Run/Map/MapWhen) for each request; middleware can short-circuit or delegate to next'
-      }
-
-      RoutingStage = component 'RoutingStage' {
-        #stage #server
-        technology 'GraphStage'
-        description 'Matches incoming requests to registered route handlers (MapTurboGet/Post/Put/Delete/Patch); dispatches to handler delegates or entity gateway'
-      }
-
-      ServerHttp10ConnectionStage = component 'Http10ConnectionStage (Server)' {
-        #stage #server
-        technology 'GraphStage<ConnectionShape>'
-        description 'Server-side HTTP/1.0: decodes request bytes, encodes response bytes, closes connection after each response'
-      }
-
-      ServerHttp11ConnectionStage = component 'Http11ConnectionStage (Server)' {
-        #stage #server
-        technology 'GraphStage<ConnectionShape>'
-        description 'Server-side HTTP/1.1: decodes requests (chunked TE, Host header), encodes responses, evaluates keep-alive for connection reuse'
-      }
-
-      ServerHttp20ConnectionStage = component 'Http20ConnectionStage (Server)' {
-        #stage #server #http2
-        technology 'GraphStage<ConnectionShape>'
-        description 'Server-side HTTP/2: HPACK decompression, frame decoding, stream multiplexing, flow control, SETTINGS/PING/GOAWAY, response frame encoding'
-      }
-
-      ServerHttp30ConnectionStage = component 'Http30ConnectionStage (Server)' {
-        #stage #server #http3
-        technology 'GraphStage<ConnectionShape>'
-        description 'Server-side HTTP/3: QPACK decompression, frame decoding over QUIC streams, flow control, GOAWAY, response encoding'
-      }
-
+      // Server protocol engines
       Http10ServerEngine = component 'Http10ServerEngine' {
         #server
         technology 'IServerProtocolEngine'
@@ -160,157 +256,85 @@ model {
         technology 'IServerProtocolEngine'
         description 'HTTP/3 server BidiFlow: wraps server-side Http30ConnectionStage over QUIC'
       }
-    }
 
-    streams = container 'Streams Layer' {
-      description 'Akka.Streams GraphStages — request enrichment, protocol routing, response processing'
-      technology 'Akka.Streams / C#'
-
-      // Engine routing
-      Engine = component 'Engine' {
-        technology 'Class'
-        description 'Version demultiplexer: groups requests by endpoint, then dispatches each substream to the matching protocol engine (HTTP/1.0, 1.1, 2, or 3)'
-      }
-
-      Http10Engine = component 'Http10Engine' {
-        technology 'IHttpProtocolEngine'
-        description 'HTTP/1.0 BidiFlow: wraps Http10ConnectionStage; joined with TcpConnectionStage for transport'
-      }
-
-      Http11Engine = component 'Http11Engine' {
-        technology 'IHttpProtocolEngine'
-        description 'HTTP/1.1 BidiFlow: wraps Http11ConnectionStage; joined with TcpConnectionStage for transport'
-      }
-
-      Http20Engine = component 'Http20Engine' {
-        #http2
-        technology 'IHttpProtocolEngine'
-        description 'HTTP/2 BidiFlow: wraps Http20ConnectionStage; joined with TcpConnectionStage for transport'
-      }
-
-      Http30Engine = component 'Http30Engine' {
-        #http3
-        technology 'IHttpProtocolEngine'
-        description 'HTTP/3 BidiFlow: wraps Http30ConnectionStage; joined with QuicConnectionStage for transport'
-      }
-
-      // Request enrichment (Select transform, not a GraphStage)
-      RequestEnricher = component 'RequestEnricher' {
-        technology 'Select transform'
-        description 'Applies BaseAddress, DefaultRequestVersion, DefaultRequestHeaders, Referer sanitization, and If-Range validation to every request (inline Select, not a separate GraphStage)'
-      }
-
-      // Protocol connection stages — each is a single unified GraphStage<ConnectionShape>
-      // with four ports (InApp, OutResponse, InServer, OutNetwork) handling encoding,
-      // decoding, correlation, and connection management internally.
-      Http10ConnectionStage = component 'Http10ConnectionStage' {
-        #stage
+      // Server connection stages
+      ServerHttp10ConnectionStage = component 'Http10ConnectionStage (Server)' {
+        #server #stage
         technology 'GraphStage<ConnectionShape>'
-        description 'Unified HTTP/1.0 stage: encodes requests to wire bytes, decodes response bytes, correlates request-response pairs. Connection closes after each response.'
+        description 'Server-side HTTP/1.0: decodes request bytes, encodes response bytes, closes connection after each response'
       }
 
-      Http11ConnectionStage = component 'Http11ConnectionStage' {
-        #stage
+      ServerHttp11ConnectionStage = component 'Http11ConnectionStage (Server)' {
+        #server #stage
         technology 'GraphStage<ConnectionShape>'
-        description 'Unified HTTP/1.1 stage: encodes requests (Host header, chunked TE), decodes responses (chunked transfer), correlates pairs, evaluates keep-alive/close for connection reuse'
+        description 'Server-side HTTP/1.1: decodes requests (chunked TE, Host header), encodes responses, evaluates keep-alive for connection reuse'
       }
 
-      Http20ConnectionStage = component 'Http20ConnectionStage' {
-        #stage #http2
+      ServerHttp20ConnectionStage = component 'Http20ConnectionStage (Server)' {
+        #server #stage #http2
         technology 'GraphStage<ConnectionShape>'
-        description 'Unified HTTP/2 stage: stream ID allocation, HPACK header compression, HEADERS/DATA frame encoding, SETTINGS/PING/WINDOW_UPDATE/GOAWAY handling, frame decoding, response assembly, and stream-ID-based correlation'
+        description 'Server-side HTTP/2: HPACK decompression, frame decoding, stream multiplexing, flow control, SETTINGS/PING/GOAWAY, response frame encoding'
       }
 
-      Http30ConnectionStage = component 'Http30ConnectionStage' {
-        #stage #http3
+      ServerHttp30ConnectionStage = component 'Http30ConnectionStage (Server)' {
+        #server #stage #http3
         technology 'GraphStage<ConnectionShape>'
-        description 'Unified HTTP/3 stage: QPACK header compression, HEADERS/DATA frame encoding/decoding over QUIC, stream multiplexing, flow control, GOAWAY handling, response assembly, and stream-ID-based correlation'
+        description 'Server-side HTTP/3: QPACK decompression, frame decoding over QUIC streams, flow control, GOAWAY, response encoding'
       }
 
-      // Feature BidiStages — each handles both request and response direction
-      AltSvcBidiStage = component 'AltSvcBidiStage' {
-        #stage
+      // Server pipeline stages
+      HttpContextBidiStage = component 'HttpContextBidiStage' {
+        #server #stage
         technology 'BidiStage'
-        description 'Alt-Svc discovery: upgrades request version based on cached Alt-Svc headers from previous responses; captures Alt-Svc headers from responses'
+        description 'Creates TurboHttpContext from decoded HTTP requests; writes response back to the protocol layer'
       }
 
-      ContentEncodingBidiStage = component 'ContentEncodingBidiStage' {
-        #stage
-        technology 'BidiStage'
-        description 'Bidirectional compression/decompression: adds Accept-Encoding to requests, compresses request bodies, decompresses gzip/deflate/brotli response bodies automatically'
+      MiddlewarePipelineStage = component 'MiddlewarePipelineStage' {
+        #server #stage
+        technology 'GraphStage'
+        description 'Executes the middleware chain (Use/Run/Map/MapWhen) for each request; middleware can short-circuit or delegate to next'
       }
 
-      TracingBidiStage = component 'TracingBidiStage' {
-        #stage
-        technology 'BidiStage'
-        description 'Observability stage: traces request/response events for logging and metrics collection'
-      }
-
-      CacheBidiStage = component 'CacheBidiStage' {
-        #stage #cache
-        technology 'BidiStage'
-        description 'Returns cached responses on hit (skipping the network); stores cacheable responses; handles conditional revalidation with 304 merging'
-      }
-
-      CookieBidiStage = component 'CookieBidiStage' {
-        #stage #cookie
-        technology 'BidiStage'
-        description 'Injects matching cookies into outgoing requests; stores incoming Set-Cookie headers in the cookie jar'
-      }
-
-      RedirectBidiStage = component 'RedirectBidiStage' {
-        #stage #redirect
-        technology 'BidiStage'
-        description 'Follows redirects automatically; rewrites HTTP methods where needed (POST becomes GET for 301/302/303); detects loops and blocks HTTPS-to-HTTP downgrades'
-      }
-
-      RetryBidiStage = component 'RetryBidiStage' {
-        #stage #retry
-        technology 'BidiStage'
-        description 'Retries safe (idempotent) requests on transient failures; respects Retry-After delays'
-      }
-
-      ExpectContinueBidiStage = component 'ExpectContinueBidiStage' {
-        #stage
-        technology 'BidiStage'
-        description 'Handles 100-continue negotiation: holds request body until the server confirms readiness'
-      }
-
-      HandlerBidiStage = component 'HandlerBidiStage' {
-        #stage
-        technology 'BidiStage'
-        description 'Bridge for custom TurboHandler middleware; allows user-defined request/response processing'
+      RoutingStage = component 'RoutingStage' {
+        #server #stage
+        technology 'GraphStage'
+        description 'Matches incoming requests to registered route handlers (MapTurboGet/Post/Put/Delete/Patch); dispatches to handler delegates or entity gateway'
       }
     }
   }
 
-  // External systems
+  // ─── External: Servus.Akka Transport ──────────────────────────────
+
   servus = externalSystem 'Servus.Akka' {
     description 'Actor-based transport layer — connection management, TCP/TLS, QUIC'
     technology 'Akka.NET / System.Net.Sockets / System.Net.Quic'
 
+    // Client-side transport (outbound connections)
     TcpConnectionManagerActor = component 'TcpConnectionManagerActor' {
+      #client
       technology 'Actor'
       description 'Manages per-host TCP/TLS connection pools: acquires, releases, and recycles connections via Akka message passing'
     }
 
     QuicConnectionManagerActor = component 'QuicConnectionManagerActor' {
+      #client
       technology 'Actor'
       description 'Manages per-host QUIC connection pools: acquires, releases, and recycles connections via Akka message passing'
     }
 
     TcpConnectionStage = component 'TcpConnectionStage' {
-      #stage
+      #client #stage
       technology 'GraphStage<FlowShape>'
       description 'TCP/TLS transport bridge: acquires a connection from TcpConnectionManagerActor, writes outbound bytes, reads inbound bytes; used by HTTP/1.x and HTTP/2 engines'
     }
 
     QuicConnectionStage = component 'QuicConnectionStage' {
-      #stage
+      #client #stage
       technology 'GraphStage<FlowShape>'
       description 'QUIC transport bridge: acquires a QUIC connection from QuicConnectionManagerActor, writes outbound bytes, reads inbound bytes; used by the HTTP/3 engine'
     }
 
+    // Server-side transport (inbound listeners)
     TcpListenerFactory = component 'TcpListenerFactory' {
       #server
       technology 'IListenerFactory'
@@ -324,18 +348,21 @@ model {
     }
   }
 
-  // Overview (for index and turbohttp views where intermediate elements are not included)
+  // ─── Structural Relationships ─────────────────────────────────────
+
+  // Overview (for index and turbohttp views)
   turbohttp.client -> network 'HTTP requests and responses'
+  turbohttp.server -> network 'Accepts HTTP connections'
   turbohttp.streams.Engine -> network 'Routes to remote servers via transport'
 
-  // App -> Client
+  // App → Client
   app -> turbohttp.client.ITurboHttpClient 'Sends requests, receives responses'
   turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboHttpClient 'Implemented by'
   turbohttp.client.TurboHttpClient -> turbohttp.client.ClientStreamManager 'Delegates to pipeline'
   turbohttp.client.ClientStreamManager -> turbohttp.client.ClientStreamOwner 'Manages lifecycle'
   turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboClientOptions 'Reads configuration'
 
-  // Pipeline assembly (ClientStreamManager builds the pipeline from these stages)
+  // Client pipeline assembly (ClientStreamManager builds the pipeline)
   turbohttp.client.ClientStreamManager -> turbohttp.streams.RequestEnricher 'Wraps with enrichment'
   turbohttp.client.ClientStreamManager -> turbohttp.streams.HandlerBidiStage 'Wraps with handlers'
   turbohttp.client.ClientStreamManager -> turbohttp.streams.TracingBidiStage 'Wraps with tracing'
@@ -348,7 +375,7 @@ model {
   turbohttp.client.ClientStreamManager -> turbohttp.streams.AltSvcBidiStage 'Wraps with Alt-Svc'
   turbohttp.client.ClientStreamManager -> turbohttp.streams.Engine 'Wraps with engine'
 
-  // Engine -> transport (structural; flow details in model-pipeline.c4)
+  // Client engine → transport (structural; flow details in model-pipeline.c4)
   turbohttp.streams.Http10Engine -> servus.TcpConnectionStage 'TCP transport'
   turbohttp.streams.Http11Engine -> servus.TcpConnectionStage 'TCP transport'
   turbohttp.streams.Http20Engine -> servus.TcpConnectionStage 'TCP transport'
@@ -359,7 +386,6 @@ model {
   turbohttp.server.TurboServerHostedService -> turbohttp.server.TurboServerOptions 'Reads configuration'
   turbohttp.server.ServerSupervisorActor -> turbohttp.server.ListenerActor 'Spawns per endpoint'
   turbohttp.server.ListenerActor -> turbohttp.server.ConnectionActor 'Spawns per client'
-  turbohttp.server.ListenerActor -> turbohttp.server.ProtocolRouter 'Selects protocol engine'
   turbohttp.server.ConnectionActor -> turbohttp.server.ProtocolRouter 'Resolves engine via ALPN'
 
   // Server transport
@@ -377,10 +403,9 @@ model {
   turbohttp.server.ConnectionActor -> turbohttp.serverStages.MiddlewarePipelineStage 'Runs middleware'
   turbohttp.server.ConnectionActor -> turbohttp.serverStages.RoutingStage 'Dispatches to routes'
 
-  // Server engine -> connection stage
+  // Server engine → connection stage
   turbohttp.serverStages.Http10ServerEngine -> turbohttp.serverStages.ServerHttp10ConnectionStage 'Wire protocol'
   turbohttp.serverStages.Http11ServerEngine -> turbohttp.serverStages.ServerHttp11ConnectionStage 'Wire protocol'
   turbohttp.serverStages.Http20ServerEngine -> turbohttp.serverStages.ServerHttp20ConnectionStage 'Wire protocol'
   turbohttp.serverStages.Http30ServerEngine -> turbohttp.serverStages.ServerHttp30ConnectionStage 'Wire protocol'
-
 }

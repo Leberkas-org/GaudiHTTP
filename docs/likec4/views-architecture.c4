@@ -2,11 +2,15 @@
 // Top-level and layer-scoped static views showing public features and behavior.
 
 views {
+
+  // ─── System Overview ──────────────────────────────────────────────
+
   view index {
     title 'TurboHTTP — System Overview'
-    description 'Application, TurboHTTP client library, and remote servers'
+    description 'Application, TurboHTTP client and server, and the network'
     include app
     include turbohttp.client
+    include turbohttp.server
     include network
     style turbohttp { color green }
     style network { color muted }
@@ -14,10 +18,11 @@ views {
   }
 
   view turbohttp {
-    title 'TurboHTTP — Architecture'
-    description 'Client API and the request/response pipeline with all processing stages'
+    title 'TurboHTTP — Full Architecture'
+    description 'Client API, server actors, and both request/response pipelines'
     include app
     include turbohttp.client.*
+    include turbohttp.server.*
     include turbohttp.streams.Engine
     include turbohttp.streams.RequestEnricher
     include turbohttp.streams.TracingBidiStage
@@ -29,8 +34,13 @@ views {
     include turbohttp.streams.RedirectBidiStage
     include turbohttp.streams.ExpectContinueBidiStage
     include turbohttp.streams.AltSvcBidiStage
+    include turbohttp.serverStages.HttpContextBidiStage
+    include turbohttp.serverStages.MiddlewarePipelineStage
+    include turbohttp.serverStages.RoutingStage
     include network
   }
+
+  // ─── Client Views ─────────────────────────────────────────────────
 
   view clientLayer of turbohttp.client {
     title 'Client API'
@@ -39,43 +49,9 @@ views {
     include turbohttp.client.*
   }
 
-  view serverHierarchy of turbohttp.server {
-    title 'TurboHTTP Server — Actor Hierarchy & Transport'
-    description 'Standalone server lifecycle: IHostedService → Supervisor → Listeners → Connections, with TCP/QUIC transport via Servus.Akka'
-
-    include turbohttp.server.*
-    include servus.TcpListenerFactory
-    include servus.QuicListenerFactory
-    include network
-  }
-
-  view serverPipeline of turbohttp.serverStages {
-    title 'TurboHTTP Server — Request Pipeline'
-    description 'How an incoming HTTP request flows through the server: wire decode → context creation → middleware → routing → response'
-
-    include turbohttp.server.ConnectionActor
-    include turbohttp.server.ProtocolRouter
-
-    include turbohttp.serverStages.Http10ServerEngine
-    include turbohttp.serverStages.Http11ServerEngine
-    include turbohttp.serverStages.Http20ServerEngine
-    include turbohttp.serverStages.Http30ServerEngine
-
-    include turbohttp.serverStages.ServerHttp10ConnectionStage
-    include turbohttp.serverStages.ServerHttp11ConnectionStage
-    include turbohttp.serverStages.ServerHttp20ConnectionStage
-    include turbohttp.serverStages.ServerHttp30ConnectionStage
-
-    include turbohttp.serverStages.HttpContextBidiStage
-    include turbohttp.serverStages.MiddlewarePipelineStage
-    include turbohttp.serverStages.RoutingStage
-
-    include network
-  }
-
   view pipelineFlow of turbohttp.streams {
-    title 'Pipeline Flow'
-    description 'All processing stages from request entry to response delivery'
+    title 'Client Pipeline Flow'
+    description 'All client processing stages from request entry to response delivery'
 
     // Entry point (flow starts here)
     include turbohttp.client.TurboHttpClient
@@ -114,6 +90,47 @@ views {
     include servus.QuicConnectionManagerActor
 
     // Exit point (flow ends here)
+    include network
+  }
+
+  // ─── Server Views ─────────────────────────────────────────────────
+
+  view serverLayer of turbohttp.server {
+    title 'Server API'
+    description 'Actor hierarchy: HostedService → Supervisor → Listeners → Connections, with configuration and protocol routing'
+    include turbohttp.server.*
+  }
+
+  view serverHierarchy of turbohttp.server {
+    title 'Server — Actor Hierarchy & Transport'
+    description 'Standalone server lifecycle: IHostedService → Supervisor → Listeners → Connections, with TCP/QUIC transport via Servus.Akka'
+    include turbohttp.server.*
+    include servus.TcpListenerFactory
+    include servus.QuicListenerFactory
+    include network
+  }
+
+  view serverPipeline of turbohttp.serverStages {
+    title 'Server — Request Pipeline'
+    description 'How an incoming HTTP request flows through the server: wire decode → context creation → middleware → routing → response'
+
+    include turbohttp.server.ConnectionActor
+    include turbohttp.server.ProtocolRouter
+
+    include turbohttp.serverStages.Http10ServerEngine
+    include turbohttp.serverStages.Http11ServerEngine
+    include turbohttp.serverStages.Http20ServerEngine
+    include turbohttp.serverStages.Http30ServerEngine
+
+    include turbohttp.serverStages.ServerHttp10ConnectionStage
+    include turbohttp.serverStages.ServerHttp11ConnectionStage
+    include turbohttp.serverStages.ServerHttp20ConnectionStage
+    include turbohttp.serverStages.ServerHttp30ConnectionStage
+
+    include turbohttp.serverStages.HttpContextBidiStage
+    include turbohttp.serverStages.MiddlewarePipelineStage
+    include turbohttp.serverStages.RoutingStage
+
     include network
   }
 }

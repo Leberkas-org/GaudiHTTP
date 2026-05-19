@@ -39,16 +39,19 @@ specification {
     }
   }
 
-  // Tags for visual grouping
-  tag stage
+  // Tags for visual grouping — side
+  tag client
   tag server
+
+  // Tags for visual grouping — role
+  tag stage
+  tag api
   tag http2
   tag http3
   tag cache
   tag cookie
   tag redirect
   tag retry
-  tag api
 
   // flows    — ordered pipeline data flow (request chain or response chain)
   // feedback — cycle-back path (retry / redirect / cache-hit bypass)
