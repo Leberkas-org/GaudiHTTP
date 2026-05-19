@@ -112,7 +112,9 @@ internal static class HttpbinEndpoints
         var query = ctx.Request.Query;
         foreach (var kvp in query)
         {
-            ctx.Response.Cookies.Append(kvp.Key, kvp.Value.ToString(), new CookieOptions { Path = "/" });
+            var sanitizedKey = SanitizeCookieToken(kvp.Key);
+            var sanitizedValue = SanitizeCookieToken(kvp.Value.ToString());
+            ctx.Response.Cookies.Append(sanitizedKey, sanitizedValue, new CookieOptions { Path = "/" });
         }
         ctx.Response.StatusCode = 302;
         ctx.Response.Redirect("/cookies", permanent: false);
@@ -130,6 +132,12 @@ internal static class HttpbinEndpoints
     private static async Task HandleRedirectTo(HttpContext ctx)
     {
         var url = ctx.Request.Query["url"].ToString();
+        if (!IsAllowedRedirectUrl(url, ctx))
+        {
+            ctx.Response.StatusCode = 400;
+            await ctx.Response.WriteAsJsonAsync(new { error = "Invalid redirect URL" });
+            return;
+        }
         ctx.Response.StatusCode = 302;
         ctx.Response.Redirect(url, permanent: false);
         await ctx.Response.CompleteAsync();
@@ -737,6 +745,31 @@ internal static class HttpbinEndpoints
             }
         }
         return result;
+    }
+
+    private static string SanitizeCookieToken(string value)
+    {
+        return new string(value.Where(c => c >= 0x20 && c != ';' && c != ',' && c != 0x7F).ToArray());
+    }
+
+    private static bool IsAllowedRedirectUrl(string url, HttpContext ctx)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return false;
+        }
+
+        if (url.StartsWith('/'))
+        {
+            return true;
+        }
+
+        if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return string.Equals(uri.Host, ctx.Request.Host.Host, StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     private static bool ValidateBasicAuth(string authHeader, string expectedUser, string expectedPass)

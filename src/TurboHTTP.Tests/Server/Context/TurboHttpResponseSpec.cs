@@ -73,6 +73,29 @@ public sealed class TurboHttpResponseSpec
         Assert.Equal(301, response.StatusCode);
     }
 
+    [Fact(Timeout = 5000)]
+    public void Redirect_should_accept_absolute_https_url()
+    {
+        var (response, _) = CreateResponse(HttpStatusCode.OK);
+        response.Redirect("https://example.com/path");
+        Assert.Equal(302, response.StatusCode);
+        Assert.Equal("https://example.com/path", response.Headers["Location"].ToString());
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Redirect_should_reject_non_http_scheme()
+    {
+        var (response, _) = CreateResponse(HttpStatusCode.OK);
+        Assert.Throws<ArgumentException>(() => response.Redirect("javascript:alert(1)"));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Redirect_should_reject_null_location()
+    {
+        var (response, _) = CreateResponse(HttpStatusCode.OK);
+        Assert.Throws<ArgumentNullException>(() => response.Redirect(null!));
+    }
+
     private static (TurboHttpResponse Response, FeatureCollection Features) CreateResponse(HttpStatusCode status)
     {
         var features = CreateFeatures((int)status);

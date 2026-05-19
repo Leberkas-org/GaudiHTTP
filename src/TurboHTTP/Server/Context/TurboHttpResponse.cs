@@ -72,6 +72,15 @@ public sealed class TurboHttpResponse : HttpResponse
 
     public override void Redirect(string location, bool permanent = false)
     {
+        ArgumentNullException.ThrowIfNull(location);
+
+        if (!location.StartsWith('/') &&
+            Uri.TryCreate(location, UriKind.Absolute, out var uri) &&
+            uri.Scheme is not ("http" or "https"))
+        {
+            throw new ArgumentException("Redirect location must be a relative path or an HTTP/HTTPS URL.", nameof(location));
+        }
+
         StatusCode = permanent ? 301 : 302;
         Headers["Location"] = location;
     }
