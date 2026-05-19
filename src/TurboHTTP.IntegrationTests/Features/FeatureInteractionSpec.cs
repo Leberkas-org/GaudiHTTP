@@ -26,7 +26,8 @@ public sealed class FeatureInteractionSpec : FeatureSpecBase
 
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
-        Assert.Equal("xyz", json.RootElement.GetProperty("tracking").GetString());
+        var cookies = json.RootElement.GetProperty("cookies");
+        Assert.Equal("xyz", cookies.GetProperty("tracking").GetString());
     }
 
     [Theory(Timeout = 15000)]

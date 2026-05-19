@@ -78,4 +78,28 @@ public sealed class RedirectFeatureSpec : FeatureSpecBase
             (int)response.StatusCode is >= 300 and < 400,
             $"Expected 3xx redirect status, got {response.StatusCode}");
     }
+
+    [Theory(Timeout = 15000)]
+    [MemberData(nameof(AllVariants))]
+    public async Task Redirect_should_follow_absolute_location(ProtocolVariant variant)
+    {
+        await using var helper = CreateClient(variant, b => b.WithRedirect());
+
+        var response = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/absolute-redirect/2"), CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory(Timeout = 15000)]
+    [MemberData(nameof(AllVariants))]
+    public async Task Redirect_should_follow_relative_location(ProtocolVariant variant)
+    {
+        await using var helper = CreateClient(variant, b => b.WithRedirect());
+
+        var response = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/relative-redirect/2"), CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
 }

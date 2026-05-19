@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using TurboHTTP.IntegrationTests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Features;
@@ -66,6 +67,34 @@ public sealed class AuthFeatureSpec : FeatureSpecBase
 
         var response = await helper.Client.SendAsync(
             new HttpRequestMessage(HttpMethod.Get, "/basic-auth/testuser/testpass"), CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Theory(Timeout = 15000)]
+    [MemberData(nameof(AllVariants))]
+    public async Task Auth_should_succeed_with_bearer_token(ProtocolVariant variant)
+    {
+        await using var helper = CreateClient(variant, b => b.UseRequest(req =>
+        {
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "test-token");
+            return req;
+        }));
+
+        var response = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/bearer"), CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory(Timeout = 15000)]
+    [MemberData(nameof(AllVariants))]
+    public async Task Auth_should_return_401_without_bearer_token(ProtocolVariant variant)
+    {
+        await using var helper = CreateClient(variant);
+
+        var response = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/bearer"), CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

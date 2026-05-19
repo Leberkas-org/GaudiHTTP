@@ -16,7 +16,7 @@ internal sealed class HttpbinContainer : IAsyncDisposable
 
     public async Task StartAsync(INetwork network)
     {
-        _container = new ContainerBuilder("mccutchen/go-httpbin:v2.15.0")
+        _container = new ContainerBuilder("mccutchen/go-httpbin:2.22.1")
             .WithName(ContainerName)
             .WithNetwork(network)
             .WithNetworkAliases(NetworkAlias)

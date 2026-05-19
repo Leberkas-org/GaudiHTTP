@@ -24,7 +24,8 @@ public sealed class CookieFeatureSpec : FeatureSpecBase
 
         var body = await setResponse.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
-        Assert.Equal("abc123", json.RootElement.GetProperty("session").GetString());
+        var cookies = json.RootElement.GetProperty("cookies");
+        Assert.Equal("abc123", cookies.GetProperty("session").GetString());
     }
 
     [Theory(Timeout = 15000)]
@@ -42,7 +43,8 @@ public sealed class CookieFeatureSpec : FeatureSpecBase
         var body = await echoResponse.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
-        Assert.True(json.RootElement.TryGetProperty("token", out var token),
+        var cookies = json.RootElement.GetProperty("cookies");
+        Assert.True(cookies.TryGetProperty("token", out var token),
             $"Cookie 'token' not sent on subsequent request. Body: {body}");
         Assert.Equal("xyz", token.GetString());
     }
@@ -62,6 +64,35 @@ public sealed class CookieFeatureSpec : FeatureSpecBase
         var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var json = JsonDocument.Parse(body);
 
-        Assert.Empty(json.RootElement.EnumerateObject());
+        var cookies = json.RootElement.GetProperty("cookies");
+        Assert.Empty(cookies.EnumerateObject());
+    }
+
+    [Theory(Timeout = 15000)]
+    [MemberData(nameof(AllVariants))]
+    public async Task Cookie_should_be_removed_after_delete(ProtocolVariant variant)
+    {
+        await using var helper = CreateClient(variant, b => b.WithCookies().WithRedirect());
+
+        await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/cookies/set?token=xyz"), CancellationToken);
+
+        var beforeBody = await (await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/cookies"), CancellationToken))
+            .Content.ReadAsStringAsync(CancellationToken);
+        var before = JsonDocument.Parse(beforeBody);
+        Assert.True(before.RootElement.GetProperty("cookies").TryGetProperty("token", out _),
+            $"Cookie 'token' should be present before delete. Body: {beforeBody}");
+
+        await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/cookies/delete?token"), CancellationToken);
+
+        var afterBody = await (await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/cookies"), CancellationToken))
+            .Content.ReadAsStringAsync(CancellationToken);
+        var after = JsonDocument.Parse(afterBody);
+        var cookies = after.RootElement.GetProperty("cookies");
+        Assert.False(cookies.TryGetProperty("token", out _),
+            $"Cookie 'token' should be absent after delete. Body: {afterBody}");
     }
 }

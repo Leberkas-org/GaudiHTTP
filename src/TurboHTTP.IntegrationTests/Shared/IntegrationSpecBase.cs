@@ -65,6 +65,11 @@ public abstract class IntegrationSpecBase : IAsyncLifetime
         {
             Assert.Skip("QUIC is not available.");
         }
+
+        if (variant.Version == TestHttpVersion.H10 && variant.Tls && !Server.IsHttp10TlsSupported)
+        {
+            Assert.Skip("HTTP/1.0 over TLS is not supported by this backend.");
+        }
     }
 
     private ClientHelper BuildClient(

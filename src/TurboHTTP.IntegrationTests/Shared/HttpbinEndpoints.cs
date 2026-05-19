@@ -33,6 +33,15 @@ internal static class HttpbinEndpoints
         app.MapGet("/stream/{n:int}", HandleStream);
         app.MapGet("/gzip", HandleGzip);
         app.MapGet("/deflate", HandleDeflate);
+        app.MapGet("/delay/{n:int}", HandleDelay);
+        app.MapGet("/unstable", HandleUnstable);
+        app.MapGet("/stream-bytes/{n:int}", HandleStreamBytes);
+        app.MapGet("/drip", HandleDrip);
+        app.MapGet("/range/{n:int}", HandleRange);
+        app.MapGet("/absolute-redirect/{n:int}", HandleAbsoluteRedirect);
+        app.MapGet("/relative-redirect/{n:int}", HandleRelativeRedirect);
+        app.MapGet("/cookies/delete", HandleDeleteCookies);
+        app.MapGet("/bearer", HandleBearer);
     }
 
     private static async Task HandleGet(HttpContext ctx)
@@ -93,7 +102,9 @@ internal static class HttpbinEndpoints
         {
             cookies[cookie.Key] = cookie.Value;
         }
-        await ctx.Response.WriteAsJsonAsync(cookies);
+
+        var response = new JsonObject { ["cookies"] = cookies };
+        await ctx.Response.WriteAsJsonAsync(response);
     }
 
     private static async Task HandleSetCookies(HttpContext ctx)
@@ -240,6 +251,312 @@ internal static class HttpbinEndpoints
         ctx.Response.Headers.ContentEncoding = "deflate";
         ctx.Response.ContentLength = compressed.Length;
         await ctx.Response.Body.WriteAsync(compressed);
+    }
+
+    private static async Task HandleDelay(HttpContext ctx, int n)
+    {
+        var clamped = Math.Min(Math.Max(n, 0), 10);
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(clamped), ctx.RequestAborted);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        var response = BuildEchoResponse(ctx, ctx.Request.Method);
+        await ctx.Response.WriteAsJsonAsync(response);
+    }
+
+    private static async Task HandleUnstable(HttpContext ctx)
+    {
+        var rateStr = ctx.Request.Query["failure_rate"].FirstOrDefault();
+        var failureRate = 0.5f;
+        if (rateStr is not null && float.TryParse(rateStr, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+        {
+            failureRate = Math.Clamp(parsed, 0f, 1f);
+        }
+
+        if (Random.Shared.NextSingle() < failureRate)
+        {
+            ctx.Response.StatusCode = 500;
+            await ctx.Response.CompleteAsync();
+            return;
+        }
+
+        var response = BuildEchoResponse(ctx, ctx.Request.Method);
+        await ctx.Response.WriteAsJsonAsync(response);
+    }
+
+    private static async Task HandleStreamBytes(HttpContext ctx, int n)
+    {
+        var seed = 0;
+        var seedStr = ctx.Request.Query["seed"].FirstOrDefault();
+        if (seedStr is not null && int.TryParse(seedStr, out var parsedSeed))
+        {
+            seed = parsedSeed;
+        }
+
+        var chunkSize = 1024;
+        var chunkStr = ctx.Request.Query["chunk_size"].FirstOrDefault();
+        if (chunkStr is not null && int.TryParse(chunkStr, out var parsedChunk) && parsedChunk > 0)
+        {
+            chunkSize = parsedChunk;
+        }
+
+        ctx.Response.ContentType = "application/octet-stream";
+        var rng = new Random(seed);
+        var remaining = Math.Max(n, 0);
+        var buffer = new byte[chunkSize];
+
+        while (remaining > 0)
+        {
+            var toWrite = Math.Min(remaining, chunkSize);
+            rng.NextBytes(buffer.AsSpan(0, toWrite));
+            await ctx.Response.Body.WriteAsync(buffer.AsMemory(0, toWrite), ctx.RequestAborted);
+            await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
+            remaining -= toWrite;
+        }
+    }
+
+    private static async Task HandleDrip(HttpContext ctx)
+    {
+        var numbytes = 10;
+        var duration = 2.0;
+        var delay = 0.0;
+        var code = 200;
+
+        var q = ctx.Request.Query;
+        if (q.TryGetValue("numbytes", out var nb) && int.TryParse(nb, out var parsedNb))
+        {
+            numbytes = Math.Max(parsedNb, 1);
+        }
+
+        if (q.TryGetValue("duration", out var dur) && double.TryParse(dur, System.Globalization.CultureInfo.InvariantCulture, out var parsedDur))
+        {
+            duration = Math.Max(parsedDur, 0);
+        }
+
+        if (q.TryGetValue("delay", out var del) && double.TryParse(del, System.Globalization.CultureInfo.InvariantCulture, out var parsedDel))
+        {
+            delay = Math.Max(parsedDel, 0);
+        }
+
+        if (q.TryGetValue("code", out var c) && int.TryParse(c, out var parsedCode))
+        {
+            code = parsedCode;
+        }
+
+        ctx.Response.StatusCode = code;
+        ctx.Response.ContentType = "application/octet-stream";
+
+        if (delay > 0)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(delay), ctx.RequestAborted);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+
+        var interval = numbytes > 1 ? duration / numbytes : 0;
+
+        for (var i = 0; i < numbytes; i++)
+        {
+            try
+            {
+                await ctx.Response.Body.WriteAsync(new byte[] { 0x2A }, ctx.RequestAborted);
+                await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
+
+                if (interval > 0 && i < numbytes - 1)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(interval), ctx.RequestAborted);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+    }
+
+    private static async Task HandleRange(HttpContext ctx, int n)
+    {
+        var total = Math.Max(n, 0);
+        var data = new byte[total];
+        for (var i = 0; i < total; i++)
+        {
+            data[i] = (byte)(i % 256);
+        }
+
+        var rangeHeader = ctx.Request.Headers.Range.ToString();
+        if (string.IsNullOrEmpty(rangeHeader))
+        {
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.Headers.AcceptRanges = "bytes";
+            await ctx.Response.Body.WriteAsync(data);
+            return;
+        }
+
+        if (!TryParseRange(rangeHeader, total, out var start, out var end))
+        {
+            ctx.Response.StatusCode = 416;
+            ctx.Response.Headers.ContentRange = string.Concat("bytes */", total);
+            await ctx.Response.CompleteAsync();
+            return;
+        }
+
+        var slice = data.AsMemory(start, end - start + 1);
+        ctx.Response.StatusCode = 206;
+        ctx.Response.ContentType = "application/octet-stream";
+        ctx.Response.Headers.ContentRange = string.Concat("bytes ", start, "-", end, "/", total);
+        ctx.Response.Headers.AcceptRanges = "bytes";
+        await ctx.Response.Body.WriteAsync(slice);
+    }
+
+    private static async Task HandleAbsoluteRedirect(HttpContext ctx, int n)
+    {
+        var hostString = ctx.Request.Host.ToString();
+        var scheme = "http";
+
+        // Check for X-Forwarded-Proto header (set by reverse proxy) if available,
+        // otherwise use IsHttps (for direct HTTPS connections to Kestrel)
+        if (ctx.Request.Headers.TryGetValue("X-Forwarded-Proto", out var protoValue))
+        {
+            scheme = protoValue.ToString().ToLowerInvariant();
+        }
+        else if (ctx.Request.IsHttps)
+        {
+            scheme = "https";
+        }
+
+        // Check for X-Forwarded-Host (set by reverse proxy to include port)
+        if (ctx.Request.Headers.TryGetValue("X-Forwarded-Host", out var forwardedHost))
+        {
+            var fwdHost = forwardedHost.ToString();
+            if (!string.IsNullOrEmpty(fwdHost))
+            {
+                hostString = fwdHost;
+            }
+        }
+
+        // If Host header is missing (e.g., HTTP/1.0), construct from request context
+        if (string.IsNullOrEmpty(hostString))
+        {
+            // Try to use X-Forwarded-For if available, otherwise use connection local address
+            var hostIp = "127.0.0.1";
+            if (ctx.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor))
+            {
+                var fwdFor = forwardedFor.ToString()?.Split(',').FirstOrDefault()?.Trim();
+                if (!string.IsNullOrEmpty(fwdFor))
+                {
+                    hostIp = fwdFor;
+                }
+            }
+            else if (ctx.Connection.LocalIpAddress != null)
+            {
+                hostIp = ctx.Connection.LocalIpAddress.ToString();
+            }
+
+            var port = ctx.Connection.LocalPort;
+            hostString = $"{hostIp}:{port}";
+        }
+
+        var redirectUrl = n <= 1
+            ? string.Concat(scheme, "://", hostString, "/get")
+            : string.Concat(scheme, "://", hostString, "/absolute-redirect/", n - 1);
+
+        ctx.Response.Redirect(redirectUrl, permanent: false);
+        await ctx.Response.CompleteAsync();
+    }
+
+    private static async Task HandleRelativeRedirect(HttpContext ctx, int n)
+    {
+        var redirectUrl = n <= 1 ? "/get" : string.Concat("/relative-redirect/", n - 1);
+        ctx.Response.Redirect(redirectUrl, permanent: false);
+        await ctx.Response.CompleteAsync();
+    }
+
+    private static async Task HandleDeleteCookies(HttpContext ctx)
+    {
+        foreach (var key in ctx.Request.Query.Keys)
+        {
+            ctx.Response.Cookies.Delete(key);
+        }
+
+        ctx.Response.StatusCode = 302;
+        ctx.Response.Redirect("/cookies", permanent: false);
+        await ctx.Response.CompleteAsync();
+    }
+
+    private static async Task HandleBearer(HttpContext ctx)
+    {
+        var authHeader = ctx.Request.Headers.Authorization.ToString();
+
+        if (string.IsNullOrEmpty(authHeader) ||
+            !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Response.StatusCode = 401;
+            ctx.Response.Headers.WWWAuthenticate = "Bearer";
+            await ctx.Response.CompleteAsync();
+            return;
+        }
+
+        var token = authHeader["Bearer ".Length..].Trim();
+        var response = new { authenticated = true, token };
+        await ctx.Response.WriteAsJsonAsync(response);
+    }
+
+    private static bool TryParseRange(string header, int total, out int start, out int end)
+    {
+        start = 0;
+        end = total - 1;
+
+        if (!header.StartsWith("bytes=", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var spec = header["bytes=".Length..].Trim();
+
+        if (spec.StartsWith('-'))
+        {
+            if (!int.TryParse(spec[1..], out var suffix) || suffix <= 0)
+            {
+                return false;
+            }
+
+            start = Math.Max(total - suffix, 0);
+            end = total - 1;
+            return true;
+        }
+
+        var dashIndex = spec.IndexOf('-');
+        if (dashIndex < 0)
+        {
+            return false;
+        }
+
+        if (!int.TryParse(spec[..dashIndex], out start))
+        {
+            return false;
+        }
+
+        var endPart = spec[(dashIndex + 1)..];
+        if (string.IsNullOrEmpty(endPart))
+        {
+            end = total - 1;
+        }
+        else if (!int.TryParse(endPart, out end))
+        {
+            return false;
+        }
+
+        return start >= 0 && start < total && end >= start && end < total;
     }
 
     private static byte[] BuildCompressionPayload(HttpContext ctx, bool gzipped)

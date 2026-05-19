@@ -22,12 +22,19 @@
 
     <ItemGroup>
         <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj"/>
+        <ProjectReference Include="..\TurboHTTP.Server\TurboHTTP.Server.csproj"/>
     </ItemGroup>
 
     <ItemGroup>
       <Content Include="xunit.runner.json">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="TestCertificates\test.pfx">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
     </ItemGroup>
 
 </Project>
