@@ -101,6 +101,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
     private void OnStageActorMessage((IActorRef sender, object message) args)
     {
         _sm.OnBodyMessage(args.message);
+        TryPullRequest();
         TryCompleteAfterAllResponses();
     }
 

@@ -13,11 +13,11 @@ public sealed class RedirectSpec : ClientAcceptanceTestBase
         Func<string, byte[]?> pathHandler)
     {
         var requestCount = 0;
-        var stage = CreateScriptedConnection((_, requestBytes) =>
+        var stage = CreateAccumulatingScriptedConnection((_, requestBytes) =>
         {
             requestCount++;
             var requestStr = Encoding.Latin1.GetString(requestBytes);
-            var lines = requestStr.Split("\r\n", StringSplitOptions.None);
+            var lines = requestStr.Split("\r\n");
             if (lines.Length == 0)
             {
                 return FakeResponse.Http11(400);
@@ -206,7 +206,7 @@ public sealed class RedirectSpec : ClientAcceptanceTestBase
         Assert.Equal("Hello World", body);
     }
 
-    [Fact(Timeout = 5000, Skip = "POST redirect handling requires investigation - client may not support body re-sending")]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public async Task Redirect_should_preserve_post_307_method_and_body()
     {
@@ -229,7 +229,7 @@ public sealed class RedirectSpec : ClientAcceptanceTestBase
         Assert.Equal(payload, body);
     }
 
-    [Fact(Timeout = 5000, Skip = "POST redirect handling requires investigation - client may not support body re-sending")]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public async Task Redirect_should_rewrite_post_303_to_get()
     {
@@ -251,7 +251,7 @@ public sealed class RedirectSpec : ClientAcceptanceTestBase
         Assert.Equal("Hello World", body);
     }
 
-    [Fact(Timeout = 5000, Skip = "POST redirect handling requires investigation - client may not support body re-sending")]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public async Task Redirect_should_rewrite_post_302_to_get()
     {
@@ -273,7 +273,7 @@ public sealed class RedirectSpec : ClientAcceptanceTestBase
         Assert.Equal("Hello World", body);
     }
 
-    [Fact(Timeout = 5000, Skip = "POST redirect handling requires investigation - client may not support body re-sending")]
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
     public async Task Redirect_should_preserve_post_308_method_and_body()
     {

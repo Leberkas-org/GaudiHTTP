@@ -207,41 +207,48 @@ public sealed class CookieSpec : ClientAcceptanceTestBase
         Assert.Equal(policy, cookies["pref"]);
     }
 
-    [Fact(Timeout = 15000, Skip = "CookieJar Max-Age expiration not yet implemented")]
+    [Fact(Timeout = 15000)]
     [Trait("RFC", "RFC6265-5.3")]
     public async Task Cookie_must_not_be_sent_after_max_age_elapses()
     {
-        var requests = new[]
+        var requestIndex = 0;
+        var stage = CreateScriptedConnection((_, requestBytes) =>
         {
-            new HttpRequestMessage(HttpMethod.Get, "http://fake.test/cookie/set-expires/temp/value/1"),
-            new HttpRequestMessage(HttpMethod.Get, "http://fake.test/cookie/echo"),
-            new HttpRequestMessage(HttpMethod.Get, "http://fake.test/cookie/echo")
-        };
-
-        var responses = await SendMultipleAsync(
-            requests,
-            (index, requestBytes) =>
+            var index = requestIndex++;
+            if (index == 0)
             {
-                if (index == 0)
-                {
-                    return FakeResponse.Http11(200, null,
-                        ("Set-Cookie", "temp=value; Path=/; Max-Age=1"));
-                }
+                return FakeResponse.Http11(200, null,
+                    ("Set-Cookie", "temp=value; Path=/; Max-Age=1"));
+            }
 
-                var cookies = ExtractCookiesFromRequest(requestBytes);
-                return FakeResponse.Http11(200, JsonSerializer.Serialize(cookies));
-            },
+            var cookies = ExtractCookiesFromRequest(requestBytes);
+            return FakeResponse.Http11(200, JsonSerializer.Serialize(cookies));
+        });
+
+        var transports = new TransportRegistry()
+            .Register(HttpVersion.Version11, stage.AsFlow());
+
+        await using var helper = ClientAcceptanceHelper.Create(
+            transports, HttpVersion.Version11,
             builder => builder.WithCookies());
 
         var ct = TestContext.Current.CancellationToken;
 
-        var json1 = await responses[1].Content.ReadAsStringAsync(ct);
+        var setResponse = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "http://fake.test/cookie/set-expires/temp/value/1"), ct);
+        Assert.Equal(HttpStatusCode.OK, setResponse.StatusCode);
+
+        var echoResponse1 = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "http://fake.test/cookie/echo"), ct);
+        var json1 = await echoResponse1.Content.ReadAsStringAsync(ct);
         var cookies1 = JsonSerializer.Deserialize<Dictionary<string, string>>(json1)!;
         Assert.Equal("value", cookies1["temp"]);
 
-        await Task.Delay(TimeSpan.FromSeconds(3), ct);
+        await Task.Delay(TimeSpan.FromSeconds(2), ct);
 
-        var json2 = await responses[2].Content.ReadAsStringAsync(ct);
+        var echoResponse2 = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "http://fake.test/cookie/echo"), ct);
+        var json2 = await echoResponse2.Content.ReadAsStringAsync(ct);
         var cookies2 = JsonSerializer.Deserialize<Dictionary<string, string>>(json2)!;
         Assert.False(cookies2.ContainsKey("temp"), "Expired cookie should not be sent");
     }
