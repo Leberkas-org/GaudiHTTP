@@ -127,7 +127,7 @@ export default defineConfig({
         },
 
         socialLinks: [
-            { icon: 'github', link: 'https://github.com/st0o0/TurboHTTP' },
+            { icon: 'github', link: 'https://github.com/leberkas-org/TurboHTTP' },
         ],
 
         footer: {
