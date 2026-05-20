@@ -3,8 +3,6 @@
 
 views {
 
-  // ─── System Overview ──────────────────────────────────────────────
-
   view index {
     title 'TurboHTTP — System Overview'
     description 'Application, TurboHTTP client and server, and the network'
@@ -34,13 +32,12 @@ views {
     include turbohttp.streams.RedirectBidiStage
     include turbohttp.streams.ExpectContinueBidiStage
     include turbohttp.streams.AltSvcBidiStage
+    include turbohttp.serverStages.NegotiatingServerEngine
     include turbohttp.serverStages.HttpContextBidiStage
     include turbohttp.serverStages.MiddlewarePipelineStage
     include turbohttp.serverStages.RoutingStage
     include network
   }
-
-  // ─── Client Views ─────────────────────────────────────────────────
 
   view clientLayer of turbohttp.client {
     title 'Client API'
@@ -52,14 +49,8 @@ views {
   view pipelineFlow of turbohttp.streams {
     title 'Client Pipeline Flow'
     description 'All client processing stages from request entry to response delivery'
-
-    // Entry point (flow starts here)
     include turbohttp.client.TurboHttpClient
-
-    // Request enrichment
     include turbohttp.streams.RequestEnricher
-
-    // Feature layers (applied around engine, outermost -> innermost)
     include turbohttp.streams.HandlerBidiStage
     include turbohttp.streams.TracingBidiStage
     include turbohttp.streams.RedirectBidiStage
@@ -69,31 +60,21 @@ views {
     include turbohttp.streams.CacheBidiStage
     include turbohttp.streams.ContentEncodingBidiStage
     include turbohttp.streams.AltSvcBidiStage
-
-    // Engine (version demultiplexer)
     include turbohttp.streams.Engine
-    include turbohttp.streams.Http10Engine
-    include turbohttp.streams.Http11Engine
-    include turbohttp.streams.Http20Engine
-    include turbohttp.streams.Http30Engine
-
-    // Protocol connection stages (unified per version)
-    include turbohttp.streams.Http10ConnectionStage
-    include turbohttp.streams.Http11ConnectionStage
-    include turbohttp.streams.Http20ConnectionStage
-    include turbohttp.streams.Http30ConnectionStage
-
-    // Transport
+    include turbohttp.streams.Http10ClientEngine
+    include turbohttp.streams.Http11ClientEngine
+    include turbohttp.streams.Http20ClientEngine
+    include turbohttp.streams.Http30ClientEngine
+    include turbohttp.streams.Http10ClientConnectionStage
+    include turbohttp.streams.Http11ClientConnectionStage
+    include turbohttp.streams.Http20ClientConnectionStage
+    include turbohttp.streams.Http30ClientConnectionStage
     include servus.TcpConnectionStage
     include servus.TcpConnectionManagerActor
     include servus.QuicConnectionStage
     include servus.QuicConnectionManagerActor
-
-    // Exit point (flow ends here)
     include network
   }
-
-  // ─── Server Views ─────────────────────────────────────────────────
 
   view serverLayer of turbohttp.server {
     title 'Server API'
@@ -112,25 +93,21 @@ views {
 
   view serverPipeline of turbohttp.serverStages {
     title 'Server — Request Pipeline'
-    description 'How an incoming HTTP request flows through the server: wire decode → context creation → middleware → routing → response'
-
+    description 'How an incoming HTTP request flows through the server: ALPN negotiation → wire decode → context creation → middleware → routing → response'
     include turbohttp.server.ConnectionActor
     include turbohttp.server.ProtocolRouter
-
+    include turbohttp.serverStages.NegotiatingServerEngine
     include turbohttp.serverStages.Http10ServerEngine
     include turbohttp.serverStages.Http11ServerEngine
     include turbohttp.serverStages.Http20ServerEngine
     include turbohttp.serverStages.Http30ServerEngine
-
-    include turbohttp.serverStages.ServerHttp10ConnectionStage
-    include turbohttp.serverStages.ServerHttp11ConnectionStage
-    include turbohttp.serverStages.ServerHttp20ConnectionStage
-    include turbohttp.serverStages.ServerHttp30ConnectionStage
-
+    include turbohttp.serverStages.Http10ServerConnectionStage
+    include turbohttp.serverStages.Http11ServerConnectionStage
+    include turbohttp.serverStages.Http20ServerConnectionStage
+    include turbohttp.serverStages.Http30ServerConnectionStage
     include turbohttp.serverStages.HttpContextBidiStage
     include turbohttp.serverStages.MiddlewarePipelineStage
     include turbohttp.serverStages.RoutingStage
-
     include network
   }
 }

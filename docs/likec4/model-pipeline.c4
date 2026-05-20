@@ -2,20 +2,24 @@
 // Extends model.c4 with ordered flow and feedback relationships
 // for both client and server request processing pipelines.
 //
-// PIPELINE STACKING (outermost -> innermost):
+// CLIENT PIPELINE STACKING (outermost -> innermost):
 //   Handler -> Tracing -> Redirect -> Cookie -> Retry -> Expect100 -> Cache -> ContentEncoding -> AltSvc -> Engine
 //
-// REQUEST CHAIN (app -> Network):
+// CLIENT REQUEST CHAIN (app -> Network):
 //   enricher -> handler -> tracing -> redirect -> cookie -> retry -> expect100 -> cache -> contentEncoding
 //   -> altSvc -> engine -> [version engines -> Network]
 //
-// RESPONSE CHAIN (Network -> app):
+// CLIENT RESPONSE CHAIN (Network -> app):
 //   engine -> altSvc -> contentEncoding -> cache -> expect100 -> retry -> cookie -> redirect -> tracing -> handler -> app
 //
-// FEEDBACK LOOPS
+// CLIENT FEEDBACK LOOPS
 //   redirect   --- redirect request -->  cookie (re-enters with cookie injection for new URL)
 //   retry      --- retry request    -->  expect100 (re-enters below cookie, above engine)
 //   cache hit  --- cached response  -->  response chain at retry level (bypasses ContentEncoding + engine)
+//
+// SERVER PIPELINE (per connection, inside ConnectionActor):
+//   Network -> ConnectionStage -> HttpContextBidiStage -> MiddlewarePipelineStage -> RoutingStage
+//   Response flows back through the same stages in reverse.
 
 model {
   // Request chain (outermost -> innermost)
@@ -32,34 +36,34 @@ model {
   turbohttp.streams.AltSvcBidiStage -[flows]-> turbohttp.streams.Engine 'request (version resolved)'
 
   // Engine dispatch
-  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http10Engine 'HTTP/1.0'
-  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http11Engine 'HTTP/1.1'
-  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http20Engine 'HTTP/2'
-  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http30Engine 'HTTP/3'
+  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http10ClientEngine 'HTTP/1.0'
+  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http11ClientEngine 'HTTP/1.1'
+  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http20ClientEngine 'HTTP/2'
+  turbohttp.streams.Engine -[flows]-> turbohttp.streams.Http30ClientEngine 'HTTP/3'
 
   // HTTP/1.0: Engine -> ConnectionStage -> Transport
-  turbohttp.streams.Http10Engine -[flows]-> turbohttp.streams.Http10ConnectionStage 'request'
-  turbohttp.streams.Http10ConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
-  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http10ConnectionStage 'inbound bytes'
-  turbohttp.streams.Http10ConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
+  turbohttp.streams.Http10ClientEngine -[flows]-> turbohttp.streams.Http10ClientConnectionStage 'request'
+  turbohttp.streams.Http10ClientConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
+  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http10ClientConnectionStage 'inbound bytes'
+  turbohttp.streams.Http10ClientConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
 
   // HTTP/1.1: Engine -> ConnectionStage -> Transport
-  turbohttp.streams.Http11Engine -[flows]-> turbohttp.streams.Http11ConnectionStage 'request'
-  turbohttp.streams.Http11ConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
-  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http11ConnectionStage 'inbound bytes'
-  turbohttp.streams.Http11ConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
+  turbohttp.streams.Http11ClientEngine -[flows]-> turbohttp.streams.Http11ClientConnectionStage 'request'
+  turbohttp.streams.Http11ClientConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
+  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http11ClientConnectionStage 'inbound bytes'
+  turbohttp.streams.Http11ClientConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
 
   // HTTP/2: Engine -> ConnectionStage -> Transport
-  turbohttp.streams.Http20Engine -[flows]-> turbohttp.streams.Http20ConnectionStage 'request'
-  turbohttp.streams.Http20ConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
-  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http20ConnectionStage 'inbound bytes'
-  turbohttp.streams.Http20ConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
+  turbohttp.streams.Http20ClientEngine -[flows]-> turbohttp.streams.Http20ClientConnectionStage 'request'
+  turbohttp.streams.Http20ClientConnectionStage -[flows]-> servus.TcpConnectionStage 'outbound bytes'
+  servus.TcpConnectionStage -[flows]-> turbohttp.streams.Http20ClientConnectionStage 'inbound bytes'
+  turbohttp.streams.Http20ClientConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
 
   // HTTP/3: Engine -> ConnectionStage -> Transport
-  turbohttp.streams.Http30Engine -[flows]-> turbohttp.streams.Http30ConnectionStage 'request'
-  turbohttp.streams.Http30ConnectionStage -[flows]-> servus.QuicConnectionStage 'outbound bytes'
-  servus.QuicConnectionStage -[flows]-> turbohttp.streams.Http30ConnectionStage 'inbound bytes'
-  turbohttp.streams.Http30ConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
+  turbohttp.streams.Http30ClientEngine -[flows]-> turbohttp.streams.Http30ClientConnectionStage 'request'
+  turbohttp.streams.Http30ClientConnectionStage -[flows]-> servus.QuicConnectionStage 'outbound bytes'
+  servus.QuicConnectionStage -[flows]-> turbohttp.streams.Http30ClientConnectionStage 'inbound bytes'
+  turbohttp.streams.Http30ClientConnectionStage -[flows]-> turbohttp.streams.ContentEncodingBidiStage 'response'
 
   // Transport -> Network
   servus.TcpConnectionStage -[flows]-> servus.TcpConnectionManagerActor 'connection lease'
@@ -93,17 +97,17 @@ model {
 
   // ─── Server: Inbound — Network → ConnectionStage (wire decode) ────
 
-  network -[flows]-> turbohttp.serverStages.ServerHttp10ConnectionStage 'inbound bytes'
-  network -[flows]-> turbohttp.serverStages.ServerHttp11ConnectionStage 'inbound bytes'
-  network -[flows]-> turbohttp.serverStages.ServerHttp20ConnectionStage 'inbound bytes'
-  network -[flows]-> turbohttp.serverStages.ServerHttp30ConnectionStage 'inbound bytes'
+  network -[flows]-> turbohttp.serverStages.Http10ServerConnectionStage 'inbound bytes'
+  network -[flows]-> turbohttp.serverStages.Http11ServerConnectionStage 'inbound bytes'
+  network -[flows]-> turbohttp.serverStages.Http20ServerConnectionStage 'inbound bytes'
+  network -[flows]-> turbohttp.serverStages.Http30ServerConnectionStage 'inbound bytes'
 
   // ─── Server: ConnectionStage → HttpContextBidiStage (decoded request)
 
-  turbohttp.serverStages.ServerHttp10ConnectionStage -[flows]-> turbohttp.serverStages.HttpContextBidiStage 'decoded request'
-  turbohttp.serverStages.ServerHttp11ConnectionStage -[flows]-> turbohttp.serverStages.HttpContextBidiStage 'decoded request'
-  turbohttp.serverStages.ServerHttp20ConnectionStage -[flows]-> turbohttp.serverStages.HttpContextBidiStage 'decoded request'
-  turbohttp.serverStages.ServerHttp30ConnectionStage -[flows]-> turbohttp.serverStages.HttpContextBidiStage 'decoded request'
+  turbohttp.serverStages.Http10ServerConnectionStage -[flows]-> turbohttp.serverStages.HttpContextBidiStage 'decoded request'
+  turbohttp.serverStages.Http11ServerConnectionStage -[flows]-> turbohttp.serverStages.HttpContextBidiStage 'decoded request'
+  turbohttp.serverStages.Http20ServerConnectionStage -[flows]-> turbohttp.serverStages.HttpContextBidiStage 'decoded request'
+  turbohttp.serverStages.Http30ServerConnectionStage -[flows]-> turbohttp.serverStages.HttpContextBidiStage 'decoded request'
 
   // ─── Server: Request chain — HttpContext → Middleware → Routing ────
 
@@ -115,15 +119,15 @@ model {
   turbohttp.serverStages.RoutingStage -[flows]-> turbohttp.serverStages.MiddlewarePipelineStage 'response'
   turbohttp.serverStages.MiddlewarePipelineStage -[flows]-> turbohttp.serverStages.HttpContextBidiStage 'response (after middleware)'
 
-  turbohttp.serverStages.HttpContextBidiStage -[flows]-> turbohttp.serverStages.ServerHttp10ConnectionStage 'response'
-  turbohttp.serverStages.HttpContextBidiStage -[flows]-> turbohttp.serverStages.ServerHttp11ConnectionStage 'response'
-  turbohttp.serverStages.HttpContextBidiStage -[flows]-> turbohttp.serverStages.ServerHttp20ConnectionStage 'response'
-  turbohttp.serverStages.HttpContextBidiStage -[flows]-> turbohttp.serverStages.ServerHttp30ConnectionStage 'response'
+  turbohttp.serverStages.HttpContextBidiStage -[flows]-> turbohttp.serverStages.Http10ServerConnectionStage 'response'
+  turbohttp.serverStages.HttpContextBidiStage -[flows]-> turbohttp.serverStages.Http11ServerConnectionStage 'response'
+  turbohttp.serverStages.HttpContextBidiStage -[flows]-> turbohttp.serverStages.Http20ServerConnectionStage 'response'
+  turbohttp.serverStages.HttpContextBidiStage -[flows]-> turbohttp.serverStages.Http30ServerConnectionStage 'response'
 
   // ─── Server: Outbound — ConnectionStage → Network (wire encode) ───
 
-  turbohttp.serverStages.ServerHttp10ConnectionStage -[flows]-> network 'outbound bytes'
-  turbohttp.serverStages.ServerHttp11ConnectionStage -[flows]-> network 'outbound bytes'
-  turbohttp.serverStages.ServerHttp20ConnectionStage -[flows]-> network 'outbound bytes'
-  turbohttp.serverStages.ServerHttp30ConnectionStage -[flows]-> network 'outbound bytes'
+  turbohttp.serverStages.Http10ServerConnectionStage -[flows]-> network 'outbound bytes'
+  turbohttp.serverStages.Http11ServerConnectionStage -[flows]-> network 'outbound bytes'
+  turbohttp.serverStages.Http20ServerConnectionStage -[flows]-> network 'outbound bytes'
+  turbohttp.serverStages.Http30ServerConnectionStage -[flows]-> network 'outbound bytes'
 }

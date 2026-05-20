@@ -59,7 +59,7 @@ If the cache entry is stale but has an `ETag` or `Last-Modified` validator, `Cac
 
 ### 2. Keep-Alive Feedback (HTTP/1.1 only)
 
-After each HTTP/1.1 response, `Http11ConnectionStage` evaluates the `Connection` header internally and decides whether to reuse the TCP connection for the next request or close it and request a new one from the connection manager actor.
+After each HTTP/1.1 response, `Http11ClientConnectionStage` evaluates the `Connection` header internally and decides whether to reuse the TCP connection for the next request or close it and request a new one from the connection manager actor.
 
 This loop is invisible to the caller — the `Engine` and higher layers see only a continuous stream of `HttpResponseMessage` objects.
 
@@ -73,7 +73,7 @@ When `RetryBidiStage` decides a request should be retried, it re-enters the pipe
 
 ### 5. QPACK Table Sync (HTTP/3 only)
 
-HTTP/3 uses QPACK for header compression. The server sends decoder table updates on a dedicated QUIC stream; `Http30ConnectionStage` processes these updates internally to keep the encoder and decoder dynamic tables in sync.
+HTTP/3 uses QPACK for header compression. The server sends decoder table updates on a dedicated QUIC stream; `Http30ClientConnectionStage` processes these updates internally to keep the encoder and decoder dynamic tables in sync.
 
 ---
 

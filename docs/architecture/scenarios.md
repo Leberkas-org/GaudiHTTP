@@ -18,14 +18,14 @@ Here's what happens when you send a request with different HTTP versions. The de
 4. `RedirectBidiStage` and `CookieBidiStage` inject matching cookies from `CookieJar`.
 5. `CacheBidiStage` checks the cache — on a miss, the request continues.
 6. `ContentEncodingBidiStage` compresses the request body if a compression policy is configured.
-7. `Engine` routes the request to `Http10Engine`.
-8. `Http10ConnectionStage` serialises the request to bytes with `Connection: close`.
+7. `Engine` routes the request to `Http10ClientEngine`.
+8. `Http10ClientConnectionStage` serialises the request to bytes with `Connection: close`.
 9. `TcpConnectionStage` (from Servus.Akka) requests a connection lease from `TcpConnectionManagerActor` and sends the bytes over TCP.
 
 ### Response Path
 
-10. The server's response bytes arrive via TCP and flow through `TcpConnectionStage` into `Http10ConnectionStage`.
-11. `Http10ConnectionStage` parses the HTTP/1.0 response (body length determined by `Content-Length` or EOF) and correlates it to the pending request.
+10. The server's response bytes arrive via TCP and flow through `TcpConnectionStage` into `Http10ClientConnectionStage`.
+11. `Http10ClientConnectionStage` parses the HTTP/1.0 response (body length determined by `Content-Length` or EOF) and correlates it to the pending request.
 12. `ContentEncodingBidiStage` decompresses the body if needed.
 13. `CacheBidiStage` caches the response if it is cacheable.
 14. `RetryBidiStage` passes the response through (no retry needed for a successful response).
@@ -50,7 +50,7 @@ HTTP/1.1 follows the same request/response path as HTTP/1.0 except for one criti
 
 ### Keep-Alive Handling
 
-After `Http11ConnectionStage` decodes the response and correlates it to the pending request, it evaluates the `Connection` header internally:
+After `Http11ClientConnectionStage` decodes the response and correlates it to the pending request, it evaluates the `Connection` header internally:
 
 - `Connection: keep-alive` (or HTTP/1.1 default) → the connection lease is returned to `TcpConnectionManagerActor` for reuse
 - `Connection: close` → the lease is released without returning it to the idle queue; the next request triggers a new connection
@@ -59,7 +59,7 @@ On **reuse**, the next request to the same host can skip connection setup entire
 
 ### Pipelining
 
-`Http11ConnectionStage` uses a FIFO queue internally to correlate requests with responses, enabling HTTP/1.1 pipelining: multiple requests can be in-flight on the same connection simultaneously, and responses are matched to requests in order.
+`Http11ClientConnectionStage` uses a FIFO queue internally to correlate requests with responses, enabling HTTP/1.1 pipelining: multiple requests can be in-flight on the same connection simultaneously, and responses are matched to requests in order.
 
 ---
 
@@ -73,13 +73,13 @@ HTTP/2 is fundamentally different from HTTP/1.x. A single TCP connection carries
 
 ### Request Framing
 
-1. `Http20ConnectionStage` assigns the next available stream ID (1, 3, 5, …), HPACK-encodes the request headers into a `HEADERS` frame, and serialises the body (if any) into `DATA` frame(s).
-2. `Http20ConnectionStage` applies connection-level and stream-level flow control — it will withhold frames if the server's receive window is exhausted.
+1. `Http20ClientConnectionStage` assigns the next available stream ID (1, 3, 5, …), HPACK-encodes the request headers into a `HEADERS` frame, and serialises the body (if any) into `DATA` frame(s).
+2. `Http20ClientConnectionStage` applies connection-level and stream-level flow control — it will withhold frames if the server's receive window is exhausted.
 3. `TcpConnectionStage` (from Servus.Akka) sends the frames over TCP (injecting the HTTP/2 connection preface on the first connection).
 
 ### Connection-Level Frames
 
-While request/response streams are active, `Http20ConnectionStage` also handles:
+While request/response streams are active, `Http20ClientConnectionStage` also handles:
 
 - **`SETTINGS`** — initial and updated connection parameters; acknowledges server `SETTINGS` with `SETTINGS ACK`
 - **`PING`** — round-trip latency measurement; responds to server `PING` with `PING ACK`
@@ -88,8 +88,8 @@ While request/response streams are active, `Http20ConnectionStage` also handles:
 
 ### Response Assembly
 
-4. Raw bytes from TCP flow through `TcpConnectionStage` into `Http20ConnectionStage`.
-5. `Http20ConnectionStage` parses the bytes into HTTP/2 frames (handling partial frames across TCP boundaries), routes connection-level frames to internal handlers, assembles per-stream `HEADERS` + `DATA` frames into an `HttpResponseMessage`, HPACK-decodes response headers, and correlates each assembled response back to its pending request using the stream ID.
+4. Raw bytes from TCP flow through `TcpConnectionStage` into `Http20ClientConnectionStage`.
+5. `Http20ClientConnectionStage` parses the bytes into HTTP/2 frames (handling partial frames across TCP boundaries), routes connection-level frames to internal handlers, assembles per-stream `HEADERS` + `DATA` frames into an `HttpResponseMessage`, HPACK-decodes response headers, and correlates each assembled response back to its pending request using the stream ID.
 6. The response continues through `ContentEncodingBidiStage`, `CacheBidiStage`, `RetryBidiStage`, `CookieBidiStage`, and `RedirectBidiStage` — the same response chain as HTTP/1.x.
 
 ### Stream ID Exhaustion
@@ -108,21 +108,21 @@ HTTP/3 replaces TCP with **QUIC**, a UDP-based transport that provides built-in 
 
 ### Request Framing
 
-1. `Http30ConnectionStage` QPACK-encodes the request headers into a `HEADERS` frame, and the body (if any) into `DATA` frame(s).
-2. `Http30ConnectionStage` manages connection-level concerns — `SETTINGS`, `GOAWAY`, and stream lifecycle.
+1. `Http30ClientConnectionStage` QPACK-encodes the request headers into a `HEADERS` frame, and the body (if any) into `DATA` frame(s).
+2. `Http30ClientConnectionStage` manages connection-level concerns — `SETTINGS`, `GOAWAY`, and stream lifecycle.
 3. `QuicConnectionStage` (from Servus.Akka) requests a QUIC connection from `QuicConnectionManagerActor` and sends the bytes over the network.
 
 ### Connection-Level Frames
 
-While request/response streams are active, `Http30ConnectionStage` handles:
+While request/response streams are active, `Http30ClientConnectionStage` handles:
 
 - **`SETTINGS`** — connection parameters exchanged at startup
 - **`GOAWAY`** — graceful shutdown; after receiving `GOAWAY`, no new streams are opened on this connection
 
 ### Response Assembly
 
-4. Raw bytes from QUIC flow through `QuicConnectionStage` into `Http30ConnectionStage`.
-5. `Http30ConnectionStage` parses the bytes into HTTP/3 frames, routes connection-level frames to internal handlers, assembles per-stream `HEADERS` + `DATA` frames into an `HttpResponseMessage`, and QPACK-decodes response headers.
+4. Raw bytes from QUIC flow through `QuicConnectionStage` into `Http30ClientConnectionStage`.
+5. `Http30ClientConnectionStage` parses the bytes into HTTP/3 frames, routes connection-level frames to internal handlers, assembles per-stream `HEADERS` + `DATA` frames into an `HttpResponseMessage`, and QPACK-decodes response headers.
 6. The response continues through `ContentEncodingBidiStage`, `CacheBidiStage`, `RetryBidiStage`, `CookieBidiStage`, and `RedirectBidiStage` — the same response chain as HTTP/1.x and HTTP/2.
 
 ### Key Differences from HTTP/2

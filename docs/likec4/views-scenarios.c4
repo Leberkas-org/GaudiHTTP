@@ -17,9 +17,9 @@ views {
     turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'request (cookies injected)'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.ContentEncodingBidiStage 'request (cache miss)'
     turbohttp.streams.ContentEncodingBidiStage -> turbohttp.streams.Engine 'request (body compressed)'
-    turbohttp.streams.Engine -> turbohttp.streams.Http10Engine 'HTTP/1.0'
-    turbohttp.streams.Http10Engine -> turbohttp.streams.Http10ConnectionStage 'request'
-    turbohttp.streams.Http10ConnectionStage -> servus.TcpConnectionStage 'outbound bytes'
+    turbohttp.streams.Engine -> turbohttp.streams.Http10ClientEngine 'HTTP/1.0'
+    turbohttp.streams.Http10ClientEngine -> turbohttp.streams.Http10ClientConnectionStage 'request'
+    turbohttp.streams.Http10ClientConnectionStage -> servus.TcpConnectionStage 'outbound bytes'
 
     servus.TcpConnectionStage -> servus.TcpConnectionManagerActor 'connection lease'
     servus.TcpConnectionManagerActor -> servus.TcpConnectionStage 'connection ready'
@@ -27,8 +27,8 @@ views {
     servus.TcpConnectionStage -> network 'TCP/TLS bytes'
     network -> servus.TcpConnectionStage 'TCP/TLS bytes'
 
-    servus.TcpConnectionStage -> turbohttp.streams.Http10ConnectionStage 'inbound bytes'
-    turbohttp.streams.Http10ConnectionStage -> turbohttp.streams.ContentEncodingBidiStage 'response'
+    servus.TcpConnectionStage -> turbohttp.streams.Http10ClientConnectionStage 'inbound bytes'
+    turbohttp.streams.Http10ClientConnectionStage -> turbohttp.streams.ContentEncodingBidiStage 'response'
     turbohttp.streams.ContentEncodingBidiStage -> turbohttp.streams.CacheBidiStage 'response (decompressed)'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'response (stored if cacheable)'
     turbohttp.streams.RetryBidiStage -> turbohttp.streams.CookieBidiStage 'response'
@@ -41,7 +41,7 @@ views {
 
   dynamic view scenarioHttp11 {
     title 'Scenario: HTTP/1.1 Request End-to-End'
-    description 'HTTP/1.1 with persistent connections. The unified Http11ConnectionStage handles encoding, decoding, correlation, and keep-alive evaluation internally.'
+    description 'HTTP/1.1 with persistent connections. The unified Http11ClientConnectionStage handles encoding, decoding, correlation, and keep-alive evaluation internally.'
 
     app -> turbohttp.client.ITurboHttpClient 'request'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricher 'request'
@@ -52,9 +52,9 @@ views {
     turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'request (cookies injected)'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.ContentEncodingBidiStage 'request (cache miss)'
     turbohttp.streams.ContentEncodingBidiStage -> turbohttp.streams.Engine 'request (body compressed)'
-    turbohttp.streams.Engine -> turbohttp.streams.Http11Engine 'HTTP/1.1'
-    turbohttp.streams.Http11Engine -> turbohttp.streams.Http11ConnectionStage 'request'
-    turbohttp.streams.Http11ConnectionStage -> servus.TcpConnectionStage 'outbound bytes'
+    turbohttp.streams.Engine -> turbohttp.streams.Http11ClientEngine 'HTTP/1.1'
+    turbohttp.streams.Http11ClientEngine -> turbohttp.streams.Http11ClientConnectionStage 'request'
+    turbohttp.streams.Http11ClientConnectionStage -> servus.TcpConnectionStage 'outbound bytes'
 
     servus.TcpConnectionStage -> servus.TcpConnectionManagerActor 'connection lease'
     servus.TcpConnectionManagerActor -> servus.TcpConnectionStage 'connection ready'
@@ -62,8 +62,8 @@ views {
     servus.TcpConnectionStage -> network 'TCP/TLS bytes'
     network -> servus.TcpConnectionStage 'TCP/TLS bytes'
 
-    servus.TcpConnectionStage -> turbohttp.streams.Http11ConnectionStage 'inbound bytes'
-    turbohttp.streams.Http11ConnectionStage -> turbohttp.streams.ContentEncodingBidiStage 'response'
+    servus.TcpConnectionStage -> turbohttp.streams.Http11ClientConnectionStage 'inbound bytes'
+    turbohttp.streams.Http11ClientConnectionStage -> turbohttp.streams.ContentEncodingBidiStage 'response'
     turbohttp.streams.ContentEncodingBidiStage -> turbohttp.streams.CacheBidiStage 'response (decompressed)'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'response (stored if cacheable)'
     turbohttp.streams.RetryBidiStage -> turbohttp.streams.CookieBidiStage 'response'
@@ -76,7 +76,7 @@ views {
 
   dynamic view scenarioHttp2 {
     title 'Scenario: HTTP/2 Request End-to-End'
-    description 'Multiplexed HTTP/2 over a single TCP connection. The unified Http20ConnectionStage handles stream IDs, HPACK compression, frame encoding/decoding, flow control, and response assembly internally.'
+    description 'Multiplexed HTTP/2 over a single TCP connection. The unified Http20ClientConnectionStage handles stream IDs, HPACK compression, frame encoding/decoding, flow control, and response assembly internally.'
 
     app -> turbohttp.client.ITurboHttpClient 'request'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricher 'request'
@@ -87,9 +87,9 @@ views {
     turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'request (cookies injected)'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.ContentEncodingBidiStage 'request (cache miss)'
     turbohttp.streams.ContentEncodingBidiStage -> turbohttp.streams.Engine 'request (body compressed)'
-    turbohttp.streams.Engine -> turbohttp.streams.Http20Engine 'HTTP/2'
-    turbohttp.streams.Http20Engine -> turbohttp.streams.Http20ConnectionStage 'request'
-    turbohttp.streams.Http20ConnectionStage -> servus.TcpConnectionStage 'outbound bytes'
+    turbohttp.streams.Engine -> turbohttp.streams.Http20ClientEngine 'HTTP/2'
+    turbohttp.streams.Http20ClientEngine -> turbohttp.streams.Http20ClientConnectionStage 'request'
+    turbohttp.streams.Http20ClientConnectionStage -> servus.TcpConnectionStage 'outbound bytes'
 
     servus.TcpConnectionStage -> servus.TcpConnectionManagerActor 'connection lease'
     servus.TcpConnectionManagerActor -> servus.TcpConnectionStage 'connection ready'
@@ -97,8 +97,8 @@ views {
     servus.TcpConnectionStage -> network 'TCP/TLS bytes'
     network -> servus.TcpConnectionStage 'TCP/TLS bytes'
 
-    servus.TcpConnectionStage -> turbohttp.streams.Http20ConnectionStage 'inbound bytes'
-    turbohttp.streams.Http20ConnectionStage -> turbohttp.streams.ContentEncodingBidiStage 'response'
+    servus.TcpConnectionStage -> turbohttp.streams.Http20ClientConnectionStage 'inbound bytes'
+    turbohttp.streams.Http20ClientConnectionStage -> turbohttp.streams.ContentEncodingBidiStage 'response'
     turbohttp.streams.ContentEncodingBidiStage -> turbohttp.streams.CacheBidiStage 'response (decompressed)'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'response (stored if cacheable)'
     turbohttp.streams.RetryBidiStage -> turbohttp.streams.CookieBidiStage 'response'
@@ -111,7 +111,7 @@ views {
 
   dynamic view scenarioHttp3 {
     title 'Scenario: HTTP/3 Request End-to-End'
-    description 'HTTP/3 over QUIC with QPACK header compression. The unified Http30ConnectionStage handles QPACK encoding/decoding, frame encoding/decoding, stream multiplexing, and response assembly internally.'
+    description 'HTTP/3 over QUIC with QPACK header compression. The unified Http30ClientConnectionStage handles QPACK encoding/decoding, frame encoding/decoding, stream multiplexing, and response assembly internally.'
 
     app -> turbohttp.client.ITurboHttpClient 'request'
     turbohttp.client.ITurboHttpClient -> turbohttp.streams.RequestEnricher 'request'
@@ -122,9 +122,9 @@ views {
     turbohttp.streams.CookieBidiStage -> turbohttp.streams.CacheBidiStage 'request (cookies injected)'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.ContentEncodingBidiStage 'request (cache miss)'
     turbohttp.streams.ContentEncodingBidiStage -> turbohttp.streams.Engine 'request (body compressed)'
-    turbohttp.streams.Engine -> turbohttp.streams.Http30Engine 'HTTP/3'
-    turbohttp.streams.Http30Engine -> turbohttp.streams.Http30ConnectionStage 'request'
-    turbohttp.streams.Http30ConnectionStage -> servus.QuicConnectionStage 'outbound bytes'
+    turbohttp.streams.Engine -> turbohttp.streams.Http30ClientEngine 'HTTP/3'
+    turbohttp.streams.Http30ClientEngine -> turbohttp.streams.Http30ClientConnectionStage 'request'
+    turbohttp.streams.Http30ClientConnectionStage -> servus.QuicConnectionStage 'outbound bytes'
 
     servus.QuicConnectionStage -> servus.QuicConnectionManagerActor 'connection lease'
     servus.QuicConnectionManagerActor -> servus.QuicConnectionStage 'connection ready'
@@ -132,8 +132,8 @@ views {
     servus.QuicConnectionStage -> network 'QUIC bytes'
     network -> servus.QuicConnectionStage 'QUIC bytes'
 
-    servus.QuicConnectionStage -> turbohttp.streams.Http30ConnectionStage 'inbound bytes'
-    turbohttp.streams.Http30ConnectionStage -> turbohttp.streams.ContentEncodingBidiStage 'response'
+    servus.QuicConnectionStage -> turbohttp.streams.Http30ClientConnectionStage 'inbound bytes'
+    turbohttp.streams.Http30ClientConnectionStage -> turbohttp.streams.ContentEncodingBidiStage 'response'
     turbohttp.streams.ContentEncodingBidiStage -> turbohttp.streams.CacheBidiStage 'response (decompressed)'
     turbohttp.streams.CacheBidiStage -> turbohttp.streams.RetryBidiStage 'response (stored if cacheable)'
     turbohttp.streams.RetryBidiStage -> turbohttp.streams.CookieBidiStage 'response'

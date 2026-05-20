@@ -71,7 +71,7 @@ Each stage does one thing well. Most of the time you don't think about them — 
 - **ITurboHttpClient** — the public API: `SendAsync()` for single requests, `Requests`/`Responses` channels for high-throughput streaming
 - **TurboHttpClient** — concrete implementation that wraps the Akka.Streams pipeline
 - **ClientStreamManager** — materialises the full pipeline graph from the configured stages
-- **ClientStreamOwner** — owns the materialised stream lifecycle: starts, monitors, and restarts the pipeline on failure
+- **StreamOwner** — owns the materialised stream lifecycle: starts, monitors, and restarts the pipeline on failure
 
 ### Key Characteristics
 

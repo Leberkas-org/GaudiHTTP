@@ -1,12 +1,12 @@
 # Server Protocol Engines
 
-Each server engine is responsible for decoding incoming request bytes and encoding response bytes for a specific HTTP version. The `ProtocolRouter` selects the appropriate engine based on ALPN negotiation (TLS) or auto-detection (plaintext).
+Each server engine is responsible for decoding incoming request bytes and encoding response bytes for a specific HTTP version. The `NegotiatingServerEngine` selects the appropriate version-specific engine using `ProtocolRouter`, based on ALPN negotiation (TLS) or auto-detection (plaintext).
 
 ---
 
-## Protocol Router
+## Protocol Negotiation
 
-When a connection arrives, `ProtocolRouter` inspects the initial bytes to select the correct engine:
+When a connection arrives, `NegotiatingServerEngine` delegates to `ProtocolRouter` to inspect the connection and select the correct engine:
 
 | Protocol | Detection Method                                          | Server Engine                |
 | -------- | --------------------------------------------------------- | ---------------------------- |

@@ -15,13 +15,13 @@ HTTP/1.0 uses a **close-then-respond** model. Each connection handles exactly on
 **Internal composition:**
 
 ```
-HttpRequestMessage → Http10ConnectionStage → [TcpConnectionStage] → TCP
-TCP → [TcpConnectionStage] → Http10ConnectionStage → HttpResponseMessage
+HttpRequestMessage → Http10ClientConnectionStage → [TcpConnectionStage] → TCP
+TCP → [TcpConnectionStage] → Http10ClientConnectionStage → HttpResponseMessage
 ```
 
 | Component               | Role                                                                                                                                                      |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http10ConnectionStage` | Unified stage: serialises request to wire bytes (sets `Connection: close`), parses the HTTP/1.0 response, and correlates request/response (FIFO, depth 1) |
+| `Http10ClientConnectionStage` | Unified stage: serialises request to wire bytes (sets `Connection: close`), parses the HTTP/1.0 response, and correlates request/response (FIFO, depth 1) |
 | `TcpConnectionStage`    | TCP transport (from Servus.Akka) — acquires a connection lease from the manager actor, reads/writes bytes                                                 |
 
 **Notable behaviours:**
@@ -43,25 +43,25 @@ HTTP/1.1 adds **persistent connections** and **keep-alive control**. The unified
 **Internal composition:**
 
 ```
-HttpRequestMessage → Http11ConnectionStage → [TcpConnectionStage] → TCP
-TCP → [TcpConnectionStage] → Http11ConnectionStage → HttpResponseMessage
+HttpRequestMessage → Http11ClientConnectionStage → [TcpConnectionStage] → TCP
+TCP → [TcpConnectionStage] → Http11ClientConnectionStage → HttpResponseMessage
 ```
 
 | Component               | Role                                                                                                                                                                                                                            |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http11ConnectionStage` | Unified stage: serialises request (adds `Host`, `Connection`, `Transfer-Encoding: chunked` as needed), parses HTTP/1.1 responses (handles chunked decoding), correlates request/response (FIFO, depth > 1 enables pipelining), and evaluates keep-alive signals |
+| `Http11ClientConnectionStage` | Unified stage: serialises request (adds `Host`, `Connection`, `Transfer-Encoding: chunked` as needed), parses HTTP/1.1 responses (handles chunked decoding), correlates request/response (FIFO, depth > 1 enables pipelining), and evaluates keep-alive signals |
 | `TcpConnectionStage`    | TCP transport with connection reuse (from Servus.Akka) — returns leases to the pool on keep-alive, requests new connections on close                                                                                                 |
 
 **Keep-alive handling:**
 
-After decoding each response, `Http11ConnectionStage` evaluates the `Connection` header internally:
+After decoding each response, `Http11ClientConnectionStage` evaluates the `Connection` header internally:
 
 - `Connection: keep-alive` (or HTTP/1.1 default) → the connection lease is returned to the connection manager actor for reuse
 - `Connection: close` → the lease is released without returning it to the idle queue; the next request triggers a new connection
 
 **Pipelining:**
 
-`Http11ConnectionStage` uses a FIFO queue internally to correlate requests with responses, enabling HTTP/1.1 pipelining: multiple requests can be in-flight on the same connection, and responses are matched to requests in order.
+`Http11ClientConnectionStage` uses a FIFO queue internally to correlate requests with responses, enabling HTTP/1.1 pipelining: multiple requests can be in-flight on the same connection, and responses are matched to requests in order.
 
 ---
 
@@ -76,13 +76,13 @@ HTTP/2 provides **stream multiplexing** — many logical requests share a single
 **Internal composition:**
 
 ```
-HttpRequestMessage → Http20ConnectionStage → [TcpConnectionStage] → TCP
-TCP → [TcpConnectionStage] → Http20ConnectionStage → HttpResponseMessage
+HttpRequestMessage → Http20ClientConnectionStage → [TcpConnectionStage] → TCP
+TCP → [TcpConnectionStage] → Http20ClientConnectionStage → HttpResponseMessage
 ```
 
 | Component               | Role                                                                                                                                                                                                                                                                                                                                                                                                |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http20ConnectionStage` | Central unified stage: allocates client stream IDs (1, 3, 5, …), HPACK-encodes request headers and emits `HEADERS` + `DATA` frames, handles frame encoding/decoding (9-byte frame header + payload), manages connection-level frames (`SETTINGS`, `PING`, `WINDOW_UPDATE`, `GOAWAY`), tracks connection and stream-level flow control windows, assembles per-stream `HEADERS` + `DATA` frames into `HttpResponseMessage`, and correlates responses by stream ID |
+| `Http20ClientConnectionStage` | Central unified stage: allocates client stream IDs (1, 3, 5, …), HPACK-encodes request headers and emits `HEADERS` + `DATA` frames, handles frame encoding/decoding (9-byte frame header + payload), manages connection-level frames (`SETTINGS`, `PING`, `WINDOW_UPDATE`, `GOAWAY`), tracks connection and stream-level flow control windows, assembles per-stream `HEADERS` + `DATA` frames into `HttpResponseMessage`, and correlates responses by stream ID |
 | `TcpConnectionStage`    | TCP transport (from Servus.Akka) — emits the HTTP/2 connection preface on first connect                                                                                                                                                                                                                                                                                                             |
 
 **HPACK header compression:**
@@ -91,7 +91,7 @@ TCP → [TcpConnectionStage] → Http20ConnectionStage → HttpResponseMessage
 
 **Flow control:**
 
-`Http20ConnectionStage` tracks both **connection-level** and **stream-level** window sizes. It emits `WINDOW_UPDATE` frames when the consumer reads data, preventing the remote server from stalling. The Akka.Streams backpressure demand signal is translated into HTTP/2 flow-control credits.
+`Http20ClientConnectionStage` tracks both **connection-level** and **stream-level** window sizes. It emits `WINDOW_UPDATE` frames when the consumer reads data, preventing the remote server from stalling. The Akka.Streams backpressure demand signal is translated into HTTP/2 flow-control credits.
 
 ---
 
@@ -106,13 +106,13 @@ HTTP/3 runs over **QUIC** instead of TCP. Each request uses an independent QUIC 
 **Internal composition:**
 
 ```
-HttpRequestMessage → Http30ConnectionStage → [QuicConnectionStage] → QUIC
-QUIC → [QuicConnectionStage] → Http30ConnectionStage → HttpResponseMessage
+HttpRequestMessage → Http30ClientConnectionStage → [QuicConnectionStage] → QUIC
+QUIC → [QuicConnectionStage] → Http30ClientConnectionStage → HttpResponseMessage
 ```
 
 | Component               | Role                                                                                                                                                                                                                                                                                                                          |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http30ConnectionStage` | Central unified stage: QPACK-encodes request headers, emits `HEADERS` + `DATA` frames over QUIC streams, handles frame encoding/decoding using QUIC variable-length encoding, manages connection-level frames (`SETTINGS`, `GOAWAY`), handles stream multiplexing and lifecycle, assembles per-stream frames into `HttpResponseMessage`, and QPACK-decodes response headers |
+| `Http30ClientConnectionStage` | Central unified stage: QPACK-encodes request headers, emits `HEADERS` + `DATA` frames over QUIC streams, handles frame encoding/decoding using QUIC variable-length encoding, manages connection-level frames (`SETTINGS`, `GOAWAY`), handles stream multiplexing and lifecycle, assembles per-stream frames into `HttpResponseMessage`, and QPACK-decodes response headers |
 | `QuicConnectionStage`   | QUIC transport (from Servus.Akka) — acquires a QUIC connection from the manager actor, writes/reads bytes over QUIC streams                                                                                                                                   |
 
 **QPACK header compression:**
@@ -136,7 +136,7 @@ When a connection arrives at TurboHTTP Server, the server mirrors the client arc
 | `Http20ServerEngine`    | HTTP/2   | Stream multiplexing over a single connection; uses HPACK header compression; flow-control windows at connection and stream level |
 | `Http30ServerEngine`    | HTTP/3   | QUIC-based multiplexing with per-stream flow control; uses QPACK header compression; eliminates head-of-line blocking          |
 
-Each server engine implements `IServerProtocolEngine` and registers itself with the `ProtocolRouter`. When a connection arrives, the router detects the protocol from the initial bytes (HTTP/1.x format, HTTP/2 preface `PRI * HTTP/2.0`, or QUIC Initial packet) and routes the connection to the appropriate engine's state machine for the duration of that connection.
+Each server engine implements `IServerProtocolEngine`. When a connection arrives, the `NegotiatingServerEngine` delegates to `ProtocolRouter` to detect the protocol from ALPN negotiation (TLS) or the initial bytes (HTTP/1.x format, HTTP/2 preface `PRI * HTTP/2.0`, or QUIC Initial packet) and routes the connection to the appropriate version-specific engine for the duration of that connection.
 
 ## Related Guides
 
