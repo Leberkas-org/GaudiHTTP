@@ -8,7 +8,7 @@ public sealed class TurboEntityAskBuilder
     internal EntityResponseMapperCollection Mappers { get; } = new();
     internal TimeSpan? TimeoutOverride { get; private set; }
 
-    public TurboEntityAskBuilder Response<TResponse>(Func<TurboHttpContext, TResponse, Task> handler)
+    public TurboEntityAskBuilder Handle<TResponse>(Func<TurboHttpContext, TResponse, Task> handler)
     {
         Mappers.Add(handler);
         return this;

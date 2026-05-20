@@ -518,8 +518,8 @@ namespace TurboHTTP.Server
     public sealed class TurboEntityAskBuilder
     {
         public TurboEntityAskBuilder() { }
+        public TurboHTTP.Server.TurboEntityAskBuilder Handle<TResponse>(System.Func<TurboHTTP.Server.TurboHttpContext, TResponse, System.Threading.Tasks.Task> handler) { }
         public TurboHTTP.Server.TurboEntityAskBuilder Produces<TResponse>(System.Func<TurboHTTP.Server.TurboHttpContext, TResponse, Microsoft.AspNetCore.Http.IResult> handler) { }
-        public TurboHTTP.Server.TurboEntityAskBuilder Response<TResponse>(System.Func<TurboHTTP.Server.TurboHttpContext, TResponse, System.Threading.Tasks.Task> handler) { }
         public TurboHTTP.Server.TurboEntityAskBuilder WithTimeout(System.TimeSpan timeout) { }
     }
     public sealed class TurboEntityBuilder
@@ -548,9 +548,10 @@ namespace TurboHTTP.Server
     public sealed class TurboEntityTellBuilder
     {
         public TurboEntityTellBuilder() { }
+        public void Handle(System.Func<TurboHTTP.Server.TurboHttpContext, System.Threading.Tasks.Task> writer) { }
         public void Produces(System.Func<TurboHTTP.Server.TurboHttpContext, Microsoft.AspNetCore.Http.IResult> factory) { }
-        public void Response(int statusCode) { }
-        public void Response(int statusCode, System.Func<TurboHTTP.Server.TurboHttpContext, System.Threading.Tasks.Task> writer) { }
+        public void Produces(System.Net.HttpStatusCode statusCode) { }
+        public void Produces(int statusCode) { }
     }
     public sealed class TurboHttpContext : Microsoft.AspNetCore.Http.HttpContext
     {

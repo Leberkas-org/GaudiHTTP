@@ -53,10 +53,11 @@ public sealed class TurboEntityMethodBuilder
         return this;
     }
 
-    internal EntityMethodConfig ToConfig() => new(
-        MessageFactory,
-        _isTell,
-        _timeoutOverride,
-        _endpointMappers,
-        _tellResponseHandler);
+    internal EntityMethodConfig ToConfig()
+        => new(
+            MessageFactory,
+            _isTell,
+            _timeoutOverride,
+            _endpointMappers,
+            _tellResponseHandler);
 }

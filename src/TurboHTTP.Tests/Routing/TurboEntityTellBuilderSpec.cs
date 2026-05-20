@@ -26,7 +26,7 @@ public sealed class TurboEntityTellBuilderSpec
     public async Task Response_with_status_code_should_set_status()
     {
         var builder = new TurboEntityTellBuilder();
-        builder.Response(204);
+        builder.Produces(204);
 
         var ctx = TestContextFactory.Create(cancellationToken: TestContext.Current.CancellationToken);
         await builder.ResponseHandler!(ctx);
@@ -39,8 +39,9 @@ public sealed class TurboEntityTellBuilderSpec
     {
         var writerCalled = false;
         var builder = new TurboEntityTellBuilder();
-        builder.Response(202, _ =>
+        builder.Handle(ctx =>
         {
+            ctx.Response.StatusCode = 202;
             writerCalled = true;
             return Task.CompletedTask;
         });
@@ -68,8 +69,8 @@ public sealed class TurboEntityTellBuilderSpec
     public async Task Last_call_should_win()
     {
         var builder = new TurboEntityTellBuilder();
-        builder.Response(204);
-        builder.Response(202);
+        builder.Produces(204);
+        builder.Produces(202);
 
         var ctx = TestContextFactory.Create(cancellationToken: TestContext.Current.CancellationToken);
         await builder.ResponseHandler!(ctx);

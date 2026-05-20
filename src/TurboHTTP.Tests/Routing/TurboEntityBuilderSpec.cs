@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using TurboHTTP.Routing;
 using TurboHTTP.Server;
 
@@ -128,7 +129,7 @@ public sealed class TurboEntityBuilderSpec
     public void IsTell_with_callback_should_register_tell_route()
     {
         var builder = new TurboEntityBuilder("/orders/{id}");
-        builder.OnPost(() => new TestMessage("new")).Tell(tell => { tell.Response(204); });
+        builder.OnPost(() => new TestMessage("new")).Tell(tell => { tell.Produces(204); });
 
         var table = new TurboRouteTable();
         builder.AddToRouteTable(table);
@@ -142,9 +143,8 @@ public sealed class TurboEntityBuilderSpec
     {
         var builder = new TurboEntityBuilder("/orders/{id}");
         builder.OnGet(() => new TestMessage("get")).Ask(ask =>
-        {
-            ask.Response<TestMessage>((_, _) => Task.CompletedTask);
-        });
+            ask.Produces<TestMessage>((_, _) => Results.NotFound())
+                .Produces<TestActorKey>((_, _) => Results.Accepted()));
 
         var table = new TurboRouteTable();
         builder.AddToRouteTable(table);

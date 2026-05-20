@@ -21,7 +21,7 @@ public sealed class TurboEntityAskBuilderSpec
     public void Response_should_register_mapper()
     {
         var builder = new TurboEntityAskBuilder();
-        builder.Response<OrderDto>((_, _) => Task.CompletedTask);
+        builder.Handle<OrderDto>((_, _) => Task.CompletedTask);
         Assert.Equal(1, builder.Mappers.Count);
     }
 
@@ -30,7 +30,7 @@ public sealed class TurboEntityAskBuilderSpec
     {
         var capturedId = "";
         var builder = new TurboEntityAskBuilder();
-        builder.Response<OrderDto>((_, order) =>
+        builder.Handle<OrderDto>((_, order) =>
         {
             capturedId = order.Id;
             return Task.CompletedTask;
@@ -74,7 +74,7 @@ public sealed class TurboEntityAskBuilderSpec
     public void Response_and_Produces_should_coexist()
     {
         var builder = new TurboEntityAskBuilder();
-        builder.Response<OrderDto>((_, _) => Task.CompletedTask);
+        builder.Handle<OrderDto>((_, _) => Task.CompletedTask);
         builder.Produces<NotFoundResult>((_, _) => new TestResult(404));
 
         Assert.Equal(2, builder.Mappers.Count);
