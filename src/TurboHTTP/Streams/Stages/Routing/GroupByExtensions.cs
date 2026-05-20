@@ -4,7 +4,7 @@ using Akka.Streams.Dsl;
 using Akka.Streams.Implementation;
 using TurboHTTP.Internal;
 
-namespace TurboHTTP.Streams.Stages.Internal;
+namespace TurboHTTP.Streams.Stages.Routing;
 
 internal static class GroupByExtensions
 {

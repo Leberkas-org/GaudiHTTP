@@ -1,6 +1,6 @@
 using System.IO.Pipelines;
 using Akka.Streams.Dsl;
-using TurboHTTP.Streams.Shared;
+using TurboHTTP.Streams.Stages;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Streams;

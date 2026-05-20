@@ -4,7 +4,7 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using static Servus.Core.Servus;
 
-namespace TurboHTTP.Streams.Stages.Features;
+namespace TurboHTTP.Streams.Stages.Server;
 
 /// <summary>
 /// Bidirectional stage that wraps a <see cref="TurboHandler"/> instance,

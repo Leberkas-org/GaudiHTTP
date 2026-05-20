@@ -2,7 +2,7 @@ using System.IO.Pipelines;
 using Akka;
 using Akka.Streams.Dsl;
 
-namespace TurboHTTP.Streams.Shared;
+namespace TurboHTTP.Streams.Stages;
 
 internal sealed class PipeSource : IAsyncDisposable
 {

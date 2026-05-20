@@ -5,7 +5,7 @@ using Akka.Streams.Dsl;
 using Akka.Streams.Stage;
 using TurboHTTP.Internal;
 
-namespace TurboHTTP.Streams.Stages.Internal;
+namespace TurboHTTP.Streams.Stages.Routing;
 
 internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, Source<T, NotUsed>>>
 {

@@ -3,7 +3,7 @@ using System.Net;
 using Akka;
 using Akka.Streams.Dsl;
 using TurboHTTP.Internal;
-using TurboHTTP.Streams.Stages.Internal;
+using TurboHTTP.Streams.Stages.Routing;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Streams.Stages;

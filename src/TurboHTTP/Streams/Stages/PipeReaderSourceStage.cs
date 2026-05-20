@@ -3,7 +3,7 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Stage;
 
-namespace TurboHTTP.Streams.Shared;
+namespace TurboHTTP.Streams.Stages;
 
 internal sealed class PipeReaderSourceStage : GraphStage<SourceShape<ReadOnlyMemory<byte>>>
 {

@@ -5,7 +5,7 @@ using Akka.Streams.Dsl;
 using Akka.Streams.Stage;
 using TurboHTTP.Internal;
 
-namespace TurboHTTP.Streams.Stages.Internal;
+namespace TurboHTTP.Streams.Stages.Routing;
 
 /// <summary>
 /// Lazily materializes a version-specific connection flow based on the first request's
