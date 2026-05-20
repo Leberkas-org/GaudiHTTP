@@ -73,4 +73,17 @@ public sealed class EntityResponseMapperCollectionSpec
         await mapper(null!, new DerivedResult("x"));
         Assert.Equal("derived", matched);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Count_should_reflect_registered_mappers()
+    {
+        var collection = new EntityResponseMapperCollection();
+        Assert.Equal(0, collection.Count);
+
+        collection.Add<OrderResult>((_, _) => Task.CompletedTask);
+        Assert.Equal(1, collection.Count);
+
+        collection.Add<DerivedResult>((_, _) => Task.CompletedTask);
+        Assert.Equal(2, collection.Count);
+    }
 }

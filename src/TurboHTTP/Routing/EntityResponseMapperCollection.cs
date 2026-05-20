@@ -6,6 +6,8 @@ internal sealed class EntityResponseMapperCollection
 {
     private readonly List<(Type Type, Func<TurboHttpContext, object, Task> Mapper)> _mappers = [];
 
+    internal int Count => _mappers.Count;
+
     public void Add<T>(Func<TurboHttpContext, T, Task> mapper)
     {
         _mappers.Add((typeof(T), (ctx, obj) => mapper(ctx, (T)obj)));
