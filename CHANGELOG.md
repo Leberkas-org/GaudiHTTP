@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.7.0](https://github.com/Leberkas-org/TurboHTTP/compare/v0.6.0...v0.7.0) (2026-05-20)
+
+
+### Features
+
+* **features:** add ITlsHandshakeFeature interface and implementation ([4207222](https://github.com/Leberkas-org/TurboHTTP/commit/42072228166b95f38017a154e6071a277065d75a))
+* **http11:** add h2c upgrade detection with IProtocolSwitchCapable signaling ([1e60d31](https://github.com/Leberkas-org/TurboHTTP/commit/1e60d3163e1bbadf92c67491799173c4704a2f4a))
+* **lifecycle:** extract TLS metadata ([07fd711](https://github.com/Leberkas-org/TurboHTTP/commit/07fd71114421703629103b74ddbe6639cf20cb15))
+* **protocol:** add ProtocolNegotiatingStateMachine with ALPN and preface detection ([befd348](https://github.com/Leberkas-org/TurboHTTP/commit/befd3489bd741ad2412b4df46f62865031d588ea))
+* **routing:** add Count property to EntityResponseMapperCollection ([fa65d3d](https://github.com/Leberkas-org/TurboHTTP/commit/fa65d3db0f5bd70bf9a3fa828266e56fb0e7cfac))
+* **routing:** extend EntityMethodConfig with endpoint mappers and tell handler ([7891c56](https://github.com/Leberkas-org/TurboHTTP/commit/7891c56d89c0c5eb632be32c1d1e7772456ad433))
+* **routing:** map new TLS options in EndpointResolver ([fcc8c6e](https://github.com/Leberkas-org/TurboHTTP/commit/fcc8c6e8d0a774d0faa92cc60e9f6c359b2a2cc2))
+* **routing:** update EntityDispatcher with two-tier mapper lookup and pluggable tell handler ([7bda4a1](https://github.com/Leberkas-org/TurboHTTP/commit/7bda4a172f887a75ea614f7cef3cb3d71edb5dfa))
+* **server:** add ClientCertificateMode and ServerCertificateSelector to TurboHttpsOptions ([3ba4a8c](https://github.com/Leberkas-org/TurboHTTP/commit/3ba4a8c91fe6ee8ab3e159d36c17dd7df23f8951))
+* **server:** add DelayCertificate renegotiation support ([3874559](https://github.com/Leberkas-org/TurboHTTP/commit/3874559468e42b8edf027c08757d86a340a69098))
+* **server:** add IsAsk/IsTell to TurboEntityMethodBuilder, deprecate AcceptedResponse ([ce010a3](https://github.com/Leberkas-org/TurboHTTP/commit/ce010a3c732b724c3ca5d7025896f7dcc935c72b))
+* **server:** add TurboEntityAskBuilder with Response, Produces, and WithTimeout support ([a093d79](https://github.com/Leberkas-org/TurboHTTP/commit/a093d79809f6a6e648083cd46e618ac893dc02b8))
+* **server:** add TurboEntityTellBuilder with Response and Produces support ([e069149](https://github.com/Leberkas-org/TurboHTTP/commit/e069149b187059798ec58402c6ec8c98169a1483))
+* **server:** add TurboTlsCallbackOptions and TurboTlsCallbackContext ([a1ddcf7](https://github.com/Leberkas-org/TurboHTTP/commit/a1ddcf76e16571266dc3f87a66d4db56fd1afab5))
+* **server:** add UseHttps(TurboTlsCallbackOptions) overload to TurboListenOptions ([1217894](https://github.com/Leberkas-org/TurboHTTP/commit/1217894ae8fcbaebc195ad9a84c40cce4a6489cd))
+* **server:** populate ITlsHandshakeFeature on HttpContext feature ([f50dd4c](https://github.com/Leberkas-org/TurboHTTP/commit/f50dd4c84be3f13c4ab8478c4ee7216e70b5f3db))
+* **streams:** add NegotiatingServerEngine ([1b01747](https://github.com/Leberkas-org/TurboHTTP/commit/1b017470ebabea0812fca9db04c2925c6bdfd03d))
+* **transport:** add ClientCertificateMode enum ([06de0c0](https://github.com/Leberkas-org/TurboHTTP/commit/06de0c0532c75d76130e74539f815b409958af0c))
+* **transport:** add ClientCertificateMode, HandshakeCallback, ServerCertificateSelector ([a98c9be](https://github.com/Leberkas-org/TurboHTTP/commit/a98c9be99a7d3885b2a6de2402c09c75bd6bcdae))
+* **transport:** add TlsHandshakeContext, TlsHandshakeCallback, TlsConnectionResult ([3ba8d70](https://github.com/Leberkas-org/TurboHTTP/commit/3ba8d70b6c1490d0b53213de608fa3313b6875bd))
+* **transport:** add TransportTlsState inbound message for DelayCertificate ([98ee596](https://github.com/Leberkas-org/TurboHTTP/commit/98ee596603fe70f2ac053ab0518ac01834e5d070))
+* **transport:** extend SecurityInfo with NegotiatedCipherSuite and HostName ([d38c319](https://github.com/Leberkas-org/TurboHTTP/commit/d38c319ac4ba442125798481ccdb2064664b25d4))
+* **transport:** rewrite TcpListenerStage handshake with 3 paths ([a84d189](https://github.com/Leberkas-org/TurboHTTP/commit/a84d1898cbe35f098bac7f891d1b64833baefd81))
+
+
+### Documentation
+
+* add dynamic protocol negotiation design spec ([ab58122](https://github.com/Leberkas-org/TurboHTTP/commit/ab58122bb80d5251958399019bf06fe133dbc420))
+* add dynamic protocol negotiation implementation plan ([45ba63e](https://github.com/Leberkas-org/TurboHTTP/commit/45ba63eb9c5ad84b2901cddd0d6bb311de820c48))
+
 ## [0.6.0](https://github.com/Leberkas-org/TurboHTTP/compare/v0.5.0...v0.6.0) (2026-05-20)
 
 
