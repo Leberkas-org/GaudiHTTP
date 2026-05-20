@@ -3,8 +3,26 @@ name: CI
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "docs/**"
+      - "notes/**"
+      - "*.md"
+      - ".github/workflows/docs.yml"
+      - ".github/workflows/commitlint.yml"
+      - ".github/workflows/codeql.yml"
   pull_request:
     branches: ["main"]
+    paths-ignore:
+      - "docs/**"
+      - "notes/**"
+      - "*.md"
+      - ".github/workflows/docs.yml"
+      - ".github/workflows/commitlint.yml"
+      - ".github/workflows/codeql.yml"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   GLOBAL_JSON_PATH: "./src/global.json"
@@ -25,7 +43,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Install .NET
         uses: actions/setup-dotnet@v5
