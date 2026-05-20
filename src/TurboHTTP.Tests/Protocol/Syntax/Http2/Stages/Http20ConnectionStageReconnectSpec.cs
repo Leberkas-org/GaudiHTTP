@@ -3,7 +3,7 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Stages;
@@ -20,7 +20,7 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.8")]
     public async Task Http20ConnectionStage_should_emit_reconnect_item_on_abrupt_close_with_inflight()
     {
-        var stage = new Http20ConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 1 } });
+        var stage = new Http20ClientConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 1 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -67,7 +67,7 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.8")]
     public async Task Http20ConnectionStage_should_fail_when_max_reconnect_attempts_exceeded()
     {
-        var stage = new Http20ConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 1 } });
+        var stage = new Http20ClientConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 1 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -114,7 +114,7 @@ public sealed class Http20ConnectionStageReconnectSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.8")]
     public async Task Http20ConnectionStage_should_complete_normally_on_close_with_no_inflight()
     {
-        var stage = new Http20ConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 1 } });
+        var stage = new Http20ClientConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 1 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();

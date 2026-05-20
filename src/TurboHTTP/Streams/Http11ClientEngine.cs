@@ -3,7 +3,7 @@ using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 
 namespace TurboHTTP.Streams;
 
@@ -13,7 +13,7 @@ internal class Http11ClientEngine(TurboClientOptions options) : IClientProtocolE
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new Http11ConnectionStage(options));
+            var connection = b.Add(new Http11ClientConnectionStage(options));
 
             return new BidiShape<
                 HttpRequestMessage,

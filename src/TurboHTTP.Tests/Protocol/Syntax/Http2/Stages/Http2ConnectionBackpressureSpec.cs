@@ -4,7 +4,7 @@ using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using TurboHTTP.Tests.Shared;
 using static TurboHTTP.Tests.Protocol.Syntax.Http2.Stages.Http2ConnectionTestHelper;
 
@@ -28,7 +28,7 @@ public sealed class Http2ConnectionBackpressureSpec : StreamTestBase
                 Source.Queue<HttpRequestMessage>(16, OverflowStrategy.Backpressure),
                 (b, reqSrc) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
                     { Http2 = { MaxConcurrentStreams = maxConcurrentStreams } }));
                     var srvSrc = b.Add(Source.FromPublisher(serverProbe));
 

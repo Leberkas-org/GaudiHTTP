@@ -6,7 +6,7 @@ using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
@@ -16,7 +16,7 @@ internal sealed class Http3ClientSessionManager
     private readonly Http3ClientEncoderOptions _encoderOptions;
     private readonly Http3ClientDecoderOptions _decoderOptions;
     private readonly TurboClientOptions _options;
-    private readonly IStageOperations _ops;
+    private readonly IClientStageOperations _ops;
 
     private readonly QuicStreamTracker _tracker;
     private readonly QpackStreamManager _qpackStreamManager;
@@ -41,7 +41,7 @@ internal sealed class Http3ClientSessionManager
         Http3ClientEncoderOptions encoderOptions,
         Http3ClientDecoderOptions decoderOptions,
         TurboClientOptions options,
-        IStageOperations ops)
+        IClientStageOperations ops)
     {
         _encoderOptions = encoderOptions;
         _decoderOptions = decoderOptions;

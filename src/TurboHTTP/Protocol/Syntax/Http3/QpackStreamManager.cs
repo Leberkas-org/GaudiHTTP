@@ -1,14 +1,14 @@
 using System.Buffers;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http3;
 
 internal sealed class QpackStreamManager
 {
-    private readonly IStageOperations _ops;
+    private readonly IClientStageOperations _ops;
     private readonly Client.Http3ClientEncoder _requestEncoder;
     private readonly Client.Http3ClientDecoder _responseDecoder;
 
@@ -18,7 +18,7 @@ internal sealed class QpackStreamManager
     public QpackTableSync TableSync { get; }
 
     public QpackStreamManager(
-        IStageOperations ops,
+        IClientStageOperations ops,
         Client.Http3ClientEncoder requestEncoder,
         Client.Http3ClientDecoder responseDecoder,
         QpackTableSync tableSync)

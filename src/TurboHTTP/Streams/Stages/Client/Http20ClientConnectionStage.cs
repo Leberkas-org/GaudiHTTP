@@ -4,9 +4,9 @@ using Akka.Streams.Stage;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2.Client;
 
-namespace TurboHTTP.Streams.Stages;
+namespace TurboHTTP.Streams.Stages.Client;
 
-internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
+internal sealed class Http20ClientConnectionStage : GraphStage<ClientConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inNetwork = new("Http20Connection.In.Network");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http20Connection.Out.Response");
@@ -14,9 +14,9 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
     private readonly Outlet<ITransportOutbound> _outNetwork = new("Http20Connection.Out.Network");
     private readonly TurboClientOptions _options;
 
-    public override ConnectionShape Shape => new(_inNetwork, _outResponse, _inRequest, _outNetwork);
+    public override ClientConnectionShape Shape => new(_inNetwork, _outResponse, _inRequest, _outNetwork);
 
-    public Http20ConnectionStage(TurboClientOptions options)
+    public Http20ClientConnectionStage(TurboClientOptions options)
     {
         _options = options;
     }

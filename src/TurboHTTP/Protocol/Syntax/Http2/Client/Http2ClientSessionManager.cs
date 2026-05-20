@@ -5,7 +5,7 @@ using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Client;
@@ -15,7 +15,7 @@ internal sealed class Http2ClientSessionManager
     private readonly Http2ClientEncoderOptions _encoderOptions;
     private readonly Http2ClientDecoderOptions _decoderOptions;
     private readonly TurboClientOptions _options;
-    private readonly IStageOperations _ops;
+    private readonly IClientStageOperations _ops;
 
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;
@@ -42,7 +42,7 @@ internal sealed class Http2ClientSessionManager
         Http2ClientEncoderOptions encoderOptions,
         Http2ClientDecoderOptions decoderOptions,
         TurboClientOptions options,
-        IStageOperations ops)
+        IClientStageOperations ops)
     {
         _encoderOptions = encoderOptions;
         _decoderOptions = decoderOptions;

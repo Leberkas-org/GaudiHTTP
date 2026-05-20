@@ -1,11 +1,11 @@
 using Akka.Actor;
 using Akka.Event;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 
 namespace TurboHTTP.Tests.Shared;
 
-internal sealed class FakeOps : IStageOperations
+internal sealed class FakeOps : IClientStageOperations
 {
     public List<HttpResponseMessage> Responses { get; } = [];
     public List<ITransportOutbound> Outbound { get; } = [];

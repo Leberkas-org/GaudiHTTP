@@ -7,6 +7,7 @@ using Akka.Streams.Dsl;
 using TurboHTTP.Client;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 
 namespace TurboHTTP.Streams.Lifecycle;
 

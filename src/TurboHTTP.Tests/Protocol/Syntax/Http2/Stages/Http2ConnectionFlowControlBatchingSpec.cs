@@ -3,7 +3,7 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using TurboHTTP.Tests.Shared;
 using static TurboHTTP.Tests.Protocol.Syntax.Http2.Stages.Http2ConnectionTestHelper;
 
@@ -26,7 +26,7 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
                 (m1, m2) => (m1, m2),
                 (b, dsSink, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage(new TurboClientOptions()
+                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions()
                     {
                         Http2 =
                         {

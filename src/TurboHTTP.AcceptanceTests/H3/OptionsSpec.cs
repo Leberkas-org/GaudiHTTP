@@ -1,7 +1,7 @@
 using System.Net;
 using Akka.Streams.Dsl;
 using TurboHTTP.Client;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.AcceptanceTests.H3;

@@ -5,7 +5,7 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using TurboHTTP.Tests.Shared;
 using static TurboHTTP.Tests.Protocol.Syntax.Http2.Stages.Http2ConnectionTestHelper;
 
@@ -23,7 +23,7 @@ public sealed class Http2ConnectionStreamAcquireSpec : StreamTestBase
             GraphDsl.Create(networkSink,
                 (b, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535 } }));
 
                     // A SETTINGS ACK on InServer is harmless (no ACK reply) and lets
@@ -62,7 +62,7 @@ public sealed class Http2ConnectionStreamAcquireSpec : StreamTestBase
             GraphDsl.Create(networkSink,
                 (b, nwSink) =>
                 {
-                    var stage = b.Add(new Http20ConnectionStage(new TurboClientOptions
+                    var stage = b.Add(new Http20ClientConnectionStage(new TurboClientOptions
                     { Http2 = { InitialConnectionWindowSize = 65535 } }));
 
                     var serverSource = b.Add(Source.From(FramesToInputs(serverFrames)));

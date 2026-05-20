@@ -4,7 +4,7 @@ using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Stages;
@@ -32,7 +32,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC9113-3.2")]
     public async Task Http20ConnectionStage_should_emit_connect_then_preface_on_first_request()
     {
-        var stage = new Http20ConnectionStage(new TurboClientOptions
+        var stage = new Http20ClientConnectionStage(new TurboClientOptions
         { Http2 = { MaxReconnectAttempts = 3 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
@@ -80,7 +80,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6")]
     public async Task Http20ConnectionStage_should_encode_request_as_headers_frame()
     {
-        var stage = new Http20ConnectionStage(new TurboClientOptions
+        var stage = new Http20ClientConnectionStage(new TurboClientOptions
         { Http2 = { MaxReconnectAttempts = 3 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
@@ -133,7 +133,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.2")]
     public async Task Http20ConnectionStage_should_support_stream_multiplexing()
     {
-        var stage = new Http20ConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
+        var stage = new Http20ClientConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -186,7 +186,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC9113-3.1")]
     public async Task Http20ConnectionStage_should_handle_settings_frame()
     {
-        var stage = new Http20ConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
+        var stage = new Http20ClientConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -227,7 +227,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.8")]
     public async Task Http20ConnectionStage_should_complete_on_goaway_with_no_inflight()
     {
-        var stage = new Http20ConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
+        var stage = new Http20ClientConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();
@@ -270,7 +270,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6")]
     public async Task Http20ConnectionStage_should_complete_when_app_upstream_finishes_with_no_inflight()
     {
-        var stage = new Http20ConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
+        var stage = new Http20ClientConnectionStage(new TurboClientOptions { Http2 = { MaxReconnectAttempts = 3 } });
 
         var appProbe = this.CreateManualPublisherProbe<HttpRequestMessage>();
         var serverProbe = this.CreateManualPublisherProbe<ITransportInbound>();

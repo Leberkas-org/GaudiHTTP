@@ -1,20 +1,20 @@
 using Akka.Streams;
 using Servus.Akka.Transport;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 
 namespace TurboHTTP.Tests.Streams;
 
 public sealed class ConnectionShapeSpec
 {
     [Fact(Timeout = 5000)]
-    public void ConnectionShape_should_initialize_with_correct_ports()
+    public void ClientConnectionShape_should_initialize_with_correct_ports()
     {
         var inServer = new Inlet<ITransportInbound>("InServer");
         var outResponse = new Outlet<HttpResponseMessage>("OutResponse");
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
 
         Assert.Equal(inServer, shape.InNetwork);
         Assert.Equal(outResponse, shape.OutResponse);
@@ -30,7 +30,7 @@ public sealed class ConnectionShapeSpec
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
 
         var inlets = shape.Inlets;
         Assert.Equal(2, inlets.Length);
@@ -46,7 +46,7 @@ public sealed class ConnectionShapeSpec
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
 
         var outlets = shape.Outlets;
         Assert.Equal(2, outlets.Length);
@@ -62,11 +62,11 @@ public sealed class ConnectionShapeSpec
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
         var copy = shape.DeepCopy();
 
-        Assert.IsType<ConnectionShape>(copy);
-        var copiedShape = (ConnectionShape)copy;
+        Assert.IsType<ClientConnectionShape>(copy);
+        var copiedShape = (ClientConnectionShape)copy;
 
         Assert.NotSame(shape.InNetwork, copiedShape.InNetwork);
         Assert.NotSame(shape.OutResponse, copiedShape.OutResponse);
@@ -88,15 +88,15 @@ public sealed class ConnectionShapeSpec
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
 
         var newInlets = new[] { inServer.CarbonCopy(), inApp.CarbonCopy() };
         var newOutlets = new[] { outResponse.CarbonCopy(), outNetwork.CarbonCopy() };
 
         var copiedShape = shape.CopyFromPorts([.. newInlets], [.. newOutlets]);
 
-        Assert.IsType<ConnectionShape>(copiedShape);
-        var result = (ConnectionShape)copiedShape;
+        Assert.IsType<ClientConnectionShape>(copiedShape);
+        var result = (ClientConnectionShape)copiedShape;
 
         Assert.Equal(2, result.Inlets.Length);
         Assert.Equal(2, result.Outlets.Length);
@@ -110,7 +110,7 @@ public sealed class ConnectionShapeSpec
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
 
         // Order should be InServer first, then InApp
         Assert.Equal(inServer, shape.Inlets[0]);
@@ -125,7 +125,7 @@ public sealed class ConnectionShapeSpec
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
 
         // Order should be OutResponse first, then OutNetwork
         Assert.Equal(outResponse, shape.Outlets[0]);
@@ -140,7 +140,7 @@ public sealed class ConnectionShapeSpec
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
 
         Assert.IsAssignableFrom<Shape>(shape);
     }
@@ -153,12 +153,12 @@ public sealed class ConnectionShapeSpec
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape1 = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape1 = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
         var shape2 = shape1.DeepCopy();
         var shape3 = shape1.DeepCopy();
 
-        var copied2 = (ConnectionShape)shape2;
-        var copied3 = (ConnectionShape)shape3;
+        var copied2 = (ClientConnectionShape)shape2;
+        var copied3 = (ClientConnectionShape)shape3;
 
         // Different copies should have different port instances
         Assert.NotSame(copied2.InNetwork, copied3.InNetwork);
@@ -173,13 +173,13 @@ public sealed class ConnectionShapeSpec
         var inApp = new Inlet<HttpRequestMessage>("InApp");
         var outNetwork = new Outlet<ITransportOutbound>("OutNetwork");
 
-        var shape = new ConnectionShape(inServer, outResponse, inApp, outNetwork);
+        var shape = new ClientConnectionShape(inServer, outResponse, inApp, outNetwork);
 
         var newInlets = new[] { inServer.CarbonCopy(), inApp.CarbonCopy() };
         var newOutlets = new[] { outResponse.CarbonCopy(), outNetwork.CarbonCopy() };
 
         var copiedShape = shape.CopyFromPorts([.. newInlets], [.. newOutlets]);
-        var result = (ConnectionShape)copiedShape;
+        var result = (ClientConnectionShape)copiedShape;
 
         Assert.IsType<Inlet<ITransportInbound>>(result.InNetwork);
         Assert.IsType<Outlet<HttpResponseMessage>>(result.OutResponse);

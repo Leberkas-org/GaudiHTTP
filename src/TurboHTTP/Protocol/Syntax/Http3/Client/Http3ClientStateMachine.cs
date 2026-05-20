@@ -3,7 +3,7 @@ using TurboHTTP.Client;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
@@ -13,7 +13,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
     private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromSeconds(30);
 
     private readonly TurboClientOptions _options;
-    private readonly IStageOperations _ops;
+    private readonly IClientStageOperations _ops;
     private TransportOptions? _transportOptions;
 
     private readonly Http3ClientSessionManager _clientSession;
@@ -33,7 +33,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     private ConnectionState Connection { get; }
 
-    public Http3ClientStateMachine(TurboClientOptions options, IStageOperations ops)
+    public Http3ClientStateMachine(TurboClientOptions options, IClientStageOperations ops)
     {
         _options = options;
         _ops = ops;

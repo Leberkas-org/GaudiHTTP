@@ -2,14 +2,14 @@ using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Client;
 
 internal sealed class Http11ClientStateMachine : IClientStateMachine
 {
-    private readonly IStageOperations _ops;
+    private readonly IClientStageOperations _ops;
     private readonly Http11ClientDecoder _decoder;
     private readonly Http11ClientEncoder _encoder;
     private readonly TurboClientOptions _options;
@@ -47,7 +47,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
     internal RequestEndpoint Endpoint { get; private set; }
 
     public Http11ClientStateMachine(
-        IStageOperations ops,
+        IClientStageOperations ops,
         TurboClientOptions options)
     {
         _ops = ops;

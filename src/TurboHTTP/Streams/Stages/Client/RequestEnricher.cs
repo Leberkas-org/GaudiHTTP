@@ -3,7 +3,7 @@ using System.Net.Http.Headers;
 using TurboHTTP.Client;
 using TurboHTTP.Protocol.Semantics;
 
-namespace TurboHTTP.Streams.Stages;
+namespace TurboHTTP.Streams.Stages.Client;
 
 /// <summary>
 /// Stateless request enrichment logic extracted from the former <see cref="RequestEnricher"/>.

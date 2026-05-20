@@ -4,7 +4,7 @@ using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Semantics;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
@@ -19,7 +19,7 @@ internal sealed class StreamManager
     private const int MaxPoolSize = 16;
     private const int MaxDecoderPoolSize = 16;
 
-    private readonly IStageOperations _ops;
+    private readonly IClientStageOperations _ops;
     private readonly Http3ClientDecoder _responseDecoder;
     private readonly QpackTableSync _tableSync;
 
@@ -36,7 +36,7 @@ internal sealed class StreamManager
     /// <summary>Whether there are in-flight requests awaiting responses.</summary>
     public bool HasInFlightRequests => _correlationMap.Count > 0 || _streams.Count > 0;
 
-    public StreamManager(IStageOperations ops, Http3ClientDecoder responseDecoder, QpackTableSync tableSync)
+    public StreamManager(IClientStageOperations ops, Http3ClientDecoder responseDecoder, QpackTableSync tableSync)
     {
         _ops = ops;
         _responseDecoder = responseDecoder;

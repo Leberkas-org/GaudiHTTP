@@ -2,16 +2,16 @@ using System.Collections.Immutable;
 using Akka.Streams;
 using Servus.Akka.Transport;
 
-namespace TurboHTTP.Streams.Stages;
+namespace TurboHTTP.Streams.Stages.Client;
 
-internal sealed class ConnectionShape : Shape
+internal sealed class ClientConnectionShape : Shape
 {
     public Inlet<ITransportInbound> InNetwork { get; }
     public Outlet<HttpResponseMessage> OutResponse { get; }
     public Inlet<HttpRequestMessage> InRequest { get; }
     public Outlet<ITransportOutbound> OutNetwork { get; }
 
-    public ConnectionShape(
+    public ClientConnectionShape(
         Inlet<ITransportInbound> inNetwork,
         Outlet<HttpResponseMessage> outResponse,
         Inlet<HttpRequestMessage> inRequest,
@@ -29,7 +29,7 @@ internal sealed class ConnectionShape : Shape
 
     public override Shape DeepCopy()
     {
-        return new ConnectionShape(
+        return new ClientConnectionShape(
             (Inlet<ITransportInbound>)InNetwork.CarbonCopy(),
             (Outlet<HttpResponseMessage>)OutResponse.CarbonCopy(),
             (Inlet<HttpRequestMessage>)InRequest.CarbonCopy(),
@@ -38,7 +38,7 @@ internal sealed class ConnectionShape : Shape
 
     public override Shape CopyFromPorts(ImmutableArray<Inlet> inlets, ImmutableArray<Outlet> outlets)
     {
-        return new ConnectionShape(
+        return new ClientConnectionShape(
             (Inlet<ITransportInbound>)inlets[0],
             (Outlet<HttpResponseMessage>)outlets[0],
             (Inlet<HttpRequestMessage>)inlets[1],

@@ -3,7 +3,7 @@ using TurboHTTP.Client;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Client;
@@ -12,7 +12,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
 {
     private readonly Http2ClientSessionManager _clientSession;
     private readonly ReconnectionManager _reconnect;
-    private readonly IStageOperations _ops;
+    private readonly IClientStageOperations _ops;
     private readonly TurboClientOptions _options;
     private TransportOptions? _transportOptions;
 
@@ -29,7 +29,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
     public RequestEndpoint Endpoint => _clientSession.Endpoint;
     public int ReconnectBufferCount => _reconnect.BufferedCount;
 
-    public Http2ClientStateMachine(TurboClientOptions options, IStageOperations ops)
+    public Http2ClientStateMachine(TurboClientOptions options, IClientStageOperations ops)
     {
         _options = options;
         _ops = ops;

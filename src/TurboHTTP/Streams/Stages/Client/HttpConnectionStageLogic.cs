@@ -6,9 +6,9 @@ using Servus.Akka.Transport;
 using TurboHTTP.Protocol;
 using static Servus.Core.Servus;
 
-namespace TurboHTTP.Streams.Stages;
+namespace TurboHTTP.Streams.Stages.Client;
 
-internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, IStageOperations
+internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, IClientStageOperations
     where TSM : IClientStateMachine
 {
     private readonly Inlet<ITransportInbound> _inServer;
@@ -22,8 +22,8 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
     private IActorRef _stageActor = ActorRefs.Nobody;
 
     public HttpConnectionStageLogic(
-        GraphStage<ConnectionShape> stage,
-        Func<IStageOperations, TSM> smFactory) : base(stage.Shape)
+        GraphStage<ClientConnectionShape> stage,
+        Func<IClientStageOperations, TSM> smFactory) : base(stage.Shape)
     {
         var shape = stage.Shape;
         _inServer = shape.InNetwork;
@@ -167,34 +167,34 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ISta
         _sm.OnTimerFired(name);
     }
 
-    // --- IStageOperations implementation ---
+    // --- IClientStageOperations implementation ---
 
-    void IStageOperations.OnResponse(HttpResponseMessage response)
+    void IClientStageOperations.OnResponse(HttpResponseMessage response)
     {
         Tracing.For("Protocol").Debug(this, "← {0}", (int)response.StatusCode);
         _responseQueue.Enqueue(response);
         TryPushResponse();
     }
 
-    void IStageOperations.OnOutbound(ITransportOutbound item)
+    void IClientStageOperations.OnOutbound(ITransportOutbound item)
     {
         _outboundQueue.Enqueue(item);
         TryPushOutbound();
     }
 
-    void IStageOperations.OnScheduleTimer(string name, TimeSpan duration)
+    void IClientStageOperations.OnScheduleTimer(string name, TimeSpan duration)
     {
         ScheduleOnce(name, duration);
     }
 
-    void IStageOperations.OnCancelTimer(string name)
+    void IClientStageOperations.OnCancelTimer(string name)
     {
         CancelTimer(name);
     }
 
-    ILoggingAdapter IStageOperations.Log => Log;
+    ILoggingAdapter IClientStageOperations.Log => Log;
 
-    IActorRef IStageOperations.StageActor => _stageActor;
+    IActorRef IClientStageOperations.StageActor => _stageActor;
 
     // --- Mechanical helpers ---
 

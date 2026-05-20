@@ -1,6 +1,6 @@
 using System.Net;
 using TurboHTTP.Client;
-using TurboHTTP.Streams.Stages;
+using TurboHTTP.Streams.Stages.Client;
 
 namespace TurboHTTP.Tests.Streams;
 
