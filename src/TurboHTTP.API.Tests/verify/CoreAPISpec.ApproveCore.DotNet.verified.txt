@@ -479,6 +479,7 @@ namespace TurboHTTP.Server
     public sealed class ListenerBinding
     {
         public ListenerBinding() { }
+        public string? ConnectionLoggingCategory { get; init; }
         public required Servus.Akka.Transport.IListenerFactory Factory { get; init; }
         public required Servus.Akka.Transport.ListenerOptions Options { get; init; }
     }
@@ -561,6 +562,8 @@ namespace TurboHTTP.Server
         public System.Net.IPAddress Address { get; }
         public ushort Port { get; }
         public TurboHTTP.Server.HttpProtocols Protocols { get; set; }
+        public void UseConnectionLogging() { }
+        public void UseConnectionLogging(string loggerName) { }
         public void UseHttps() { }
         public void UseHttps(System.Action<TurboHTTP.Server.TurboHttpsOptions> configure) { }
         public void UseHttps(System.Security.Cryptography.X509Certificates.X509Certificate2 certificate) { }
