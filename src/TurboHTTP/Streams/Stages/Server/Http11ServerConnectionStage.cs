@@ -6,7 +6,7 @@ using TurboHTTP.Protocol.Syntax.Http11.Server;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
-internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
+internal sealed class Http11ServerConnectionStage : GraphStage<ServerConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inNetwork = new("Http11Connection.In.Network");
     private readonly Outlet<HttpRequestMessage> _outRequest = new("Http11Connection.Out.Request");
@@ -15,7 +15,7 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
     private readonly Http11ServerEncoderOptions? _encoderOptions;
     private readonly Http11ServerDecoderOptions? _decoderOptions;
 
-    public Http11ConnectionStage(
+    public Http11ServerConnectionStage(
         Http11ServerEncoderOptions? encoderOptions = null,
         Http11ServerDecoderOptions? decoderOptions = null)
     {
@@ -23,7 +23,7 @@ internal sealed class Http11ConnectionStage : GraphStage<ConnectionShape>
         _decoderOptions = decoderOptions;
     }
 
-    public override ConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
+    public override ServerConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionServerStageLogic<Http11ServerStateMachine>(this,

@@ -5,7 +5,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Server;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
-internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
+internal sealed class Http20ServerConnectionStage : GraphStage<ServerConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inNetwork = new("Http20Connection.In.Network");
     private readonly Outlet<HttpRequestMessage> _outRequest = new("Http20Connection.Out.Request");
@@ -21,7 +21,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
     private readonly int _minBodyDataRate;
     private readonly TimeSpan _bodyRateGracePeriod;
 
-    public Http20ConnectionStage(
+    public Http20ServerConnectionStage(
         int maxConcurrentStreams = 100,
         int initialConnectionWindowSize = 65535,
         int initialStreamWindowSize = 65535,
@@ -41,7 +41,7 @@ internal sealed class Http20ConnectionStage : GraphStage<ConnectionShape>
         _bodyRateGracePeriod = bodyRateGracePeriod ?? TimeSpan.FromSeconds(5);
     }
 
-    public override ConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
+    public override ServerConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionServerStageLogic<Http2ServerStateMachine>(this,

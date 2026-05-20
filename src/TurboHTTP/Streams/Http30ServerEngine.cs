@@ -32,7 +32,7 @@ internal sealed class Http30ServerEngine : IServerProtocolEngine
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new Http30ConnectionStage(
+            var connection = b.Add(new Http30ServerConnectionStage(
                 _maxRequestBodySize,
                 _keepAliveTimeout,
                 _requestHeadersTimeout,

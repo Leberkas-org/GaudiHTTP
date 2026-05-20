@@ -5,7 +5,7 @@ using TurboHTTP.Protocol.Syntax.Http3.Server;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
-internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
+internal sealed class Http30ServerConnectionStage : GraphStage<ServerConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inNetwork = new("Http30Connection.In.Network");
     private readonly Outlet<HttpRequestMessage> _outRequest = new("Http30Connection.Out.Request");
@@ -18,7 +18,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
     private readonly int _minBodyDataRate;
     private readonly TimeSpan _bodyRateGracePeriod;
 
-    public Http30ConnectionStage(
+    public Http30ServerConnectionStage(
         long maxRequestBodySize = 30 * 1024 * 1024,
         TimeSpan? keepAliveTimeout = null,
         TimeSpan? requestHeadersTimeout = null,
@@ -32,7 +32,7 @@ internal sealed class Http30ConnectionStage : GraphStage<ConnectionShape>
         _bodyRateGracePeriod = bodyRateGracePeriod ?? TimeSpan.FromSeconds(5);
     }
 
-    public override ConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
+    public override ServerConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionServerStageLogic<Http3ServerStateMachine>(this,

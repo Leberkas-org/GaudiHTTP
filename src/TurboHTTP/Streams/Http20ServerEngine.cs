@@ -41,7 +41,7 @@ internal sealed class Http20ServerEngine : IServerProtocolEngine
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new Http20ConnectionStage(
+            var connection = b.Add(new Http20ServerConnectionStage(
                 _maxConcurrentStreams,
                 _initialConnectionWindowSize,
                 _initialStreamWindowSize,

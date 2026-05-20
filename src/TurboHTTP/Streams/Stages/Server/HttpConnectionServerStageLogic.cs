@@ -23,7 +23,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private IActorRef _stageActor = ActorRefs.Nobody;
 
     public HttpConnectionServerStageLogic(
-        GraphStage<ConnectionShape> stage,
+        GraphStage<ServerConnectionShape> stage,
         Func<IServerStageOperations, TSM> smFactory) : base(stage.Shape)
     {
         var shape = stage.Shape;

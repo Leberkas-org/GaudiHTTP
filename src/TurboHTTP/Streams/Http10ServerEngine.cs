@@ -12,7 +12,7 @@ internal sealed class Http10ServerEngine : IServerProtocolEngine
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new Http10ConnectionStage());
+            var connection = b.Add(new Http10ServerConnectionStage());
 
             return new BidiShape<
                 ITransportInbound,

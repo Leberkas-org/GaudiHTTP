@@ -12,7 +12,7 @@ internal sealed class Http11ServerEngine : IServerProtocolEngine
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new Http11ConnectionStage());
+            var connection = b.Add(new Http11ServerConnectionStage());
 
             return new BidiShape<
                 ITransportInbound,
