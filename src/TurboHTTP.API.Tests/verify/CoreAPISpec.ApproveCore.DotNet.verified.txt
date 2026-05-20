@@ -28,6 +28,10 @@ namespace TurboHTTP.Client
         public Expect100Options() { }
         public long MinBodySizeBytes { get; set; }
     }
+    public static class Extensions
+    {
+        public static System.Threading.Tasks.ValueTask<System.Net.Http.HttpResponseMessage> GetResponseAsync(this System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken ct = default) { }
+    }
     public sealed class Http1Options
     {
         public Http1Options() { }
@@ -185,6 +189,13 @@ namespace TurboHTTP.Client
 }
 namespace TurboHTTP.Context.Features
 {
+    public interface ITlsHandshakeFeature
+    {
+        string? HostName { get; }
+        System.Net.Security.SslApplicationProtocol NegotiatedApplicationProtocol { get; }
+        System.Net.Security.TlsCipherSuite? NegotiatedCipherSuite { get; }
+        System.Security.Authentication.SslProtocols Protocol { get; }
+    }
     public interface ITurboRequestBodyFeature
     {
         Akka.Streams.Dsl.Source<System.ReadOnlyMemory<byte>, Akka.NotUsed> BodySource { get; }
@@ -248,13 +259,6 @@ namespace TurboHTTP.Diagnostics
         public static OpenTelemetry.Trace.TracerProviderBuilder AddTurboHttpInstrumentation(this OpenTelemetry.Trace.TracerProviderBuilder builder) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTurboLoggerTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Core.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTurboTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Core.Diagnostics.IServusTraceListener listener, Servus.Core.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
-    }
-}
-namespace TurboHTTP
-{
-    public static class Extensions
-    {
-        public static System.Threading.Tasks.ValueTask<System.Net.Http.HttpResponseMessage> GetResponseAsync(this System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken ct = default) { }
     }
 }
 namespace TurboHTTP.Features.Caching
@@ -537,8 +541,6 @@ namespace TurboHTTP.Server
     }
     public sealed class TurboEntityMethodBuilder
     {
-        [System.Obsolete("Use .IsTell() instead")]
-        public TurboHTTP.Server.TurboEntityMethodBuilder AcceptedResponse() { }
         public void Ask(System.Action<TurboHTTP.Server.TurboEntityAskBuilder> configure) { }
         public void Tell(System.Action<TurboHTTP.Server.TurboEntityTellBuilder>? configure = null) { }
         public TurboHTTP.Server.TurboEntityMethodBuilder WithTimeout(System.TimeSpan timeout) { }
@@ -574,10 +576,12 @@ namespace TurboHTTP.Server
         public TurboHttpsOptions() { }
         public string? CertificatePassword { get; set; }
         public string? CertificatePath { get; set; }
+        public Servus.Akka.Transport.ClientCertificateMode ClientCertificateMode { get; set; }
         public System.Net.Security.RemoteCertificateValidationCallback? ClientCertificateValidationCallback { get; set; }
         public System.Security.Authentication.SslProtocols EnabledSslProtocols { get; set; }
         public System.TimeSpan HandshakeTimeout { get; set; }
         public System.Security.Cryptography.X509Certificates.X509Certificate2? ServerCertificate { get; set; }
+        public System.Func<string?, System.Security.Cryptography.X509Certificates.X509Certificate2?>? ServerCertificateSelector { get; set; }
     }
     public sealed class TurboListenOptions
     {
@@ -590,6 +594,7 @@ namespace TurboHTTP.Server
         public void UseHttps() { }
         public void UseHttps(System.Action<TurboHTTP.Server.TurboHttpsOptions> configure) { }
         public void UseHttps(System.Security.Cryptography.X509Certificates.X509Certificate2 certificate) { }
+        public void UseHttps(TurboHTTP.Server.TurboTlsCallbackOptions callbackOptions) { }
         public void UseHttps(System.Security.Cryptography.X509Certificates.X509Certificate2 certificate, System.Action<TurboHTTP.Server.TurboHttpsOptions> configure) { }
         public void UseHttps(string path, string? password = null) { }
         public void UseHttps(string path, string? password, System.Action<TurboHTTP.Server.TurboHttpsOptions> configure) { }
@@ -681,6 +686,21 @@ namespace TurboHTTP.Server
     {
         public static Microsoft.AspNetCore.Http.IResult EventStream(Akka.Streams.Dsl.Source<string, Akka.NotUsed> source) { }
         public static Microsoft.AspNetCore.Http.IResult Stream(Akka.Streams.Dsl.Source<System.ReadOnlyMemory<byte>, Akka.NotUsed> source, string? contentType = null) { }
+    }
+    public sealed class TurboTlsCallbackContext
+    {
+        public TurboTlsCallbackContext(System.Net.Security.SslClientHelloInfo clientHelloInfo, System.Net.EndPoint localEndPoint, System.Net.EndPoint remoteEndPoint, System.Threading.CancellationToken cancellationToken) { }
+        public bool AllowDelayedClientCertificateNegotiation { get; set; }
+        public System.Threading.CancellationToken CancellationToken { get; }
+        public System.Net.Security.SslClientHelloInfo ClientHelloInfo { get; }
+        public System.Net.EndPoint LocalEndPoint { get; }
+        public System.Net.EndPoint RemoteEndPoint { get; }
+    }
+    public sealed class TurboTlsCallbackOptions
+    {
+        public TurboTlsCallbackOptions() { }
+        public System.TimeSpan HandshakeTimeout { get; init; }
+        public required System.Func<TurboHTTP.Server.TurboTlsCallbackContext, System.Threading.Tasks.ValueTask<System.Net.Security.SslServerAuthenticationOptions>> OnConnection { get; init; }
     }
 }
 namespace TurboHTTP.Server.Middleware
