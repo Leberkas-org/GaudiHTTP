@@ -28,7 +28,7 @@ public sealed class TurboEntityTellBuilderSpec
         var builder = new TurboEntityTellBuilder();
         builder.Response(204);
 
-        var ctx = TestContextFactory.Create();
+        var ctx = TestContextFactory.Create(cancellationToken: TestContext.Current.CancellationToken);
         await builder.ResponseHandler!(ctx);
 
         Assert.Equal(204, ctx.Response.StatusCode);
@@ -39,13 +39,13 @@ public sealed class TurboEntityTellBuilderSpec
     {
         var writerCalled = false;
         var builder = new TurboEntityTellBuilder();
-        builder.Response(202, ctx =>
+        builder.Response(202, _ =>
         {
             writerCalled = true;
             return Task.CompletedTask;
         });
 
-        var ctx = TestContextFactory.Create();
+        var ctx = TestContextFactory.Create(cancellationToken: TestContext.Current.CancellationToken);
         await builder.ResponseHandler!(ctx);
 
         Assert.Equal(202, ctx.Response.StatusCode);
@@ -56,9 +56,9 @@ public sealed class TurboEntityTellBuilderSpec
     public async Task Produces_should_execute_iresult()
     {
         var builder = new TurboEntityTellBuilder();
-        builder.Produces(ctx => new TestResult(201));
+        builder.Produces(_ => new TestResult(201));
 
-        var ctx = TestContextFactory.Create();
+        var ctx = TestContextFactory.Create(cancellationToken: TestContext.Current.CancellationToken);
         await builder.ResponseHandler!(ctx);
 
         Assert.Equal(201, ctx.Response.StatusCode);
@@ -71,7 +71,7 @@ public sealed class TurboEntityTellBuilderSpec
         builder.Response(204);
         builder.Response(202);
 
-        var ctx = TestContextFactory.Create();
+        var ctx = TestContextFactory.Create(cancellationToken: TestContext.Current.CancellationToken);
         await builder.ResponseHandler!(ctx);
 
         Assert.Equal(202, ctx.Response.StatusCode);

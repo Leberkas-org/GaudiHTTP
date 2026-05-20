@@ -123,4 +123,74 @@ public sealed class TurboEntityBuilderSpec
 
         Assert.True(frozen.Match(HttpMethod.Get, "/orders/1").IsMatch);
     }
+
+    [Fact(Timeout = 5000)]
+    public void IsTell_should_set_tell_flag_in_config()
+    {
+        var builder = new TurboEntityBuilder("/orders/{id}");
+        builder.OnPost(() => new TestMessage("new")).IsTell();
+
+        var table = new TurboRouteTable();
+        builder.AddToRouteTable(table);
+        var frozen = table.Freeze();
+
+        Assert.True(frozen.Match(HttpMethod.Post, "/orders/1").IsMatch);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void IsTell_with_callback_should_register_tell_route()
+    {
+        var builder = new TurboEntityBuilder("/orders/{id}");
+        builder.OnPost(() => new TestMessage("new")).IsTell(tell =>
+        {
+            tell.Response(204);
+        });
+
+        var table = new TurboRouteTable();
+        builder.AddToRouteTable(table);
+        var frozen = table.Freeze();
+
+        Assert.True(frozen.Match(HttpMethod.Post, "/orders/1").IsMatch);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void IsAsk_should_register_ask_route()
+    {
+        var builder = new TurboEntityBuilder("/orders/{id}");
+        builder.OnGet(() => new TestMessage("get")).IsAsk(ask =>
+        {
+            ask.Response<TestMessage>((ctx, msg) => Task.CompletedTask);
+        });
+
+        var table = new TurboRouteTable();
+        builder.AddToRouteTable(table);
+        var frozen = table.Freeze();
+
+        Assert.True(frozen.Match(HttpMethod.Get, "/orders/1").IsMatch);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void IsAsk_without_handlers_should_throw()
+    {
+        var builder = new TurboEntityBuilder("/orders/{id}");
+        var methodBuilder = builder.OnGet(() => new TestMessage("get"));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            methodBuilder.IsAsk(ask => { }));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void AcceptedResponse_should_still_work()
+    {
+#pragma warning disable CS0618
+        var builder = new TurboEntityBuilder("/orders/{id}");
+        builder.OnPost(() => new TestMessage("new")).AcceptedResponse();
+#pragma warning restore CS0618
+
+        var table = new TurboRouteTable();
+        builder.AddToRouteTable(table);
+        var frozen = table.Freeze();
+
+        Assert.True(frozen.Match(HttpMethod.Post, "/orders/1").IsMatch);
+    }
 }

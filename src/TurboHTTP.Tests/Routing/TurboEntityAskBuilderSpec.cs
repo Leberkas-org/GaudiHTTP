@@ -21,7 +21,7 @@ public sealed class TurboEntityAskBuilderSpec
     public void Response_should_register_mapper()
     {
         var builder = new TurboEntityAskBuilder();
-        builder.Response<OrderDto>((ctx, order) => Task.CompletedTask);
+        builder.Response<OrderDto>((_, _) => Task.CompletedTask);
         Assert.Equal(1, builder.Mappers.Count);
     }
 
@@ -30,7 +30,7 @@ public sealed class TurboEntityAskBuilderSpec
     {
         var capturedId = "";
         var builder = new TurboEntityAskBuilder();
-        builder.Response<OrderDto>((ctx, order) =>
+        builder.Response<OrderDto>((_, order) =>
         {
             capturedId = order.Id;
             return Task.CompletedTask;
@@ -46,7 +46,7 @@ public sealed class TurboEntityAskBuilderSpec
     public void Produces_should_register_mapper()
     {
         var builder = new TurboEntityAskBuilder();
-        builder.Produces<OrderDto>((ctx, order) => new TestResult(200));
+        builder.Produces<OrderDto>((_, _) => new TestResult(200));
         Assert.Equal(1, builder.Mappers.Count);
     }
 
@@ -55,7 +55,7 @@ public sealed class TurboEntityAskBuilderSpec
     {
         var resultExecuted = false;
         var builder = new TurboEntityAskBuilder();
-        builder.Produces<OrderDto>((ctx, order) =>
+        builder.Produces<OrderDto>((_, _) =>
         {
             resultExecuted = true;
             return new TestResult(200);
@@ -64,7 +64,7 @@ public sealed class TurboEntityAskBuilderSpec
         var mapper = builder.Mappers.FindMapper(typeof(OrderDto));
         Assert.NotNull(mapper);
 
-        var ctx = TestContextFactory.Create();
+        var ctx = TestContextFactory.Create(cancellationToken: TestContext.Current.CancellationToken);
         await mapper(ctx, new OrderDto("1"));
         Assert.True(resultExecuted);
         Assert.Equal(200, ctx.Response.StatusCode);
@@ -74,8 +74,8 @@ public sealed class TurboEntityAskBuilderSpec
     public void Response_and_Produces_should_coexist()
     {
         var builder = new TurboEntityAskBuilder();
-        builder.Response<OrderDto>((ctx, order) => Task.CompletedTask);
-        builder.Produces<NotFoundResult>((ctx, _) => new TestResult(404));
+        builder.Response<OrderDto>((_, _) => Task.CompletedTask);
+        builder.Produces<NotFoundResult>((_, _) => new TestResult(404));
 
         Assert.Equal(2, builder.Mappers.Count);
         Assert.NotNull(builder.Mappers.FindMapper(typeof(OrderDto)));
