@@ -30,8 +30,7 @@ const activeIndex = ref(0)
             <div
                 v-for="(tab, index) in tabs"
                 :key="tab.label"
-                v-show="activeIndex === index"
-                class="code-tab-panel"
+                :class="['code-tab-panel', { inactive: activeIndex !== index }]"
             >
                 <pre><code>{{ tab.code }}</code></pre>
             </div>
@@ -75,7 +74,16 @@ const activeIndex = ref(0)
 }
 
 .code-tabs-body {
+    display: grid;
     background: var(--vp-code-block-bg);
+}
+
+.code-tab-panel {
+    grid-area: 1 / 1;
+}
+
+.code-tab-panel.inactive {
+    visibility: hidden;
 }
 
 .code-tab-panel pre {

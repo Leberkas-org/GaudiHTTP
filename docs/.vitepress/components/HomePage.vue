@@ -70,11 +70,11 @@ const activeTab = ref<'client' | 'server'>('client')
         <section class="hero">
             <div class="hero-content">
                 <div class="hero-text">
-                    <h1 class="hero-title">TurboHTTP</h1>
+                    <h1 class="hero-title"><span class="turbo">Turbo</span><span class="http">HTTP</span></h1>
                     <p class="hero-tagline">High-Performance HTTP Client & Server for .NET</p>
                     <div class="hero-badges">
                         <span class="badge">Zero Alloc</span>
-                        <span class="badge">HTTP/1–3 + QUIC</span>
+                        <span class="badge violet">HTTP/1–3 + QUIC</span>
                         <span class="badge">Backpressure</span>
                     </div>
                     <div class="hero-actions">
@@ -89,11 +89,14 @@ const activeTab = ref<'client' | 'server'>('client')
                             @click="activeTab = 'client'"
                         >Client</button>
                         <button
-                            :class="['tab', { active: activeTab === 'server' }]"
+                            :class="['tab', 'tab-server', { active: activeTab === 'server' }]"
                             @click="activeTab = 'server'"
                         >Server</button>
                     </div>
-                    <pre class="code-block"><code>{{ activeTab === 'client' ? clientCode : serverCode }}</code></pre>
+                    <div class="code-block-stack">
+                        <pre class="code-block" :class="{ inactive: activeTab !== 'client' }"><code>{{ clientCode }}</code></pre>
+                        <pre class="code-block" :class="{ inactive: activeTab !== 'server' }"><code>{{ serverCode }}</code></pre>
+                    </div>
                 </div>
             </div>
         </section>
@@ -176,12 +179,20 @@ const activeTab = ref<'client' | 'server'>('client')
 .hero-title {
     font-size: 48px;
     font-weight: 700;
-    background: linear-gradient(135deg, #10b981, #8b5cf6);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
     margin: 0 0 8px;
     line-height: 1.1;
+}
+
+.hero-title .turbo {
+    color: var(--vp-c-brand-1);
+}
+
+.hero-title .http {
+    color: #8b5cf6;
+}
+
+.dark .hero-title .http {
+    color: #a78bfa;
 }
 
 .hero-tagline {
@@ -205,6 +216,16 @@ const activeTab = ref<'client' | 'server'>('client')
     font-weight: 600;
     background: var(--vp-c-brand-soft);
     color: var(--vp-c-brand-1);
+}
+
+.badge.violet {
+    background: rgba(139, 92, 246, 0.14);
+    color: #8b5cf6;
+}
+
+.dark .badge.violet {
+    background: rgba(167, 139, 250, 0.14);
+    color: #a78bfa;
 }
 
 .hero-actions {
@@ -265,6 +286,29 @@ const activeTab = ref<'client' | 'server'>('client')
     border-bottom-color: var(--vp-c-brand-1);
 }
 
+.tab-server.active {
+    color: #8b5cf6;
+    border-bottom-color: #8b5cf6;
+}
+
+.dark .tab-server.active {
+    color: #a78bfa;
+    border-bottom-color: #a78bfa;
+}
+
+.code-block-stack {
+    display: grid;
+    background: var(--vp-code-block-bg);
+}
+
+.code-block-stack .code-block {
+    grid-area: 1 / 1;
+}
+
+.code-block.inactive {
+    visibility: hidden;
+}
+
 .code-block {
     margin: 0;
     padding: 20px 24px;
@@ -308,6 +352,14 @@ const activeTab = ref<'client' | 'server'>('client')
 
 .feature-card:hover {
     border-color: var(--vp-c-brand-1);
+}
+
+.feature-card:nth-child(even):hover {
+    border-color: #8b5cf6;
+}
+
+.dark .feature-card:nth-child(even):hover {
+    border-color: #a78bfa;
 }
 
 .feature-card h3 {
@@ -356,8 +408,35 @@ const activeTab = ref<'client' | 'server'>('client')
 }
 
 .comparison .highlight {
-    color: var(--vp-c-brand-1);
     font-weight: 600;
+}
+
+.comparison tr:nth-child(odd) .highlight {
+    color: var(--vp-c-brand-1);
+}
+
+.comparison tr:nth-child(even) .highlight {
+    color: #8b5cf6;
+}
+
+.dark .comparison tr:nth-child(even) .highlight {
+    color: #a78bfa;
+}
+
+.comparison tbody tr {
+    transition: background 0.2s;
+}
+
+.comparison tbody tr:nth-child(odd):hover {
+    background: var(--vp-c-brand-soft);
+}
+
+.comparison tbody tr:nth-child(even):hover {
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.dark .comparison tbody tr:nth-child(even):hover {
+    background: rgba(167, 139, 250, 0.08);
 }
 
 /* Install */
@@ -401,9 +480,19 @@ const activeTab = ref<'client' | 'server'>('client')
     transition: border-color 0.2s, color 0.2s;
 }
 
-.install-link:hover {
+.install-link:nth-child(odd):hover {
     border-color: var(--vp-c-brand-1);
     color: var(--vp-c-brand-1);
+}
+
+.install-link:nth-child(even):hover {
+    border-color: #8b5cf6;
+    color: #8b5cf6;
+}
+
+.dark .install-link:nth-child(even):hover {
+    border-color: #a78bfa;
+    color: #a78bfa;
 }
 
 /* Responsive */

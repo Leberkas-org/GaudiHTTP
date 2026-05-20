@@ -102,6 +102,30 @@
     margin-top: 48px;
 }
 
+/* Navbar alternating hover colors */
+.VPNavBarMenuLink:nth-child(even):hover,
+.VPNavBarMenuLink:nth-child(even).active {
+    color: #8b5cf6 !important;
+}
+
+.dark .VPNavBarMenuLink:nth-child(even):hover,
+.dark .VPNavBarMenuLink:nth-child(even).active {
+    color: #a78bfa !important;
+}
+
+/* Sidebar alternating hover colors */
+.VPSidebarItem .link:hover .text {
+    color: var(--vp-c-brand-1) !important;
+}
+
+.VPSidebarItem:nth-child(even) .link:hover .text {
+    color: #8b5cf6 !important;
+}
+
+.dark .VPSidebarItem:nth-child(even) .link:hover .text {
+    color: #a78bfa !important;
+}
+
 /* Inline code styling */
 .vp-doc :not(pre) > code {
     border-radius: 4px;
