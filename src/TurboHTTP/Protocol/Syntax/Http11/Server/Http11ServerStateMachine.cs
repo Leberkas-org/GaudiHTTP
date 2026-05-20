@@ -1,6 +1,7 @@
 using Akka.Event;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Stages.Server;
@@ -21,6 +22,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     private int _pendingResponseCount;
     private bool _outboundBodyPending;
     private bool _requestHeadersTimerActive;
+    private readonly TurboServerOptions _serverOptions;
 
     public bool CanAcceptResponse => !_outboundBodyPending && _pendingResponseCount > 0;
     public bool ShouldComplete { get; private set; }
@@ -29,6 +31,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
+        _serverOptions = options;
 
         var shared = SharedHttpOptions.Default with
         {
@@ -119,6 +122,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                 if (!ShouldComplete && request.Version == HttpVersion.Version10)
                 {
                     ShouldComplete = true;
+                }
+
+                if (TryHandleH2cUpgrade(request))
+                {
+                    _decoder.Reset();
+                    break;
                 }
 
                 _pendingResponseCount++;
@@ -217,6 +226,36 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                 _ops.Log.Warning("Failed to encode HTTP/1.1 response body: {0}", failed.Reason.Message);
                 break;
         }
+    }
+
+    private bool TryHandleH2cUpgrade(HttpRequestMessage request)
+    {
+        if (_ops is not IProtocolSwitchCapable switchable)
+        {
+            return false;
+        }
+
+        if (!request.Headers.TryGetValues("Upgrade", out var upgradeValues)
+            || !upgradeValues.Any(v => v.Equals("h2c", StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (!request.Headers.TryGetValues("HTTP2-Settings", out _))
+        {
+            return false;
+        }
+
+        var responseBytes = "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: h2c\r\n\r\n"u8;
+        var responseBuffer = TransportBuffer.Rent(responseBytes.Length);
+        responseBytes.CopyTo(responseBuffer.FullMemory.Span);
+        responseBuffer.Length = responseBytes.Length;
+        _ops.OnOutbound(new TransportData(responseBuffer));
+
+        switchable.RequestProtocolSwitch(
+            ops => new Http2ServerStateMachine(_serverOptions, ops));
+
+        return true;
     }
 
     public void Cleanup()
