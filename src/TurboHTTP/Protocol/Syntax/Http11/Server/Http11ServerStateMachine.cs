@@ -1,6 +1,7 @@
 using Akka.Event;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Server;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Stages.Server;
 using HttpVersion = System.Net.HttpVersion;
@@ -24,15 +25,32 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     public bool CanAcceptResponse => !_outboundBodyPending && _pendingResponseCount > 0;
     public bool ShouldComplete { get; private set; }
 
-    public Http11ServerStateMachine(
-        IServerStageOperations ops,
-        Http11ServerEncoderOptions? encoderOptions = null,
-        Http11ServerDecoderOptions? decoderOptions = null)
+    public Http11ServerStateMachine(TurboServerOptions options, IServerStageOperations ops)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
+        ArgumentNullException.ThrowIfNull(options);
 
-        var encOpts = encoderOptions ?? Http11ServerEncoderOptions.Default;
-        var decOpts = decoderOptions ?? Http11ServerDecoderOptions.Default;
+        var shared = SharedHttpOptions.Default with
+        {
+            MaxBufferedBodySize = options.BodyBufferThreshold,
+            MaxStreamedBodySize = options.Http1.MaxRequestBodySize,
+            MaxHeaderBytes = options.Http1.MaxHeaderListSize,
+            HeaderLineMaxLength = options.Http1.MaxRequestLineLength,
+            RequestLineMaxLength = options.Http1.MaxRequestLineLength,
+        };
+
+        var encOpts = new Http11ServerEncoderOptions
+        {
+            Shared = shared,
+            KeepAliveTimeout = options.Http1.KeepAliveTimeout ?? options.KeepAliveTimeout,
+            RequestHeadersTimeout = options.Http1.RequestHeadersTimeout ?? options.RequestHeadersTimeout,
+        };
+
+        var decOpts = new Http11ServerDecoderOptions
+        {
+            Shared = shared,
+            MaxPipelinedRequests = options.Http1.MaxPipelinedRequests,
+        };
 
         encOpts.Validate();
         decOpts.Validate();
