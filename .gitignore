@@ -336,6 +336,7 @@ ASALocalRun/
 docs/node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+docs/superpowers/*
 *.likec4-export/
 
 # CUSTOM
