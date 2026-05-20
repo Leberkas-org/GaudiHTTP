@@ -1,5 +1,6 @@
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
+using TurboHTTP.Server;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Stages.Server;
 
@@ -24,40 +25,44 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
     public bool CanAcceptResponse => _sessionManager.ActiveStreamCount > 0;
     public bool ShouldComplete => false;
 
-    public Http2ServerStateMachine(
-        IServerStageOperations ops,
-        int maxConcurrentStreams = 100,
-        int initialConnectionWindowSize = 65535,
-        int initialStreamWindowSize = 65535,
-        int maxHeaderSize = 16 * 1024,
-        int maxTotalHeaderSize = 64 * 1024,
-        long maxRequestBodySize = 30 * 1024 * 1024,
-        TimeSpan? keepAliveTimeout = null,
-        TimeSpan? requestHeadersTimeout = null,
-        int minRequestBodyDataRate = 240,
-        TimeSpan? minRequestBodyDataRateGracePeriod = null)
+    public Http2ServerStateMachine(TurboServerOptions options, IServerStageOperations ops)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
+        ArgumentNullException.ThrowIfNull(options);
 
-        var encoderOpts = new Http2ServerEncoderOptions();
+        var shared = SharedHttpOptions.Default with
+        {
+            MaxBufferedBodySize = options.BodyBufferThreshold,
+            MaxStreamedBodySize = options.Http2.MaxRequestBodySize,
+            MaxHeaderBytes = options.Http2.MaxHeaderListSize,
+        };
+
+        var encoderOpts = new Http2ServerEncoderOptions
+        {
+            Shared = shared,
+            HeaderTableSize = options.Http2.HeaderTableSize,
+            MaxFrameSize = options.Http2.MaxFrameSize,
+        };
 
         var decoderOpts = new Http2ServerDecoderOptions
         {
-            MaxConcurrentStreams = maxConcurrentStreams,
+            Shared = shared,
+            MaxConcurrentStreams = options.Http2.MaxConcurrentStreams,
+            MaxFieldSectionSize = options.Http2.MaxHeaderListSize,
         };
 
         _sessionManager = new Http2ServerSessionManager(
             encoderOpts,
             decoderOpts,
             ops,
-            initialConnectionWindowSize,
-            initialStreamWindowSize,
-            maxRequestBodySize);
+            options.Http2.InitialConnectionWindowSize,
+            options.Http2.InitialStreamWindowSize,
+            options.Http2.MaxRequestBodySize);
 
-        _keepAliveTimeout = keepAliveTimeout ?? TimeSpan.FromSeconds(130);
-        _requestHeadersTimeout = requestHeadersTimeout ?? TimeSpan.FromSeconds(30);
-        _minBodyDataRate = minRequestBodyDataRate;
-        _bodyRateGracePeriod = minRequestBodyDataRateGracePeriod ?? TimeSpan.FromSeconds(5);
+        _keepAliveTimeout = options.Http2.KeepAliveTimeout;
+        _requestHeadersTimeout = options.Http2.RequestHeadersTimeout;
+        _minBodyDataRate = options.Http2.MinRequestBodyDataRate;
+        _bodyRateGracePeriod = options.Http2.MinRequestBodyDataRateGracePeriod;
     }
 
     public void PreStart()
