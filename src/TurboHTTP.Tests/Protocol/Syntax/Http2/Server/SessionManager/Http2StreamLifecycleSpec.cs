@@ -8,6 +8,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 using AkkaActor = Akka.Actor;
 
 
@@ -19,7 +20,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.SessionManager;
 /// </summary>
 public sealed class Http2StreamLifecycleSpec
 {
-    private static TurboHttpContext CreateResponseContext()
+    private static TurboHttpContext CreateResponseContext(long streamId = 99)
     {
         var features = new FeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
@@ -27,39 +28,10 @@ public sealed class Http2StreamLifecycleSpec
         var bodyFeature = new TurboHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<ITurboResponseBodyFeature>(bodyFeature);
+        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
         return new TurboHttpContext(features);
     }
 
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public List<(string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public AkkaActor.IActorRef StageActor { get; set; } = AkkaActor.ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context)
-        {
-            // Dummy request for tracking test calls
-            Requests.Add(new HttpRequestMessage());
-        }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            Outbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-            ScheduledTimers.Add((name, delay));
-        }
-
-        public void OnCancelTimer(string name)
-        {
-            CancelledTimers.Add(name);
-        }
-    }
 
     private static byte[] BuildHeadersFrame(int streamId, bool endStream = false)
     {
@@ -127,7 +99,7 @@ public sealed class Http2StreamLifecycleSpec
     [Trait("RFC", "RFC9113-5.1.2")]
     public void Should_accept_streams_up_to_max_concurrent()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions { MaxConcurrentStreams = 2 };
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -157,7 +129,7 @@ public sealed class Http2StreamLifecycleSpec
     [Trait("RFC", "RFC9113-5.1.2")]
     public void Should_refuse_stream_above_max_concurrent()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions { MaxConcurrentStreams = 1 };
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -208,7 +180,7 @@ public sealed class Http2StreamLifecycleSpec
     [Trait("RFC", "RFC9113-6.4")]
     public void RstStream_on_active_stream_should_close_it()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -237,7 +209,7 @@ public sealed class Http2StreamLifecycleSpec
     [Trait("RFC", "RFC9113-6.4")]
     public void RstStream_on_closed_stream_should_not_crash()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -261,7 +233,7 @@ public sealed class Http2StreamLifecycleSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void Headers_with_EndStream_true_should_emit_request_immediately()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -276,19 +248,18 @@ public sealed class Http2StreamLifecycleSpec
 
         // Exactly one request should be emitted
         Assert.Single(ops.Requests);
-        var request = ops.Requests[0];
+        var context = ops.Requests[0];
 
         // Request should have stream ID set
-        Assert.True(request.Options.TryGetValue(
-            new HttpRequestOptionsKey<int>("TurboHTTP.StreamId.H2"),
-            out var streamId));
-        Assert.Equal(1, streamId);
+        var streamIdFeature = context.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature);
+        Assert.Equal(1, streamIdFeature.StreamId);
     }
 
     [Fact(Timeout = 5000)]
     public void Cleanup_should_be_idempotent()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -316,7 +287,7 @@ public sealed class Http2StreamLifecycleSpec
     [Fact(Timeout = 5000)]
     public void OnResponse_for_unknown_stream_should_not_crash()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);

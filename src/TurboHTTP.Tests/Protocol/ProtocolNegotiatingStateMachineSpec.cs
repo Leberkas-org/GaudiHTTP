@@ -3,28 +3,19 @@ using System.Net.Security;
 using System.Security.Authentication;
 using Akka.Actor;
 using Akka.Event;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Context;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol;
 
 public sealed class ProtocolNegotiatingStateMachineSpec
 {
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public List<string> ScheduledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { /* OnRequest called */ }
-        public void OnOutbound(ITransportOutbound item) => EmittedOutbound.Add(item);
-        public void OnScheduleTimer(string name, TimeSpan delay) => ScheduledTimers.Add(name);
-        public void OnCancelTimer(string name) { }
-    }
 
     private static TransportConnected MakeConnected(SslApplicationProtocol? alpn = null)
     {
@@ -60,7 +51,8 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         sm.DecodeClientData(MakeConnected(SslApplicationProtocol.Http2));
 
         Assert.True(sm.CanAcceptResponse || !sm.ShouldComplete);
-        Assert.Contains("keep-alive-timeout", ops.ScheduledTimers);
+        Assert.True(ops.ScheduledTimers.Any(t => t.Name == "keep-alive-timeout"),
+            "keep-alive-timeout should be scheduled");
     }
 
     [Fact(Timeout = 5000)]
@@ -100,7 +92,8 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
         sm.DecodeClientData(MakeData(preface));
 
-        Assert.Contains("keep-alive-timeout", ops.ScheduledTimers);
+        Assert.True(ops.ScheduledTimers.Any(t => t.Name == "keep-alive-timeout"),
+            "keep-alive-timeout should be scheduled");
     }
 
     [Fact(Timeout = 5000)]
@@ -114,8 +107,11 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var request = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         sm.DecodeClientData(MakeData(request));
 
-        Assert.Single(ops.EmittedRequests);
-        Assert.Equal("GET", ops.EmittedRequests[0].Method.Method);
+        Assert.Single(ops.Requests);
+        var ctx = ops.Requests[0];
+        var feature = ctx.Features.Get<IHttpRequestFeature>();
+        Assert.NotNull(feature);
+        Assert.Equal("GET", feature.Method);
     }
 
     [Fact(Timeout = 5000)]
@@ -129,8 +125,11 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var request = "POST / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         sm.DecodeClientData(MakeData(request));
 
-        Assert.Single(ops.EmittedRequests);
-        Assert.Equal("POST", ops.EmittedRequests[0].Method.Method);
+        Assert.Single(ops.Requests);
+        var ctx = ops.Requests[0];
+        var feature = ctx.Features.Get<IHttpRequestFeature>();
+        Assert.NotNull(feature);
+        Assert.Equal("POST", feature.Method);
     }
 
     [Fact(Timeout = 5000)]
@@ -144,7 +143,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
 
         Assert.False(sm.CanAcceptResponse);
         Assert.False(sm.ShouldComplete);
-        Assert.Empty(ops.EmittedRequests);
+        Assert.Empty(ops.Requests);
         Assert.Empty(ops.ScheduledTimers);
     }
 

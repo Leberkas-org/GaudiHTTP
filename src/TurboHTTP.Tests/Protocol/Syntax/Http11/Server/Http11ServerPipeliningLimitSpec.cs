@@ -1,12 +1,11 @@
 using System.Text;
-using Akka.Actor;
-using Akka.Event;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -36,7 +35,7 @@ public sealed class Http11ServerPipeliningLimitSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Equal(3, ops.EmittedRequests.Count);
+        Assert.Equal(3, ops.Requests.Count);
         Assert.False(sm.ShouldComplete);
     }
 
@@ -54,7 +53,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         sm.DecodeClientData(new TransportData(buffer));
 
         // Should only accept 2 requests (the limit)
-        Assert.Equal(2, ops.EmittedRequests.Count);
+        Assert.Equal(2, ops.Requests.Count);
         // Should mark connection for closure due to limit
         Assert.True(sm.ShouldComplete);
     }
@@ -72,7 +71,7 @@ public sealed class Http11ServerPipeliningLimitSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Single(ops.EmittedRequests);
+        Assert.Single(ops.Requests);
         Assert.True(sm.ShouldComplete);
 
         // Send response - should trigger connection close
@@ -80,7 +79,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         sm.OnResponse(context);
 
         // Verify the response was sent
-        Assert.NotEmpty(ops.EmittedOutbound);
+        Assert.NotEmpty(ops.Outbound);
     }
 
     [Fact(Timeout = 5000)]
@@ -94,7 +93,7 @@ public sealed class Http11ServerPipeliningLimitSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Equal(16, ops.EmittedRequests.Count);
+        Assert.Equal(16, ops.Requests.Count);
         Assert.False(sm.ShouldComplete);
     }
 
@@ -109,7 +108,7 @@ public sealed class Http11ServerPipeliningLimitSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Equal(16, ops.EmittedRequests.Count);
+        Assert.Equal(16, ops.Requests.Count);
         Assert.True(sm.ShouldComplete);
     }
 
@@ -126,7 +125,7 @@ public sealed class Http11ServerPipeliningLimitSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Equal(100, ops.EmittedRequests.Count);
+        Assert.Equal(100, ops.Requests.Count);
         Assert.False(sm.ShouldComplete);
     }
 
@@ -157,7 +156,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         // First buffer with 2 requests
         var buffer1 = MakeBuffer(BuildPipelinedRequests(2));
         sm.DecodeClientData(new TransportData(buffer1));
-        Assert.Equal(2, ops.EmittedRequests.Count);
+        Assert.Equal(2, ops.Requests.Count);
 
         // Second buffer with 2 more requests - should also be limited (total would be 4)
         var buffer2 = MakeBuffer(BuildPipelinedRequests(2));
@@ -167,26 +166,6 @@ public sealed class Http11ServerPipeliningLimitSpec
         // (behavior depends on whether ShouldCloseAfterResponse prevents further decoding)
         // For now, just verify the first buffer honored the limit
         Assert.True(sm.ShouldComplete);
-    }
-
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { /* OnRequest called */ }
-
-        public void OnOutbound(ITransportOutbound item) => EmittedOutbound.Add(item);
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-        }
-
-        public void OnCancelTimer(string name)
-        {
-        }
     }
 
     private static TransportBuffer MakeBuffer(string raw)

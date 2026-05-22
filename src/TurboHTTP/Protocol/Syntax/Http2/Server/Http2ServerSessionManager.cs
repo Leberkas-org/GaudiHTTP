@@ -495,18 +495,14 @@ internal sealed class Http2ServerSessionManager
             _flow.InitStreamSendWindow(streamId);
 
             var hasBody = !endStream;
-            var context = ServerContextFactory.Create(requestFeature, hasBody);
-
-            context.Features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
-
             if (hasBody)
             {
                 state.InitBodyDecoder(new StreamingBodyDecoder(_maxRequestBodySize));
-                if (requestFeature is not null)
-                {
-                    requestFeature.Body = state.GetBodyStream();
-                }
+                requestFeature.Body = state.GetBodyStream();
             }
+
+            var context = ServerContextFactory.Create(requestFeature, hasBody);
+            context.Features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
 
             _ops.OnRequest(context);
         }

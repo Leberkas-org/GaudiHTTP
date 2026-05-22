@@ -7,6 +7,7 @@ using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -89,8 +90,8 @@ public sealed class Http11ServerConnectionPersistenceSpec
         var context = CreateResponseContext();
         sm.OnResponse(context);
 
-        Assert.Single(ops.EmittedOutbound);
-        var outbound = ops.EmittedOutbound[0];
+        Assert.Single(ops.Outbound);
+        var outbound = ops.Outbound[0];
         Assert.IsType<TransportData>(outbound);
     }
 
@@ -110,26 +111,6 @@ public sealed class Http11ServerConnectionPersistenceSpec
         Assert.False(sm.CanAcceptResponse);
     }
 
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context)
-        {
-        }
-
-        public void OnOutbound(ITransportOutbound item) => EmittedOutbound.Add(item);
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-        }
-
-        public void OnCancelTimer(string name)
-        {
-        }
-    }
 
     private static TransportBuffer MakeBuffer(string raw)
     {

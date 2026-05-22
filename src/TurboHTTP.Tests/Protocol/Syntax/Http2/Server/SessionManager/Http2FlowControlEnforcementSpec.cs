@@ -8,6 +8,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 using AkkaActor = Akka.Actor;
 
 
@@ -19,7 +20,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.SessionManager;
 /// </summary>
 public sealed class Http2FlowControlEnforcementSpec
 {
-    private static TurboHttpContext CreateResponseContext()
+    private static TurboHttpContext CreateResponseContext(long streamId)
     {
         var features = new FeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
@@ -27,37 +28,10 @@ public sealed class Http2FlowControlEnforcementSpec
         var bodyFeature = new TurboHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<ITurboResponseBodyFeature>(bodyFeature);
+        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
         return new TurboHttpContext(features);
     }
 
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public List<(string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public AkkaActor.IActorRef StageActor { get; set; } = AkkaActor.ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context)
-        {
-        }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            Outbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-            ScheduledTimers.Add((name, delay));
-        }
-
-        public void OnCancelTimer(string name)
-        {
-            CancelledTimers.Add(name);
-        }
-    }
 
     private static byte[] BuildHeadersFrame(int streamId, bool endStream = false)
     {
@@ -141,7 +115,7 @@ public sealed class Http2FlowControlEnforcementSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void WindowUpdate_on_stream_0_should_not_crash()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -162,7 +136,7 @@ public sealed class Http2FlowControlEnforcementSpec
     [Trait("RFC", "RFC9113-5.1")]
     public void Data_on_closed_stream_should_emit_RstStream()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -177,13 +151,16 @@ public sealed class Http2FlowControlEnforcementSpec
 
         // Request should be emitted
         Assert.Single(ops.Requests);
-        var request = ops.Requests[0];
+        var requestContext = ops.Requests[0];
+        var requestStreamIdFeature = requestContext.Features.Get<IHttpStreamIdFeature>();
+        var streamId = requestStreamIdFeature?.StreamId ?? 1;
 
-        // Step 2: Send response to close the stream
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
+        // Step 2: Send response with ContentLength=0 to close the stream
+        requestContext.Response.StatusCode = 200;
+        requestContext.Response.ContentLength = 0;
+        sm.OnResponse(requestContext);
 
-        // Stream 1 is now closed (ActiveStreamCount should be 0)
+        // Stream 1 should be closed after response with no body
         Assert.Equal(0, sm.ActiveStreamCount);
 
         // Clear outbound to count only new frames
@@ -221,7 +198,7 @@ public sealed class Http2FlowControlEnforcementSpec
     [Trait("RFC", "RFC9113-6.1")]
     public void Empty_data_with_EndStream_should_complete_request_body()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);

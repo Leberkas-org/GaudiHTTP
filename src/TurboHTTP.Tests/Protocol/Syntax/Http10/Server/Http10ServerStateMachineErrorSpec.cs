@@ -26,6 +26,16 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         return new TurboHttpContext(features);
     }
 
+    private static async Task<TurboHttpContext> CreateResponseContextWithBody(string body)
+    {
+        var context = CreateResponseContext();
+        var bodyFeature = context.Features.Get<IHttpResponseBodyFeature>()!;
+        var bytes = Encoding.ASCII.GetBytes(body);
+        await bodyFeature.Writer.WriteAsync(bytes);
+        await bodyFeature.Writer.CompleteAsync();
+        return context;
+    }
+
     private static TransportBuffer CreateRequestBuffer(string requestText)
     {
         var bytes = Encoding.ASCII.GetBytes(requestText);
@@ -85,7 +95,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
         sm.PreStart();
 
-        var context = CreateResponseContext();
+        var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
 
         var msg = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));

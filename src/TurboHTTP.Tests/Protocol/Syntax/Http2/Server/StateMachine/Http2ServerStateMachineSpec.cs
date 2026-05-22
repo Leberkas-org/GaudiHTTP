@@ -8,6 +8,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 using AkkaActor = Akka.Actor;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.StateMachine;
@@ -29,28 +30,6 @@ public sealed class Http2ServerStateMachineSpec
         return new TurboHttpContext(features);
     }
 
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public AkkaActor.IActorRef StageActor { get; set; } = AkkaActor.ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            EmittedOutbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-        }
-
-        public void OnCancelTimer(string name)
-        {
-        }
-    }
 
     private static byte[] BuildHeadersFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endStream = false,
         bool endHeaders = true)
@@ -153,8 +132,8 @@ public sealed class Http2ServerStateMachineSpec
 
         sm.PreStart();
 
-        Assert.Single(ops.EmittedOutbound);
-        Assert.IsType<TransportData>(ops.EmittedOutbound[0]);
+        Assert.Single(ops.Outbound);
+        Assert.IsType<TransportData>(ops.Outbound[0]);
     }
 
     [Fact(Timeout = 5000)]
@@ -173,16 +152,17 @@ public sealed class Http2ServerStateMachineSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
 
-        // Verify stream ID was stored in request options
-        Assert.True(request.Options.TryGetValue(StreamIdKey.Http2, out var streamId));
-        Assert.Equal(1, streamId);
+        // Verify stream ID was stored in request features
+        var streamIdFeature = context.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature);
+        Assert.Equal(1, streamIdFeature.StreamId);
 
         // Verify request properties
-        Assert.Equal("GET", request.Method.Method);
-        Assert.Equal("/", request.RequestUri?.AbsolutePath);
+        Assert.Equal("GET", context.Request.Method);
+        Assert.Equal("/", context.Request.Path.Value);
     }
 
     [Fact(Timeout = 5000)]
@@ -208,7 +188,7 @@ public sealed class Http2ServerStateMachineSpec
         sm.DecodeClientData(new TransportData(buffer));
 
         // No request emitted yet, waiting for CONTINUATION
-        Assert.Empty(ops.EmittedRequests);
+        Assert.Empty(ops.Requests);
     }
 
     [Fact(Timeout = 5000)]
@@ -219,7 +199,7 @@ public sealed class Http2ServerStateMachineSpec
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         var pingFrameData = BuildPingFrame(isAck: false);
         var buffer = TransportBuffer.Rent(pingFrameData.Length);
@@ -228,8 +208,8 @@ public sealed class Http2ServerStateMachineSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Single(ops.EmittedOutbound);
-        var outbound = ops.EmittedOutbound[0];
+        Assert.Single(ops.Outbound);
+        var outbound = ops.Outbound[0];
         Assert.IsType<TransportData>(outbound);
 
         var transportData = (TransportData)outbound;
@@ -248,7 +228,7 @@ public sealed class Http2ServerStateMachineSpec
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         var settingsFrameData = BuildSettingsFrame(isAck: false);
         var buffer = TransportBuffer.Rent(settingsFrameData.Length);
@@ -257,8 +237,8 @@ public sealed class Http2ServerStateMachineSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Single(ops.EmittedOutbound);
-        var outbound = ops.EmittedOutbound[0];
+        Assert.Single(ops.Outbound);
+        var outbound = ops.Outbound[0];
         Assert.IsType<TransportData>(outbound);
 
         var transportData = (TransportData)outbound;
@@ -286,19 +266,19 @@ public sealed class Http2ServerStateMachineSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
 
         // Now send a response
-        ops.EmittedOutbound.Clear();
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
+        ops.Outbound.Clear();
+        var requestContext = ops.Requests[0];
+        requestContext.Response.StatusCode = 200;
+        sm.OnResponse(requestContext);
 
         // Should emit response frames
-        Assert.NotEmpty(ops.EmittedOutbound);
+        Assert.NotEmpty(ops.Outbound);
 
         // At minimum, should have HEADERS frame
-        var outbound = ops.EmittedOutbound[0];
+        var outbound = ops.Outbound[0];
         Assert.IsType<TransportData>(outbound);
     }
 

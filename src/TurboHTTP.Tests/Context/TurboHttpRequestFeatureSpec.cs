@@ -97,9 +97,9 @@ public sealed class TurboHttpRequestFeatureSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TurboHttpRequestFeature_should_implement_iturorequestbodyfeature()
+    public void TurboHttpRequestFeature_should_not_implement_iturorequestbodyfeature()
     {
         var feature = new TurboHttpRequestFeature();
-        Assert.IsAssignableFrom<ITurboRequestBodyFeature>(feature);
+        Assert.False(feature is ITurboRequestBodyFeature);
     }
 }

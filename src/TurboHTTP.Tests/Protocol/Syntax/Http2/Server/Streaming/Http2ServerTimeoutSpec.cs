@@ -6,6 +6,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Streaming;
 
@@ -15,35 +16,6 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Streaming;
 /// </summary>
 public sealed class Http2ServerTimeoutSpec
 {
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public List<(string Name, TimeSpan Delay)> Timers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            EmittedOutbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-            // Remove any existing timer with the same name
-            Timers.RemoveAll(t => t.Name == name);
-            Timers.Add((name, delay));
-        }
-
-        public void OnCancelTimer(string name)
-        {
-            CancelledTimers.Add(name);
-            Timers.RemoveAll(t => t.Name == name);
-        }
-    }
 
     private static byte[] BuildHeadersFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endStream = false,
         bool endHeaders = true)
@@ -126,8 +98,8 @@ public sealed class Http2ServerTimeoutSpec
         sm.PreStart();
 
         // Should have scheduled keep-alive timer
-        Assert.Single(ops.Timers);
-        var timer = ops.Timers[0];
+        Assert.Single(ops.ScheduledTimers);
+        var timer = ops.ScheduledTimers[0];
         Assert.Equal("keep-alive-timeout", timer.Name);
         Assert.Equal(TimeSpan.FromSeconds(130), timer.Delay);
     }
@@ -140,15 +112,15 @@ public sealed class Http2ServerTimeoutSpec
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         // Fire the keep-alive timeout
         sm.OnTimerFired("keep-alive-timeout");
 
         // Should emit a GOAWAY frame
-        Assert.Single(ops.EmittedOutbound);
-        Assert.IsType<TransportData>(ops.EmittedOutbound[0]);
-        var transportData = (TransportData)ops.EmittedOutbound[0];
+        Assert.Single(ops.Outbound);
+        Assert.IsType<TransportData>(ops.Outbound[0]);
+        var transportData = (TransportData)ops.Outbound[0];
         var frameType = transportData.Buffer.Span[3];
         Assert.Equal((byte)FrameType.GoAway, frameType);
     }
@@ -162,7 +134,7 @@ public sealed class Http2ServerTimeoutSpec
 
         sm.PreStart();
         ops.CancelledTimers.Clear();
-        ops.Timers.Clear();
+        ops.ScheduledTimers.Clear();
 
         // Send HEADERS to open a stream
         var headerBlock = EncodeHeaders("GET", "/", "example.com");
@@ -205,20 +177,20 @@ public sealed class Http2ServerTimeoutSpec
         sm.DecodeClientData(new TransportData(buffer));
 
         // Headers timeout should be scheduled
-        var headersTimer = ops.Timers.FirstOrDefault(t => t.Name.StartsWith("headers-timeout:"));
+        var headersTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name.StartsWith("headers-timeout:"));
         Assert.NotNull(headersTimer.Name);
         Assert.Equal("headers-timeout:1", headersTimer.Name);
         Assert.Equal(TimeSpan.FromSeconds(30), headersTimer.Delay);
 
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         // Fire the headers timeout
         sm.OnTimerFired("headers-timeout:1");
 
         // Should emit a RST_STREAM frame
-        Assert.Single(ops.EmittedOutbound);
-        Assert.IsType<TransportData>(ops.EmittedOutbound[0]);
-        var transportData = (TransportData)ops.EmittedOutbound[0];
+        Assert.Single(ops.Outbound);
+        Assert.IsType<TransportData>(ops.Outbound[0]);
+        var transportData = (TransportData)ops.Outbound[0];
         var frameType = transportData.Buffer.Span[3];
         Assert.Equal((byte)FrameType.RstStream, frameType);
     }
@@ -263,44 +235,6 @@ public sealed class Http2ServerTimeoutSpec
         Assert.Contains("headers-timeout:1", ops.CancelledTimers);
     }
 
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-5.4")]
-    public void Body_rate_check_should_schedule_on_data_frame()
-    {
-        var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
-
-        sm.PreStart();
-
-        // Send HEADERS (no body yet)
-        var headerBlock = EncodeHeaders("POST", "/", "example.com");
-        var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
-
-        var buffer = TransportBuffer.Rent(headersFrameData.Length);
-        headersFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = headersFrameData.Length;
-
-        sm.DecodeClientData(new TransportData(buffer));
-
-        ops.Timers.Clear();
-
-        // Send DATA frame
-        var data = new byte[100];
-        var dataFrameData = BuildDataFrame(streamId: 1, data, endStream: false);
-
-        buffer = TransportBuffer.Rent(dataFrameData.Length);
-        dataFrameData.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = dataFrameData.Length;
-
-        sm.DecodeClientData(new TransportData(buffer));
-
-        // Body rate check timer should be scheduled
-        var rateTimer = ops.Timers.FirstOrDefault(t => t.Name == "body-rate-check");
-        Assert.NotNull(rateTimer.Name);
-        Assert.Equal("body-rate-check", rateTimer.Name);
-        Assert.Equal(TimeSpan.FromSeconds(1), rateTimer.Delay);
-    }
-
     private static byte[] BuildContinuationFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endHeaders = true)
     {
         const int frameHeaderSize = 9;
@@ -322,6 +256,44 @@ public sealed class Http2ServerTimeoutSpec
         headerBlock.Span.CopyTo(frame.AsSpan(frameHeaderSize));
 
         return frame;
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4")]
+    public void Body_rate_check_should_schedule_on_data_frame()
+    {
+        var ops = new FakeServerOps();
+        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+
+        sm.PreStart();
+
+        // Send HEADERS (no body yet)
+        var headerBlock = EncodeHeaders("POST", "/", "example.com");
+        var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: false, endHeaders: true);
+
+        var buffer = TransportBuffer.Rent(headersFrameData.Length);
+        headersFrameData.CopyTo(buffer.FullMemory.Span);
+        buffer.Length = headersFrameData.Length;
+
+        sm.DecodeClientData(new TransportData(buffer));
+
+        ops.ScheduledTimers.Clear();
+
+        // Send DATA frame
+        var data = new byte[100];
+        var dataFrameData = BuildDataFrame(streamId: 1, data, endStream: false);
+
+        buffer = TransportBuffer.Rent(dataFrameData.Length);
+        dataFrameData.CopyTo(buffer.FullMemory.Span);
+        buffer.Length = dataFrameData.Length;
+
+        sm.DecodeClientData(new TransportData(buffer));
+
+        // Body rate check timer should be scheduled
+        var rateTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name == "body-rate-check");
+        Assert.NotNull(rateTimer.Name);
+        Assert.Equal("body-rate-check", rateTimer.Name);
+        Assert.Equal(TimeSpan.FromSeconds(1), rateTimer.Delay);
     }
 }
 

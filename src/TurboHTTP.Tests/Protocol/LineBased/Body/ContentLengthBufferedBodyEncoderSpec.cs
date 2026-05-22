@@ -32,10 +32,9 @@ public sealed class ContentLengthBufferedBodyEncoderSpec : TestKit
     public void Start_should_deliver_failed_on_error()
     {
         var probe = CreateTestProbe();
-        var content = new FailingContent();
         using var encoder = new ContentLengthBufferedBodyEncoder();
 
-        var bodyStream = content.ReadAsStream();
+        var bodyStream = new FailingStream();
         encoder.Start(bodyStream, probe.Ref);
 
         var msg = probe.ReceiveOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
@@ -43,15 +42,26 @@ public sealed class ContentLengthBufferedBodyEncoderSpec : TestKit
         Assert.NotNull(failed.Reason);
     }
 
-    private sealed class FailingContent : HttpContent
+    private sealed class FailingStream : Stream
     {
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
-            => Task.FromException(new InvalidOperationException("content error"));
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
 
-        protected override bool TryComputeLength(out long length)
-        {
-            length = 0;
-            return false;
-        }
+        public override void Flush() { }
+
+        public override int Read(byte[] buffer, int offset, int count)
+            => throw new InvalidOperationException("content error");
+
+        public override long Seek(long offset, SeekOrigin origin)
+            => throw new NotSupportedException();
+
+        public override void SetLength(long value)
+            => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count)
+            => throw new NotSupportedException();
     }
 }

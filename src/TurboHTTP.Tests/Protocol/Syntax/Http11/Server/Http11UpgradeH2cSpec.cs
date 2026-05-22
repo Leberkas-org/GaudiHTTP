@@ -6,31 +6,21 @@ using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11UpgradeH2cSpec
 {
-    private sealed class FakeOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { /* OnRequest called */ }
-        public void OnOutbound(ITransportOutbound item) => EmittedOutbound.Add(item);
-        public void OnScheduleTimer(string name, TimeSpan delay) { }
-        public void OnCancelTimer(string name) { }
-    }
-
     private sealed class SwitchCapableOps : IServerStageOperations, IProtocolSwitchCapable
     {
-        private readonly FakeOps _inner = new();
+        private readonly FakeServerOps _inner = new();
         public Func<IServerStageOperations, IServerStateMachine>? SwitchFactory { get; private set; }
 
-        public List<HttpRequestMessage> EmittedRequests => _inner.EmittedRequests;
-        public List<ITransportOutbound> EmittedOutbound => _inner.EmittedOutbound;
+        public List<TurboHttpContext> Requests => _inner.Requests;
+        public List<ITransportOutbound> Outbound => _inner.Outbound;
+        public List<(string Name, TimeSpan Delay)> ScheduledTimers => _inner.ScheduledTimers;
+        public List<string> CancelledTimers => _inner.CancelledTimers;
         public ILoggingAdapter Log => _inner.Log;
         public IActorRef StageActor { get => _inner.StageActor; set => _inner.StageActor = value; }
 
@@ -71,7 +61,7 @@ public sealed class Http11UpgradeH2cSpec
             "\r\n"));
 
         Assert.NotNull(ops.SwitchFactory);
-        var outbound = ops.EmittedOutbound.OfType<TransportData>().ToList();
+        var outbound = ops.Outbound.OfType<TransportData>().ToList();
         Assert.NotEmpty(outbound);
         var responseText = Encoding.ASCII.GetString(outbound[0].Buffer.Span);
         Assert.Contains("101", responseText);
@@ -82,7 +72,7 @@ public sealed class Http11UpgradeH2cSpec
     [Trait("RFC", "RFC9113-3.2")]
     public void DecodeClientData_should_ignore_upgrade_when_ops_not_switchable()
     {
-        var ops = new FakeOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.DecodeClientData(MakeData(
@@ -94,8 +84,8 @@ public sealed class Http11UpgradeH2cSpec
             "Content-Length: 0\r\n" +
             "\r\n"));
 
-        Assert.Single(ops.EmittedRequests);
-        Assert.Equal("GET", ops.EmittedRequests[0].Method.Method);
+        Assert.Single(ops.Requests);
+        Assert.Equal("GET", ops.Requests[0].Request.Method);
     }
 
     [Fact(Timeout = 5000)]
@@ -114,7 +104,7 @@ public sealed class Http11UpgradeH2cSpec
             "\r\n"));
 
         Assert.Null(ops.SwitchFactory);
-        Assert.Single(ops.EmittedRequests);
+        Assert.Single(ops.Requests);
     }
 }
 

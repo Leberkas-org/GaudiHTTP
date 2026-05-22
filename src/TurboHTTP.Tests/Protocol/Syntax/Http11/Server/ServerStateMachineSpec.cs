@@ -1,6 +1,4 @@
 using System.Text;
-using Akka.Actor;
-using Akka.Event;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using Servus.Akka.Transport;
@@ -9,36 +7,12 @@ using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class ServerStateMachineSpec
 {
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context)
-        {
-        }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            EmittedOutbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-        }
-
-        public void OnCancelTimer(string name)
-        {
-        }
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6")]
     public void DecodeClientData_should_emit_request_when_complete_get()
@@ -58,10 +32,10 @@ public sealed class ServerStateMachineSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
-        Assert.Equal("GET", request.Method.Method);
-        Assert.Equal("/", request.RequestUri?.OriginalString);
+        Assert.Single(ops.Requests);
+        var ctx = ops.Requests[0];
+        Assert.Equal("GET", ctx.Request.Method);
+        Assert.Equal("/", ctx.Request.Path.Value);
     }
 
     [Fact(Timeout = 5000)]
@@ -92,8 +66,8 @@ public sealed class ServerStateMachineSpec
 
         sm.OnResponse(MakeResponseContext(response));
 
-        Assert.True(ops.EmittedOutbound.Count >= 1);
-        var outbound = ops.EmittedOutbound[0];
+        Assert.True(ops.Outbound.Count >= 1);
+        var outbound = ops.Outbound[0];
         Assert.IsType<TransportData>(outbound);
 
         var transportData = (TransportData)outbound;
@@ -206,7 +180,7 @@ public sealed class ServerStateMachineSpec
 
         sm.OnResponse(MakeResponseContext(response));
 
-        var outbound = ops.EmittedOutbound[0];
+        var outbound = ops.Outbound[0];
         var transportData = (TransportData)outbound;
         var responseText = Encoding.ASCII.GetString(transportData.Buffer.Span);
         Assert.Contains("Connection: close", responseText);
@@ -238,7 +212,7 @@ public sealed class ServerStateMachineSpec
 
         sm.OnResponse(MakeResponseContext(response));
 
-        var outboundItems = ops.EmittedOutbound.OfType<TransportData>().ToList();
+        var outboundItems = ops.Outbound.OfType<TransportData>().ToList();
         Assert.NotEmpty(outboundItems);
         var responseText = Encoding.ASCII.GetString(outboundItems[0].Buffer.Span);
         Assert.Contains("HTTP/1.1 200", responseText);
@@ -270,7 +244,7 @@ public sealed class ServerStateMachineSpec
         };
 
         sm.OnResponse(MakeResponseContext(response));
-        var countAfterHeaders = ops.EmittedOutbound.Count;
+        var countAfterHeaders = ops.Outbound.Count;
 
         var bodyBytes = "hello world"u8.ToArray();
         var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(bodyBytes.Length);
@@ -278,7 +252,7 @@ public sealed class ServerStateMachineSpec
         sm.OnBodyMessage(new OutboundBodyChunk(owner, bodyBytes.Length));
         sm.OnBodyMessage(new OutboundBodyComplete());
 
-        var bodyItems = ops.EmittedOutbound.Skip(countAfterHeaders).OfType<TransportData>().ToList();
+        var bodyItems = ops.Outbound.Skip(countAfterHeaders).OfType<TransportData>().ToList();
         Assert.NotEmpty(bodyItems);
         var bodyText = Encoding.UTF8.GetString(bodyItems[0].Buffer.Span);
         Assert.Contains("hello world", bodyText);
@@ -337,7 +311,7 @@ public sealed class ServerStateMachineSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.True(ops.EmittedRequests.Count is 0 or 1);
+        Assert.True(ops.Requests.Count is 0 or 1);
     }
 
     [Fact(Timeout = 5000)]
@@ -362,7 +336,7 @@ public sealed class ServerStateMachineSpec
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.NoContent);
         sm.OnResponse(MakeResponseContext(response));
 
-        var outbound = ops.EmittedOutbound.OfType<TransportData>().ToList();
+        var outbound = ops.Outbound.OfType<TransportData>().ToList();
         if (outbound.Count > 0)
         {
             var responseText = Encoding.ASCII.GetString(outbound[0].Buffer.Span);
@@ -392,8 +366,8 @@ public sealed class ServerStateMachineSpec
         // §6.1 SHOULD respond 501 — but the SM passes the request to the application layer
         // which is responsible for inspecting TE and returning 501. The SM correctly decodes
         // the request structure and preserves the TE header for application inspection.
-        Assert.Single(ops.EmittedRequests);
-        Assert.Equal("POST", ops.EmittedRequests[0].Method.Method);
+        Assert.Single(ops.Requests);
+        Assert.Equal("POST", ops.Requests[0].Request.Method);
     }
 
     private static TurboHttpContext MakeResponseContext(HttpResponseMessage response)

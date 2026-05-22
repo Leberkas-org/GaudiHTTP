@@ -1,11 +1,14 @@
 using Akka.Actor;
 using Akka.Event;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Streaming;
 
@@ -15,28 +18,6 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Streaming;
 /// </summary>
 public sealed class Http2ServerFlowControlSpec
 {
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            EmittedOutbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-        }
-
-        public void OnCancelTimer(string name)
-        {
-        }
-    }
 
 
     private static byte[] BuildDataFrame(int streamId, byte[] data, bool endStream = false)
@@ -164,11 +145,12 @@ public sealed class Http2ServerFlowControlSpec
         sm.DecodeClientData(new TransportData(buffer));
 
         // Request should be emitted immediately when headers arrive (with endStream=false)
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
-        Assert.IsType<StreamContent>(request.Content);
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
+        var bodyFeature = context.Features.Get<IHttpResponseBodyFeature>();
+        Assert.NotNull(bodyFeature);
 
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         // Send first DATA frame (small, under threshold)
         var dataPayload1 = new byte[1000];
@@ -181,13 +163,13 @@ public sealed class Http2ServerFlowControlSpec
         sm.DecodeClientData(new TransportData(dataBuf1));
 
         // No window update yet (threshold not exceeded)
-        ops.EmittedRequests.Clear();
-        var windowUpdates1 = ops.EmittedOutbound.OfType<TransportData>()
+        ops.Requests.Clear();
+        var windowUpdates1 = ops.Outbound.OfType<TransportData>()
             .Where(td => td.Buffer.Span.Length >= 9 && td.Buffer.Span[3] == (byte)FrameType.WindowUpdate)
             .ToList();
         Assert.Empty(windowUpdates1);
 
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         // Send second DATA frame to exceed half the window (threshold for WINDOW_UPDATE)
         // We've sent 1000, stream window is 16384, threshold is 8192, so send 7200 more
@@ -206,10 +188,10 @@ public sealed class Http2ServerFlowControlSpec
         sm.DecodeClientData(new TransportData(dataBuf2));
 
         // Now verify WINDOW_UPDATE was emitted for stream 1
-        Assert.NotEmpty(ops.EmittedOutbound);
+        Assert.NotEmpty(ops.Outbound);
 
         var foundWindowUpdate = false;
-        foreach (var item in ops.EmittedOutbound)
+        foreach (var item in ops.Outbound)
         {
             if (item is TransportData td)
             {
@@ -238,7 +220,7 @@ public sealed class Http2ServerFlowControlSpec
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         // Send WINDOW_UPDATE on stream 0 (connection-level)
         var windowUpdateData = BuildWindowUpdateFrame(streamId: 0, increment: 16384);
@@ -252,7 +234,7 @@ public sealed class Http2ServerFlowControlSpec
 
         // Verify no GOAWAY was emitted
         var hasGoAway = false;
-        foreach (var item in ops.EmittedOutbound)
+        foreach (var item in ops.Outbound)
         {
             if (item is TransportData td)
             {
@@ -289,7 +271,7 @@ public sealed class Http2ServerFlowControlSpec
         buffer.Length = headersFrameData.Length;
 
         sm.DecodeClientData(new TransportData(buffer));
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         // Send first DATA frame (5000 bytes)
         var data1 = new byte[5000];
@@ -308,7 +290,7 @@ public sealed class Http2ServerFlowControlSpec
         sm.DecodeClientData(new TransportData(buf2));
 
         // Should have emitted at least one WINDOW_UPDATE
-        var windowUpdateCount = ops.EmittedOutbound.Count(item =>
+        var windowUpdateCount = ops.Outbound.Count(item =>
             item is TransportData { Buffer.Span.Length: >= 9 } td
             && td.Buffer.Span[3] == (byte)FrameType.WindowUpdate);
 

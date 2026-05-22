@@ -26,6 +26,16 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         return new TurboHttpContext(features);
     }
 
+    private static async Task<TurboHttpContext> CreateResponseContextWithBody(string body)
+    {
+        var context = CreateResponseContext();
+        var bodyFeature = context.Features.Get<IHttpResponseBodyFeature>()!;
+        var bytes = Encoding.ASCII.GetBytes(body);
+        await bodyFeature.Writer.WriteAsync(bytes);
+        await bodyFeature.Writer.CompleteAsync();
+        return context;
+    }
+
     private static TransportBuffer CreateRequestBuffer(string requestText)
     {
         var bytes = Encoding.ASCII.GetBytes(requestText);
@@ -47,8 +57,8 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         sm.DecodeClientData(new TransportData(requestBuffer));
 
         Assert.Single(ops.Requests);
-        Assert.Equal("GET", ops.Requests[0].TurboRequest.Method);
-        Assert.Equal("/path", ops.Requests[0].TurboRequest.RequestUri?.OriginalString);
+        Assert.Equal("GET", ops.Requests[0].Request.Method);
+        Assert.Equal("/path", ops.Requests[0].Request.Path.Value);
     }
 
     [Fact(Timeout = 5000)]
@@ -88,7 +98,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
         sm.PreStart();
 
-        var context = CreateResponseContext();
+        var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
 
         Assert.DoesNotContain(ops.Outbound, o => o is TransportData);
@@ -155,7 +165,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
         sm.DecodeClientData(new TransportData(requestBuffer));
 
-        var context = CreateResponseContext();
+        var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
 
         var msg = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
@@ -181,7 +191,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         sm.DecodeClientData(new TransportData(requestBuffer));
 
         Assert.Single(ops.Requests);
-        Assert.Equal("PATCH", ops.Requests[0].TurboRequest.Method);
+        Assert.Equal("PATCH", ops.Requests[0].Request.Method);
     }
 
     [Fact(Timeout = 5000)]
@@ -207,7 +217,6 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         var requestBuffer = CreateRequestBuffer("POST /path HTTP/1.0\r\nHost: example.com\r\n\r\n");
         sm.DecodeClientData(new TransportData(requestBuffer));
 
-        Assert.True(ops.Requests.Count == 0 || ops.Requests[0].TurboRequest.Content == null ||
-                    ops.Requests[0].TurboRequest.Content?.Headers.ContentLength == 0);
+        Assert.True(ops.Requests.Count == 0 || ops.Requests[0].Request.ContentLength is null or 0);
     }
 }

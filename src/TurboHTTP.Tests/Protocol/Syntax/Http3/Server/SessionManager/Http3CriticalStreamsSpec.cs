@@ -6,6 +6,7 @@ using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
@@ -16,29 +17,8 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 /// </summary>
 public sealed class Http3CriticalStreamsSpec
 {
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public Dictionary<string, (string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
 
-        public void OnRequest(TurboHttpContext context) { /* context received */ }
-
-        public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
-
-        public void OnScheduleTimer(string name, TimeSpan delay) => ScheduledTimers[name] = (name, delay);
-
-        public void OnCancelTimer(string name)
-        {
-            ScheduledTimers.Remove(name);
-            CancelledTimers.Add(name);
-        }
-    }
-
-    private static Http3ServerSessionManager CreateSM(TrackingServerOps ops)
+    private static Http3ServerSessionManager CreateSM(FakeServerOps ops)
     {
         var enc = new Http3ServerEncoderOptions { QpackMaxTableCapacity = 0 };
         var dec = new Http3ServerDecoderOptions { MaxConcurrentStreams = 100 };
@@ -49,7 +29,7 @@ public sealed class Http3CriticalStreamsSpec
     [Trait("RFC", "RFC9114-6.2.1")]
     public void PreStart_should_open_control_stream()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         sm.PreStart();
@@ -62,7 +42,7 @@ public sealed class Http3CriticalStreamsSpec
     [Trait("RFC", "RFC9114-6.2.1")]
     public void PreStart_should_open_qpack_encoder_stream()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         sm.PreStart();
@@ -75,7 +55,7 @@ public sealed class Http3CriticalStreamsSpec
     [Trait("RFC", "RFC9114-6.2.1")]
     public void PreStart_should_open_qpack_decoder_stream()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         sm.PreStart();
@@ -88,7 +68,7 @@ public sealed class Http3CriticalStreamsSpec
     [Trait("RFC", "RFC9114-7.2.4")]
     public void PreStart_should_emit_settings_on_control_stream()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         sm.PreStart();
@@ -103,7 +83,7 @@ public sealed class Http3CriticalStreamsSpec
     [Fact(Timeout = 5000)]
     public void Cleanup_should_dispose_all_streams_and_reset()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         sm.PreStart();

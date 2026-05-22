@@ -1,6 +1,4 @@
 using System.Text;
-using Akka.Actor;
-using Akka.Event;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Context.Features;
@@ -8,6 +6,7 @@ using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -23,20 +22,6 @@ public sealed class Http11ServerStateMachineTimerSpec
         features.Set<ITurboResponseBodyFeature>(bodyFeature);
         return new TurboHttpContext(features);
     }
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public List<(string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { /* context received */ }
-        public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
-        public void OnScheduleTimer(string name, TimeSpan delay) => ScheduledTimers.Add((name, delay));
-        public void OnCancelTimer(string name) => CancelledTimers.Add(name);
-    }
 
     private static TransportBuffer MakeBuffer(string raw)
     {
@@ -51,7 +36,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9112-6.5")]
     public void OnTimerFired_request_headers_should_set_ShouldComplete()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.OnTimerFired("request-headers");
@@ -63,7 +48,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void OnTimerFired_keep_alive_should_set_ShouldComplete()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.OnTimerFired("keep-alive");
@@ -75,7 +60,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9112-6.5")]
     public void DecodeClientData_should_schedule_request_headers_timer()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         // Feed partial request data (no final \r\n\r\n) to trigger NeedMore state
@@ -92,7 +77,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9112-6.5")]
     public void DecodeClientData_should_cancel_request_headers_timer_when_complete()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         // First, feed partial request to schedule timer
@@ -112,7 +97,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9112-6.1")]
     public void OnResponse_should_schedule_keep_alive_timer_after_204_body_completes()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
 
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
@@ -145,7 +130,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9112-4")]
     public void OnBodyMessage_complete_should_schedule_keep_alive_timer()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         // Decode a request
@@ -174,7 +159,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9112-6.5")]
     public void Cleanup_should_cancel_all_timers()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         // Decode a partial request to activate request-headers timer

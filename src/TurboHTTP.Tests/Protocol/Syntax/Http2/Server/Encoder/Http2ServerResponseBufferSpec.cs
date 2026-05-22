@@ -29,30 +29,6 @@ public sealed class Http2ServerResponseBufferSpec
         return new TurboHttpContext(features);
     }
 
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public List<string> ScheduledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            EmittedOutbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-            ScheduledTimers.Add(name);
-        }
-
-        public void OnCancelTimer(string name)
-        {
-        }
-    }
 
     private static byte[] BuildHeadersFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endStream = false,
         bool endHeaders = true)
@@ -165,23 +141,24 @@ public sealed class Http2ServerResponseBufferSpec
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
         DecodeFramesAsStream(ops, sm, headersFrameData);
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
 
-        var initialOutboundCount = ops.EmittedOutbound.Count;
+        var initialOutboundCount = ops.Outbound.Count;
 
         // Send response
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
+        var requestContext = ops.Requests[0];
+        requestContext.Response.StatusCode = 200;
+        requestContext.Response.ContentLength = 0;
+        sm.OnResponse(requestContext);
 
         // Extract frames after response
-        var frames = ExtractFrames(ops.EmittedOutbound, initialOutboundCount);
+        var frames = ExtractFrames(ops.Outbound, initialOutboundCount);
 
         // Should only have HEADERS frame with EndStream set
         Assert.Single(frames);
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
         Assert.True(headersFrame.EndStream);
-        Assert.DoesNotContain(ops.ScheduledTimers, t => t.StartsWith("drain-body:"));
+        Assert.DoesNotContain(ops.ScheduledTimers, t => t.Name.StartsWith("drain-body:"));
     }
 
     [Fact(Timeout = 5000)]
@@ -196,17 +173,18 @@ public sealed class Http2ServerResponseBufferSpec
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
         DecodeFramesAsStream(ops, sm, headersFrameData);
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
 
-        var initialOutboundCount = ops.EmittedOutbound.Count;
+        var initialOutboundCount = ops.Outbound.Count;
 
         // Send response
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
+        var requestContext = ops.Requests[0];
+        requestContext.Response.StatusCode = 200;
+        requestContext.Response.ContentLength = 100;
+        sm.OnResponse(requestContext);
 
         // Extract frames after response
-        var framesAfterResponse = ExtractFrames(ops.EmittedOutbound, initialOutboundCount);
+        var framesAfterResponse = ExtractFrames(ops.Outbound, initialOutboundCount);
 
         // Should have only HEADERS frame without EndStream
         Assert.NotEmpty(framesAfterResponse);
@@ -225,11 +203,11 @@ public sealed class Http2ServerResponseBufferSpec
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
         DecodeFramesAsStream(ops, sm, headersFrameData);
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
 
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
+        var requestContext = ops.Requests[0];
+        requestContext.Response.StatusCode = 200;
+        sm.OnResponse(requestContext);
 
         var windowUpdateData = BuildWindowUpdateFrame(streamId: 1, increment: 50000);
         DecodeFramesAsStream(ops, sm, windowUpdateData);

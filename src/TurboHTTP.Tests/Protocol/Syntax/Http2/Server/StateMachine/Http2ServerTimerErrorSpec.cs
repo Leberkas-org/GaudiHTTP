@@ -7,6 +7,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 using AkkaActor = Akka.Actor;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.StateMachine;
@@ -17,45 +18,18 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.StateMachine;
 /// </summary>
 public sealed class Http2ServerTimerErrorSpec
 {
-    private static TurboHttpContext CreateResponseContext()
+    private static TurboHttpContext CreateResponseContext(long streamId = 999)
     {
         var features = new FeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
+        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
         var bodyFeature = new TurboHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<ITurboResponseBodyFeature>(bodyFeature);
         return new TurboHttpContext(features);
     }
 
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public List<(string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public AkkaActor.IActorRef StageActor { get; set; } = AkkaActor.ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context)
-        {
-        }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            Outbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-            ScheduledTimers.Add((name, delay));
-        }
-
-        public void OnCancelTimer(string name)
-        {
-            CancelledTimers.Add(name);
-        }
-    }
 
     private static byte[] BuildHeadersFrame(int streamId, bool endStream = true)
     {
@@ -103,7 +77,7 @@ public sealed class Http2ServerTimerErrorSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void PreStart_should_schedule_keep_alive_timer()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
@@ -118,7 +92,7 @@ public sealed class Http2ServerTimerErrorSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void OnTimerFired_keep_alive_should_emit_GoAway()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
@@ -141,7 +115,7 @@ public sealed class Http2ServerTimerErrorSpec
     [Trait("RFC", "RFC9113-5.1")]
     public void ShouldComplete_should_always_be_false()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         Assert.False(sm.ShouldComplete);
@@ -162,7 +136,7 @@ public sealed class Http2ServerTimerErrorSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void DecodeClientData_should_cancel_keep_alive_when_streams_open()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
@@ -181,7 +155,7 @@ public sealed class Http2ServerTimerErrorSpec
     [Trait("RFC", "RFC9113-6.3")]
     public void OnTimerFired_headers_timeout_should_emit_RstStream()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
@@ -204,7 +178,7 @@ public sealed class Http2ServerTimerErrorSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void Cleanup_should_be_idempotent()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
@@ -218,7 +192,7 @@ public sealed class Http2ServerTimerErrorSpec
     [Trait("RFC", "RFC9113-5.1")]
     public void OnResponse_for_unknown_stream_should_not_crash()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();

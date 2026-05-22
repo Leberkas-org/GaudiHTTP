@@ -1,12 +1,11 @@
 using System.Text;
-using Akka.Actor;
-using Akka.Event;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -42,9 +41,9 @@ public sealed class Http11ServerPipeliningSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Equal(2, ops.EmittedRequests.Count);
-        Assert.Equal("/", ops.EmittedRequests[0].RequestUri?.OriginalString);
-        Assert.Equal("/page2", ops.EmittedRequests[1].RequestUri?.OriginalString);
+        Assert.Equal(2, ops.Requests.Count);
+        Assert.Equal("/", ops.Requests[0].Request.Path.Value);
+        Assert.Equal("/page2", ops.Requests[1].Request.Path.Value);
     }
 
     [Fact(Timeout = 5000)]
@@ -72,7 +71,7 @@ public sealed class Http11ServerPipeliningSpec
         var context2 = CreateResponseContext();
         sm.OnResponse(context2);
 
-        Assert.Equal(2, ops.EmittedOutbound.Count);
+        Assert.Equal(2, ops.Outbound.Count);
     }
 
     [Fact(Timeout = 5000)]
@@ -110,29 +109,10 @@ public sealed class Http11ServerPipeliningSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Equal(3, ops.EmittedRequests.Count);
-        Assert.Equal("/page1", ops.EmittedRequests[0].RequestUri?.OriginalString);
-        Assert.Equal("/page2", ops.EmittedRequests[1].RequestUri?.OriginalString);
-        Assert.Equal("/page3", ops.EmittedRequests[2].RequestUri?.OriginalString);
-    }
-
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { /* OnRequest called */ }
-        public void OnOutbound(ITransportOutbound item) => EmittedOutbound.Add(item);
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-        }
-
-        public void OnCancelTimer(string name)
-        {
-        }
+        Assert.Equal(3, ops.Requests.Count);
+        Assert.Equal("/page1", ops.Requests[0].Request.Path.Value);
+        Assert.Equal("/page2", ops.Requests[1].Request.Path.Value);
+        Assert.Equal("/page3", ops.Requests[2].Request.Path.Value);
     }
 
     private static TransportBuffer MakeBuffer(string raw)

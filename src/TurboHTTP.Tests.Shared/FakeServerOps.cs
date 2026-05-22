@@ -21,9 +21,17 @@ internal sealed class FakeServerOps : IServerStageOperations
     public void OnRequest(TurboHttpContext context) => _contexts.Add(context);
     public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
 
-    public void OnScheduleTimer(string name, TimeSpan delay) => ScheduledTimers.Add((name, delay));
+    public void OnScheduleTimer(string name, TimeSpan delay)
+    {
+        ScheduledTimers.RemoveAll(t => t.Name == name);
+        ScheduledTimers.Add((name, delay));
+    }
 
-    public void OnCancelTimer(string name) => CancelledTimers.Add(name);
+    public void OnCancelTimer(string name)
+    {
+        ScheduledTimers.RemoveAll(t => t.Name == name);
+        CancelledTimers.Add(name);
+    }
 
     public ILoggingAdapter Log => NoLogger.Instance;
     public IActorRef StageActor { get; set; } = ActorRefs.Nobody;

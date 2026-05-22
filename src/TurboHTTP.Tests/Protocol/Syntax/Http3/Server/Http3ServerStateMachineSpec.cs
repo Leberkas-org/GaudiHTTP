@@ -2,6 +2,7 @@ using Akka.Actor;
 using Akka.Event;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Context;
 using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http3;
@@ -9,6 +10,7 @@ using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 
@@ -19,42 +21,18 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 /// </summary>
 public sealed class Http3ServerStateMachineSpec
 {
-    private static TurboHttpContext CreateResponseContext()
+    private static TurboHttpContext CreateResponseContext(long streamId = 999)
     {
         var features = new FeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
+        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
         var bodyFeature = new TurboHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<ITurboResponseBodyFeature>(bodyFeature);
         return new TurboHttpContext(features);
     }
 
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-        public Dictionary<string, (string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-
-        public void OnRequest(TurboHttpContext context) { }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            EmittedOutbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-            ScheduledTimers[name] = (name, delay);
-        }
-
-        public void OnCancelTimer(string name)
-        {
-            ScheduledTimers.Remove(name);
-        }
-    }
 
     private static byte[] BuildHeadersFrameData(ReadOnlyMemory<byte> headerBlock)
     {
@@ -105,17 +83,17 @@ public sealed class Http3ServerStateMachineSpec
         sm.PreStart();
 
         // Should emit 4 items: 3x OpenStream + 1x MultiplexedData(settings)
-        Assert.Equal(4, ops.EmittedOutbound.Count);
+        Assert.Equal(4, ops.Outbound.Count);
 
         // Verify stream opens
-        Assert.IsType<OpenStream>(ops.EmittedOutbound[0]);
-        Assert.IsType<OpenStream>(ops.EmittedOutbound[1]);
-        Assert.IsType<OpenStream>(ops.EmittedOutbound[2]);
-        Assert.IsType<MultiplexedData>(ops.EmittedOutbound[3]);
+        Assert.IsType<OpenStream>(ops.Outbound[0]);
+        Assert.IsType<OpenStream>(ops.Outbound[1]);
+        Assert.IsType<OpenStream>(ops.Outbound[2]);
+        Assert.IsType<MultiplexedData>(ops.Outbound[3]);
 
-        var controlOpen = (OpenStream)ops.EmittedOutbound[0];
-        var encoderOpen = (OpenStream)ops.EmittedOutbound[1];
-        var decoderOpen = (OpenStream)ops.EmittedOutbound[2];
+        var controlOpen = (OpenStream)ops.Outbound[0];
+        var encoderOpen = (OpenStream)ops.Outbound[1];
+        var decoderOpen = (OpenStream)ops.Outbound[2];
 
         Assert.Equal(CriticalStreamId.ControlId, controlOpen.StreamId.Value);
         Assert.Equal(CriticalStreamId.QpackEncoderId, encoderOpen.StreamId.Value);
@@ -131,7 +109,7 @@ public sealed class Http3ServerStateMachineSpec
 
         sm.PreStart();
 
-        var settingsData = ops.EmittedOutbound[3];
+        var settingsData = ops.Outbound[3];
         Assert.IsType<MultiplexedData>(settingsData);
 
         var multiplexed = (MultiplexedData)settingsData;
@@ -166,18 +144,21 @@ public sealed class Http3ServerStateMachineSpec
         // Signal end of stream
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
 
-        // Verify stream ID was stored in request options
-        Assert.True(request.Options.TryGetValue(StreamIdKey.Http3, out var storedStreamId));
-        Assert.Equal(streamId, storedStreamId);
+        // Verify stream ID was stored in request feature
+        var streamIdFeature = context.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature);
+        Assert.Equal(streamId, streamIdFeature.StreamId);
 
         // Verify request properties
-        Assert.Equal("GET", request.Method.Method);
-        Assert.Equal("https://example.com/", request.RequestUri?.ToString());
-        Assert.Equal(3, request.Version.Major);
-        Assert.Equal(0, request.Version.Minor);
+        var requestFeature = context.Features.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        Assert.NotNull(requestFeature);
+        Assert.Equal("GET", requestFeature.Method);
+        Assert.Equal("https", requestFeature.Scheme);
+        Assert.Equal("example.com", requestFeature.ExtractedHost);
+        Assert.Equal("/", requestFeature.Path);
     }
 
     [Fact(Timeout = 5000)]
@@ -214,19 +195,27 @@ public sealed class Http3ServerStateMachineSpec
         // Signal end of stream
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
 
         // Verify stream ID
-        Assert.True(request.Options.TryGetValue(StreamIdKey.Http3, out var storedStreamId));
-        Assert.Equal(streamId, storedStreamId);
+        var streamIdFeature = context.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature);
+        Assert.Equal(streamId, streamIdFeature.StreamId);
 
         // Verify request properties
-        Assert.Equal("POST", request.Method.Method);
-        Assert.Equal("https://example.com/api/data", request.RequestUri?.ToString());
+        var requestFeature = context.Features.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        Assert.NotNull(requestFeature);
+        Assert.Equal("POST", requestFeature.Method);
+        Assert.Equal("https", requestFeature.Scheme);
+        Assert.Equal("example.com", requestFeature.ExtractedHost);
+        Assert.Equal("/api/data", requestFeature.Path);
 
         // Verify body was accumulated
-        var content = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var bodyFeature = context.Features.Get<ITurboRequestBodyFeature>();
+        Assert.NotNull(bodyFeature);
+        var bodyStream = bodyFeature.Body;
+        var content = await new StreamReader(bodyStream).ReadToEndAsync();
         Assert.Equal(bodyContent, content);
     }
 
@@ -252,26 +241,28 @@ public sealed class Http3ServerStateMachineSpec
 
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
 
         // Verify StreamIdKey is set
-        Assert.True(request.Options.TryGetValue(StreamIdKey.Http3, out var retrievedId));
-        Assert.Equal(streamId, retrievedId);
+        var streamIdFeature = context.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature);
+        Assert.Equal(streamId, streamIdFeature.StreamId);
 
         // Clear outbound to focus on response
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         // Send response without body
-        var context = CreateResponseContext();
+        context.Response.StatusCode = 200;
+        context.Response.ContentLength = 0;
         sm.OnResponse(context);
 
         // Should emit HEADERS frame + CompleteWrites immediately (no body)
-        var frameItems = ops.EmittedOutbound.OfType<MultiplexedData>().ToList();
-        var completeWrites = ops.EmittedOutbound.OfType<CompleteWrites>().ToList();
+        var frameItems = ops.Outbound.OfType<MultiplexedData>().ToList();
+        var completeWrites = ops.Outbound.OfType<CompleteWrites>().ToList();
 
         Assert.NotEmpty(frameItems);
-        Assert.Equal(2, ops.EmittedOutbound.Count);
+        Assert.Equal(2, ops.Outbound.Count);
         Assert.Single(completeWrites);
         Assert.Equal(streamId, frameItems[0].StreamId.Value);
         Assert.Equal(streamId, completeWrites[0].StreamId.Value);
@@ -299,23 +290,23 @@ public sealed class Http3ServerStateMachineSpec
 
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
 
-        Assert.Single(ops.EmittedRequests);
-        var request = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
 
         // Clear outbound to focus on response
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         // Send response with body
-        var context = CreateResponseContext();
+        context.Response.StatusCode = 200;
         sm.OnResponse(context);
 
         // Should emit HEADERS frame immediately
-        var frameItems = ops.EmittedOutbound.OfType<MultiplexedData>().ToList();
+        var frameItems = ops.Outbound.OfType<MultiplexedData>().ToList();
         Assert.NotEmpty(frameItems);
         Assert.Equal(streamId, frameItems[0].StreamId.Value);
 
         // Should schedule drain-body timer
-        Assert.True(ops.ScheduledTimers.ContainsKey($"drain-body:{streamId}"), "Should schedule drain-body timer");
+        Assert.True(ops.ScheduledTimers.Any(t => t.Name == $"drain-body:{streamId}"), "Should schedule drain-body timer");
     }
 
     [Fact(Timeout = 5000)]
@@ -352,22 +343,28 @@ public sealed class Http3ServerStateMachineSpec
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(stream2)));
 
         // Should have two requests
-        Assert.Equal(2, ops.EmittedRequests.Count);
+        Assert.Equal(2, ops.Requests.Count);
 
-        var req1 = ops.EmittedRequests[0];
-        var req2 = ops.EmittedRequests[1];
+        var ctx1 = ops.Requests[0];
+        var ctx2 = ops.Requests[1];
 
         // Verify stream IDs
-        Assert.True(req1.Options.TryGetValue(StreamIdKey.Http3, out var id1));
-        Assert.True(req2.Options.TryGetValue(StreamIdKey.Http3, out var id2));
-        Assert.Equal(stream1, id1);
-        Assert.Equal(stream2, id2);
+        var streamIdFeature1 = ctx1.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature1);
+        var streamIdFeature2 = ctx2.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature2);
+        Assert.Equal(stream1, streamIdFeature1.StreamId);
+        Assert.Equal(stream2, streamIdFeature2.StreamId);
 
         // Verify different requests
-        Assert.Equal("GET", req1.Method.Method);
-        Assert.Equal("POST", req2.Method.Method);
-        Assert.Equal("/path1", req1.RequestUri?.AbsolutePath);
-        Assert.Equal("/path2", req2.RequestUri?.AbsolutePath);
+        var requestFeature1 = ctx1.Features.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        var requestFeature2 = ctx2.Features.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        Assert.NotNull(requestFeature1);
+        Assert.NotNull(requestFeature2);
+        Assert.Equal("GET", requestFeature1.Method);
+        Assert.Equal("POST", requestFeature2.Method);
+        Assert.Equal("/path1", requestFeature1.Path);
+        Assert.Equal("/path2", requestFeature2.Path);
     }
 
     [Fact(Timeout = 5000)]
@@ -390,13 +387,13 @@ public sealed class Http3ServerStateMachineSpec
         sm.DecodeClientData(new MultiplexedData(buffer, streamId));
 
         // Request not yet flushed (stream still open)
-        Assert.Empty(ops.EmittedRequests);
+        Assert.Empty(ops.Requests);
 
         // Simulate downstream finishing (connection closing)
         sm.OnDownstreamFinished();
 
         // Request should be flushed on downstream finish
-        Assert.Single(ops.EmittedRequests);
+        Assert.Single(ops.Requests);
     }
 
     [Fact(Timeout = 5000)]

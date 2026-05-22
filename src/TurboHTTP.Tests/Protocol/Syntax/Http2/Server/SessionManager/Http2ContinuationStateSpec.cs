@@ -1,11 +1,13 @@
 using Akka.Event;
 using Servus.Akka.Transport;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 using AkkaActor = Akka.Actor;
 
 
@@ -17,34 +19,6 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.SessionManager;
 /// </summary>
 public sealed class Http2ContinuationStateSpec
 {
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public List<(string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public AkkaActor.IActorRef StageActor { get; set; } = AkkaActor.ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context)
-        {
-        }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            Outbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-            ScheduledTimers.Add((name, delay));
-        }
-
-        public void OnCancelTimer(string name)
-        {
-            CancelledTimers.Add(name);
-        }
-    }
 
     private static byte[] BuildHeadersFrame(
         int streamId,
@@ -135,7 +109,7 @@ public sealed class Http2ContinuationStateSpec
     [Trait("RFC", "RFC9113-6.10")]
     public void Headers_without_EndHeaders_then_Continuation_should_emit_request()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -172,15 +146,15 @@ public sealed class Http2ContinuationStateSpec
 
         // Now request should be emitted
         Assert.Single(ops.Requests);
-        var request = ops.Requests[0];
-        Assert.Equal("GET", request.Method.Method);
+        var context = ops.Requests[0];
+        Assert.Equal("GET", context.Request.Method);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.10")]
     public void Continuation_on_wrong_stream_should_throw_protocol_error()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -221,7 +195,7 @@ public sealed class Http2ContinuationStateSpec
     [Trait("RFC", "RFC9113-6.10")]
     public void Headers_with_EndHeaders_true_should_emit_request_immediately()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -242,8 +216,8 @@ public sealed class Http2ContinuationStateSpec
 
         // Request should be emitted immediately
         Assert.Single(ops.Requests);
-        var request = ops.Requests[0];
-        Assert.Equal("GET", request.Method.Method);
+        var context = ops.Requests[0];
+        Assert.Equal("GET", context.Request.Method);
 
         // No timer should be scheduled (END_HEADERS was set)
         Assert.Empty(ops.ScheduledTimers);
@@ -253,7 +227,7 @@ public sealed class Http2ContinuationStateSpec
     [Trait("RFC", "RFC9113-6.10")]
     public void Headers_without_EndHeaders_should_schedule_headers_timeout()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);
@@ -287,7 +261,7 @@ public sealed class Http2ContinuationStateSpec
     [Trait("RFC", "RFC9113-6.10")]
     public void Continuation_with_EndHeaders_should_cancel_headers_timeout()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var encoderOptions = new Http2ServerEncoderOptions();
         var decoderOptions = new Http2ServerDecoderOptions();
         var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops);

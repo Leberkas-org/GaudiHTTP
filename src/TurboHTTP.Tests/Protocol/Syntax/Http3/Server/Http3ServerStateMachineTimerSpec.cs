@@ -1,11 +1,15 @@
 using Akka.Actor;
 using Akka.Event;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Context;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 
@@ -16,27 +20,6 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 /// </summary>
 public sealed class Http3ServerStateMachineTimerSpec
 {
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public Dictionary<string, (string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { /* context received */ }
-
-        public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
-
-        public void OnScheduleTimer(string name, TimeSpan delay) => ScheduledTimers[name] = (name, delay);
-
-        public void OnCancelTimer(string name)
-        {
-            ScheduledTimers.Remove(name);
-            CancelledTimers.Add(name);
-        }
-    }
 
     private static void SendRequest(Http3ServerStateMachine sm, long streamId)
     {
@@ -66,17 +49,17 @@ public sealed class Http3ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9114-5.1.2")]
     public void PreStart_should_schedule_keep_alive_timer()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var options = new TurboServerOptions();
         options.Http3.KeepAliveTimeout = TimeSpan.FromSeconds(130);
         var sm = new Http3ServerStateMachine(options, ops);
 
         sm.PreStart();
 
-        Assert.True(ops.ScheduledTimers.ContainsKey("keep-alive-timeout"),
+        Assert.True(ops.ScheduledTimers.Any(t => t.Name == "keep-alive-timeout"),
             "keep-alive-timeout should be scheduled on PreStart");
 
-        var timerEntry = ops.ScheduledTimers["keep-alive-timeout"];
+        var timerEntry = ops.ScheduledTimers.First(t => t.Name == "keep-alive-timeout");
         Assert.Equal(TimeSpan.FromSeconds(130), timerEntry.Delay);
     }
 
@@ -84,7 +67,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9114-3.2")]
     public void ShouldComplete_should_always_be_false()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http3ServerStateMachine(new TurboServerOptions(), ops);
 
         Assert.False(sm.ShouldComplete, "ShouldComplete should be false after construction");
@@ -100,12 +83,12 @@ public sealed class Http3ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9114-5.1.2")]
     public void Stream_open_should_cancel_keep_alive()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http3ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
 
-        Assert.True(ops.ScheduledTimers.ContainsKey("keep-alive-timeout"),
+        Assert.True(ops.ScheduledTimers.Any(t => t.Name == "keep-alive-timeout"),
             "keep-alive-timeout should be scheduled on PreStart");
 
         // Open a stream by sending request
@@ -114,7 +97,7 @@ public sealed class Http3ServerStateMachineTimerSpec
         Assert.True(ops.CancelledTimers.Contains("keep-alive-timeout"),
             "keep-alive-timeout should be cancelled when stream opens");
 
-        Assert.False(ops.ScheduledTimers.ContainsKey("keep-alive-timeout"),
+        Assert.False(ops.ScheduledTimers.Any(t => t.Name == "keep-alive-timeout"),
             "keep-alive-timeout should not be in scheduled timers");
     }
 
@@ -122,7 +105,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void OnTimerFired_headers_timeout_should_emit_RstStream()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http3ServerStateMachine(new TurboServerOptions(), ops);
 
         const long streamId = 4;
@@ -148,7 +131,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9114-3.2")]
     public void Cleanup_should_be_idempotent()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http3ServerStateMachine(new TurboServerOptions(), ops);
 
         sm.PreStart();
@@ -168,7 +151,7 @@ public sealed class Http3ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9114-3.2")]
     public void OnDownstreamFinished_should_flush_pending()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http3ServerStateMachine(new TurboServerOptions(), ops);
 
         const long streamId = 4;
@@ -205,9 +188,13 @@ public sealed class Http3ServerStateMachineTimerSpec
 
         // Request should now be emitted
         Assert.Single(ops.Requests);
-        var request = ops.Requests[0];
-        Assert.Equal("GET", request.Method.Method);
-        Assert.Equal("https://localhost/", request.RequestUri?.ToString());
+        var context = ops.Requests[0];
+        var requestFeature = context.Features.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        Assert.NotNull(requestFeature);
+        Assert.Equal("GET", requestFeature.Method);
+        Assert.Equal("https", requestFeature.Scheme);
+        Assert.Equal("localhost", requestFeature.ExtractedHost);
+        Assert.Equal("/", requestFeature.Path);
     }
 }
 

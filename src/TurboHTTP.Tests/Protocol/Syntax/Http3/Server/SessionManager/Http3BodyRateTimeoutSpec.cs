@@ -1,12 +1,16 @@
 using Akka.Actor;
 using Akka.Event;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Context;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
@@ -17,27 +21,6 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 /// </summary>
 public sealed class Http3BodyRateTimeoutSpec
 {
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public Dictionary<string, (string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { /* context received */ }
-
-        public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
-
-        public void OnScheduleTimer(string name, TimeSpan delay) => ScheduledTimers[name] = (name, delay);
-
-        public void OnCancelTimer(string name)
-        {
-            ScheduledTimers.Remove(name);
-            CancelledTimers.Add(name);
-        }
-    }
 
     private static (byte[] Data, long StreamId) BuildRequest(string method, string path, long streamId)
     {
@@ -67,7 +50,7 @@ public sealed class Http3BodyRateTimeoutSpec
         return buf;
     }
 
-    private static Http3ServerSessionManager CreateSM(TrackingServerOps ops)
+    private static Http3ServerSessionManager CreateSM(FakeServerOps ops)
     {
         var enc = new Http3ServerEncoderOptions { QpackMaxTableCapacity = 0 };
         var dec = new Http3ServerDecoderOptions { MaxConcurrentStreams = 100 };
@@ -78,7 +61,7 @@ public sealed class Http3BodyRateTimeoutSpec
     [Trait("RFC", "RFC9114-4.3")]
     public void First_DATA_frame_should_schedule_body_rate_check()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         const long streamId = 4;
@@ -110,7 +93,7 @@ public sealed class Http3BodyRateTimeoutSpec
         sm.DecodeClientData(new MultiplexedData(dataBuffer, streamId));
 
         // body-rate-check timer should now be scheduled
-        Assert.True(ops.ScheduledTimers.ContainsKey("body-rate-check"),
+        Assert.True(ops.ScheduledTimers.Any(t => t.Name == "body-rate-check"),
             "body-rate-check timer should be scheduled after first DATA frame");
     }
 
@@ -118,7 +101,7 @@ public sealed class Http3BodyRateTimeoutSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Headers_timeout_should_be_cancelled_on_successful_decode()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         const long streamId = 8;
@@ -154,7 +137,7 @@ public sealed class Http3BodyRateTimeoutSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void StreamReadCompleted_without_body_should_emit_request_with_empty_content()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         const long streamId = 12;
@@ -177,11 +160,13 @@ public sealed class Http3BodyRateTimeoutSpec
 
         // Request should be emitted with empty content
         Assert.Single(ops.Requests);
-        var request = ops.Requests[0];
+        var context = ops.Requests[0];
 
-        Assert.NotNull(request.Content);
-        Assert.Equal(0, request.Content.Headers.ContentLength ?? 0);
-        Assert.Equal("GET", request.Method.Method);
-        Assert.Equal("https://localhost/", request.RequestUri?.ToString());
+        var requestFeature = context.Features.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        Assert.NotNull(requestFeature);
+        Assert.Equal("GET", requestFeature.Method);
+        Assert.Equal("https", requestFeature.Scheme);
+        Assert.Equal("localhost", requestFeature.ExtractedHost);
+        Assert.Equal("/", requestFeature.Path);
     }
 }

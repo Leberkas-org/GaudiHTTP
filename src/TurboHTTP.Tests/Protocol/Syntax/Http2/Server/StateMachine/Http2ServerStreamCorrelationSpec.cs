@@ -9,6 +9,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.StateMachine;
 
@@ -18,7 +19,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.StateMachine;
 /// </summary>
 public sealed class Http2ServerStreamCorrelationSpec
 {
-    private static TurboHttpContext CreateResponseContext()
+    private static TurboHttpContext CreateResponseContext(long streamId)
     {
         var features = new FeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
@@ -26,31 +27,10 @@ public sealed class Http2ServerStreamCorrelationSpec
         var bodyFeature = new TurboHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<ITurboResponseBodyFeature>(bodyFeature);
+        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
         return new TurboHttpContext(features);
     }
 
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            EmittedOutbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-        }
-
-        public void OnCancelTimer(string name)
-        {
-        }
-    }
 
     private static ReadOnlyMemory<byte> EncodeHeaders(string method, string path, string authority = "localhost")
     {
@@ -126,28 +106,30 @@ public sealed class Http2ServerStreamCorrelationSpec
         sm.DecodeClientData(new TransportData(buffer3));
 
         // Verify both requests were emitted
-        Assert.Equal(2, ops.EmittedRequests.Count);
+        Assert.Equal(2, ops.Requests.Count);
 
-        // Verify stream IDs are correctly stored in request options
-        var request1 = ops.EmittedRequests[0];
-        Assert.True(request1.Options.TryGetValue(StreamIdKey.Http2, out var streamId1));
-        Assert.Equal(1, streamId1);
-        Assert.Equal("/path1", request1.RequestUri?.AbsolutePath);
+        // Verify stream IDs are correctly stored in request features
+        var context1 = ops.Requests[0];
+        var streamIdFeature1 = context1.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature1);
+        Assert.Equal(1, streamIdFeature1.StreamId);
+        Assert.Equal("/path1", context1.Request.Path.Value);
 
-        var request3 = ops.EmittedRequests[1];
-        Assert.True(request3.Options.TryGetValue(StreamIdKey.Http2, out var streamId3));
-        Assert.Equal(3, streamId3);
-        Assert.Equal("/path3", request3.RequestUri?.AbsolutePath);
+        var context3 = ops.Requests[1];
+        var streamIdFeature3 = context3.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature3);
+        Assert.Equal(3, streamIdFeature3.StreamId);
+        Assert.Equal("/path3", context3.Request.Path.Value);
 
         // Now respond to stream 3 first
-        ops.EmittedOutbound.Clear();
-        var context3 = CreateResponseContext();
-        sm.OnResponse(context3);
+        ops.Outbound.Clear();
+        var responseContext3 = CreateResponseContext(streamId: 3);
+        sm.OnResponse(responseContext3);
 
         // Verify HEADERS frame for stream 3 was emitted
-        Assert.NotEmpty(ops.EmittedOutbound);
+        Assert.NotEmpty(ops.Outbound);
         var headersEmitted = false;
-        foreach (var item in ops.EmittedOutbound)
+        foreach (var item in ops.Outbound)
         {
             if (item is TransportData td)
             {
@@ -169,14 +151,14 @@ public sealed class Http2ServerStreamCorrelationSpec
         Assert.True(headersEmitted, "Expected HEADERS frame for stream 3 to be emitted");
 
         // Now respond to stream 1
-        ops.EmittedOutbound.Clear();
-        var context1 = CreateResponseContext();
-        sm.OnResponse(context1);
+        ops.Outbound.Clear();
+        var responseContext1 = CreateResponseContext(streamId: 1);
+        sm.OnResponse(responseContext1);
 
         // Verify HEADERS frame for stream 1 was emitted
-        Assert.NotEmpty(ops.EmittedOutbound);
+        Assert.NotEmpty(ops.Outbound);
         var headers1Emitted = false;
-        foreach (var item in ops.EmittedOutbound)
+        foreach (var item in ops.Outbound)
         {
             if (item is TransportData td)
             {
@@ -218,36 +200,38 @@ public sealed class Http2ServerStreamCorrelationSpec
             sm.DecodeClientData(new TransportData(buffer));
         }
 
-        Assert.Equal(3, ops.EmittedRequests.Count);
+        Assert.Equal(3, ops.Requests.Count);
 
         // Verify each request has correct stream ID and path
-        for (var i = 0; i < ops.EmittedRequests.Count; i++)
+        for (var i = 0; i < ops.Requests.Count; i++)
         {
-            var request = ops.EmittedRequests[i];
+            var context = ops.Requests[i];
             var expectedStreamId = 1 + (i * 2);
             var expectedPath = $"/path{expectedStreamId}";
 
-            Assert.True(request.Options.TryGetValue(StreamIdKey.Http2, out var streamId));
-            Assert.Equal(expectedStreamId, streamId);
-            Assert.Equal(expectedPath, request.RequestUri?.AbsolutePath);
+            var streamIdFeature = context.Features.Get<IHttpStreamIdFeature>();
+            Assert.NotNull(streamIdFeature);
+            Assert.Equal(expectedStreamId, streamIdFeature.StreamId);
+            Assert.Equal(expectedPath, context.Request.Path.Value);
         }
 
         // Respond in reverse order (5, 3, 1) and verify correct stream IDs are used
         var responseOrder = new[] { 2, 1, 0 };
-        ops.EmittedOutbound.Clear();
+        ops.Outbound.Clear();
 
         foreach (var idx in responseOrder)
         {
-            var request = ops.EmittedRequests[idx];
-            _ = request.Options.TryGetValue(StreamIdKey.Http2, out var reqStreamId);
+            var reqContext = ops.Requests[idx];
+            var reqStreamIdFeature = reqContext.Features.Get<IHttpStreamIdFeature>();
+            var reqStreamId = reqStreamIdFeature?.StreamId ?? 0;
 
-            ops.EmittedOutbound.Clear();
-            var context = CreateResponseContext();
+            ops.Outbound.Clear();
+            var context = CreateResponseContext(streamId: reqStreamId);
             sm.OnResponse(context);
 
             // Find HEADERS frame in outbound
             var foundCorrectStreamId = false;
-            foreach (var item in ops.EmittedOutbound)
+            foreach (var item in ops.Outbound)
             {
                 if (item is TransportData td)
                 {
@@ -302,24 +286,24 @@ public sealed class Http2ServerStreamCorrelationSpec
         sm.DecodeClientData(new TransportData(buf3));
 
         // All three requests should have been emitted
-        Assert.Equal(3, ops.EmittedRequests.Count);
+        Assert.Equal(3, ops.Requests.Count);
 
         // Verify each has correct stream ID
-        var streamIds = ops.EmittedRequests
-            .Select(r =>
+        var streamIds = ops.Requests
+            .Select(ctx =>
             {
-                r.Options.TryGetValue(StreamIdKey.Http2, out var sid);
-                return sid;
+                var feature = ctx.Features.Get<IHttpStreamIdFeature>();
+                return (int)(feature?.StreamId ?? 0);
             })
             .OrderBy(id => id)
-            .ToList();
+            .ToArray();
 
         Assert.Equal(new[] { 1, 3, 5 }, streamIds);
 
         // Verify paths match stream order
-        Assert.Equal("/", ops.EmittedRequests[0].RequestUri?.AbsolutePath);
-        Assert.Equal("/submit", ops.EmittedRequests[1].RequestUri?.AbsolutePath);
-        Assert.Equal("/status", ops.EmittedRequests[2].RequestUri?.AbsolutePath);
+        Assert.Equal("/", ops.Requests[0].Request.Path.Value);
+        Assert.Equal("/submit", ops.Requests[1].Request.Path.Value);
+        Assert.Equal("/status", ops.Requests[2].Request.Path.Value);
     }
 }
 

@@ -1,7 +1,5 @@
 using System.Buffers;
 using System.Text;
-using Akka.Actor;
-using Akka.Event;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Context.Features;
@@ -9,6 +7,7 @@ using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -24,20 +23,6 @@ public sealed class Http11ServerStateMachineConnectionSpec
         features.Set<ITurboResponseBodyFeature>(bodyFeature);
         return new TurboHttpContext(features);
     }
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public List<(string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { /* context received */ }
-        public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
-        public void OnScheduleTimer(string name, TimeSpan delay) => ScheduledTimers.Add((name, delay));
-        public void OnCancelTimer(string name) => CancelledTimers.Add(name);
-    }
 
     private static TransportBuffer MakeBuffer(string raw)
     {
@@ -52,7 +37,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-9.6")]
     public void ShouldComplete_should_be_true_when_connection_close_on_request()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
@@ -68,7 +53,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void ShouldComplete_should_be_true_for_http10_request_on_h11_connection()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
@@ -84,7 +69,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-9.6")]
     public void OnResponse_should_include_connection_close_when_ShouldComplete()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
@@ -106,7 +91,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-6")]
     public void DecodeClientData_should_set_ShouldComplete_on_decode_error()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var invalidRequest = "INVALID REQUEST DATA\r\n\r\n";
@@ -121,7 +106,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-4")]
     public void OnBodyMessage_OutboundBodyFailed_should_clear_pending_flag()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
@@ -150,7 +135,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-4")]
     public void OnBodyMessage_multi_chunk_should_emit_all_chunks()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
@@ -189,7 +174,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-4")]
     public void Cleanup_should_be_idempotent()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
@@ -212,7 +197,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-4")]
     public void OnResponse_should_throw_when_no_pending_requests()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var context = CreateResponseContext();
@@ -225,7 +210,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-6.3")]
     public void OnResponse_should_set_chunked_transfer_encoding_when_no_content_length()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
@@ -250,7 +235,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
     [Trait("RFC", "RFC9112-6.2")]
     public void OnResponse_should_not_set_chunked_when_content_length_present()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
 
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";

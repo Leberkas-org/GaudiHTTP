@@ -1,10 +1,14 @@
 using System.Buffers;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Context.Features;
+using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Server;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Stages.Server;
 using static Servus.Core.Servus;
+using HttpVersion = System.Net.HttpVersion;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Server;
 
@@ -18,6 +22,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
     private TurboHttpContext? _deferredContext;
     private IMemoryOwner<byte>? _deferredBodyOwner;
     private int _deferredBodyLength;
+    private IBodyEncoder? _activeBodyEncoder;
 
     public bool CanAcceptResponse => true;
     public bool ShouldComplete { get; private set; }
@@ -85,30 +90,19 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
     public void OnResponse(TurboHttpContext context)
     {
-        // Http10ServerEncoder always returns 0 — it starts the buffered body encoder
-        // and sends OutboundBodyChunk/OutboundBodyComplete to the stage actor.
-        var tempBuffer = TransportBuffer.Rent(1);
-        try
+        _deferredContext = context;
+
+        var responseBody = context.Features.Get<ITurboResponseBodyFeature>();
+        if (responseBody is TurboHttpResponseBodyFeature turboBody)
         {
-            var written = _encoder.Encode(tempBuffer.FullMemory.Span, context, _ops.StageActor);
-            if (written > 0)
+            var bodyStream = turboBody.GetResponseStream();
+            var encoder = BodyEncoderFactory.Create(bodyStream, null, HttpVersion.Version10);
+            if (encoder is not null)
             {
-                // Synchronous path (not currently used, kept for safety)
-                tempBuffer.Length = written;
-                _ops.OnOutbound(new TransportData(tempBuffer));
-                return;
+                _activeBodyEncoder = encoder;
+                encoder.Start(bodyStream, _ops.StageActor);
             }
         }
-        catch
-        {
-            tempBuffer.Dispose();
-            throw;
-        }
-
-        tempBuffer.Dispose();
-
-        // Deferred — waiting for OutboundBodyChunk + OutboundBodyComplete via OnBodyMessage
-        _deferredContext = context;
     }
 
     public void OnDownstreamFinished()
@@ -167,6 +161,8 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
     public void Cleanup()
     {
+        _activeBodyEncoder?.Dispose();
+        _activeBodyEncoder = null;
         _deferredBodyOwner?.Dispose();
         _deferredBodyOwner = null;
         _deferredContext = null;

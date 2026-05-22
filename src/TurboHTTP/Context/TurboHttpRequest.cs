@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Primitives;
 using Microsoft.Net.Http.Headers;
 using TurboHTTP.Context.Adapters;
 using TurboHTTP.Context.Features;
@@ -234,7 +235,7 @@ public sealed class TurboHttpRequest : HttpRequest
     private static IFormCollection EmptyForm()
     {
         return new TurboFormCollection(
-            new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>(),
+            new Dictionary<string, StringValues>(),
             new TurboFormFileCollection([]));
     }
 
@@ -248,7 +249,7 @@ public sealed class TurboHttpRequest : HttpRequest
 
         using var reader = new StreamReader(feature.Body);
         var body = await reader.ReadToEndAsync(ct);
-        var fields = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>(StringComparer.OrdinalIgnoreCase);
+        var fields = new Dictionary<string, StringValues>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var pair in body.Split('&', StringSplitOptions.RemoveEmptyEntries))
         {
@@ -259,7 +260,7 @@ public sealed class TurboHttpRequest : HttpRequest
                 var value = Uri.UnescapeDataString(kv[1]);
                 if (fields.TryGetValue(key, out var existing))
                 {
-                    fields[key] = Microsoft.Extensions.Primitives.StringValues.Concat(existing, value);
+                    fields[key] = StringValues.Concat(existing, value);
                 }
                 else
                 {
@@ -285,7 +286,7 @@ public sealed class TurboHttpRequest : HttpRequest
             return EmptyForm();
         }
 
-        var fields = new Dictionary<string, Microsoft.Extensions.Primitives.StringValues>(StringComparer.OrdinalIgnoreCase);
+        var fields = new Dictionary<string, StringValues>(StringComparer.OrdinalIgnoreCase);
         var files = new List<IFormFile>();
 
         var reader = new MultipartReader(boundary, feature.Body);
@@ -293,8 +294,7 @@ public sealed class TurboHttpRequest : HttpRequest
         var section = await reader.ReadNextSectionAsync(ct);
         while (section is not null)
         {
-            if (ContentDispositionHeaderValue.TryParse(
-                    section.ContentDisposition, out var disposition))
+            if (ContentDispositionHeaderValue.TryParse(section.ContentDisposition, out var disposition))
             {
                 if (disposition.IsFileDisposition())
                 {
@@ -313,7 +313,7 @@ public sealed class TurboHttpRequest : HttpRequest
                     var name = disposition.Name.Value ?? string.Empty;
                     if (fields.TryGetValue(name, out var existing))
                     {
-                        fields[name] = Microsoft.Extensions.Primitives.StringValues.Concat(existing, value);
+                        fields[name] = StringValues.Concat(existing, value);
                     }
                     else
                     {

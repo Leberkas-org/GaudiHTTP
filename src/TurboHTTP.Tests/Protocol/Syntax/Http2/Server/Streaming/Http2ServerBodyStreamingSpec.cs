@@ -6,6 +6,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Streaming;
 
@@ -15,31 +16,6 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Streaming;
 /// </summary>
 public sealed class Http2ServerBodyStreamingSpec
 {
-    private sealed class FakeServerOps : IServerStageOperations
-    {
-        public List<TurboHttpContext> EmittedRequests { get; } = [];
-        public List<ITransportOutbound> EmittedOutbound { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context)
-        {
-            EmittedRequests.Add(context);
-        }
-
-        public void OnOutbound(ITransportOutbound item)
-        {
-            EmittedOutbound.Add(item);
-        }
-
-        public void OnScheduleTimer(string name, TimeSpan delay)
-        {
-        }
-
-        public void OnCancelTimer(string name)
-        {
-        }
-    }
 
     private static byte[] BuildHeadersFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endStream = false,
         bool endHeaders = true)
@@ -131,8 +107,8 @@ public sealed class Http2ServerBodyStreamingSpec
         sm.DecodeClientData(new TransportData(buffer));
 
         // Request should be emitted immediately
-        Assert.Single(ops.EmittedRequests);
-        var context = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
 
         // Request should have a body stream
         var bodyStream = context.Request.Body;
@@ -174,8 +150,8 @@ public sealed class Http2ServerBodyStreamingSpec
         sm.DecodeClientData(new TransportData(buffer));
 
         // Request should be emitted
-        Assert.Single(ops.EmittedRequests);
-        var context = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
 
         // Request should have empty body stream
         var bodyStream = context.Request.Body;
@@ -206,8 +182,8 @@ public sealed class Http2ServerBodyStreamingSpec
         sm.DecodeClientData(new TransportData(buffer));
 
         // Request should be emitted
-        Assert.Single(ops.EmittedRequests);
-        var initialOutboundCount = ops.EmittedOutbound.Count;
+        Assert.Single(ops.Requests);
+        var initialOutboundCount = ops.Outbound.Count;
 
         // Send DATA frame that exceeds max body size
         var largeData = new byte[150];
@@ -221,7 +197,7 @@ public sealed class Http2ServerBodyStreamingSpec
         sm.DecodeClientData(new TransportData(buffer2));
 
         // RST_STREAM should have been emitted (or possibly other control frames too)
-        var newOutbound = ops.EmittedOutbound.Skip(initialOutboundCount).ToList();
+        var newOutbound = ops.Outbound.Skip(initialOutboundCount).ToList();
         Assert.NotEmpty(newOutbound);
 
         // Find RST_STREAM frame
@@ -252,8 +228,8 @@ public sealed class Http2ServerBodyStreamingSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Single(ops.EmittedRequests);
-        var context = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
         var bodyStream = context.Request.Body;
         Assert.NotNull(bodyStream);
 
@@ -301,8 +277,8 @@ public sealed class Http2ServerBodyStreamingSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        Assert.Single(ops.EmittedRequests);
-        var context = ops.EmittedRequests[0];
+        Assert.Single(ops.Requests);
+        var context = ops.Requests[0];
         var bodyStream = context.Request.Body;
         Assert.NotNull(bodyStream);
 

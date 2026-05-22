@@ -459,15 +459,11 @@ internal sealed class Http3ServerSessionManager
             if (hasBody)
             {
                 state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
+                requestFeature.Body = state.GetBodyStream();
             }
 
             var context = ServerContextFactory.Create(requestFeature, hasBody);
             context.Features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
-
-            if (hasBody)
-            {
-                requestFeature.Body = state.GetBodyStream();
-            }
 
             _bodyRateStates.Remove(streamId);
             _ops.OnRequest(context);

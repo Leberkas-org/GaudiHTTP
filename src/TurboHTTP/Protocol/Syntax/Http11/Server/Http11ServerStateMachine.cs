@@ -162,17 +162,29 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         var responseFeature = context.Features.Get<IHttpResponseFeature>();
         var responseBody = context.Features.Get<ITurboResponseBodyFeature>();
 
+        var statusCode = responseFeature?.StatusCode ?? 200;
+        var suppressBody = statusCode is >= 100 and < 200 or 204 or 304;
+
         var contentLength = ExtractContentLength(responseFeature);
         var hasExplicitChunked = responseFeature?.Headers?.Any(h =>
             h.Key.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase)
             && h.Value.Any(v => v.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))) ?? false;
-        var isChunked = contentLength is null || hasExplicitChunked;
+        var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
         var responseBuffer = TransportBuffer.Rent(8192);
         var span = responseBuffer.FullMemory.Span;
         var written = _encoder.Encode(span, context, isChunked, connectionClose: ShouldComplete);
         responseBuffer.Length = written;
         _ops.OnOutbound(new TransportData(responseBuffer));
+
+        if (suppressBody)
+        {
+            if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
+            {
+                _ops.OnScheduleTimer("keep-alive", _keepAliveTimeout);
+            }
+            return;
+        }
 
         if (responseBody is TurboHttpResponseBodyFeature turboBody)
         {
@@ -188,7 +200,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         }
         else
         {
-            // Response has no body, schedule keep-alive timer if needed
             if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
             {
                 _ops.OnScheduleTimer("keep-alive", _keepAliveTimeout);

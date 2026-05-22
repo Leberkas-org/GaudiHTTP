@@ -10,6 +10,7 @@ using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
@@ -19,38 +20,18 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 /// </summary>
 public sealed class Http3StreamLifecycleSpec
 {
-    private static TurboHttpContext CreateResponseContext()
+    private static TurboHttpContext CreateResponseContext(long streamId = 999)
     {
         var features = new FeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
+        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
         var bodyFeature = new TurboHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<ITurboResponseBodyFeature>(bodyFeature);
         return new TurboHttpContext(features);
     }
 
-    private sealed class TrackingServerOps : IServerStageOperations
-    {
-        public List<HttpRequestMessage> Requests { get; } = [];
-        public List<ITransportOutbound> Outbound { get; } = [];
-        public Dictionary<string, (string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
-        public List<string> CancelledTimers { get; } = [];
-        public ILoggingAdapter Log { get; } = NoLogger.Instance;
-        public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
-
-        public void OnRequest(TurboHttpContext context) { Requests.Add(new HttpRequestMessage()); }
-
-        public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
-
-        public void OnScheduleTimer(string name, TimeSpan delay) => ScheduledTimers[name] = (name, delay);
-
-        public void OnCancelTimer(string name)
-        {
-            ScheduledTimers.Remove(name);
-            CancelledTimers.Add(name);
-        }
-    }
 
     private static (byte[] Data, long StreamId) BuildRequest(string method, string path, long streamId)
     {
@@ -83,7 +64,7 @@ public sealed class Http3StreamLifecycleSpec
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
     }
 
-    private static Http3ServerSessionManager CreateSM(TrackingServerOps ops)
+    private static Http3ServerSessionManager CreateSM(FakeServerOps ops)
     {
         var enc = new Http3ServerEncoderOptions { QpackMaxTableCapacity = 0 };
         var dec = new Http3ServerDecoderOptions { MaxConcurrentStreams = 100 };
@@ -94,26 +75,31 @@ public sealed class Http3StreamLifecycleSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Request_should_be_emitted_after_StreamReadCompleted()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         const long streamId = 4;
         SendRequest(sm, streamId);
 
         Assert.Single(ops.Requests);
-        var request = ops.Requests[0];
+        var context = ops.Requests[0];
 
-        Assert.True(request.Options.TryGetValue(StreamIdKey.Http3, out var storedStreamId));
-        Assert.Equal(streamId, storedStreamId);
-        Assert.Equal("GET", request.Method.Method);
-        Assert.Equal("https://localhost/", request.RequestUri?.ToString());
+        var streamIdFeature = context.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature);
+        Assert.Equal(streamId, streamIdFeature.StreamId);
+        var requestFeature = context.Features.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        Assert.NotNull(requestFeature);
+        Assert.Equal("GET", requestFeature.Method);
+        Assert.Equal("https", requestFeature.Scheme);
+        Assert.Equal("localhost", requestFeature.ExtractedHost);
+        Assert.Equal("/", requestFeature.Path);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-6.1")]
     public void Multiple_concurrent_streams_should_all_emit_requests()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         const long streamId1 = 0;
@@ -124,24 +110,30 @@ public sealed class Http3StreamLifecycleSpec
 
         Assert.Equal(2, ops.Requests.Count);
 
-        var req1 = ops.Requests[0];
-        var req2 = ops.Requests[1];
+        var ctx1 = ops.Requests[0];
+        var ctx2 = ops.Requests[1];
 
-        Assert.True(req1.Options.TryGetValue(StreamIdKey.Http3, out var id1));
-        Assert.True(req2.Options.TryGetValue(StreamIdKey.Http3, out var id2));
-        Assert.Equal(streamId1, id1);
-        Assert.Equal(streamId2, id2);
+        var streamIdFeature1 = ctx1.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature1);
+        var streamIdFeature2 = ctx2.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature2);
+        Assert.Equal(streamId1, streamIdFeature1.StreamId);
+        Assert.Equal(streamId2, streamIdFeature2.StreamId);
 
-        Assert.Equal("GET", req1.Method.Method);
-        Assert.Equal("POST", req2.Method.Method);
-        Assert.Equal("/path1", req1.RequestUri?.AbsolutePath);
-        Assert.Equal("/path2", req2.RequestUri?.AbsolutePath);
+        var requestFeature1 = ctx1.Features.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        var requestFeature2 = ctx2.Features.Get<IHttpRequestFeature>() as TurboHttpRequestFeature;
+        Assert.NotNull(requestFeature1);
+        Assert.NotNull(requestFeature2);
+        Assert.Equal("GET", requestFeature1.Method);
+        Assert.Equal("POST", requestFeature2.Method);
+        Assert.Equal("/path1", requestFeature1.Path);
+        Assert.Equal("/path2", requestFeature2.Path);
     }
 
     [Fact(Timeout = 5000)]
     public void OnResponse_for_unknown_stream_should_not_crash()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         // Should not throw when responding on unknown stream
@@ -156,18 +148,19 @@ public sealed class Http3StreamLifecycleSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void OnResponse_no_body_should_emit_CompleteWrites()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         const long streamId = 8;
         SendRequest(sm, streamId);
 
         Assert.Single(ops.Requests);
-        var request = ops.Requests[0];
+        var context = ops.Requests[0];
 
         ops.Outbound.Clear();
 
-        var context = CreateResponseContext();
+        context.Response.StatusCode = 200;
+        context.Response.ContentLength = 0;
         sm.OnResponse(context);
 
         var completeWrites = ops.Outbound.OfType<CompleteWrites>().ToList();
@@ -178,7 +171,7 @@ public sealed class Http3StreamLifecycleSpec
     [Fact(Timeout = 5000)]
     public void Cleanup_should_be_idempotent()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         const long streamId = 12;
@@ -197,7 +190,7 @@ public sealed class Http3StreamLifecycleSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void FlushAllPendingRequests_should_emit_pending()
     {
-        var ops = new TrackingServerOps();
+        var ops = new FakeServerOps();
         var sm = CreateSM(ops);
 
         const long streamId = 16;
@@ -219,9 +212,10 @@ public sealed class Http3StreamLifecycleSpec
 
         // Now request should be emitted
         Assert.Single(ops.Requests);
-        var request = ops.Requests[0];
+        var context = ops.Requests[0];
 
-        Assert.True(request.Options.TryGetValue(StreamIdKey.Http3, out var storedStreamId));
-        Assert.Equal(streamId, storedStreamId);
+        var streamIdFeature = context.Features.Get<IHttpStreamIdFeature>();
+        Assert.NotNull(streamIdFeature);
+        Assert.Equal(streamId, streamIdFeature.StreamId);
     }
 }
