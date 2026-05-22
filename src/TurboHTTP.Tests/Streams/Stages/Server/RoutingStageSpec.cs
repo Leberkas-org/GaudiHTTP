@@ -1,8 +1,6 @@
 using Akka.Streams.Dsl;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Server;
-using TurboHTTP.Context.Features;
 using TurboHTTP.Routing;
 using TurboHTTP.Streams.Stages.Server;
 using TurboHTTP.Tests.Shared;
@@ -13,22 +11,13 @@ public sealed class RoutingStageSpec : StreamTestBase
 {
     private TurboHttpContext CreateTestContext(HttpMethod method, string uri)
     {
-        var request = new HttpRequestMessage(method, uri);
-
-        var features = new FeatureCollection();
-        var requestFeature = ServerTestContext.CreateRequestFeature(request);
-        features.Set<IHttpRequestFeature>(requestFeature);
-        features.Set<ITurboRequestBodyFeature>(requestFeature);
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-        var bodyFeature = new TurboHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<ITurboResponseBodyFeature>(bodyFeature);
-
-        return new TurboHttpContext(
-            features,
-            new TurboConnectionInfo("test", null, 0, null, 0),
-            new ServiceCollection().BuildServiceProvider(),
-            CancellationToken.None, Materializer);
+        var path = new Uri(uri).PathAndQuery;
+        return ServerTestContext.Request()
+            .Method(method.Method)
+            .Path(path)
+            .Services(new ServiceCollection().BuildServiceProvider())
+            .Materializer(Materializer)
+            .Build();
     }
 
     [Fact(Timeout = 5000)]

@@ -1,7 +1,5 @@
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Server;
-using TurboHTTP.Context.Features;
 using TurboHTTP.Server.Middleware;
 using TurboHTTP.Tests.Shared;
 
@@ -11,16 +9,10 @@ public sealed class TurboPipelineBuilderSpec
 {
     private static TurboHttpContext CreateTestContext()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/test");
-        var features = new FeatureCollection();
-        features.Set<IHttpRequestFeature>(ServerTestContext.CreateRequestFeature(request));
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-
-        return new TurboHttpContext(
-            features,
-            new TurboConnectionInfo("test", null, 0, null, 0),
-            new ServiceCollection().BuildServiceProvider(),
-            CancellationToken.None, null!);
+        return ServerTestContext.Request()
+            .Get("/test")
+            .Services(new ServiceCollection().BuildServiceProvider())
+            .Build();
     }
 
     [Fact(Timeout = 5000)]
@@ -74,16 +66,10 @@ public sealed class TurboPipelineBuilderSpec
 
         var pipeline = builder.Build();
 
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/admin/dashboard");
-        var features = new FeatureCollection();
-        features.Set<IHttpRequestFeature>(ServerTestContext.CreateRequestFeature(request));
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-
-        var ctx = new TurboHttpContext(
-            features,
-            new TurboConnectionInfo("test", null, 0, null, 0),
-            new ServiceCollection().BuildServiceProvider(),
-            CancellationToken.None, null!);
+        var ctx = ServerTestContext.Request()
+            .Get("/admin/dashboard")
+            .Services(new ServiceCollection().BuildServiceProvider())
+            .Build();
 
         await pipeline(ctx);
 

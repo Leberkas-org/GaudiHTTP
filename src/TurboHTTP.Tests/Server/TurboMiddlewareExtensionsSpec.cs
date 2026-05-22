@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Middleware;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Server;
 
@@ -18,7 +19,7 @@ public sealed class TurboMiddlewareExtensionsSpec
         app.UseTurbo(async (ctx, next) => { called = true; await next(ctx); });
 
         var pipeline = app.Services.GetRequiredService<TurboPipelineBuilder>().Build();
-        await pipeline(TurboTestContextFactory.Create());
+        await pipeline(ServerTestContext.Request().Get("/test").Build());
 
         Assert.True(called);
     }
@@ -36,7 +37,7 @@ public sealed class TurboMiddlewareExtensionsSpec
             branch => branch.Use((ctx, next) => { called = true; return next(ctx); }));
 
         var pipeline = app.Services.GetRequiredService<TurboPipelineBuilder>().Build();
-        await pipeline(TurboTestContextFactory.Create());
+        await pipeline(ServerTestContext.Request().Get("/test").Build());
 
         Assert.True(called);
     }
@@ -55,7 +56,7 @@ public sealed class TurboMiddlewareExtensionsSpec
         });
 
         var pipeline = app.Services.GetRequiredService<TurboPipelineBuilder>().Build();
-        var ctx = TurboTestContextFactory.Create(uri: "http://localhost/admin/dashboard");
+        var ctx = ServerTestContext.Request().Get("/admin/dashboard").Build();
         await pipeline(ctx);
 
         Assert.True(called);

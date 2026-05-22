@@ -1,8 +1,5 @@
 using Akka.Streams.Dsl;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Server;
-using TurboHTTP.Context.Features;
 using TurboHTTP.Streams.Stages.Server;
 using TurboHTTP.Tests.Shared;
 
@@ -12,22 +9,10 @@ public sealed class MiddlewarePipelineStageSpec : StreamTestBase
 {
     private TurboHttpContext CreateTestContext()
     {
-        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost/test");
-
-        var features = new FeatureCollection();
-        var requestFeature = ServerTestContext.CreateRequestFeature(request);
-        features.Set<IHttpRequestFeature>(requestFeature);
-        features.Set<ITurboRequestBodyFeature>(requestFeature);
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-        var bodyFeature = new TurboHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<ITurboResponseBodyFeature>(bodyFeature);
-
-        return new TurboHttpContext(
-            features,
-            new TurboConnectionInfo("test", null, 0, null, 0),
-            new ServiceCollection().BuildServiceProvider(),
-            CancellationToken.None, Materializer);
+        return ServerTestContext.Request()
+            .Get("/test")
+            .Materializer(Materializer)
+            .Build();
     }
 
     [Fact(Timeout = 5000)]

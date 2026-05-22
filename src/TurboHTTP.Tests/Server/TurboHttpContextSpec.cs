@@ -1,5 +1,4 @@
 using System.Net;
-using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,7 +38,10 @@ public sealed class TurboHttpContextSpec
     public void TurboHttpContext_should_expose_connection_as_ConnectionInfo()
     {
         var connection = new TurboConnectionInfo("conn-1", IPAddress.Loopback, 12345, IPAddress.Loopback, 443);
-        var ctx = CreateContext(connection: connection);
+        var ctx = ServerTestContext.Request()
+            .Get("/")
+            .Connection(connection)
+            .Build();
         Assert.Equal("conn-1", ctx.Connection.Id);
         Assert.IsType<TurboConnectionInfo>(ctx.Connection);
     }
@@ -81,24 +83,20 @@ public sealed class TurboHttpContextSpec
     public void TurboHttpContext_should_expose_request_services()
     {
         var services = new ServiceCollection().BuildServiceProvider();
-        var ctx = CreateContext(services: services);
+        var ctx = ServerTestContext.Request()
+            .Get("/")
+            .Services(services)
+            .RequestAborted(TestContext.Current.CancellationToken)
+            .Build();
         Assert.Same(services, ctx.RequestServices);
     }
 
-    private static TurboHttpContext CreateContext(
-        HttpRequestMessage? request = null,
-        TurboConnectionInfo? connection = null,
-        IServiceProvider? services = null)
+    private static TurboHttpContext CreateContext()
     {
-        var req = request ?? new HttpRequestMessage(HttpMethod.Get, "http://localhost/");
-        var conn = connection ?? new TurboConnectionInfo("test", IPAddress.Loopback, 0, IPAddress.Loopback, 0);
-
-        var features = new FeatureCollection();
-        features.Set<IHttpRequestFeature>(ServerTestContext.CreateRequestFeature(req));
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-        features.Set<IHttpConnectionFeature>(new TurboHttpConnectionFeature(conn));
-        features.Set<IHttpResponseBodyFeature>(new TurboHttpResponseBodyFeature());
-
-        return new TurboHttpContext(features, conn, services, TestContext.Current.CancellationToken, null!);
+        return ServerTestContext.Request()
+            .Get("/")
+            .Connection(new TurboConnectionInfo("test", IPAddress.Loopback, 0, IPAddress.Loopback, 0))
+            .RequestAborted(TestContext.Current.CancellationToken)
+            .Build();
     }
 }
