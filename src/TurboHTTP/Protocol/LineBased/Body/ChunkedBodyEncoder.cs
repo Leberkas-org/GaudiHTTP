@@ -19,6 +19,11 @@ internal sealed class ChunkedBodyEncoder : IBodyEncoder
         _ = DrainAsync(content, stageActor, _cts.Token);
     }
 
+    public void Start(Stream bodyStream, IActorRef stageActor)
+    {
+        Start(new StreamContent(bodyStream), stageActor);
+    }
+
     private async Task DrainAsync(HttpContent content, IActorRef stageActor, CancellationToken ct)
     {
         try

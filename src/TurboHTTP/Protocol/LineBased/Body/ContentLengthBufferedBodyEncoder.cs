@@ -12,6 +12,11 @@ internal sealed class ContentLengthBufferedBodyEncoder : IBodyEncoder
         _ = DrainAsync(content, stageActor, _cts.Token);
     }
 
+    public void Start(Stream bodyStream, IActorRef stageActor)
+    {
+        Start(new StreamContent(bodyStream), stageActor);
+    }
+
     private static async Task DrainAsync(HttpContent content, IActorRef stageActor, CancellationToken ct)
     {
         try

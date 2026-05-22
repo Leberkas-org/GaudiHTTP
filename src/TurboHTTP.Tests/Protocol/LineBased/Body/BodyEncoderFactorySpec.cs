@@ -75,4 +75,38 @@ public sealed class BodyEncoderFactorySpec
         Assert.IsType<ContentLengthBufferedBodyEncoder>(encoder);
         encoder.Dispose();
     }
+
+    [Fact(Timeout = 5000)]
+    public void Create_stream_with_content_length_should_return_content_length_encoder()
+    {
+        var stream = new MemoryStream("hello"u8.ToArray());
+        var encoder = BodyEncoderFactory.Create(stream, contentLength: 5, HttpVersion.Version11);
+        Assert.IsType<ContentLengthStreamedBodyEncoder>(encoder);
+        encoder?.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Create_stream_without_content_length_should_return_chunked_encoder()
+    {
+        var stream = new MemoryStream("hello"u8.ToArray());
+        var encoder = BodyEncoderFactory.Create(stream, contentLength: null, HttpVersion.Version11);
+        Assert.IsType<ChunkedBodyEncoder>(encoder);
+        encoder?.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Create_null_stream_should_return_null()
+    {
+        var encoder = BodyEncoderFactory.Create(null, contentLength: null, HttpVersion.Version11);
+        Assert.Null(encoder);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Create_stream_http10_should_return_buffered_encoder()
+    {
+        var stream = new MemoryStream("hello"u8.ToArray());
+        var encoder = BodyEncoderFactory.Create(stream, contentLength: 5, HttpVersion.Version10);
+        Assert.IsType<ContentLengthBufferedBodyEncoder>(encoder);
+        encoder?.Dispose();
+    }
 }
