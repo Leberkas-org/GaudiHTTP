@@ -1,5 +1,6 @@
 using System.Buffers;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using TurboHTTP.Server;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Server;
 
@@ -109,6 +110,48 @@ internal sealed class Http2ServerEncoder
             foreach (var h in response.Content.Headers)
             {
                 headers.Add(new HpackHeader(ContentHeaderClassifier.ToLowerAscii(h.Key), ContentHeaderClassifier.JoinHeaderValues(h.Value)));
+            }
+        }
+    }
+
+    public IReadOnlyList<Http2Frame> EncodeHeaders(TurboHttpContext context, int streamId, bool hasBody)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        if (streamId < 0)
+        {
+            throw new HttpProtocolException("HTTP/2 stream ID space exhausted: all server stream IDs have been used.");
+        }
+
+        ReturnRentedBuffers();
+
+        _reusableHeaders.Clear();
+        BuildHeaderList(context, _reusableHeaders);
+
+        var hpackOwner = MemoryPool<byte>.Shared.Rent(4096);
+        _rentedBodyOwners.Add(hpackOwner);
+        var hpackWritable = hpackOwner.Memory.Span;
+        var hpackBytesWritten = _hpack.Encode(_reusableHeaders, ref hpackWritable, useHuffman: true);
+        var headerBlock = hpackOwner.Memory[..hpackBytesWritten];
+
+        _reusableFrames.Clear();
+        EncodeHeaderFrames(_reusableFrames, streamId, headerBlock, endStream: !hasBody);
+
+        return _reusableFrames;
+    }
+
+    private static void BuildHeaderList(TurboHttpContext context, List<HpackHeader> headers)
+    {
+        // RFC 9113 §7.2: :status pseudo-header (required)
+        headers.Add(new HpackHeader(WellKnownHeaders.Status, WellKnownHeaders.GetStatusCodeString(context.Response.StatusCode)));
+
+        // Add regular headers
+        foreach (var h in context.Response.Headers)
+        {
+            if (!ContentHeaderClassifier.IsForbiddenConnectionHeader(h.Key))
+            {
+                var value = h.Value.Count == 1 ? h.Value[0]! : string.Join(", ", h.Value.ToArray());
+                headers.Add(new HpackHeader(ContentHeaderClassifier.ToLowerAscii(h.Key), value));
             }
         }
     }

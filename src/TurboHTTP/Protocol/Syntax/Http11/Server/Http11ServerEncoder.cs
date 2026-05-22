@@ -3,7 +3,9 @@ using System.Net;
 using Akka.Actor;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.LineBased.Body;
+using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Server;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Server;
 
@@ -59,5 +61,55 @@ internal sealed class Http11ServerEncoder
     {
         _activeBodyEncoder?.Dispose();
         _activeBodyEncoder = null;
+    }
+
+    public int Encode(Span<byte> destination, TurboHttpContext context, IActorRef stageActor,
+        bool isChunked = false, bool connectionClose = false)
+    {
+        var writer = SpanWriter.Create(destination);
+
+        StatusLineWriter.Write(ref writer, HttpVersion.Version11, context.Response.StatusCode);
+
+        var headers = new HeaderCollection();
+        foreach (var h in context.Response.Headers)
+        {
+            if (ConnectionSemantics.IsHopByHop(h.Key))
+            {
+                continue;
+            }
+
+            foreach (var v in h.Value)
+            {
+                if (v is not null)
+                {
+                    headers.Add(h.Key, v);
+                }
+            }
+        }
+
+        if (isChunked)
+        {
+            headers.Add(WellKnownHeaders.TransferEncoding, WellKnownHeaders.ChunkedValue);
+        }
+        else
+        {
+            var contentLength = context.Response.ContentLength ?? 0L;
+            headers.Add(WellKnownHeaders.ContentLength, contentLength.ToString(CultureInfo.InvariantCulture));
+        }
+
+        if (_options.WriteDateHeader && !headers.Contains(WellKnownHeaders.Date))
+        {
+            headers.Add(WellKnownHeaders.Date, DateTime.UtcNow.ToString("r", CultureInfo.InvariantCulture));
+        }
+
+        if (connectionClose)
+        {
+            headers.Add(WellKnownHeaders.Connection, WellKnownHeaders.CloseValue);
+        }
+
+        HeaderBlockWriter.Write(ref writer, headers);
+
+        // For TurboHttpContext, body encoding is handled separately via the BodySink
+        return writer.BytesWritten;
     }
 }
