@@ -1,6 +1,8 @@
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Stage;
+using Microsoft.AspNetCore.Http.Features;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Routing;
 using TurboHTTP.Server;
 
@@ -25,6 +27,9 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
 
     private sealed record DispatchCompleted(TurboHttpContext Context);
     private sealed record DispatchFailed(TurboHttpContext Context, Exception Error);
+    private sealed record ResponseReady(TurboHttpContext Context, Task HandlerTask);
+    private sealed record HandlerFinished;
+    private sealed record HandlerFaulted(TurboHttpContext Context, Exception Error);
 
     private sealed class Logic : GraphStageLogic
     {
@@ -102,9 +107,22 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
                 }
                 else
                 {
-                    task.PipeTo(_stageActor!,
-                        success: () => new DispatchCompleted(ctx),
-                        failure: ex => new DispatchFailed(ctx, ex));
+                    var bodyFeature = ctx.Features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+                    var headersReady = bodyFeature?.WhenHeadersReady;
+
+                    if (headersReady is not null)
+                    {
+                        Task.WhenAny(headersReady, task).ContinueWith(
+                            _ => new ResponseReady(ctx, task),
+                            TaskScheduler.Default)
+                            .PipeTo(_stageActor!);
+                    }
+                    else
+                    {
+                        task.PipeTo(_stageActor!,
+                            success: () => new DispatchCompleted(ctx),
+                            failure: ex => new DispatchFailed(ctx, ex));
+                    }
                 }
             }
             catch (Exception)
@@ -123,6 +141,50 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
         {
             switch (args.msg)
             {
+                case ResponseReady(var ctx, var handlerTask):
+                    if (handlerTask.IsFaulted)
+                    {
+                        var feature = ctx.Features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+                        if (feature is null || !feature.HasStarted)
+                        {
+                            ctx.Response.StatusCode = 500;
+                        }
+                    }
+
+                    Push(_stage._out, ctx);
+
+                    if (!handlerTask.IsCompleted)
+                    {
+                        handlerTask.PipeTo(_stageActor!,
+                            success: () => new HandlerFinished(),
+                            failure: ex => new HandlerFaulted(ctx, ex));
+                    }
+                    else
+                    {
+                        _dispatching = false;
+                        if (_upstreamFinished)
+                        {
+                            CompleteStage();
+                        }
+                    }
+                    break;
+
+                case HandlerFinished:
+                    _dispatching = false;
+                    if (_upstreamFinished)
+                    {
+                        CompleteStage();
+                    }
+                    break;
+
+                case HandlerFaulted:
+                    _dispatching = false;
+                    if (_upstreamFinished)
+                    {
+                        CompleteStage();
+                    }
+                    break;
+
                 case DispatchCompleted completed:
                     _dispatching = false;
                     Push(_stage._out, completed.Context);
