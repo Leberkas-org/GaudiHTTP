@@ -14,6 +14,5 @@ public sealed record TcpListenerOptions : ListenerOptions
     public RemoteCertificateValidationCallback? ClientCertificateValidationCallback { get; init; }
     public TimeSpan HandshakeTimeout { get; init; } = TimeSpan.FromSeconds(10);
     public ClientCertificateMode ClientCertificateMode { get; init; } = ClientCertificateMode.NoCertificate;
-    public TlsHandshakeCallback? HandshakeCallback { get; init; }
     public Func<string?, X509Certificate2?>? ServerCertificateSelector { get; init; }
 }

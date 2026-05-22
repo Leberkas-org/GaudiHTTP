@@ -195,11 +195,6 @@ internal sealed class TcpListenerStage : GraphStage<SourceShape<Flow<ITransportO
         {
             var options = _stage._options;
 
-            if (options.HandshakeCallback is not null)
-            {
-                return await AuthenticateWithCallbackAsync(client, options);
-            }
-
             if (options.ServerCertificate is null && options.ServerCertificateSelector is null)
             {
                 return new TlsConnectionResult(client.GetStream(), Security: null, SslStream: null,
@@ -209,39 +204,8 @@ internal sealed class TcpListenerStage : GraphStage<SourceShape<Flow<ITransportO
             return await AuthenticateWithOptionsAsync(client, options);
         }
 
-        private static async Task<TlsConnectionResult> AuthenticateWithCallbackAsync(TcpClient client,
+        private async Task<TlsConnectionResult> AuthenticateWithOptionsAsync(TcpClient client,
             TcpListenerOptions options)
-        {
-            var sslStream = new SslStream(
-                client.GetStream(),
-                leaveInnerStreamOpen: false,
-                options.ClientCertificateValidationCallback);
-
-            string? hostname = null;
-            var allowDelayed = false;
-
-            await sslStream.AuthenticateAsServerAsync(
-                async (_, clientHelloInfo, _, ct) =>
-                {
-                    hostname = clientHelloInfo.ServerName;
-                    var context = new TlsHandshakeContext(
-                        sslStream, clientHelloInfo,
-                        client.Client.LocalEndPoint!,
-                        client.Client.RemoteEndPoint!,
-                        ct);
-                    var authOptions = await options.HandshakeCallback!(context);
-                    allowDelayed = context.AllowDelayedClientCertificateNegotiation;
-                    return authOptions;
-                },
-                state: null,
-                CancellationToken.None).WaitAsync(options.HandshakeTimeout, CancellationToken.None);
-
-            var security = CaptureSecurityInfo(sslStream, hostname);
-            return new TlsConnectionResult(sslStream, security, sslStream, allowDelayed);
-        }
-
-        private async Task<TlsConnectionResult> AuthenticateWithOptionsAsync(
-            TcpClient client, TcpListenerOptions options)
         {
             var sslStream = new SslStream(
                 client.GetStream(),

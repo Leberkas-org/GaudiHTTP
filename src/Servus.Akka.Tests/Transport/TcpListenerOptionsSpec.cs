@@ -14,14 +14,6 @@ public sealed class TcpListenerOptionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TcpListenerOptions_should_default_handshake_callback_to_null()
-    {
-        var options = new TcpListenerOptions { Host = "localhost", Port = 443 };
-
-        Assert.Null(options.HandshakeCallback);
-    }
-
-    [Fact(Timeout = 5000)]
     public void TcpListenerOptions_should_default_server_certificate_selector_to_null()
     {
         var options = new TcpListenerOptions { Host = "localhost", Port = 443 };
