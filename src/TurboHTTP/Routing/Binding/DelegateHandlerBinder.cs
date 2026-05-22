@@ -293,11 +293,6 @@ internal static class DelegateHandlerBinder
             return new CancellationTokenBinder();
         }
 
-        if (type == typeof(HttpRequestMessage))
-        {
-            return new RequestBinder();
-        }
-
         if (type == typeof(HttpContext))
         {
             return new HttpContextBinder();

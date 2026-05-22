@@ -31,12 +31,6 @@ internal sealed class CancellationTokenBinder : ParameterBinder
         ValueTask.FromResult<object?>(ctx.RequestAborted);
 }
 
-internal sealed class RequestBinder : ParameterBinder
-{
-    public override ValueTask<object?> BindAsync(TurboHttpContext ctx, IServiceProvider services) =>
-        ValueTask.FromResult<object?>(ctx.Request);
-}
-
 internal sealed class RouteValueBinder(string name, Type type) : ParameterBinder
 {
     public override ValueTask<object?> BindAsync(TurboHttpContext ctx, IServiceProvider services)
