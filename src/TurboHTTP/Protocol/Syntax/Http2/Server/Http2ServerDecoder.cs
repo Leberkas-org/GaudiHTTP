@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
@@ -57,6 +59,84 @@ internal sealed class Http2ServerDecoder
         state.ApplyContentHeadersTo(request.Content);
 
         return request;
+    }
+
+    public TurboHttpRequestFeature? DecodeHeadersToFeature(int streamId, bool endStream, StreamState state)
+    {
+        var headers = _hpack.Decode(state.GetHeaderSpan());
+        ValidateHeaderSize(headers, streamId);
+        ValidateRequestHeaders(headers);
+
+        var feature = new TurboHttpRequestFeature { Protocol = "HTTP/2" };
+        var headerDict = new HeaderDictionary();
+
+        string? path = null;
+        string? scheme = null;
+        string? authority = null;
+        var isConnect = false;
+
+        foreach (var h in headers)
+        {
+            if (h.Name == WellKnownHeaders.Method)
+            {
+                feature.Method = h.Value;
+                if (h.Value == WellKnownHeaders.Connect)
+                {
+                    isConnect = true;
+                }
+            }
+            else if (h.Name == WellKnownHeaders.Path)
+            {
+                path = h.Value;
+                state.AddPseudoHeader(WellKnownHeaders.Path, h.Value);
+            }
+            else if (h.Name == WellKnownHeaders.Scheme)
+            {
+                scheme = h.Value;
+                state.AddPseudoHeader(WellKnownHeaders.Scheme, h.Value);
+            }
+            else if (h.Name == WellKnownHeaders.Authority)
+            {
+                authority = h.Value;
+                state.AddPseudoHeader(WellKnownHeaders.Authority, h.Value);
+            }
+            else if (!h.Name.StartsWith(WellKnownHeaders.Colon))
+            {
+                if (headerDict.TryGetValue(h.Name, out var existing))
+                {
+                    headerDict[h.Name] = Microsoft.Extensions.Primitives.StringValues.Concat(existing, h.Value);
+                }
+                else
+                {
+                    headerDict[h.Name] = h.Value;
+                }
+
+                if (ContentHeaderClassifier.IsContentHeader(h.Name))
+                {
+                    state.AddContentHeader(h.Name, h.Value);
+                }
+            }
+        }
+
+        if (!isConnect && path is not null)
+        {
+            feature.Scheme = scheme ?? "https";
+            feature.RawTarget = path;
+
+            var queryIdx = path.IndexOf('?');
+            feature.Path = queryIdx >= 0 ? path[..queryIdx] : path;
+            feature.QueryString = queryIdx >= 0 ? path[queryIdx..] : string.Empty;
+        }
+
+        feature.Headers = headerDict;
+        state.InitRequestFeature(feature);
+
+        if (!endStream)
+        {
+            return null;
+        }
+
+        return feature;
     }
 
     internal static void ValidateRequestHeaders(List<HpackHeader> headers)

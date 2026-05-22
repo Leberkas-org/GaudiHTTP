@@ -1,4 +1,5 @@
 using Akka.Actor;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Multiplexed.Body;
 
 namespace TurboHTTP.Protocol.Syntax.Http3;
@@ -12,6 +13,7 @@ internal sealed class StreamState
 {
     private HttpResponseMessage? _response;
     private HttpRequestMessage? _request;
+    private TurboHttpRequestFeature? _requestFeature;
     private List<(string Name, string Value)>? _contentHeaders;
     private Dictionary<string, string>? _pseudoHeaders;
     private IBodyDecoder? _bodyDecoder;

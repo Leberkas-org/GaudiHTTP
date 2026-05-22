@@ -1,5 +1,6 @@
 using System.Buffers;
 using Akka.Actor;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Multiplexed.Body;
 
 namespace TurboHTTP.Protocol.Syntax.Http2;
@@ -17,6 +18,7 @@ internal sealed class StreamState
     private int _headerLength;
     private HttpResponseMessage? _response;
     private HttpRequestMessage? _request;
+    private TurboHttpRequestFeature? _requestFeature;
     private List<(string Name, string Value)>? _contentHeaders;
     private Dictionary<string, string>? _pseudoHeaders;
     private IBodyDecoder? _bodyDecoder;
@@ -73,6 +75,13 @@ internal sealed class StreamState
     {
         return _request ?? throw new InvalidOperationException("No request has been initialized.");
     }
+
+    public void InitRequestFeature(TurboHttpRequestFeature feature)
+    {
+        _requestFeature = feature;
+    }
+
+    public TurboHttpRequestFeature? GetRequestFeature() => _requestFeature;
 
     public void AddPseudoHeader(string name, string value)
     {
@@ -210,6 +219,7 @@ internal sealed class StreamState
         _headerLength = 0;
         _response = null;
         _request = null;
+        _requestFeature = null;
         _contentHeaders = null;
         _pseudoHeaders = null;
         _bodyDecoder?.Dispose();
