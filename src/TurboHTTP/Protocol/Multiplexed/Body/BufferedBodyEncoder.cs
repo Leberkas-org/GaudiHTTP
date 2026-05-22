@@ -11,6 +11,8 @@ internal sealed class BufferedBodyEncoder : IBodyEncoder
         _ = DrainAsync(content, onMessage, _cts.Token);
     }
 
+    public void Start(Stream bodyStream, Action<object> onMessage) => Start(new StreamContent(bodyStream), onMessage);
+
     private static async Task DrainAsync(HttpContent content, Action<object> onMessage, CancellationToken ct)
     {
         try
