@@ -2,6 +2,7 @@ using System.Text;
 using Akka.Actor;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -12,32 +13,24 @@ public sealed class Http11ServerEncoderSpec
     [Fact(Timeout = 5000)]
     public void Encode_should_write_status_line()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-            ReasonPhrase = "OK"
-        };
+        var ctx = ServerTestContext.CreateResponse(200);
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, response, ActorRefs.Nobody, isChunked: false);
+        var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: false);
 
         Assert.True(written > 0);
         var result = Encoding.ASCII.GetString(buffer, 0, written);
-        Assert.Contains("HTTP/1.1 200 OK", result);
+        Assert.Contains("HTTP/1.1 200", result);
     }
 
     [Fact(Timeout = 5000)]
     public void Encode_should_add_content_length()
     {
-        var body = "test body"u8.ToArray();
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent(body),
-            ReasonPhrase = "OK"
-        };
+        var ctx = ServerTestContext.CreateResponse(200);
+        ctx.Response.Headers["Content-Length"] = "9";
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, response, ActorRefs.Nobody, isChunked: false);
+        var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: false);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.Contains("Content-Length: 9", result);
@@ -46,31 +39,23 @@ public sealed class Http11ServerEncoderSpec
     [Fact(Timeout = 5000)]
     public void Encode_should_handle_chunked_response()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent("chunked"u8.ToArray()),
-            ReasonPhrase = "OK"
-        };
+        var ctx = ServerTestContext.CreateResponse(200);
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, response, ActorRefs.Nobody, isChunked: true);
+        var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: true);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
-        Assert.Contains("HTTP/1.1 200 OK", result);
+        Assert.Contains("HTTP/1.1 200", result);
         Assert.DoesNotContain("Content-Length", result);
     }
 
     [Fact(Timeout = 5000)]
     public void Encode_should_include_date_header()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-            ReasonPhrase = "OK"
-        };
+        var ctx = ServerTestContext.CreateResponse(200);
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, response, ActorRefs.Nobody, isChunked: false);
+        var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: false);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.Contains("Date:", result);
@@ -80,15 +65,11 @@ public sealed class Http11ServerEncoderSpec
     [Trait("RFC", "RFC9112-2.2")]
     public void Encode_should_not_produce_bare_cr_in_headers()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-            ReasonPhrase = "OK"
-        };
-        response.Headers.TryAddWithoutValidation("X-Test", "value\rwith\rcr");
+        var ctx = ServerTestContext.CreateResponse(200);
+        ctx.Response.Headers["X-Test"] = "value\rwith\rcr";
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, response, ActorRefs.Nobody, isChunked: false);
+        var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: false);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         for (var i = 0; i < result.Length; i++)
@@ -104,15 +85,11 @@ public sealed class Http11ServerEncoderSpec
     [Trait("RFC", "RFC9112-5.2")]
     public void Encode_should_not_produce_obs_fold_in_headers()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-            ReasonPhrase = "OK"
-        };
-        response.Headers.TryAddWithoutValidation("X-Long", new string('a', 200));
+        var ctx = ServerTestContext.CreateResponse(200);
+        ctx.Response.Headers["X-Long"] = new string('a', 200);
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, response, ActorRefs.Nobody, isChunked: false);
+        var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: false);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.DoesNotContain("\r\n ", result.Replace("\r\n\r\n", "<<END>>"));
@@ -123,14 +100,10 @@ public sealed class Http11ServerEncoderSpec
     [Trait("RFC", "RFC9112-6.1")]
     public void Encode_should_not_double_apply_chunked_transfer_encoding()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent("test"u8.ToArray()),
-            ReasonPhrase = "OK"
-        };
+        var ctx = ServerTestContext.CreateResponse(200);
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, response, ActorRefs.Nobody, isChunked: true);
+        var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: true);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         var teCount = result.Split("chunked").Length - 1;
@@ -141,17 +114,13 @@ public sealed class Http11ServerEncoderSpec
     [Trait("RFC", "RFC9112-6.3")]
     public void Encode_should_include_content_length_for_known_size_body()
     {
-        var body = "known size body"u8.ToArray();
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent(body),
-            ReasonPhrase = "OK"
-        };
+        var ctx = ServerTestContext.CreateResponse(200);
+        ctx.Response.Headers["Content-Length"] = "15";
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, response, ActorRefs.Nobody, isChunked: false);
+        var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: false);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
-        Assert.Contains($"Content-Length: {body.Length}", result);
+        Assert.Contains("Content-Length: 15", result);
     }
 }

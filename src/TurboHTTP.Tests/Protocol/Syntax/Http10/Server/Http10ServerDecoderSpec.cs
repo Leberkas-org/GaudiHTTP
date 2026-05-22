@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Protocol.Syntax.Http10.Server;
@@ -17,10 +18,10 @@ public sealed class Http10ServerDecoderSpec
         var decoder = MakeDecoder();
         Assert.Equal(DecodeOutcome.Complete, decoder.Feed(raw, out _));
 
-        var request = decoder.GetRequest();
-        Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Equal("/foo", request.RequestUri?.OriginalString);
-        Assert.True(request.Headers.Contains("User-Agent"));
+        var feature = decoder.GetRequestFeature();
+        Assert.Equal("GET", feature.Method);
+        Assert.Equal("/foo", feature.RawTarget);
+        Assert.True(feature.Headers.ContainsKey("User-Agent"));
     }
 
     [Fact(Timeout = 5000)]
@@ -31,8 +32,10 @@ public sealed class Http10ServerDecoderSpec
         var decoder = MakeDecoder();
         Assert.Equal(DecodeOutcome.Complete, decoder.Feed(raw, out _));
 
-        var request = decoder.GetRequest();
-        var bytes = await request.Content!.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var feature = decoder.GetRequestFeature();
+        var ms = new MemoryStream();
+        await feature.Body.CopyToAsync(ms, TestContext.Current.CancellationToken);
+        var bytes = ms.ToArray();
         Assert.Equal("hello", Encoding.ASCII.GetString(bytes));
     }
 
@@ -62,8 +65,8 @@ public sealed class Http10ServerDecoderSpec
         var decoder = MakeDecoder();
         Assert.Equal(DecodeOutcome.Complete, decoder.Feed(raw, out _));
 
-        var request = decoder.GetRequest();
-        Assert.Contains("%20", request.RequestUri?.OriginalString ?? "");
+        var feature = decoder.GetRequestFeature();
+        Assert.Contains("%20", feature.RawTarget ?? "");
     }
 
     [Fact(Timeout = 5000)]

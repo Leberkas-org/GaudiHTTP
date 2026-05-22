@@ -1,4 +1,5 @@
-﻿using TurboHTTP.Protocol.Syntax.Http2;
+﻿using TurboHTTP.Context.Features;
+using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 
@@ -22,10 +23,10 @@ public sealed class Http2ServerConnectSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.Equal("CONNECT", request.Method.Method);
+        Assert.NotNull(feature);
+        Assert.Equal("CONNECT", feature.Method);
     }
 
     [Fact(Timeout = 5000)]
@@ -41,12 +42,12 @@ public sealed class Http2ServerConnectSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.Equal("CONNECT", request.Method.Method);
-        // RequestUri should not be set for CONNECT requests
-        Assert.Null(request.RequestUri);
+        Assert.NotNull(feature);
+        Assert.Equal("CONNECT", feature.Method);
+        // For CONNECT requests, RawTarget contains just the authority
+        Assert.NotNull(feature.RawTarget);
     }
 
     [Fact(Timeout = 5000)]
@@ -62,10 +63,10 @@ public sealed class Http2ServerConnectSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: false, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: false, state);
 
         // With endStream=false, request is not yet complete (waiting for body/tunnel data)
-        Assert.Null(request);
+        Assert.Null(feature);
     }
 
     private byte[] EncodeHeaders(List<HpackHeader> headers)

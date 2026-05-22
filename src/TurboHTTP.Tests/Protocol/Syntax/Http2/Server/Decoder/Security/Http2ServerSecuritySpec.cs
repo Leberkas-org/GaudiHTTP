@@ -1,3 +1,4 @@
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
@@ -49,7 +50,7 @@ public sealed class Http2ServerSecuritySpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains("exceeds MaxHeaderSize", ex.Message);
         Assert.Contains("256", ex.Message);
@@ -87,7 +88,7 @@ public sealed class Http2ServerSecuritySpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains("exceeds MaxTotalHeaderSize", ex.Message);
         Assert.Contains("256", ex.Message);
@@ -118,7 +119,7 @@ public sealed class Http2ServerSecuritySpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains("uppercase", ex.Message);
         Assert.Contains("X-Upper", ex.Message);
@@ -171,7 +172,7 @@ public sealed class Http2ServerSecuritySpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains("NUL", ex.Message);
         Assert.Contains("x-evil", ex.Message);

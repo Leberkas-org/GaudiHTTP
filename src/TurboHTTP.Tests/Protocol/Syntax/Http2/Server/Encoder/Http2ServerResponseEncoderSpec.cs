@@ -2,6 +2,7 @@
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Encoder;
 
@@ -14,8 +15,8 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void EncodeHeaders_no_body_returns_single_HeadersFrame_with_endStream_true()
     {
-        var response = new HttpResponseMessage(HttpStatusCode.OK);
-        var frames = _encoder.EncodeHeaders(response, streamId: 1, hasBody: false);
+        var ctx = ServerTestContext.CreateResponse(200);
+        var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
 
         Assert.Single(frames);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -28,11 +29,8 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void EncodeHeaders_with_body_flag_returns_HeadersFrame_without_endStream()
     {
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent("test body"u8.ToArray()),
-        };
-        var frames = _encoder.EncodeHeaders(response, streamId: 1, hasBody: true);
+        var ctx = ServerTestContext.CreateResponse(200);
+        var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: true);
 
         Assert.Single(frames);
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -43,13 +41,10 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void EncodeHeaders_response_headers_are_HPACK_encoded()
     {
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-        };
-        response.Headers.Add("x-custom-header", "test-value");
+        var ctx = ServerTestContext.CreateResponse(200);
+        ctx.Response.Headers["x-custom-header"] = "test-value";
 
-        var frames = _encoder.EncodeHeaders(response, streamId: 1, hasBody: false);
+        var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
 
         var decodedHeaders = _decoder.Decode(headersFrame.HeaderBlockFragment.Span);
@@ -66,14 +61,12 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void EncodeHeaders_status_pseudo_header_is_first()
     {
-        var response = new HttpResponseMessage(HttpStatusCode.Created)
-        {
-            Content = new ByteArrayContent([]),
-        };
-        response.Headers.Add("x-first", "value");
+        var ctx = ServerTestContext.CreateResponse(201);
+        ctx.Response.Headers["x-first"] = "value";
 
-        var hpackBlock = _encoder.EncodeToHpackBlock(response);
-        var decodedHeaders = _decoder.Decode(hpackBlock);
+        var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
+        var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
+        var decodedHeaders = _decoder.Decode(headersFrame.HeaderBlockFragment.Span);
 
         Assert.NotEmpty(decodedHeaders);
         Assert.Equal(":status", decodedHeaders[0].Name);
@@ -83,16 +76,14 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.2")]
     public void EncodeHeaders_filters_forbidden_headers()
     {
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-        };
-        response.Headers.TryAddWithoutValidation("connection", "close");
-        response.Headers.TryAddWithoutValidation("transfer-encoding", "chunked");
-        response.Headers.Add("x-allowed", "yes");
+        var ctx = ServerTestContext.CreateResponse(200);
+        ctx.Response.Headers["connection"] = "close";
+        ctx.Response.Headers["transfer-encoding"] = "chunked";
+        ctx.Response.Headers["x-allowed"] = "yes";
 
-        var hpackBlock = _encoder.EncodeToHpackBlock(response);
-        var decodedHeaders = _decoder.Decode(hpackBlock);
+        var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
+        var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
+        var decodedHeaders = _decoder.Decode(headersFrame.HeaderBlockFragment.Span);
 
         var connectionHeader = decodedHeaders.FirstOrDefault(h => h.Name == "connection");
         var transferHeader = decodedHeaders.FirstOrDefault(h => h.Name == "transfer-encoding");
@@ -107,8 +98,8 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void EncodeHeaders_204_NoContent_no_body_returns_endStream_true()
     {
-        var response = new HttpResponseMessage(HttpStatusCode.NoContent);
-        var frames = _encoder.EncodeHeaders(response, streamId: 1, hasBody: false);
+        var ctx = ServerTestContext.CreateResponse(204);
+        var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
 
         Assert.Single(frames);
         var frame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -119,15 +110,13 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9110-8.6")]
     public void EncodeHeaders_response_with_content_headers()
     {
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent("test"u8.ToArray()),
-        };
-        response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
-        response.Content.Headers.ContentLength = 4;
+        var ctx = ServerTestContext.CreateResponse(200);
+        ctx.Response.Headers["content-type"] = "application/json";
+        ctx.Response.Headers["content-length"] = "4";
 
-        var hpackBlock = _encoder.EncodeToHpackBlock(response);
-        var decodedHeaders = _decoder.Decode(hpackBlock);
+        var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
+        var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
+        var decodedHeaders = _decoder.Decode(headersFrame.HeaderBlockFragment.Span);
 
         var contentType = decodedHeaders.FirstOrDefault(h => h.Name == "content-type");
         var contentLength = decodedHeaders.FirstOrDefault(h => h.Name == "content-length");
@@ -141,14 +130,12 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.2")]
     public void EncodeHeaders_response_headers_are_lowercase()
     {
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-        };
-        response.Headers.Add("X-Custom-Header", "value");
+        var ctx = ServerTestContext.CreateResponse(200);
+        ctx.Response.Headers["X-Custom-Header"] = "value";
 
-        var hpackBlock = _encoder.EncodeToHpackBlock(response);
-        var decodedHeaders = _decoder.Decode(hpackBlock);
+        var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
+        var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
+        var decodedHeaders = _decoder.Decode(headersFrame.HeaderBlockFragment.Span);
 
         var header = decodedHeaders.FirstOrDefault(h => h.Name == "x-custom-header");
         Assert.True(header.Name == "x-custom-header");
@@ -158,11 +145,11 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void EncodeHeaders_multiple_responses_reuses_lists()
     {
-        var response1 = new HttpResponseMessage(HttpStatusCode.OK);
-        var response2 = new HttpResponseMessage(HttpStatusCode.NotFound);
+        var ctx1 = ServerTestContext.CreateResponse(200);
+        var ctx2 = ServerTestContext.CreateResponse(404);
 
-        var frames1 = _encoder.EncodeHeaders(response1, streamId: 1, hasBody: false);
-        var frames2 = _encoder.EncodeHeaders(response2, streamId: 3, hasBody: false);
+        var frames1 = _encoder.EncodeHeaders(ctx1, streamId: 1, hasBody: false);
+        var frames2 = _encoder.EncodeHeaders(ctx2, streamId: 3, hasBody: false);
 
         Assert.NotNull(frames1);
         Assert.NotNull(frames2);

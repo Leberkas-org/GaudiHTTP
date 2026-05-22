@@ -1,3 +1,4 @@
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
@@ -53,7 +54,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains(":method", ex.Message);
         Assert.Contains("Duplicate", ex.Message);
     }
@@ -74,7 +75,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains(":path", ex.Message);
         Assert.Contains("Duplicate", ex.Message);
     }
@@ -95,7 +96,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains("Pseudo-header", ex.Message);
         Assert.Contains("appears", ex.Message);
     }
@@ -116,7 +117,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains(":custom", ex.Message);
     }
 
@@ -140,7 +141,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains("connection", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("forbidden", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -161,7 +162,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains("transfer-encoding", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("forbidden", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -182,7 +183,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains("te", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("trailers", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -203,8 +204,8 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var success = _decoder.DecodeHeaders(frame, state);
-        Assert.True(success);
+        var feature = _decoder.DecodeHeadersToFeature(frame, state, endStream: true);
+        Assert.NotNull(feature);
     }
 
     #endregion
@@ -225,7 +226,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains(":path", ex.Message);
     }
 
@@ -243,7 +244,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains(":scheme", ex.Message);
     }
 
@@ -259,7 +260,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains(":authority", ex.Message);
     }
 
@@ -285,7 +286,7 @@ public sealed class Http3ServerDecoderSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => decoderWithLimit.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => decoderWithLimit.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains("SETTINGS_MAX_FIELD_SECTION_SIZE", ex.Message);
     }
 

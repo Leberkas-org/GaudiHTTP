@@ -1,4 +1,5 @@
-﻿using TurboHTTP.Protocol.Syntax.Http2;
+﻿using TurboHTTP.Context.Features;
+using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 
@@ -26,11 +27,11 @@ public sealed class Http2ServerFieldValidationSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.True(request.Headers.Contains("user-agent"));
-        Assert.True(request.Headers.Contains("accept"));
+        Assert.NotNull(feature);
+        Assert.True(feature.Headers.ContainsKey("user-agent"));
+        Assert.True(feature.Headers.ContainsKey("accept"));
     }
 
     [Fact(Timeout = 5000)]
@@ -50,12 +51,12 @@ public sealed class Http2ServerFieldValidationSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.True(request.Headers.Contains("x-custom-header"));
-        Assert.Equal("custom-value", request.Headers.GetValues("x-custom-header").FirstOrDefault());
-        Assert.True(request.Headers.Contains("x-trace-id"));
+        Assert.NotNull(feature);
+        Assert.True(feature.Headers.ContainsKey("x-custom-header"));
+        Assert.Equal("custom-value", feature.Headers["x-custom-header"].ToString());
+        Assert.True(feature.Headers.ContainsKey("x-trace-id"));
     }
 
     [Fact(Timeout = 5000)]
@@ -74,12 +75,11 @@ public sealed class Http2ServerFieldValidationSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.NotNull(request.Content);
-        Assert.True(request.Content.Headers.Contains("content-type"));
-        Assert.Equal("application/json", request.Content.Headers.ContentType?.MediaType);
+        Assert.NotNull(feature);
+        Assert.True(feature.Headers.ContainsKey("content-type"));
+        Assert.Equal("application/json", feature.Headers["content-type"].ToString());
     }
 
     [Fact(Timeout = 5000)]
@@ -97,9 +97,9 @@ public sealed class Http2ServerFieldValidationSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: false, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: false, state);
 
-        Assert.Null(request);
+        Assert.Null(feature);
     }
 
 
@@ -119,11 +119,10 @@ public sealed class Http2ServerFieldValidationSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.NotNull(request.Content);
-        Assert.True(request.Content.Headers.Contains("content-length"));
+        Assert.NotNull(feature);
+        Assert.True(feature.Headers.ContainsKey("content-length"));
     }
 
     private byte[] EncodeHeaders(List<HpackHeader> headers)

@@ -1,3 +1,4 @@
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
@@ -41,13 +42,13 @@ public sealed class ServerRequestDecoderSpec
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        var success = _decoder.DecodeHeaders(frame, state);
+        var feature = _decoder.DecodeHeadersToFeature(frame, state, endStream: true);
 
-        Assert.True(success);
-        var request = state.GetRequest();
-        Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Equal(new Uri("https://example.com/index.html"), request.RequestUri);
-        Assert.Equal(new Version(3, 0), request.Version);
+        Assert.NotNull(feature);
+        Assert.Equal("GET", feature.Method);
+        Assert.Equal("/index.html", feature.RawTarget);
+        Assert.Equal("https", feature.Scheme);
+        Assert.Equal("HTTP/3", feature.Protocol);
     }
 
     [Fact(Timeout = 5000)]
@@ -77,11 +78,10 @@ public sealed class ServerRequestDecoderSpec
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        var success = _decoder.DecodeHeaders(frame, state);
+        var feature = _decoder.DecodeHeadersToFeature(frame, state, endStream: true);
 
-        Assert.True(success);
-        var request = state.GetRequest();
-        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.NotNull(feature);
+        Assert.Equal("POST", feature.Method);
         Assert.True(state.HasContentHeaders);
     }
 
@@ -109,7 +109,7 @@ public sealed class ServerRequestDecoderSpec
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        var ex = Assert.Throws<HttpProtocolException>(() => { _decoder.DecodeHeaders(frame, state); });
+        var ex = Assert.Throws<HttpProtocolException>(() => { _decoder.DecodeHeadersToFeature(frame, state, endStream: true); });
 
         Assert.Contains(":method", ex.Message);
     }
@@ -138,7 +138,7 @@ public sealed class ServerRequestDecoderSpec
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        var ex = Assert.Throws<HttpProtocolException>(() => { _decoder.DecodeHeaders(frame, state); });
+        var ex = Assert.Throws<HttpProtocolException>(() => { _decoder.DecodeHeadersToFeature(frame, state, endStream: true); });
 
         Assert.Contains(":path", ex.Message);
     }
@@ -166,11 +166,10 @@ public sealed class ServerRequestDecoderSpec
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        var success = _decoder.DecodeHeaders(frame, state);
+        var feature = _decoder.DecodeHeadersToFeature(frame, state, endStream: true);
 
-        Assert.True(success);
-        var request = state.GetRequest();
-        Assert.Equal("CONNECT", request.Method.Method);
+        Assert.NotNull(feature);
+        Assert.Equal("CONNECT", feature.Method);
     }
 
 
@@ -201,11 +200,11 @@ public sealed class ServerRequestDecoderSpec
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        _decoder.DecodeHeaders(frame, state);
+        var feature = _decoder.DecodeHeadersToFeature(frame, state, endStream: true);
 
-        var request = state.GetRequest();
-        Assert.True(request.Headers.Contains("user-agent"));
-        Assert.True(request.Headers.Contains("accept"));
+        Assert.NotNull(feature);
+        Assert.True(feature.Headers.ContainsKey("user-agent"));
+        Assert.True(feature.Headers.ContainsKey("accept"));
     }
 
     [Fact(Timeout = 5000)]
@@ -232,7 +231,7 @@ public sealed class ServerRequestDecoderSpec
         var state = new StreamState();
         state.Initialize(streamId: 1);
 
-        var ex = Assert.Throws<HttpProtocolException>(() => { _decoder.DecodeHeaders(frame, state); });
+        var ex = Assert.Throws<HttpProtocolException>(() => { _decoder.DecodeHeadersToFeature(frame, state, endStream: true); });
 
         Assert.Contains(":authority", ex.Message);
     }

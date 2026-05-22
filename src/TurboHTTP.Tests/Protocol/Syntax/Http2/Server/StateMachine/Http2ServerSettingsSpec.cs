@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.StateMachine;
 
@@ -32,13 +33,10 @@ public sealed class Http2ServerSettingsSpec
         encoder.ApplyClientSettings(settings);
 
         // Verify settings applied without exception
-        var response = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-        };
-        response.Headers.Add("x-test", "value");
+        var ctx = ServerTestContext.CreateResponse(200);
+        ctx.Response.Headers["x-test"] = "value";
 
-        var frames = encoder.EncodeHeaders(response, streamId: 1, hasBody: false);
+        var frames = encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
         Assert.NotEmpty(frames);
     }
 
@@ -57,24 +55,18 @@ public sealed class Http2ServerSettingsSpec
     {
         var encoder = new Http2ServerEncoder();
 
-        var response1 = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-        };
-        response1.Headers.Add("x-header", "value1");
+        var ctx1 = ServerTestContext.CreateResponse(200);
+        ctx1.Response.Headers["x-header"] = "value1";
 
-        var frames1 = encoder.EncodeHeaders(response1, streamId: 1, hasBody: false);
+        var frames1 = encoder.EncodeHeaders(ctx1, streamId: 1, hasBody: false);
         Assert.NotEmpty(frames1);
 
         encoder.ResetHpack();
 
-        var response2 = new HttpResponseMessage(HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent([]),
-        };
-        response2.Headers.Add("x-header", "value2");
+        var ctx2 = ServerTestContext.CreateResponse(200);
+        ctx2.Response.Headers["x-header"] = "value2";
 
-        var frames2 = encoder.EncodeHeaders(response2, streamId: 3, hasBody: false);
+        var frames2 = encoder.EncodeHeaders(ctx2, streamId: 3, hasBody: false);
         Assert.NotEmpty(frames2);
     }
 }

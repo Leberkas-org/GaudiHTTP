@@ -1,4 +1,5 @@
-﻿using TurboHTTP.Protocol.Syntax.Http2;
+﻿using TurboHTTP.Context.Features;
+using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 
@@ -24,7 +25,7 @@ public sealed class Http2ServerPseudoHeaderSpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            _decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains(":method", ex.Message);
     }
@@ -44,7 +45,7 @@ public sealed class Http2ServerPseudoHeaderSpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            _decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains(":path", ex.Message);
     }
@@ -64,7 +65,7 @@ public sealed class Http2ServerPseudoHeaderSpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            _decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains(":authority", ex.Message);
     }
@@ -84,10 +85,10 @@ public sealed class Http2ServerPseudoHeaderSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.Equal(HttpMethod.Post, request.Method);
+        Assert.NotNull(feature);
+        Assert.Equal("POST", feature.Method);
     }
 
     [Fact(Timeout = 5000)]
@@ -105,10 +106,10 @@ public sealed class Http2ServerPseudoHeaderSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.Equal(HttpMethod.Get, request.Method);
+        Assert.NotNull(feature);
+        Assert.Equal("GET", feature.Method);
     }
 
     [Fact(Timeout = 5000)]
@@ -126,10 +127,11 @@ public sealed class Http2ServerPseudoHeaderSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.Equal(new Uri("https://api.example.com:8443/api/v1/users"), request.RequestUri);
+        Assert.NotNull(feature);
+        Assert.Equal("/api/v1/users", feature.RawTarget);
+        Assert.Equal("https", feature.Scheme);
     }
 
     [Fact(Timeout = 5000)]
@@ -151,10 +153,10 @@ public sealed class Http2ServerPseudoHeaderSpec
             var encoded = EncodeHeaders(headers);
             var state = BuildStreamState(encoded);
 
-            var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+            var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-            Assert.NotNull(request);
-            Assert.Equal(new HttpMethod(method), request.Method);
+            Assert.NotNull(feature);
+            Assert.Equal(method, feature.Method);
         }
     }
 
@@ -173,7 +175,7 @@ public sealed class Http2ServerPseudoHeaderSpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            _decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains(":scheme", ex.Message);
     }

@@ -1,4 +1,5 @@
-﻿using TurboHTTP.Protocol.Syntax.Http2;
+﻿using TurboHTTP.Context.Features;
+using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 
@@ -24,12 +25,13 @@ public sealed class Http2ServerRequestDecoderSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Equal(new Uri("https://example.com/index.html"), request.RequestUri);
-        Assert.Equal(new Version(2, 0), request.Version);
+        Assert.NotNull(feature);
+        Assert.Equal("GET", feature.Method);
+        Assert.Equal("/index.html", feature.RawTarget);
+        Assert.Equal("https", feature.Scheme);
+        Assert.Equal("HTTP/2", feature.Protocol);
     }
 
     [Fact(Timeout = 5000)]
@@ -49,13 +51,12 @@ public sealed class Http2ServerRequestDecoderSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.Equal(HttpMethod.Post, request.Method);
-        Assert.NotNull(request.Content);
-        Assert.True(request.Content.Headers.Contains("content-type"));
-        Assert.True(request.Content.Headers.Contains("content-length"));
+        Assert.NotNull(feature);
+        Assert.Equal("POST", feature.Method);
+        Assert.True(feature.Headers.ContainsKey("content-type"));
+        Assert.True(feature.Headers.ContainsKey("content-length"));
     }
 
     [Fact(Timeout = 5000)]
@@ -73,7 +74,7 @@ public sealed class Http2ServerRequestDecoderSpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            _decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains(":method", ex.Message);
     }
@@ -93,7 +94,7 @@ public sealed class Http2ServerRequestDecoderSpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            _decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains(":path", ex.Message);
     }
@@ -111,10 +112,10 @@ public sealed class Http2ServerRequestDecoderSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.Equal("CONNECT", request.Method.Method);
+        Assert.NotNull(feature);
+        Assert.Equal("CONNECT", feature.Method);
     }
 
     [Fact(Timeout = 5000)]
@@ -132,9 +133,9 @@ public sealed class Http2ServerRequestDecoderSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: false, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: false, state);
 
-        Assert.Null(request);
+        Assert.Null(feature);
     }
 
 
@@ -155,11 +156,11 @@ public sealed class Http2ServerRequestDecoderSpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var request = _decoder.DecodeHeaders(streamId: 1, endStream: true, state);
+        var feature = _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state);
 
-        Assert.NotNull(request);
-        Assert.True(request.Headers.Contains("user-agent"));
-        Assert.True(request.Headers.Contains("accept"));
+        Assert.NotNull(feature);
+        Assert.True(feature.Headers.ContainsKey("user-agent"));
+        Assert.True(feature.Headers.ContainsKey("accept"));
     }
 
     [Fact(Timeout = 5000)]
@@ -177,7 +178,7 @@ public sealed class Http2ServerRequestDecoderSpec
         var state = BuildStreamState(encoded);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
-            _decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+            _decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
         Assert.Contains(":authority", ex.Message);
     }

@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
@@ -20,9 +21,9 @@ public sealed class Http11ServerDecoderSpec
         Assert.Equal(DecodeOutcome.Complete, outcome);
         Assert.Equal(bytes.Length, consumed);
 
-        var msg = _decoder.GetRequest();
-        Assert.Equal(HttpMethod.Get, msg.Method);
-        Assert.Equal("/path", msg.RequestUri?.OriginalString);
+        var feature = _decoder.GetRequestFeature();
+        Assert.Equal("GET", feature.Method);
+        Assert.Equal("/path", feature.Path);
     }
 
     [Fact(Timeout = 5000)]
@@ -38,9 +39,9 @@ public sealed class Http11ServerDecoderSpec
         var outcome = _decoder.Feed(bytes, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
-        var msg = _decoder.GetRequest();
-        Assert.Equal(HttpMethod.Post, msg.Method);
-        Assert.NotNull(msg.Content);
+        var feature = _decoder.GetRequestFeature();
+        Assert.Equal("POST", feature.Method);
+        Assert.NotNull(feature.Body);
     }
 
     [Fact(Timeout = 5000)]
@@ -61,14 +62,14 @@ public sealed class Http11ServerDecoderSpec
         var bytes1 = Encoding.ASCII.GetBytes(request1);
 
         _decoder.Feed(bytes1, out _);
-        var first = _decoder.GetRequest();
+        var first = _decoder.GetRequestFeature();
 
         _decoder.Reset();
 
         const string request2 = "POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n";
         var bytes2 = Encoding.ASCII.GetBytes(request2);
         _decoder.Feed(bytes2, out _);
-        var second = _decoder.GetRequest();
+        var second = _decoder.GetRequestFeature();
 
         Assert.NotEqual(first.Method, second.Method);
     }
@@ -97,8 +98,8 @@ public sealed class Http11ServerDecoderSpec
         Assert.True(outcome is DecodeOutcome.NeedMore or DecodeOutcome.Complete);
         if (outcome == DecodeOutcome.Complete)
         {
-            var request = decoder.GetRequest();
-            Assert.Equal(HttpMethod.Get, request.Method);
+            var feature = decoder.GetRequestFeature();
+            Assert.Equal("GET", feature.Method);
         }
     }
 
@@ -122,9 +123,9 @@ public sealed class Http11ServerDecoderSpec
         var outcome = decoder.Feed(raw, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
-        var request = decoder.GetRequest();
-        Assert.Equal(HttpMethod.Get, request.Method);
-        Assert.Contains("/path", request.RequestUri?.ToString() ?? "");
+        var feature = decoder.GetRequestFeature();
+        Assert.Equal("GET", feature.Method);
+        Assert.Contains("/path", feature.Path ?? "");
     }
 
     [Fact(Timeout = 5000)]

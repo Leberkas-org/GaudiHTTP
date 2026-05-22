@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
@@ -97,6 +98,8 @@ public sealed class Http11ServerDecoderSecuritySpec
         var outcome = decoder.Feed(bytes, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
+        var feature = decoder.GetRequestFeature();
+        Assert.Equal("POST", feature.Method);
     }
 
     [Fact(Timeout = 5000)]
@@ -194,7 +197,7 @@ public sealed class Http11ServerDecoderSecuritySpec
         var bytes1 = Encoding.ASCII.GetBytes(request1);
 
         _ = decoder.Feed(bytes1, out _);
-        var msg1 = decoder.GetRequest();
+        var feature1 = decoder.GetRequestFeature();
 
         decoder.Reset();
 
@@ -203,12 +206,12 @@ public sealed class Http11ServerDecoderSecuritySpec
                        "Content-Length: 0\r\n\r\n";
         var bytes2 = Encoding.ASCII.GetBytes(request2);
         _ = decoder.Feed(bytes2, out _);
-        var msg2 = decoder.GetRequest();
+        var feature2 = decoder.GetRequestFeature();
 
-        Assert.Equal(HttpMethod.Get, msg1.Method);
-        Assert.Equal("/first", msg1.RequestUri?.OriginalString);
-        Assert.Equal(HttpMethod.Post, msg2.Method);
-        Assert.Equal("/second", msg2.RequestUri?.OriginalString);
+        Assert.Equal("GET", feature1.Method);
+        Assert.Equal("/first", feature1.Path);
+        Assert.Equal("POST", feature2.Method);
+        Assert.Equal("/second", feature2.Path);
     }
 
     [Fact(Timeout = 5000)]

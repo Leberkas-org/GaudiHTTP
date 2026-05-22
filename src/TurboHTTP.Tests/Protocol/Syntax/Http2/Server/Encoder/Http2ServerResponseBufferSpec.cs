@@ -8,6 +8,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Encoder;
 
@@ -240,12 +241,9 @@ public sealed class Http2ServerResponseBufferSpec
     {
         var encoder = new Http2ServerEncoder();
 
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent("test body"u8.ToArray())
-        };
+        var ctx = ServerTestContext.CreateResponse(200);
 
-        var frames = encoder.EncodeHeaders(response, streamId: 1, hasBody: true);
+        var frames = encoder.EncodeHeaders(ctx, streamId: 1, hasBody: true);
 
         Assert.NotEmpty(frames);
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
@@ -258,9 +256,9 @@ public sealed class Http2ServerResponseBufferSpec
     {
         var encoder = new Http2ServerEncoder();
 
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.NoContent);
+        var ctx = ServerTestContext.CreateResponse(204);
 
-        var frames = encoder.EncodeHeaders(response, streamId: 1, hasBody: false);
+        var frames = encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
 
         Assert.NotEmpty(frames);
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);

@@ -1,6 +1,7 @@
 using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
+using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 
@@ -20,9 +21,9 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_200_OK_returns_single_HEADERS_frame()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
 
-        var frame = _encoder.EncodeHeaders(response);
+        var frame = _encoder.EncodeHeaders(ctx);
 
         // Synchronize encoder instructions
         var encoderInstructions = _encoder.EncoderInstructions;
@@ -38,12 +39,10 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_200_with_body_returns_HEADERS_frame_only()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent("test response body"u8.ToArray()),
-        };
+        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        ctx.Response.Body = new MemoryStream("test response body"u8.ToArray());
 
-        var frame = _encoder.EncodeHeaders(response);
+        var frame = _encoder.EncodeHeaders(ctx);
 
         // Synchronize encoder instructions
         var encoderInstructions = _encoder.EncoderInstructions;
@@ -59,13 +58,11 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_status_is_first_header()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.Created)
-        {
-            Content = new ByteArrayContent("test"u8.ToArray()),
-        };
-        response.Headers.Add("custom-header", "value");
+        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 201);
+        ctx.Response.Headers["custom-header"] = "value";
+        ctx.Response.Body = new MemoryStream("test"u8.ToArray());
 
-        var headersFrame = _encoder.EncodeHeaders(response);
+        var headersFrame = _encoder.EncodeHeaders(ctx);
 
         // Synchronize encoder instructions to decoder's table
         var encoderInstructions = _encoder.EncoderInstructions;
@@ -85,12 +82,12 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_forbidden_headers_are_filtered()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
-        response.Headers.Add("connection", "close");
-        response.Headers.Add("transfer-encoding", "chunked");
-        response.Headers.Add("custom-allowed", "yes");
+        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        ctx.Response.Headers["connection"] = "close";
+        ctx.Response.Headers["transfer-encoding"] = "chunked";
+        ctx.Response.Headers["custom-allowed"] = "yes";
 
-        var headersFrame = _encoder.EncodeHeaders(response);
+        var headersFrame = _encoder.EncodeHeaders(ctx);
 
         // Synchronize encoder instructions to decoder's table
         var encoderInstructions = _encoder.EncoderInstructions;
@@ -111,11 +108,11 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_header_names_are_lowercase()
     {
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
-        response.Headers.Add("X-Custom-Header", "value");
-        response.Headers.Add("Server", "TestServer");
+        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        ctx.Response.Headers["X-Custom-Header"] = "value";
+        ctx.Response.Headers["Server"] = "TestServer";
 
-        var headersFrame = _encoder.EncodeHeaders(response);
+        var headersFrame = _encoder.EncodeHeaders(ctx);
 
         // Synchronize encoder instructions to decoder's table
         var encoderInstructions = _encoder.EncoderInstructions;
@@ -137,16 +134,12 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_content_headers_are_included()
     {
-        var content = new ByteArrayContent("data"u8.ToArray());
-        content.Headers.ContentType = new("application/json");
-        content.Headers.ContentLength = 4;
+        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        ctx.Response.Headers["content-type"] = "application/json";
+        ctx.Response.Headers["content-length"] = "4";
+        ctx.Response.Body = new MemoryStream("data"u8.ToArray());
 
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = content,
-        };
-
-        var headersFrame = _encoder.EncodeHeaders(response);
+        var headersFrame = _encoder.EncodeHeaders(ctx);
 
         // Synchronize encoder instructions to decoder's table
         var encoderInstructions = _encoder.EncoderInstructions;
@@ -166,15 +159,13 @@ public sealed class ServerResponseEncoderSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeHeaders_with_large_body_returns_HEADERS_frame_only()
     {
-        var largeData = new byte[32768]; // Larger than max frame size (16384)
+        var largeData = new byte[32 * 1024]; // Larger than max frame size (16384)
         Array.Fill(largeData, (byte)'x');
 
-        var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-        {
-            Content = new ByteArrayContent(largeData),
-        };
+        var ctx = ServerTestContext.CreateH3Response(streamId: 1, statusCode: 200);
+        ctx.Response.Body = new MemoryStream(largeData);
 
-        var frame = _encoder.EncodeHeaders(response);
+        var frame = _encoder.EncodeHeaders(ctx);
 
         // Synchronize encoder instructions to decoder's table
         var encoderInstructions = _encoder.EncoderInstructions;

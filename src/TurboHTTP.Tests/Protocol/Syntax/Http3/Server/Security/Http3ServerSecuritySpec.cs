@@ -1,3 +1,4 @@
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
@@ -47,7 +48,7 @@ public sealed class Http3ServerSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains("SETTINGS_MAX_FIELD_SECTION_SIZE", ex.Message);
     }
 
@@ -73,7 +74,7 @@ public sealed class Http3ServerSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains("SETTINGS_MAX_FIELD_SECTION_SIZE", ex.Message);
     }
 
@@ -95,7 +96,7 @@ public sealed class Http3ServerSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains("uppercase", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -117,7 +118,7 @@ public sealed class Http3ServerSecuritySpec
         var frame = EncodeAndSync(headers);
         var state = MakeState();
 
-        var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(frame, state));
+        var ex = Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeadersToFeature(frame, state, endStream: true));
         Assert.Contains("NUL", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
