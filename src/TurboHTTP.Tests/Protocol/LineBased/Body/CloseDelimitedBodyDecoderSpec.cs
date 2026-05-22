@@ -17,7 +17,8 @@ public sealed class CloseDelimitedBodyDecoderSpec
 
         Assert.True(decoder.OnEof());
 
-        var content = Assert.IsType<StreamContent>(decoder.GetContent());
+        var bodyStream = decoder.GetBodyStream();
+        var content = new StreamContent(bodyStream);
         var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("part1part2", Encoding.ASCII.GetString(bytes));
         decoder.Dispose();

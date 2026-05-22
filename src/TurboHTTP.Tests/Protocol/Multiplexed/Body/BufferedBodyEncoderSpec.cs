@@ -15,7 +15,8 @@ public sealed class BufferedBodyEncoderSpec
         var content = new ByteArrayContent(body);
 
         using var encoder = new BufferedBodyEncoder();
-        encoder.Start(content, msg => messages.Add(msg));
+        var bodyStream = content.ReadAsStream();
+        encoder.Start(bodyStream, msg => messages.Add(msg));
 
         var chunk = (OutboundBodyChunk)messages.Take(TestContext.Current.CancellationToken);
         Assert.Equal(100, chunk.Length);
@@ -33,7 +34,8 @@ public sealed class BufferedBodyEncoderSpec
         var content = new ByteArrayContent([]);
 
         using var encoder = new BufferedBodyEncoder();
-        encoder.Start(content, msg => messages.Add(msg));
+        var bodyStream = content.ReadAsStream();
+        encoder.Start(bodyStream, msg => messages.Add(msg));
 
         var chunk = (OutboundBodyChunk)messages.Take(TestContext.Current.CancellationToken);
         Assert.Equal(0, chunk.Length);

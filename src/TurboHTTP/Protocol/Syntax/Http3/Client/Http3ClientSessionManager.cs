@@ -119,7 +119,9 @@ internal sealed class Http3ClientSessionManager
             return;
         }
 
-        var encoder = BodyEncoderFactory.Create(request.Content);
+        var contentLength = request.Content?.Headers.ContentLength;
+        var bodyStream = request.Content?.ReadAsStream();
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength);
         if (encoder is null)
         {
             EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
@@ -128,7 +130,7 @@ internal sealed class Http3ClientSessionManager
 
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.InitBodyEncoder(encoder);
-        state.StartBodyEncoder(request.Content, streamId, _ops.StageActor);
+        state.StartBodyEncoder(bodyStream!, streamId, _ops.StageActor);
     }
 
     public void OnBodyMessage(object msg)

@@ -6,12 +6,7 @@ internal sealed class BufferedBodyEncoder : IBodyEncoder
 {
     private readonly CancellationTokenSource _cts = new();
 
-    public void Start(HttpContent content, Action<object> onMessage)
-    {
-        _ = DrainAsync(content, onMessage, _cts.Token);
-    }
-
-    public void Start(Stream bodyStream, Action<object> onMessage) => Start(new StreamContent(bodyStream), onMessage);
+    public void Start(Stream bodyStream, Action<object> onMessage) => _ = DrainAsync(new StreamContent(bodyStream), onMessage, _cts.Token);
 
     private static async Task DrainAsync(HttpContent content, Action<object> onMessage, CancellationToken ct)
     {

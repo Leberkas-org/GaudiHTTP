@@ -13,7 +13,8 @@ public sealed class ChunkedBodyDecoderSpec
         var data = "5\r\nhello\r\n6\r\n world\r\n0\r\n\r\n"u8.ToArray();
         Assert.True(decoder.Feed(data, out _));
 
-        var content = Assert.IsType<StreamContent>(decoder.GetContent());
+        var bodyStream = decoder.GetBodyStream();
+        var content = new StreamContent(bodyStream);
         var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello world", Encoding.ASCII.GetString(bytes));
         decoder.Dispose();
@@ -27,7 +28,8 @@ public sealed class ChunkedBodyDecoderSpec
         var data = "5;ext=foo\r\nhello\r\n0\r\n\r\n"u8.ToArray();
         Assert.True(decoder.Feed(data, out _));
 
-        var content = Assert.IsType<StreamContent>(decoder.GetContent());
+        var bodyStream = decoder.GetBodyStream();
+        var content = new StreamContent(bodyStream);
         var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", Encoding.ASCII.GetString(bytes));
         decoder.Dispose();
@@ -60,7 +62,8 @@ public sealed class ChunkedBodyDecoderSpec
         var data = "5\r\nhello\r\n0\r\nX-Custom-Trailer: value\r\n\r\n"u8.ToArray();
         Assert.True(decoder.Feed(data, out _));
 
-        var content = Assert.IsType<StreamContent>(decoder.GetContent());
+        var bodyStream = decoder.GetBodyStream();
+        var content = new StreamContent(bodyStream);
         var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", Encoding.ASCII.GetString(bytes));
         decoder.Dispose();
@@ -74,7 +77,8 @@ public sealed class ChunkedBodyDecoderSpec
         var data = "5\r\nhello\r\n0\r\nTransfer-Encoding: chunked\r\nX-Custom: ok\r\n\r\n"u8.ToArray();
         Assert.True(decoder.Feed(data, out _));
 
-        var content = Assert.IsType<StreamContent>(decoder.GetContent());
+        var bodyStream = decoder.GetBodyStream();
+        var content = new StreamContent(bodyStream);
         var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello", Encoding.ASCII.GetString(bytes));
         decoder.Dispose();

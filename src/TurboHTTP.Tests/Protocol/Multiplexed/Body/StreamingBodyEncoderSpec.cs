@@ -15,7 +15,8 @@ public sealed class StreamingBodyEncoderSpec
         var content = new ByteArrayContent(body);
 
         using var encoder = new StreamingBodyEncoder(chunkSize: 16_384);
-        encoder.Start(content, msg => messages.Add(msg));
+        var bodyStream = content.ReadAsStream();
+        encoder.Start(bodyStream, msg => messages.Add(msg));
 
         var totalReceived = 0;
         while (true)
@@ -46,7 +47,8 @@ public sealed class StreamingBodyEncoderSpec
         var content = new ByteArrayContent(body);
 
         using var encoder = new StreamingBodyEncoder();
-        encoder.Start(content, msg => messages.Add(msg));
+        var bodyStream = content.ReadAsStream();
+        encoder.Start(bodyStream, msg => messages.Add(msg));
 
         var chunk = (OutboundBodyChunk)messages.Take(TestContext.Current.CancellationToken);
         Assert.Equal(100, chunk.Length);

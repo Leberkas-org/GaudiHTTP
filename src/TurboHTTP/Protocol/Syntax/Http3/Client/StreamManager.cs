@@ -199,7 +199,8 @@ internal sealed class StreamManager
                 {
                     state.InitBodyDecoder(new StreamingBodyDecoder());
                     var response = state.GetResponse();
-                    response.Content = state.GetContent();
+                    var bodyStream = state.GetBodyStream();
+                    response.Content = new StreamContent(bodyStream);
                     state.ApplyContentHeadersTo(response.Content);
 
                     // Correlate with original request
@@ -337,7 +338,8 @@ internal sealed class StreamManager
 
         state.InitBodyDecoder(new StreamingBodyDecoder());
         var response = state.GetResponse();
-        response.Content = state.GetContent();
+        var bodyStream = state.GetBodyStream();
+        response.Content = new StreamContent(bodyStream);
         state.ApplyContentHeadersTo(response.Content);
 
         // Correlate with original request

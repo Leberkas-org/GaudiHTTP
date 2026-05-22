@@ -37,8 +37,6 @@ internal sealed class ContentLengthBufferedDecoder : IBodyDecoder
 
     public bool OnEof() => _complete;
 
-    public HttpContent GetContent() => new ReadOnlyMemoryContent(_owner.Memory[.._expected].ToArray());
-
     public Stream GetBodyStream() => new MemoryStream(_owner.Memory[.._expected].ToArray());
 
     public void Dispose()

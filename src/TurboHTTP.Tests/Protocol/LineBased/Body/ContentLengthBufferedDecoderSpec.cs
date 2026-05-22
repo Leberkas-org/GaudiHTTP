@@ -13,7 +13,8 @@ public sealed class ContentLengthBufferedDecoderSpec
 
         Assert.True(done);
         Assert.Equal(5, consumed);
-        var content = Assert.IsType<ReadOnlyMemoryContent>(decoder.GetContent());
+        var bodyStream = decoder.GetBodyStream();
+        var content = new StreamContent(bodyStream);
         var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(5, bytes.Length);
         Assert.Equal((byte)'h', bytes[0]);
@@ -37,7 +38,8 @@ public sealed class ContentLengthBufferedDecoderSpec
         var decoder = new ContentLengthBufferedDecoder(0, MemoryPool<byte>.Shared);
         Assert.True(decoder.Feed(ReadOnlySpan<byte>.Empty, out var consumed));
         Assert.Equal(0, consumed);
-        Assert.IsType<ReadOnlyMemoryContent>(decoder.GetContent());
+        var bodyStream = decoder.GetBodyStream();
+        Assert.NotNull(bodyStream);
         decoder.Dispose();
     }
 
@@ -47,7 +49,8 @@ public sealed class ContentLengthBufferedDecoderSpec
         var decoder = new ContentLengthBufferedDecoder(3, MemoryPool<byte>.Shared);
         decoder.Feed("ab"u8, out _);
         decoder.Feed("cdef"u8, out _);
-        var content = Assert.IsType<ReadOnlyMemoryContent>(decoder.GetContent());
+        var bodyStream = decoder.GetBodyStream();
+        var content = new StreamContent(bodyStream);
         var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("abc"u8.ToArray(), bytes);
         decoder.Dispose();

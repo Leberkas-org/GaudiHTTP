@@ -13,14 +13,9 @@ internal sealed class ContentLengthStreamedBodyEncoder : IBodyEncoder
         _chunkSize = chunkSize;
     }
 
-    public void Start(HttpContent content, IActorRef stageActor)
-    {
-        _ = DrainAsync(content, stageActor, _cts.Token);
-    }
-
     public void Start(Stream bodyStream, IActorRef stageActor)
     {
-        Start(new StreamContent(bodyStream), stageActor);
+        _ = DrainAsync(new StreamContent(bodyStream), stageActor, _cts.Token);
     }
 
     private async Task DrainAsync(HttpContent content, IActorRef stageActor, CancellationToken ct)

@@ -156,14 +156,16 @@ internal sealed class Http2ClientSessionManager
             _streams[streamId] = state;
         }
 
-        var encoder = BodyEncoderFactory.Create(request.Content);
+        var contentLength = request.Content?.Headers.ContentLength;
+        var bodyStream = request.Content?.ReadAsStream();
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength);
         if (encoder is null)
         {
             return;
         }
 
         state.InitBodyEncoder(encoder);
-        state.StartBodyEncoder(request.Content, streamId, _ops.StageActor);
+        state.StartBodyEncoder(bodyStream!, streamId, _ops.StageActor);
     }
 
     public IReadOnlyList<Http2Frame> DecodeFrames(TransportBuffer buffer)
@@ -521,7 +523,8 @@ internal sealed class Http2ClientSessionManager
 
         var streamingResponse = _responseDecoder.DecodeHeadersForStreaming(streamId, state);
         state.InitBodyDecoder(BodyDecoderFactory.Create(streaming: true));
-        streamingResponse.Content = state.GetContent();
+        var bodyStream = state.GetBodyStream();
+        streamingResponse.Content = new StreamContent(bodyStream);
         state.ApplyContentHeadersTo(streamingResponse.Content);
 
         if (_correlationMap.Remove(streamId, out var request))

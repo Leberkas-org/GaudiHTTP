@@ -29,8 +29,6 @@ internal sealed class CloseDelimitedBodyDecoder : IBodyDecoder
         return true;
     }
 
-    public HttpContent GetContent() => new StreamContent(_handle.AsStream());
-
     public Stream GetBodyStream() => _handle.AsStream();
 
     public void Dispose()

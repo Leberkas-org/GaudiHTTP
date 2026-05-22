@@ -12,8 +12,8 @@ public sealed class BufferedBodyDecoderSpec
         decoder.Feed("World!"u8, endStream: true);
 
         Assert.True(decoder.IsComplete);
-        var content = decoder.GetContent();
-        var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var bodyStream = decoder.GetBodyStream();
+        var bytes = await new StreamContent(bodyStream).ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello, World!"u8.ToArray(), bytes);
     }
 
@@ -23,8 +23,8 @@ public sealed class BufferedBodyDecoderSpec
         using var decoder = new BufferedBodyDecoder();
         decoder.Feed(ReadOnlySpan<byte>.Empty, endStream: true);
         Assert.True(decoder.IsComplete);
-        var content = decoder.GetContent();
-        var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var bodyStream = decoder.GetBodyStream();
+        var bytes = await new StreamContent(bodyStream).ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Empty(bytes);
     }
 
@@ -36,7 +36,8 @@ public sealed class BufferedBodyDecoderSpec
         Random.Shared.NextBytes(data);
         decoder.Feed(data, endStream: true);
         Assert.True(decoder.IsComplete);
-        var content = decoder.GetContent();
+        var bodyStream = decoder.GetBodyStream();
+        var content = new StreamContent(bodyStream);
         var result = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(data, result);
     }

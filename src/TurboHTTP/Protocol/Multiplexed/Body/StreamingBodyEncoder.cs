@@ -12,12 +12,7 @@ internal sealed class StreamingBodyEncoder : IBodyEncoder
         _chunkSize = chunkSize;
     }
 
-    public void Start(HttpContent content, Action<object> onMessage)
-    {
-        _ = DrainAsync(content, onMessage, _cts.Token);
-    }
-
-    public void Start(Stream bodyStream, Action<object> onMessage) => Start(new StreamContent(bodyStream), onMessage);
+    public void Start(Stream bodyStream, Action<object> onMessage) => _ = DrainAsync(new StreamContent(bodyStream), onMessage, _cts.Token);
 
     private async Task DrainAsync(HttpContent content, Action<object> onMessage, CancellationToken ct)
     {

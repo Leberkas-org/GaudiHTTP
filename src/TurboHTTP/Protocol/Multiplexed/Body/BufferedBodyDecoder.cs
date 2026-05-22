@@ -26,17 +26,6 @@ internal sealed class BufferedBodyDecoder : IBodyDecoder
         }
     }
 
-    public HttpContent GetContent()
-    {
-        if (_length == 0)
-        {
-            return new ByteArrayContent([]);
-        }
-
-        var bytes = _owner!.Memory[.._length].ToArray();
-        return new ByteArrayContent(bytes);
-    }
-
     public Stream GetBodyStream()
     {
         if (_length == 0)

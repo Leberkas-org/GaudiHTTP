@@ -14,7 +14,8 @@ public sealed class ContentLengthStreamedDecoderSpec
         Assert.True(decoder.Feed("world"u8, out var c2));
         Assert.Equal(5, c2);
 
-        var content = Assert.IsType<StreamContent>(decoder.GetContent());
+        var bodyStream = decoder.GetBodyStream();
+        var content = new StreamContent(bodyStream);
         var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("hello world", Encoding.ASCII.GetString(bytes));
         decoder.Dispose();

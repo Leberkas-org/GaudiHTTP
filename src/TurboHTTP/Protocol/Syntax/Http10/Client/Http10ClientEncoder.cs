@@ -26,7 +26,8 @@ internal sealed class Http10ClientEncoder
 
         // HTTP/1.0 always defers — need body bytes before Content-Length header can be written
         var bodyEncoder = new ContentLengthBufferedBodyEncoder();
-        bodyEncoder.Start(request.Content, stageActor);
+        var bodyStream = request.Content.ReadAsStream();
+        bodyEncoder.Start(bodyStream, stageActor);
         return 0;
     }
 

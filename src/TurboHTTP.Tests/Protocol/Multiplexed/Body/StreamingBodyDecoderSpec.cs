@@ -12,8 +12,8 @@ public sealed class StreamingBodyDecoderSpec
         decoder.Feed(" Stream"u8, endStream: true);
 
         Assert.True(decoder.IsComplete);
-        var content = decoder.GetContent();
-        var bytes = await content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var bodyStream = decoder.GetBodyStream();
+        var bytes = await new StreamContent(bodyStream).ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal("Hello Stream"u8.ToArray(), bytes);
     }
 

@@ -7,14 +7,9 @@ internal sealed class ContentLengthBufferedBodyEncoder : IBodyEncoder
 {
     private readonly CancellationTokenSource _cts = new();
 
-    public void Start(HttpContent content, IActorRef stageActor)
-    {
-        _ = DrainAsync(content, stageActor, _cts.Token);
-    }
-
     public void Start(Stream bodyStream, IActorRef stageActor)
     {
-        Start(new StreamContent(bodyStream), stageActor);
+        _ = DrainAsync(new StreamContent(bodyStream), stageActor, _cts.Token);
     }
 
     private static async Task DrainAsync(HttpContent content, IActorRef stageActor, CancellationToken ct)

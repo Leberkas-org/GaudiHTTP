@@ -6,6 +6,5 @@ internal interface IBodyDecoder : IDisposable
     IReadOnlyList<(string Name, string Value)> Trailers { get; }
     bool Feed(ReadOnlySpan<byte> data, out int consumed);
     bool OnEof();
-    HttpContent GetContent();
     Stream GetBodyStream();
 }

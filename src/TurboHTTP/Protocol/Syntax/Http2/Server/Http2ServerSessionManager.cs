@@ -137,7 +137,7 @@ internal sealed class Http2ServerSessionManager
 
         var responseFeature = context.Features.Get<IHttpResponseFeature>();
         var contentLength = ExtractContentLength(responseFeature);
-        var hasBody = contentLength.HasValue && contentLength.Value > 0;
+        var hasBody = contentLength is > 0;
 
         var frames = _responseEncoder.EncodeHeaders(context, streamId, hasBody);
         for (var i = 0; i < frames.Count; i++)
@@ -181,7 +181,7 @@ internal sealed class Http2ServerSessionManager
         {
             if (header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
             {
-                if (header.Value.FirstOrDefault() is string value && long.TryParse(value, out var length))
+                if (header.Value.FirstOrDefault() is { } value && long.TryParse(value, out var length))
                 {
                     return length;
                 }

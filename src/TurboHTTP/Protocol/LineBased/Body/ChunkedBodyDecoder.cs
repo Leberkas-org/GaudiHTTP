@@ -188,8 +188,6 @@ internal sealed class ChunkedBodyDecoder : IBodyDecoder
         return _phase == Phase.Complete;
     }
 
-    public HttpContent GetContent() => new StreamContent(_handle.AsStream());
-
     public Stream GetBodyStream() => _handle.AsStream();
 
     public void Dispose()

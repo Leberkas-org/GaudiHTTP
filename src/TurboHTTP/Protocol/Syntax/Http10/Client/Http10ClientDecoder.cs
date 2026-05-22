@@ -120,7 +120,16 @@ internal sealed class Http10ClientDecoder
             return _response;
         }
 
-        var content = _bodyDecoder?.GetContent() ?? new ByteArrayContent([]);
+        HttpContent content;
+        var bodyStream = _bodyDecoder?.GetBodyStream();
+        if (bodyStream is not null)
+        {
+            content = new StreamContent(bodyStream);
+        }
+        else
+        {
+            content = new ByteArrayContent([]);
+        }
 
         var msg = new HttpResponseMessage((HttpStatusCode)_statusCode)
         {

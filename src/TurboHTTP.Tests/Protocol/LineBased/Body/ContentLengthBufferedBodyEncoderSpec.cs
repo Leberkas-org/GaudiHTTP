@@ -15,7 +15,8 @@ public sealed class ContentLengthBufferedBodyEncoderSpec : TestKit
         var content = new ByteArrayContent("hello"u8.ToArray());
         using var encoder = new ContentLengthBufferedBodyEncoder();
 
-        encoder.Start(content, probe.Ref);
+        var bodyStream = content.ReadAsStream();
+        encoder.Start(bodyStream, probe.Ref);
 
         var msg1 = probe.ReceiveOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         var chunk = Assert.IsType<OutboundBodyChunk>(msg1);
@@ -34,7 +35,8 @@ public sealed class ContentLengthBufferedBodyEncoderSpec : TestKit
         var content = new FailingContent();
         using var encoder = new ContentLengthBufferedBodyEncoder();
 
-        encoder.Start(content, probe.Ref);
+        var bodyStream = content.ReadAsStream();
+        encoder.Start(bodyStream, probe.Ref);
 
         var msg = probe.ReceiveOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         var failed = Assert.IsType<OutboundBodyFailed>(msg);

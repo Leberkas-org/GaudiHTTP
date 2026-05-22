@@ -22,10 +22,9 @@ internal sealed class Http11ClientEncoder
 
         RequestValidator.Validate(request);
 
-        var bodyEncoder = BodyEncoderFactory.Create(
-            request.Content,
-            request.Version,
-            request.Headers);
+        var contentLength = request.Content?.Headers.ContentLength;
+        var bodyStream = request.Content?.ReadAsStream();
+        var bodyEncoder = BodyEncoderFactory.Create(bodyStream, contentLength, request.Version);
 
         var writer = SpanWriter.Create(destination);
         var targetStr = request.ResolveTarget();
@@ -33,7 +32,7 @@ internal sealed class Http11ClientEncoder
         var headers = HeaderBuilder.Build(request, _options);
         HeaderBlockWriter.Write(ref writer, headers);
 
-        bodyEncoder?.Start(request.Content!, stageActor);
+        bodyEncoder?.Start(bodyStream!, stageActor);
 
         return writer.BytesWritten;
     }

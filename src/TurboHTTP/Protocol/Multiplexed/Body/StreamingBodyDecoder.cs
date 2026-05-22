@@ -26,11 +26,6 @@ internal sealed class StreamingBodyDecoder : IBodyDecoder
         }
     }
 
-    public HttpContent GetContent()
-    {
-        return new StreamContent(_handle.AsStream());
-    }
-
     public Stream GetBodyStream()
     {
         return _handle.AsStream();

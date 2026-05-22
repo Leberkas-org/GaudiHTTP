@@ -118,16 +118,6 @@ internal sealed class StreamState
         }
     }
 
-    public HttpContent GetContent()
-    {
-        if (_bodyDecoder is null)
-        {
-            throw new InvalidOperationException("No body decoder has been initialized.");
-        }
-
-        return _bodyDecoder.GetContent();
-    }
-
     public Stream GetBodyStream()
     {
         if (_bodyDecoder is null)
@@ -146,27 +136,6 @@ internal sealed class StreamState
     public void InitBodyEncoder(IBodyEncoder encoder)
     {
         _bodyEncoder = encoder;
-    }
-
-    public void StartBodyEncoder(HttpContent content, int streamId, IActorRef stageActor)
-    {
-        if (_bodyEncoder is null)
-        {
-            throw new InvalidOperationException("No body encoder has been initialized.");
-        }
-
-        _bodyEncoder.Start(content, msg =>
-        {
-            var tagged = msg switch
-            {
-                OutboundBodyChunk chunk => new StreamBodyChunk<int>(streamId, chunk.Owner, chunk.Length),
-                OutboundBodyComplete => new StreamBodyComplete<int>(streamId),
-                OutboundBodyFailed failed => new StreamBodyFailed<int>(streamId, failed.Reason),
-                _ => msg
-            };
-
-            stageActor.Tell(tagged);
-        });
     }
 
     public void StartBodyEncoder(Stream bodyStream, int streamId, IActorRef stageActor)

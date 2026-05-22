@@ -161,7 +161,6 @@ internal sealed class ServerTestContextBuilder
             Protocol = _protocol,
             Headers = _headers,
             Body = _body,
-            BodySource = _bodySource ?? Source.Empty<ReadOnlyMemory<byte>>(),
             ExtractedHost = _host
         };
     }
@@ -173,7 +172,12 @@ internal sealed class ServerTestContextBuilder
         var features = new FeatureCollection();
         var requestFeature = BuildRequestFeature();
         features.Set<IHttpRequestFeature>(requestFeature);
-        features.Set<ITurboRequestBodyFeature>(requestFeature);
+        var requestBodyFeature = new TurboRequestBodyFeature
+        {
+            Body = requestFeature.Body,
+            BodySource = _bodySource ?? Source.Empty<ReadOnlyMemory<byte>>()
+        };
+        features.Set<ITurboRequestBodyFeature>(requestBodyFeature);
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
         features.Set<IHttpConnectionFeature>(new TurboHttpConnectionFeature(conn));
         var bodyFeature = new TurboHttpResponseBodyFeature();
