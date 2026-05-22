@@ -1,6 +1,5 @@
 using System.Text;
 using Akka.TestKit.Xunit;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Protocol.Syntax.Http10.Server;
 using TurboHTTP.Tests.Shared;
@@ -17,7 +16,7 @@ public sealed class Http10ServerEncoderSpec : TestKit
     public void Encode_should_always_return_zero()
     {
         var probe = CreateTestProbe();
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buf = new byte[256];
 
         var written = MakeEncoder(withDate: false).Encode(buf, ctx, probe.Ref);
@@ -29,7 +28,7 @@ public sealed class Http10ServerEncoderSpec : TestKit
     [Trait("RFC", "RFC1945-6")]
     public void EncodeDeferred_should_emit_status_line_and_body()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var body = "hi"u8.ToArray();
 
         var buf = new byte[256];
@@ -46,7 +45,7 @@ public sealed class Http10ServerEncoderSpec : TestKit
     [Trait("RFC", "RFC9110-6.6.1")]
     public void EncodeDeferred_should_inject_Date_when_WriteDateHeader_true()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buf = new byte[256];
         var written = MakeEncoder(withDate: true).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
         Assert.Contains("Date: ", Encoding.ASCII.GetString(buf, 0, written));
@@ -55,7 +54,7 @@ public sealed class Http10ServerEncoderSpec : TestKit
     [Fact(Timeout = 5000)]
     public void EncodeDeferred_should_omit_Date_when_WriteDateHeader_false()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buf = new byte[256];
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
         Assert.DoesNotContain("Date:", Encoding.ASCII.GetString(buf, 0, written));
@@ -65,7 +64,7 @@ public sealed class Http10ServerEncoderSpec : TestKit
     [Trait("RFC", "RFC1945-7.2")]
     public void EncodeDeferred_should_include_content_length_zero_for_empty_200()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buf = new byte[256];
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
         var text = Encoding.ASCII.GetString(buf, 0, written);
@@ -77,7 +76,7 @@ public sealed class Http10ServerEncoderSpec : TestKit
     [Trait("RFC", "RFC1945-3.3")]
     public void EncodeDeferred_should_use_rfc1123_date_format_in_gmt()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buf = new byte[256];
         var written = MakeEncoder(withDate: true).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
         var text = Encoding.ASCII.GetString(buf, 0, written);
@@ -94,7 +93,7 @@ public sealed class Http10ServerEncoderSpec : TestKit
     [Trait("RFC", "RFC1945-10.6")]
     public void EncodeDeferred_should_include_date_header_by_default()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buf = new byte[256];
         var written = MakeEncoder(withDate: true).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
         var text = Encoding.ASCII.GetString(buf, 0, written);

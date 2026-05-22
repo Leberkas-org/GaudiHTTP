@@ -10,6 +10,7 @@ namespace TurboHTTP.Context.Features;
 internal sealed class TurboHttpResponseBodyFeature : ITurboResponseBodyFeature
 {
     private readonly Pipe _pipe = new();
+    private readonly TaskCompletionSource _headerCommit = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Func<Task>? _onStarting;
     private bool _started;
     private bool _completed;
@@ -17,6 +18,8 @@ internal sealed class TurboHttpResponseBodyFeature : ITurboResponseBodyFeature
     internal void SetOnStarting(Func<Task> onStarting) => _onStarting = onStarting;
 
     internal bool HasStarted => _started;
+
+    internal Task WhenHeadersReady => _headerCommit.Task;
 
     public Stream Stream => field ??= _pipe.Writer.AsStream();
 
@@ -156,6 +159,8 @@ internal sealed class TurboHttpResponseBodyFeature : ITurboResponseBodyFeature
             {
                 await _onStarting();
             }
+
+            _headerCommit.TrySetResult();
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using TurboHTTP.Context.Features;
-using TurboHTTP.Protocol.Syntax.Http2;
+﻿using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 

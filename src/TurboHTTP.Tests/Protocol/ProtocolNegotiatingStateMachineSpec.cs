@@ -28,7 +28,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
 
     private static TransportConnected MakeConnected(SslApplicationProtocol? alpn = null)
     {
-        SecurityInfo? security = alpn is not null
+        var security = alpn is not null
             ? new SecurityInfo(SslProtocols.Tls13, alpn.Value)
             : null;
 

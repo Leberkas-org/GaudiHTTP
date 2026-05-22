@@ -64,7 +64,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         netSubscription.Request(5);
         resSubscription.Request(5);
 
-        appSubscription.SendNext(MakeRequest("/"));
+        appSubscription.SendNext(MakeRequest());
 
         var connect = await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.IsType<ConnectTransport>(connect);

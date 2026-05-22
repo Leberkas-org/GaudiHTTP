@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Server;
-using TurboHTTP.Context.Features;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Server;

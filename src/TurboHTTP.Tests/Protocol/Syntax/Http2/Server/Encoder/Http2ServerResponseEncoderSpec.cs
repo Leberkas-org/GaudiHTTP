@@ -1,5 +1,4 @@
-﻿using System.Net;
-using TurboHTTP.Protocol.Syntax.Http2;
+﻿using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Tests.Shared;
@@ -15,7 +14,7 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void EncodeHeaders_no_body_returns_single_HeadersFrame_with_endStream_true()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
 
         Assert.Single(frames);
@@ -29,7 +28,7 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void EncodeHeaders_with_body_flag_returns_HeadersFrame_without_endStream()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: true);
 
         Assert.Single(frames);
@@ -41,7 +40,7 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void EncodeHeaders_response_headers_are_HPACK_encoded()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["x-custom-header"] = "test-value";
 
         var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
@@ -76,7 +75,7 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.2")]
     public void EncodeHeaders_filters_forbidden_headers()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["connection"] = "close";
         ctx.Response.Headers["transfer-encoding"] = "chunked";
         ctx.Response.Headers["x-allowed"] = "yes";
@@ -110,7 +109,7 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9110-8.6")]
     public void EncodeHeaders_response_with_content_headers()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["content-type"] = "application/json";
         ctx.Response.Headers["content-length"] = "4";
 
@@ -130,7 +129,7 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.2")]
     public void EncodeHeaders_response_headers_are_lowercase()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["X-Custom-Header"] = "value";
 
         var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
@@ -145,7 +144,7 @@ public sealed class Http2ServerResponseEncoderSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void EncodeHeaders_multiple_responses_reuses_lists()
     {
-        var ctx1 = ServerTestContext.CreateResponse(200);
+        var ctx1 = ServerTestContext.CreateResponse();
         var ctx2 = ServerTestContext.CreateResponse(404);
 
         var frames1 = _encoder.EncodeHeaders(ctx1, streamId: 1, hasBody: false);

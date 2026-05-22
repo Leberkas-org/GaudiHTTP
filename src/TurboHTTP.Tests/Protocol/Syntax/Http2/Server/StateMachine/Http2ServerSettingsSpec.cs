@@ -1,5 +1,4 @@
-﻿using System.Net;
-using TurboHTTP.Protocol.Syntax.Http2;
+﻿using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Tests.Shared;
 
@@ -33,7 +32,7 @@ public sealed class Http2ServerSettingsSpec
         encoder.ApplyClientSettings(settings);
 
         // Verify settings applied without exception
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["x-test"] = "value";
 
         var frames = encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
@@ -55,7 +54,7 @@ public sealed class Http2ServerSettingsSpec
     {
         var encoder = new Http2ServerEncoder();
 
-        var ctx1 = ServerTestContext.CreateResponse(200);
+        var ctx1 = ServerTestContext.CreateResponse();
         ctx1.Response.Headers["x-header"] = "value1";
 
         var frames1 = encoder.EncodeHeaders(ctx1, streamId: 1, hasBody: false);
@@ -63,7 +62,7 @@ public sealed class Http2ServerSettingsSpec
 
         encoder.ResetHpack();
 
-        var ctx2 = ServerTestContext.CreateResponse(200);
+        var ctx2 = ServerTestContext.CreateResponse();
         ctx2.Response.Headers["x-header"] = "value2";
 
         var frames2 = encoder.EncodeHeaders(ctx2, streamId: 3, hasBody: false);

@@ -241,7 +241,7 @@ public sealed class Http2ServerResponseBufferSpec
     {
         var encoder = new Http2ServerEncoder();
 
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
 
         var frames = encoder.EncodeHeaders(ctx, streamId: 1, hasBody: true);
 

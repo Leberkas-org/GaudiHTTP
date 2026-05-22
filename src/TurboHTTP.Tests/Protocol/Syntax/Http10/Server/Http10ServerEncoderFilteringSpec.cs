@@ -22,7 +22,7 @@ public sealed class Http10ServerEncoderFilteringSpec
     [InlineData("Trailer")]
     public void EncodeDeferred_should_strip_hop_by_hop_header(string headerName)
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers[headerName] = "some-value";
 
         var buf = new byte[512];
@@ -37,7 +37,7 @@ public sealed class Http10ServerEncoderFilteringSpec
     [Trait("RFC", "RFC9110-6.6.1")]
     public void EncodeDeferred_should_not_duplicate_existing_date_header()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["Date"] = DateTimeOffset.UtcNow.ToString("R");
 
         var buf = new byte[512];
@@ -61,7 +61,7 @@ public sealed class Http10ServerEncoderFilteringSpec
     [Trait("RFC", "RFC9110-8.6")]
     public void EncodeDeferred_should_emit_content_length_zero_for_empty_body()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
 
         var buf = new byte[256];
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);
@@ -75,7 +75,7 @@ public sealed class Http10ServerEncoderFilteringSpec
     [Trait("RFC", "RFC9110-7.6.1")]
     public void EncodeDeferred_should_strip_hop_by_hop_from_content_headers()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var hopByHopHeaders = new[] { "Connection", "Keep-Alive", "Transfer-Encoding", "TE", "Upgrade", "Proxy-Authenticate", "Proxy-Authorization", "Trailer" };
 
         foreach (var headerName in hopByHopHeaders)
@@ -115,7 +115,7 @@ public sealed class Http10ServerEncoderFilteringSpec
     [Trait("RFC", "RFC1945-6")]
     public void EncodeDeferred_should_handle_status_with_empty_reason_phrase()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
 
         var buf = new byte[4096];
         var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, ReadOnlySpan<byte>.Empty);

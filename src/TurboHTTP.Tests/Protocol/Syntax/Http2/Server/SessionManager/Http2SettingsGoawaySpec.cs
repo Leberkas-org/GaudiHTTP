@@ -191,7 +191,7 @@ public sealed class Http2SettingsGoawaySpec
         Assert.True((td.Buffer.Span[4] & 0x01) != 0, "ACK flag should be set");
 
         // Verify echoed data matches (bytes 9-16)
-        for (int i = 0; i < 8; i++)
+        for (var i = 0; i < 8; i++)
         {
             Assert.Equal(pingData[i], td.Buffer.Span[9 + i]);
         }

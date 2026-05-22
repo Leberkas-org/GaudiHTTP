@@ -24,7 +24,7 @@ public sealed class Http11ServerEncoderHardeningSpec
     public void Encode_should_strip_hop_by_hop_header(string headerName)
     {
         var encoder = MakeEncoder();
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers[headerName] = "test-value";
 
         var buffer = new byte[4096];
@@ -39,7 +39,7 @@ public sealed class Http11ServerEncoderHardeningSpec
     public void Encode_should_add_connection_close_when_requested()
     {
         var encoder = MakeEncoder();
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buffer = new byte[4096];
 
         var written = encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: false, connectionClose: true);
@@ -53,7 +53,7 @@ public sealed class Http11ServerEncoderHardeningSpec
     public void Encode_should_not_add_content_length_when_chunked()
     {
         var encoder = MakeEncoder();
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buffer = new byte[4096];
 
         var written = encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: true);
@@ -68,7 +68,7 @@ public sealed class Http11ServerEncoderHardeningSpec
     {
         var encoder = MakeEncoder(withDate: true);
         var existingDate = "Mon, 17 May 2021 12:00:00 GMT";
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["Date"] = existingDate;
         var buffer = new byte[4096];
 

@@ -96,14 +96,14 @@ public sealed class ListenerActorConnectionLimitSpec : TestKit
         var listenerActor = ExpectMsg<IActorRef>(cancellationToken: TestContext.Current.CancellationToken);
 
         // Send multiple connections
-        for (int i = 0; i < 5; i++)
+        for (var i = 0; i < 5; i++)
         {
             var dummyFlow = CreateDummyConnectionFlow();
             listenerActor.Tell(new ListenerActor.IncomingConnection(dummyFlow), ActorRefs.NoSender);
         }
 
         // All connections should be accepted (ConnectionStarted messages received)
-        for (int i = 0; i < 5; i++)
+        for (var i = 0; i < 5; i++)
         {
             ExpectMsg<ListenerActor.ConnectionStarted>(
                 cancellationToken: TestContext.Current.CancellationToken);
@@ -126,14 +126,14 @@ public sealed class ListenerActorConnectionLimitSpec : TestKit
         var listenerActor = ExpectMsg<IActorRef>(cancellationToken: TestContext.Current.CancellationToken);
 
         // Send 2 connections - should be accepted
-        for (int i = 0; i < 2; i++)
+        for (var i = 0; i < 2; i++)
         {
             var dummyFlow = CreateDummyConnectionFlow();
             listenerActor.Tell(new ListenerActor.IncomingConnection(dummyFlow), ActorRefs.NoSender);
         }
 
         // Receive the 2 acceptance messages
-        for (int i = 0; i < 2; i++)
+        for (var i = 0; i < 2; i++)
         {
             ExpectMsg<ListenerActor.ConnectionStarted>(
                 cancellationToken: TestContext.Current.CancellationToken);

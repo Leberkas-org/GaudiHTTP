@@ -138,6 +138,44 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
         Assert.Equal("data", Encoding.UTF8.GetString(buffer, 0, bytesRead));
     }
 
+    [Fact(Timeout = 5000)]
+    public async Task WhenHeadersReady_should_complete_after_StartAsync()
+    {
+        var feature = new TurboHttpResponseBodyFeature();
+
+        Assert.False(feature.WhenHeadersReady.IsCompleted);
+
+        await feature.StartAsync();
+
+        Assert.True(feature.WhenHeadersReady.IsCompleted);
+        Assert.True(feature.HasStarted);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task WhenHeadersReady_should_complete_on_first_BodySink_write()
+    {
+        var feature = new TurboHttpResponseBodyFeature();
+        var chunk = new ReadOnlyMemory<byte>("data"u8.ToArray());
+
+        Assert.False(feature.WhenHeadersReady.IsCompleted);
+
+        await Source.Single(chunk).RunWith(feature.BodySink, _materializer);
+
+        Assert.True(feature.WhenHeadersReady.IsCompleted);
+        Assert.True(feature.HasStarted);
+
+        await feature.CompleteAsync();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void WhenHeadersReady_should_not_be_completed_initially()
+    {
+        var feature = new TurboHttpResponseBodyFeature();
+
+        Assert.False(feature.WhenHeadersReady.IsCompleted);
+        Assert.False(feature.HasStarted);
+    }
+
     public void Dispose()
     {
         _system.Dispose();

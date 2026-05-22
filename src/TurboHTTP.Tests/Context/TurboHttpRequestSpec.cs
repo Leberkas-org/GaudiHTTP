@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Context;
-using TurboHTTP.Context.Features;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Context;

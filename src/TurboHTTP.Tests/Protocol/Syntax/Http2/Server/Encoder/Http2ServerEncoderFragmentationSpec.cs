@@ -1,4 +1,3 @@
-using System.Net;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
@@ -19,9 +18,9 @@ public sealed class Http2ServerEncoderFragmentationSpec
         _encoder.ApplyClientSettings([(SettingsParameter.MaxFrameSize, 64u)]);
 
         // Create a response with headers large enough to exceed 64 bytes when encoded
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         // Add multiple headers to ensure the encoded block exceeds MaxFrameSize
-        for (int i = 0; i < 10; i++)
+        for (var i = 0; i < 10; i++)
         {
             ctx.Response.Headers[$"x-header-{i}"] = $"this-is-a-long-header-value-to-force-fragmentation-{i}";
         }
@@ -32,7 +31,7 @@ public sealed class Http2ServerEncoderFragmentationSpec
         // Assert
         Assert.True(frames.Count >= 2, "Expected at least 2 frames due to fragmentation");
         Assert.IsType<HeadersFrame>(frames[0]);
-        for (int i = 1; i < frames.Count; i++)
+        for (var i = 1; i < frames.Count; i++)
         {
             Assert.IsType<ContinuationFrame>(frames[i]);
         }
@@ -45,8 +44,8 @@ public sealed class Http2ServerEncoderFragmentationSpec
         // Arrange: Set MaxFrameSize to 64 bytes to force fragmentation
         _encoder.ApplyClientSettings([(SettingsParameter.MaxFrameSize, 64u)]);
 
-        var ctx = ServerTestContext.CreateResponse(200);
-        for (int i = 0; i < 10; i++)
+        var ctx = ServerTestContext.CreateResponse();
+        for (var i = 0; i < 10; i++)
         {
             ctx.Response.Headers[$"x-header-{i}"] = $"this-is-a-long-header-value-to-force-fragmentation-{i}";
         }
@@ -59,7 +58,7 @@ public sealed class Http2ServerEncoderFragmentationSpec
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
         Assert.False(headersFrame.EndStream, "HeadersFrame should not have EndStream when body follows");
 
-        for (int i = 1; i < frames.Count; i++)
+        for (var i = 1; i < frames.Count; i++)
         {
             var continuationFrame = Assert.IsType<ContinuationFrame>(frames[i]);
             Assert.Equal(1, continuationFrame.StreamId);
@@ -73,8 +72,8 @@ public sealed class Http2ServerEncoderFragmentationSpec
         // Arrange: Set MaxFrameSize to 64 bytes to force fragmentation
         _encoder.ApplyClientSettings([(SettingsParameter.MaxFrameSize, 64u)]);
 
-        var ctx = ServerTestContext.CreateResponse(200);
-        for (int i = 0; i < 10; i++)
+        var ctx = ServerTestContext.CreateResponse();
+        for (var i = 0; i < 10; i++)
         {
             ctx.Response.Headers[$"x-header-{i}"] = $"this-is-a-long-header-value-to-force-fragmentation-{i}";
         }
@@ -88,7 +87,7 @@ public sealed class Http2ServerEncoderFragmentationSpec
         var headersFrame = Assert.IsType<HeadersFrame>(frames[0]);
         Assert.False(headersFrame.EndHeaders, "HeadersFrame should not have EndHeaders when fragments follow");
 
-        for (int i = 1; i < frames.Count - 1; i++)
+        for (var i = 1; i < frames.Count - 1; i++)
         {
             var continuationFrame = Assert.IsType<ContinuationFrame>(frames[i]);
             Assert.False(continuationFrame.EndHeaders, $"Intermediate ContinuationFrame at index {i} should not have EndHeaders");
@@ -120,10 +119,10 @@ public sealed class Http2ServerEncoderFragmentationSpec
         // Arrange: Set MaxFrameSize to 64 bytes to force fragmentation
         _encoder.ApplyClientSettings([(SettingsParameter.MaxFrameSize, 64u)]);
 
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["x-custom-header"] = "custom-value";
         ctx.Response.Headers["x-another-header"] = "another-value";
-        for (int i = 0; i < 8; i++)
+        for (var i = 0; i < 8; i++)
         {
             ctx.Response.Headers[$"x-header-{i}"] = $"header-value-{i}";
         }
@@ -166,7 +165,7 @@ public sealed class Http2ServerEncoderFragmentationSpec
     public void ResetHpack_should_clear_encoder_state()
     {
         // Arrange
-        var ctx1 = ServerTestContext.CreateResponse(200);
+        var ctx1 = ServerTestContext.CreateResponse();
         ctx1.Response.Headers["x-test"] = "value1";
 
         // Encode first response

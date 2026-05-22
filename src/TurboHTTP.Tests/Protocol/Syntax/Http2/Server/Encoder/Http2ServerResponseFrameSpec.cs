@@ -1,5 +1,4 @@
-﻿using System.Net;
-using TurboHTTP.Protocol.Syntax.Http2;
+﻿using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Tests.Shared;
@@ -15,7 +14,7 @@ public sealed class Http2ServerResponseFrameSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void EncodeHeaders_produces_HeadersFrame()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
 
         var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
 
@@ -43,7 +42,7 @@ public sealed class Http2ServerResponseFrameSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void EncodeHeaders_status_pseudo_header_is_first_in_header_block()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["x-first"] = "value";
         ctx.Response.Headers["x-second"] = "value";
 
@@ -73,7 +72,7 @@ public sealed class Http2ServerResponseFrameSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void EncodeHeaders_response_with_body_does_not_set_endStream()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
 
         var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: true);
 
@@ -86,7 +85,7 @@ public sealed class Http2ServerResponseFrameSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void EncodeHeaders_no_body_sets_endStream()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
 
         var frames = _encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
 
@@ -99,7 +98,7 @@ public sealed class Http2ServerResponseFrameSpec
     [Trait("RFC", "RFC9113-8.2")]
     public void EncodeHeaders_filters_forbidden_connection_specific_headers()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["connection"] = "close";
         ctx.Response.Headers["transfer-encoding"] = "chunked";
         ctx.Response.Headers["x-allowed"] = "yes";
@@ -121,7 +120,7 @@ public sealed class Http2ServerResponseFrameSpec
     [Trait("RFC", "RFC9113-8.2")]
     public void EncodeHeaders_header_names_lowercased()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["X-Custom-Header"] = "value";
         ctx.Response.Headers["X-Another-Header"] = "another";
 

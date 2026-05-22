@@ -13,7 +13,7 @@ public sealed class Http11ServerEncoderSpec
     [Fact(Timeout = 5000)]
     public void Encode_should_write_status_line()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buffer = new byte[4096];
 
         var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: false);
@@ -26,7 +26,7 @@ public sealed class Http11ServerEncoderSpec
     [Fact(Timeout = 5000)]
     public void Encode_should_add_content_length()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["Content-Length"] = "9";
         var buffer = new byte[4096];
 
@@ -39,7 +39,7 @@ public sealed class Http11ServerEncoderSpec
     [Fact(Timeout = 5000)]
     public void Encode_should_handle_chunked_response()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buffer = new byte[4096];
 
         var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: true);
@@ -52,7 +52,7 @@ public sealed class Http11ServerEncoderSpec
     [Fact(Timeout = 5000)]
     public void Encode_should_include_date_header()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buffer = new byte[4096];
 
         var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: false);
@@ -65,7 +65,7 @@ public sealed class Http11ServerEncoderSpec
     [Trait("RFC", "RFC9112-2.2")]
     public void Encode_should_not_produce_bare_cr_in_headers()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["X-Test"] = "value\rwith\rcr";
         var buffer = new byte[4096];
 
@@ -85,7 +85,7 @@ public sealed class Http11ServerEncoderSpec
     [Trait("RFC", "RFC9112-5.2")]
     public void Encode_should_not_produce_obs_fold_in_headers()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["X-Long"] = new string('a', 200);
         var buffer = new byte[4096];
 
@@ -100,7 +100,7 @@ public sealed class Http11ServerEncoderSpec
     [Trait("RFC", "RFC9112-6.1")]
     public void Encode_should_not_double_apply_chunked_transfer_encoding()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         var buffer = new byte[4096];
 
         var written = _encoder.Encode(buffer, ctx, ActorRefs.Nobody, isChunked: true);
@@ -114,7 +114,7 @@ public sealed class Http11ServerEncoderSpec
     [Trait("RFC", "RFC9112-6.3")]
     public void Encode_should_include_content_length_for_known_size_body()
     {
-        var ctx = ServerTestContext.CreateResponse(200);
+        var ctx = ServerTestContext.CreateResponse();
         ctx.Response.Headers["Content-Length"] = "15";
         var buffer = new byte[4096];
 

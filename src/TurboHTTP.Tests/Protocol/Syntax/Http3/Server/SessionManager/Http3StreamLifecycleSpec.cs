@@ -98,7 +98,7 @@ public sealed class Http3StreamLifecycleSpec
         var sm = CreateSM(ops);
 
         const long streamId = 4;
-        SendRequest(sm, streamId, "GET", "/");
+        SendRequest(sm, streamId);
 
         Assert.Single(ops.Requests);
         var request = ops.Requests[0];
@@ -160,7 +160,7 @@ public sealed class Http3StreamLifecycleSpec
         var sm = CreateSM(ops);
 
         const long streamId = 8;
-        SendRequest(sm, streamId, "GET", "/");
+        SendRequest(sm, streamId);
 
         Assert.Single(ops.Requests);
         var request = ops.Requests[0];
@@ -182,7 +182,7 @@ public sealed class Http3StreamLifecycleSpec
         var sm = CreateSM(ops);
 
         const long streamId = 12;
-        SendRequest(sm, streamId, "GET", "/");
+        SendRequest(sm, streamId);
 
         // First cleanup
         sm.Cleanup();
