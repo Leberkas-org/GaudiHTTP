@@ -64,6 +64,16 @@ internal sealed class StreamState
         return _request ?? throw new InvalidOperationException("No request has been initialized.");
     }
 
+    public void InitRequestFeature(TurboHttpRequestFeature feature)
+    {
+        _requestFeature = feature;
+    }
+
+    public TurboHttpRequestFeature? GetRequestFeature()
+    {
+        return _requestFeature;
+    }
+
     public HttpRequestMessage GetOrCreateRequest()
     {
         return _request ??= new HttpRequestMessage();
@@ -196,6 +206,7 @@ internal sealed class StreamState
         StreamId = -1;
         _response = null;
         _request = null;
+        _requestFeature = null;
         ExpectedContentLength = null;
         _contentHeaders = null;
         _pseudoHeaders = null;

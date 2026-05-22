@@ -111,7 +111,7 @@ internal sealed class Http3ServerDecoder
             }
             else if (!name.StartsWith(':'))
             {
-                feature.Headers.Add(name, value);
+                feature.Headers[name] = value;
 
                 if (ContentHeaderClassifier.IsContentHeader(name))
                 {
