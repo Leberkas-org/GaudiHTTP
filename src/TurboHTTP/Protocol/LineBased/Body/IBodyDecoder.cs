@@ -7,4 +7,5 @@ internal interface IBodyDecoder : IDisposable
     bool Feed(ReadOnlySpan<byte> data, out int consumed);
     bool OnEof();
     HttpContent GetContent();
+    Stream GetBodyStream();
 }

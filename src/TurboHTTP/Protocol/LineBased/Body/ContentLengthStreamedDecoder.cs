@@ -60,6 +60,8 @@ internal sealed class ContentLengthStreamedDecoder : IBodyDecoder
 
     public HttpContent GetContent() => new StreamContent(_handle.AsStream());
 
+    public Stream GetBodyStream() => _handle.AsStream();
+
     public void Dispose()
     {
         _handle.Dispose();
