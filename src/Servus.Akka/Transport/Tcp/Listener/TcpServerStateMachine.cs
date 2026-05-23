@@ -42,11 +42,17 @@ internal sealed class TcpServerStateMachine
         _pumpManager = new TcpPumpManager(_self);
         _pumpManager.StartPumps(_state, _connectionGen);
 
-        _ops.OnPushInbound(new TransportConnected(_connectionInfo));
-
         if (_sslStream is not null || _allowDelayedNegotiation)
         {
-            _ops.OnPushInbound(new TransportTlsState(_sslStream, _allowDelayedNegotiation));
+            var baseSecurity = _connectionInfo.Security;
+            var security = baseSecurity is not null
+                ? baseSecurity with { SslStream = _sslStream, AllowDelayedNegotiation = _allowDelayedNegotiation }
+                : new SecurityInfo(default, default, SslStream: _sslStream, AllowDelayedNegotiation: _allowDelayedNegotiation);
+            _ops.OnPushInbound(new TransportConnected(_connectionInfo with { Security = security }));
+        }
+        else
+        {
+            _ops.OnPushInbound(new TransportConnected(_connectionInfo));
         }
     }
 

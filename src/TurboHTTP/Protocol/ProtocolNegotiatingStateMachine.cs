@@ -2,6 +2,7 @@ using System.Net.Security;
 using Akka.Actor;
 using Akka.Event;
 using Servus.Akka.Transport;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
@@ -173,6 +174,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         public IActorRef StageActor => _real.StageActor;
         public IServiceProvider? Services => _real.Services;
         public TurboConnectionInfo? ConnectionInfo => _real.ConnectionInfo;
+        public TlsHandshakeFeature? TlsHandshakeFeature => _real.TlsHandshakeFeature;
 
         public void RequestProtocolSwitch(Func<IServerStageOperations, IServerStateMachine> newSmFactory)
         {

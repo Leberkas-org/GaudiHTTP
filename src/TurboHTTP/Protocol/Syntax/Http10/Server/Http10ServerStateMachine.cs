@@ -74,7 +74,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
                 ShouldComplete = true;
                 var feature = _decoder.GetRequestFeature();
                 var hasBody = feature.Body != Stream.Null;
-                var context = ServerContextFactory.Create(feature, hasBody, _ops.Services, _ops.ConnectionInfo);
+                var context = ServerContextFactory.Create(feature, hasBody, _ops.Services, _ops.ConnectionInfo, _ops.TlsHandshakeFeature);
                 _ops.OnRequest(context);
             }
         }

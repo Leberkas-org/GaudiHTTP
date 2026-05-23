@@ -14,13 +14,11 @@ internal sealed class Http20ServerConnectionStage : GraphStage<ServerConnectionS
     private readonly Outlet<ITransportOutbound> _outNetwork = new("Http20Connection.Out.Network");
     private readonly TurboServerOptions _options;
     private readonly IServiceProvider? _services;
-    private readonly TurboConnectionInfo? _connectionInfo;
 
-    public Http20ServerConnectionStage(TurboServerOptions options, IServiceProvider? services = null, TurboConnectionInfo? connectionInfo = null)
+    public Http20ServerConnectionStage(TurboServerOptions options, IServiceProvider? services = null)
     {
         _options = options;
         _services = services;
-        _connectionInfo = connectionInfo;
     }
 
     public override ServerConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
@@ -28,6 +26,5 @@ internal sealed class Http20ServerConnectionStage : GraphStage<ServerConnectionS
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionServerStageLogic<Http2ServerStateMachine>(this,
             ops => new Http2ServerStateMachine(_options, ops),
-            _services,
-            _connectionInfo);
+            _services);
 }

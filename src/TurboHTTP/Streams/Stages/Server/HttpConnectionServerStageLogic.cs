@@ -3,6 +3,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol;
 using TurboHTTP.Server;
 using TurboHTTP.Streams;
@@ -23,13 +24,13 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private readonly Queue<ITransportOutbound> _outboundQueue = new();
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
-    private readonly TurboConnectionInfo? _connectionInfo;
+    private TurboConnectionInfo? _connectionInfo;
+    private TlsHandshakeFeature? _tlsHandshakeFeature;
 
     public HttpConnectionServerStageLogic(
         GraphStage<ServerConnectionShape> stage,
         Func<IServerStageOperations, TSM> smFactory,
-        IServiceProvider? services = null,
-        TurboConnectionInfo? connectionInfo = null) : base(stage.Shape)
+        IServiceProvider? services = null) : base(stage.Shape)
     {
         var shape = stage.Shape;
         _inNetwork = shape.InNetwork;
@@ -37,7 +38,6 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         _inResponse = shape.InResponse;
         _outNetwork = shape.OutNetwork;
         _services = services;
-        _connectionInfo = connectionInfo;
 
         _sm = smFactory(this);
 
@@ -120,6 +120,40 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private void OnNetworkPush()
     {
         var item = Grab(_inNetwork);
+
+        if (item is TransportConnected connected)
+        {
+            var info = connected.Info;
+            if (info.Remote is System.Net.IPEndPoint remoteEp)
+            {
+                _connectionInfo = new TurboConnectionInfo(
+                    Guid.NewGuid().ToString("N"),
+                    remoteEp.Address, remoteEp.Port,
+                    (info.Local as System.Net.IPEndPoint)?.Address,
+                    (info.Local as System.Net.IPEndPoint)?.Port ?? 0);
+
+                if (info.Security is { } security)
+                {
+                    _connectionInfo.SetSecurityInfo(security);
+                    _connectionInfo.SetNegotiatedProtocol(security.ApplicationProtocol);
+
+                    _tlsHandshakeFeature = new TlsHandshakeFeature
+                    {
+                        Protocol = security.Protocol,
+                        NegotiatedCipherSuite = security.NegotiatedCipherSuite,
+                        HostName = security.HostName,
+                        NegotiatedApplicationProtocol = security.ApplicationProtocol,
+                    };
+
+                    if (security.SslStream is not null)
+                    {
+                        _connectionInfo.SetClientCertificateFromHandshake(security.SslStream);
+                        _connectionInfo.SetTlsState(security.SslStream, security.AllowDelayedNegotiation);
+                    }
+                }
+            }
+        }
+
         try
         {
             _sm.DecodeClientData(item);
@@ -186,6 +220,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     IServiceProvider? IServerStageOperations.Services => _services;
 
     TurboConnectionInfo? IServerStageOperations.ConnectionInfo => _connectionInfo;
+
+    TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
 
     private void TryPushRequest()
     {

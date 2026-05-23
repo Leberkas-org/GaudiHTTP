@@ -301,7 +301,7 @@ public sealed class TcpServerStateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Start_should_not_emit_TransportTlsState_without_tls()
+    public void Start_should_emit_single_TransportConnected_without_tls()
     {
         var (sm, ops) = CreateStateMachine();
 
@@ -312,21 +312,20 @@ public sealed class TcpServerStateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Start_should_emit_TransportTlsState_when_allow_delayed_is_true()
+    public void Start_should_include_tls_info_in_TransportConnected_when_allow_delayed()
     {
         var (sm, ops) = CreateStateMachineWithTls(allowDelayedNegotiation: true);
 
         sm.Start();
 
-        Assert.Equal(2, ops.PushedInbound.Count);
-        Assert.IsType<TransportConnected>(ops.PushedInbound[0]);
-        var tlsState = Assert.IsType<TransportTlsState>(ops.PushedInbound[1]);
-        Assert.True(tlsState.AllowDelayedNegotiation);
-        Assert.Null(tlsState.SslStream);
+        Assert.Single(ops.PushedInbound);
+        var connected = Assert.IsType<TransportConnected>(ops.PushedInbound[0]);
+        Assert.NotNull(connected.Info.Security);
+        Assert.True(connected.Info.Security.AllowDelayedNegotiation);
     }
 
     [Fact(Timeout = 5000)]
-    public void Start_should_not_emit_TransportTlsState_when_no_ssl_and_no_delay()
+    public void Start_should_emit_single_TransportConnected_when_no_ssl_and_no_delay()
     {
         var (sm, ops) = CreateStateMachineWithTls(allowDelayedNegotiation: false);
 

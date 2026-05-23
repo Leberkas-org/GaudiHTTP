@@ -1,6 +1,7 @@
 using Akka.Actor;
 using Akka.Event;
 using Servus.Akka.Transport;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Server;
 
 namespace TurboHTTP.Streams.Stages.Server;
@@ -15,4 +16,5 @@ internal interface IServerStageOperations
     IActorRef StageActor { get; }
     IServiceProvider? Services => null;
     TurboConnectionInfo? ConnectionInfo => null;
+    TlsHandshakeFeature? TlsHandshakeFeature => null;
 }

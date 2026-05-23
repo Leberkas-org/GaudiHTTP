@@ -14,13 +14,11 @@ internal sealed class ProtocolNegotiatorConnectionStage : GraphStage<ServerConne
     private readonly Outlet<ITransportOutbound> _outNetwork = new("NegotiatorConnection.Out.Network");
     private readonly TurboServerOptions _options;
     private readonly IServiceProvider? _services;
-    private readonly TurboConnectionInfo? _connectionInfo;
 
-    public ProtocolNegotiatorConnectionStage(TurboServerOptions options, IServiceProvider? services = null, TurboConnectionInfo? connectionInfo = null)
+    public ProtocolNegotiatorConnectionStage(TurboServerOptions options, IServiceProvider? services = null)
     {
         _options = options;
         _services = services;
-        _connectionInfo = connectionInfo;
     }
 
     public override ServerConnectionShape Shape => new(_inNetwork, _outRequest, _inResponse, _outNetwork);
@@ -28,6 +26,5 @@ internal sealed class ProtocolNegotiatorConnectionStage : GraphStage<ServerConne
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionServerStageLogic<ProtocolNegotiatingStateMachine>(this,
             ops => new ProtocolNegotiatingStateMachine(_options, ops),
-            _services,
-            _connectionInfo);
+            _services);
 }

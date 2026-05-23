@@ -7,4 +7,6 @@ public sealed record SecurityInfo(
     SslProtocols Protocol,
     SslApplicationProtocol ApplicationProtocol,
     TlsCipherSuite? NegotiatedCipherSuite = null,
-    string? HostName = null);
+    string? HostName = null,
+    SslStream? SslStream = null,
+    bool AllowDelayedNegotiation = false);

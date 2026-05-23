@@ -182,27 +182,14 @@ public sealed class TransportMessagesSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void TransportTlsState_should_implement_ITransportInbound()
+    public void SecurityInfo_should_carry_ssl_stream_and_delayed_negotiation()
     {
-        ITransportInbound msg = new TransportTlsState(SslStream: null, AllowDelayedNegotiation: false);
+        var info = new SecurityInfo(
+            SslProtocols.Tls13,
+            SslApplicationProtocol.Http2,
+            AllowDelayedNegotiation: true);
 
-        Assert.IsType<TransportTlsState>(msg);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void TransportTlsState_should_carry_allow_delayed_flag()
-    {
-        var msg = new TransportTlsState(SslStream: null, AllowDelayedNegotiation: true);
-
-        Assert.True(msg.AllowDelayedNegotiation);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void TransportTlsState_should_allow_null_ssl_stream()
-    {
-        var msg = new TransportTlsState(SslStream: null, AllowDelayedNegotiation: false);
-
-        Assert.Null(msg.SslStream);
-        Assert.False(msg.AllowDelayedNegotiation);
+        Assert.Null(info.SslStream);
+        Assert.True(info.AllowDelayedNegotiation);
     }
 }

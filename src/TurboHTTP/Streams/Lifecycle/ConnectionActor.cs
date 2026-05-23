@@ -36,7 +36,6 @@ internal sealed class ConnectionActor : ReceiveActor
         IServerProtocolEngine Engine,
         TurboRequestDelegate Pipeline,
         RouteTable RouteTable,
-        TurboConnectionInfo ConnectionInfo,
         IServiceProvider Services,
         IMaterializer Materializer,
         string? ConnectionLoggingCategory = null);
@@ -66,42 +65,10 @@ internal sealed class ConnectionActor : ReceiveActor
         var middleware = Flow.FromGraph(new MiddlewarePipelineStage(msg.Pipeline));
         var routing = Flow.FromGraph(new RoutingStage(msg.RouteTable));
         var innerFlow = middleware.Via(routing);
-        var protocolBidi = msg.Engine.CreateFlow(msg.Services, msg.ConnectionInfo);
+        var protocolBidi = msg.Engine.CreateFlow(msg.Services);
         var composed = protocolBidi.Join(innerFlow);
 
         var self = Self;
-        var connectionInfo = msg.ConnectionInfo;
-        var inboundTap = Flow.Create<ITransportInbound>()
-            .Select(item =>
-            {
-                switch (item)
-                {
-                    case TransportConnected { Info: { Remote: System.Net.IPEndPoint remote } } connected:
-                        connectionInfo.RemoteIpAddress = remote.Address;
-                        connectionInfo.RemotePort = remote.Port;
-                        if (connected.Info is { Local: System.Net.IPEndPoint local })
-                        {
-                            connectionInfo.LocalIpAddress = local.Address;
-                            connectionInfo.LocalPort = local.Port;
-                        }
-                        if (connected.Info.Security is { } security)
-                        {
-                            connectionInfo.SetSecurityInfo(security);
-                            connectionInfo.SetNegotiatedProtocol(security.ApplicationProtocol);
-                        }
-                        break;
-                    case TransportTlsState tlsState:
-                        connectionInfo.SetTlsState(tlsState.SslStream, tlsState.AllowDelayedNegotiation);
-                        if (tlsState.SslStream is not null)
-                        {
-                            connectionInfo.SetClientCertificateFromHandshake(tlsState.SslStream);
-                        }
-                        break;
-                }
-
-                return item;
-            });
-
         Flow<ITransportInbound, ITransportInbound, NotUsed>? loggingFlow = null;
         if (msg.ConnectionLoggingCategory is { } loggingCategory)
         {
@@ -125,8 +92,7 @@ internal sealed class ConnectionActor : ReceiveActor
         }
 
         var pipeline = msg.ConnectionFlow
-            .Via(_killSwitch.Flow<ITransportInbound>())
-            .Via(inboundTap);
+            .Via(_killSwitch.Flow<ITransportInbound>());
 
         if (loggingFlow is not null)
         {

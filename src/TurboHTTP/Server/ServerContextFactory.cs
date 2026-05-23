@@ -9,7 +9,8 @@ internal static class ServerContextFactory
         TurboHttpRequestFeature requestFeature,
         bool hasBody,
         IServiceProvider? services = null,
-        TurboConnectionInfo? connectionInfo = null)
+        TurboConnectionInfo? connectionInfo = null,
+        TlsHandshakeFeature? tlsFeature = null)
     {
         var features = new FeatureCollection();
         features.Set<IHttpRequestFeature>(requestFeature);
@@ -23,19 +24,13 @@ internal static class ServerContextFactory
         features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
         features.Set<ITurboResponseBodyFeature>(responseBodyFeature);
 
+        if (tlsFeature is not null)
+        {
+            features.Set<ITlsHandshakeFeature>(tlsFeature);
+        }
+
         if (connectionInfo is not null)
         {
-            if (connectionInfo.SecurityInfo is { } security)
-            {
-                features.Set<ITlsHandshakeFeature>(new TlsHandshakeFeature
-                {
-                    Protocol = security.Protocol,
-                    NegotiatedCipherSuite = security.NegotiatedCipherSuite,
-                    HostName = security.HostName,
-                    NegotiatedApplicationProtocol = security.ApplicationProtocol,
-                });
-            }
-
             return new TurboHttpContext(features, connectionInfo, services, CancellationToken.None, null!);
         }
 

@@ -122,7 +122,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
                 var feature = _decoder.GetRequestFeature();
                 var hasBody = feature.Body != Stream.Null;
-                var context = ServerContextFactory.Create(feature, hasBody, _ops.Services, _ops.ConnectionInfo);
+                var context = ServerContextFactory.Create(feature, hasBody, _ops.Services, _ops.ConnectionInfo, _ops.TlsHandshakeFeature);
 
                 if (!ShouldComplete && feature.Protocol == "HTTP/1.0")
                 {

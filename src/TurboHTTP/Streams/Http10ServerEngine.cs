@@ -16,11 +16,11 @@ internal sealed class Http10ServerEngine : IServerProtocolEngine
         _options = options;
     }
 
-    public BidiFlow<ITransportInbound, TurboHttpContext, TurboHttpContext, ITransportOutbound, NotUsed> CreateFlow(IServiceProvider? services = null, TurboConnectionInfo? connectionInfo = null)
+    public BidiFlow<ITransportInbound, TurboHttpContext, TurboHttpContext, ITransportOutbound, NotUsed> CreateFlow(IServiceProvider? services = null)
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new Http10ServerConnectionStage(_options, services, connectionInfo));
+            var connection = b.Add(new Http10ServerConnectionStage(_options, services));
 
             return new BidiShape<
                 ITransportInbound,

@@ -108,7 +108,6 @@ internal sealed class ListenerActor : ReceiveActor
         }
 
         var connectionId = string.Concat("conn-", ++_connectionCounter);
-        var connectionInfo = new TurboConnectionInfo(connectionId, null, 0, null, _listenerOptions.Port);
 
         var engine = ResolveEngineForListener();
 
@@ -121,7 +120,6 @@ internal sealed class ListenerActor : ReceiveActor
             engine,
             _pipeline,
             _routeTable,
-            connectionInfo,
             _services,
             _materializer,
             _connectionLoggingCategory));
