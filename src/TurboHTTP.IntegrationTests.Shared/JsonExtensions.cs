@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace TurboHTTP.IntegrationTests.Shared;
 
-internal static class JsonExtensions
+public static class JsonExtensions
 {
     public static string? GetHeaderValue(this JsonElement headers, string name)
     {

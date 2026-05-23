@@ -42,8 +42,9 @@
     <ItemGroup>
         <InternalsVisibleTo Include="TurboHTTP.Tests"/>
         <InternalsVisibleTo Include="TurboHTTP.AcceptanceTests"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests"/>
+        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Client"/>
         <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Container"/>
+        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Shared"/>
         <InternalsVisibleTo Include="TurboHTTP.Tests.Shared"/>
         <InternalsVisibleTo Include="TurboHTTP.Benchmarks"/>
         <InternalsVisibleTo Include="TurboHTTP.MicroBenchmarks"/>

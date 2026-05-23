@@ -22,6 +22,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj"/>
+        <ProjectReference Include="..\TurboHTTP.IntegrationTests.Shared\TurboHTTP.IntegrationTests.Shared.csproj" />
     </ItemGroup>
 
     <ItemGroup>
