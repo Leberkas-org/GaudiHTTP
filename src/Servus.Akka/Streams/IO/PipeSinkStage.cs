@@ -5,12 +5,12 @@ using Akka.Streams.Stage;
 
 namespace Servus.Akka.Streams.IO;
 
-internal sealed class PipeWriterSinkStage : GraphStageWithMaterializedValue<SinkShape<ReadOnlyMemory<byte>>, Task>
+internal sealed class PipeSinkStage : GraphStageWithMaterializedValue<SinkShape<ReadOnlyMemory<byte>>, Task>
 {
     private readonly PipeWriter _writer;
     private readonly Inlet<ReadOnlyMemory<byte>> _in = new("PipeWriterSink.In");
 
-    public PipeWriterSinkStage(PipeWriter writer)
+    public PipeSinkStage(PipeWriter writer)
     {
         _writer = writer;
         Shape = new SinkShape<ReadOnlyMemory<byte>>(_in);
@@ -31,11 +31,11 @@ internal sealed class PipeWriterSinkStage : GraphStageWithMaterializedValue<Sink
 
     private sealed class Logic : GraphStageLogic
     {
-        private readonly PipeWriterSinkStage _stage;
+        private readonly PipeSinkStage _stage;
         private readonly TaskCompletionSource _tcs;
         private IActorRef _stageActor = ActorRefs.Nobody;
 
-        public Logic(PipeWriterSinkStage stage, TaskCompletionSource tcs) : base(stage.Shape)
+        public Logic(PipeSinkStage stage, TaskCompletionSource tcs) : base(stage.Shape)
         {
             _stage = stage;
             _tcs = tcs;

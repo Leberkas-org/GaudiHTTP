@@ -5,12 +5,12 @@ using Akka.Streams.Stage;
 
 namespace Servus.Akka.Streams.IO;
 
-internal sealed class PipeReaderSourceStage : GraphStage<SourceShape<ReadOnlyMemory<byte>>>
+internal sealed class PipeSourceStage : GraphStage<SourceShape<ReadOnlyMemory<byte>>>
 {
     private readonly PipeReader _reader;
     private readonly Outlet<ReadOnlyMemory<byte>> _out = new("PipeReaderSource.Out");
 
-    public PipeReaderSourceStage(PipeReader reader)
+    public PipeSourceStage(PipeReader reader)
     {
         _reader = reader;
         Shape = new SourceShape<ReadOnlyMemory<byte>>(_out);
@@ -26,11 +26,11 @@ internal sealed class PipeReaderSourceStage : GraphStage<SourceShape<ReadOnlyMem
 
     private sealed class Logic : GraphStageLogic
     {
-        private readonly PipeReaderSourceStage _stage;
+        private readonly PipeSourceStage _stage;
         private IActorRef _stageActor = ActorRefs.Nobody;
         private bool _completing;
 
-        public Logic(PipeReaderSourceStage stage) : base(stage.Shape)
+        public Logic(PipeSourceStage stage) : base(stage.Shape)
         {
             _stage = stage;
             SetHandler(stage._out, onPull: OnPull);

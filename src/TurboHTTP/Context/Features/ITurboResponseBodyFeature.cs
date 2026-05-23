@@ -6,4 +6,5 @@ namespace TurboHTTP.Context.Features;
 public interface ITurboResponseBodyFeature : IHttpResponseBodyFeature
 {
     Sink<ReadOnlyMemory<byte>, Task> BodySink { get; }
+    Task WhenSinkCompleted { get; }
 }

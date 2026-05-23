@@ -7,11 +7,11 @@ using Servus.Akka.Streams.IO;
 
 namespace Servus.Akka.Tests.Streams.IO;
 
-public sealed class PipeWriterSinkStageSpec : TestKit
+public sealed class PipeSinkStageSpec : TestKit
 {
     private readonly IMaterializer _materializer;
 
-    public PipeWriterSinkStageSpec() : base(ActorSystem.Create("test"))
+    public PipeSinkStageSpec() : base(ActorSystem.Create("test"))
     {
         _materializer = Sys.Materializer();
     }
@@ -20,7 +20,7 @@ public sealed class PipeWriterSinkStageSpec : TestKit
     public async Task Sink_should_write_data_to_pipe_reader()
     {
         var pipe = new Pipe();
-        var sink = StreamSink.To(pipe.Writer);
+        var sink = PipeSink.To(pipe.Writer);
 
         var data = new byte[] { 1, 2, 3, 4, 5 };
         await Source.Single((ReadOnlyMemory<byte>)data.AsMemory())
@@ -39,7 +39,7 @@ public sealed class PipeWriterSinkStageSpec : TestKit
     public async Task Sink_should_write_multiple_chunks_to_pipe_reader()
     {
         var pipe = new Pipe();
-        var sink = StreamSink.To(pipe.Writer);
+        var sink = PipeSink.To(pipe.Writer);
 
         var chunks = new[]
         {
@@ -77,7 +77,7 @@ public sealed class PipeWriterSinkStageSpec : TestKit
     public async Task Sink_should_complete_task_when_upstream_finishes()
     {
         var pipe = new Pipe();
-        var sink = StreamSink.To(pipe.Writer);
+        var sink = PipeSink.To(pipe.Writer);
 
         var task = Source.Empty<ReadOnlyMemory<byte>>()
             .RunWith(sink, _materializer);
@@ -94,7 +94,7 @@ public sealed class PipeWriterSinkStageSpec : TestKit
     public async Task Sink_should_fault_task_when_upstream_fails()
     {
         var pipe = new Pipe();
-        var sink = StreamSink.To(pipe.Writer);
+        var sink = PipeSink.To(pipe.Writer);
 
         var error = new InvalidOperationException("test failure");
         var task = Source.Failed<ReadOnlyMemory<byte>>(error)
@@ -109,7 +109,7 @@ public sealed class PipeWriterSinkStageSpec : TestKit
     public async Task Sink_should_skip_empty_chunks()
     {
         var pipe = new Pipe();
-        var sink = StreamSink.To(pipe.Writer);
+        var sink = PipeSink.To(pipe.Writer);
 
         var chunks = new[]
         {

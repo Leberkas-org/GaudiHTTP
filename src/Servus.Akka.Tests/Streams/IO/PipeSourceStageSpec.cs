@@ -7,11 +7,11 @@ using Servus.Akka.Streams.IO;
 
 namespace Servus.Akka.Tests.Streams.IO;
 
-public sealed class PipeReaderSourceStageSpec : TestKit
+public sealed class PipeSourceStageSpec : TestKit
 {
     private readonly IMaterializer _materializer;
 
-    public PipeReaderSourceStageSpec() : base(ActorSystem.Create("test"))
+    public PipeSourceStageSpec() : base(ActorSystem.Create("test"))
     {
         _materializer = Sys.Materializer();
     }
@@ -20,7 +20,7 @@ public sealed class PipeReaderSourceStageSpec : TestKit
     public async Task Source_should_emit_data_written_to_pipe()
     {
         var pipe = new Pipe();
-        var source = StreamSource.From(pipe.Reader);
+        var source = PipeSource.From(pipe.Reader);
 
         var data = new byte[] { 1, 2, 3, 4, 5 };
         await pipe.Writer.WriteAsync(data, CancellationToken.None);
@@ -39,7 +39,7 @@ public sealed class PipeReaderSourceStageSpec : TestKit
         var pipe = new Pipe();
         await pipe.Writer.CompleteAsync();
 
-        var source = StreamSource.From(pipe.Reader);
+        var source = PipeSource.From(pipe.Reader);
 
         var result = await source
             .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), _materializer);
@@ -51,7 +51,7 @@ public sealed class PipeReaderSourceStageSpec : TestKit
     public async Task Source_should_emit_multiple_chunks()
     {
         var pipe = new Pipe();
-        var source = StreamSource.From(pipe.Reader);
+        var source = PipeSource.From(pipe.Reader);
 
         await pipe.Writer.WriteAsync(new byte[] { 1, 2, 3 }, CancellationToken.None);
         await pipe.Writer.FlushAsync(CancellationToken.None);
@@ -69,14 +69,14 @@ public sealed class PipeReaderSourceStageSpec : TestKit
     public async Task Source_should_handle_incremental_writes()
     {
         var pipe = new Pipe();
-        var source = StreamSource.From(pipe.Reader);
+        var source = PipeSource.From(pipe.Reader);
 
         var collectTask = source
             .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), _materializer);
 
         await pipe.Writer.WriteAsync(new byte[] { 10, 20 }, CancellationToken.None);
         await pipe.Writer.FlushAsync(CancellationToken.None);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         await pipe.Writer.WriteAsync(new byte[] { 30 }, CancellationToken.None);
         await pipe.Writer.CompleteAsync();
 

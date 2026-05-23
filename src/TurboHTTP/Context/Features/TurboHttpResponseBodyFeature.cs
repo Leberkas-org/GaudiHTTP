@@ -1,9 +1,7 @@
 using System.Buffers;
 using System.IO.Pipelines;
 using Akka;
-using Akka.Streams;
 using Akka.Streams.Dsl;
-using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Streams.IO;
 
 namespace TurboHTTP.Context.Features;
@@ -13,12 +11,11 @@ internal sealed class TurboHttpResponseBodyFeature : ITurboResponseBodyFeature
     private readonly Pipe _pipe = new();
     private readonly TaskCompletionSource _headerCommit = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Func<Task>? _onStarting;
-    private bool _started;
     private bool _completed;
 
     internal void SetOnStarting(Func<Task> onStarting) => _onStarting = onStarting;
 
-    internal bool HasStarted => _started;
+    internal bool HasStarted { get; private set; }
 
     internal Task WhenHeadersReady => _headerCommit.Task;
 
@@ -26,13 +23,15 @@ internal sealed class TurboHttpResponseBodyFeature : ITurboResponseBodyFeature
 
     public PipeWriter Writer => _pipe.Writer;
 
+    public Task WhenSinkCompleted => Task.CompletedTask;
+
     public Sink<ReadOnlyMemory<byte>, Task> BodySink
     {
         get
         {
             if (field == null)
             {
-                var pipeSink = StreamSink.To(_pipe.Writer);
+                var pipeSink = PipeSink.To(_pipe.Writer);
                 field = Flow.Create<ReadOnlyMemory<byte>>()
                     .SelectAsync(1, async chunk =>
                     {
@@ -112,16 +111,16 @@ internal sealed class TurboHttpResponseBodyFeature : ITurboResponseBodyFeature
 
     internal Source<ReadOnlyMemory<byte>, NotUsed> GetResponseSource()
     {
-        return StreamSource.From(_pipe.Reader);
+        return PipeSource.From(_pipe.Reader);
     }
 
     internal Stream GetResponseStream() => _pipe.Reader.AsStream();
 
     private async Task EnsureStartedAsync()
     {
-        if (!_started)
+        if (!HasStarted)
         {
-            _started = true;
+            HasStarted = true;
             if (_onStarting is not null)
             {
                 await _onStarting();
