@@ -43,14 +43,11 @@
         <InternalsVisibleTo Include="TurboHTTP.Tests"/>
         <InternalsVisibleTo Include="TurboHTTP.AcceptanceTests"/>
         <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Client"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Container"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.E2E"/>
+        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.End2End"/>
         <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Server"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Shared"/>
         <InternalsVisibleTo Include="TurboHTTP.Tests.Shared"/>
         <InternalsVisibleTo Include="TurboHTTP.Benchmarks"/>
         <InternalsVisibleTo Include="TurboHTTP.MicroBenchmarks"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Kestrel"/>
     </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\Servus.Akka\Servus.Akka.csproj"/>

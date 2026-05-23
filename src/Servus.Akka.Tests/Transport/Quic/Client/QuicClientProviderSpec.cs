@@ -361,7 +361,7 @@ public sealed class QuicClientProviderSpec
 
             await provider.DisposeAsync();
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                 provider.GetStreamAsync(TestContext.Current.CancellationToken));
         }
         finally

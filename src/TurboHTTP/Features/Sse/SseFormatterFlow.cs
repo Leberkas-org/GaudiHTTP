@@ -4,12 +4,12 @@ using Akka.Streams.Dsl;
 
 namespace TurboHTTP.Features.Sse;
 
-public static class SseFormatterFlow
+internal static class SseFormatterFlow
 {
     public static Flow<ServerSentEvent, ReadOnlyMemory<byte>, NotUsed> Instance { get; }
         = Flow.Create<ServerSentEvent>().Select(Format);
 
-    internal static ReadOnlyMemory<byte> Format(ServerSentEvent evt)
+    private static ReadOnlyMemory<byte> Format(ServerSentEvent evt)
     {
         var sb = new StringBuilder();
 

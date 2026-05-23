@@ -1,9 +1,9 @@
 ﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/leberkas-org/TurboHTTP.git")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.AcceptanceTests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Benchmarks")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Container")]
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Kestrel")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Client")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.End2End")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Server")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.MicroBenchmarks")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Tests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Tests.Shared")]
@@ -573,7 +573,7 @@ namespace TurboHTTP.Server
         public override Microsoft.AspNetCore.Http.ConnectionInfo Connection { get; }
         public override Microsoft.AspNetCore.Http.Features.IFeatureCollection Features { get; }
         public override System.Collections.Generic.IDictionary<object, object?> Items { get; set; }
-        public Akka.Streams.IMaterializer Materializer { get; }
+        public Akka.Streams.IMaterializer Materializer { get; set; }
         public override Microsoft.AspNetCore.Http.HttpRequest Request { get; }
         public override System.Threading.CancellationToken RequestAborted { get; set; }
         public override System.IServiceProvider RequestServices { get; set; }
@@ -698,6 +698,7 @@ namespace TurboHTTP.Server
     }
     public static class TurboStreamResults
     {
+        public static Microsoft.AspNetCore.Http.IResult EventStream(Akka.Streams.Dsl.Source<TurboHTTP.Features.Sse.ServerSentEvent, Akka.NotUsed> source) { }
         public static Microsoft.AspNetCore.Http.IResult EventStream(Akka.Streams.Dsl.Source<string, Akka.NotUsed> source) { }
         public static Microsoft.AspNetCore.Http.IResult Stream(Akka.Streams.Dsl.Source<System.ReadOnlyMemory<byte>, Akka.NotUsed> source, string? contentType = null) { }
     }

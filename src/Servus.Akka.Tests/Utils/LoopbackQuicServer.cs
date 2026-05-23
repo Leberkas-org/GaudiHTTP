@@ -24,13 +24,24 @@ public sealed class LoopbackQuicServer : IAsyncDisposable
     {
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=localhost", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        var cert = req.CreateSelfSigned(DateTimeOffset.Now, DateTimeOffset.Now.AddHours(1));
+        var san = new SubjectAlternativeNameBuilder();
+        san.AddDnsName("localhost");
+        san.AddIpAddress(IPAddress.Loopback);
+        req.CertificateExtensions.Add(san.Build());
+        req.CertificateExtensions.Add(
+            new X509EnhancedKeyUsageExtension(
+                new OidCollection { new Oid("1.3.6.1.5.5.7.3.1") }, false));
+        var ephemeral = req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddHours(1));
+        var pfx = ephemeral.Export(X509ContentType.Pfx, "");
+        var cert = X509CertificateLoader.LoadPkcs12(pfx, "", X509KeyStorageFlags.Exportable);
+        ephemeral.Dispose();
 
+        var certContext = SslStreamCertificateContext.Create(cert, null);
         var protocols = new List<SslApplicationProtocol> { Alpn };
 
         var listener = await QuicListener.ListenAsync(new QuicListenerOptions
         {
-            ListenEndPoint = new IPEndPoint(IPAddress.Loopback, 0),
+            ListenEndPoint = new IPEndPoint(IPAddress.IPv6Loopback, 0),
             ApplicationProtocols = protocols,
             ConnectionOptionsCallback = (_, _, _) => ValueTask.FromResult(new QuicServerConnectionOptions
             {
@@ -38,7 +49,7 @@ public sealed class LoopbackQuicServer : IAsyncDisposable
                 DefaultCloseErrorCode = 0x0100,
                 ServerAuthenticationOptions = new SslServerAuthenticationOptions
                 {
-                    ServerCertificate = cert,
+                    ServerCertificateContext = certContext,
                     ApplicationProtocols = protocols
                 }
             })
