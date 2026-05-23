@@ -1,15 +1,10 @@
-using Akka.Actor;
-using Akka.Event;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Context;
 using TurboHTTP.Context.Features;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 using TurboHTTP.Server;
-using TurboHTTP.Streams.Stages.Server;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
@@ -21,19 +16,6 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 /// </summary>
 public sealed class Http3ServerStateMachineSpec
 {
-    private static TurboHttpContext CreateResponseContext(long streamId = 999)
-    {
-        var features = new FeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
-        features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
-        var bodyFeature = new TurboHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
-        features.Set<ITurboResponseBodyFeature>(bodyFeature);
-        return new TurboHttpContext(features);
-    }
-
-
     private static byte[] BuildHeadersFrameData(ReadOnlyMemory<byte> headerBlock)
     {
         var headersFrame = new HeadersFrame(headerBlock);
@@ -215,7 +197,7 @@ public sealed class Http3ServerStateMachineSpec
         var bodyFeature = context.Features.Get<ITurboRequestBodyFeature>();
         Assert.NotNull(bodyFeature);
         var bodyStream = bodyFeature.Body;
-        var content = await new StreamReader(bodyStream).ReadToEndAsync();
+        var content = await new StreamReader(bodyStream).ReadToEndAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodyContent, content);
     }
 
@@ -306,7 +288,8 @@ public sealed class Http3ServerStateMachineSpec
         Assert.Equal(streamId, frameItems[0].StreamId.Value);
 
         // Should schedule drain-body timer
-        Assert.True(ops.ScheduledTimers.Any(t => t.Name == $"drain-body:{streamId}"), "Should schedule drain-body timer");
+        Assert.True(ops.ScheduledTimers.Any(t => t.Name == $"drain-body:{streamId}"),
+            "Should schedule drain-body timer");
     }
 
     [Fact(Timeout = 5000)]
@@ -419,5 +402,3 @@ public sealed class Http3ServerStateMachineSpec
         sm.Cleanup();
     }
 }
-
-

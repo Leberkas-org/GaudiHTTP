@@ -12,6 +12,6 @@ public static class StreamSink
 
     public static Sink<ReadOnlyMemory<byte>, Task> To(Stream stream)
     {
-        return To(PipeWriter.Create(stream));
+        return Sink.FromGraph(new StreamSinkStage(stream));
     }
 }

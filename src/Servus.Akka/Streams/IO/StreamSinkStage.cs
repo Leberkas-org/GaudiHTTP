@@ -1,18 +1,18 @@
-using System.IO.Pipelines;
+using System.Threading.Tasks;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Stage;
 
 namespace Servus.Akka.Streams.IO;
 
-internal sealed class PipeWriterSinkStage : GraphStageWithMaterializedValue<SinkShape<ReadOnlyMemory<byte>>, Task>
+internal sealed class StreamSinkStage : GraphStageWithMaterializedValue<SinkShape<ReadOnlyMemory<byte>>, Task>
 {
-    private readonly PipeWriter _writer;
-    private readonly Inlet<ReadOnlyMemory<byte>> _in = new("PipeWriterSink.In");
+    private readonly Stream _stream;
+    private readonly Inlet<ReadOnlyMemory<byte>> _in = new("StreamSink.In");
 
-    public PipeWriterSinkStage(PipeWriter writer)
+    public StreamSinkStage(Stream stream)
     {
-        _writer = writer;
+        _stream = stream;
         Shape = new SinkShape<ReadOnlyMemory<byte>>(_in);
     }
 
@@ -25,17 +25,17 @@ internal sealed class PipeWriterSinkStage : GraphStageWithMaterializedValue<Sink
         return new LogicAndMaterializedValue<Task>(logic, tcs.Task);
     }
 
-    private sealed record FlushCompleted(FlushResult Result);
+    private sealed record WriteCompleted;
 
-    private sealed record FlushFailed(Exception Error);
+    private sealed record WriteFailed(Exception Error);
 
     private sealed class Logic : GraphStageLogic
     {
-        private readonly PipeWriterSinkStage _stage;
+        private readonly StreamSinkStage _stage;
         private readonly TaskCompletionSource _tcs;
         private IActorRef _stageActor = ActorRefs.Nobody;
 
-        public Logic(PipeWriterSinkStage stage, TaskCompletionSource tcs) : base(stage.Shape)
+        public Logic(StreamSinkStage stage, TaskCompletionSource tcs) : base(stage.Shape)
         {
             _stage = stage;
             _tcs = tcs;
@@ -44,13 +44,21 @@ internal sealed class PipeWriterSinkStage : GraphStageWithMaterializedValue<Sink
                 onPush: OnPush,
                 onUpstreamFinish: () =>
                 {
-                    _stage._writer.Complete();
-                    _tcs.TrySetResult();
-                    CompleteStage();
+                    var vt = _stage._stream.FlushAsync();
+
+                    if (vt.IsCompleted)
+                    {
+                        _tcs.TrySetResult();
+                        CompleteStage();
+                        return;
+                    }
+
+                    vt.PipeTo(_stageActor,
+                        success: () => new WriteCompleted(),
+                        failure: ex => new WriteFailed(ex));
                 },
                 onUpstreamFailure: ex =>
                 {
-                    _stage._writer.Complete(ex);
                     _tcs.TrySetException(ex);
                     FailStage(ex);
                 });
@@ -71,51 +79,44 @@ internal sealed class PipeWriterSinkStage : GraphStageWithMaterializedValue<Sink
                 return;
             }
 
-            var vt = _stage._writer.WriteAsync(chunk);
+            var vt = _stage._stream.WriteAsync(chunk);
 
             if (vt.IsCompleted)
             {
-                ProcessFlushResult(vt.Result);
+                Pull(_stage._in);
                 return;
             }
 
-            _ = vt.PipeTo(_stageActor,
-                success: result => new FlushCompleted(result),
-                failure: ex => new FlushFailed(ex));
+            vt.AsTask().PipeTo(_stageActor,
+                success: () => new WriteCompleted(),
+                failure: ex => new WriteFailed(ex));
         }
 
         private void OnMessage((IActorRef sender, object msg) args)
         {
             switch (args.msg)
             {
-                case FlushCompleted completed:
-                    ProcessFlushResult(completed.Result);
+                case WriteCompleted:
+                    if (IsClosed(_stage._in))
+                    {
+                        _tcs.TrySetResult();
+                        CompleteStage();
+                    }
+                    else
+                    {
+                        Pull(_stage._in);
+                    }
                     break;
 
-                case FlushFailed failed:
-                    _stage._writer.Complete(failed.Error);
+                case WriteFailed failed:
                     _tcs.TrySetException(failed.Error);
-                    CompleteStage();
+                    FailStage(failed.Error);
                     break;
             }
-        }
-
-        private void ProcessFlushResult(FlushResult result)
-        {
-            if (result.IsCompleted || result.IsCanceled)
-            {
-                _stage._writer.Complete();
-                _tcs.TrySetResult();
-                CompleteStage();
-                return;
-            }
-
-            Pull(_stage._in);
         }
 
         public override void PostStop()
         {
-            _stage._writer.CancelPendingFlush();
             _tcs.TrySetCanceled();
         }
     }

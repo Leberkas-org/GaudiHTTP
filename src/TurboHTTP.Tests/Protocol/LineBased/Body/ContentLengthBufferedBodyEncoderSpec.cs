@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text;
 using Akka.TestKit.Xunit;
 using TurboHTTP.Protocol;
@@ -15,7 +14,7 @@ public sealed class ContentLengthBufferedBodyEncoderSpec : TestKit
         var content = new ByteArrayContent("hello"u8.ToArray());
         using var encoder = new ContentLengthBufferedBodyEncoder();
 
-        var bodyStream = content.ReadAsStream();
+        var bodyStream = content.ReadAsStream(TestContext.Current.CancellationToken);
         encoder.Start(bodyStream, probe.Ref);
 
         var msg1 = probe.ReceiveOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);

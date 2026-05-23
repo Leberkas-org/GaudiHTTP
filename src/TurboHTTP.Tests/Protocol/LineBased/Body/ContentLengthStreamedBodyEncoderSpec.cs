@@ -15,7 +15,7 @@ public sealed class ContentLengthStreamedBodyEncoderSpec : TestKit
         var content = new ByteArrayContent(body);
         using var encoder = new ContentLengthStreamedBodyEncoder(chunkSize: 16_384);
 
-        var bodyStream = content.ReadAsStream();
+        var bodyStream = content.ReadAsStream(TestContext.Current.CancellationToken);
         encoder.Start(bodyStream, probe.Ref);
 
         var received = new List<byte>();
@@ -40,7 +40,7 @@ public sealed class ContentLengthStreamedBodyEncoderSpec : TestKit
         var content = new ByteArrayContent(body);
         using var encoder = new ContentLengthStreamedBodyEncoder(chunkSize: 400);
 
-        var bodyStream = content.ReadAsStream();
+        var bodyStream = content.ReadAsStream(TestContext.Current.CancellationToken);
         encoder.Start(bodyStream, probe.Ref);
 
         var chunks = new List<OutboundBodyChunk>();

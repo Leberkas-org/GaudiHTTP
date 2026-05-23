@@ -11,8 +11,8 @@ public static class StreamSource
         return Source.FromGraph(new PipeReaderSourceStage(reader));
     }
 
-    public static Source<ReadOnlyMemory<byte>, NotUsed> From(Stream stream)
+    public static Source<ReadOnlyMemory<byte>, NotUsed> From(Stream stream, int bufferSize = 8 * 1024)
     {
-        return From(PipeReader.Create(stream));
+        return Source.FromGraph(new StreamSourceStage(stream, bufferSize));
     }
 }

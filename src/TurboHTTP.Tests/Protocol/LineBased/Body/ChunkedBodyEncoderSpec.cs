@@ -14,7 +14,7 @@ public sealed class ChunkedBodyEncoderSpec : TestKit
         var content = new ByteArrayContent("hello"u8.ToArray());
         using var encoder = new ChunkedBodyEncoder(chunkSize: 16_384);
 
-        var bodyStream = content.ReadAsStream();
+        var bodyStream = content.ReadAsStream(TestContext.Current.CancellationToken);
         encoder.Start(bodyStream, probe.Ref);
 
         var chunks = new List<OutboundBodyChunk>();
@@ -43,7 +43,7 @@ public sealed class ChunkedBodyEncoderSpec : TestKit
         var content = new ByteArrayContent([]);
         using var encoder = new ChunkedBodyEncoder(chunkSize: 16_384);
 
-        var bodyStream = content.ReadAsStream();
+        var bodyStream = content.ReadAsStream(TestContext.Current.CancellationToken);
         encoder.Start(bodyStream, probe.Ref);
 
         var msg = probe.ReceiveOne(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);

@@ -1,9 +1,10 @@
 using System.Buffers;
 using System.IO.Pipelines;
 using Akka;
+using Akka.Streams;
 using Akka.Streams.Dsl;
-using Akka.Util;
 using Microsoft.AspNetCore.Http.Features;
+using Servus.Akka.Streams.IO;
 
 namespace TurboHTTP.Context.Features;
 
@@ -31,16 +32,14 @@ internal sealed class TurboHttpResponseBodyFeature : ITurboResponseBodyFeature
         {
             if (field == null)
             {
-                var sink = Sink.ForEachAsync<ReadOnlyMemory<byte>>(1, async chunk =>
-                {
-                    await EnsureStartedAsync();
-                    var memory = _pipe.Writer.GetMemory(chunk.Length);
-                    chunk.CopyTo(memory);
-                    _pipe.Writer.Advance(chunk.Length);
-                    await _pipe.Writer.FlushAsync();
-                });
-                field = sink.MapMaterializedValue(task =>
-                    task.ContinueWith(_ => Task.CompletedTask, TaskScheduler.Default).Unwrap());
+                var pipeSink = StreamSink.To(_pipe.Writer);
+                field = Flow.Create<ReadOnlyMemory<byte>>()
+                    .SelectAsync(1, async chunk =>
+                    {
+                        await EnsureStartedAsync();
+                        return chunk;
+                    })
+                    .ToMaterialized(pipeSink, Keep.Right);
             }
 
             return field;
@@ -113,39 +112,7 @@ internal sealed class TurboHttpResponseBodyFeature : ITurboResponseBodyFeature
 
     internal Source<ReadOnlyMemory<byte>, NotUsed> GetResponseSource()
     {
-        return Source.UnfoldAsync(_pipe.Reader, async reader =>
-        {
-            var readResult = await reader.ReadAsync();
-            var buffer = readResult.Buffer;
-
-            if (buffer.IsEmpty && readResult.IsCompleted)
-            {
-                reader.AdvanceTo(buffer.End);
-                return Option<(PipeReader, ReadOnlyMemory<byte>)>.None;
-            }
-
-            if (buffer.IsEmpty)
-            {
-                reader.AdvanceTo(buffer.Start);
-                return Option<(PipeReader, ReadOnlyMemory<byte>)>.None;
-            }
-
-            ReadOnlyMemory<byte> chunk;
-            if (buffer.IsSingleSegment)
-            {
-                chunk = buffer.First;
-            }
-            else
-            {
-                var pooled = ArrayPool<byte>.Shared.Rent((int)buffer.Length);
-                buffer.CopyTo(pooled);
-                chunk = new ReadOnlyMemory<byte>(pooled, 0, (int)buffer.Length);
-            }
-
-            reader.AdvanceTo(buffer.End);
-
-            return (reader, chunk);
-        });
+        return StreamSource.From(_pipe.Reader);
     }
 
     internal Stream GetResponseStream() => _pipe.Reader.AsStream();

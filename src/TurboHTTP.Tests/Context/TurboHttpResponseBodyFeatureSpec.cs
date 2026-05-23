@@ -145,7 +145,7 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
 
         Assert.False(feature.WhenHeadersReady.IsCompleted);
 
-        await feature.StartAsync();
+        await feature.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.True(feature.WhenHeadersReady.IsCompleted);
         Assert.True(feature.HasStarted);
