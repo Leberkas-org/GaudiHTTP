@@ -9,9 +9,9 @@ using Microsoft.AspNetCore.Http;
 using TurboHTTP.Context.Features;
 using TurboHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Hosting.Tls;
+namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
 
-public sealed class TlsHandshakeFeatureSpec : IAsyncLifetime
+public sealed class TlsHandshakeFeatureSpec : Xunit.IAsyncLifetime
 {
     private WebApplication? _app;
     private ushort _port;

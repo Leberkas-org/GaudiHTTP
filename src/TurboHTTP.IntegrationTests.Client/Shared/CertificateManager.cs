@@ -2,7 +2,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace TurboHTTP.IntegrationTests.Shared;
+namespace TurboHTTP.IntegrationTests.Client.Shared;
 
 internal static class CertificateManager
 {

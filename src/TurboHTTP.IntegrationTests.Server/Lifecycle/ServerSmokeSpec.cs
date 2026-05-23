@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Http;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Lifecycle;
+namespace TurboHTTP.IntegrationTests.Server.Lifecycle;
 
-public sealed class ServerSmokeSpec : IAsyncLifetime
+public sealed class ServerSmokeSpec : Xunit.IAsyncLifetime
 {
     private WebApplication? _app;
     private int _port;

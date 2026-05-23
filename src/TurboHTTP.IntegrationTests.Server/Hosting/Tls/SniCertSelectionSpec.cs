@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using TurboHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Hosting.Tls;
+namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
 
-public sealed class SniCertSelectionSpec : IAsyncLifetime
+public sealed class SniCertSelectionSpec : Xunit.IAsyncLifetime
 {
     private WebApplication? _app;
     private ushort _port;

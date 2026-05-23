@@ -1,7 +1,7 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Networks;
 
-namespace TurboHTTP.IntegrationTests.Shared;
+namespace TurboHTTP.IntegrationTests.Client.Shared;
 
 internal sealed class DockerTestBackend : ITestBackend
 {

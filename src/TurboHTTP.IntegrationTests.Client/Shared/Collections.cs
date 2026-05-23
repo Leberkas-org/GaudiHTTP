@@ -1,9 +1,10 @@
-using TurboHTTP.IntegrationTests.Shared;
+using TurboHTTP.Tests.Shared;
+using TurboHTTP.IntegrationTests.Client.Shared;
 
 [assembly: AssemblyFixture(typeof(ServerContainerFixture))]
 [assembly: AssemblyFixture(typeof(ActorSystemFixture))]
 
-namespace TurboHTTP.IntegrationTests.Shared;
+namespace TurboHTTP.IntegrationTests.Client.Shared;
 
 [CollectionDefinition("H10")]
 public sealed class H10IntegrationCollection;

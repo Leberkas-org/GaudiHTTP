@@ -8,9 +8,9 @@ using Microsoft.AspNetCore.Http;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.Hosting.Tls;
+namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
 
-public sealed class ClientCertificateModeAllowSpec : IAsyncLifetime
+public sealed class ClientCertificateModeAllowSpec : Xunit.IAsyncLifetime
 {
     private WebApplication? _app;
     private ushort _port;

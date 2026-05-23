@@ -3,7 +3,7 @@ using System.Text;
 using Akka;
 using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http;
-using TurboHTTP.IntegrationTests.Shared;
+using TurboHTTP.Tests.Shared;
 using TurboHTTP.Server;
 using Xunit;
 

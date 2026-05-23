@@ -1,8 +1,10 @@
 using TurboHTTP.Client;
+using TurboHTTP.Tests.Shared;
+using TurboHTTP.IntegrationTests.Client.Shared;
 
-namespace TurboHTTP.IntegrationTests.Shared;
+namespace TurboHTTP.IntegrationTests.Client.Shared;
 
-public abstract class IntegrationSpecBase : IAsyncLifetime
+public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
 {
     private readonly ActorSystemFixture _systemFixture;
     private ClientHelper? _helper;

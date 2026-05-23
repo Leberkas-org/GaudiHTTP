@@ -1,6 +1,9 @@
-namespace TurboHTTP.IntegrationTests.Shared;
+using TurboHTTP.Tests.Shared;
+using TurboHTTP.IntegrationTests.Client.Shared;
 
-public sealed class ServerContainerFixture : IAsyncLifetime
+namespace TurboHTTP.IntegrationTests.Client.Shared;
+
+public sealed class ServerContainerFixture : Xunit.IAsyncLifetime
 {
     private ITestBackend? _backend;
 

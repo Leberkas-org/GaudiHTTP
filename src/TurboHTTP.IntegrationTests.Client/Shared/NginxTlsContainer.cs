@@ -4,7 +4,7 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Networks;
 
-namespace TurboHTTP.IntegrationTests.Shared;
+namespace TurboHTTP.IntegrationTests.Client.Shared;
 
 internal sealed record NginxContainerOptions(
     string Name,
