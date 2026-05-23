@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
+using Xunit;
 
 namespace TurboHTTP.Tests.Shared;
 

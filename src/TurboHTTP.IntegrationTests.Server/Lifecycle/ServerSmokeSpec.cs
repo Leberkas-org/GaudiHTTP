@@ -1,57 +1,49 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text.Json;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Servus.Akka.Transport;
+using TurboHTTP.IntegrationTests.Server.Shared;
+using TurboHTTP.Routing;
 using TurboHTTP.Server;
 
 namespace TurboHTTP.IntegrationTests.Server.Lifecycle;
 
-public sealed class ServerSmokeSpec : IAsyncLifetime
+public sealed class ServerSmokeSpec : ServerSpecBase
 {
-    private WebApplication? _app;
-    private int _port;
-    private HttpClient? _client;
-
-    public async ValueTask InitializeAsync()
+    protected override void ConfigureServer(IServiceCollection services, ushort port)
     {
-        _port = GetFreePort();
-        var builder = WebApplication.CreateBuilder();
-
-        builder.Services.AddTurboKestrel(options =>
+        services.AddTurboKestrel(options =>
         {
-            options.Bind(new TcpListenerOptions { Host = "127.0.0.1", Port = (ushort)_port });
+            options.Bind(new TcpListenerOptions { Host = "127.0.0.1", Port = port });
         });
-        _app = builder.Build();
-        RegisterRoutes();
-        await _app.StartAsync();
-        _client = new HttpClient();
     }
 
-    public async ValueTask DisposeAsync()
+    protected override void ConfigureRoutes(TurboRouteTable routeTable)
     {
-        if (_client is not null)
+        routeTable.Add(HttpMethod.Get, "/hello", () => Results.Ok("Hello from TurboHTTP Server"));
+        routeTable.Add(HttpMethod.Post, "/echo", async (HttpContext ctx) =>
         {
-            _client.Dispose();
-        }
-
-        if (_app is not null)
+            using var reader = new StreamReader(ctx.Request.Body);
+            var body = await reader.ReadToEndAsync(CancellationToken);
+            return Results.Ok(body);
+        });
+        routeTable.Add(HttpMethod.Get, "/connection-info", (HttpContext ctx) =>
         {
-            await _app.StopAsync();
-            await _app.DisposeAsync();
-        }
+            var remoteIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            return Results.Ok(remoteIp);
+        });
     }
 
     [Fact(Timeout = 15000)]
     public async Task Server_should_respond_to_get_request()
     {
-        var response = await _client!.GetAsync(
-            new Uri($"http://127.0.0.1:{_port}/hello"),
-            TestContext.Current.CancellationToken);
+        var response = await Client.GetAsync(
+            new Uri($"http://127.0.0.1:{Port}/hello"),
+            CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var value = JsonSerializer.Deserialize<string>(body);
         Assert.Equal("Hello from TurboHTTP Server", value);
     }
@@ -60,13 +52,13 @@ public sealed class ServerSmokeSpec : IAsyncLifetime
     public async Task Server_should_echo_post_body()
     {
         var payload = "test payload";
-        var request = new HttpRequestMessage(HttpMethod.Post, $"http://127.0.0.1:{_port}/echo")
+        var request = new HttpRequestMessage(HttpMethod.Post, $"http://127.0.0.1:{Port}/echo")
         {
             Content = new StringContent(payload)
         };
 
-        var response = await _client!.SendAsync(request, TestContext.Current.CancellationToken);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var response = await Client.SendAsync(request, CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var value = JsonSerializer.Deserialize<string>(body);
@@ -76,9 +68,9 @@ public sealed class ServerSmokeSpec : IAsyncLifetime
     [Fact(Timeout = 15000)]
     public async Task Server_should_return_404_for_unregistered_route()
     {
-        var response = await _client!.GetAsync(
-            new Uri($"http://127.0.0.1:{_port}/nonexistent"),
-            TestContext.Current.CancellationToken);
+        var response = await Client.GetAsync(
+            new Uri($"http://127.0.0.1:{Port}/nonexistent"),
+            CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -86,38 +78,13 @@ public sealed class ServerSmokeSpec : IAsyncLifetime
     [Fact(Timeout = 15000)]
     public async Task Server_should_expose_remote_ip()
     {
-        var response = await _client!.GetAsync(
-            new Uri($"http://127.0.0.1:{_port}/connection-info"),
-            TestContext.Current.CancellationToken);
+        var response = await Client.GetAsync(
+            new Uri($"http://127.0.0.1:{Port}/connection-info"),
+            CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(CancellationToken);
         var value = JsonSerializer.Deserialize<string>(body);
         Assert.Equal("127.0.0.1", value);
-    }
-
-    private void RegisterRoutes()
-    {
-        _app!.MapTurboGet("/hello", () => Results.Ok("Hello from TurboHTTP Server"));
-        _app!.MapTurboPost("/echo", async (HttpContext ctx) =>
-        {
-            using var reader = new StreamReader(ctx.Request.Body);
-            var body = await reader.ReadToEndAsync(TestContext.Current.CancellationToken);
-            return Results.Ok(body);
-        });
-        _app!.MapTurboGet("/connection-info", (HttpContext ctx) =>
-        {
-            var remoteIp = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-            return Results.Ok(remoteIp);
-        });
-    }
-
-    private static int GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
     }
 }

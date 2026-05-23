@@ -1,5 +1,4 @@
 using System.Net;
-using Akka;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -9,9 +8,9 @@ using TurboHTTP.Features.Sse;
 using TurboHTTP.Tests.Shared;
 using TurboHTTP.Server;
 
-namespace TurboHTTP.IntegrationTests.E2E;
+namespace TurboHTTP.IntegrationTests.End2End;
 
-public sealed class SseEndToEndSpec : Xunit.IAsyncLifetime
+public sealed class SseEndToEndSpec : IAsyncLifetime
 {
     private TurboServerFixture? _fixture;
     private ClientHelper? _client;

@@ -1,32 +1,27 @@
 using System.Net;
-using System.Net.Security;
-using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Servus.Akka.Transport;
+using TurboHTTP.IntegrationTests.Server.Shared;
+using TurboHTTP.Routing;
 using TurboHTTP.Server;
 
 namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
 
-public sealed class ClientCertificateModeRequireSpec : IAsyncLifetime
+public sealed class ClientCertificateModeRequireSpec : ServerSpecBase
 {
-    private WebApplication? _app;
-    private ushort _port;
     private X509Certificate2? _serverCert;
     private X509Certificate2? _clientCert;
 
-    public async ValueTask InitializeAsync()
+    protected override void ConfigureServer(IServiceCollection services, ushort port)
     {
-        _port = GetFreePort();
         _serverCert = CreateSelfSignedCertificate("localhost");
         _clientCert = CreateSelfSignedCertificate("client");
 
-        var builder = WebApplication.CreateBuilder();
-        builder.Services.AddTurboKestrel(options =>
+        services.AddTurboKestrel(options =>
         {
-            options.ListenLocalhost(_port, listen =>
+            options.ListenLocalhost(port, listen =>
             {
                 listen.UseHttps(_serverCert, httpsOptions =>
                 {
@@ -36,36 +31,31 @@ public sealed class ClientCertificateModeRequireSpec : IAsyncLifetime
                 listen.Protocols = HttpProtocols.Http1;
             });
         });
-
-        _app = builder.Build();
-        _app.MapTurboGet("/test", () => Results.Ok("OK"));
-        await _app.StartAsync();
     }
 
-    public async ValueTask DisposeAsync()
+    protected override void ConfigureRoutes(TurboRouteTable routeTable)
+    {
+        routeTable.Add(HttpMethod.Get, "/test", () => Results.Ok("OK"));
+    }
+
+    protected override HttpClient? CreateHttpClient() => null;
+
+    public override async ValueTask DisposeAsync()
     {
         _serverCert?.Dispose();
         _clientCert?.Dispose();
-        if (_app is not null)
-        {
-            await _app.StopAsync();
-            await _app.DisposeAsync();
-        }
+        await base.DisposeAsync();
     }
 
     [Fact(Timeout = 15000)]
     public async Task RequireCertificate_should_fail_without_client_certificate()
     {
-        var handler = new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback = (_, _, _, _) => true
-        };
-        using var client = new HttpClient(handler);
+        using var client = CreateTlsClient();
 
         var ex = await Assert.ThrowsAsync<HttpRequestException>(async () =>
             await client.GetAsync(
-                new Uri($"https://127.0.0.1:{_port}/test"),
-                TestContext.Current.CancellationToken));
+                new Uri($"https://127.0.0.1:{Port}/test"),
+                CancellationToken));
 
         Assert.NotNull(ex.InnerException);
     }
@@ -73,54 +63,12 @@ public sealed class ClientCertificateModeRequireSpec : IAsyncLifetime
     [Fact(Timeout = 15000)]
     public async Task RequireCertificate_should_accept_request_with_valid_client_certificate()
     {
-        var handler = new HttpClientHandler
-        {
-            ServerCertificateCustomValidationCallback = (_, _, _, _) => true,
-            ClientCertificateOptions = ClientCertificateOption.Manual
-        };
-        handler.ClientCertificates.Add(_clientCert!);
-
-        using var client = new HttpClient(handler);
+        using var client = CreateTlsClient(_clientCert);
 
         var response = await client.GetAsync(
-            new Uri($"https://127.0.0.1:{_port}/test"),
-            TestContext.Current.CancellationToken);
+            new Uri($"https://127.0.0.1:{Port}/test"),
+            CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
-
-    private static ushort GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return (ushort)port;
-    }
-
-    private static X509Certificate2 CreateSelfSignedCertificate(string cn)
-    {
-        using var rsa = RSA.Create(2048);
-        var request = new CertificateRequest(
-            $"CN={cn}",
-            rsa,
-            HashAlgorithmName.SHA256,
-            RSASignaturePadding.Pkcs1);
-
-        request.CertificateExtensions.Add(
-            new X509BasicConstraintsExtension(false, false, 0, false));
-
-        var sanBuilder = new SubjectAlternativeNameBuilder();
-        sanBuilder.AddDnsName(cn);
-        request.CertificateExtensions.Add(sanBuilder.Build());
-
-        var cert = request.CreateSelfSigned(
-            DateTimeOffset.UtcNow.AddMinutes(-1),
-            DateTimeOffset.UtcNow.AddHours(1));
-
-        return X509CertificateLoader.LoadPkcs12(
-            cert.Export(X509ContentType.Pfx),
-            null,
-            X509KeyStorageFlags.Exportable);
     }
 }

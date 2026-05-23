@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Servus.Core.Diagnostics;
 using TurboHTTP.Diagnostics;
+using Xunit;
 
 namespace TurboHTTP.Tests.Shared;
 

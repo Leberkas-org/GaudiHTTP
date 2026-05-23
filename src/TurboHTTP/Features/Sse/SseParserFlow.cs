@@ -55,11 +55,11 @@ internal sealed class SseParserStage : GraphStage<FlowShape<ReadOnlyMemory<byte>
                     var bytes = chunk.ToArray();
 
                     // Strip BOM if at start of stream (check bytes before decoding)
-                    int startIndex = 0;
+                    var startIndex = 0;
                     if (!_bomChecked)
                     {
                         _bomChecked = true;
-                        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+                        if (bytes is [0xEF, 0xBB, 0xBF, ..])
                         {
                             startIndex = 3;
                         }
@@ -156,7 +156,8 @@ internal sealed class SseParserStage : GraphStage<FlowShape<ReadOnlyMemory<byte>
                         endLength = 2;
                         break;
                     }
-                    else if (text[j] == '\r' || text[j] == '\n')
+
+                    if (text[j] == '\r' || text[j] == '\n')
                     {
                         lineEnd = j;
                         endLength = 1;
@@ -200,7 +201,7 @@ internal sealed class SseParserStage : GraphStage<FlowShape<ReadOnlyMemory<byte>
                 else
                 {
                     // No line ending found - buffer remaining text
-                    var remaining = text.Substring(i);
+                    var remaining = text[i..];
                     _lineBuffer.Append(remaining);
                     break;
                 }
@@ -220,7 +221,7 @@ internal sealed class SseParserStage : GraphStage<FlowShape<ReadOnlyMemory<byte>
             }
             else
             {
-                fieldName = line.Substring(0, colonIndex);
+                fieldName = line[..colonIndex];
                 var valueStart = colonIndex + 1;
 
                 // Strip leading space after colon
@@ -229,7 +230,7 @@ internal sealed class SseParserStage : GraphStage<FlowShape<ReadOnlyMemory<byte>
                     valueStart++;
                 }
 
-                fieldValue = valueStart < line.Length ? line.Substring(valueStart) : string.Empty;
+                fieldValue = valueStart < line.Length ? line[valueStart..] : string.Empty;
             }
 
             switch (fieldName)

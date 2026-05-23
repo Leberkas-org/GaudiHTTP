@@ -3,6 +3,7 @@ using Akka;
 using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http;
 using TurboHTTP.Context.Features;
+using TurboHTTP.Features.Sse;
 
 namespace TurboHTTP.Server;
 
@@ -11,6 +12,11 @@ public static class TurboStreamResults
     public static IResult EventStream(Source<string, NotUsed> source)
     {
         return new EventStreamResult(source);
+    }
+
+    public static IResult EventStream(Source<ServerSentEvent, NotUsed> source)
+    {
+        return new SseEventStreamResult(source);
     }
 
     public static IResult Stream(Source<ReadOnlyMemory<byte>, NotUsed> source, string? contentType = null)
@@ -25,7 +31,7 @@ internal sealed class EventStreamResult(Source<string, NotUsed> source) : IResul
     {
         httpContext.Response.StatusCode = 200;
         httpContext.Response.ContentType = "text/event-stream";
-        httpContext.Response.Headers["Cache-Control"] = "no-cache";
+        httpContext.Response.Headers.CacheControl = "no-cache";
 
         if (httpContext is not TurboHttpContext turboCtx)
         {
@@ -42,6 +48,31 @@ internal sealed class EventStreamResult(Source<string, NotUsed> source) : IResul
             var formatted = string.Concat("data: ", text, "\n\n");
             return (ReadOnlyMemory<byte>)Encoding.UTF8.GetBytes(formatted).AsMemory();
         });
+
+        await byteSource.RunWith(bodyFeature.BodySink, turboCtx.Materializer);
+        await bodyFeature.CompleteAsync();
+    }
+}
+
+internal sealed class SseEventStreamResult(Source<ServerSentEvent, NotUsed> source) : IResult
+{
+    public async Task ExecuteAsync(HttpContext httpContext)
+    {
+        httpContext.Response.StatusCode = 200;
+        httpContext.Response.ContentType = "text/event-stream";
+        httpContext.Response.Headers.CacheControl = "no-cache";
+
+        if (httpContext is not TurboHttpContext turboCtx)
+        {
+            return;
+        }
+
+        if (httpContext.Features.Get<ITurboResponseBodyFeature>() is not TurboHttpResponseBodyFeature bodyFeature)
+        {
+            return;
+        }
+
+        var byteSource = source.Via(SseFormatterFlow.Instance);
 
         await byteSource.RunWith(bodyFeature.BodySink, turboCtx.Materializer);
         await bodyFeature.CompleteAsync();
