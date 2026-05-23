@@ -1,0 +1,166 @@
+using System.Text;
+using Akka.Actor;
+using Akka.Streams;
+using Akka.Streams.Dsl;
+using Akka.TestKit.Xunit;
+using TurboHTTP.Features.Sse;
+
+namespace TurboHTTP.Tests.Features.Sse;
+
+public sealed class SseParserFlowSpec : TestKit
+{
+    private readonly IMaterializer _materializer;
+
+    public SseParserFlowSpec() : base(ActorSystem.Create("test"))
+    {
+        _materializer = Sys.Materializer();
+    }
+
+    private Source<ReadOnlyMemory<byte>, Akka.NotUsed> SseBytes(string raw)
+    {
+        return Source.Single((ReadOnlyMemory<byte>)Encoding.UTF8.GetBytes(raw));
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_parse_simple_data_event()
+    {
+        var result = await SseBytes("data: hello\n\n")
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("hello", result[0].Data);
+        Assert.Null(result[0].EventType);
+        Assert.Null(result[0].Id);
+        Assert.Null(result[0].Retry);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_parse_event_with_all_fields()
+    {
+        var raw = "event: update\ndata: payload\nid: 42\nretry: 3000\n\n";
+        var result = await SseBytes(raw)
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("payload", result[0].Data);
+        Assert.Equal("update", result[0].EventType);
+        Assert.Equal("42", result[0].Id);
+        Assert.Equal(TimeSpan.FromMilliseconds(3000), result[0].Retry);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_concatenate_multiline_data()
+    {
+        var raw = "data: line1\ndata: line2\ndata: line3\n\n";
+        var result = await SseBytes(raw)
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("line1\nline2\nline3", result[0].Data);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_ignore_comments()
+    {
+        var raw = ": this is a comment\ndata: visible\n\n";
+        var result = await SseBytes(raw)
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("visible", result[0].Data);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_parse_multiple_events()
+    {
+        var raw = "data: first\n\ndata: second\n\n";
+        var result = await SseBytes(raw)
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("first", result[0].Data);
+        Assert.Equal("second", result[1].Data);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_handle_crlf_line_endings()
+    {
+        var raw = "data: hello\r\n\r\n";
+        var result = await SseBytes(raw)
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("hello", result[0].Data);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_handle_split_across_chunks()
+    {
+        var result = await Source.From(new[]
+            {
+                (ReadOnlyMemory<byte>)Encoding.UTF8.GetBytes("data: hel"),
+                (ReadOnlyMemory<byte>)Encoding.UTF8.GetBytes("lo\n\n")
+            })
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("hello", result[0].Data);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_strip_bom()
+    {
+        var bom = new byte[] { 0xEF, 0xBB, 0xBF };
+        var data = Encoding.UTF8.GetBytes("data: hello\n\n");
+        var combined = bom.Concat(data).ToArray();
+
+        var result = await Source.Single((ReadOnlyMemory<byte>)combined)
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("hello", result[0].Data);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_emit_pending_event_on_completion()
+    {
+        var result = await SseBytes("data: final")
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("final", result[0].Data);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_skip_events_without_data()
+    {
+        var raw = "event: ping\n\ndata: real\n\n";
+        var result = await SseBytes(raw)
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("real", result[0].Data);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Flow_should_handle_field_without_value()
+    {
+        var raw = "data\n\n";
+        var result = await SseBytes(raw)
+            .Via(SseParserFlow.Instance)
+            .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
+
+        Assert.Single(result);
+        Assert.Equal("", result[0].Data);
+    }
+}
