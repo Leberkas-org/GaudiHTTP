@@ -197,6 +197,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     void IServerStageOperations.OnRequest(TurboHttpContext context)
     {
+        context.Materializer = Materializer;
         _requestQueue.Enqueue(context);
         TryPushRequest();
     }
@@ -216,6 +217,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     ILoggingAdapter IServerStageOperations.Log => Log;
 
     IActorRef IServerStageOperations.StageActor => _stageActor;
+
+    Akka.Streams.IMaterializer IServerStageOperations.Materializer => Materializer;
 
     IServiceProvider? IServerStageOperations.Services => _services;
 

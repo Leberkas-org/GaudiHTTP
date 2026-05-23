@@ -1,11 +1,8 @@
 using System.Net;
-using System.Net.Http.Headers;
+using System.Text;
 using Akka;
 using Akka.Streams.Dsl;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using TurboHTTP.IntegrationTests.Shared;
 using TurboHTTP.Server;
 using Xunit;
@@ -14,42 +11,41 @@ namespace TurboHTTP.IntegrationTests.Server;
 
 public sealed class SseServerSpec : Xunit.IAsyncLifetime
 {
-    private WebApplication? _app;
+    private TurboServerFixture? _fixture;
     private HttpClient? _client;
-    private int _port;
 
     public async ValueTask InitializeAsync()
     {
-        _port = GetFreePort();
-        var builder = WebApplication.CreateBuilder();
-        builder.Logging.ClearProviders();
+        _fixture = new TurboServerFixture(app =>
+        {
+            app.MapTurboGet("/echo", () => Results.Ok("ok"));
+            app.MapTurboGet("/text", () => Results.Ok("hello world"));
+            app.MapTurboGet("/events", () =>
+            {
+                var source = Source.From(["event1", "event2"]);
+                return TurboStreamResults.EventStream(source);
+            });
+        });
 
-        _app = builder.Build();
-        _app.Urls.Clear();
-        _app.Urls.Add($"http://127.0.0.1:{_port}");
-
-        _app.MapGet("/echo", () => Results.Ok("ok"));
-        _app.MapGet("/text", () => Results.Text("hello world"));
-        _app.MapGet("/nonexistent404", () => Results.NotFound());
-
-        await _app.StartAsync();
-        _client = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{_port}") };
+        await _fixture.InitializeAsync();
+        _client = new HttpClient();
     }
 
     public async ValueTask DisposeAsync()
     {
         _client?.Dispose();
-        if (_app is not null)
+        if (_fixture is not null)
         {
-            await _app.StopAsync();
-            await _app.DisposeAsync();
+            await _fixture.DisposeAsync();
         }
     }
 
     [Fact(Timeout = 15000)]
     public async Task Server_should_respond_to_basic_request()
     {
-        var response = await _client!.GetAsync("/echo", TestContext.Current.CancellationToken);
+        var response = await _client!.GetAsync(
+            new Uri($"http://127.0.0.1:{_fixture!.HttpPort}/echo"),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -57,36 +53,49 @@ public sealed class SseServerSpec : Xunit.IAsyncLifetime
     [Fact(Timeout = 15000)]
     public async Task Server_should_respond_to_text_request()
     {
-        var response = await _client!.GetAsync("/text", TestContext.Current.CancellationToken);
+        var response = await _client!.GetAsync(
+            new Uri($"http://127.0.0.1:{_fixture!.HttpPort}/text"),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        Assert.Equal("hello world", body);
-    }
-
-    [Fact(Timeout = 15000)]
-    public async Task Server_should_return_404_for_unregistered_route()
-    {
-        var response = await _client!.GetAsync("/unregistered", TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains("hello world", body);
     }
 
     [Fact(Timeout = 15000)]
     public async Task Server_should_return_correct_content_type()
     {
-        var response = await _client!.GetAsync("/text", TestContext.Current.CancellationToken);
+        var response = await _client!.GetAsync(
+            new Uri($"http://127.0.0.1:{_fixture!.HttpPort}/text"),
+            TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("text/plain", response.Content.Headers.ContentType?.ToString() ?? "");
+        Assert.NotNull(response.Content.Headers.ContentType);
+        Assert.Contains("application/json", response.Content.Headers.ContentType.MediaType ?? "");
     }
 
-    private static int GetFreePort()
+    [Fact(Timeout = 15000)]
+    public async Task Server_should_return_404_for_unregistered_route()
     {
-        using var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
+        var response = await _client!.GetAsync(
+            new Uri($"http://127.0.0.1:{_fixture!.HttpPort}/nonexistent"),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact(Timeout = 15000)]
+    public async Task Server_should_stream_sse_events()
+    {
+        var response = await _client!.GetAsync(
+            new Uri($"http://127.0.0.1:{_fixture!.HttpPort}/events"),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("data: event1\n\n", body);
+        Assert.Contains("data: event2\n\n", body);
     }
 }

@@ -64,5 +64,5 @@ public sealed class TurboHttpContext : HttpContext
 
     public override void Abort() => RequestAborted = new CancellationToken(true);
 
-    public IMaterializer Materializer { get; internal init; }
+    public IMaterializer Materializer { get; set; } = null!;
 }
