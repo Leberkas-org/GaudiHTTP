@@ -29,8 +29,6 @@ internal sealed class KestrelTestBackend : ITestBackend
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
 
-        var httpsPort = quicSupported ? GetFreePort() : 0;
-
         builder.WebHost.ConfigureKestrel(kestrel =>
         {
             kestrel.Listen(IPAddress.Loopback, 0, listenOptions =>
@@ -38,7 +36,7 @@ internal sealed class KestrelTestBackend : ITestBackend
                 listenOptions.Protocols = HttpProtocols.Http1;
             });
 
-            kestrel.Listen(IPAddress.Loopback, httpsPort, listenOptions =>
+            kestrel.Listen(IPAddress.Loopback, 0, listenOptions =>
             {
                 listenOptions.Protocols = quicSupported
                     ? HttpProtocols.Http1AndHttp2AndHttp3
@@ -119,15 +117,6 @@ internal sealed class KestrelTestBackend : ITestBackend
         {
             return false;
         }
-    }
-
-    private static int GetFreePort()
-    {
-        using var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
     }
 
     private static X509Certificate2 LoadCertificate()
