@@ -33,16 +33,20 @@ public sealed class TurboPipelineBuilder : ITurboPipelineBuilder
         var branch = new TurboPipelineBuilder();
         configure(branch);
 
-        _components.Add(next => ctx =>
+        _components.Add(next =>
         {
-            var path = ctx.Request.Path.Value ?? string.Empty;
-            if (path.StartsWith(pathPrefix, StringComparison.OrdinalIgnoreCase))
+            TurboRequestDelegate? builtBranch = null;
+            return ctx =>
             {
-                var branchPipeline = branch.BuildDelegate(next);
-                return branchPipeline(ctx);
-            }
+                var path = ctx.Request.Path.Value ?? string.Empty;
+                if (path.StartsWith(pathPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    builtBranch ??= branch.BuildDelegate(next);
+                    return builtBranch(ctx);
+                }
 
-            return next(ctx);
+                return next(ctx);
+            };
         });
         return this;
     }
@@ -53,15 +57,19 @@ public sealed class TurboPipelineBuilder : ITurboPipelineBuilder
         var branch = new TurboPipelineBuilder();
         configure(branch);
 
-        _components.Add(next => ctx =>
+        _components.Add(next =>
         {
-            if (predicate(ctx))
+            TurboRequestDelegate? builtBranch = null;
+            return ctx =>
             {
-                var branchPipeline = branch.BuildDelegate(next);
-                return branchPipeline(ctx);
-            }
+                if (predicate(ctx))
+                {
+                    builtBranch ??= branch.BuildDelegate(next);
+                    return builtBranch(ctx);
+                }
 
-            return next(ctx);
+                return next(ctx);
+            };
         });
         return this;
     }

@@ -36,8 +36,11 @@ internal sealed class ConnectionActor : ReceiveActor
         IServerProtocolEngine Engine,
         TurboRequestDelegate Pipeline,
         RouteTable RouteTable,
+        int Parallelism,
         IServiceProvider Services,
         IMaterializer Materializer,
+        TimeSpan HandlerTimeout,
+        TimeSpan HandlerGracePeriod,
         string? ConnectionLoggingCategory = null);
 
     public sealed record GracefulStop(TimeSpan Timeout);
@@ -62,11 +65,9 @@ internal sealed class ConnectionActor : ReceiveActor
 
         _killSwitch = KillSwitches.Shared("connection-" + _connectionId);
 
-        var middleware = Flow.FromGraph(new MiddlewarePipelineStage(msg.Pipeline));
-        var routing = Flow.FromGraph(new RoutingStage(msg.RouteTable));
-        var innerFlow = middleware.Via(routing);
+        var routing = Flow.FromGraph(new RoutingStage(msg.RouteTable, msg.Pipeline, msg.Parallelism, msg.HandlerTimeout, msg.HandlerGracePeriod));
         var protocolBidi = msg.Engine.CreateFlow(msg.Services);
-        var composed = protocolBidi.Join(innerFlow);
+        var composed = protocolBidi.Join(routing);
 
         var self = Self;
         Flow<ITransportInbound, ITransportInbound, NotUsed>? loggingFlow = null;

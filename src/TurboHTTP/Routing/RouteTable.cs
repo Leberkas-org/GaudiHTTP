@@ -4,7 +4,8 @@ namespace TurboHTTP.Routing;
 
 public sealed class RouteMatchResult
 {
-    public static readonly RouteMatchResult NoMatch = new(false, null, new RouteValueDictionary());
+    internal static readonly RouteValueDictionary EmptyRouteValues = new();
+    public static readonly RouteMatchResult NoMatch = new(false, null, EmptyRouteValues);
 
     public bool IsMatch { get; }
     internal IRouteDispatcher? Dispatcher { get; }
@@ -29,20 +30,18 @@ public sealed class RouteTable
 
     public RouteMatchResult Match(HttpMethod method, string path)
     {
-        var pathSegments = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
         foreach (var entry in _entries)
         {
-            if (entry.IsStaticMatch(pathSegments)
+            if (entry.IsStaticMatch(path)
                 && (entry.Method.Method == "*" || entry.Method.Equals(method)))
             {
-                return new RouteMatchResult(true, entry.Dispatcher, new RouteValueDictionary());
+                return new RouteMatchResult(true, entry.Dispatcher, RouteMatchResult.EmptyRouteValues);
             }
         }
 
         foreach (var entry in _entries)
         {
-            if (entry.IsStaticMatch(pathSegments))
+            if (entry.IsStaticMatch(path))
             {
                 continue;
             }

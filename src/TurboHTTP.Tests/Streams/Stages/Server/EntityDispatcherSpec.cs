@@ -3,6 +3,7 @@ using Akka.Hosting;
 using Akka.Streams.Dsl;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Server;
+using TurboHTTP.Server.Middleware;
 using TurboHTTP.Routing;
 using TurboHTTP.Streams.Stages.Server;
 using TurboHTTP.Tests.Shared;
@@ -11,6 +12,8 @@ namespace TurboHTTP.Tests.Streams.Stages.Server;
 
 public sealed class EntityDispatcherSpec : StreamTestBase
 {
+    private static readonly TurboRequestDelegate NoOpPipeline = _ => Task.CompletedTask;
+
     private sealed class OrderActorKey;
 
     private sealed record GetOrder(string Id);
@@ -79,7 +82,7 @@ public sealed class EntityDispatcherSpec : StreamTestBase
         var actor = Sys.ActorOf(Props.Create(() => new OrderActor()));
         var (table, services) = SetupAskRoute(actor);
 
-        var stage = new RoutingStage(table);
+        var stage = new RoutingStage(table, NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Get, "http://localhost/orders/42", services);
 
         var result = await Source.Single(ctx)
@@ -107,7 +110,7 @@ public sealed class EntityDispatcherSpec : StreamTestBase
         builder.UseActorRef<OrderActorKey>();
         builder.AddToRouteTable(turboTable);
 
-        var stage = new RoutingStage(turboTable.Freeze());
+        var stage = new RoutingStage(turboTable.Freeze(), NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Post, "http://localhost/orders/1", services);
 
         var result = await Source.Single(ctx)
@@ -137,7 +140,7 @@ public sealed class EntityDispatcherSpec : StreamTestBase
         builder.WithTimeout(TimeSpan.FromMilliseconds(100));
         builder.AddToRouteTable(turboTable);
 
-        var stage = new RoutingStage(turboTable.Freeze());
+        var stage = new RoutingStage(turboTable.Freeze(), NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Get, "http://localhost/orders/42", services);
 
         var result = await Source.Single(ctx)
@@ -165,7 +168,7 @@ public sealed class EntityDispatcherSpec : StreamTestBase
         builder.UseActorRef<OrderActorKey>();
         builder.AddToRouteTable(turboTable);
 
-        var stage = new RoutingStage(turboTable.Freeze());
+        var stage = new RoutingStage(turboTable.Freeze(), NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Get, "http://localhost/orders/42", services);
 
         var result = await Source.Single(ctx)

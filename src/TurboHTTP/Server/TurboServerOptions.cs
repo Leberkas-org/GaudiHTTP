@@ -14,6 +14,8 @@ public sealed class TurboServerOptions
     public TimeSpan KeepAliveTimeout { get; set; } = TimeSpan.FromSeconds(130);
     public TimeSpan RequestHeadersTimeout { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan GracefulShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    public TimeSpan HandlerTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    public TimeSpan HandlerGracePeriod { get; set; } = TimeSpan.FromSeconds(5);
 
     public int BodyBufferThreshold { get; set; } = 65536;
     public TimeSpan BodyConsumptionTimeout { get; set; } = TimeSpan.FromSeconds(30);

@@ -2,6 +2,7 @@ using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol;
@@ -87,6 +88,13 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                 {
                     CompleteStage();
                     return;
+                }
+
+                var bodyFeature = response.TurboResponse.HttpContext.Features.Get<IHttpResponseBodyFeature>();
+                var hasBody = bodyFeature is { Writer: not null };
+                if (!hasBody)
+                {
+                    ServerContextFactory.Return(response);
                 }
 
                 TryPullResponse();
@@ -197,6 +205,13 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     void IServerStageOperations.OnRequest(TurboHttpContext context)
     {
+        if (_requestQueue.Count >= _sm.MaxQueuedRequests)
+        {
+            Log.Warning("Request queue exceeded {0}, closing connection", _sm.MaxQueuedRequests);
+            CompleteStage();
+            return;
+        }
+
         context.Materializer = Materializer;
         _requestQueue.Enqueue(context);
         TryPushRequest();

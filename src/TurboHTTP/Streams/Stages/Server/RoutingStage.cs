@@ -5,38 +5,65 @@ using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Context.Features;
 using TurboHTTP.Routing;
 using TurboHTTP.Server;
+using TurboHTTP.Server.Middleware;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
 internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, TurboHttpContext>>
 {
+    private static readonly Dictionary<string, HttpMethod> CachedMethods = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["GET"] = HttpMethod.Get,
+        ["POST"] = HttpMethod.Post,
+        ["PUT"] = HttpMethod.Put,
+        ["DELETE"] = HttpMethod.Delete,
+        ["PATCH"] = HttpMethod.Patch,
+        ["HEAD"] = HttpMethod.Head,
+        ["OPTIONS"] = HttpMethod.Options,
+        ["TRACE"] = HttpMethod.Trace,
+    };
+
     private readonly RouteTable _routeTable;
+    private readonly TurboRequestDelegate _pipeline;
+    private readonly int _parallelism;
+    private readonly TimeSpan _handlerTimeout;
+    private readonly TimeSpan _handlerGracePeriod;
 
     private readonly Inlet<TurboHttpContext> _in = new("Routing.In");
     private readonly Outlet<TurboHttpContext> _out = new("Routing.Out");
 
     public override FlowShape<TurboHttpContext, TurboHttpContext> Shape { get; }
 
-    public RoutingStage(RouteTable routeTable)
+    public RoutingStage(RouteTable routeTable, TurboRequestDelegate pipeline, int parallelism, TimeSpan handlerTimeout, TimeSpan handlerGracePeriod)
     {
         _routeTable = routeTable;
+        _pipeline = pipeline;
+        _parallelism = parallelism;
+        _handlerTimeout = handlerTimeout;
+        _handlerGracePeriod = handlerGracePeriod;
         Shape = new FlowShape<TurboHttpContext, TurboHttpContext>(_in, _out);
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes) => new Logic(this);
 
-    private sealed record DispatchCompleted(TurboHttpContext Context);
-    private sealed record DispatchFailed(TurboHttpContext Context, Exception Error);
-    private sealed record ResponseReady(TurboHttpContext Context, Task HandlerTask);
-    private sealed record HandlerFinished(TurboHttpContext Context);
-    private sealed record HandlerFaulted(TurboHttpContext Context, Exception Error);
+    private sealed record DispatchCompleted(int Sequence, TurboHttpContext Context);
+    private sealed record DispatchFailed(int Sequence, TurboHttpContext Context, Exception Error);
+    private sealed record ResponseReady(int Sequence, TurboHttpContext Context, Task HandlerTask);
+    private sealed record HandlerFinished(int Sequence, TurboHttpContext Context);
+    private sealed record HandlerFaulted(int Sequence, TurboHttpContext Context, Exception Error);
+    private sealed record HandlerTimedOut(int Sequence, TurboHttpContext Context);
 
     private sealed class Logic : GraphStageLogic
     {
         private readonly RoutingStage _stage;
         private IActorRef? _stageActor;
         private bool _upstreamFinished;
-        private bool _dispatching;
+        private int _inFlight;
+        private int _sequence;
+        private int _nextToEmit;
+        private bool _downstreamReady;
+        private readonly SortedDictionary<int, TurboHttpContext> _pending = [];
+        private readonly Dictionary<int, CancellationTokenSource> _activeTimeouts = [];
 
         public Logic(RoutingStage stage) : base(stage.Shape)
         {
@@ -47,25 +74,33 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
                 onUpstreamFinish: () =>
                 {
                     _upstreamFinished = true;
-                    if (!_dispatching)
+                    if (_inFlight == 0)
                     {
                         CompleteStage();
                     }
                 });
 
             SetHandler(stage._out,
-                onPull: () => Pull(stage._in));
+                onPull: () =>
+                {
+                    _downstreamReady = true;
+                    TryEmitPending();
+                    TryPullNext();
+                });
         }
 
         public override void PreStart()
         {
             _stageActor = GetStageActor(OnMessage).Ref;
+            Pull(_stage._in);
         }
 
         private void OnPush()
         {
             var ctx = Grab(_stage._in);
-            var method = new HttpMethod(ctx.Request.Method);
+            var seq = _sequence++;
+            var methodString = ctx.Request.Method;
+            var method = CachedMethods.TryGetValue(methodString, out var cached) ? cached : new HttpMethod(methodString);
             var path = ctx.Request.Path.Value ?? "/";
 
             var match = _stage._routeTable.Match(method, path);
@@ -73,7 +108,7 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
             {
                 ctx.Response.StatusCode = 404;
                 CompleteResponseBody(ctx);
-                Push(_stage._out, ctx);
+                Emit(seq, ctx);
                 return;
             }
 
@@ -82,69 +117,82 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
                 ctx.Request.RouteValues[kv.Key] = kv.Value;
             }
 
-            _dispatching = true;
+            _inFlight++;
 
             try
             {
-                var task = match.Dispatcher.DispatchAsync(ctx, ctx.RequestAborted);
-                if (task.IsCompletedSuccessfully)
-                {
-                    _dispatching = false;
-                    CompleteResponseBody(ctx);
-                    Push(_stage._out, ctx);
-                    if (_upstreamFinished)
-                    {
-                        CompleteStage();
-                    }
-                }
-                else if (task.IsFaulted)
-                {
-                    _dispatching = false;
-                    ctx.Response.StatusCode = 500;
-                    CompleteResponseBody(ctx);
-                    Push(_stage._out, ctx);
-                    if (_upstreamFinished)
-                    {
-                        CompleteStage();
-                    }
-                }
-                else
-                {
-                    var bodyFeature = ctx.Features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
-                    var headersReady = bodyFeature?.WhenHeadersReady;
-
-                    if (headersReady is not null)
-                    {
-                        Task.WhenAny(headersReady, task).ContinueWith(
-                            _ => new ResponseReady(ctx, task),
-                            TaskScheduler.Default)
-                            .PipeTo(_stageActor!);
-                    }
-                    else
-                    {
-                        task.PipeTo(_stageActor!,
-                            success: () => new DispatchCompleted(ctx),
-                            failure: ex => new DispatchFailed(ctx, ex));
-                    }
-                }
+                DispatchAsync(ctx, seq, match);
             }
             catch (Exception)
             {
-                _dispatching = false;
+                _inFlight--;
                 ctx.Response.StatusCode = 500;
-                Push(_stage._out, ctx);
-                if (_upstreamFinished)
+                CompleteResponseBody(ctx);
+                Emit(seq, ctx);
+            }
+
+            TryPullNext();
+        }
+
+        private void DispatchAsync(TurboHttpContext ctx, int seq, RouteMatchResult match)
+        {
+            var task = DispatchAsyncInternal(ctx, seq, match);
+
+            if (task.IsCompletedSuccessfully)
+            {
+                _inFlight--;
+                CompleteResponseBody(ctx);
+                Emit(seq, ctx);
+            }
+            else if (task.IsFaulted)
+            {
+                _inFlight--;
+                ctx.Response.StatusCode = 500;
+                CompleteResponseBody(ctx);
+                Emit(seq, ctx);
+            }
+            else
+            {
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(ctx.RequestAborted);
+                cts.CancelAfter(_stage._handlerTimeout);
+                _activeTimeouts[seq] = cts;
+                ctx.RequestAborted = cts.Token;
+
+                var bodyFeature = ctx.Features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+                var headersReady = bodyFeature?.WhenHeadersReady;
+
+                Task.Delay(_stage._handlerTimeout + _stage._handlerGracePeriod).ContinueWith(
+                    _ => new HandlerTimedOut(seq, ctx),
+                    TaskScheduler.Default)
+                    .PipeTo(_stageActor!);
+
+                if (headersReady is not null)
                 {
-                    CompleteStage();
+                    Task.WhenAny(headersReady, task).ContinueWith(
+                        _ => new ResponseReady(seq, ctx, task),
+                        TaskScheduler.Default)
+                        .PipeTo(_stageActor!);
+                }
+                else
+                {
+                    task.PipeTo(_stageActor!,
+                        success: () => new DispatchCompleted(seq, ctx),
+                        failure: ex => new DispatchFailed(seq, ctx, ex));
                 }
             }
+        }
+
+        private async Task DispatchAsyncInternal(TurboHttpContext ctx, int seq, RouteMatchResult match)
+        {
+            await _stage._pipeline(ctx);
+            await match.Dispatcher!.DispatchAsync(ctx, ctx.RequestAborted);
         }
 
         private void OnMessage((IActorRef sender, object msg) args)
         {
             switch (args.msg)
             {
-                case ResponseReady(var ctx, var handlerTask):
+                case ResponseReady(var seq, var ctx, var handlerTask):
                     if (handlerTask.IsFaulted)
                     {
                         var feature = ctx.Features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
@@ -157,64 +205,107 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
                     if (handlerTask.IsCompleted)
                     {
                         CompleteResponseBody(ctx);
-                    }
-
-                    Push(_stage._out, ctx);
-
-                    if (!handlerTask.IsCompleted)
-                    {
-                        handlerTask.PipeTo(_stageActor!,
-                            success: () => new HandlerFinished(ctx),
-                            failure: ex => new HandlerFaulted(ctx, ex));
+                        _inFlight--;
+                        DisposeCts(seq);
+                        Emit(seq, ctx);
                     }
                     else
                     {
-                        _dispatching = false;
-                        if (_upstreamFinished)
+                        Emit(seq, ctx);
+                        handlerTask.PipeTo(_stageActor!,
+                            success: () => new HandlerFinished(seq, ctx),
+                            failure: ex => new HandlerFaulted(seq, ctx, ex));
+                    }
+                    break;
+
+                case HandlerFinished(var seq, var finishedCtx):
+                    CompleteResponseBody(finishedCtx);
+                    _inFlight--;
+                    DisposeCts(seq);
+                    if (_upstreamFinished && _inFlight == 0)
+                    {
+                        CompleteStage();
+                    }
+                    break;
+
+                case HandlerFaulted(var seq, var faultedCtx, _):
+                    CompleteResponseBody(faultedCtx);
+                    _inFlight--;
+                    DisposeCts(seq);
+                    if (_upstreamFinished && _inFlight == 0)
+                    {
+                        CompleteStage();
+                    }
+                    break;
+
+                case DispatchCompleted(var seq, var ctx):
+                    _inFlight--;
+                    DisposeCts(seq);
+                    CompleteResponseBody(ctx);
+                    Emit(seq, ctx);
+                    break;
+
+                case DispatchFailed(var seq, var ctx, _):
+                    _inFlight--;
+                    DisposeCts(seq);
+                    ctx.Response.StatusCode = 500;
+                    CompleteResponseBody(ctx);
+                    Emit(seq, ctx);
+                    break;
+
+                case HandlerTimedOut(var seq, var ctx):
+                    if (_activeTimeouts.TryGetValue(seq, out var cts))
+                    {
+                        cts.Dispose();
+                        _activeTimeouts.Remove(seq);
+                        if (!ctx.Response.HasStarted)
                         {
-                            CompleteStage();
+                            ctx.Response.StatusCode = 503;
+                            CompleteResponseBody(ctx);
+                            _inFlight--;
+                            Emit(seq, ctx);
                         }
                     }
                     break;
+            }
 
-                case HandlerFinished(var finishedCtx):
-                    CompleteResponseBody(finishedCtx);
-                    _dispatching = false;
-                    if (_upstreamFinished)
-                    {
-                        CompleteStage();
-                    }
-                    break;
+            if (_upstreamFinished && _inFlight == 0 && _pending.Count == 0)
+            {
+                CompleteStage();
+            }
+        }
 
-                case HandlerFaulted(var faultedCtx, _):
-                    CompleteResponseBody(faultedCtx);
-                    _dispatching = false;
-                    if (_upstreamFinished)
-                    {
-                        CompleteStage();
-                    }
-                    break;
+        private void DisposeCts(int seq)
+        {
+            if (_activeTimeouts.TryGetValue(seq, out var cts))
+            {
+                cts.Dispose();
+                _activeTimeouts.Remove(seq);
+            }
+        }
 
-                case DispatchCompleted completed:
-                    _dispatching = false;
-                    CompleteResponseBody(completed.Context);
-                    Push(_stage._out, completed.Context);
-                    if (_upstreamFinished)
-                    {
-                        CompleteStage();
-                    }
-                    break;
+        private void TryPullNext()
+        {
+            if (_inFlight < _stage._parallelism && !HasBeenPulled(_stage._in))
+            {
+                Pull(_stage._in);
+            }
+        }
 
-                case DispatchFailed failed:
-                    _dispatching = false;
-                    failed.Context.Response.StatusCode = 500;
-                    CompleteResponseBody(failed.Context);
-                    Push(_stage._out, failed.Context);
-                    if (_upstreamFinished)
-                    {
-                        CompleteStage();
-                    }
-                    break;
+        private void Emit(int seq, TurboHttpContext ctx)
+        {
+            _pending[seq] = ctx;
+            TryEmitPending();
+        }
+
+        private void TryEmitPending()
+        {
+            while (_downstreamReady && _pending.Count > 0 && _pending.Keys.First() == _nextToEmit)
+            {
+                _downstreamReady = false;
+                Push(_stage._out, _pending[_nextToEmit]);
+                _pending.Remove(_nextToEmit);
+                _nextToEmit++;
             }
         }
 

@@ -49,27 +49,40 @@ internal sealed class RouteEntry
         return true;
     }
 
-    public bool IsStaticMatch(string[] pathSegments)
+    public bool IsStaticMatch(ReadOnlySpan<char> path)
     {
-        if (pathSegments.Length != Segments.Length)
+        if (path.Length > 0 && path[0] == '/')
         {
-            return false;
+            path = path[1..];
         }
 
-        for (var i = 0; i < Segments.Length; i++)
+        var segmentIndex = 0;
+        while (path.Length > 0)
         {
-            if (Segments[i].StartsWith('{'))
+            if (segmentIndex >= Segments.Length)
             {
                 return false;
             }
 
-            if (!string.Equals(Segments[i], pathSegments[i], StringComparison.OrdinalIgnoreCase))
+            var template = Segments[segmentIndex];
+            if (template.StartsWith('{'))
             {
                 return false;
             }
+
+            int slashPos = path.IndexOf('/');
+            var segment = slashPos < 0 ? path : path[..slashPos];
+
+            if (!segment.Equals(template, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            segmentIndex++;
+            path = slashPos < 0 ? default : path[(slashPos + 1)..];
         }
 
-        return true;
+        return segmentIndex == Segments.Length;
     }
 
     private static string[] SplitPath(ReadOnlySpan<char> path)

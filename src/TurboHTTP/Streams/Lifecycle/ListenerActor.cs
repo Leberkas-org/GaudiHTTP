@@ -120,8 +120,11 @@ internal sealed class ListenerActor : ReceiveActor
             engine,
             _pipeline,
             _routeTable,
+            1,
             _services,
             _materializer,
+            _serverOptions.HandlerTimeout,
+            _serverOptions.HandlerGracePeriod,
             _connectionLoggingCategory));
 
         Context.Parent.Tell(new ConnectionStarted(connectionId, child));

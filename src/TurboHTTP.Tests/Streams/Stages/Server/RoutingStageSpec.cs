@@ -2,6 +2,7 @@ using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
 using TurboHTTP.Server;
+using TurboHTTP.Server.Middleware;
 using TurboHTTP.Routing;
 using TurboHTTP.Streams.Stages.Server;
 using TurboHTTP.Tests.Shared;
@@ -10,6 +11,8 @@ namespace TurboHTTP.Tests.Streams.Stages.Server;
 
 public sealed class RoutingStageSpec : StreamTestBase
 {
+    private static readonly TurboRequestDelegate NoOpPipeline = _ => Task.CompletedTask;
+
     private TurboHttpContext CreateTestContext(HttpMethod method, string uri)
     {
         var path = new Uri(uri).PathAndQuery;
@@ -33,7 +36,7 @@ public sealed class RoutingStageSpec : StreamTestBase
                 }))
             .Build();
 
-        var stage = new RoutingStage(routeTable);
+        var stage = new RoutingStage(routeTable, NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Get, "http://localhost/api/health");
 
         var result = await Source.Single(ctx)
@@ -47,7 +50,7 @@ public sealed class RoutingStageSpec : StreamTestBase
     public async Task Stage_should_return_404_for_unmatched_route()
     {
         var routeTable = new RouteTableBuilder().Build();
-        var stage = new RoutingStage(routeTable);
+        var stage = new RoutingStage(routeTable, NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Get, "http://localhost/api/unknown");
 
         var result = await Source.Single(ctx)
@@ -70,7 +73,7 @@ public sealed class RoutingStageSpec : StreamTestBase
             }))
             .Build();
 
-        var stage = new RoutingStage(routeTable);
+        var stage = new RoutingStage(routeTable, NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Get, "http://localhost/api/orders/42");
 
         await Source.Single(ctx)
@@ -88,7 +91,7 @@ public sealed class RoutingStageSpec : StreamTestBase
                 new DelegateDispatcher(_ => throw new InvalidOperationException("boom")))
             .Build();
 
-        var stage = new RoutingStage(routeTable);
+        var stage = new RoutingStage(routeTable, NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Get, "http://localhost/api/fail");
 
         var result = await Source.Single(ctx)
@@ -116,7 +119,7 @@ public sealed class RoutingStageSpec : StreamTestBase
                 }))
             .Build();
 
-        var stage = new RoutingStage(routeTable);
+        var stage = new RoutingStage(routeTable, NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Get, "http://localhost/api/stream");
 
         var resultTask = Source.Single(ctx)
@@ -144,7 +147,7 @@ public sealed class RoutingStageSpec : StreamTestBase
                 }))
             .Build();
 
-        var stage = new RoutingStage(routeTable);
+        var stage = new RoutingStage(routeTable, NoOpPipeline, 1, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5));
         var ctx = CreateTestContext(HttpMethod.Get, "http://localhost/api/sync");
 
         var result = await Source.Single(ctx)
