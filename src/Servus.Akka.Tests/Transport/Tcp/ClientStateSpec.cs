@@ -200,4 +200,99 @@ public sealed class ClientStateSpec
 
         Assert.Throws<ObjectDisposedException>(() => stream.ReadByte());
     }
+
+    [Fact(Timeout = 5000)]
+    public void ClientState_should_handle_InvalidOperationException_on_writer_complete()
+    {
+        var stream = new MemoryStream();
+        var state = new ClientState(stream);
+
+        state.InboundPipe.Writer.Complete();
+        state.OutboundPipe.Writer.Complete();
+
+        // Should not throw - catches InvalidOperationException
+        state.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => stream.ReadByte());
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ClientState_should_handle_InvalidOperationException_on_reader_complete()
+    {
+        var stream = new MemoryStream();
+        var state = new ClientState(stream);
+
+        state.InboundPipe.Reader.Complete();
+        state.OutboundPipe.Reader.Complete();
+
+        // Should not throw - catches InvalidOperationException
+        state.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => stream.ReadByte());
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ClientState_should_drain_multiple_buffered_inbound_items()
+    {
+        var stream = new MemoryStream();
+        var state = new ClientState(stream);
+
+        var buf1 = TransportBuffer.Rent(10);
+        buf1.Length = 10;
+        var buf2 = TransportBuffer.Rent(10);
+        buf2.Length = 10;
+        var buf3 = TransportBuffer.Rent(10);
+        buf3.Length = 10;
+
+        state.InboundWriter.TryWrite(buf1);
+        state.InboundWriter.TryWrite(buf2);
+        state.InboundWriter.TryWrite(buf3);
+
+        state.Dispose();
+
+        // All buffers should be disposed via drain loop
+        Assert.False(state.InboundReader.TryRead(out _));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ClientState_should_drain_multiple_buffered_outbound_items()
+    {
+        var stream = new MemoryStream();
+        var state = new ClientState(stream);
+
+        var buf1 = TransportBuffer.Rent(10);
+        buf1.Length = 10;
+        var buf2 = TransportBuffer.Rent(10);
+        buf2.Length = 10;
+        var buf3 = TransportBuffer.Rent(10);
+        buf3.Length = 10;
+
+        state.OutboundWriter.TryWrite(buf1);
+        state.OutboundWriter.TryWrite(buf2);
+        state.OutboundWriter.TryWrite(buf3);
+
+        state.Dispose();
+
+        // All buffers should be disposed via drain loop
+        Assert.False(state.OutboundReader.TryRead(out _));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ClientState_should_handle_exception_on_all_pipe_completions()
+    {
+        var stream = new MemoryStream();
+        var state = new ClientState(stream);
+
+        // Complete all pipes first
+        state.InboundPipe.Writer.Complete();
+        state.InboundPipe.Reader.Complete();
+        state.OutboundPipe.Writer.Complete();
+        state.OutboundPipe.Reader.Complete();
+
+        // Attempting to complete again should not throw
+        state.Dispose();
+        state.Dispose(); // Double dispose
+
+        Assert.Throws<ObjectDisposedException>(() => stream.ReadByte());
+    }
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Security;
 using Akka.Actor;
 using Akka.Event;
@@ -34,6 +35,7 @@ internal sealed class TcpServerConnectionStage : GraphStage<FlowShape<ITransport
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 
+    [ExcludeFromCodeCoverage]
     private sealed class Logic : TimerGraphStageLogic, ITransportOperations
     {
         private readonly TcpServerConnectionStage _stage;

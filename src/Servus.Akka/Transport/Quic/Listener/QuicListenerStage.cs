@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
@@ -39,6 +40,7 @@ internal sealed class QuicListenerStage
         return new LogicAndMaterializedValue<Task>(new Logic(this, tcs), tcs.Task);
     }
 
+    [ExcludeFromCodeCoverage]
     private sealed class Logic : GraphStageLogic
     {
         private readonly QuicListenerStage _stage;

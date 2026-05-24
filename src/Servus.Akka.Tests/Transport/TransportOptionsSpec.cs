@@ -210,4 +210,62 @@ public sealed class TransportOptionsSpec
         Assert.Equal(65536, opts.SocketSendBufferSize);
         Assert.Equal(131072, opts.SocketReceiveBufferSize);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Equals_should_return_false_for_null()
+    {
+        var opts = new TcpTransportOptions { Host = "localhost", Port = 80 };
+
+        Assert.False(opts.Equals(null));
+        Assert.False(opts == null);
+        Assert.True(opts != null);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Equals_should_return_true_for_same_reference()
+    {
+        var opts = new TcpTransportOptions { Host = "localhost", Port = 80 };
+
+        Assert.True(opts.Equals(opts));
+        Assert.True(ReferenceEquals(opts, opts));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Equals_should_return_true_for_same_values_different_instances()
+    {
+        var a = new TcpTransportOptions { Host = "example.com", Port = 8080 };
+        var b = new TcpTransportOptions { Host = "example.com", Port = 8080 };
+
+        Assert.True(a.Equals(b));
+        Assert.False(ReferenceEquals(a, b));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Equals_should_return_false_for_different_host()
+    {
+        var a = new TcpTransportOptions { Host = "example.com", Port = 80 };
+        var b = new TcpTransportOptions { Host = "different.com", Port = 80 };
+
+        Assert.False(a.Equals(b));
+        Assert.False(a == b);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Equals_should_handle_tls_options_with_same_host_port()
+    {
+        var a = new TlsTransportOptions { Host = "example.com", Port = 443 };
+        var b = new TlsTransportOptions { Host = "example.com", Port = 443 };
+
+        Assert.True(a.Equals(b));
+        Assert.True(a == b);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Equals_should_handle_quic_options_null_check()
+    {
+        var opts = new QuicTransportOptions { Host = "example.com", Port = 443 };
+
+        Assert.NotNull(opts);
+        Assert.False(opts.Equals(null));
+    }
 }

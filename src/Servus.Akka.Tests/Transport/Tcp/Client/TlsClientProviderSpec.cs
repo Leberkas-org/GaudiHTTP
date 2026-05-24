@@ -303,4 +303,146 @@ public sealed class TlsClientProviderSpec
 
         await provider.DisposeAsync();
     }
+
+    [Fact(Timeout = 5000)]
+    public async Task ConnectTunnel_should_throw_on_exceeding_buffer_size()
+    {
+        var largeResponse = "HTTP/1.1 200 OK\r\n" + string.Concat(Enumerable.Range(0, 1000).Select(_ => "X-Large-Header: value\r\n"));
+        var proxyStream = new MockProxyStream(largeResponse);
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => TlsClientProvider.EstablishConnectTunnelAsync(
+                proxyStream,
+                "example.com",
+                443,
+                new TestProxy(new Uri("http://proxy.local:8080")),
+                defaultProxyCredentials: null,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Contains("exceeded buffer size", ex.Message);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ConnectTunnel_should_handle_chunked_response_reads()
+    {
+        var proxyStream = new ChunkedMockProxyStream("HTTP/1.1 200 OK\r\n\r\n", chunkSize: 5);
+
+        await TlsClientProvider.EstablishConnectTunnelAsync(
+            proxyStream,
+            "example.com",
+            443,
+            new TestProxy(new Uri("http://proxy.local:8080")),
+            defaultProxyCredentials: null,
+            CancellationToken.None
+        );
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ConnectTunnel_should_work_with_proxy_returning_null()
+    {
+        var proxyStream = new MockProxyStream("HTTP/1.1 200 OK\r\n\r\n");
+        var bypassedProxy = new TestProxy(null);
+
+        await TlsClientProvider.EstablishConnectTunnelAsync(
+            proxyStream,
+            "example.com",
+            443,
+            bypassedProxy,
+            defaultProxyCredentials: null,
+            CancellationToken.None
+        );
+
+        var requestContent = proxyStream.GetRequestContent();
+        Assert.NotNull(requestContent);
+        Assert.Contains("CONNECT", requestContent);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ConnectTunnel_should_handle_status_codes_without_reason()
+    {
+        var proxyStream = new MockProxyStream("HTTP/1.1 500\r\n\r\n");
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => TlsClientProvider.EstablishConnectTunnelAsync(
+                proxyStream,
+                "example.com",
+                443,
+                new TestProxy(new Uri("http://proxy.local:8080")),
+                defaultProxyCredentials: null,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Contains("500", ex.Message);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ConnectTunnel_should_handle_response_with_headers()
+    {
+        var response = "HTTP/1.1 200 OK\r\nConnection: keep-alive\r\nContent-Length: 0\r\n\r\n";
+        var proxyStream = new MockProxyStream(response);
+
+        await TlsClientProvider.EstablishConnectTunnelAsync(
+            proxyStream,
+            "example.com",
+            443,
+            new TestProxy(new Uri("http://proxy.local:8080")),
+            defaultProxyCredentials: null,
+            CancellationToken.None
+        );
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ConnectTunnel_should_ignore_response_body()
+    {
+        var response = "HTTP/1.1 200 OK\r\n\r\nExtra data in response body that should be ignored";
+        var proxyStream = new MockProxyStream(response);
+
+        await TlsClientProvider.EstablishConnectTunnelAsync(
+            proxyStream,
+            "example.com",
+            443,
+            new TestProxy(new Uri("http://proxy.local:8080")),
+            defaultProxyCredentials: null,
+            CancellationToken.None
+        );
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ConnectTunnel_should_handle_404_response()
+    {
+        var proxyStream = new MockProxyStream("HTTP/1.1 404 Not Found\r\n\r\n");
+
+        var ex = await Assert.ThrowsAsync<HttpRequestException>(() => TlsClientProvider.EstablishConnectTunnelAsync(
+                proxyStream,
+                "example.com",
+                443,
+                new TestProxy(new Uri("http://proxy.local:8080")),
+                defaultProxyCredentials: null,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Contains("404 Not Found", ex.Message);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ConnectTunnel_should_format_credentials_correctly()
+    {
+        var credentials = new NetworkCredential("user@domain", "pass:word!");
+        var proxyStream = new MockProxyStream("HTTP/1.1 200 OK\r\n\r\n");
+
+        await TlsClientProvider.EstablishConnectTunnelAsync(
+            proxyStream,
+            "example.com",
+            443,
+            new TestProxy(new Uri("http://proxy.local:8080"), credentials: credentials),
+            defaultProxyCredentials: null,
+            CancellationToken.None
+        );
+
+        var requestContent = proxyStream.GetRequestContent();
+        var expectedEncoded = Convert.ToBase64String(Encoding.UTF8.GetBytes("user@domain:pass:word!"));
+        Assert.Contains($"Proxy-Authorization: Basic {expectedEncoded}", requestContent);
+    }
 }

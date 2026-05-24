@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -28,6 +29,7 @@ internal sealed class StreamSinkStage : GraphStageWithMaterializedValue<SinkShap
 
     private sealed record WriteFailed(Exception Error);
 
+    [ExcludeFromCodeCoverage]
     private sealed class Logic : GraphStageLogic
     {
         private readonly StreamSinkStage _stage;

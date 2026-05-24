@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
@@ -23,6 +24,7 @@ internal sealed class QuicConnectionStage : GraphStage<FlowShape<List<ITransport
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this);
 
+    [ExcludeFromCodeCoverage]
     private sealed class Logic : TimerGraphStageLogic, ITransportOperations
     {
         private readonly QuicConnectionStage _stage;

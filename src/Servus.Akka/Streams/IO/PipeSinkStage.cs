@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
 using Akka.Actor;
 using Akka.Streams;
@@ -29,6 +30,7 @@ internal sealed class PipeSinkStage : GraphStageWithMaterializedValue<SinkShape<
 
     private sealed record FlushFailed(Exception Error);
 
+    [ExcludeFromCodeCoverage]
     private sealed class Logic : GraphStageLogic
     {
         private readonly PipeSinkStage _stage;

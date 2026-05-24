@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.IO.Pipelines;
 using Akka.Actor;
 using Akka.Streams;
@@ -24,6 +25,7 @@ internal sealed class PipeSourceStage : GraphStage<SourceShape<ReadOnlyMemory<by
 
     private sealed record ReadFailed(Exception Error);
 
+    [ExcludeFromCodeCoverage]
     private sealed class Logic : GraphStageLogic
     {
         private readonly PipeSourceStage _stage;
