@@ -30,6 +30,7 @@ namespace TurboHTTP.Client
     }
     public static class Extensions
     {
+        public static Akka.Streams.Dsl.Source<TurboHTTP.Features.Sse.ServerSentEvent, Akka.NotUsed> AsEventStream(this System.Net.Http.HttpResponseMessage response) { }
         public static System.Threading.Tasks.ValueTask<System.Net.Http.HttpResponseMessage> GetResponseAsync(this System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken ct = default) { }
     }
     public sealed class Http1Options
@@ -204,6 +205,7 @@ namespace TurboHTTP.Context.Features
     public interface ITurboResponseBodyFeature : Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature
     {
         Akka.Streams.Dsl.Sink<System.ReadOnlyMemory<byte>, System.Threading.Tasks.Task> BodySink { get; }
+        System.Threading.Tasks.Task WhenSinkCompleted { get; }
     }
 }
 namespace TurboHTTP.Context
@@ -382,6 +384,17 @@ namespace TurboHTTP.Features.Cookies
         Strict = 1,
         Lax = 2,
         None = 3,
+    }
+}
+namespace TurboHTTP.Features.Sse
+{
+    public sealed class ServerSentEvent : System.IEquatable<TurboHTTP.Features.Sse.ServerSentEvent>
+    {
+        public ServerSentEvent(string Data, string? EventType = null, string? Id = null, System.TimeSpan? Retry = default) { }
+        public string Data { get; init; }
+        public string? EventType { get; init; }
+        public string? Id { get; init; }
+        public System.TimeSpan? Retry { get; init; }
     }
 }
 namespace TurboHTTP.Routing

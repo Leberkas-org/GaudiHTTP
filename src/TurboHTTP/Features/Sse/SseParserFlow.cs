@@ -9,7 +9,7 @@ namespace TurboHTTP.Features.Sse;
 /// <summary>
 /// Exposes the SSE parser as a reusable Flow.
 /// </summary>
-public static class SseParserFlow
+internal static class SseParserFlow
 {
     public static Flow<ReadOnlyMemory<byte>, ServerSentEvent, NotUsed> Instance { get; }
         = Flow.FromGraph(new SseParserStage());
