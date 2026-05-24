@@ -6,6 +6,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Auth")]
 public sealed class AuthFeatureSpec : FeatureSpecBase
 {
     public AuthFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

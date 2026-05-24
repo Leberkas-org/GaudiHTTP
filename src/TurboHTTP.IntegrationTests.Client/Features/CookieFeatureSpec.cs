@@ -6,6 +6,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Cookies")]
 public sealed class CookieFeatureSpec : FeatureSpecBase
 {
     public CookieFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

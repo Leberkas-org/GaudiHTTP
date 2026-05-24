@@ -6,6 +6,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Interaction")]
 public sealed class FeatureInteractionSpec : FeatureSpecBase
 {
     public FeatureInteractionSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

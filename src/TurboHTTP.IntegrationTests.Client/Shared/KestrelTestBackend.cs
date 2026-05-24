@@ -111,7 +111,7 @@ internal sealed class KestrelTestBackend : ITestBackend
             client.DefaultRequestVersion = HttpVersion.Version30;
             client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
             var response = await client.GetAsync($"https://127.0.0.1:{port}/get", cts.Token);
             await Console.Error.WriteLineAsync(
                 $"[KestrelTestBackend] QUIC probe: status={response.StatusCode} version={response.Version}");

@@ -4,6 +4,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Streaming")]
 public sealed class StreamingFeatureSpec : FeatureSpecBase
 {
     public StreamingFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

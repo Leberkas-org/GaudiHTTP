@@ -3,7 +3,6 @@ using TurboHTTP.IntegrationTests.Client.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Shared;
 
-[Collection("Features")]
 public abstract class FeatureSpecBase : IntegrationSpecBase
 {
     protected FeatureSpecBase(ServerContainerFixture server, ActorSystemFixture systemFixture)

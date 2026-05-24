@@ -5,6 +5,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Range")]
 public sealed class RangeFeatureSpec : FeatureSpecBase
 {
     public RangeFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

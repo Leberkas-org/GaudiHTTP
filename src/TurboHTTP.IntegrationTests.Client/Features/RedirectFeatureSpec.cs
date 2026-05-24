@@ -6,6 +6,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Redirect")]
 public sealed class RedirectFeatureSpec : FeatureSpecBase
 {
     public RedirectFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

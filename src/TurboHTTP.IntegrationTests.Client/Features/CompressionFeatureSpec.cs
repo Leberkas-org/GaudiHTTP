@@ -6,6 +6,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Compression")]
 public sealed class CompressionFeatureSpec : FeatureSpecBase
 {
     public CompressionFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

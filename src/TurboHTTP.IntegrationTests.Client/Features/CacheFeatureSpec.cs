@@ -5,6 +5,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Cache")]
 public sealed class CacheFeatureSpec : FeatureSpecBase
 {
     public CacheFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

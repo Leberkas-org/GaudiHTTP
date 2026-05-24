@@ -1,6 +1,6 @@
+using Akka.Actor;
 using TurboHTTP.Client;
 using TurboHTTP.Tests.Shared;
-using TurboHTTP.IntegrationTests.Client.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Shared;
 
@@ -21,7 +21,7 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
 
     protected ITurboHttpClient Client => _helper!.Client;
 
-    protected Akka.Actor.ActorSystem ActorSystem => _systemFixture.System;
+    protected ActorSystem ActorSystem => _systemFixture.System;
 
     protected static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 

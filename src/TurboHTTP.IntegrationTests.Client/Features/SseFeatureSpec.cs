@@ -8,6 +8,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Sse")]
 public sealed class SseFeatureSpec : FeatureSpecBase
 {
     public SseFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

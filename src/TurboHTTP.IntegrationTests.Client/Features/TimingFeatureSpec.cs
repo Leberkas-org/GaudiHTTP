@@ -4,6 +4,7 @@ using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.IntegrationTests.Client.Features;
 
+[Collection("Timing")]
 public sealed class TimingFeatureSpec : FeatureSpecBase
 {
     public TimingFeatureSpec(ServerContainerFixture server, ActorSystemFixture systemFixture)

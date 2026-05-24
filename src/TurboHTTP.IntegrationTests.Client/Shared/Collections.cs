@@ -18,5 +18,32 @@ public sealed class H2IntegrationCollection;
 [CollectionDefinition("H3")]
 public sealed class H3IntegrationCollection;
 
-[CollectionDefinition("Features")]
-public sealed class FeaturesIntegrationCollection;
+[CollectionDefinition("Auth")]
+public sealed class AuthIntegrationCollection;
+
+[CollectionDefinition("Cache")]
+public sealed class CacheIntegrationCollection;
+
+[CollectionDefinition("Compression")]
+public sealed class CompressionIntegrationCollection;
+
+[CollectionDefinition("Cookies")]
+public sealed class CookiesIntegrationCollection;
+
+[CollectionDefinition("Interaction")]
+public sealed class InteractionIntegrationCollection;
+
+[CollectionDefinition("Range")]
+public sealed class RangeIntegrationCollection;
+
+[CollectionDefinition("Redirect")]
+public sealed class RedirectIntegrationCollection;
+
+[CollectionDefinition("Sse")]
+public sealed class SseIntegrationCollection;
+
+[CollectionDefinition("Streaming")]
+public sealed class StreamingIntegrationCollection;
+
+[CollectionDefinition("Timing")]
+public sealed class TimingIntegrationCollection;
