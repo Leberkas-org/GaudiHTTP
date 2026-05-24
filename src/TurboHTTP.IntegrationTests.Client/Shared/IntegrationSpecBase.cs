@@ -86,7 +86,7 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
         var (port, scheme, host) = variant switch
         {
             { Tls: false } => (Server.HttpPort, "http", "127.0.0.1"),
-            { Version: TestHttpVersion.H3 } => (Server.QuicPort, "https", "localhost"),
+            { Version: TestHttpVersion.H3 } => (Server.QuicPort, "https", "127.0.0.1"),
             _ => (Server.HttpsPort, "https", "localhost")
         };
 

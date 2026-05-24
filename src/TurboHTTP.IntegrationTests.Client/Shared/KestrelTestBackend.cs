@@ -26,6 +26,8 @@ internal sealed class KestrelTestBackend : ITestBackend
         var cert = LoadCertificate();
         var quicSupported = QuicListener.IsSupported;
 
+        var httpsPort = quicSupported ? FindAvailablePort() : 0;
+
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
 
@@ -36,7 +38,7 @@ internal sealed class KestrelTestBackend : ITestBackend
                 listenOptions.Protocols = HttpProtocols.Http1;
             });
 
-            kestrel.Listen(IPAddress.Loopback, 0, listenOptions =>
+            kestrel.Listen(IPAddress.Loopback, httpsPort, listenOptions =>
             {
                 listenOptions.Protocols = quicSupported
                     ? HttpProtocols.Http1AndHttp2AndHttp3
@@ -109,14 +111,32 @@ internal sealed class KestrelTestBackend : ITestBackend
             client.DefaultRequestVersion = HttpVersion.Version30;
             client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            var response = await client.GetAsync($"https://localhost:{port}/get", cts.Token);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var response = await client.GetAsync($"https://127.0.0.1:{port}/get", cts.Token);
+            await Console.Error.WriteLineAsync(
+                $"[KestrelTestBackend] QUIC probe: status={response.StatusCode} version={response.Version}");
             return response.IsSuccessStatusCode && response.Version == HttpVersion.Version30;
         }
-        catch
+        catch (Exception ex)
         {
+            await Console.Error.WriteLineAsync(
+                $"[KestrelTestBackend] QUIC probe failed: {ex.GetType().Name}: {ex.Message}");
+            if (ex.InnerException is not null)
+            {
+                await Console.Error.WriteLineAsync(
+                    $"[KestrelTestBackend]   Inner: {ex.InnerException.GetType().Name}: {ex.InnerException.Message}");
+            }
             return false;
         }
+    }
+
+    private static int FindAvailablePort()
+    {
+        using var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 
     private static X509Certificate2 LoadCertificate()
