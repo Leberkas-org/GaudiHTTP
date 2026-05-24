@@ -80,6 +80,9 @@ jobs:
   nuget-publish:
     runs-on: ubuntu-latest
     needs: [release-please, nuget-build]
+    environment: nuget
+    permissions:
+      id-token: write
 
     steps:
       - name: Download NuGet artifact
@@ -88,10 +91,12 @@ jobs:
           name: nuget-packages
           path: ${{ env.PACKAGE_OUTPUT_DIRECTORY }}
 
-      - name: Publish to NuGet
+      - name: Install .NET
+        uses: actions/setup-dotnet@v5
+
+      - name: Publish to NuGet (Trusted Publishing)
         run: >
           dotnet nuget push
-          --api-key ${{ secrets.NUGET_API_KEY }}
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
           ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/*.nupkg
