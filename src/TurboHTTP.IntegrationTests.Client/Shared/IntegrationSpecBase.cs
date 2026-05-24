@@ -25,7 +25,7 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
 
     protected static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
-    private ServerContainerFixture Server { get; }
+    protected ServerContainerFixture Server { get; }
 
     public ValueTask InitializeAsync()
     {

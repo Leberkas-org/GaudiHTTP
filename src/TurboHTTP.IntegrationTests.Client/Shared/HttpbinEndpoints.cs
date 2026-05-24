@@ -42,13 +42,10 @@ internal static class HttpbinEndpoints
         app.MapGet("/relative-redirect/{n:int}", HandleRelativeRedirect);
         app.MapGet("/cookies/delete", HandleDeleteCookies);
         app.MapGet("/bearer", HandleBearer);
-        app.MapGet("/sse/simple", HandleSseSimple);
-        app.MapGet("/sse/typed", HandleSseTyped);
-        app.MapGet("/sse/multi", HandleSseMulti);
+        app.MapGet("/sse", HandleSse);
         app.MapGet("/sse/multiline", HandleSseMultiline);
         app.MapGet("/sse/with-comments", HandleSseWithComments);
         app.MapGet("/sse/with-id-retry", HandleSseWithIdRetry);
-        app.MapGet("/sse/empty", HandleSseEmpty);
     }
 
     private static async Task HandleGet(HttpContext ctx)
@@ -787,36 +784,42 @@ internal static class HttpbinEndpoints
         return false;
     }
 
-    private static async Task HandleSseSimple(HttpContext ctx)
+    private static async Task HandleSse(HttpContext ctx)
     {
-        ctx.Response.ContentType = "text/event-stream";
-        ctx.Response.Headers.CacheControl = "no-cache";
-        await ctx.Response.WriteAsync("data: hello\n\n");
-        await ctx.Response.WriteAsync("data: world\n\n");
-    }
+        var countStr = ctx.Request.Query["count"].FirstOrDefault();
+        var durationStr = ctx.Request.Query["duration"].FirstOrDefault();
+        var count = 10;
+        var duration = TimeSpan.FromSeconds(5);
 
-    private static async Task HandleSseTyped(HttpContext ctx)
-    {
-        ctx.Response.ContentType = "text/event-stream";
-        ctx.Response.Headers.CacheControl = "no-cache";
-        await ctx.Response.WriteAsync("event: greeting\ndata: hello\n\n");
-        await ctx.Response.WriteAsync("event: farewell\ndata: goodbye\n\n");
-    }
-
-    private static async Task HandleSseMulti(HttpContext ctx)
-    {
-        var countStr = ctx.Request.Query["n"].FirstOrDefault();
-        var count = 5;
-        if (countStr is not null && int.TryParse(countStr, out var parsed))
+        if (countStr is not null && int.TryParse(countStr, out var parsedCount))
         {
-            count = Math.Clamp(parsed, 1, 100);
+            count = Math.Clamp(parsedCount, 1, 100);
+        }
+
+        if (durationStr is not null)
+        {
+            durationStr = durationStr.TrimEnd('s');
+            if (int.TryParse(durationStr, out var parsedDuration))
+            {
+                duration = TimeSpan.FromSeconds(parsedDuration);
+            }
         }
 
         ctx.Response.ContentType = "text/event-stream";
         ctx.Response.Headers.CacheControl = "no-cache";
+
+        var delay = count > 1 ? duration / (count - 1) : TimeSpan.Zero;
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
         for (var i = 0; i < count; i++)
         {
-            await ctx.Response.WriteAsync(string.Concat("data: event-", i, "\n\n"));
+            if (i > 0 && delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay, ctx.RequestAborted);
+            }
+
+            var json = string.Concat("{\"id\":", i, ",\"timestamp\":", timestamp + i * (long)delay.TotalMilliseconds, "}");
+            await ctx.Response.WriteAsync(string.Concat("event: ping\ndata: ", json, "\n\n"));
             await ctx.Response.Body.FlushAsync();
         }
     }
@@ -826,6 +829,7 @@ internal static class HttpbinEndpoints
         ctx.Response.ContentType = "text/event-stream";
         ctx.Response.Headers.CacheControl = "no-cache";
         await ctx.Response.WriteAsync("data: line1\ndata: line2\ndata: line3\n\n");
+        await ctx.Response.Body.FlushAsync();
     }
 
     private static async Task HandleSseWithComments(HttpContext ctx)
@@ -833,6 +837,7 @@ internal static class HttpbinEndpoints
         ctx.Response.ContentType = "text/event-stream";
         ctx.Response.Headers.CacheControl = "no-cache";
         await ctx.Response.WriteAsync(": keepalive\ndata: visible\n\n");
+        await ctx.Response.Body.FlushAsync();
     }
 
     private static async Task HandleSseWithIdRetry(HttpContext ctx)
@@ -840,12 +845,6 @@ internal static class HttpbinEndpoints
         ctx.Response.ContentType = "text/event-stream";
         ctx.Response.Headers.CacheControl = "no-cache";
         await ctx.Response.WriteAsync("id: 42\nretry: 3000\nevent: update\ndata: payload\n\n");
-    }
-
-    private static async Task HandleSseEmpty(HttpContext ctx)
-    {
-        ctx.Response.ContentType = "text/event-stream";
-        ctx.Response.Headers.CacheControl = "no-cache";
         await ctx.Response.Body.FlushAsync();
     }
 

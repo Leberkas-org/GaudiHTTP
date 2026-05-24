@@ -18,6 +18,7 @@ internal sealed class DockerTestBackend : ITestBackend
     public int QuicPort { get; private set; }
     public bool IsQuicAvailable { get; private set; }
     public bool IsHttp10TlsSupported => false;
+    public bool HasCustomEndpoints => false;
 
     public async Task StartAsync()
     {

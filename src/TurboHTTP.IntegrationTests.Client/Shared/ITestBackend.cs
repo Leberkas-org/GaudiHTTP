@@ -7,5 +7,6 @@ internal interface ITestBackend : IAsyncDisposable
     int QuicPort { get; }
     bool IsQuicAvailable { get; }
     bool IsHttp10TlsSupported { get; }
+    bool HasCustomEndpoints { get; }
     Task StartAsync();
 }

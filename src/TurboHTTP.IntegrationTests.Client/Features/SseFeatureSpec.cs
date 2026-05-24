@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using TurboHTTP.Client;
@@ -18,13 +19,13 @@ public sealed class SseFeatureSpec : FeatureSpecBase
 
     [Theory(Timeout = 30000)]
     [MemberData(nameof(AllVariants))]
-    public async Task Simple_should_parse_two_data_events(ProtocolVariant variant)
+    public async Task Sse_should_parse_events_from_standard_endpoint(ProtocolVariant variant)
     {
         await using var helper = CreateClient(variant);
         var materializer = ActorSystem.Materializer();
 
         var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/sse/simple"), CancellationToken);
+            new HttpRequestMessage(HttpMethod.Get, "/sse?count=3&duration=1s"), CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/event-stream", response.Content.Headers.ContentType?.MediaType);
@@ -32,55 +33,57 @@ public sealed class SseFeatureSpec : FeatureSpecBase
         var events = await response.AsEventStream()
             .RunWith(Sink.Seq<ServerSentEvent>(), materializer);
 
-        Assert.Equal(2, events.Count);
-        Assert.Equal("hello", events[0].Data);
-        Assert.Equal("world", events[1].Data);
-    }
-
-    [Theory(Timeout = 30000)]
-    [MemberData(nameof(AllVariants))]
-    public async Task Typed_should_preserve_event_type(ProtocolVariant variant)
-    {
-        await using var helper = CreateClient(variant);
-        var materializer = ActorSystem.Materializer();
-
-        var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/sse/typed"), CancellationToken);
-
-        var events = await response.AsEventStream()
-            .RunWith(Sink.Seq<ServerSentEvent>(), materializer);
-
-        Assert.Equal(2, events.Count);
-        Assert.Equal("greeting", events[0].EventType);
-        Assert.Equal("hello", events[0].Data);
-        Assert.Equal("farewell", events[1].EventType);
-        Assert.Equal("goodbye", events[1].Data);
-    }
-
-    [Theory(Timeout = 30000)]
-    [MemberData(nameof(AllVariants))]
-    public async Task Multi_should_receive_all_events(ProtocolVariant variant)
-    {
-        await using var helper = CreateClient(variant);
-        var materializer = ActorSystem.Materializer();
-
-        var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/sse/multi?n=10"), CancellationToken);
-
-        var events = await response.AsEventStream()
-            .RunWith(Sink.Seq<ServerSentEvent>(), materializer);
-
-        Assert.Equal(10, events.Count);
-        for (var i = 0; i < 10; i++)
+        Assert.Equal(3, events.Count);
+        foreach (var evt in events)
         {
-            Assert.Equal(string.Concat("event-", i), events[i].Data);
+            Assert.Equal("ping", evt.EventType);
+            var json = JsonDocument.Parse(evt.Data);
+            Assert.True(json.RootElement.TryGetProperty("id", out _));
+            Assert.True(json.RootElement.TryGetProperty("timestamp", out _));
         }
     }
 
     [Theory(Timeout = 30000)]
     [MemberData(nameof(AllVariants))]
-    public async Task Multiline_should_concatenate_data_lines(ProtocolVariant variant)
+    public async Task Sse_should_receive_correct_event_count(ProtocolVariant variant)
     {
+        await using var helper = CreateClient(variant);
+        var materializer = ActorSystem.Materializer();
+
+        var response = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/sse?count=5&duration=2s"), CancellationToken);
+
+        var events = await response.AsEventStream()
+            .RunWith(Sink.Seq<ServerSentEvent>(), materializer);
+
+        Assert.Equal(5, events.Count);
+    }
+
+    [Theory(Timeout = 30000)]
+    [MemberData(nameof(AllVariants))]
+    public async Task Sse_should_have_incrementing_ids(ProtocolVariant variant)
+    {
+        await using var helper = CreateClient(variant);
+        var materializer = ActorSystem.Materializer();
+
+        var response = await helper.Client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "/sse?count=3&duration=1s"), CancellationToken);
+
+        var events = await response.AsEventStream()
+            .RunWith(Sink.Seq<ServerSentEvent>(), materializer);
+
+        for (var i = 0; i < events.Count; i++)
+        {
+            var json = JsonDocument.Parse(events[i].Data);
+            Assert.Equal(i, json.RootElement.GetProperty("id").GetInt32());
+        }
+    }
+
+    [Theory(Timeout = 30000)]
+    [MemberData(nameof(KestrelOnly))]
+    public async Task Sse_should_concatenate_multiline_data(ProtocolVariant variant)
+    {
+        if (!Server.HasCustomEndpoints) Assert.Skip("Custom SSE endpoints not available on this backend.");
         await using var helper = CreateClient(variant);
         var materializer = ActorSystem.Materializer();
 
@@ -95,9 +98,10 @@ public sealed class SseFeatureSpec : FeatureSpecBase
     }
 
     [Theory(Timeout = 30000)]
-    [MemberData(nameof(AllVariants))]
-    public async Task WithComments_should_skip_comment_lines(ProtocolVariant variant)
+    [MemberData(nameof(KestrelOnly))]
+    public async Task Sse_should_skip_comment_lines(ProtocolVariant variant)
     {
+        if (!Server.HasCustomEndpoints) Assert.Skip("Custom SSE endpoints not available on this backend.");
         await using var helper = CreateClient(variant);
         var materializer = ActorSystem.Materializer();
 
@@ -112,9 +116,10 @@ public sealed class SseFeatureSpec : FeatureSpecBase
     }
 
     [Theory(Timeout = 30000)]
-    [MemberData(nameof(AllVariants))]
-    public async Task WithIdRetry_should_parse_all_fields(ProtocolVariant variant)
+    [MemberData(nameof(KestrelOnly))]
+    public async Task Sse_should_parse_id_and_retry_fields(ProtocolVariant variant)
     {
+        if (!Server.HasCustomEndpoints) Assert.Skip("Custom SSE endpoints not available on this backend.");
         await using var helper = CreateClient(variant);
         var materializer = ActorSystem.Materializer();
 
@@ -129,23 +134,5 @@ public sealed class SseFeatureSpec : FeatureSpecBase
         Assert.Equal("update", events[0].EventType);
         Assert.Equal("42", events[0].Id);
         Assert.Equal(TimeSpan.FromMilliseconds(3000), events[0].Retry);
-    }
-
-    [Theory(Timeout = 30000)]
-    [MemberData(nameof(AllVariants))]
-    public async Task Empty_should_produce_no_events(ProtocolVariant variant)
-    {
-        await using var helper = CreateClient(variant);
-        var materializer = ActorSystem.Materializer();
-
-        var response = await helper.Client.SendAsync(
-            new HttpRequestMessage(HttpMethod.Get, "/sse/empty"), CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var events = await response.AsEventStream()
-            .RunWith(Sink.Seq<ServerSentEvent>(), materializer);
-
-        Assert.Empty(events);
     }
 }

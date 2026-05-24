@@ -20,6 +20,7 @@ internal sealed class KestrelTestBackend : ITestBackend
     public int QuicPort { get; private set; }
     public bool IsQuicAvailable { get; private set; }
     public bool IsHttp10TlsSupported => true;
+    public bool HasCustomEndpoints => true;
 
     public async Task StartAsync()
     {

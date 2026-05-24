@@ -83,9 +83,15 @@ internal sealed class SseParserStage : GraphStage<FlowShape<ReadOnlyMemory<byte>
                     // Emit pending event if has data
                     if (_hasData)
                     {
+                        var data = _dataAccumulator.ToString();
+                        if (data.Length > 0 && data[^1] == '\n')
+                        {
+                            data = data[..^1];
+                        }
+
                         var evt = new ServerSentEvent(
-                            Data: _dataAccumulator.ToString(),
-                            EventType: _eventType,
+                            Data: data,
+                            EventType: _eventType ?? "message",
                             Id: _id,
                             Retry: _retry);
                         _pending.Enqueue(evt);
@@ -179,9 +185,15 @@ internal sealed class SseParserStage : GraphStage<FlowShape<ReadOnlyMemory<byte>
                         // Empty line = event boundary
                         if (_hasData)
                         {
+                            var data = _dataAccumulator.ToString();
+                            if (data.Length > 0 && data[^1] == '\n')
+                            {
+                                data = data[..^1];
+                            }
+
                             var evt = new ServerSentEvent(
-                                Data: _dataAccumulator.ToString(),
-                                EventType: _eventType,
+                                Data: data,
+                                EventType: _eventType ?? "message",
                                 Id: _id,
                                 Retry: _retry);
                             _pending.Enqueue(evt);
@@ -249,7 +261,10 @@ internal sealed class SseParserStage : GraphStage<FlowShape<ReadOnlyMemory<byte>
                     break;
 
                 case "id":
-                    _id = fieldValue;
+                    if (!fieldValue.Contains('\0'))
+                    {
+                        _id = fieldValue;
+                    }
                     break;
 
                 case "retry":

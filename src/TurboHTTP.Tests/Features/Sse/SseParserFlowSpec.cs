@@ -30,7 +30,7 @@ public sealed class SseParserFlowSpec : TestKit
 
         Assert.Single(result);
         Assert.Equal("hello", result[0].Data);
-        Assert.Null(result[0].EventType);
+        Assert.Equal("message", result[0].EventType);
         Assert.Null(result[0].Id);
         Assert.Null(result[0].Retry);
     }

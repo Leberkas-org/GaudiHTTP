@@ -39,4 +39,10 @@ public abstract class FeatureSpecBase : IntegrationSpecBase
         new ProtocolVariant(TestHttpVersion.H2, true),
         new ProtocolVariant(TestHttpVersion.H3, true)
     ];
+
+    public static TheoryData<ProtocolVariant> KestrelOnly =>
+    [
+        new ProtocolVariant(TestHttpVersion.H11, false),
+        new ProtocolVariant(TestHttpVersion.H2, true)
+    ];
 }

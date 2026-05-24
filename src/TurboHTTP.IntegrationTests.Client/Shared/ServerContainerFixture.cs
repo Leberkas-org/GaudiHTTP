@@ -12,6 +12,7 @@ public sealed class ServerContainerFixture : Xunit.IAsyncLifetime
     public int QuicPort => _backend?.QuicPort ?? 0;
     public bool IsQuicAvailable => _backend?.IsQuicAvailable ?? false;
     public bool IsHttp10TlsSupported => _backend?.IsHttp10TlsSupported ?? false;
+    public bool HasCustomEndpoints => _backend?.HasCustomEndpoints ?? false;
     public bool IsBackendAvailable => _backend is not null;
 
     public async ValueTask InitializeAsync()
