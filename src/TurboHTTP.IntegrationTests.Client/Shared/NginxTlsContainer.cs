@@ -52,7 +52,12 @@ internal sealed class NginxTlsContainer : IAsyncDisposable
 
             if (_options.EnableQuic)
             {
-                builder = builder.WithPortBinding(listenPort, listenPort);
+                var portStr = listenPort.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                builder = builder
+                    .WithPortBinding(listenPort, listenPort)
+                    .WithPortBinding(portStr, portStr + "/udp")
+                    .WithWaitStrategy(Wait.ForUnixContainer()
+                        .UntilInternalTcpPortIsAvailable(listenPort));
             }
             else
             {
@@ -109,12 +114,17 @@ internal sealed class NginxTlsContainer : IAsyncDisposable
 
                          add_header Alt-Svc 'h3=":{{listenPort}}"; ma=86400' always;
 
+                         set $proxy_host $http_host;
+                         if ($proxy_host = '') {
+                             set $proxy_host $host:$server_port;
+                         }
+
                          location / {
                              proxy_pass http://backend;
-                             proxy_set_header Host $http_host;
+                             proxy_set_header Host $proxy_host;
                              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                              proxy_set_header X-Forwarded-Proto $scheme;
-                             proxy_set_header X-Forwarded-Host $http_host;
+                             proxy_set_header X-Forwarded-Host $proxy_host;
                          }
                      }
                  }
@@ -123,17 +133,36 @@ internal sealed class NginxTlsContainer : IAsyncDisposable
 
     private static int GetFreePort()
     {
-        using var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
+        for (var attempt = 0; attempt < 10; attempt++)
+        {
+            int port;
+            using (var tcp = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0))
+            {
+                tcp.Start();
+                port = ((IPEndPoint)tcp.LocalEndpoint).Port;
+                tcp.Stop();
+            }
+
+            try
+            {
+                using var udp = new System.Net.Sockets.UdpClient(port, System.Net.Sockets.AddressFamily.InterNetwork);
+                return port;
+            }
+            catch (System.Net.Sockets.SocketException)
+            {
+            }
+        }
+
+        using var fallback = new System.Net.Sockets.UdpClient(0, System.Net.Sockets.AddressFamily.InterNetwork);
+        return ((IPEndPoint)fallback.Client.LocalEndPoint!).Port;
     }
 
     private static async Task<bool> ProbeQuicAsync(int port)
     {
         if (!QuicConnection.IsSupported)
         {
+            await Console.Error.WriteLineAsync(
+                "[NginxTlsContainer] QUIC probe skipped: QuicConnection.IsSupported=false");
             return false;
         }
 
@@ -146,11 +175,15 @@ internal sealed class NginxTlsContainer : IAsyncDisposable
             client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var response = await client.GetAsync($"https://localhost:{port}/get", cts.Token);
-            return response.IsSuccessStatusCode && response.Version == HttpVersion.Version30;
+            var response = await client.GetAsync($"https://127.0.0.1:{port}/get", cts.Token);
+            await Console.Error.WriteLineAsync(
+                $"[NginxTlsContainer] QUIC probe: status={response.StatusCode} version={response.Version}");
+            return response.Version == HttpVersion.Version30;
         }
-        catch
+        catch (Exception ex)
         {
+            await Console.Error.WriteLineAsync(
+                $"[NginxTlsContainer] QUIC probe failed: {ex.GetType().Name}: {ex.Message}");
             return false;
         }
     }
