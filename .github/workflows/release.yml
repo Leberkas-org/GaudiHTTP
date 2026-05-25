@@ -81,8 +81,6 @@ jobs:
     runs-on: ubuntu-latest
     needs: [ release-please, nuget-build ]
     environment: nuget
-    permissions:
-      id-token: write
 
     steps:
       - name: Download NuGet artifact
@@ -94,18 +92,12 @@ jobs:
       - name: Install .NET
         uses: actions/setup-dotnet@v5
 
-      - name: NuGet login (Trusted Publishing)
-        uses: NuGet/login@v1
-        id: nuget-login
-        with:
-          user: st0o0
-
       - name: Push to NuGet.org
         run: >
           dotnet nuget push
           ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/*.nupkg
           --source https://api.nuget.org/v3/index.json
-          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          --api-key ${{ secrets.NUGET_SECRET }}
           --skip-duplicate
 
       - name: Attach package to GitHub Release
