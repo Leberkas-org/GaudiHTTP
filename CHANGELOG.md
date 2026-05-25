@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.0.0](https://github.com/Leberkas-org/TurboHTTP/compare/v0.9.2...v1.0.0) (2026-05-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **server:** rename ITurboPipelineBuilder to ITurboApplicationBuilder
+* **server:** remove HostBuilderExtensions, migrate to TurboWebApplication.CreateBuilder()
+* **server:** rewrite TurboWebApplication with static factories and interfaces
+
+### Features
+
+* **h2:** implement server-side HTTP/2 response trailers ([fc4df62](https://github.com/Leberkas-org/TurboHTTP/commit/fc4df6242b90facf9ebd010672af2450519b447e))
+* **server:** add internal AddTurboKestrel overload accepting TurboServerOptions instance ([7903f13](https://github.com/Leberkas-org/TurboHTTP/commit/7903f131969d85f6ecdbdf59a3ee30cc3932f6f4))
+* **server:** add ITurboEndpointRouteBuilder interface ([a9f86d4](https://github.com/Leberkas-org/TurboHTTP/commit/a9f86d4c2cb9658e674cdb803dea3bb195184dbd))
+* **server:** add routing extension methods on ITurboEndpointRouteBuilder ([cc7d599](https://github.com/Leberkas-org/TurboHTTP/commit/cc7d599fae6f0235e6826aac301b4bbcbed711a8))
+* **server:** add TurboUrlCollection as ICollection&lt;string&gt; wrapper ([9420f5d](https://github.com/Leberkas-org/TurboHTTP/commit/9420f5d0f82dd6877fa5025e30218c2f0b17ec3b))
+* **server:** add TurboWebApplicationBuilder ([51efcf7](https://github.com/Leberkas-org/TurboHTTP/commit/51efcf710656f2bbee6d1c4a5bb212e806391198))
+* **server:** expose Use, Run, Map, MapWhen directly on TurboWebApplication ([9d83e2f](https://github.com/Leberkas-org/TurboHTTP/commit/9d83e2fed274ef6fe074d592ce3e8686933d6064))
+
+
+### Refactoring
+
+* **server:** remove HostBuilderExtensions, migrate to TurboWebApplication.CreateBuilder() ([f4cf7af](https://github.com/Leberkas-org/TurboHTTP/commit/f4cf7af822489518c717bd148caab4d2a3d7f8e8))
+* **server:** rename ITurboPipelineBuilder to ITurboApplicationBuilder ([cbfac65](https://github.com/Leberkas-org/TurboHTTP/commit/cbfac65c9b281a202ee278dc372808142f03d862))
+* **server:** return ITurboPipelineBuilder from pipeline methods ([4fbbc72](https://github.com/Leberkas-org/TurboHTTP/commit/4fbbc72168e243678d705ebc5b7c4495cf971805))
+* **server:** rewrite TurboWebApplication with static factories and interfaces ([fb4970e](https://github.com/Leberkas-org/TurboHTTP/commit/fb4970eecbb9d47744a1636b3cd94852bd7e70ea))
+
 ## [0.9.2](https://github.com/Leberkas-org/TurboHTTP/compare/v0.9.1...v0.9.2) (2026-05-24)
 
 
