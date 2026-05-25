@@ -93,12 +93,19 @@ jobs:
       - name: Install .NET
         uses: actions/setup-dotnet@v5
 
-      - name: Publish to NuGet (Trusted Publishing)
+      - name: NuGet login (Trusted Publishing)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: st0o0
+
+      - name: Push to NuGet.org
         run: >
           dotnet nuget push
-          --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
           ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/*.nupkg
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          --skip-duplicate
 
       - name: Attach package to GitHub Release
         uses: softprops/action-gh-release@v3
