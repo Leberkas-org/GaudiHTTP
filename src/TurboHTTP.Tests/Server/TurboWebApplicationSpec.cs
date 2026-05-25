@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -127,5 +128,37 @@ public sealed class TurboWebApplicationSpec
     {
         var app = TurboWebApplication.Create();
         Assert.NotNull(app.Logger);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void MapGet_extension_should_register_route()
+    {
+        var app = TurboWebApplication.Create();
+        var result = app.MapGet("/test", () => Results.Ok());
+        Assert.NotNull(result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void MapPost_extension_should_register_route()
+    {
+        var app = TurboWebApplication.Create();
+        var result = app.MapPost("/test", () => Results.Ok());
+        Assert.NotNull(result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void MapGroup_extension_should_return_group_builder()
+    {
+        var app = TurboWebApplication.Create();
+        var group = app.MapGroup("/api");
+        Assert.NotNull(group);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void MapGet_with_context_handler_should_register_route()
+    {
+        var app = TurboWebApplication.Create();
+        var result = app.MapGet("/test", (TurboHttpContext ctx) => Task.CompletedTask);
+        Assert.NotNull(result);
     }
 }
