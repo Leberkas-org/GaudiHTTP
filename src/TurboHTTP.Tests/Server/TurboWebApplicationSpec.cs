@@ -163,34 +163,42 @@ public sealed class TurboWebApplicationSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Use_should_be_callable_via_interface()
+    public void Use_should_return_app_for_chaining()
+    {
+        var app = TurboWebApplication.Create();
+
+        var result = app.Use(async (ctx, next) => await next(ctx));
+
+        Assert.Same(app, result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Run_should_return_app_for_chaining()
+    {
+        var app = TurboWebApplication.Create();
+
+        var result = app.Run(ctx => Task.CompletedTask);
+
+        Assert.Same(app, result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Map_should_return_app_for_chaining()
+    {
+        var app = TurboWebApplication.Create();
+
+        var result = app.Map("/branch", branch => branch.Run(ctx => Task.CompletedTask));
+
+        Assert.Same(app, result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Pipeline_interface_should_also_work()
     {
         var app = TurboWebApplication.Create();
         ITurboPipelineBuilder pipeline = app;
 
         var result = pipeline.Use(async (ctx, next) => await next(ctx));
-
-        Assert.Same(app, result);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void Run_should_be_callable_via_interface()
-    {
-        var app = TurboWebApplication.Create();
-        ITurboPipelineBuilder pipeline = app;
-
-        var result = pipeline.Run(ctx => Task.CompletedTask);
-
-        Assert.Same(app, result);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void Map_should_be_callable_via_interface()
-    {
-        var app = TurboWebApplication.Create();
-        ITurboPipelineBuilder pipeline = app;
-
-        var result = pipeline.Map("/branch", branch => branch.Run(ctx => Task.CompletedTask));
 
         Assert.Same(app, result);
     }
