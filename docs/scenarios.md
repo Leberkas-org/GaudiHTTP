@@ -6,42 +6,31 @@ TurboHTTP combines a full HTTP stack with Akka Streams, giving you streaming, ba
 
 ## Entity Gateway
 
-Building a REST API usually means writing controllers, wiring up routes, and manually dispatching to your domain layer. With `MapEntity`, you map HTTP verbs directly to actor interactions in a single fluent call.
+Building a REST API usually means writing controllers, wiring up routes, and manually dispatching to your domain layer. With `MapEntity`, you define message factories for each HTTP verb — TurboHTTP handles actor resolution, Ask/Tell, timeouts, and response mapping for you.
 
 ```csharp
 app.MapEntity<OrderId>("/api/orders/{id}", entity =>
 {
-    entity.OnGet(async (TurboHttpContext ctx, OrderId id) =>
-    {
-        var order = await ctx.ActorSystem
-            .SelectActor<OrderActor>(id)
-            .Ask<OrderResponse>(new GetOrder(id), ctx.RequestAborted);
+    entity.UseActorRef(registry => registry.Get<OrderActor>());
+    entity.WithTimeout(TimeSpan.FromSeconds(5));
 
-        return Results.Ok(order);
-    });
+    entity.OnGet((OrderId id) => new GetOrder(id))
+        .Ask(ask => ask
+            .Handle<OrderResponse>(async (ctx, order) =>
+            {
+                await ctx.Response.WriteAsJsonAsync(order);
+            }));
 
-    entity.OnPost(async (TurboHttpContext ctx, OrderId id, CreateOrderRequest body) =>
-    {
-        ctx.ActorSystem
-            .SelectActor<OrderActor>(id)
-            .Tell(new CreateOrder(id, body));
+    entity.OnPost((OrderId id, CreateOrderRequest body) => new CreateOrder(id, body))
+        .Tell(tell => tell.Produces(HttpStatusCode.Created));
 
-        return Results.Created($"/api/orders/{id}", null);
-    });
-
-    entity.OnDelete(async (TurboHttpContext ctx, OrderId id) =>
-    {
-        ctx.ActorSystem
-            .SelectActor<OrderActor>(id)
-            .Tell(new DeleteOrder(id));
-
-        return Results.NoContent();
-    });
+    entity.OnDelete((OrderId id) => new DeleteOrder(id))
+        .Tell();
 });
 ```
 
 ::: tip Key Insight
-Each HTTP request routes to a specific actor instance by its typed key. The actor manages its own state and lifecycle — no shared database locks, no thread synchronization. Timeouts and error handling are built into the entity builder, so a slow or crashed actor returns a proper HTTP error without blocking other requests.
+You only define what message to create for each HTTP verb — the entity builder does the rest. `Ask` sends the message and waits for a typed response, `Tell` fires and forgets with a configurable status code (202 by default). Timeouts, error handling, and actor resolution are built in — a slow or crashed actor returns a proper HTTP error without blocking other requests.
 :::
 
 ---
@@ -51,11 +40,10 @@ Each HTTP request routes to a specific actor instance by its typed key. The acto
 Server-Sent Events let you push data to clients over a long-lived HTTP connection. TurboHTTP makes this trivial — return an Akka Streams `Source` wrapped in `TurboStreamResults.EventStream`, and the framework handles SSE framing, connection lifecycle, and backpressure for you.
 
 ```csharp
-app.MapGet("/events/orders", (TurboHttpContext ctx) =>
+app.MapGet("/events/orders", (TurboHttpContext ctx, IOrderEventSource orderEvents) =>
 {
-    var events = ctx.ActorSystem
-        .EventStream
-        .AsSource<OrderEvent>()
+    var events = orderEvents
+        .AsSource()
         .Select(e => new ServerSentEvent(
             Data: e.ToJson(),
             EventType: e.GetType().Name,
@@ -76,11 +64,12 @@ The `Source` is materialized when the client connects and torn down when they di
 When you need to stream binary data — file downloads, video, sensor feeds — you want bytes to flow from the source to the network without piling up in memory. `TurboStreamResults.Stream` takes an Akka Streams `Source` of byte chunks and pipes it directly into the HTTP response body.
 
 ```csharp
-app.MapGet("/files/{fileId}", (TurboHttpContext ctx, string fileId) =>
+app.MapGet("/files/{fileId}", (TurboHttpContext ctx, IFileStore fileStore, string fileId) =>
 {
     var metadata = fileStore.GetMetadata(fileId);
 
-    var bytes = FileIO.FromFile(metadata.Path, chunkSize: 8 * 1024)
+    var bytes = Akka.Streams.IO.FileIO
+        .FromFile(new FileInfo(metadata.Path), chunkSize: 8 * 1024)
         .Select(chunk => (ReadOnlyMemory<byte>)chunk.Memory);
 
     return TurboStreamResults.Stream(bytes, contentType: metadata.ContentType);
@@ -128,15 +117,10 @@ Over HTTP/2, all 100 requests multiplex on a single connection. Responses arrive
 TurboHTTP doesn't just use Akka Streams for internal plumbing — it exposes the full operator toolkit for you to shape, merge, and throttle data before it hits the wire. Every operator in the pipeline participates in backpressure, from the data source all the way to the client's TCP receive window.
 
 ```csharp
-app.MapGet("/metrics/live", (TurboHttpContext ctx) =>
+app.MapGet("/metrics/live", (TurboHttpContext ctx, IMetricsSource metrics) =>
 {
-    var cpuMetrics = ctx.ActorSystem
-        .SelectActor<CpuMonitorActor>()
-        .AsSource<MetricEvent>();
-
-    var memoryMetrics = ctx.ActorSystem
-        .SelectActor<MemoryMonitorActor>()
-        .AsSource<MetricEvent>();
+    var cpuMetrics = metrics.CpuEvents();
+    var memoryMetrics = metrics.MemoryEvents();
 
     var merged = cpuMetrics
         .Merge(memoryMetrics)
