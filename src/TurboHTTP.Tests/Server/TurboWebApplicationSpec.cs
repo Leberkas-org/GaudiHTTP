@@ -86,4 +86,46 @@ public sealed class TurboWebApplicationSpec
         Assert.Same(builder.Server, resolved);
         Assert.Equal(TimeSpan.FromSeconds(99), resolved.HandlerTimeout);
     }
+
+    [Fact(Timeout = 5000)]
+    public void CreateBuilder_should_return_builder()
+    {
+        var builder = TurboWebApplication.CreateBuilder();
+        Assert.NotNull(builder);
+        Assert.NotNull(builder.Services);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void CreateBuilder_with_args_should_return_builder()
+    {
+        var builder = TurboWebApplication.CreateBuilder(["--environment", "Development"]);
+        Assert.NotNull(builder);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Create_should_build_app_with_defaults()
+    {
+        var app = TurboWebApplication.Create();
+        Assert.NotNull(app);
+        Assert.NotNull(app.Services);
+        Assert.NotNull(app.Configuration);
+        Assert.NotNull(app.Environment);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void App_Urls_should_delegate_to_server_options()
+    {
+        var app = TurboWebApplication.Create();
+        app.Urls.Add("http://localhost:5000");
+
+        var options = app.Services.GetRequiredService<TurboServerOptions>();
+        Assert.Contains("http://localhost:5000", options.Urls);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void App_Logger_should_be_available()
+    {
+        var app = TurboWebApplication.Create();
+        Assert.NotNull(app.Logger);
+    }
 }

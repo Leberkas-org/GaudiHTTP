@@ -1,23 +1,43 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using TurboHTTP.Routing;
 using TurboHTTP.Server.Middleware;
 
 namespace TurboHTTP.Server;
 
-public sealed class TurboWebApplication : IHost, IAsyncDisposable
+public sealed class TurboWebApplication : IHost, ITurboEndpointRouteBuilder, ITurboPipelineBuilder, IAsyncDisposable
 {
     private readonly IHost _host;
     private readonly TurboRouteTable _routeTable;
     private readonly TurboPipelineBuilder _pipelineBuilder;
+    private readonly TurboUrlCollection _urls;
 
     internal TurboWebApplication(IHost host, TurboRouteTable routeTable, TurboPipelineBuilder pipelineBuilder)
     {
         _host = host ?? throw new ArgumentNullException(nameof(host));
         _routeTable = routeTable ?? throw new ArgumentNullException(nameof(routeTable));
         _pipelineBuilder = pipelineBuilder ?? throw new ArgumentNullException(nameof(pipelineBuilder));
+
+        var options = host.Services.GetRequiredService<TurboServerOptions>();
+        _urls = new TurboUrlCollection(options);
+
+        Logger = host.Services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(Environment.ApplicationName ?? nameof(TurboWebApplication));
     }
 
     public IServiceProvider Services => _host.Services;
+
+    public IConfiguration Configuration => Services.GetRequiredService<IConfiguration>();
+
+    public IHostEnvironment Environment => Services.GetRequiredService<IHostEnvironment>();
+
+    public IHostApplicationLifetime Lifetime => Services.GetRequiredService<IHostApplicationLifetime>();
+
+    public ILogger Logger { get; }
+
+    public ICollection<string> Urls => _urls;
 
     public void Dispose()
     {
@@ -63,135 +83,52 @@ public sealed class TurboWebApplication : IHost, IAsyncDisposable
         return _host.WaitForShutdownAsync(cancellationToken);
     }
 
-    public TurboWebApplication MapGet(string pattern, Func<TurboHttpContext, Task> handler)
-    {
-        _routeTable.Add("GET", pattern, handler);
-        return this;
-    }
+    IServiceProvider ITurboEndpointRouteBuilder.ServiceProvider => Services;
 
-    public TurboWebApplication MapGet(string pattern, Delegate handler)
-    {
-        _routeTable.Add("GET", pattern, handler);
-        return this;
-    }
+    TurboRouteTable ITurboEndpointRouteBuilder.RouteTable => _routeTable;
 
-    public TurboWebApplication MapPost(string pattern, Func<TurboHttpContext, Task> handler)
-    {
-        _routeTable.Add("POST", pattern, handler);
-        return this;
-    }
-
-    public TurboWebApplication MapPost(string pattern, Delegate handler)
-    {
-        _routeTable.Add("POST", pattern, handler);
-        return this;
-    }
-
-    public TurboWebApplication MapPut(string pattern, Func<TurboHttpContext, Task> handler)
-    {
-        _routeTable.Add("PUT", pattern, handler);
-        return this;
-    }
-
-    public TurboWebApplication MapPut(string pattern, Delegate handler)
-    {
-        _routeTable.Add("PUT", pattern, handler);
-        return this;
-    }
-
-    public TurboWebApplication MapDelete(string pattern, Func<TurboHttpContext, Task> handler)
-    {
-        _routeTable.Add("DELETE", pattern, handler);
-        return this;
-    }
-
-    public TurboWebApplication MapDelete(string pattern, Delegate handler)
-    {
-        _routeTable.Add("DELETE", pattern, handler);
-        return this;
-    }
-
-    public TurboWebApplication MapPatch(string pattern, Func<TurboHttpContext, Task> handler)
-    {
-        _routeTable.Add("PATCH", pattern, handler);
-        return this;
-    }
-
-    public TurboWebApplication MapPatch(string pattern, Delegate handler)
-    {
-        _routeTable.Add("PATCH", pattern, handler);
-        return this;
-    }
-
-    public TurboWebApplication MapMethods(string pattern, IEnumerable<string> methods,
-        Func<TurboHttpContext, Task> handler)
-    {
-        foreach (var method in methods)
-        {
-            _routeTable.Add(method, pattern, handler);
-        }
-
-        return this;
-    }
-
-    public TurboWebApplication MapMethods(string pattern, IEnumerable<string> methods, Delegate handler)
-    {
-        foreach (var method in methods)
-        {
-            _routeTable.Add(method, pattern, handler);
-        }
-
-        return this;
-    }
-
-    public TurboRouteGroupBuilder MapGroup(string prefix)
-    {
-        return _routeTable.CreateGroup(prefix);
-    }
-
-    public TurboWebApplication MapEntity(string pattern, Action<TurboEntityBuilder> configure)
-    {
-        var entityBuilder = new TurboEntityBuilder(pattern);
-        configure(entityBuilder);
-        entityBuilder.AddToRouteTable(_routeTable);
-        return this;
-    }
-
-    public TurboWebApplication MapEntity<TActorKey>(string pattern, Action<TurboEntityBuilder> configure)
-    {
-        var entityBuilder = new TurboEntityBuilder(pattern).UseActorRef(x => x.Get<TActorKey>());
-        configure(entityBuilder);
-        entityBuilder.AddToRouteTable(_routeTable);
-        return this;
-    }
-
-    public TurboWebApplication Use(Func<TurboHttpContext, TurboRequestDelegate, Task> middleware)
+    ITurboPipelineBuilder ITurboPipelineBuilder.Use(Func<TurboHttpContext, TurboRequestDelegate, Task> middleware)
     {
         _pipelineBuilder.Use(middleware);
         return this;
     }
 
-    public TurboWebApplication Use<T>() where T : class, ITurboMiddleware
+    ITurboPipelineBuilder ITurboPipelineBuilder.Use<T>()
     {
         _pipelineBuilder.Use<T>();
         return this;
     }
 
-    public TurboWebApplication Run(TurboRequestDelegate handler)
+    ITurboPipelineBuilder ITurboPipelineBuilder.Run(TurboRequestDelegate handler)
     {
         _pipelineBuilder.Run(handler);
         return this;
     }
 
-    public TurboWebApplication Map(string pathPrefix, Action<ITurboPipelineBuilder> configure)
+    ITurboPipelineBuilder ITurboPipelineBuilder.Map(string pathPrefix, Action<ITurboPipelineBuilder> configure)
     {
         _pipelineBuilder.Map(pathPrefix, configure);
         return this;
     }
 
-    public TurboWebApplication MapWhen(Func<TurboHttpContext, bool> predicate, Action<ITurboPipelineBuilder> configure)
+    ITurboPipelineBuilder ITurboPipelineBuilder.MapWhen(Func<TurboHttpContext, bool> predicate, Action<ITurboPipelineBuilder> configure)
     {
         _pipelineBuilder.MapWhen(predicate, configure);
         return this;
+    }
+
+    public static TurboWebApplicationBuilder CreateBuilder()
+    {
+        return new TurboWebApplicationBuilder(null);
+    }
+
+    public static TurboWebApplicationBuilder CreateBuilder(string[] args)
+    {
+        return new TurboWebApplicationBuilder(args);
+    }
+
+    public static TurboWebApplication Create(string[]? args = null)
+    {
+        return new TurboWebApplicationBuilder(args).Build();
     }
 }
