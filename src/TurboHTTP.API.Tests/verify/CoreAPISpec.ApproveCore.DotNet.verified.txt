@@ -521,6 +521,42 @@ namespace TurboHTTP.Server
         public ProducesProblemMetadata(int StatusCode) { }
         public int StatusCode { get; init; }
     }
+    public sealed class TurboApp : Microsoft.Extensions.Hosting.IHost, System.IAsyncDisposable, System.IDisposable
+    {
+        public System.IServiceProvider Services { get; }
+        public void Dispose() { }
+        public System.Threading.Tasks.ValueTask DisposeAsync() { }
+        public TurboHTTP.Server.TurboApp Map(string pathPrefix, System.Action<TurboHTTP.Server.ITurboPipelineBuilder> configure) { }
+        public TurboHTTP.Server.TurboApp MapDelete(string pattern, System.Delegate handler) { }
+        public TurboHTTP.Server.TurboApp MapDelete(string pattern, System.Func<TurboHTTP.Server.TurboHttpContext, System.Threading.Tasks.Task> handler) { }
+        public TurboHTTP.Server.TurboApp MapEntity(string pattern, System.Action<TurboHTTP.Server.TurboEntityBuilder> configure) { }
+        public TurboHTTP.Server.TurboApp MapEntity<TActorKey>(string pattern, System.Action<TurboHTTP.Server.TurboEntityBuilder> configure) { }
+        public TurboHTTP.Server.TurboApp MapGet(string pattern, System.Delegate handler) { }
+        public TurboHTTP.Server.TurboApp MapGet(string pattern, System.Func<TurboHTTP.Server.TurboHttpContext, System.Threading.Tasks.Task> handler) { }
+        public TurboHTTP.Server.TurboRouteGroupBuilder MapGroup(string prefix) { }
+        public TurboHTTP.Server.TurboApp MapMethods(string pattern, System.Collections.Generic.IEnumerable<string> methods, System.Delegate handler) { }
+        public TurboHTTP.Server.TurboApp MapMethods(string pattern, System.Collections.Generic.IEnumerable<string> methods, System.Func<TurboHTTP.Server.TurboHttpContext, System.Threading.Tasks.Task> handler) { }
+        public TurboHTTP.Server.TurboApp MapPatch(string pattern, System.Delegate handler) { }
+        public TurboHTTP.Server.TurboApp MapPatch(string pattern, System.Func<TurboHTTP.Server.TurboHttpContext, System.Threading.Tasks.Task> handler) { }
+        public TurboHTTP.Server.TurboApp MapPost(string pattern, System.Delegate handler) { }
+        public TurboHTTP.Server.TurboApp MapPost(string pattern, System.Func<TurboHTTP.Server.TurboHttpContext, System.Threading.Tasks.Task> handler) { }
+        public TurboHTTP.Server.TurboApp MapPut(string pattern, System.Delegate handler) { }
+        public TurboHTTP.Server.TurboApp MapPut(string pattern, System.Func<TurboHTTP.Server.TurboHttpContext, System.Threading.Tasks.Task> handler) { }
+        public TurboHTTP.Server.TurboApp MapWhen(System.Func<TurboHTTP.Server.TurboHttpContext, bool> predicate, System.Action<TurboHTTP.Server.ITurboPipelineBuilder> configure) { }
+        public TurboHTTP.Server.TurboApp Run(TurboHTTP.Server.TurboRequestDelegate handler) { }
+        public System.Threading.Tasks.Task RunAsync(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task RunAsync(System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task StartAsync(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task StopAsync(System.Threading.CancellationToken cancellationToken = default) { }
+        public TurboHTTP.Server.TurboApp Use(System.Func<TurboHTTP.Server.TurboHttpContext, TurboHTTP.Server.TurboRequestDelegate, System.Threading.Tasks.Task> middleware) { }
+        public TurboHTTP.Server.TurboApp Use<T>()
+            where T :  class, TurboHTTP.Server.ITurboMiddleware { }
+        public System.Threading.Tasks.Task WaitForShutdownAsync(System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public static class TurboAppHostBuilderExtensions
+    {
+        public static TurboHTTP.Server.TurboApp BuildTurboApp(this Microsoft.Extensions.Hosting.HostApplicationBuilder builder) { }
+    }
     public sealed class TurboConnectionInfo : Microsoft.AspNetCore.Http.ConnectionInfo
     {
         public TurboConnectionInfo(string id, System.Net.IPAddress? remoteIpAddress, int remotePort, System.Net.IPAddress? localIpAddress, int localPort) { }

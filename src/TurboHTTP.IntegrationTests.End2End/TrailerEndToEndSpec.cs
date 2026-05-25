@@ -1,6 +1,5 @@
 using System.Net;
 using Akka.Actor;
-using Akka.Streams;
 using Microsoft.AspNetCore.Http;
 using TurboHTTP.Server;
 using TurboHTTP.Tests.Shared;
@@ -12,7 +11,6 @@ public sealed class TrailerEndToEndSpec : IAsyncLifetime
     private TurboServerFixture? _fixture;
     private ClientHelper? _client;
     private ActorSystem? _system;
-    private IMaterializer? _materializer;
 
     public async ValueTask InitializeAsync()
     {
@@ -37,7 +35,6 @@ public sealed class TrailerEndToEndSpec : IAsyncLifetime
         await _fixture.InitializeAsync();
 
         _system = ActorSystem.Create("trailer-e2e-test");
-        _materializer = _system.Materializer();
 
         _client = ClientHelper.CreateClient(
             _fixture.HttpPort,

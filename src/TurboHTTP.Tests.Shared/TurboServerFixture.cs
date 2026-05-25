@@ -18,7 +18,7 @@ public class TurboServerFixture : IAsyncLifetime
         _configureRoutes = configureRoutes;
     }
 
-    public Uri HttpBaseAddress { get; private set; } = null!;
+    public Uri HttpBaseAddress {get; private set; } = null!;
     public int HttpPort { get; private set; }
 
     public async ValueTask InitializeAsync()

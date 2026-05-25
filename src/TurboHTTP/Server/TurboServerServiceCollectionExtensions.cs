@@ -41,4 +41,16 @@ public static class TurboServerServiceCollectionExtensions
 
         return services;
     }
+
+    internal static IServiceCollection AddTurboKestrel(
+        this IServiceCollection services,
+        TurboServerOptions options)
+    {
+        services.TryAddSingleton(options);
+        services.TryAddSingleton<TurboRouteTable>();
+        services.TryAddSingleton<TurboPipelineBuilder>();
+        services.TryAddSingleton<IHostedService, TurboServerHostedService>();
+
+        return services;
+    }
 }
