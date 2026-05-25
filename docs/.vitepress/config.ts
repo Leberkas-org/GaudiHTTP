@@ -15,6 +15,7 @@ export default defineConfig({
 
         nav: [
             { text: 'Getting Started', link: '/getting-started/' },
+            { text: 'Scenarios', link: '/scenarios' },
             { text: 'Client', link: '/client/' },
             { text: 'Server', link: '/server/' },
             { text: 'Architecture', link: '/architecture/pipeline' },
@@ -31,6 +32,14 @@ export default defineConfig({
                         { text: 'Server Quick Start', link: '/getting-started/server' },
                         { text: 'Architecture Overview', link: '/getting-started/architecture' },
                         { text: 'Migration from HttpClient', link: '/getting-started/migration' },
+                    ],
+                },
+            ],
+            '/scenarios': [
+                {
+                    text: 'Scenarios',
+                    items: [
+                        { text: 'Overview', link: '/scenarios' },
                     ],
                 },
             ],
