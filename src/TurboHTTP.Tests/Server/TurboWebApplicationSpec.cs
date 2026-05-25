@@ -161,4 +161,37 @@ public sealed class TurboWebApplicationSpec
         var result = app.MapGet("/test", (TurboHttpContext ctx) => Task.CompletedTask);
         Assert.NotNull(result);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Use_should_be_callable_via_interface()
+    {
+        var app = TurboWebApplication.Create();
+        ITurboPipelineBuilder pipeline = app;
+
+        var result = pipeline.Use(async (ctx, next) => await next(ctx));
+
+        Assert.Same(app, result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Run_should_be_callable_via_interface()
+    {
+        var app = TurboWebApplication.Create();
+        ITurboPipelineBuilder pipeline = app;
+
+        var result = pipeline.Run(ctx => Task.CompletedTask);
+
+        Assert.Same(app, result);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Map_should_be_callable_via_interface()
+    {
+        var app = TurboWebApplication.Create();
+        ITurboPipelineBuilder pipeline = app;
+
+        var result = pipeline.Map("/branch", branch => branch.Run(ctx => Task.CompletedTask));
+
+        Assert.Same(app, result);
+    }
 }
