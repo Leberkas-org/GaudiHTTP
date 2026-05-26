@@ -160,7 +160,7 @@ public sealed class ContextPoolingSpec
     [Fact(Timeout = 5000)]
     public void TurboHttpRequest_Reset_clears_cached_uri()
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         var headers = new HeaderDictionary { { "Host", "example.com" } };
         var requestFeature = new TurboHttpRequestFeature { Scheme = "https", Path = "/api", Headers = headers };
         features.Set<IHttpRequestFeature>(requestFeature);
@@ -174,7 +174,7 @@ public sealed class ContextPoolingSpec
         Assert.Equal("https://example.com/api", originalUri.ToString());
 
         var newHeaders = new HeaderDictionary { { "Host", "different.com" } };
-        var newFeatures = new FeatureCollection();
+        var newFeatures = new TurboFeatureCollection();
         newFeatures.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Scheme = "http", Path = "/test", Headers = newHeaders });
         newFeatures.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
         newFeatures.Set<IHttpResponseBodyFeature>(new TurboHttpResponseBodyFeature());

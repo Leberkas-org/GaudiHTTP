@@ -169,7 +169,7 @@ internal sealed class ServerTestContextBuilder
     {
         var conn = _connection ?? new TurboConnectionInfo("test", null, 0, null, 0);
 
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         var requestFeature = BuildRequestFeature();
         features.Set<IHttpRequestFeature>(requestFeature);
         var requestBodyFeature = new TurboRequestBodyFeature

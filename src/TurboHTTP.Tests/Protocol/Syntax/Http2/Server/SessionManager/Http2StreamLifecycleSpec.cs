@@ -19,7 +19,7 @@ public sealed class Http2StreamLifecycleSpec
 {
     private static TurboHttpContext CreateResponseContext(long streamId = 99)
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new TurboHttpResponseBodyFeature();

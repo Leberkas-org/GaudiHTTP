@@ -17,7 +17,7 @@ public sealed class Http2ServerStreamCorrelationSpec
 {
     private static TurboHttpContext CreateResponseContext(long streamId)
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new TurboHttpResponseBodyFeature();
@@ -302,5 +302,6 @@ public sealed class Http2ServerStreamCorrelationSpec
         Assert.Equal("/status", ops.Requests[2].Request.Path.Value);
     }
 }
+
 
 

@@ -371,7 +371,7 @@ public sealed class ServerStateMachineSpec
 
     private static TurboHttpContext MakeResponseContext(HttpResponseMessage response)
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         var responseFeature = new TurboHttpResponseFeature
         {
             StatusCode = (int)response.StatusCode,

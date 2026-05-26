@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Context;
+using TurboHTTP.Context.Features;
 using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Context;
@@ -48,7 +49,7 @@ public sealed class TurboHttpRequestSpec
             .Get("/test")
             .Header("X-Custom", "val")
             .BuildRequestFeature();
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(feature);
         var request = new TurboHttpRequest(features);
 
@@ -70,7 +71,7 @@ public sealed class TurboHttpRequestSpec
             .Post("/test")
             .Header("Content-Type", "application/json")
             .BuildRequestFeature();
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(feature);
         var request = new TurboHttpRequest(features);
 
@@ -85,7 +86,7 @@ public sealed class TurboHttpRequestSpec
             .Host("example.com:8080")
             .Header("Host", "example.com:8080")
             .BuildRequestFeature();
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(feature);
         var request = new TurboHttpRequest(features);
 
@@ -100,7 +101,7 @@ public sealed class TurboHttpRequestSpec
             .Path(path)
             .Scheme(scheme)
             .BuildRequestFeature();
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(feature);
         return (new TurboHttpRequest(features), features);
     }

@@ -47,7 +47,7 @@ public sealed class Http2ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void TurboHttpResponse_should_expose_DeclareTrailer_and_AppendTrailer()
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
         features.Set<IHttpResponseTrailersFeature>(new TurboHttpResponseTrailersFeature());
 
@@ -129,3 +129,4 @@ public sealed class Http2ServerTrailerEncodingSpec
         Assert.DoesNotContain(decodedHeaders, h => h.Name == "content-length");
     }
 }
+

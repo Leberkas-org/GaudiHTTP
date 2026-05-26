@@ -18,7 +18,7 @@ public sealed class Http3StreamLifecycleSpec
 {
     private static TurboHttpContext CreateResponseContext(long streamId = 999)
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
         features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));

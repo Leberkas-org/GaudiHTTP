@@ -28,7 +28,17 @@ internal sealed class TurboHttpRequestFeature : IHttpRequestFeature, ITurboReque
     public IHeaderDictionary Headers
     {
         get => _headers;
-        set { }
+        set
+        {
+            if (value is not null)
+            {
+                _headers.Clear();
+                foreach (var kvp in value)
+                {
+                    _headers[kvp.Key] = kvp.Value;
+                }
+            }
+        }
     }
 
     internal string? ExtractedHost { get; set; }
@@ -36,7 +46,17 @@ internal sealed class TurboHttpRequestFeature : IHttpRequestFeature, ITurboReque
     IHeaderDictionary IHttpRequestFeature.Headers
     {
         get => _headers;
-        set { }
+        set
+        {
+            if (value is not null)
+            {
+                _headers.Clear();
+                foreach (var kvp in value)
+                {
+                    _headers[kvp.Key] = kvp.Value;
+                }
+            }
+        }
     }
 
     ITurboHeaderDictionary ITurboRequestFeature.Headers => _headers;

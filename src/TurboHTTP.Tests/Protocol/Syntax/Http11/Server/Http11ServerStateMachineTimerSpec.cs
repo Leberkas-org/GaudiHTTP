@@ -13,7 +13,7 @@ public sealed class Http11ServerStateMachineTimerSpec
 {
     private static TurboHttpContext CreateResponseContext()
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new TurboHttpResponseBodyFeature();
@@ -175,5 +175,6 @@ public sealed class Http11ServerStateMachineTimerSpec
         Assert.Contains(ops.CancelledTimers, t => t == "keep-alive");
     }
 }
+
 
 

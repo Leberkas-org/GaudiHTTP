@@ -87,7 +87,7 @@ public sealed class TurboStreamResultsSpec : IDisposable
 
     private TurboHttpContext CreateTestContext()
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         var responseFeature = new TurboHttpResponseFeature();
         features.Set<IHttpResponseFeature>(responseFeature);
         var bodyFeature = new TurboHttpResponseBodyFeature();

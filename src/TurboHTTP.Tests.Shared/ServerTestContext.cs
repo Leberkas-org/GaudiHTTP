@@ -10,7 +10,7 @@ internal static class ServerTestContext
 
     internal static TurboHttpContext CreateResponse(int statusCode = 200)
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
         var responseFeature = new TurboHttpResponseFeature { StatusCode = statusCode };
         features.Set<IHttpResponseFeature>(responseFeature);

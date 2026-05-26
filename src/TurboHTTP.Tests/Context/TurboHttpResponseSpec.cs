@@ -96,20 +96,21 @@ public sealed class TurboHttpResponseSpec
         Assert.Throws<ArgumentNullException>(() => response.Redirect(null!));
     }
 
-    private static (TurboHttpResponse Response, FeatureCollection Features) CreateResponse(HttpStatusCode status)
+    private static (TurboHttpResponse Response, IFeatureCollection Features) CreateResponse(HttpStatusCode status)
     {
         var features = CreateFeatures((int)status);
         return (new TurboHttpResponse(features), features);
     }
 
-    private static FeatureCollection CreateFeatures(int statusCode = 200)
+    private static IFeatureCollection CreateFeatures(int statusCode = 200)
     {
         var feature = new TurboHttpResponseFeature
         {
             StatusCode = statusCode
         };
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpResponseFeature>(feature);
         return features;
     }
 }
+

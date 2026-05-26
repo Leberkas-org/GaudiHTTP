@@ -9,6 +9,7 @@ internal static class ServerContextFactory
     private static Stack<TurboHttpContext>? t_pool;
 
     private const int MaxPoolSize = 32;
+
     public static TurboHttpContext Create(
         TurboHttpRequestFeature requestFeature,
         bool hasBody,
@@ -16,19 +17,28 @@ internal static class ServerContextFactory
         TurboConnectionInfo? connectionInfo = null,
         TlsHandshakeFeature? tlsFeature = null)
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
+
+        features.Set<ITurboRequestFeature>(requestFeature);
         features.Set<IHttpRequestFeature>(requestFeature);
 
         var bodyFeature = new TurboRequestBodyFeature { Body = requestFeature.Body };
         features.Set<ITurboRequestBodyFeature>(bodyFeature);
 
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-        features.Set<IHttpRequestBodyDetectionFeature>(new TurboHttpRequestBodyDetectionFeature(hasBody));
+        var responseFeature = new TurboHttpResponseFeature();
+        features.Set<ITurboResponseFeature>(responseFeature);
+        features.Set<IHttpResponseFeature>(responseFeature);
+
+        var detectionFeature = new TurboHttpRequestBodyDetectionFeature(hasBody);
+        features.Set<ITurboRequestBodyDetectionFeature>(detectionFeature);
+        features.Set<IHttpRequestBodyDetectionFeature>(detectionFeature);
+
         var responseBodyFeature = new TurboHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
         features.Set<ITurboResponseBodyFeature>(responseBodyFeature);
+        features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
 
         var trailersFeature = new TurboHttpResponseTrailersFeature();
+        features.Set<ITurboResponseTrailersFeature>(trailersFeature);
         features.Set<IHttpResponseTrailersFeature>(trailersFeature);
 
         if (tlsFeature is not null)
@@ -58,8 +68,13 @@ internal static class ServerContextFactory
             }
         }
 
-        features.Set<IHttpRequestLifetimeFeature>(new TurboHttpRequestLifetimeFeature(ctx));
-        features.Set<IHttpRequestIdentifierFeature>(new TurboHttpRequestIdentifierFeature(ctx));
+        var lifetimeFeature = new TurboHttpRequestLifetimeFeature(ctx);
+        features.Set<ITurboRequestLifetimeFeature>(lifetimeFeature);
+        features.Set<IHttpRequestLifetimeFeature>(lifetimeFeature);
+
+        var identifierFeature = new TurboHttpRequestIdentifierFeature(ctx);
+        features.Set<ITurboRequestIdentifierFeature>(identifierFeature);
+        features.Set<IHttpRequestIdentifierFeature>(identifierFeature);
 
         return ctx;
     }

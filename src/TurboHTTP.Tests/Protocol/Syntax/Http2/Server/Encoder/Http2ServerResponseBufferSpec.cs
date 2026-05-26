@@ -17,7 +17,7 @@ public sealed class Http2ServerResponseBufferSpec
 {
     private static TurboHttpContext CreateResponseContext()
     {
-        var features = new FeatureCollection();
+        var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
         features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
         var bodyFeature = new TurboHttpResponseBodyFeature();
@@ -266,5 +266,6 @@ public sealed class Http2ServerResponseBufferSpec
         Assert.Equal(16384, encoder.MaxFrameSize);
     }
 }
+
 
 
