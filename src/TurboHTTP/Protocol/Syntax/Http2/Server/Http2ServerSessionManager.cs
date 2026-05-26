@@ -1,6 +1,5 @@
 using System.Text;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Context;
 using TurboHTTP.Context.Features;
@@ -137,7 +136,7 @@ internal sealed class Http2ServerSessionManager
 
         state.SetTurboContext(context);
 
-        var responseFeature = context.Features.Get<IHttpResponseFeature>();
+        var responseFeature = context.Features.Get<ITurboResponseFeature>();
         var contentLength = ExtractContentLength(responseFeature);
         var hasBody = contentLength is not 0;
 
@@ -172,7 +171,7 @@ internal sealed class Http2ServerSessionManager
         state.StartBodyEncoder(bodyStream, streamId, _ops.StageActor);
     }
 
-    private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)
+    private static long? ExtractContentLength(ITurboResponseFeature? responseFeature)
     {
         if (responseFeature?.Headers is null)
         {
@@ -247,7 +246,7 @@ internal sealed class Http2ServerSessionManager
         if (!state.HasPendingOutbound)
         {
             var context = state.GetTurboContext();
-            var trailerFeature = context?.Features.Get<IHttpResponseTrailersFeature>();
+            var trailerFeature = context?.Features.Get<ITurboResponseTrailersFeature>();
             var hasTrailers = trailerFeature?.Trailers.Count > 0;
 
             if (hasTrailers)
@@ -292,7 +291,7 @@ internal sealed class Http2ServerSessionManager
         if (state is { HasPendingOutbound: false, IsBodyEncoderComplete: true })
         {
             var context = state.GetTurboContext();
-            var trailerFeature = context?.Features.Get<IHttpResponseTrailersFeature>();
+            var trailerFeature = context?.Features.Get<ITurboResponseTrailersFeature>();
             var hasTrailers = trailerFeature?.Trailers.Count > 0;
 
             if (hasTrailers)
@@ -542,7 +541,7 @@ internal sealed class Http2ServerSessionManager
             context.Features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
 
             var capturedStreamId = streamId;
-            context.Features.Set<IHttpResetFeature>(new TurboHttpResetFeature(
+            context.Features.Set<ITurboResetFeature>(new TurboHttpResetFeature(
                 errorCode => EmitRstStream(capturedStreamId, (Http2ErrorCode)errorCode)));
 
             _ops.OnRequest(context);

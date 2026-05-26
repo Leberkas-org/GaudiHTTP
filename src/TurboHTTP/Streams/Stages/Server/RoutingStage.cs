@@ -1,7 +1,6 @@
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Context.Features;
 using TurboHTTP.Routing;
 using TurboHTTP.Server;
@@ -154,7 +153,7 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
                 _activeTimeouts[seq] = cts;
                 ctx.RequestAborted = cts.Token;
 
-                var bodyFeature = ctx.Features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+                var bodyFeature = ctx.Features.Get<ITurboResponseBodyFeature>() as TurboHttpResponseBodyFeature;
                 var headersReady = bodyFeature?.WhenHeadersReady;
 
                 Task.Delay(_stage._handlerTimeout + _stage._handlerGracePeriod, cts.Token)
@@ -189,7 +188,7 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
                 case ResponseReady(var seq, var ctx, var handlerTask):
                     if (handlerTask.IsFaulted)
                     {
-                        if (ctx.Features.Get<IHttpResponseBodyFeature>() is not TurboHttpResponseBodyFeature
+                        if (ctx.Features.Get<ITurboResponseBodyFeature>() is not TurboHttpResponseBodyFeature
                             {
                                 HasStarted: true
                             })
@@ -311,7 +310,7 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
 
         private static void CompleteResponseBody(TurboHttpContext ctx)
         {
-            var bodyFeature = ctx.Features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+            var bodyFeature = ctx.Features.Get<ITurboResponseBodyFeature>() as TurboHttpResponseBodyFeature;
             bodyFeature?.Complete();
         }
     }

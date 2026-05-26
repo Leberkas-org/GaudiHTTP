@@ -197,19 +197,130 @@ namespace TurboHTTP.Context.Features
         System.Net.Security.TlsCipherSuite? NegotiatedCipherSuite { get; }
         System.Security.Authentication.SslProtocols Protocol { get; }
     }
+    public interface ITurboConnectionFeature
+    {
+        string ConnectionId { get; set; }
+        System.Net.IPAddress? LocalIpAddress { get; set; }
+        int LocalPort { get; set; }
+        System.Net.IPAddress? RemoteIpAddress { get; set; }
+        int RemotePort { get; set; }
+    }
+    public interface ITurboFeatureCollection
+    {
+        T? Get<T>()
+            where T :  class;
+        void Set<T>(T? feature)
+            where T :  class;
+    }
+    public interface ITurboRequestBodyDetectionFeature
+    {
+        bool CanHaveBody { get; }
+    }
     public interface ITurboRequestBodyFeature
     {
         System.IO.Stream Body { get; }
         Akka.Streams.Dsl.Source<System.ReadOnlyMemory<byte>, Akka.NotUsed> BodySource { get; }
+    }
+    public interface ITurboRequestFeature
+    {
+        System.IO.Stream Body { get; set; }
+        TurboHTTP.Context.ITurboHeaderDictionary Headers { get; }
+        string Method { get; set; }
+        string Path { get; set; }
+        string PathBase { get; set; }
+        string Protocol { get; set; }
+        string QueryString { get; set; }
+        string RawTarget { get; set; }
+        string Scheme { get; set; }
+    }
+    public interface ITurboRequestIdentifierFeature
+    {
+        string TraceIdentifier { get; set; }
+    }
+    public interface ITurboRequestLifetimeFeature
+    {
+        System.Threading.CancellationToken RequestAborted { get; set; }
+        void Abort();
+    }
+    public interface ITurboResetFeature
+    {
+        void Reset(int errorCode);
     }
     public interface ITurboResponseBodyFeature : Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature
     {
         Akka.Streams.Dsl.Sink<System.ReadOnlyMemory<byte>, System.Threading.Tasks.Task> BodySink { get; }
         System.Threading.Tasks.Task WhenSinkCompleted { get; }
     }
+    public interface ITurboResponseFeature
+    {
+        System.IO.Stream Body { get; set; }
+        bool HasStarted { get; }
+        TurboHTTP.Context.ITurboHeaderDictionary Headers { get; }
+        string? ReasonPhrase { get; set; }
+        int StatusCode { get; set; }
+        void OnCompleted(System.Func<object?, System.Threading.Tasks.Task> callback, object? state);
+        void OnStarting(System.Func<object?, System.Threading.Tasks.Task> callback, object? state);
+    }
+    public interface ITurboResponseTrailersFeature
+    {
+        TurboHTTP.Context.ITurboHeaderDictionary Trailers { get; set; }
+    }
 }
 namespace TurboHTTP.Context
 {
+    public interface ITurboFormCollection : System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues>>, System.Collections.IEnumerable
+    {
+        int Count { get; }
+        TurboHTTP.Context.ITurboFormFileCollection Files { get; }
+        Microsoft.Extensions.Primitives.StringValues this[string key] { get; }
+        System.Collections.Generic.ICollection<string> Keys { get; }
+        bool ContainsKey(string key);
+    }
+    public interface ITurboFormFile
+    {
+        string ContentType { get; }
+        string FileName { get; }
+        long Length { get; }
+        string Name { get; }
+        void CopyTo(System.IO.Stream target);
+        System.Threading.Tasks.Task CopyToAsync(System.IO.Stream target, System.Threading.CancellationToken cancellationToken = default);
+        System.IO.Stream OpenReadStream();
+    }
+    public interface ITurboFormFileCollection : System.Collections.Generic.IEnumerable<TurboHTTP.Context.ITurboFormFile>, System.Collections.IEnumerable
+    {
+        int Count { get; }
+        TurboHTTP.Context.ITurboFormFile this[int index] { get; }
+        TurboHTTP.Context.ITurboFormFile? this[string name] { get; }
+        TurboHTTP.Context.ITurboFormFile? GetFile(string name);
+        System.Collections.Generic.IReadOnlyList<TurboHTTP.Context.ITurboFormFile> GetFiles(string name);
+    }
+    public interface ITurboHeaderDictionary : System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues>>, System.Collections.IEnumerable
+    {
+        long? ContentLength { get; set; }
+        int Count { get; }
+        Microsoft.Extensions.Primitives.StringValues this[string key] { get; set; }
+        System.Collections.Generic.ICollection<string> Keys { get; }
+        void Add(string key, Microsoft.Extensions.Primitives.StringValues value);
+        void Clear();
+        bool ContainsKey(string key);
+        bool Remove(string key);
+        bool TryGetValue(string key, out Microsoft.Extensions.Primitives.StringValues value);
+    }
+    public interface ITurboQueryCollection : System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues>>, System.Collections.IEnumerable
+    {
+        int Count { get; }
+        Microsoft.Extensions.Primitives.StringValues this[string key] { get; }
+        System.Collections.Generic.ICollection<string> Keys { get; }
+        bool ContainsKey(string key);
+        bool TryGetValue(string key, out Microsoft.Extensions.Primitives.StringValues value);
+    }
+    public interface ITurboRequestCookieCollection : System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, string>>, System.Collections.IEnumerable
+    {
+        int Count { get; }
+        string? this[string key] { get; }
+        System.Collections.Generic.ICollection<string> Keys { get; }
+        bool ContainsKey(string key);
+    }
     public sealed class TurboHttpRequest : Microsoft.AspNetCore.Http.HttpRequest
     {
         public TurboHttpRequest(Microsoft.AspNetCore.Http.Features.IFeatureCollection features) { }

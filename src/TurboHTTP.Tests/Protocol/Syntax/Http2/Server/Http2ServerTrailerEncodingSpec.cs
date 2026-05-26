@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Context;
+using TurboHTTP.Context.Adapters;
 using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
@@ -71,7 +72,7 @@ public sealed class Http2ServerTrailerEncodingSpec
     public void Encoder_should_produce_trailing_HEADERS_frame_with_END_STREAM()
     {
         var encoder = new Http2ServerEncoder();
-        var trailers = new HeaderDictionary
+        var trailers = new TurboResponseHeaderDictionary
         {
             { "grpc-status", "0" },
             { "grpc-message", "OK" }
@@ -95,7 +96,7 @@ public sealed class Http2ServerTrailerEncodingSpec
         var encoder = new Http2ServerEncoder();
         var decoder = new HpackDecoder();
 
-        var trailers = new HeaderDictionary
+        var trailers = new TurboResponseHeaderDictionary
         {
             { "grpc-status", "0" },
             { "transfer-encoding", "chunked" },

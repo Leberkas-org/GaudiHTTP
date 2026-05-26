@@ -1,5 +1,6 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http;
+using TurboHTTP.Context;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Server;
@@ -115,7 +116,7 @@ internal sealed class Http2ServerEncoder
     /// RFC 9113 §8.1: Trailers are sent as a HEADERS frame with END_STREAM.
     /// RFC 9110 §6.5.1: Filters prohibited trailer fields (transfer-encoding, content-length, etc.).
     /// </summary>
-    public IReadOnlyList<Http2Frame> EncodeTrailers(int streamId, IHeaderDictionary trailers)
+    public IReadOnlyList<Http2Frame> EncodeTrailers(int streamId, ITurboHeaderDictionary trailers)
     {
         ArgumentNullException.ThrowIfNull(trailers);
 

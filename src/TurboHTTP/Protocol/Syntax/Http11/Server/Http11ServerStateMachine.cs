@@ -1,5 +1,4 @@
 using Akka.Event;
-using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Context.Features;
 using TurboHTTP.Protocol.LineBased.Body;
@@ -173,7 +172,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         _pendingResponseCount--;
 
-        var responseFeature = context.Features.Get<IHttpResponseFeature>();
+        var responseFeature = context.Features.Get<ITurboResponseFeature>();
         var responseBody = context.Features.Get<ITurboResponseBodyFeature>();
 
         var statusCode = responseFeature?.StatusCode ?? 200;
@@ -273,7 +272,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         }
     }
 
-    private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)
+    private static long? ExtractContentLength(ITurboResponseFeature? responseFeature)
     {
         if (responseFeature?.Headers is null)
         {
@@ -301,7 +300,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             return false;
         }
 
-        var requestFeature = context.Features.Get<IHttpRequestFeature>();
+        var requestFeature = context.Features.Get<ITurboRequestFeature>();
         var requestHeaders = requestFeature?.Headers;
         if (requestHeaders is null)
         {

@@ -1,6 +1,5 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Context;
 using TurboHTTP.Context.Features;
@@ -134,7 +133,7 @@ internal sealed class Http3ServerSessionManager
         var headersFrame = _responseEncoder.EncodeHeaders(context);
         EmitDataFrame(headersFrame, streamId);
 
-        var responseFeature = context.Features.Get<IHttpResponseFeature>();
+        var responseFeature = context.Features.Get<ITurboResponseFeature>();
         var contentLength = ExtractContentLength(responseFeature);
         var hasBody = contentLength is not 0;
 
@@ -164,7 +163,7 @@ internal sealed class Http3ServerSessionManager
         _ops.OnScheduleTimer(string.Concat("drain-body:", streamId.ToString()), TimeSpan.FromMilliseconds(0));
     }
 
-    private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)
+    private static long? ExtractContentLength(ITurboResponseFeature? responseFeature)
     {
         if (responseFeature?.Headers is null)
         {
@@ -467,7 +466,7 @@ internal sealed class Http3ServerSessionManager
             context.Features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
 
             var capturedStreamId = streamId;
-            context.Features.Set<IHttpResetFeature>(new TurboHttpResetFeature(
+            context.Features.Set<ITurboResetFeature>(new TurboHttpResetFeature(
                 errorCode => EmitRstStream(capturedStreamId, (ErrorCode)errorCode)));
 
             _bodyRateStates.Remove(streamId);
