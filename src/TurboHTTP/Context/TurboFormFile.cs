@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace TurboHTTP.Context;
 
-internal sealed class TurboFormFile : IFormFile
+internal sealed class TurboFormFile : IFormFile, ITurboFormFile
 {
     private readonly byte[] _content;
 

@@ -6,7 +6,7 @@ using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Context.Adapters;
 
-internal sealed class TurboResponseHeaderDictionary : IHeaderDictionary
+internal sealed class TurboResponseHeaderDictionary : IHeaderDictionary, ITurboHeaderDictionary
 {
     private readonly Dictionary<string, StringValues> _headers =
         new(StringComparer.OrdinalIgnoreCase);

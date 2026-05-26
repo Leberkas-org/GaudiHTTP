@@ -4,7 +4,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace TurboHTTP.Context;
 
-internal sealed class TurboFormCollection(Dictionary<string, StringValues> fields, IFormFileCollection files) : IFormCollection
+internal sealed class TurboFormCollection(Dictionary<string, StringValues> fields, IFormFileCollection files) : IFormCollection, ITurboFormCollection
 {
     public StringValues this[string key]
         => fields.TryGetValue(key, out var value) ? value : StringValues.Empty;
@@ -17,9 +17,11 @@ internal sealed class TurboFormCollection(Dictionary<string, StringValues> field
     public bool TryGetValue(string key, out StringValues value) => fields.TryGetValue(key, out value);
     public IEnumerator<KeyValuePair<string, StringValues>> GetEnumerator() => fields.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    ITurboFormFileCollection ITurboFormCollection.Files => (ITurboFormFileCollection)files;
 }
 
-internal sealed class TurboFormFileCollection : IFormFileCollection
+internal sealed class TurboFormFileCollection : IFormFileCollection, ITurboFormFileCollection
 {
     private readonly List<IFormFile> _files;
 
@@ -41,4 +43,17 @@ internal sealed class TurboFormFileCollection : IFormFileCollection
 
     public IEnumerator<IFormFile> GetEnumerator() => _files.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    ITurboFormFile ITurboFormFileCollection.this[int index] => (ITurboFormFile)_files[index];
+
+    ITurboFormFile? ITurboFormFileCollection.this[string name] => (ITurboFormFile?)_files.FirstOrDefault(f =>
+        string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    ITurboFormFile? ITurboFormFileCollection.GetFile(string name) => (ITurboFormFile?)this[name];
+
+    IReadOnlyList<ITurboFormFile> ITurboFormFileCollection.GetFiles(string name)
+        => _files.Where(f => string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase)).ToList().Cast<ITurboFormFile>().ToList();
+
+    IEnumerator<ITurboFormFile> IEnumerable<ITurboFormFile>.GetEnumerator()
+        => _files.Cast<ITurboFormFile>().GetEnumerator();
 }

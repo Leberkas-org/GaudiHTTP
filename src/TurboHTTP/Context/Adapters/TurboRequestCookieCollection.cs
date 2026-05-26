@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace TurboHTTP.Context.Adapters;
 
-internal sealed class TurboRequestCookieCollection : IRequestCookieCollection
+internal sealed class TurboRequestCookieCollection : IRequestCookieCollection, ITurboRequestCookieCollection
 {
     private readonly Dictionary<string, string?> _cookies;
 

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace TurboHTTP.Context.Adapters;
 
-internal sealed class TurboQueryCollection : IQueryCollection
+internal sealed class TurboQueryCollection : IQueryCollection, ITurboQueryCollection
 {
     private readonly Dictionary<string, StringValues> _store;
 
