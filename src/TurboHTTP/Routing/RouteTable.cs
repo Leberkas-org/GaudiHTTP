@@ -10,24 +10,28 @@ public sealed class RouteMatchResult
     public bool IsMatch { get; }
     internal IRouteDispatcher? Dispatcher { get; }
     public RouteValueDictionary RouteValues { get; }
+    internal TurboEndpointMetadata? Metadata { get; }
 
-    internal RouteMatchResult(bool isMatch, IRouteDispatcher? dispatcher, RouteValueDictionary routeValues)
+    internal RouteMatchResult(bool isMatch, IRouteDispatcher? dispatcher, RouteValueDictionary routeValues, TurboEndpointMetadata? metadata = null)
     {
         IsMatch = isMatch;
         Dispatcher = dispatcher;
         RouteValues = routeValues;
+        Metadata = metadata;
     }
 }
 
 public sealed class RouteTable
 {
-    private readonly Dictionary<string, Dictionary<string, IRouteDispatcher>> _staticByPath;
+    private sealed record DispatcherEntry(IRouteDispatcher Dispatcher, TurboEndpointMetadata? Metadata);
+
+    private readonly Dictionary<string, Dictionary<string, DispatcherEntry>> _staticByPath;
     private readonly Dictionary<string, RouteEntry[]> _parameterizedByMethod;
     private readonly RouteEntry[] _wildcardParameterized;
 
     internal RouteTable(RouteEntry[] entries)
     {
-        var staticByPath = new Dictionary<string, Dictionary<string, IRouteDispatcher>>(StringComparer.OrdinalIgnoreCase);
+        var staticByPath = new Dictionary<string, Dictionary<string, DispatcherEntry>>(StringComparer.OrdinalIgnoreCase);
         var paramByMethod = new Dictionary<string, List<RouteEntry>>(StringComparer.OrdinalIgnoreCase);
         var wildcardParam = new List<RouteEntry>();
 
@@ -37,23 +41,25 @@ public sealed class RouteTable
             {
                 if (!staticByPath.TryGetValue(entry.Pattern, out var methodMap))
                 {
-                    methodMap = new Dictionary<string, IRouteDispatcher>(StringComparer.OrdinalIgnoreCase);
+                    methodMap = new Dictionary<string, DispatcherEntry>(StringComparer.OrdinalIgnoreCase);
                     staticByPath[entry.Pattern] = methodMap;
                 }
 
+                var dispatcherEntry = new DispatcherEntry(entry.Dispatcher, entry.Metadata);
+
                 if (entry.Method == "*")
                 {
-                    methodMap.TryAdd("GET", entry.Dispatcher);
-                    methodMap.TryAdd("POST", entry.Dispatcher);
-                    methodMap.TryAdd("PUT", entry.Dispatcher);
-                    methodMap.TryAdd("DELETE", entry.Dispatcher);
-                    methodMap.TryAdd("PATCH", entry.Dispatcher);
-                    methodMap.TryAdd("HEAD", entry.Dispatcher);
-                    methodMap.TryAdd("OPTIONS", entry.Dispatcher);
+                    methodMap.TryAdd("GET", dispatcherEntry);
+                    methodMap.TryAdd("POST", dispatcherEntry);
+                    methodMap.TryAdd("PUT", dispatcherEntry);
+                    methodMap.TryAdd("DELETE", dispatcherEntry);
+                    methodMap.TryAdd("PATCH", dispatcherEntry);
+                    methodMap.TryAdd("HEAD", dispatcherEntry);
+                    methodMap.TryAdd("OPTIONS", dispatcherEntry);
                 }
                 else
                 {
-                    methodMap.TryAdd(entry.Method, entry.Dispatcher);
+                    methodMap.TryAdd(entry.Method, dispatcherEntry);
                 }
             }
             else if (entry.Method == "*")
@@ -83,9 +89,9 @@ public sealed class RouteTable
     public RouteMatchResult Match(string method, string path)
     {
         if (_staticByPath.TryGetValue(path, out var methodMap)
-            && methodMap.TryGetValue(method, out var dispatcher))
+            && methodMap.TryGetValue(method, out var dispatcherEntry))
         {
-            return new RouteMatchResult(true, dispatcher, RouteMatchResult.EmptyRouteValues);
+            return new RouteMatchResult(true, dispatcherEntry.Dispatcher, RouteMatchResult.EmptyRouteValues, dispatcherEntry.Metadata);
         }
 
         if (_parameterizedByMethod.TryGetValue(method, out var methodEntries))
@@ -96,7 +102,7 @@ public sealed class RouteTable
                 routeValues.Clear();
                 if (entry.TryMatch(method, path, routeValues))
                 {
-                    return new RouteMatchResult(true, entry.Dispatcher, routeValues);
+                    return new RouteMatchResult(true, entry.Dispatcher, routeValues, entry.Metadata);
                 }
             }
         }
@@ -108,7 +114,7 @@ public sealed class RouteTable
                 routeValues.Clear();
                 if (entry.TryMatch(method, path, routeValues))
                 {
-                    return new RouteMatchResult(true, entry.Dispatcher, routeValues);
+                    return new RouteMatchResult(true, entry.Dispatcher, routeValues, entry.Metadata);
                 }
             }
         }

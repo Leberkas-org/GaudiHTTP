@@ -9,14 +9,16 @@ internal sealed class RouteEntry
     public string[] Segments { get; }
     public IRouteDispatcher Dispatcher { get; }
     public bool IsStatic { get; }
+    public TurboEndpointMetadata? Metadata { get; }
 
-    public RouteEntry(string method, string pattern, IRouteDispatcher dispatcher)
+    public RouteEntry(string method, string pattern, IRouteDispatcher dispatcher, TurboEndpointMetadata? metadata = null)
     {
         Method = method;
         Pattern = pattern;
         Segments = pattern.Split('/', StringSplitOptions.RemoveEmptyEntries);
         Dispatcher = dispatcher;
         IsStatic = !Array.Exists(Segments, s => s.StartsWith('{'));
+        Metadata = metadata;
     }
 
     public bool TryMatch(string method, ReadOnlySpan<char> path, RouteValueDictionary routeValues)

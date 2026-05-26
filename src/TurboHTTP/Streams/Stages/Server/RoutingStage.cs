@@ -108,6 +108,11 @@ internal sealed class RoutingStage : GraphStage<FlowShape<TurboHttpContext, Turb
                 ctx.Request.RouteValues[kv.Key] = kv.Value;
             }
 
+            if (match.Metadata is not null)
+            {
+                ctx.EndpointMetadata = match.Metadata;
+            }
+
             _inFlight++;
 
             try

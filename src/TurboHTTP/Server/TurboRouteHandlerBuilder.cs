@@ -2,6 +2,7 @@ using TurboHTTP.Routing;
 
 namespace TurboHTTP.Server;
 
+
 public sealed class TurboRouteHandlerBuilder
 {
     public EndpointMetadata Metadata { get; } = new();
@@ -46,6 +47,35 @@ public sealed class TurboRouteHandlerBuilder
     {
         Metadata.Items.Add(new ProducesProblemMetadata(statusCode));
         return this;
+    }
+
+    internal TurboEndpointMetadata? BuildMetadata()
+    {
+        if (Metadata.Items.Count == 0 && Metadata.Tags.Count == 0 &&
+            !Metadata.RequiresAuthorization && !Metadata.AllowsAnonymous &&
+            Metadata.Name is null)
+        {
+            return null;
+        }
+
+        var items = new List<object>(Metadata.Items);
+
+        if (Metadata.Tags.Count > 0)
+        {
+            items.Add(new TagsMetadata(Metadata.Tags.ToArray()));
+        }
+
+        if (Metadata.RequiresAuthorization)
+        {
+            items.Add(new AuthorizeData(null, null, null));
+        }
+
+        if (Metadata.AllowsAnonymous)
+        {
+            items.Add(new AllowAnonymousMarker());
+        }
+
+        return new TurboEndpointMetadata(items);
     }
 }
 
