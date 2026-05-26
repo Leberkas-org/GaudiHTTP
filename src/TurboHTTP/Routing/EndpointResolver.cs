@@ -77,7 +77,7 @@ internal sealed class EndpointResolver
         return bindings;
     }
 
-    private static TurboListenOptions ParseUrl(string url)
+    internal static TurboListenOptions ParseUrl(string url)
     {
         var normalizedUrl = url;
         if (url.Contains("://*:") || url.Contains("://+:"))

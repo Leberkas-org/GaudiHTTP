@@ -2,17 +2,42 @@ using System.Net;
 using Servus.Akka.Transport;
 using Servus.Akka.Transport.Tcp.Listener;
 using Servus.Akka.Transport.Quic.Listener;
+using TurboHTTP.Routing;
 using TurboHTTP.Server.Middleware;
 
 namespace TurboHTTP.Server;
 
 public sealed class TurboServerOptions
 {
-    public int MaxConcurrentConnections { get; set; }
-    public int MaxConcurrentUpgradedConnections { get; set; }
+    public TurboServerLimits Limits { get; } = new();
 
-    public TimeSpan KeepAliveTimeout { get; set; } = TimeSpan.FromSeconds(130);
-    public TimeSpan RequestHeadersTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    [Obsolete("Use Limits.MaxConcurrentConnections instead")]
+    public int MaxConcurrentConnections
+    {
+        get => Limits.MaxConcurrentConnections;
+        set => Limits.MaxConcurrentConnections = value;
+    }
+
+    [Obsolete("Use Limits.MaxConcurrentUpgradedConnections instead")]
+    public int MaxConcurrentUpgradedConnections
+    {
+        get => Limits.MaxConcurrentUpgradedConnections;
+        set => Limits.MaxConcurrentUpgradedConnections = value;
+    }
+
+    [Obsolete("Use Limits.KeepAliveTimeout instead")]
+    public TimeSpan KeepAliveTimeout
+    {
+        get => Limits.KeepAliveTimeout;
+        set => Limits.KeepAliveTimeout = value;
+    }
+
+    [Obsolete("Use Limits.RequestHeadersTimeout instead")]
+    public TimeSpan RequestHeadersTimeout
+    {
+        get => Limits.RequestHeadersTimeout;
+        set => Limits.RequestHeadersTimeout = value;
+    }
     public TimeSpan GracefulShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan HandlerTimeout { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan HandlerGracePeriod { get; set; } = TimeSpan.FromSeconds(5);
@@ -41,6 +66,7 @@ public sealed class TurboServerOptions
 
     internal IList<TurboListenOptions> ListenOptions { get; } = new List<TurboListenOptions>();
     internal Action<TurboHttpsOptions>? HttpsDefaultsCallback { get; private set; }
+    internal Action<TurboListenOptions>? EndpointDefaultsCallback { get; private set; }
 
     public IList<string> Urls { get; } = new List<string>();
 
@@ -49,17 +75,53 @@ public sealed class TurboServerOptions
         HttpsDefaultsCallback = configure;
     }
 
+    public void ConfigureEndpointDefaults(Action<TurboListenOptions> configure)
+    {
+        EndpointDefaultsCallback = configure;
+    }
+
     public void Listen(IPAddress address, ushort port)
     {
         var listenOptions = new TurboListenOptions(address, port);
+        EndpointDefaultsCallback?.Invoke(listenOptions);
         ListenOptions.Add(listenOptions);
     }
 
     public void Listen(IPAddress address, ushort port, Action<TurboListenOptions> configure)
     {
         var listenOptions = new TurboListenOptions(address, port);
+        EndpointDefaultsCallback?.Invoke(listenOptions);
         configure(listenOptions);
         ListenOptions.Add(listenOptions);
+    }
+
+    public void Listen(string url)
+    {
+        try
+        {
+            var listenOptions = EndpointResolver.ParseUrl(url);
+            EndpointDefaultsCallback?.Invoke(listenOptions);
+            ListenOptions.Add(listenOptions);
+        }
+        catch (FormatException ex)
+        {
+            throw new ArgumentException(ex.Message, nameof(url), ex);
+        }
+    }
+
+    public void Listen(string url, Action<TurboListenOptions> configure)
+    {
+        try
+        {
+            var listenOptions = EndpointResolver.ParseUrl(url);
+            EndpointDefaultsCallback?.Invoke(listenOptions);
+            configure(listenOptions);
+            ListenOptions.Add(listenOptions);
+        }
+        catch (FormatException ex)
+        {
+            throw new ArgumentException(ex.Message, nameof(url), ex);
+        }
     }
 
     public void ListenLocalhost(ushort port)
