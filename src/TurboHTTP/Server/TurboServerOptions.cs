@@ -42,9 +42,9 @@ public sealed class TurboServerOptions
     public TimeSpan HandlerTimeout { get; set; } = TimeSpan.FromSeconds(30);
     public TimeSpan HandlerGracePeriod { get; set; } = TimeSpan.FromSeconds(5);
 
-    public int BodyBufferThreshold { get; set; } = 65536;
+    public int BodyBufferThreshold { get; set; } = 64 * 1024;
     public TimeSpan BodyConsumptionTimeout { get; set; } = TimeSpan.FromSeconds(30);
-    public int ResponseBodyChunkSize { get; set; } = 16384;
+    public int ResponseBodyChunkSize { get; set; } = 16 * 1024;
 
     public Http1ServerOptions Http1 { get; } = new();
     public Http2ServerOptions Http2 { get; } = new();
