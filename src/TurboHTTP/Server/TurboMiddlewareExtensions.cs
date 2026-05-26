@@ -6,6 +6,7 @@ namespace TurboHTTP.Server;
 
 public static class TurboMiddlewareExtensions
 {
+    [Obsolete("Use TurboWebApplication with Use() instead. Will be removed in 2.0.")]
     public static WebApplication UseTurbo(
         this WebApplication app,
         Func<TurboHttpContext, TurboRequestDelegate, Task> middleware)
@@ -15,6 +16,7 @@ public static class TurboMiddlewareExtensions
         return app;
     }
 
+    [Obsolete("Use TurboWebApplication with Use<T>() instead. Will be removed in 2.0.")]
     public static WebApplication UseTurbo<T>(this WebApplication app)
         where T : class, ITurboMiddleware
     {
@@ -23,6 +25,7 @@ public static class TurboMiddlewareExtensions
         return app;
     }
 
+    [Obsolete("Use TurboWebApplication with Run() instead. Will be removed in 2.0.")]
     public static WebApplication RunTurbo(
         this WebApplication app,
         TurboRequestDelegate handler)
@@ -32,6 +35,7 @@ public static class TurboMiddlewareExtensions
         return app;
     }
 
+    [Obsolete("Use TurboWebApplication with Map() instead. Will be removed in 2.0.")]
     public static WebApplication MapTurbo(
         this WebApplication app,
         string pathPrefix,
@@ -42,6 +46,7 @@ public static class TurboMiddlewareExtensions
         return app;
     }
 
+    [Obsolete("Use TurboWebApplication with MapWhen() instead. Will be removed in 2.0.")]
     public static WebApplication MapTurboWhen(
         this WebApplication app,
         Func<TurboHttpContext, bool> predicate,

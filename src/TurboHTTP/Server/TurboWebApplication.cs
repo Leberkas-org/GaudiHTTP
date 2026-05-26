@@ -7,7 +7,7 @@ using TurboHTTP.Server.Middleware;
 
 namespace TurboHTTP.Server;
 
-public sealed class TurboWebApplication : IHost, ITurboEndpointRouteBuilder, ITurboApplicationBuilder, IAsyncDisposable
+public sealed class TurboWebApplication : IHost, ITurboEndpointRouteBuilder, ITurboApplicationBuilder, IAsyncDisposable, IRouteTableAccessor
 {
     private readonly IHost _host;
     private readonly TurboRouteTable _routeTable;
@@ -86,6 +86,8 @@ public sealed class TurboWebApplication : IHost, ITurboEndpointRouteBuilder, ITu
     IServiceProvider ITurboEndpointRouteBuilder.ServiceProvider => Services;
 
     TurboRouteTable ITurboEndpointRouteBuilder.RouteTable => _routeTable;
+
+    TurboRouteTable IRouteTableAccessor.RouteTable => _routeTable;
 
     public ITurboApplicationBuilder Use(Func<TurboHttpContext, TurboRequestDelegate, Task> middleware)
     {
