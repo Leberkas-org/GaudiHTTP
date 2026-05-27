@@ -8,7 +8,7 @@ When your ASP.NET Core application starts with TurboHTTP Server configured, the 
 
 1. **ActorSystem**: Creates or reuses an Akka.NET ActorSystem (or reuses one from the DI container if already present)
 2. **Materializer**: Creates a Streams materializer for the system
-3. **ApplicationBridgeStage**: Creates the bridge flow that connects protocol engines to `IHttpApplication<TContext>`
+3. **ApplicationBridgeStage**: Creates the bridge flow that connects protocol engines to `IHttpApplication&lt;TContext&gt;`
 4. **EndpointResolver**: Resolves all configured endpoints into listener bindings
 5. **ServerSupervisorActor**: Spawns the top-level supervisor with one `ListenerActor` per endpoint
 6. **Coordinated Shutdown**: Hooks into Akka's shutdown lifecycle to ensure graceful termination
@@ -79,7 +79,7 @@ Each active connection runs in a ConnectionActor. It:
 - Materializes the complete Akka.Streams graph:
   - Transport inbound/outbound flow
   - Protocol engine (HTTP/1.0, 1.1, 2, or 3)
-  - ApplicationBridgeStage → IHttpApplication<TContext> → ASP.NET Core pipeline
+  - ApplicationBridgeStage → IHttpApplication&lt;TContext&gt; → ASP.NET Core pipeline
 - Holds a kill switch to stop processing cleanly
 - Reports completion (success, error, or shutdown) back to the supervisor
 
