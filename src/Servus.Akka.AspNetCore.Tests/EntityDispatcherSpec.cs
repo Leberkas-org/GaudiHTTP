@@ -4,12 +4,8 @@ using Microsoft.AspNetCore.Http;
 
 namespace Servus.Akka.AspNetCore.Tests;
 
-public sealed class EntityDispatcherSpec : TestKit
+public sealed class EntityDispatcherSpec() : TestKit(ActorSystem.Create("test"))
 {
-    public EntityDispatcherSpec() : base(ActorSystem.Create("test"))
-    {
-    }
-
     private sealed record TestMessage(string Value);
 
     private sealed record TestResponse(string Result);

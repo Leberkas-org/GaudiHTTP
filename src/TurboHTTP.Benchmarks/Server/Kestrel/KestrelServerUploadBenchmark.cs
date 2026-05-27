@@ -1,0 +1,94 @@
+using BenchmarkDotNet.Attributes;
+using TurboHTTP.Benchmarks.Internal;
+
+namespace TurboHTTP.Benchmarks.Server.Kestrel;
+
+[MemoryDiagnoser]
+[WarmupCount(3)]
+[IterationCount(10)]
+public class KestrelServerUploadBenchmark : KestrelBaseClass
+{
+    private const int MaxFanOut = 1024;
+
+    [Params(1, 64, 256)]
+    public int ConcurrencyLevel { get; set; }
+
+    private HttpClient _httpClient = null!;
+    private Task[] _tasks = null!;
+    private SemaphoreSlim _fanOutGate = null!;
+
+    [GlobalSetup]
+    public override async Task GlobalSetup()
+    {
+        await base.GlobalSetup();
+
+        AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+
+        var handler = new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            EnableMultipleHttp2Connections = true,
+            MaxConnectionsPerServer = 128,
+            SslOptions = { RemoteCertificateValidationCallback = (_, _, _, _) => true },
+        };
+
+        _httpClient = new HttpClient(handler)
+        {
+            DefaultRequestVersion = HttpVersionValue,
+            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
+        };
+
+        _tasks = new Task[ConcurrencyLevel];
+        _fanOutGate = new SemaphoreSlim(MaxFanOut, MaxFanOut);
+        await WarmupRequest();
+    }
+
+    [GlobalCleanup]
+    public override async Task GlobalCleanup()
+    {
+        _fanOutGate.Dispose();
+        _httpClient.Dispose();
+        await base.GlobalCleanup();
+    }
+
+    public override async Task WarmupRequest()
+    {
+        using var content = new ByteArrayContent(HeavyPayload);
+        using var response = await _httpClient.PostAsync(UploadUri, content);
+        response.EnsureSuccessStatusCode();
+    }
+
+    [Benchmark]
+    public async Task Upload_Sequential()
+    {
+        using var content = new ByteArrayContent(HeavyPayload);
+        using var response = await _httpClient.PostAsync(UploadUri, content);
+        response.EnsureSuccessStatusCode();
+    }
+
+    [Benchmark]
+    [BenchmarkCategory("Concurrent")]
+    public Task Upload_Concurrent()
+    {
+        for (var i = 0; i < ConcurrencyLevel; i++)
+        {
+            _tasks[i] = SendRequest();
+        }
+        return Task.WhenAll(_tasks);
+    }
+
+    private async Task SendRequest()
+    {
+        await _fanOutGate.WaitAsync();
+        try
+        {
+            using var content = new ByteArrayContent(HeavyPayload);
+            using var response = await _httpClient.PostAsync(UploadUri, content);
+            response.EnsureSuccessStatusCode();
+        }
+        finally
+        {
+            _fanOutGate.Release();
+        }
+    }
+}

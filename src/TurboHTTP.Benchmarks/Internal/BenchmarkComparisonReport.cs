@@ -59,6 +59,22 @@ public static class BenchmarkComparisonReport
     }
 
     /// <summary>
+    /// Generates a two-way markdown report comparing TurboServer (Akka.Streams) against
+    /// Kestrel (built-in ASP.NET Core). Results with CL=1 are shown as single-request benchmarks;
+    /// results with CL>1 are shown as concurrent benchmarks.
+    /// </summary>
+    public static string GenerateServerReport(
+        IReadOnlyList<BenchmarkResult> kestrelResults,
+        IReadOnlyList<BenchmarkResult> turboResults)
+    {
+        var sb = new StringBuilder();
+        AppendServerHeader(sb, DateTime.UtcNow);
+        AppendServerVersionSections(sb, kestrelResults, turboResults);
+        AppendServerNotes(sb);
+        return sb.ToString();
+    }
+
+    /// <summary>
     /// Writes a markdown report to <c>benchmarks/comparison_report_{timestamp}.md</c>
     /// relative to the current working directory, creating the directory if needed.
     /// </summary>
@@ -556,4 +572,221 @@ public static class BenchmarkComparisonReport
 
     private static BenchmarkResult Zero(string name)
         => new(name, 0, 0, 0, 0, 0);
+
+    private static void AppendServerHeader(StringBuilder sb, DateTime reportDate)
+    {
+        sb.AppendLine("# TurboServer vs Kestrel — Server Benchmark Comparison");
+        sb.AppendLine();
+        sb.AppendLine("| | |");
+        sb.AppendLine("|---|---|");
+        sb.AppendLine($"| **Report date** | {reportDate:yyyy-MM-dd HH:mm} UTC |");
+        sb.AppendLine("| **Comparison** | TurboServer (Akka.Streams) vs Kestrel (built-in) |");
+        sb.AppendLine("| **Protocol** | HTTP/1.1 cleartext, HTTP/2 (h2c), HTTP/3 (QUIC+TLS) |");
+        sb.AppendLine("| **Workloads** | plaintext, json, fortunes, upload (1 MB POST) |");
+        sb.AppendLine("| **Client** | HttpClient (SocketsHttpHandler) — same for both servers |");
+        sb.AppendLine();
+        sb.AppendLine("> **Legend:**");
+        sb.AppendLine("> - ✓  TurboServer faster than Kestrel by >5%");
+        sb.AppendLine("> - –  within ±5%");
+        sb.AppendLine("> - ✗  TurboServer slower than Kestrel by >5%");
+        sb.AppendLine("> - **Δ%** is relative to the Kestrel baseline (positive = TurboServer faster/cheaper)");
+        sb.AppendLine();
+    }
+
+    private static void AppendServerVersionSections(
+        StringBuilder sb,
+        IReadOnlyList<BenchmarkResult> kestrelResults,
+        IReadOnlyList<BenchmarkResult> turboResults)
+    {
+        foreach (var version in new[] { "1.1", "2.0", "3.0" })
+        {
+            var kestrelAll = FilterByVersion(kestrelResults, version);
+            var turboAll = FilterByVersion(turboResults, version);
+
+            if (kestrelAll.Count == 0 && turboAll.Count == 0)
+            {
+                continue;
+            }
+
+            sb.AppendLine($"# HTTP/{version}");
+            sb.AppendLine();
+
+            var kestrelSingle = FilterByConcurrency(kestrelAll, cl: 1);
+            var turboSingle = FilterByConcurrency(turboAll, cl: 1);
+
+            if (kestrelSingle.Count > 0 || turboSingle.Count > 0)
+            {
+                AppendServer2WayThroughputTable(sb, kestrelSingle, turboSingle, "Single Request");
+                AppendServer2WayLatencyTable(sb, kestrelSingle, turboSingle, "Single Request");
+                AppendServer2WayMemoryTable(sb, kestrelSingle, turboSingle, "Single Request");
+            }
+
+            var kestrelConc = FilterByConcurrencyMin(kestrelAll, 2);
+            var turboConc = FilterByConcurrencyMin(turboAll, 2);
+
+            if (kestrelConc.Count > 0 || turboConc.Count > 0)
+            {
+                sb.AppendLine("---");
+                sb.AppendLine();
+                sb.AppendLine("## Concurrent Benchmarks");
+                sb.AppendLine();
+                AppendServer2WayThroughputTable(sb, kestrelConc, turboConc, "Concurrent");
+                AppendServer2WayLatencyTable(sb, kestrelConc, turboConc, "Concurrent");
+                AppendServer2WayMemoryTable(sb, kestrelConc, turboConc, "Concurrent");
+            }
+        }
+    }
+
+    private static void AppendServer2WayThroughputTable(
+        StringBuilder sb,
+        IReadOnlyList<BenchmarkResult> kestrelResults,
+        IReadOnlyList<BenchmarkResult> turboResults,
+        string section)
+    {
+        sb.AppendLine($"## {section} — Throughput (Req/sec — higher is better)");
+        sb.AppendLine();
+        sb.AppendLine("| Scenario | Kestrel | TurboServer | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|");
+
+        foreach (var row in MatchRows2Way(kestrelResults, turboResults))
+        {
+            var cl = ParseConcurrencyLevel(row.Name);
+            var kestrelRps = cl > 1
+                ? ConcurrentNsToRps(row.Kestrel.MeanNanoseconds, cl)
+                : NsToRps(row.Kestrel.MeanNanoseconds);
+            var turboRps = cl > 1
+                ? ConcurrentNsToRps(row.Turbo.MeanNanoseconds, cl)
+                : NsToRps(row.Turbo.MeanNanoseconds);
+
+            var delta = ComputeDelta(kestrelRps, turboRps);
+
+            sb.AppendLine(
+                $"| {row.Name} | {kestrelRps:N0} | {turboRps:N0} | {delta:+0.0;-0.0;0.0}% |");
+        }
+
+        sb.AppendLine();
+    }
+
+    private static void AppendServer2WayLatencyTable(
+        StringBuilder sb,
+        IReadOnlyList<BenchmarkResult> kestrelResults,
+        IReadOnlyList<BenchmarkResult> turboResults,
+        string section)
+    {
+        sb.AppendLine($"## {section} — Latency (ns — lower is better)");
+        sb.AppendLine();
+
+        sb.AppendLine("### p50 (Median)");
+        sb.AppendLine();
+        sb.AppendLine("| Scenario | Kestrel | TurboServer | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|");
+        AppendServer2WayLatencyRows(sb, kestrelResults, turboResults, r => r.P50Nanoseconds);
+        sb.AppendLine();
+
+        sb.AppendLine("### p95");
+        sb.AppendLine();
+        sb.AppendLine("| Scenario | Kestrel | TurboServer | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|");
+        AppendServer2WayLatencyRows(sb, kestrelResults, turboResults, r => r.P95Nanoseconds);
+        sb.AppendLine();
+
+        sb.AppendLine("### p99");
+        sb.AppendLine();
+        sb.AppendLine("| Scenario | Kestrel | TurboServer | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|");
+        AppendServer2WayLatencyRows(sb, kestrelResults, turboResults, r => r.P99Nanoseconds);
+        sb.AppendLine();
+    }
+
+    private static void AppendServer2WayLatencyRows(
+        StringBuilder sb,
+        IReadOnlyList<BenchmarkResult> kestrelResults,
+        IReadOnlyList<BenchmarkResult> turboResults,
+        Func<BenchmarkResult, double> selector)
+    {
+        foreach (var row in MatchRows2Way(kestrelResults, turboResults))
+        {
+            var kestrelVal = selector(row.Kestrel);
+            var turboVal = selector(row.Turbo);
+            var delta = ComputeLatencyDelta(kestrelVal, turboVal);
+
+            sb.AppendLine(
+                $"| {row.Name} | {kestrelVal:N0} ns | {turboVal:N0} ns | {delta:+0.0;-0.0;0.0}% |");
+        }
+    }
+
+    private static void AppendServer2WayMemoryTable(
+        StringBuilder sb,
+        IReadOnlyList<BenchmarkResult> kestrelResults,
+        IReadOnlyList<BenchmarkResult> turboResults,
+        string section)
+    {
+        sb.AppendLine($"## {section} — Memory (Allocated bytes/op — lower is better)");
+        sb.AppendLine();
+        sb.AppendLine("| Scenario | Kestrel | TurboServer | Δ% |");
+        sb.AppendLine("|---|---:|---:|---:|");
+
+        foreach (var row in MatchRows2Way(kestrelResults, turboResults))
+        {
+            double kestrelBytes = row.Kestrel.AllocatedBytes;
+            double turboBytes = row.Turbo.AllocatedBytes;
+            var delta = ComputeLatencyDelta(kestrelBytes, turboBytes);
+
+            sb.AppendLine(
+                $"| {row.Name} | {row.Kestrel.AllocatedBytes:N0} B | {row.Turbo.AllocatedBytes:N0} B | {delta:+0.0;-0.0;0.0}% |");
+        }
+
+        sb.AppendLine();
+    }
+
+    private static void AppendServerNotes(StringBuilder sb)
+    {
+        sb.AppendLine("## Notes");
+        sb.AppendLine();
+        sb.AppendLine("- Both servers run the same ASP.NET Core middleware pipeline (same MapGet/MapPost endpoints).");
+        sb.AppendLine("- Client is standard HttpClient (SocketsHttpHandler) — identical for both servers.");
+        sb.AppendLine("- HTTP/1.1 and HTTP/2 use cleartext (no TLS). HTTP/3 uses QUIC+TLS with a self-signed certificate.");
+        sb.AppendLine("- All requests target loopback (127.0.0.1) — results reflect pure server overhead.");
+        sb.AppendLine("- Memory figures reflect managed allocations only; native/pooled buffers are not included.");
+        sb.AppendLine("- TurboServer uses Akka.Streams for connection handling; Kestrel uses its built-in IO pipeline.");
+        sb.AppendLine();
+    }
+
+    private static IReadOnlyList<(string Name, BenchmarkResult Kestrel, BenchmarkResult Turbo)>
+        MatchRows2Way(
+            IReadOnlyList<BenchmarkResult> kestrelResults,
+            IReadOnlyList<BenchmarkResult> turboResults)
+    {
+        var kestrelMap = new Dictionary<string, BenchmarkResult>(StringComparer.OrdinalIgnoreCase);
+        foreach (var k in kestrelResults)
+        {
+            kestrelMap[k.BenchmarkName] = k;
+        }
+
+        var result = new List<(string, BenchmarkResult, BenchmarkResult)>();
+        var matchedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var turbo in turboResults)
+        {
+            if (!matchedNames.Add(turbo.BenchmarkName))
+            {
+                continue;
+            }
+
+            var name = turbo.BenchmarkName;
+            var kestrel = kestrelMap.TryGetValue(name, out var k) ? k : Zero(name);
+            result.Add((StripVersionSuffix(name), kestrel, turbo));
+        }
+
+        foreach (var kestrel in kestrelResults)
+        {
+            if (!matchedNames.Contains(kestrel.BenchmarkName))
+            {
+                matchedNames.Add(kestrel.BenchmarkName);
+                result.Add((StripVersionSuffix(kestrel.BenchmarkName), kestrel, Zero(kestrel.BenchmarkName)));
+            }
+        }
+
+        return result;
+    }
 }
