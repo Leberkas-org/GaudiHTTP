@@ -15,16 +15,16 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     where TSM : IServerStateMachine
 {
     private readonly Inlet<ITransportInbound> _inNetwork;
-    private readonly Outlet<RequestContext> _outRequest;
-    private readonly Inlet<RequestContext> _inResponse;
+    private readonly Outlet<IFeatureCollection> _outRequest;
+    private readonly Inlet<IFeatureCollection> _inResponse;
     private readonly Outlet<ITransportOutbound> _outNetwork;
 
     private readonly TSM _sm;
-    private readonly Queue<RequestContext> _requestQueue = new();
+    private readonly Queue<IFeatureCollection> _requestQueue = new();
     private readonly Queue<ITransportOutbound> _outboundQueue = new();
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
-    private TurboConnectionInfo? _connectionInfo;
+    private TurboHttpConnectionFeature? _connectionFeature;
     private TlsHandshakeFeature? _tlsHandshakeFeature;
 
     public HttpConnectionServerStageLogic(
@@ -89,11 +89,11 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                     return;
                 }
 
-                var bodyFeature = response.Features.Get<IHttpResponseBodyFeature>();
+                var bodyFeature = response.Get<IHttpResponseBodyFeature>();
                 var hasBody = bodyFeature is not null;
                 if (!hasBody)
                 {
-                    ServerContextFactory.Return(response);
+                    FeatureCollectionFactory.Return(response);
                 }
 
                 TryPullResponse();
@@ -130,7 +130,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             var info = connected.Info;
             if (info.Remote is System.Net.IPEndPoint remoteEp)
             {
-                _connectionInfo = new TurboConnectionInfo(
+                var connectionInfo = new TurboConnectionInfo(
                     Guid.NewGuid().ToString("N"),
                     remoteEp.Address, remoteEp.Port,
                     (info.Local as System.Net.IPEndPoint)?.Address,
@@ -138,8 +138,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
                 if (info.Security is { } security)
                 {
-                    _connectionInfo.SetSecurityInfo(security);
-                    _connectionInfo.SetNegotiatedProtocol(security.ApplicationProtocol);
+                    connectionInfo.SetSecurityInfo(security);
+                    connectionInfo.SetNegotiatedProtocol(security.ApplicationProtocol);
 
                     _tlsHandshakeFeature = new TlsHandshakeFeature
                     {
@@ -151,10 +151,12 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
                     if (security.SslStream is not null)
                     {
-                        _connectionInfo.SetClientCertificateFromHandshake(security.SslStream);
-                        _connectionInfo.SetTlsState(security.SslStream, security.AllowDelayedNegotiation);
+                        connectionInfo.SetClientCertificateFromHandshake(security.SslStream);
+                        connectionInfo.SetTlsState(security.SslStream, security.AllowDelayedNegotiation);
                     }
                 }
+
+                _connectionFeature = new TurboHttpConnectionFeature(connectionInfo);
             }
         }
 
@@ -199,7 +201,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         }
     }
 
-    void IServerStageOperations.OnRequest(RequestContext context)
+    void IServerStageOperations.OnRequest(IFeatureCollection features)
     {
         if (_requestQueue.Count >= _sm.MaxQueuedRequests)
         {
@@ -208,7 +210,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             return;
         }
 
-        _requestQueue.Enqueue(context);
+        _requestQueue.Enqueue(features);
         TryPushRequest();
     }
 
@@ -232,7 +234,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     IServiceProvider? IServerStageOperations.Services => _services;
 
-    TurboConnectionInfo? IServerStageOperations.ConnectionInfo => _connectionInfo;
+    TurboHttpConnectionFeature? IServerStageOperations.ConnectionFeature => _connectionFeature;
 
     TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
 

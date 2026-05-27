@@ -1,6 +1,7 @@
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
@@ -16,7 +17,7 @@ internal sealed class NegotiatingServerEngine : IServerProtocolEngine
         _options = options;
     }
 
-    public BidiFlow<ITransportInbound, RequestContext, RequestContext, ITransportOutbound, NotUsed> CreateFlow(IServiceProvider? services = null)
+    public BidiFlow<ITransportInbound, IFeatureCollection, IFeatureCollection, ITransportOutbound, NotUsed> CreateFlow(IServiceProvider? services = null)
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
@@ -24,8 +25,8 @@ internal sealed class NegotiatingServerEngine : IServerProtocolEngine
 
             return new BidiShape<
                 ITransportInbound,
-                RequestContext,
-                RequestContext,
+                IFeatureCollection,
+                IFeatureCollection,
                 ITransportOutbound>(
                 connection.InNetwork,
                 connection.OutRequest,

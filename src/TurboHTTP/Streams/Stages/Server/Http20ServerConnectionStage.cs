@@ -1,5 +1,6 @@
 using Akka.Streams;
 using Akka.Streams.Stage;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
@@ -9,8 +10,8 @@ namespace TurboHTTP.Streams.Stages.Server;
 internal sealed class Http20ServerConnectionStage : GraphStage<ServerConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inNetwork = new("Http20Connection.In.Network");
-    private readonly Outlet<RequestContext> _outRequest = new("Http20Connection.Out.Request");
-    private readonly Inlet<RequestContext> _inResponse = new("Http20Connection.In.Response");
+    private readonly Outlet<IFeatureCollection> _outRequest = new("Http20Connection.Out.Request");
+    private readonly Inlet<IFeatureCollection> _inResponse = new("Http20Connection.In.Response");
     private readonly Outlet<ITransportOutbound> _outNetwork = new("Http20Connection.Out.Network");
     private readonly TurboServerOptions _options;
     private readonly IServiceProvider? _services;
