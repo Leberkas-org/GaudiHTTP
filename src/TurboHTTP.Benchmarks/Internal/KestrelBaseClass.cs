@@ -48,6 +48,11 @@ public abstract class KestrelBaseClass : BenchmarkSuiteBase
     /// </summary>
     public Uri HeavyUri => new($"{Scheme}://127.0.0.1:{KestrelPort}/benchmark/payload");
 
+    public Uri PlaintextUri => new($"{Scheme}://127.0.0.1:{KestrelPort}/plaintext");
+    public Uri JsonUri => new($"{Scheme}://127.0.0.1:{KestrelPort}/json");
+    public Uri FortunesUri => new($"{Scheme}://127.0.0.1:{KestrelPort}/fortunes");
+    public Uri UploadUri => new($"{Scheme}://127.0.0.1:{KestrelPort}/upload");
+
     /// <summary>
     /// Returns the base address for the Kestrel test server at the current HTTP version port.
     /// </summary>

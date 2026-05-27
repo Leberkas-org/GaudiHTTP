@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 
 namespace Servus.Akka.AspNetCore.Tests;
 
@@ -97,7 +98,7 @@ public sealed class EntityBuilderSpec
         {
             ask.Handle<string>(async (ctx, resp) =>
             {
-                await ctx.Response.Body.WriteAsync(System.Text.Encoding.UTF8.GetBytes(resp));
+                await ctx.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(resp));
             });
         });
 
@@ -134,7 +135,7 @@ public sealed class EntityBuilderSpec
         var builder = new EntityBuilder();
         builder.Response<string>(async (ctx, resp) =>
         {
-            await ctx.Response.Body.WriteAsync(System.Text.Encoding.UTF8.GetBytes(resp));
+            await ctx.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(resp));
         });
 
         Assert.Equal(1, builder.ResponseMappers.Count);
@@ -146,7 +147,7 @@ public sealed class EntityBuilderSpec
         var builder = new EntityBuilder();
         var result = builder.Response<string>(async (ctx, resp) =>
         {
-            await ctx.Response.Body.WriteAsync(System.Text.Encoding.UTF8.GetBytes(resp));
+            await ctx.Response.Body.WriteAsync(Encoding.UTF8.GetBytes(resp));
         });
 
         Assert.Same(builder, result);

@@ -2,24 +2,21 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using TurboHTTP.Server;
 
 namespace TurboHTTP.Benchmarks.Internal;
 
-public sealed class BenchmarkServer : IAsyncDisposable
+public sealed class TurboBenchmarkServer : IAsyncDisposable
 {
     private WebApplication? _app;
     private X509Certificate2? _cert;
 
     public int Http11Port { get; private set; }
-
     public int Http20Port { get; private set; }
-
     public int Http30Port { get; private set; }
 
     public async ValueTask InitializeAsync()
@@ -30,41 +27,31 @@ public sealed class BenchmarkServer : IAsyncDisposable
         builder.Logging.ClearProviders();
 
         var cert = _cert;
-        builder.Services.Configure<KestrelServerOptions>(options =>
+        builder.Host.UseTurboHttp(options =>
         {
-            // HTTP/1.1-only listener
             options.Listen(IPAddress.Loopback, 0, lo =>
                 lo.Protocols = HttpProtocols.Http1);
 
-            // HTTP/2 cleartext (h2c) prior-knowledge listener
             options.Listen(IPAddress.Loopback, 0, lo =>
                 lo.Protocols = HttpProtocols.Http2);
 
-            // HTTP/3 (QUIC+TLS) listener
             options.Listen(IPAddress.Loopback, 0, lo =>
             {
                 lo.Protocols = HttpProtocols.Http3;
                 lo.UseHttps(cert);
             });
 
-            // Raise HTTP/2 limits to support high-concurrency benchmarks (CL=256+).
-            options.Limits.Http2.MaxStreamsPerConnection = 512;
-            options.Limits.Http2.InitialConnectionWindowSize = 4 * 1024 * 1024;
-            options.Limits.Http2.InitialStreamWindowSize = 1024 * 1024;
-
-            // Raise general limits for HTTP/3 high-concurrency benchmarks.
-            options.Limits.MaxConcurrentConnections = null;
-            options.Limits.MaxConcurrentUpgradedConnections = null;
+            options.Http2.MaxConcurrentStreams = 512;
+            options.Http2.InitialConnectionWindowSize = 4 * 1024 * 1024;
+            options.Http2.InitialStreamWindowSize = 1 * 1024 * 1024;
         });
 
         var app = builder.Build();
 
-        RegisterRoutes(app);
+        BenchmarkRoutes.Register(app);
 
         await app.StartAsync();
 
-        // Kestrel returns addresses in listener-registration order:
-        // index 0 = HTTP/1.1, index 1 = HTTP/2, index 2 = HTTP/3
         var addresses = app.Services.GetRequiredService<IServer>()
             .Features.Get<IServerAddressesFeature>()!
             .Addresses
@@ -99,10 +86,5 @@ public sealed class BenchmarkServer : IAsyncDisposable
         request.CertificateExtensions.Add(san.Build());
         var cert = request.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(1));
         return X509CertificateLoader.LoadPkcs12(cert.Export(X509ContentType.Pfx), null);
-    }
-
-    private static void RegisterRoutes(WebApplication app)
-    {
-        BenchmarkRoutes.Register(app);
     }
 }

@@ -66,3 +66,56 @@ else
     Console.WriteLine($"  KestrelTurboSendAsyncConcurrentBenchmarks    : {(kestrelTurboSend is not null ? "OK" : "MISSING")}");
     Console.WriteLine($"  KestrelTurboStreamingConcurrentBenchmarks    : {(kestrelTurboStream is not null ? "OK" : "MISSING")}");
 }
+
+var kestrelServerPlaintext = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Kestrel.KestrelServerPlaintextBenchmark>());
+var turboServerPlaintext = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Turbo.TurboServerPlaintextBenchmark>());
+var kestrelServerJson = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Kestrel.KestrelServerJsonBenchmark>());
+var turboServerJson = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Turbo.TurboServerJsonBenchmark>());
+var kestrelServerFortunes = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Kestrel.KestrelServerFortunesBenchmark>());
+var turboServerFortunes = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Turbo.TurboServerFortunesBenchmark>());
+var kestrelServerUpload = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Kestrel.KestrelServerUploadBenchmark>());
+var turboServerUpload = enumerable.FirstOrDefault(s =>
+    s.HasBenchmarksOf<TurboHTTP.Benchmarks.Server.Turbo.TurboServerUploadBenchmark>());
+
+var hasAnyServerBenchmarks =
+    kestrelServerPlaintext is not null || turboServerPlaintext is not null ||
+    kestrelServerJson is not null || turboServerJson is not null ||
+    kestrelServerFortunes is not null || turboServerFortunes is not null ||
+    kestrelServerUpload is not null || turboServerUpload is not null;
+
+if (hasAnyServerBenchmarks)
+{
+    var kestrelServerResults = new List<BenchmarkResult>();
+    var turboServerResults = new List<BenchmarkResult>();
+
+    if (kestrelServerPlaintext is not null) kestrelServerResults.AddRange(SummaryExtractor.Extract(kestrelServerPlaintext));
+    if (kestrelServerJson is not null) kestrelServerResults.AddRange(SummaryExtractor.Extract(kestrelServerJson));
+    if (kestrelServerFortunes is not null) kestrelServerResults.AddRange(SummaryExtractor.Extract(kestrelServerFortunes));
+    if (kestrelServerUpload is not null) kestrelServerResults.AddRange(SummaryExtractor.Extract(kestrelServerUpload));
+
+    if (turboServerPlaintext is not null) turboServerResults.AddRange(SummaryExtractor.Extract(turboServerPlaintext));
+    if (turboServerJson is not null) turboServerResults.AddRange(SummaryExtractor.Extract(turboServerJson));
+    if (turboServerFortunes is not null) turboServerResults.AddRange(SummaryExtractor.Extract(turboServerFortunes));
+    if (turboServerUpload is not null) turboServerResults.AddRange(SummaryExtractor.Extract(turboServerUpload));
+
+    var serverMarkdown = BenchmarkComparisonReport.GenerateServerReport(kestrelServerResults, turboServerResults);
+
+    if (serverMarkdown.Contains("NaN") || serverMarkdown.Contains("Infinity") || serverMarkdown.Contains("Inf%"))
+    {
+        Console.Error.WriteLine("WARNING: Server report contains NaN or Inf values — check input data.");
+    }
+
+    var serverPath = BenchmarkComparisonReport.WriteReportToFile(serverMarkdown);
+    Console.WriteLine($"Server comparison report: {serverPath}");
+}
+else
+{
+    Console.WriteLine("Server comparison report skipped — no server benchmark suites ran.");
+}

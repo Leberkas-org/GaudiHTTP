@@ -1,0 +1,72 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+
+namespace TurboHTTP.Benchmarks.Internal;
+
+public static class BenchmarkRoutes
+{
+    public static void Register(WebApplication app)
+    {
+        app.MapGet("/benchmark/simple", () =>
+            Results.Content("OK\n", "text/plain"));
+
+        app.MapPost("/benchmark/payload", async ctx =>
+        {
+            using var ms = new MemoryStream();
+            await ctx.Request.Body.CopyToAsync(ms);
+            var received = ms.ToArray();
+            var response = System.Text.Encoding.UTF8.GetBytes(
+                string.Concat("received:", received.Length.ToString()));
+            ctx.Response.ContentType = "text/plain";
+            ctx.Response.ContentLength = response.Length;
+            await ctx.Response.Body.WriteAsync(response);
+        });
+
+        app.MapGet("/plaintext", () =>
+            Results.Content("Hello, World!", "text/plain"));
+
+        app.MapGet("/json", () =>
+            Results.Json(new { message = "Hello, World!" }));
+
+        app.MapGet("/db", () =>
+        {
+            var row = BenchmarkData.GetRandomRow();
+            return Results.Json(row);
+        });
+
+        app.MapGet("/queries", (int? queries) =>
+        {
+            var count = Math.Clamp(queries ?? 1, 1, 500);
+            var rows = new BenchmarkData.FortuneRow[count];
+            for (var i = 0; i < count; i++)
+            {
+                rows[i] = BenchmarkData.GetRandomRow();
+            }
+            return Results.Json(rows);
+        });
+
+        app.MapGet("/fortunes", () =>
+            Results.Content(BenchmarkData.FortunesHtml, "text/html; charset=utf-8"));
+
+        app.MapPost("/echo", async ctx =>
+        {
+            ctx.Response.ContentType = ctx.Request.ContentType ?? "application/octet-stream";
+            ctx.Response.ContentLength = ctx.Request.ContentLength;
+            await ctx.Request.Body.CopyToAsync(ctx.Response.Body);
+        });
+
+        app.MapPost("/upload", async ctx =>
+        {
+            long count = 0;
+            var buffer = new byte[64 * 1024];
+            int read;
+            while ((read = await ctx.Request.Body.ReadAsync(buffer)) > 0)
+            {
+                count += read;
+            }
+            var response = string.Concat("received:", count.ToString());
+            ctx.Response.ContentType = "text/plain";
+            await ctx.Response.WriteAsync(response);
+        });
+    }
+}
