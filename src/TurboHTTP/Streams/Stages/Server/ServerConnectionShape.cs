@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Akka.Streams;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 
 namespace TurboHTTP.Streams.Stages.Server;
@@ -7,14 +8,14 @@ namespace TurboHTTP.Streams.Stages.Server;
 internal sealed class ServerConnectionShape : Shape
 {
     public Inlet<ITransportInbound> InNetwork { get; }
-    public Outlet<RequestContext> OutRequest { get; }
-    public Inlet<RequestContext> InResponse { get; }
+    public Outlet<IFeatureCollection> OutRequest { get; }
+    public Inlet<IFeatureCollection> InResponse { get; }
     public Outlet<ITransportOutbound> OutNetwork { get; }
 
     public ServerConnectionShape(
         Inlet<ITransportInbound> inNetwork,
-        Outlet<RequestContext> outResponse,
-        Inlet<RequestContext> inRequest,
+        Outlet<IFeatureCollection> outResponse,
+        Inlet<IFeatureCollection> inRequest,
         Outlet<ITransportOutbound> outNetwork)
     {
         InNetwork = inNetwork;
@@ -31,8 +32,8 @@ internal sealed class ServerConnectionShape : Shape
     {
         return new ServerConnectionShape(
             (Inlet<ITransportInbound>)InNetwork.CarbonCopy(),
-            (Outlet<RequestContext>)OutRequest.CarbonCopy(),
-            (Inlet<RequestContext>)InResponse.CarbonCopy(),
+            (Outlet<IFeatureCollection>)OutRequest.CarbonCopy(),
+            (Inlet<IFeatureCollection>)InResponse.CarbonCopy(),
             (Outlet<ITransportOutbound>)OutNetwork.CarbonCopy());
     }
 
@@ -40,8 +41,8 @@ internal sealed class ServerConnectionShape : Shape
     {
         return new ServerConnectionShape(
             (Inlet<ITransportInbound>)inlets[0],
-            (Outlet<RequestContext>)outlets[0],
-            (Inlet<RequestContext>)inlets[1],
+            (Outlet<IFeatureCollection>)outlets[0],
+            (Inlet<IFeatureCollection>)inlets[1],
             (Outlet<ITransportOutbound>)outlets[1]);
     }
 }

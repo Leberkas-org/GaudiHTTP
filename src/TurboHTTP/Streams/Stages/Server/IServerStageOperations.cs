@@ -1,15 +1,15 @@
 using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Context.Features;
-using TurboHTTP.Server;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
 internal interface IServerStageOperations
 {
-    void OnRequest(RequestContext context);
+    void OnRequest(IFeatureCollection features);
     void OnOutbound(ITransportOutbound item);
     void OnScheduleTimer(string name, TimeSpan delay);
     void OnCancelTimer(string name);
@@ -17,6 +17,6 @@ internal interface IServerStageOperations
     IActorRef StageActor { get; }
     IMaterializer Materializer { get; }
     IServiceProvider? Services => null;
-    TurboConnectionInfo? ConnectionInfo => null;
+    TurboHttpConnectionFeature? ConnectionFeature => null;
     TlsHandshakeFeature? TlsHandshakeFeature => null;
 }

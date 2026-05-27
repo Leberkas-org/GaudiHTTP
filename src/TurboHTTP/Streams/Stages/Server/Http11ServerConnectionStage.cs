@@ -1,5 +1,6 @@
 using Akka.Streams;
 using Akka.Streams.Stage;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
@@ -9,8 +10,8 @@ namespace TurboHTTP.Streams.Stages.Server;
 internal sealed class Http11ServerConnectionStage : GraphStage<ServerConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inNetwork = new("Http11Connection.In.Network");
-    private readonly Outlet<RequestContext> _outRequest = new("Http11Connection.Out.Request");
-    private readonly Inlet<RequestContext> _inResponse = new("Http11Connection.In.Response");
+    private readonly Outlet<IFeatureCollection> _outRequest = new("Http11Connection.Out.Request");
+    private readonly Inlet<IFeatureCollection> _inResponse = new("Http11Connection.In.Response");
     private readonly Outlet<ITransportOutbound> _outNetwork = new("Http11Connection.Out.Network");
     private readonly TurboServerOptions _options;
     private readonly IServiceProvider? _services;
