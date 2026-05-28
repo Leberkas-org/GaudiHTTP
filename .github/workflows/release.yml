@@ -17,7 +17,6 @@ jobs:
       nuget-publish: true
       docs-deploy: true
       solution-path: TurboHTTP.slnx
-      locked-mode: true
       docs-build-command: "npx likec4 export png --output public/diagrams ./likec4 || true && npm run build"
     secrets:
       nuget-api-key: ${{ secrets.NUGET_SECRET }}
