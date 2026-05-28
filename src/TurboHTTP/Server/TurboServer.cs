@@ -59,13 +59,11 @@ public sealed class TurboServer : IServer
         var materializer = _system.Materializer();
 
         var parallelism = _options.Http2.MaxConcurrentStreams;
-        var bridgeStage = new ApplicationBridgeStage<TContext>(
+        var bridgeFlow = Flow.FromGraph(new ApplicationBridgeStage<TContext>(
             application,
             parallelism,
-            orderedResponses: false,
             _options.HandlerTimeout,
-            _options.HandlerGracePeriod);
-        var bridgeFlow = Flow.FromGraph(bridgeStage);
+            _options.HandlerGracePeriod));
 
         var resolver = new EndpointResolver();
         var resolvedEndpoints = resolver.Resolve(_options);

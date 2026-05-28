@@ -16,7 +16,6 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 {
     private readonly IHttpApplication<TContext> _application;
     private readonly int _parallelism;
-    private readonly bool _orderedResponses;
     private readonly TimeSpan _handlerTimeout;
     private readonly TimeSpan _handlerGracePeriod;
 
@@ -28,13 +27,11 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
     public ApplicationBridgeStage(
         IHttpApplication<TContext> application,
         int parallelism,
-        bool orderedResponses,
         TimeSpan handlerTimeout,
         TimeSpan handlerGracePeriod)
     {
         _application = application;
         _parallelism = parallelism;
-        _orderedResponses = orderedResponses;
         _handlerTimeout = handlerTimeout;
         _handlerGracePeriod = handlerGracePeriod;
         Shape = new FlowShape<IFeatureCollection, IFeatureCollection>(_in, _out);
@@ -63,6 +60,8 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
         private int _sequence;
         private int _nextToEmit;
         private bool _downstreamReady;
+        private bool _unordered;
+        private bool _protocolDetected;
         private readonly SortedDictionary<int, IFeatureCollection> _pending = [];
         private readonly Dictionary<int, CancellationTokenSource> _activeTimeouts = [];
         private readonly Dictionary<int, TContext> _appContexts = [];
@@ -109,6 +108,14 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
         {
             var features = Grab(_stage._in);
             var seq = _sequence++;
+
+            if (!_protocolDetected)
+            {
+                _protocolDetected = true;
+                var requestFeature = features.Get<IHttpRequestFeature>();
+                var protocol = requestFeature?.Protocol ?? "";
+                _unordered = protocol.StartsWith("HTTP/2") || protocol.StartsWith("HTTP/3");
+            }
 
             _inFlight++;
             if (_metricsEnabled)
@@ -391,20 +398,20 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         private void TryEmitPending()
         {
-            if (_stage._orderedResponses)
-            {
-                while (_downstreamReady && _pending.Count > 0 && _pending.Keys.First() == _nextToEmit)
-                {
-                    EmitOne(_nextToEmit);
-                    _nextToEmit++;
-                }
-            }
-            else
+            if (_unordered)
             {
                 if (_downstreamReady && _pending.Count > 0)
                 {
                     var seq = _pending.Keys.First();
                     EmitOne(seq);
+                }
+            }
+            else
+            {
+                while (_downstreamReady && _pending.Count > 0 && _pending.Keys.First() == _nextToEmit)
+                {
+                    EmitOne(_nextToEmit);
+                    _nextToEmit++;
                 }
             }
         }
