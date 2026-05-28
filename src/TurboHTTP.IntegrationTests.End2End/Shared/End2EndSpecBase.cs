@@ -80,6 +80,11 @@ public abstract class End2EndSpecBase : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        if (ProtocolVersion.Major == 3 && !QuicConnection.IsSupported)
+        {
+            return;
+        }
+
         var port = GetFreePort();
         var needsTls = UseTls;
 

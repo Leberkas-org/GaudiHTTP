@@ -63,13 +63,14 @@ internal sealed class Http11ServerEncoder
 
         if (isChunked)
         {
-            headers.Add(WellKnownHeaders.TransferEncoding, WellKnownHeaders.ChunkedValue);
+            if (!headers.Contains(WellKnownHeaders.TransferEncoding))
+            {
+                headers.Add(WellKnownHeaders.TransferEncoding, WellKnownHeaders.ChunkedValue);
+            }
         }
-        else
+        else if (!headers.Contains(WellKnownHeaders.ContentLength))
         {
-            var contentLengthFeature = features.Get<IHttpResponseBodyFeature>();
-            var contentLength = 0L;
-            headers.Add(WellKnownHeaders.ContentLength, ContentLengthCache.GetValue(contentLength));
+            headers.Add(WellKnownHeaders.ContentLength, ContentLengthCache.GetValue(0L));
         }
 
         if (_options.WriteDateHeader && !headers.Contains(WellKnownHeaders.Date))

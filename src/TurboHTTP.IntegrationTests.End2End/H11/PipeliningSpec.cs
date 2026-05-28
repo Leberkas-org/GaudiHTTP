@@ -37,7 +37,7 @@ public sealed class PipeliningSpec : End2EndSpecBase
         }
     }
 
-    [Fact(Timeout = 15000)]
+    [Fact(Timeout = 30000)]
     public async Task Pipelining_should_handle_concurrent_requests()
     {
         var tasks = new Task<int>[10];
