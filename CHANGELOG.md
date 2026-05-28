@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/Leberkas-org/TurboHTTP/compare/v1.3.3...v1.3.4) (2026-05-28)
+
+
+### Dependencies
+
+* **Servus.Core:** Update to 0.33.11 ([07e3240](https://github.com/Leberkas-org/TurboHTTP/commit/07e3240606f8baaa5134434b01d6e158b9edacfa))
+
 ## [1.3.3](https://github.com/Leberkas-org/TurboHTTP/compare/v1.3.2...v1.3.3) (2026-05-28)
 
 
