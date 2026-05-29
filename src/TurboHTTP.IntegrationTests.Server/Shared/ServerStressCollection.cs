@@ -9,6 +9,3 @@ public sealed class ServerStressCollection;
 
 [CollectionDefinition("Infrastructure", DisableParallelization = true)]
 public sealed class InfrastructureCollection;
-
-[CollectionDefinition("Tls", DisableParallelization = true)]
-public sealed class TlsCollection;

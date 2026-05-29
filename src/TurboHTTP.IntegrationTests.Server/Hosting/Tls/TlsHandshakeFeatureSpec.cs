@@ -1,23 +1,57 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using TurboHTTP.IntegrationTests.Server.Shared;
+using TurboHTTP.Server;
+using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.IntegrationTests.Server.Hosting.Tls;
 
-[Collection("Tls")]
-public sealed class TlsHandshakeFeatureSpec(TurboServerFixture server) : IDisposable
+[Collection("Infrastructure")]
+public sealed class TlsHandshakeFeatureSpec : ServerSpecBase
 {
-    private readonly HttpClient _client = server.CreateTlsClient();
+    protected override void ConfigureServer(WebApplicationBuilder builder, ushort port)
+    {
+        var certificate = CreateSelfSignedCertificate("localhost");
+        builder.Host.UseTurboHttp(options =>
+        {
+            options.ListenLocalhost(port, listen =>
+            {
+                listen.UseHttps(certificate);
+                listen.Protocols = HttpProtocols.Http1;
+            });
+        });
+    }
 
-    private static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
+    protected override void ConfigureEndpoints(WebApplication app)
+    {
+        app.MapGet("/tls-info", (HttpContext context) =>
+        {
+            var tls = context.Features.Get<ITlsHandshakeFeature>();
+            if (tls is null)
+            {
+                return Results.NotFound();
+            }
 
-    public void Dispose() => _client.Dispose();
+            var response = new
+            {
+                Protocol = tls.Protocol.ToString(),
+                CipherSuite = tls.NegotiatedCipherSuite?.ToString(),
+                tls.HostName
+            };
+
+            return Results.Ok(response);
+        });
+    }
+
+    protected override HttpClient CreateHttpClient() => CreateTlsClient();
 
     [Fact(Timeout = 15000)]
     public async Task TlsHandshakeFeature_should_be_available_in_context()
     {
-        var response = await _client.GetAsync(
-            new Uri($"https://127.0.0.1:{server.HttpsPort}/tls-info"),
+        var response = await Client.GetAsync(
+            new Uri($"https://127.0.0.1:{Port}/tls-info"),
             CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -26,8 +60,8 @@ public sealed class TlsHandshakeFeatureSpec(TurboServerFixture server) : IDispos
     [Fact(Timeout = 15000)]
     public async Task TlsHandshakeFeature_should_contain_protocol()
     {
-        var response = await _client.GetAsync(
-            new Uri($"https://127.0.0.1:{server.HttpsPort}/tls-info"),
+        var response = await Client.GetAsync(
+            new Uri($"https://127.0.0.1:{Port}/tls-info"),
             CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -47,8 +81,8 @@ public sealed class TlsHandshakeFeatureSpec(TurboServerFixture server) : IDispos
     [Fact(Timeout = 15000)]
     public async Task TlsHandshakeFeature_should_contain_negotiated_cipher_suite()
     {
-        var response = await _client.GetAsync(
-            new Uri($"https://127.0.0.1:{server.HttpsPort}/tls-info"),
+        var response = await Client.GetAsync(
+            new Uri($"https://127.0.0.1:{Port}/tls-info"),
             CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
