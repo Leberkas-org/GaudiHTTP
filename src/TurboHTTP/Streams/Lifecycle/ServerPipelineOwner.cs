@@ -25,6 +25,7 @@ internal sealed class ServerPipelineOwner : ReceiveActor, IWithStash
     private Source<IFeatureCollection, NotUsed>? _responseFanoutSource;
     private SharedKillSwitch? _killSwitch;
     private readonly Dictionary<int, int> _connectionPartitions = [];
+    private readonly Queue<int> _freePartitions = [];
     private int _nextPartitionIndex;
 
     public IStash Stash { get; set; } = null!;
@@ -106,12 +107,18 @@ internal sealed class ServerPipelineOwner : ReceiveActor, IWithStash
 
     private void HandleRegisterConnection(RegisterConnection message)
     {
-        _connectionPartitions[message.ConnectionId] = _nextPartitionIndex++;
+        var partition = _freePartitions.Count > 0
+            ? _freePartitions.Dequeue()
+            : _nextPartitionIndex++;
+        _connectionPartitions[message.ConnectionId] = partition;
     }
 
     private void HandleUnregisterConnection(UnregisterConnection message)
     {
-        _connectionPartitions.Remove(message.ConnectionId);
+        if (_connectionPartitions.Remove(message.ConnectionId, out var partition))
+        {
+            _freePartitions.Enqueue(partition);
+        }
     }
 
     private int ResolveResponsePartition(int consumerCount, IFeatureCollection features)
