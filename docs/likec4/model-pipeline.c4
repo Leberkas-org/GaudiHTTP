@@ -3,14 +3,14 @@
 // for both client and server request processing pipelines.
 //
 // CLIENT PIPELINE STACKING (outermost -> innermost):
-//   Handler -> Tracing -> Redirect -> Cookie -> Retry -> Expect100 -> Cache -> ContentEncoding -> AltSvc -> Engine
+//   Tracing -> Handler -> Redirect -> Cookie -> Retry -> Expect100 -> Cache -> ContentEncoding -> AltSvc -> Engine
 //
 // CLIENT REQUEST CHAIN (app -> Network):
-//   enricher -> handler -> tracing -> redirect -> cookie -> retry -> expect100 -> cache -> contentEncoding
+//   enricher -> tracing -> handler -> redirect -> cookie -> retry -> expect100 -> cache -> contentEncoding
 //   -> altSvc -> engine -> [version engines -> Network]
 //
 // CLIENT RESPONSE CHAIN (Network -> app):
-//   engine -> altSvc -> contentEncoding -> cache -> expect100 -> retry -> cookie -> redirect -> tracing -> handler -> app
+//   engine -> altSvc -> contentEncoding -> cache -> expect100 -> retry -> cookie -> redirect -> handler -> tracing -> app
 //
 // CLIENT FEEDBACK LOOPS
 //   redirect   --- redirect request -->  cookie (re-enters with cookie injection for new URL)
@@ -24,9 +24,9 @@
 model {
   // Request chain (outermost -> innermost)
   turbohttp.client.TurboHttpClient -[flows]-> turbohttp.streams.RequestEnricher 'request'
-  turbohttp.streams.RequestEnricher -[flows]-> turbohttp.streams.HandlerBidiStage 'request (defaults applied)'
-  turbohttp.streams.HandlerBidiStage -[flows]-> turbohttp.streams.TracingBidiStage 'request'
-  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'request'
+  turbohttp.streams.RequestEnricher -[flows]-> turbohttp.streams.TracingBidiStage 'request'
+  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.streams.HandlerBidiStage 'request (defaults applied)'
+  turbohttp.streams.HandlerBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'request'
   turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'request'
   turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.RetryBidiStage 'request (cookies injected)'
   turbohttp.streams.RetryBidiStage -[flows]-> turbohttp.streams.ExpectContinueBidiStage 'request'
@@ -82,9 +82,9 @@ model {
   turbohttp.streams.ExpectContinueBidiStage -[flows]-> turbohttp.streams.RetryBidiStage 'response'
   turbohttp.streams.RetryBidiStage -[flows]-> turbohttp.streams.CookieBidiStage 'response'
   turbohttp.streams.CookieBidiStage -[flows]-> turbohttp.streams.RedirectBidiStage 'response (cookies stored)'
-  turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.streams.TracingBidiStage 'response'
-  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.streams.HandlerBidiStage 'response (traced)'
-  turbohttp.streams.HandlerBidiStage -[flows]-> turbohttp.client.TurboHttpClient 'response'
+  turbohttp.streams.RedirectBidiStage -[flows]-> turbohttp.streams.HandlerBidiStage 'response'
+  turbohttp.streams.HandlerBidiStage -[flows]-> turbohttp.streams.TracingBidiStage 'response (traced)'
+  turbohttp.streams.TracingBidiStage -[flows]-> turbohttp.client.TurboHttpClient 'response'
 
   // Feedback: cache hit bypasses engine, re-enters at Retry
   turbohttp.streams.CacheBidiStage -[feedback]-> turbohttp.streams.RetryBidiStage 'cached response (bypasses network)'
