@@ -112,7 +112,6 @@ No Polly dependency needed. TurboHTTP automatically:
 - Retries only idempotent methods (GET, HEAD, PUT, DELETE, OPTIONS, TRACE)
 - Never retries POST or PATCH
 - Respects `Retry-After` headers
-- Applies exponential backoff
 
 Retry behavior is controlled via the built-in `.WithRetry()` builder extension — see [Automatic Retries](/client/retries) for custom policies.
 
