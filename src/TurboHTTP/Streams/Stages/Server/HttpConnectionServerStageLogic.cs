@@ -60,7 +60,20 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             {
                 Tracing.For("Stage").Info(this, "network upstream failure: {0}", ex.Message);
                 _sm.OnDownstreamFinished();
-                CompleteStage();
+                if (!IsClosed(_outRequest))
+                {
+                    Complete(_outRequest);
+                }
+
+                if (!IsClosed(_inResponse))
+                {
+                    Cancel(_inResponse);
+                }
+
+                if (!IsClosed(_outNetwork))
+                {
+                    Complete(_outNetwork);
+                }
             });
 
         SetHandler(_outRequest, onPull: () =>
@@ -122,7 +135,20 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             onUpstreamFailure: _ =>
             {
                 _sm.OnDownstreamFinished();
-                CompleteStage();
+                if (!IsClosed(_outRequest))
+                {
+                    Complete(_outRequest);
+                }
+
+                if (!IsClosed(_inNetwork))
+                {
+                    Cancel(_inNetwork);
+                }
+
+                if (!IsClosed(_outNetwork))
+                {
+                    Complete(_outNetwork);
+                }
             });
 
         SetHandler(_outNetwork, onPull: OnNetworkPull);
