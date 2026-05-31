@@ -35,7 +35,10 @@
         <PackageReference Include="Akka.Streams"/>
         <PackageReference Include="Microsoft.IO.RecyclableMemoryStream"/>
         <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions"/>
-        <PackageReference Include="Servus.Akka"/>
+        <!-- Servus.Core is a published dependency. Servus.Akka is NOT referenced from NuGet:
+             for this alpha its transport lives in the local project and is bundled into the
+             package below (see the Servus.Akka ProjectReference + IncludeServusAkkaInPackage). -->
+        <PackageReference Include="Servus.Core"/>
     </ItemGroup>
     <ItemGroup>
         <InternalsVisibleTo Include="TurboHTTP.Tests"/>
@@ -46,7 +49,21 @@
         <InternalsVisibleTo Include="TurboHTTP.Tests.Shared"/>
         <InternalsVisibleTo Include="TurboHTTP.Benchmarks"/>
     </ItemGroup>
+    <!-- ALPHA packaging: bundle the locally-developed Servus.Akka transport into this package
+         instead of taking it from NuGet. PrivateAssets=all keeps it from becoming a package
+         dependency (consumers would not be able to restore the in-development version); the
+         target below embeds Servus.Akka.dll in lib/. When the transport moves to the published
+         Servus.Akka package, replace this with a PackageReference and drop the target. -->
     <ItemGroup>
-        <ProjectReference Include="..\Servus.Akka\Servus.Akka.csproj"/>
+        <ProjectReference Include="..\Servus.Akka\Servus.Akka.csproj" PrivateAssets="all"/>
     </ItemGroup>
+
+    <PropertyGroup>
+        <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeServusAkkaInPackage</TargetsForTfmSpecificBuildOutput>
+    </PropertyGroup>
+    <Target Name="IncludeServusAkkaInPackage">
+        <ItemGroup>
+            <BuildOutputInPackage Include="$(OutputPath)Servus.Akka.dll"/>
+        </ItemGroup>
+    </Target>
 </Project>
