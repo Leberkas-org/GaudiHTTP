@@ -25,7 +25,7 @@ internal sealed class Http3ServerSessionManager
     private readonly Http3ServerEncoderOptions _encoderOptions;
     private readonly Http3ServerDecoderOptions _decoderOptions;
     private readonly long _maxRequestBodySize;
-    private readonly int _responseBodyChunkSize;
+    private readonly BodyEncoderOptions _bodyEncoderOptions;
     private readonly TimeSpan _bodyConsumptionTimeout;
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
@@ -46,7 +46,7 @@ internal sealed class Http3ServerSessionManager
         _decoderOptions = options.ToDecoderOptions();
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
-        _responseBodyChunkSize = options.ResponseBodyChunkSize;
+        _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
 
         _tableSync = new QpackTableSync(
@@ -163,7 +163,7 @@ internal sealed class Http3ServerSessionManager
         }
 
         var bodyStream = turboBody.GetResponseStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, new BodyEncoderOptions { ChunkSize = _responseBodyChunkSize });
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, _bodyEncoderOptions);
         if (encoder is null)
         {
             _ops.OnOutbound(new CompleteWrites(streamId));

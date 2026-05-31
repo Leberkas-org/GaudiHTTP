@@ -26,7 +26,7 @@ internal sealed class Http2ServerSessionManager
     private readonly StreamTracker _tracker;
     private readonly long _maxRequestBodySize;
     private readonly long _maxResponseBufferSize;
-    private readonly int _responseBodyChunkSize;
+    private readonly BodyEncoderOptions _bodyEncoderOptions;
     private readonly TimeSpan _bodyConsumptionTimeout;
     private readonly int _initialStreamWindowSize;
 
@@ -56,7 +56,7 @@ internal sealed class Http2ServerSessionManager
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResponseBufferSize = options.MaxResponseBufferSize;
-        _responseBodyChunkSize = options.ResponseBodyChunkSize;
+        _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _initialStreamWindowSize = options.InitialStreamWindowSize;
 
@@ -201,7 +201,7 @@ internal sealed class Http2ServerSessionManager
         }
 
         var bodyStream = turboBody.GetResponseStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, new BodyEncoderOptions { ChunkSize = _responseBodyChunkSize });
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, _bodyEncoderOptions);
         if (encoder is null)
         {
             CloseStream(streamId);

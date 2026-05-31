@@ -1,4 +1,5 @@
 using System.Buffers;
+using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 
@@ -6,6 +7,11 @@ namespace TurboHTTP.Server;
 
 internal static class Http1ConnectionOptionsExtensions
 {
+    public static BodyEncoderOptions ToBodyEncoderOptions(this Http1ConnectionOptions o) => new()
+    {
+        ChunkSize = o.ResponseBodyChunkSize,
+    };
+
     public static Http10ServerEncoderOptions ToHttp10EncoderOptions(this Http1ConnectionOptions o) => new()
     {
         WriteDateHeader = true,
