@@ -8,14 +8,13 @@ namespace Servus.Akka.AspNetCore;
 public sealed class EntityBuilder
 {
     private readonly Dictionary<string, EntityMethodBuilder> _methods = new(StringComparer.OrdinalIgnoreCase);
-    private readonly EntityResponseMapperCollection _responseMappers = new();
-    private TimeSpan _timeout = TimeSpan.FromSeconds(5);
-    private IEntityActorResolver _resolver = new ServiceProviderActorResolver(_ => ActorRefs.Nobody);
 
     internal IReadOnlyDictionary<string, EntityMethodBuilder> Methods => _methods;
-    internal EntityResponseMapperCollection ResponseMappers => _responseMappers;
-    internal TimeSpan Timeout => _timeout;
-    internal IEntityActorResolver Resolver => _resolver;
+    internal EntityResponseMapperCollection ResponseMappers { get; } = new();
+
+    internal TimeSpan Timeout { get; private set; } = TimeSpan.FromSeconds(5);
+
+    internal IEntityActorResolver Resolver { get; private set; } = new ServiceProviderActorResolver(_ => ActorRefs.Nobody);
 
     public EntityMethodBuilder OnGet(Delegate messageFactory)
         => AddMethod("GET", messageFactory);
@@ -34,13 +33,13 @@ public sealed class EntityBuilder
 
     public EntityBuilder WithTimeout(TimeSpan timeout)
     {
-        _timeout = timeout;
+        Timeout = timeout;
         return this;
     }
 
     public EntityBuilder UseResolver(IEntityActorResolver resolver)
     {
-        _resolver = resolver;
+        Resolver = resolver;
         return this;
     }
 
@@ -53,7 +52,7 @@ public sealed class EntityBuilder
 
     public EntityBuilder Response<TResponse>(Func<HttpContext, TResponse, Task> mapper)
     {
-        _responseMappers.Add(mapper);
+        ResponseMappers.Add(mapper);
         return this;
     }
 

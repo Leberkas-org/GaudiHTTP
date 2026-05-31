@@ -179,7 +179,7 @@ internal sealed class SseParserStage : GraphStage<FlowShape<ReadOnlyMemory<byte>
 
                         ResetEvent();
                     }
-                    else if (!completeLine.StartsWith(":"))
+                    else if (!completeLine.StartsWith(':'))
                     {
                         ProcessField(completeLine);
                     }
