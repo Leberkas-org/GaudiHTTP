@@ -77,14 +77,17 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
         if (security?.ApplicationProtocol == SslApplicationProtocol.Http2)
         {
-            Activate(ops => new Http2ServerStateMachine(_options, ops));
+            var h2Options = _options.ToHttp2Options();
+            Activate(ops => new Http2ServerStateMachine(h2Options, ops));
             _inner!.DecodeClientData(data);
             return;
         }
 
         if (security is not null)
         {
-            Activate(ops => new Http11ServerStateMachine(_options, ops));
+            var h1Options = _options.ToHttp1Options();
+            var h2UpgradeOptions = _options.ToHttp2Options();
+            Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
             _inner!.DecodeClientData(data);
             return;
         }
@@ -113,18 +116,22 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
         if (span.StartsWith(Http2PrefixMagic))
         {
-            Activate(ops => new Http2ServerStateMachine(_options, ops));
+            var h2Options = _options.ToHttp2Options();
+            Activate(ops => new Http2ServerStateMachine(h2Options, ops));
             ReplayBuffered();
             return;
         }
 
         if (DetectHttp10())
         {
-            Activate(ops => new Http10ServerStateMachine(_options, ops));
+            var h1Options = _options.ToHttp1Options();
+            Activate(ops => new Http10ServerStateMachine(h1Options, ops));
         }
         else if (ContainsRequestLineCrlf())
         {
-            Activate(ops => new Http11ServerStateMachine(_options, ops));
+            var h1Options = _options.ToHttp1Options();
+            var h2UpgradeOptions = _options.ToHttp2Options();
+            Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
         }
         else
         {
