@@ -73,10 +73,12 @@ internal sealed class Http10ServerDecoder
             var classification = BodySemantics.ClassifyRequest(_method, _headerReader.GetHeaders(), _version);
             _bodyDecoder = BodyDecoderFactory.Create(
                 classification,
-                _options.StreamingThreshold,
-                _options.BufferPool,
-                _options.MaxBufferedBodySize,
-                _options.MaxStreamedBodySize);
+                new BodyDecoderOptions
+                {
+                    StreamingThreshold = _options.StreamingThreshold,
+                    MaxBufferedBodySize = _options.MaxBufferedBodySize,
+                    MaxStreamedBodySize = _options.MaxStreamedBodySize,
+                });
             _phase = Phase.Body;
         }
 

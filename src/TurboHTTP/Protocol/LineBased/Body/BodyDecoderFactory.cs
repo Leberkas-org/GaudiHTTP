@@ -1,41 +1,33 @@
-using System.Buffers;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.LineBased.Body;
 
 internal static class BodyDecoderFactory
 {
-    public static IBodyDecoder Create(
-        BodyClassification classification,
-        long streamingThreshold,
-        MemoryPool<byte> pool,
-        long maxBufferedBodySize = 4_194_304,
-        long? maxStreamedBodySize = null,
-        long maxBodySize = 10_485_760,
-        int maxChunkExtensionLength = int.MaxValue)
+    public static IBodyDecoder Create(BodyClassification classification, BodyDecoderOptions options)
     {
         switch (classification.Framing)
         {
             case BodyFraming.None:
-                return new ContentLengthBufferedDecoder(0, pool);
+                return new ContentLengthBufferedDecoder(0);
 
             case BodyFraming.Length:
+            {
+                var n = classification.ContentLength ?? 0;
+                if (n <= options.StreamingThreshold && n <= options.MaxBufferedBodySize)
                 {
-                    var n = classification.ContentLength ?? 0;
-                    if (n <= streamingThreshold && n <= maxBufferedBodySize)
-                    {
-                        return new ContentLengthBufferedDecoder((int)n, pool);
-                    }
-
-                    var effectiveMax = maxStreamedBodySize ?? maxBodySize;
-                    return new ContentLengthStreamedDecoder(n, effectiveMax);
+                    return new ContentLengthBufferedDecoder((int)n);
                 }
 
+                var effectiveMax = options.MaxStreamedBodySize ?? options.MaxBodySize;
+                return new ContentLengthStreamedDecoder(n, effectiveMax);
+            }
+
             case BodyFraming.Chunked:
-                return new ChunkedBodyDecoder(maxStreamedBodySize ?? maxBodySize, maxChunkExtensionLength);
+                return new ChunkedBodyDecoder(options.MaxStreamedBodySize ?? options.MaxBodySize, options.MaxChunkExtensionLength);
 
             case BodyFraming.Close:
-                return new CloseDelimitedBodyDecoder(maxStreamedBodySize ?? maxBodySize);
+                return new CloseDelimitedBodyDecoder(options.MaxStreamedBodySize ?? options.MaxBodySize);
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(classification));
