@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Servus.Akka.Transport;
@@ -9,6 +8,7 @@ using TurboHTTP.Server;
 
 namespace TurboHTTP.IntegrationTests.Server.Infrastructure;
 
+[Collection("Infrastructure")]
 public sealed class TimeoutSpec : ServerSpecBase
 {
     protected override void ConfigureServer(WebApplicationBuilder builder, ushort port)
@@ -49,7 +49,7 @@ public sealed class TimeoutSpec : ServerSpecBase
         using var tcp = new TcpClient();
         await tcp.ConnectAsync(IPAddress.Loopback, Port, CancellationToken);
         var stream = tcp.GetStream();
-        var partialBytes = Encoding.ASCII.GetBytes("GET /fast HTTP/1.1\r\nHost: localhost\r\n");
+        var partialBytes = "GET /fast HTTP/1.1\r\nHost: localhost\r\n"u8.ToArray();
         await stream.WriteAsync(partialBytes, CancellationToken);
 
         await Task.Delay(TimeSpan.FromSeconds(3), CancellationToken);
@@ -74,7 +74,7 @@ public sealed class TimeoutSpec : ServerSpecBase
         {
             await tcp.ConnectAsync(IPAddress.Loopback, Port, CancellationToken);
             var tcpStream = tcp.GetStream();
-            var incompleteBytes = Encoding.ASCII.GetBytes("GET /fast HTTP/1.1\r\nHost: localhost\r\n");
+            var incompleteBytes = "GET /fast HTTP/1.1\r\nHost: localhost\r\n"u8.ToArray();
             await tcpStream.WriteAsync(incompleteBytes, CancellationToken);
             await Task.Delay(TimeSpan.FromSeconds(3), CancellationToken);
         }
