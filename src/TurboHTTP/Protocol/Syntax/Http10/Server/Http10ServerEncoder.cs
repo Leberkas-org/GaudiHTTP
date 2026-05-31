@@ -14,7 +14,6 @@ internal sealed class Http10ServerEncoder
 
     public Http10ServerEncoder(Http10ServerEncoderOptions options)
     {
-        options.Validate();
         _options = options;
     }
 

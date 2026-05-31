@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Http.Features;
+using TurboHTTP.Protocol.Semantics;
+using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Server;
@@ -11,12 +13,15 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Server;
 internal sealed class Http3ServerEncoder
 {
     private readonly QpackTableSync _tableSync;
+    private readonly Http3ServerEncoderOptions _options;
     private readonly List<(string Name, string Value)> _reusableHeaders = new(16);
 
-    public Http3ServerEncoder(QpackTableSync tableSync)
+    public Http3ServerEncoder(QpackTableSync tableSync, Http3ServerEncoderOptions options)
     {
         ArgumentNullException.ThrowIfNull(tableSync);
+        ArgumentNullException.ThrowIfNull(options);
         _tableSync = tableSync;
+        _options = options;
     }
 
     /// <summary>
@@ -35,14 +40,14 @@ internal sealed class Http3ServerEncoder
         ArgumentNullException.ThrowIfNull(features);
 
         _reusableHeaders.Clear();
-        BuildHeaderList(features, _reusableHeaders);
+        BuildHeaderList(features, _reusableHeaders, _options);
 
         var headerBlock = _tableSync.Encoder.Encode(_reusableHeaders);
 
         return new HeadersFrame(headerBlock);
     }
 
-    private static void BuildHeaderList(IFeatureCollection features, List<(string Name, string Value)> headers)
+    private static void BuildHeaderList(IFeatureCollection features, List<(string Name, string Value)> headers, Http3ServerEncoderOptions options)
     {
         // RFC 9114 §6.3: :status pseudo-header (required, must be first)
         var responseFeature = features.Get<IHttpResponseFeature>();
@@ -63,6 +68,11 @@ internal sealed class Http3ServerEncoder
                 var value = h.Value.Count == 1 ? h.Value[0]! : string.Join(", ", h.Value);
                 headers.Add((ContentHeaderClassifier.ToLowerAscii(h.Key), value));
             }
+        }
+
+        if (options.WriteDateHeader && !headers.Any(h => h.Name.Equals("date", StringComparison.OrdinalIgnoreCase)))
+        {
+            headers.Add(("date", DateHeaderCache.GetValue()));
         }
     }
 }

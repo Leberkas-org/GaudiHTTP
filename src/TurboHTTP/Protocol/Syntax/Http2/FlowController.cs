@@ -9,10 +9,9 @@ internal sealed class FlowController : IFlowController<int>
     private readonly Dictionary<int, int> _pendingStreamIncrements = new();
     private int _windowUpdateThreshold;
 
-    private int _recvConnectionWindow;
     private int _initialRecvStreamWindow;
 
-    public int RecvConnectionWindow => _recvConnectionWindow;
+    public int RecvConnectionWindow { get; private set; }
 
     private long _connectionSendWindow;
     private long _initialSendStreamWindow;
@@ -24,7 +23,7 @@ internal sealed class FlowController : IFlowController<int>
         long initialConnectionSendWindow = 65535,
         long initialStreamSendWindow = 65535)
     {
-        _recvConnectionWindow = connectionWindowSize;
+        RecvConnectionWindow = connectionWindowSize;
         _initialRecvStreamWindow = streamWindowSize;
         _connectionSendWindow = initialConnectionSendWindow;
         _initialSendStreamWindow = initialStreamSendWindow;
@@ -65,12 +64,12 @@ internal sealed class FlowController : IFlowController<int>
 
     public FlowControlResult<int> OnInboundData(int streamId, int dataLength)
     {
-        _recvConnectionWindow -= dataLength;
+        RecvConnectionWindow -= dataLength;
 
         _recvStreamWindows.TryAdd(streamId, _initialRecvStreamWindow);
         _recvStreamWindows[streamId] -= dataLength;
 
-        if (_recvConnectionWindow < 0)
+        if (RecvConnectionWindow < 0)
         {
             return new FlowControlResult<int> { Success = false, IsConnectionViolation = true };
         }
@@ -97,7 +96,7 @@ internal sealed class FlowController : IFlowController<int>
             if (_pendingConnIncrement >= _windowUpdateThreshold)
             {
                 var increment = _pendingConnIncrement;
-                _recvConnectionWindow += increment;
+                RecvConnectionWindow += increment;
                 connUpdate = new WindowUpdateSignal<int>(0, increment);
                 _pendingConnIncrement = 0;
             }
@@ -162,7 +161,7 @@ internal sealed class FlowController : IFlowController<int>
     public void Reset(int connectionWindowSize, int streamWindowSize)
     {
         GoAwayReceived = false;
-        _recvConnectionWindow = connectionWindowSize;
+        RecvConnectionWindow = connectionWindowSize;
         _initialRecvStreamWindow = streamWindowSize;
         _connectionSendWindow = 65535;
         _initialSendStreamWindow = 65535;

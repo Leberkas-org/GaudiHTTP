@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
 
@@ -11,52 +10,29 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
     private const string DrainBodyPrefix = "drain-body:";
     private const string HeadersTimeoutPrefix = "headers-timeout:";
     private const string KeepAliveTimeout = "keep-alive-timeout";
-    private const string BodyRateCheck = "body-rate-check";
+    private const string DataRateCheck = "data-rate-check";
+    private const string BodyConsumptionPrefix = "body-consumption:";
 
     private readonly IServerStageOperations _ops;
     private readonly Http3ServerSessionManager _sessionManager;
 
     private readonly TimeSpan _keepAliveTimeout;
     private readonly TimeSpan _requestHeadersTimeout;
-    private readonly int _minBodyDataRate;
-    private readonly TimeSpan _bodyRateGracePeriod;
     private int _activeStreamCount;
 
     public bool CanAcceptResponse => _sessionManager.ActiveStreamCount > 0;
     public bool ShouldComplete => false;
     public int MaxQueuedRequests => _sessionManager.MaxConcurrentStreams;
 
-    public Http3ServerStateMachine(TurboServerOptions options, IServerStageOperations ops)
+    public Http3ServerStateMachine(Http3ConnectionOptions options, IServerStageOperations ops)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
 
-        var shared = SharedHttpOptions.Default with
-        {
-            MaxBufferedBodySize = options.BodyBufferThreshold,
-            MaxStreamedBodySize = options.Http3.MaxRequestBodySize,
-            MaxHeaderBytes = options.Http3.MaxHeaderListSize,
-        };
+        _sessionManager = new Http3ServerSessionManager(options, ops);
 
-        var encoderOpts = new Http3ServerEncoderOptions
-        {
-            Shared = shared,
-            QpackMaxTableCapacity = options.Http3.QpackMaxTableCapacity,
-        };
-
-        var decoderOpts = new Http3ServerDecoderOptions
-        {
-            Shared = shared,
-            MaxConcurrentStreams = options.Http3.MaxConcurrentStreams,
-            MaxFieldSectionSize = options.Http3.MaxHeaderListSize,
-        };
-
-        _sessionManager = new Http3ServerSessionManager(encoderOpts, decoderOpts, ops, options.Http3.MaxRequestBodySize);
-
-        _keepAliveTimeout = options.Http3.KeepAliveTimeout;
-        _requestHeadersTimeout = options.Http3.RequestHeadersTimeout;
-        _minBodyDataRate = options.Http3.MinRequestBodyDataRate;
-        _bodyRateGracePeriod = options.Http3.MinRequestBodyDataRateGracePeriod;
+        _keepAliveTimeout = options.Limits.KeepAliveTimeout;
+        _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
     }
 
     public void PreStart()
@@ -129,9 +105,18 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
             return;
         }
 
-        if (name == BodyRateCheck)
+        if (name == DataRateCheck)
         {
-            _sessionManager.CheckBodyRates(_minBodyDataRate, _bodyRateGracePeriod);
+            _sessionManager.CheckDataRates();
+            return;
+        }
+
+        if (name.StartsWith(BodyConsumptionPrefix))
+        {
+            if (long.TryParse(name.AsSpan(BodyConsumptionPrefix.Length), out var consumptionStreamId))
+            {
+                _sessionManager.EmitRstStream(consumptionStreamId, ErrorCode.GeneralProtocolError);
+            }
         }
     }
 

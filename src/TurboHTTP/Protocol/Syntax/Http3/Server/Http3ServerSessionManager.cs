@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Protocol.Server;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Server;
@@ -24,10 +25,13 @@ internal sealed class Http3ServerSessionManager
     private readonly Http3ServerEncoderOptions _encoderOptions;
     private readonly Http3ServerDecoderOptions _decoderOptions;
     private readonly long _maxRequestBodySize;
+    private readonly int _responseBodyChunkSize;
+    private readonly TimeSpan _bodyConsumptionTimeout;
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
     private readonly StackStreamStatePool<StreamState> _statePool;
-    private readonly Dictionary<long, BodyRateState> _bodyRateStates = new();
+    private readonly DataRateMonitor _requestRate;
+    private readonly DataRateMonitor _responseRate;
 
     private bool _controlPrefaceSent;
 
@@ -35,27 +39,31 @@ internal sealed class Http3ServerSessionManager
     public int MaxConcurrentStreams => _decoderOptions.MaxConcurrentStreams;
 
     public Http3ServerSessionManager(
-        Http3ServerEncoderOptions encoderOptions,
-        Http3ServerDecoderOptions decoderOptions,
-        IServerStageOperations ops,
-        long maxRequestBodySize = 30 * 1024 * 1024)
+        Http3ConnectionOptions options,
+        IServerStageOperations ops)
     {
-        _encoderOptions = encoderOptions;
-        _decoderOptions = decoderOptions;
+        _encoderOptions = options.ToEncoderOptions();
+        _decoderOptions = options.ToDecoderOptions();
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
-        _maxRequestBodySize = maxRequestBodySize;
+        _maxRequestBodySize = options.Limits.MaxRequestBodySize;
+        _responseBodyChunkSize = options.ResponseBodyChunkSize;
+        _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
 
         _tableSync = new QpackTableSync(
             encoderMaxCapacity: 0,
-            decoderMaxCapacity: encoderOptions.QpackMaxTableCapacity,
-            maxBlockedStreams: 100,
-            configuredEncoderLimit: encoderOptions.QpackMaxTableCapacity);
+            decoderMaxCapacity: _encoderOptions.QpackMaxTableCapacity,
+            maxBlockedStreams: _encoderOptions.QpackBlockedStreams,
+            configuredEncoderLimit: _encoderOptions.QpackMaxTableCapacity);
 
-        _requestDecoder = new Http3ServerDecoder(_tableSync, int.MaxValue);
-        _responseEncoder = new Http3ServerEncoder(_tableSync);
+        _requestDecoder = new Http3ServerDecoder(_tableSync, _decoderOptions);
+        _responseEncoder = new Http3ServerEncoder(_tableSync, _encoderOptions);
+
+        var rate = options.ToRateMonitor();
+        _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
+        _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
 
         var statePoolCapacity = Math.Min(
-            decoderOptions.MaxConcurrentStreams > 0 ? decoderOptions.MaxConcurrentStreams : 100,
+            _decoderOptions.MaxConcurrentStreams > 0 ? _decoderOptions.MaxConcurrentStreams : 100,
             MaxStatePoolCapacity);
         _statePool = new StackStreamStatePool<StreamState>(
             statePoolCapacity,
@@ -128,6 +136,11 @@ internal sealed class Http3ServerSessionManager
 
         var (_, state) = streamData;
 
+        if (state.HasBodyDecoder && _bodyConsumptionTimeout > TimeSpan.Zero)
+        {
+            _ops.OnScheduleTimer(string.Concat("body-consumption:", streamId.ToString()), _bodyConsumptionTimeout);
+        }
+
         var headersFrame = _responseEncoder.EncodeHeaders(features);
         EmitDataFrame(headersFrame, streamId);
 
@@ -150,7 +163,7 @@ internal sealed class Http3ServerSessionManager
         }
 
         var bodyStream = turboBody.GetResponseStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, _responseBodyChunkSize);
         if (encoder is null)
         {
             _ops.OnOutbound(new CompleteWrites(streamId));
@@ -292,58 +305,27 @@ internal sealed class Http3ServerSessionManager
         _tableSync.Reset();
     }
 
-    public void CheckBodyRates(int minDataRate, TimeSpan gracePeriod)
+    public void CheckDataRates()
     {
         var now = Environment.TickCount64;
-        var streamsToReset = new List<long>();
+        var violations = new List<long>();
 
-        foreach (var (streamId, state) in _bodyRateStates)
-        {
-            var elapsedMs = now - state.LastCheckTimestamp;
-            if (elapsedMs < 500)
-            {
-                continue;
-            }
+        _requestRate.Check(now, violations);
+        _responseRate.Check(now, violations);
 
-            var elapsedSeconds = elapsedMs / 1000.0;
-            var bytesTransferred = state.TotalBytes - state.LastCheckBytes;
-            var rate = bytesTransferred / elapsedSeconds;
-
-            state.LastCheckBytes = state.TotalBytes;
-            state.LastCheckTimestamp = now;
-
-            if (rate < minDataRate)
-            {
-                if (!state.InGracePeriod)
-                {
-                    state.InGracePeriod = true;
-                    state.GracePeriodStartTimestamp = now;
-                }
-                else
-                {
-                    var graceElapsedMs = now - state.GracePeriodStartTimestamp;
-                    if (graceElapsedMs > (long)gracePeriod.TotalMilliseconds)
-                    {
-                        streamsToReset.Add(streamId);
-                    }
-                }
-            }
-            else
-            {
-                state.InGracePeriod = false;
-            }
-        }
-
-        foreach (var streamId in streamsToReset)
+        var violationSet = new HashSet<long>(violations);
+        foreach (var streamId in violationSet)
         {
             EmitRstStream(streamId, ErrorCode.GeneralProtocolError);
         }
 
-        if (_bodyRateStates.Count > 0)
+        if (_requestRate.Count > 0 || _responseRate.Count > 0)
         {
-            _ops.OnScheduleTimer("body-rate-check", TimeSpan.FromSeconds(1));
+            _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
         }
     }
+
+    private void EnsureRateTimer() => _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
 
     public void EmitRstStream(long streamId, ErrorCode errorCode)
     {
@@ -453,6 +435,7 @@ internal sealed class Http3ServerSessionManager
         if (requestFeature is not null)
         {
             _ops.OnCancelTimer(string.Concat("headers-timeout:", streamId.ToString()));
+            _ops.OnCancelTimer(string.Concat("body-consumption:", streamId.ToString()));
 
             var hasBody = state.HasBodyDecoder;
             if (hasBody)
@@ -468,7 +451,6 @@ internal sealed class Http3ServerSessionManager
             features.Set<IHttpResetFeature>(new TurboHttpResetFeature(
                 errorCode => EmitRstStream(capturedStreamId, (ErrorCode)errorCode)));
 
-            _bodyRateStates.Remove(streamId);
             _ops.OnRequest(features);
         }
     }
@@ -478,12 +460,6 @@ internal sealed class Http3ServerSessionManager
         if (!state.HasBodyDecoder)
         {
             state.InitBodyDecoder(new StreamingBodyDecoder(_maxRequestBodySize));
-
-            if (!_bodyRateStates.ContainsKey(streamId))
-            {
-                _bodyRateStates[streamId] = new BodyRateState();
-                _ops.OnScheduleTimer("body-rate-check", TimeSpan.FromSeconds(1));
-            }
         }
 
         try
@@ -499,7 +475,8 @@ internal sealed class Http3ServerSessionManager
 
         if (!dataFrame.Data.IsEmpty)
         {
-            _bodyRateStates[streamId].TotalBytes += dataFrame.Data.Length;
+            _requestRate.Observe(streamId, dataFrame.Data.Length, Environment.TickCount64);
+            EnsureRateTimer();
         }
     }
 
@@ -516,7 +493,9 @@ internal sealed class Http3ServerSessionManager
 
     private void CloseStream(long streamId)
     {
-        _bodyRateStates.Remove(streamId);
+        _requestRate.Remove(streamId);
+        _responseRate.Remove(streamId);
+        _ops.OnCancelTimer(string.Concat("body-consumption:", streamId.ToString()));
 
         if (_streams.TryGetValue(streamId, out var streamData))
         {
@@ -549,6 +528,12 @@ internal sealed class Http3ServerSessionManager
                 break;
             case DataFrame df:
                 df.WriteTo(ref span);
+                if (df.Data.Length > 0)
+                {
+                    _responseRate.Observe(streamId, df.Data.Length, Environment.TickCount64);
+                    EnsureRateTimer();
+                }
+
                 break;
         }
 
@@ -567,7 +552,7 @@ internal sealed class Http3ServerSessionManager
 
         var settings = new Settings();
         settings.Set(SettingsIdentifier.QpackMaxTableCapacity, _encoderOptions.QpackMaxTableCapacity);
-        settings.Set(SettingsIdentifier.QpackBlockedStreams, 100);
+        settings.Set(SettingsIdentifier.QpackBlockedStreams, _encoderOptions.QpackBlockedStreams);
         var settingsFrame = settings.ToFrame();
 
         var streamTypeSize = QuicVarInt.EncodedLength((long)StreamType.Control);

@@ -1,5 +1,5 @@
-using Microsoft.AspNetCore.Http;
 using TurboHTTP.Protocol.Semantics;
+using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Server.Context.Features;
 
@@ -15,12 +15,15 @@ internal sealed class Http3ServerDecoder
 
     private readonly QpackTableSync _tableSync;
     private readonly int _maxFieldSectionSize;
+    private readonly int _maxHeaderCount;
 
-    public Http3ServerDecoder(QpackTableSync tableSync, int maxFieldSectionSize = int.MaxValue)
+    public Http3ServerDecoder(QpackTableSync tableSync, Http3ServerDecoderOptions options)
     {
         ArgumentNullException.ThrowIfNull(tableSync);
+        ArgumentNullException.ThrowIfNull(options);
         _tableSync = tableSync;
-        _maxFieldSectionSize = maxFieldSectionSize;
+        _maxFieldSectionSize = options.MaxFieldSectionSize;
+        _maxHeaderCount = options.MaxHeaderCount;
     }
 
     public ReadOnlyMemory<byte> DecoderInstructions => _tableSync.Decoder.DecoderInstructions;
@@ -43,8 +46,7 @@ internal sealed class Http3ServerDecoder
 
         var feature = new TurboHttpRequestFeature
         {
-            Protocol = "HTTP/3",
-            Headers = new HeaderDictionary()
+            Protocol = "HTTP/3"
         };
 
         var isConnect = false;
@@ -126,6 +128,12 @@ internal sealed class Http3ServerDecoder
 
     private void ValidateFieldSectionSize(IReadOnlyList<(string Name, string Value)> headers, long streamId)
     {
+        if (headers.Count > _maxHeaderCount)
+        {
+            throw new HttpProtocolException(
+                $"RFC 9114 §4.2.2: Header count {headers.Count} exceeds limit ({_maxHeaderCount}) on stream {streamId}.");
+        }
+
         if (_maxFieldSectionSize == int.MaxValue)
         {
             return;

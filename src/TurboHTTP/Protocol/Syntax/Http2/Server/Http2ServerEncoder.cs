@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Server;
 
@@ -13,6 +14,7 @@ namespace TurboHTTP.Protocol.Syntax.Http2.Server;
 /// </summary>
 internal sealed class Http2ServerEncoder
 {
+    private readonly Http2ServerEncoderOptions _options;
     private HpackEncoder _hpack = new(useHuffman: true);
 
     // Reused across Encode() calls to avoid List<HpackHeader> allocation per response
@@ -25,6 +27,12 @@ internal sealed class Http2ServerEncoder
     private readonly List<IMemoryOwner<byte>> _rentedBodyOwners = new(4);
 
     public int MaxFrameSize { get; private set; } = 16 * 1024;
+
+    public Http2ServerEncoder(Http2ServerEncoderOptions options)
+    {
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        MaxFrameSize = options.MaxFrameSize;
+    }
 
     private void EncodeHeaderFrames(List<Http2Frame> frames, int streamId, ReadOnlyMemory<byte> headerBlock,
         bool endStream)
@@ -74,7 +82,7 @@ internal sealed class Http2ServerEncoder
         return _reusableFrames;
     }
 
-    private static void BuildHeaderList(IFeatureCollection features, List<HpackHeader> headers)
+    private void BuildHeaderList(IFeatureCollection features, List<HpackHeader> headers)
     {
         // RFC 9113 §7.2: :status pseudo-header (required)
         var responseFeature = features.Get<IHttpResponseFeature>();
@@ -95,6 +103,24 @@ internal sealed class Http2ServerEncoder
 
                 var value = h.Value.Count == 1 ? h.Value[0]! : string.Join(WellKnownHeaders.CommaSpace, h.Value);
                 headers.Add(new HpackHeader(ContentHeaderClassifier.ToLowerAscii(h.Key), value));
+            }
+        }
+
+        if (_options.WriteDateHeader)
+        {
+            var hasDate = false;
+            for (var i = 0; i < headers.Count; i++)
+            {
+                if (headers[i].Name.Equals("date", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasDate = true;
+                    break;
+                }
+            }
+
+            if (!hasDate)
+            {
+                headers.Add(new HpackHeader("date", DateHeaderCache.GetValue()));
             }
         }
     }
