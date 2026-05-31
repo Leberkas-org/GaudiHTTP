@@ -43,6 +43,16 @@
         "resolved": "3.0.1",
         "contentHash": "s/s20YTVY9r9TPfTrN5g8zPF1YhwxyqO6PxUkrYTGI2B+OGPe9AdajWZrLhFqXIvqIW23fnUE4+ztrUWNU1+9g=="
       },
+      "Servus.Core": {
+        "type": "Direct",
+        "requested": "[0.33.11, )",
+        "resolved": "0.33.11",
+        "contentHash": "j3MSNKNN9T53Uzkhktgwqi0cnITq/eX6CU/cwy5wN/UVCUwf2Q7al0u6ofGrQoDoqtCObRgvanU02PjYwQWCGw==",
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.15",
+          "Microsoft.Extensions.Hosting.Abstractions": "9.0.15"
+        }
+      },
       "Akka": {
         "type": "Transitive",
         "resolved": "1.5.68",
@@ -314,16 +324,6 @@
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.0",
           "OpenTelemetry.Api": "1.15.3"
-        }
-      },
-      "Servus.Core": {
-        "type": "CentralTransitive",
-        "requested": "[0.33.11, )",
-        "resolved": "0.33.11",
-        "contentHash": "j3MSNKNN9T53Uzkhktgwqi0cnITq/eX6CU/cwy5wN/UVCUwf2Q7al0u6ofGrQoDoqtCObRgvanU02PjYwQWCGw==",
-        "dependencies": {
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.15",
-          "Microsoft.Extensions.Hosting.Abstractions": "9.0.15"
         }
       }
     }
