@@ -1,5 +1,49 @@
 # Changelog
 
+## [3.0.0-alpha](https://github.com/Leberkas-org/TurboHTTP/compare/v2.0.0...v3.0.0-alpha) (2026-05-31)
+
+
+### ⚠ BREAKING CHANGES
+
+* publish accumulated v3 work as alpha prereleases
+
+### Features
+
+* **ci:** Add release-next to CI triggers ([e1407f6](https://github.com/Leberkas-org/TurboHTTP/commit/e1407f63d52c189565009dcbbd2a1af40e7cf487))
+* publish accumulated v3 work as alpha prereleases ([e8b6e9a](https://github.com/Leberkas-org/TurboHTTP/commit/e8b6e9a205b7f23761e4681c4e5d3a05da94db1b))
+* **server:** connection-per-stage pipeline with fair-share dispatch ([c49104f](https://github.com/Leberkas-org/TurboHTTP/commit/c49104fa99950f8f50c10422f6aa97956e87f452))
+* **server:** data-rate monitoring and protocol server option resolution ([ad4d0b7](https://github.com/Leberkas-org/TurboHTTP/commit/ad4d0b74344830390b8561f6d9a2b1f6ea983907))
+* **server:** enforce four previously-unwired server options ([a9b581c](https://github.com/Leberkas-org/TurboHTTP/commit/a9b581c0e347bbfa5ffa746210daa4c34c429a78))
+* **server:** per-protocol connection options with resolved limit projections ([ea1eb2c](https://github.com/Leberkas-org/TurboHTTP/commit/ea1eb2ce30b67ddec940e3fb645f1df060a0ada4))
+* **servus:** add TransportBuffer.Wrap for zero-copy buffer handoff ([d52d0bf](https://github.com/Leberkas-org/TurboHTTP/commit/d52d0bffaff7c446a459e45e9dca4dda9627bf40))
+
+
+### Bug Fixes
+
+* **tests:** adjust maxParallelThreads to 0.5x ([611e5b3](https://github.com/Leberkas-org/TurboHTTP/commit/611e5b34bcc594ae702eed19d644491bbaa6e372))
+
+
+### Documentation
+
+* **architecture:** update engine and pipeline descriptions ([e5331e7](https://github.com/Leberkas-org/TurboHTTP/commit/e5331e7dc5f5d490db740761fed58d9c6f0da110))
+* **client:** correct namespaces, option defaults, and examples ([55cadd5](https://github.com/Leberkas-org/TurboHTTP/commit/55cadd5746e02af86add524d6f41e45596d14423))
+* **diagrams:** fix LikeC4 client pipeline order and component metadata ([3e3e6e2](https://github.com/Leberkas-org/TurboHTTP/commit/3e3e6e21c6b58202a7717b3fa080332a903bff30))
+* **server:** align option reference with code, fix stale architecture ([9043b06](https://github.com/Leberkas-org/TurboHTTP/commit/9043b06048a391ec927f5e558a1a53bbd60692ed))
+* **server:** reflect ASP.NET Core IServer architecture and new options ([7b7c233](https://github.com/Leberkas-org/TurboHTTP/commit/7b7c23347abfb51c97cb64664f9e7877dc8af9f5))
+* **site:** exclude internal docs from build, fix meta description, wire orphan pages ([1906807](https://github.com/Leberkas-org/TurboHTTP/commit/1906807ec376951456ba6045f16a730a15e42b96))
+
+
+### Refactoring
+
+* **client:** drop Validate from client option records ([ccf32c2](https://github.com/Leberkas-org/TurboHTTP/commit/ccf32c2df261ee6ea8a5afebe65f525712c5daf8))
+* **client:** flatten client protocol options and project via extensions ([b0c4e1f](https://github.com/Leberkas-org/TurboHTTP/commit/b0c4e1ff86e689d44fad72fb46a66ecc806f9461))
+* **codec:** bundle body encoder/decoder factory params into options records ([e75fce7](https://github.com/Leberkas-org/TurboHTTP/commit/e75fce7245cd210c68bb2a03b43761e83fe6ea56))
+* **codec:** project BodyDecoderOptions via ToBodyDecoderOptions extension ([d0bd68e](https://github.com/Leberkas-org/TurboHTTP/commit/d0bd68e9e43587ba0eca6606ea4d072be7161c80))
+* **protocol:** streamline body encoders/decoders and content classification ([a1a1a7e](https://github.com/Leberkas-org/TurboHTTP/commit/a1a1a7e44438ddff1f3cec43abc95b471926c96c))
+* **server:** project BodyEncoderOptions via ToBodyEncoderOptions extension ([af232d6](https://github.com/Leberkas-org/TurboHTTP/commit/af232d60b9e4a2d8a6e9a444ff4dd9371a850ce8))
+* **server:** remove unused form and header context abstractions ([22c84cc](https://github.com/Leberkas-org/TurboHTTP/commit/22c84ccc2c153537c7077a77fe92cc0aabf7e88c))
+* **servus:** convert backing fields to auto-properties across transport and IO stages ([9440aca](https://github.com/Leberkas-org/TurboHTTP/commit/9440acaee4f911b111a0ec89c8e18ef5113ec62f))
+
 ## [2.0.0](https://github.com/Leberkas-org/TurboHTTP/compare/v1.3.0...v2.0.0) (2026-05-28)
 
 
