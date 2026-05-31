@@ -11,6 +11,7 @@ internal sealed record Http2ConnectionOptions
     public required int HeaderTableSize { get; init; }
     public required int MaxHeaderListSize { get; init; }
     public required int MaxHeaderCount { get; init; }
+    public required long MaxResponseBufferSize { get; init; }
 
     public required int BodyBufferThreshold { get; init; }
     public required int ResponseBodyChunkSize { get; init; }

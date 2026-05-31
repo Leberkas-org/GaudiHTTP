@@ -56,4 +56,18 @@ public sealed class BodyDecoderFactorySpec
         Assert.IsType<ContentLengthBufferedDecoder>(decoder);
         decoder.Dispose();
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-7.1.1")]
+    public void Factory_should_forward_chunk_extension_limit_to_chunked_decoder()
+    {
+        var decoder = BodyDecoderFactory.Create(
+            new BodyClassification(BodyFraming.Chunked, null),
+            Threshold, MemoryPool<byte>.Shared, maxChunkExtensionLength: 8);
+        var longExt = new string('a', 64);
+        var data = System.Text.Encoding.ASCII.GetBytes($"5;{longExt}=v\r\nhello\r\n0\r\n\r\n");
+
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(data, out _));
+        decoder.Dispose();
+    }
 }

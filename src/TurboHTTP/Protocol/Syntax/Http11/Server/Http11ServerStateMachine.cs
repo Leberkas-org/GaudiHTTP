@@ -21,6 +21,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     private readonly TimeSpan _requestHeadersTimeout;
 
     private readonly TimeSpan _bodyConsumptionTimeout;
+    private readonly TimeSpan _bodyReadTimeout;
     private readonly int _responseBodyChunkSize;
     private readonly long _maxRequestBodySize;
     private readonly Http2ConnectionOptions _h2UpgradeOptions;
@@ -32,6 +33,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     private int _pendingResponseCount;
     private bool _outboundBodyPending;
     private bool _requestHeadersTimerActive;
+    private bool _bodyReadTimerActive;
     private bool _draining;
     private bool _bodyStreaming;
 
@@ -46,6 +48,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         ArgumentNullException.ThrowIfNull(h2UpgradeOptions);
         _h2UpgradeOptions = h2UpgradeOptions;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
+        _bodyReadTimeout = options.BodyReadTimeout;
         _responseBodyChunkSize = options.ResponseBodyChunkSize;
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _now = clock ?? (() => Environment.TickCount64);
@@ -196,6 +199,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
                 _decoder.Reset();
             }
+
+            // While an inbound request body is still streaming in, enforce an idle
+            // gap between body reads. Each inbound packet re-arms the timer (the ops
+            // layer de-duplicates by name); when the body completes it is cancelled.
+            ReconcileBodyReadTimer();
         }
         catch (Exception)
         {
@@ -204,6 +212,20 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         finally
         {
             buffer.Dispose();
+        }
+    }
+
+    private void ReconcileBodyReadTimer()
+    {
+        if (_bodyStreaming && _bodyReadTimeout > TimeSpan.Zero)
+        {
+            _ops.OnScheduleTimer("body-read", _bodyReadTimeout);
+            _bodyReadTimerActive = true;
+        }
+        else if (_bodyReadTimerActive)
+        {
+            _ops.OnCancelTimer("body-read");
+            _bodyReadTimerActive = false;
         }
     }
 
@@ -249,6 +271,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             if (_bodyStreaming)
             {
                 _bodyStreaming = false;
+                if (_bodyReadTimerActive)
+                {
+                    _ops.OnCancelTimer("body-read");
+                    _bodyReadTimerActive = false;
+                }
             }
 
             _draining = true;
@@ -298,6 +325,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         else if (name == "body-consumption")
         {
             _draining = false;
+            ShouldComplete = true;
+        }
+        else if (name == "body-read")
+        {
+            _bodyReadTimerActive = false;
             ShouldComplete = true;
         }
         else if (name == "data-rate-check")
@@ -420,6 +452,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         {
             _ops.OnCancelTimer("request-headers");
             _requestHeadersTimerActive = false;
+        }
+
+        if (_bodyReadTimerActive)
+        {
+            _ops.OnCancelTimer("body-read");
+            _bodyReadTimerActive = false;
         }
 
         _ops.OnCancelTimer("keep-alive");

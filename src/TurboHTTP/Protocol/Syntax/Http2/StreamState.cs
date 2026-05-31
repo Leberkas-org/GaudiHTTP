@@ -25,6 +25,9 @@ internal sealed class StreamState
     private IBodyDecoder? _bodyDecoder;
     private IBodyEncoder? _bodyEncoder;
     private Queue<StreamBodyChunk<int>>? _outboundBuffer;
+    private long _pendingOutboundBytes;
+    private long _maxOutboundBuffer;
+    private bool _encoderPaused;
 
     public bool HasResponse => _response is not null;
 
@@ -144,10 +147,13 @@ internal sealed class StreamState
         _bodyDecoder?.Abort();
     }
 
-    public void InitBodyEncoder(IBodyEncoder encoder)
+    public void InitBodyEncoder(IBodyEncoder encoder, long maxOutboundBuffer = 0)
     {
         _bodyEncoder = encoder;
+        _maxOutboundBuffer = maxOutboundBuffer;
     }
+
+    public long PendingOutboundBytes => _pendingOutboundBytes;
 
     public void StartBodyEncoder(Stream bodyStream, int streamId, IActorRef stageActor)
     {
@@ -174,6 +180,8 @@ internal sealed class StreamState
     {
         _outboundBuffer ??= new Queue<StreamBodyChunk<int>>();
         _outboundBuffer.Enqueue(chunk);
+        _pendingOutboundBytes += chunk.Length;
+        MaybePauseEncoder();
     }
 
     public void PrependBodyChunk(StreamBodyChunk<int> chunk)
@@ -186,6 +194,9 @@ internal sealed class StreamState
         {
             _outboundBuffer.Enqueue(item);
         }
+
+        _pendingOutboundBytes += chunk.Length;
+        MaybePauseEncoder();
     }
 
     public void MarkBodyEncoderComplete()
@@ -203,11 +214,39 @@ internal sealed class StreamState
         if (_outboundBuffer is { Count: > 0 })
         {
             chunk = _outboundBuffer.Dequeue();
+            _pendingOutboundBytes -= chunk.Length;
+            MaybeResumeEncoder();
             return true;
         }
 
         chunk = null;
         return false;
+    }
+
+    // Pause the producing encoder once the buffered (window-blocked) response bytes reach
+    // the configured limit; resume only after the buffer drains to a low-watermark (half
+    // the limit) to avoid pausing/resuming on every single chunk near the boundary.
+    private void MaybePauseEncoder()
+    {
+        if (_maxOutboundBuffer > 0
+            && !_encoderPaused
+            && _pendingOutboundBytes >= _maxOutboundBuffer
+            && _bodyEncoder is IPausableBodyEncoder pausable)
+        {
+            pausable.Pause();
+            _encoderPaused = true;
+        }
+    }
+
+    private void MaybeResumeEncoder()
+    {
+        if (_encoderPaused
+            && _pendingOutboundBytes <= _maxOutboundBuffer / 2
+            && _bodyEncoder is IPausableBodyEncoder pausable)
+        {
+            pausable.Resume();
+            _encoderPaused = false;
+        }
     }
 
     public StreamBodyChunk<int>? PeekBodyChunk()
@@ -233,6 +272,9 @@ internal sealed class StreamState
         _bodyEncoder = null;
         DisposeOutboundBuffer();
         _outboundBuffer = null;
+        _pendingOutboundBytes = 0;
+        _maxOutboundBuffer = 0;
+        _encoderPaused = false;
         IsBodyEncoderComplete = false;
         IsRemoteClosed = false;
     }
@@ -260,6 +302,8 @@ internal sealed class StreamState
         {
             _outboundBuffer.Dequeue().Owner.Dispose();
         }
+
+        _pendingOutboundBytes = 0;
     }
 
     private void EnsureHeaderCapacity(int required)

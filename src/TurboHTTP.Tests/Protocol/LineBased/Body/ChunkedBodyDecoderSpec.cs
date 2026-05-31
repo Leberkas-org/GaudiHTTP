@@ -122,4 +122,27 @@ public sealed class ChunkedBodyDecoderSpec
         Assert.Empty(decoder.Trailers);
         decoder.Dispose();
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-7.1.1")]
+    public void Decoder_should_reject_chunk_extension_exceeding_max_length()
+    {
+        var decoder = new ChunkedBodyDecoder(maxBodySize: 10 * 1024 * 1024, maxChunkExtensionLength: 8);
+        var longExt = new string('a', 64);
+        var data = Encoding.ASCII.GetBytes($"5;{longExt}=v\r\nhello\r\n0\r\n\r\n");
+
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(data, out _));
+        decoder.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-7.1.1")]
+    public void Decoder_should_accept_chunk_extension_within_max_length()
+    {
+        var decoder = new ChunkedBodyDecoder(maxBodySize: 10 * 1024 * 1024, maxChunkExtensionLength: 64);
+        var data = "5;ext=foo\r\nhello\r\n0\r\n\r\n"u8.ToArray();
+
+        Assert.True(decoder.Feed(data, out _));
+        decoder.Dispose();
+    }
 }

@@ -57,4 +57,41 @@ public sealed class StreamingBodyEncoderSpec
         var complete = messages.Take(TestContext.Current.CancellationToken);
         Assert.IsType<OutboundBodyComplete>(complete);
     }
+
+    [Fact(Timeout = 5000)]
+    public async Task StreamingBodyEncoder_should_not_emit_while_paused_then_resume()
+    {
+        var messages = new BlockingCollection<object>();
+        var body = new byte[1000];
+        Random.Shared.NextBytes(body);
+        var content = new ByteArrayContent(body);
+
+        using var encoder = new StreamingBodyEncoder(chunkSize: 64);
+        var bodyStream = await content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
+
+        encoder.Pause();
+        encoder.Start(bodyStream, messages.Add);
+
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+        Assert.Equal(0, messages.Count);
+
+        encoder.Resume();
+
+        var totalReceived = 0;
+        while (true)
+        {
+            var msg = messages.Take(TestContext.Current.CancellationToken);
+            if (msg is OutboundBodyChunk chunk)
+            {
+                totalReceived += chunk.Length;
+                chunk.Owner.Dispose();
+            }
+            else if (msg is OutboundBodyComplete)
+            {
+                break;
+            }
+        }
+
+        Assert.Equal(body.Length, totalReceived);
+    }
 }

@@ -25,6 +25,7 @@ internal sealed class Http2ServerSessionManager
     private readonly FlowController _flow;
     private readonly StreamTracker _tracker;
     private readonly long _maxRequestBodySize;
+    private readonly long _maxResponseBufferSize;
     private readonly int _responseBodyChunkSize;
     private readonly TimeSpan _bodyConsumptionTimeout;
     private readonly int _initialStreamWindowSize;
@@ -54,6 +55,7 @@ internal sealed class Http2ServerSessionManager
         _flow = new FlowController(options.InitialConnectionWindowSize, options.InitialStreamWindowSize);
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
+        _maxResponseBufferSize = options.MaxResponseBufferSize;
         _responseBodyChunkSize = options.ResponseBodyChunkSize;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _initialStreamWindowSize = options.InitialStreamWindowSize;
@@ -206,7 +208,7 @@ internal sealed class Http2ServerSessionManager
             return;
         }
 
-        state.InitBodyEncoder(encoder);
+        state.InitBodyEncoder(encoder, _maxResponseBufferSize);
         state.StartBodyEncoder(bodyStream, streamId, _ops.StageActor);
     }
 

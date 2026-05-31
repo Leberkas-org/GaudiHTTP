@@ -11,7 +11,8 @@ internal static class BodyDecoderFactory
         MemoryPool<byte> pool,
         long maxBufferedBodySize = 4_194_304,
         long? maxStreamedBodySize = null,
-        long maxBodySize = 10_485_760)
+        long maxBodySize = 10_485_760,
+        int maxChunkExtensionLength = int.MaxValue)
     {
         switch (classification.Framing)
         {
@@ -31,7 +32,7 @@ internal static class BodyDecoderFactory
                 }
 
             case BodyFraming.Chunked:
-                return new ChunkedBodyDecoder(maxStreamedBodySize ?? maxBodySize);
+                return new ChunkedBodyDecoder(maxStreamedBodySize ?? maxBodySize, maxChunkExtensionLength);
 
             case BodyFraming.Close:
                 return new CloseDelimitedBodyDecoder(maxStreamedBodySize ?? maxBodySize);

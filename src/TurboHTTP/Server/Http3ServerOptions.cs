@@ -3,7 +3,7 @@ namespace TurboHTTP.Server;
 public sealed class Http3ServerOptions
 {
     public int MaxConcurrentStreams { get; set; } = 100;
-    public int MaxHeaderListSize { get; set; } = 32 * 1024;
+    public int? MaxHeaderListSize { get; set; }
     public int QpackMaxTableCapacity { get; set; }
     public int QpackBlockedStreams { get; set; } = 100;
     public long? MaxRequestBodySize { get; set; }

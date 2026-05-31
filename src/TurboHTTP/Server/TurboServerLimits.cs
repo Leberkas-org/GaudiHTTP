@@ -3,7 +3,6 @@ namespace TurboHTTP.Server;
 public sealed class TurboServerLimits
 {
     public int MaxConcurrentConnections { get; set; }
-    public int MaxConcurrentUpgradedConnections { get; set; }
     public int MaxConcurrentRequests { get; set; }
     public int MinRequestGuarantee { get; set; } = 10;
     public long MaxRequestBodySize { get; set; } = 30 * 1024 * 1024;

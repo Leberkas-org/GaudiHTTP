@@ -48,4 +48,45 @@ public sealed class ServerOptionsProjectionsSpec
         Assert.Equal(eff.Limits.MinRequestBodyDataRate, rate.MinRequestBodyDataRate);
         Assert.Equal(eff.Limits.MinResponseDataRate, rate.MinResponseDataRate);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Http1_chunk_extension_limit_should_flow_to_decoder_options()
+    {
+        var o = new TurboServerOptions();
+        o.Http1.MaxChunkExtensionLength = 7;
+
+        var dec = o.ToHttp1Options().ToHttp11DecoderOptions();
+
+        Assert.Equal(7, dec.MaxChunkExtensionLength);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Header_size_should_fall_back_to_global_total_when_protocol_unset()
+    {
+        var o = new TurboServerOptions();
+        o.Limits.MaxRequestHeadersTotalSize = 7777;
+
+        Assert.Equal(7777, o.ToHttp1Options().MaxHeaderListSize);
+        Assert.Equal(7777, o.ToHttp2Options().MaxHeaderListSize);
+        Assert.Equal(7777, o.ToHttp3Options().MaxHeaderListSize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Header_size_protocol_override_should_win_over_global_total()
+    {
+        var o = new TurboServerOptions();
+        o.Limits.MaxRequestHeadersTotalSize = 7777;
+        o.Http2.MaxHeaderListSize = 999;
+
+        Assert.Equal(999, o.ToHttp2Options().MaxHeaderListSize);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Http2_response_buffer_limit_should_flow_to_connection_options()
+    {
+        var o = new TurboServerOptions();
+        o.Http2.MaxResponseBufferSize = 4321;
+
+        Assert.Equal(4321, o.ToHttp2Options().MaxResponseBufferSize);
+    }
 }

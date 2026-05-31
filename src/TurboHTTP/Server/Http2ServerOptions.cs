@@ -7,7 +7,7 @@ public sealed class Http2ServerOptions
     public int InitialStreamWindowSize { get; set; } = 768 * 1024;
     public int MaxFrameSize { get; set; } = 16 * 1024;
     public int HeaderTableSize { get; set; } = 4 * 1024;
-    public int MaxHeaderListSize { get; set; } = 32 * 1024;
+    public int? MaxHeaderListSize { get; set; }
     public long MaxResponseBufferSize { get; set; } = 64 * 1024;
     public long? MaxRequestBodySize { get; set; }
     public TimeSpan? KeepAliveTimeout { get; set; }

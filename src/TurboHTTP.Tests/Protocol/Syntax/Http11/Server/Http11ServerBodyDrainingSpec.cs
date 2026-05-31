@@ -11,6 +11,7 @@ public sealed class Http11ServerBodyDrainingSpec
     private static Http11ServerDecoderOptions DefaultDecoderOptions() => new()
     {
         MaxPipelinedRequests = 10,
+        MaxChunkExtensionLength = 4 * 1024,
         StreamingThreshold = 64 * 1024,
         MaxBufferedBodySize = 4 * 1024 * 1024,
         MaxStreamedBodySize = null,
