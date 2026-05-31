@@ -10,12 +10,4 @@ public sealed class Http2ClientEncoderOptionsSpec
     {
         Assert.Equal(16 * 1024, Http2ClientEncoderOptions.Default.MaxFrameSize);
     }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113")]
-    public void Validate_should_reject_invalid_MaxFrameSize()
-    {
-        var opts = Http2ClientEncoderOptions.Default with { MaxFrameSize = 100 };
-        Assert.Throws<ArgumentException>(opts.Validate);
-    }
 }

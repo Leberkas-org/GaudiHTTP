@@ -12,42 +12,4 @@ internal sealed record Http11ClientDecoderOptions
     public int MaxPipelineDepth { get; init; } = 1;
 
     public static Http11ClientDecoderOptions Default { get; } = new();
-
-    public void Validate()
-    {
-        if (MaxPipelineDepth <= 0)
-        {
-            throw new ArgumentException("MaxPipelineDepth must be greater than zero.", nameof(MaxPipelineDepth));
-        }
-
-        if (StreamingThreshold < 0)
-        {
-            throw new ArgumentException("StreamingThreshold must be >= 0.", nameof(StreamingThreshold));
-        }
-
-        if (MaxBufferedBodySize < StreamingThreshold)
-        {
-            throw new ArgumentException("MaxBufferedBodySize must be >= StreamingThreshold.", nameof(MaxBufferedBodySize));
-        }
-
-        if (MaxStreamedBodySize is < 0)
-        {
-            throw new ArgumentException("MaxStreamedBodySize must be null or >= 0.", nameof(MaxStreamedBodySize));
-        }
-
-        if (MaxHeaderBytes <= 0)
-        {
-            throw new ArgumentException("MaxHeaderBytes must be > 0.", nameof(MaxHeaderBytes));
-        }
-
-        if (MaxHeaderCount <= 0)
-        {
-            throw new ArgumentException("MaxHeaderCount must be > 0.", nameof(MaxHeaderCount));
-        }
-
-        if (HeaderLineMaxLength <= 0)
-        {
-            throw new ArgumentException("HeaderLineMaxLength must be > 0.", nameof(HeaderLineMaxLength));
-        }
-    }
 }

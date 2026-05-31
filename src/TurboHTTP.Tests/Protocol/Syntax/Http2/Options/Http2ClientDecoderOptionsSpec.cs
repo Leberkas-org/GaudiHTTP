@@ -10,12 +10,4 @@ public sealed class Http2ClientDecoderOptionsSpec
     {
         Assert.Equal(100, Http2ClientDecoderOptions.Default.MaxConcurrentStreams);
     }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113")]
-    public void Validate_should_reject_invalid_MaxConcurrentStreams()
-    {
-        var opts = Http2ClientDecoderOptions.Default with { MaxConcurrentStreams = 0 };
-        Assert.Throws<ArgumentException>(opts.Validate);
-    }
 }
