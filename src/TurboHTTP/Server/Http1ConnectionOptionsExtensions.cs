@@ -37,6 +37,7 @@ internal static class Http1ConnectionOptionsExtensions
     public static Http11ServerDecoderOptions ToHttp11DecoderOptions(this Http1ConnectionOptions o) => new()
     {
         MaxPipelinedRequests = o.MaxPipelinedRequests,
+        MaxChunkExtensionLength = o.MaxChunkExtensionLength,
         StreamingThreshold = o.BodyBufferThreshold,
         MaxBufferedBodySize = o.BodyBufferThreshold,
         MaxStreamedBodySize = o.Limits.MaxRequestBodySize,

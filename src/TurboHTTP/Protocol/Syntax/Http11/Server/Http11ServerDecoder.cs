@@ -74,7 +74,8 @@ internal sealed class Http11ServerDecoder
                 _options.StreamingThreshold,
                 _options.BufferPool,
                 _options.MaxBufferedBodySize,
-                _options.MaxStreamedBodySize);
+                _options.MaxStreamedBodySize,
+                maxChunkExtensionLength: _options.MaxChunkExtensionLength);
 
             if (CurrentBodyDecoder.IsComplete)
             {

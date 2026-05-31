@@ -5,6 +5,7 @@ namespace TurboHTTP.Protocol.Syntax.Http11.Options;
 internal sealed record Http11ServerDecoderOptions
 {
     public required int MaxPipelinedRequests { get; init; }
+    public required int MaxChunkExtensionLength { get; init; }
     public required long StreamingThreshold { get; init; }
     public required long MaxBufferedBodySize { get; init; }
     public required long? MaxStreamedBodySize { get; init; }

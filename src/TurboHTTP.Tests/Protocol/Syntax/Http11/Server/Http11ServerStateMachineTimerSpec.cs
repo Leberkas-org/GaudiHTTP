@@ -155,6 +155,50 @@ public sealed class Http11ServerStateMachineTimerSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.1")]
+    public void DecodeClientData_should_schedule_body_read_timer_while_body_streaming()
+    {
+        var opts = new TurboServerOptions();
+        opts.Http1.BodyReadTimeout = TimeSpan.FromSeconds(5);
+        var ops = new FakeServerOps();
+        var sm = new Http11ServerStateMachine(opts.ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+
+        var req = "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n";
+        sm.DecodeClientData(new TransportData(MakeBuffer(req)));
+
+        Assert.Contains(ops.ScheduledTimers, t => t.Name == "body-read" && t.Delay == TimeSpan.FromSeconds(5));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.1")]
+    public void OnTimerFired_body_read_should_set_ShouldComplete()
+    {
+        var ops = new FakeServerOps();
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+
+        sm.OnTimerFired("body-read");
+
+        Assert.True(sm.ShouldComplete);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.1")]
+    public void DecodeClientData_should_cancel_body_read_timer_when_body_completes()
+    {
+        var ops = new FakeServerOps();
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
+
+        var head = "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n";
+        sm.DecodeClientData(new TransportData(MakeBuffer(head)));
+        Assert.Contains(ops.ScheduledTimers, t => t.Name == "body-read");
+
+        var body = "5\r\nhello\r\n0\r\n\r\n";
+        sm.DecodeClientData(new TransportData(MakeBuffer(body)));
+
+        Assert.Contains(ops.CancelledTimers, t => t == "body-read");
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6.5")]
     public void Cleanup_should_cancel_all_timers()
     {
