@@ -90,14 +90,7 @@ internal sealed class Http11ClientDecoder
                 _statusCode, headers, _version, requestMethodWasHead,
                 connectionWillClose: ConnectionWillClose);
 
-            _bodyDecoder = BodyDecoderFactory.Create(
-                classification,
-                new BodyDecoderOptions
-                {
-                    StreamingThreshold = _options.StreamingThreshold,
-                    MaxBufferedBodySize = _options.MaxBufferedBodySize,
-                    MaxStreamedBodySize = _options.MaxStreamedBodySize,
-                });
+            _bodyDecoder = BodyDecoderFactory.Create(classification, _options.ToBodyDecoderOptions());
 
             _phase = Phase.Body;
         }

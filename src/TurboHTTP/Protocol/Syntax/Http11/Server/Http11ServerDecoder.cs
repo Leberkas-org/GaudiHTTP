@@ -69,15 +69,7 @@ internal sealed class Http11ServerDecoder
             }
 
             var classification = BodySemantics.ClassifyRequest(_method, _headerReader.GetHeaders(), _version);
-            CurrentBodyDecoder = BodyDecoderFactory.Create(
-                classification,
-                new BodyDecoderOptions
-                {
-                    StreamingThreshold = _options.StreamingThreshold,
-                    MaxBufferedBodySize = _options.MaxBufferedBodySize,
-                    MaxStreamedBodySize = _options.MaxStreamedBodySize,
-                    MaxChunkExtensionLength = _options.MaxChunkExtensionLength,
-                });
+            CurrentBodyDecoder = BodyDecoderFactory.Create(classification, _options.ToBodyDecoderOptions());
 
             if (CurrentBodyDecoder.IsComplete)
             {

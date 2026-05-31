@@ -80,14 +80,7 @@ internal sealed class Http10ClientDecoder
                 _statusCode, headers, _version, requestMethodWasHead,
                 connectionWillClose: !ConnectionSemantics.IsPersistent(headers, _version));
 
-            _bodyDecoder = BodyDecoderFactory.Create(
-                classification,
-                new BodyDecoderOptions
-                {
-                    StreamingThreshold = _options.StreamingThreshold,
-                    MaxBufferedBodySize = _options.MaxBufferedBodySize,
-                    MaxStreamedBodySize = _options.MaxStreamedBodySize,
-                });
+            _bodyDecoder = BodyDecoderFactory.Create(classification, _options.ToBodyDecoderOptions());
 
             _phase = Phase.Body;
         }
