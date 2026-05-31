@@ -38,7 +38,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-5")]
     public void OnRequest_should_set_endpoint_on_first_request()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
 
         sm.OnRequest(MakeRequest("http://example.com:8080/path"));
@@ -52,7 +52,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-5")]
     public void OnRequest_should_emit_transport_data()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
 
         sm.OnRequest(MakeRequest());
@@ -64,7 +64,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-5")]
     public void OnRequest_should_set_in_flight_request()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
 
         sm.OnRequest(MakeRequest());
@@ -76,7 +76,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-6")]
     public void DecodeServerData_should_decode_complete_response()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -92,7 +92,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-6")]
     public void DecodeServerData_should_set_request_message_on_response()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         var originalRequest = MakeRequest("http://example.com/test");
         sm.OnRequest(originalRequest);
@@ -110,7 +110,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945")]
     public void StateMachine_should_handle_full_request_response_cycle()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
 
         var request = MakeRequest("http://example.com/path");
@@ -133,7 +133,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945")]
     public void CanAcceptRequest_should_return_false_with_in_flight_request()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -144,7 +144,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945")]
     public void CanAcceptRequest_should_return_true_when_idle()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
 
         Assert.True(sm.CanAcceptRequest);
@@ -154,7 +154,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-8")]
     public void Cleanup_should_clear_in_flight_request()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -168,7 +168,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     public async Task OnRequest_with_body_should_emit_transport_data_after_body_chunk()
     {
         var inbox = Inbox.Create(Sys);
-        var ops = new FakeOps { StageActor = inbox.Receiver };
+        var ops = new FakeClientOps { StageActor = inbox.Receiver };
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         sm.PreStart();
 
@@ -198,7 +198,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-5")]
     public void OnRequest_with_body_should_block_CanAcceptRequest_until_body_complete()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
 
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
@@ -214,7 +214,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-7")]
     public void DecodeServerData_should_complete_connection_close_response_on_graceful_disconnect()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -233,7 +233,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-7")]
     public void DecodeServerData_should_allow_new_request_after_connection_close_response()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 

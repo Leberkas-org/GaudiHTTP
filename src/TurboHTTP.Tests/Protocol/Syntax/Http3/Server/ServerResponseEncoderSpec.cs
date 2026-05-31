@@ -1,6 +1,7 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Protocol.Syntax.Http3;
+using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 using TurboHTTP.Tests.Shared;
@@ -15,7 +16,14 @@ public sealed class ServerResponseEncoderSpec
 
     public ServerResponseEncoderSpec()
     {
-        _encoder = new Http3ServerEncoder(_encoderTableSync);
+        var options = new Http3ServerEncoderOptions
+        {
+            WriteDateHeader = false,
+            QpackMaxTableCapacity = 4096,
+            QpackBlockedStreams = 100,
+            MaxHeaderBytes = 8192
+        };
+        _encoder = new Http3ServerEncoder(_encoderTableSync, options);
     }
 
     [Fact(Timeout = 5000)]

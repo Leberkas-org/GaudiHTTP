@@ -8,6 +8,21 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerBodyDrainingSpec
 {
+    private static Http11ServerDecoderOptions DefaultDecoderOptions() => new()
+    {
+        MaxPipelinedRequests = 10,
+        StreamingThreshold = 64 * 1024,
+        MaxBufferedBodySize = 4 * 1024 * 1024,
+        MaxStreamedBodySize = null,
+        MaxHeaderBytes = 32 * 1024,
+        MaxHeaderCount = 100,
+        HeaderLineMaxLength = 8 * 1024,
+        RequestLineMaxLength = 8 * 1024,
+        MaxRequestTargetLength = 8 * 1024,
+        AllowObsFold = false,
+        BufferPool = MemoryPool<byte>.Shared,
+    };
+
     [Fact(Timeout = 5000)]
     public void ContentLengthBufferedDecoder_IsComplete_should_return_true_when_all_bytes_received()
     {
@@ -182,7 +197,7 @@ public sealed class Http11ServerBodyDrainingSpec
     [Fact(Timeout = 5000)]
     public void Http11ServerStateMachine_should_expose_current_body_decoder()
     {
-        var decoder = new Http11ServerDecoder(Http11ServerDecoderOptions.Default);
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
 
         const string request = "POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 5\r\n\r\nhello";
         var bytes = Encoding.ASCII.GetBytes(request);
@@ -196,7 +211,7 @@ public sealed class Http11ServerBodyDrainingSpec
     [Fact(Timeout = 5000)]
     public void Http11ServerStateMachine_should_expose_null_body_decoder_when_reset()
     {
-        var decoder = new Http11ServerDecoder(Http11ServerDecoderOptions.Default);
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
 
         const string request = "POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 5\r\n\r\nhello";
         var bytes = Encoding.ASCII.GetBytes(request);

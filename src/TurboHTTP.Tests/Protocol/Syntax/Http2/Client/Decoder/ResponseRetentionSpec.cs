@@ -25,7 +25,7 @@ public sealed class ResponseRetentionSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void StateMachine_should_retain_response_when_rst_stream_no_error_follows_headers()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 

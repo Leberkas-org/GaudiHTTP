@@ -83,7 +83,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-3.4")]
     public void PreStart_should_not_emit_preface()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
 
         sm.PreStart();
@@ -95,7 +95,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void OnRequest_should_emit_preface_and_headers_frame_on_first_request()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -110,7 +110,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void OnRequest_should_reject_when_goaway_received()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 
@@ -126,7 +126,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-8.3")]
     public void OnRequest_should_set_endpoint_on_first_request()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 
@@ -141,7 +141,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-5.1")]
     public void OnRequest_should_emit_data_frame_when_request_has_body()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -157,7 +157,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-5.1.1")]
     public void OnRequest_should_allocate_incremented_stream_ids()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -174,7 +174,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-4")]
     public void DecodeServerData_should_process_settings_frame()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -189,7 +189,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void DecodeServerData_should_produce_response_from_headers_and_data()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -206,7 +206,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void DecodeServerData_should_complete_response_on_headers_with_endstream()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -222,7 +222,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void DecodeServerData_should_accumulate_headers_without_endheaders()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -245,7 +245,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.10")]
     public void DecodeServerData_should_handle_continuation_frame()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -275,7 +275,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.3")]
     public void DecodeServerData_should_handle_rst_stream_frame()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -290,7 +290,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void DecodeServerData_should_handle_window_update_on_connection()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -303,7 +303,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void DecodeServerData_should_handle_window_update_on_stream()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -317,7 +317,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.7")]
     public void DecodeServerData_should_respond_to_ping_with_ack()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -332,7 +332,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.7")]
     public void DecodeServerData_should_ignore_ping_ack()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -347,7 +347,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void DecodeServerData_should_trigger_reconnect_on_goaway_with_inflight()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -364,7 +364,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void DecodeServerData_should_disconnect_when_connection_flow_control_violated()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -382,7 +382,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void DecodeServerData_should_correlate_request_with_response()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 
@@ -402,7 +402,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-5.4")]
     public void DecodeServerData_should_handle_multiple_concurrent_streams()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 
@@ -423,7 +423,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-5.1.2")]
     public void CanAcceptRequest_should_respect_max_concurrent_streams()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(maxConcurrentStreams: 2), ops);
         sm.PreStart();
 
@@ -437,7 +437,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void DecodeServerData_should_decode_1xx_status_codes()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -453,7 +453,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void DecodeServerData_should_decode_4xx_status_codes()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -469,7 +469,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void DecodeServerData_should_decode_5xx_status_codes()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -485,7 +485,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.10")]
     public void DecodeServerData_should_absorb_data_for_unknown_stream()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 
@@ -499,7 +499,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void DecodeServerData_should_absorb_continuation_for_unknown_stream()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 
@@ -513,7 +513,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void DecodeServerData_should_accumulate_response_body_across_multiple_frames()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -532,7 +532,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-3.1")]
     public void Endpoint_should_be_initialized_default()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
 
         Assert.Equal(default, sm.Endpoint);
@@ -542,7 +542,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-5.1")]
     public void HasInFlightRequests_should_be_true_when_requests_pending()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -554,7 +554,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-5.1")]
     public void HasInFlightRequests_should_be_false_after_response()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -569,7 +569,7 @@ public sealed class Http2StateMachineSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void DecodeServerData_should_preserve_response_headers()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());

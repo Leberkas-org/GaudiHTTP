@@ -8,8 +8,14 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Server;
 
 public sealed class Http10ServerEncoderSpec : TestKit
 {
+    private static Http10ServerEncoderOptions DefaultEncoderOptions() => new()
+    {
+        WriteDateHeader = true,
+        MaxHeaderBytes = 32 * 1024,
+    };
+
     private static Http10ServerEncoder MakeEncoder(bool withDate = true) =>
-        new(Http10ServerEncoderOptions.Default with { WriteDateHeader = withDate });
+        new(DefaultEncoderOptions() with { WriteDateHeader = withDate });
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-6")]

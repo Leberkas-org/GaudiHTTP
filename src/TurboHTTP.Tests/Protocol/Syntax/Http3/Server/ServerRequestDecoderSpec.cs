@@ -1,4 +1,5 @@
 using TurboHTTP.Protocol.Syntax.Http3;
+using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 
@@ -6,13 +7,21 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class ServerRequestDecoderSpec
 {
+    private static Http3ServerDecoderOptions DefaultDecoderOptions() => new()
+    {
+        MaxConcurrentStreams = 100,
+        MaxFieldSectionSize = 64 * 1024,
+        MaxHeaderBytes = 32 * 1024,
+        MaxHeaderCount = 100,
+    };
+
     private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
     private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
     private readonly Http3ServerDecoder _decoder;
 
     public ServerRequestDecoderSpec()
     {
-        _decoder = new Http3ServerDecoder(_decoderTableSync);
+        _decoder = new Http3ServerDecoder(_decoderTableSync, DefaultDecoderOptions());
     }
 
     [Fact(Timeout = 5000)]

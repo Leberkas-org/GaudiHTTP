@@ -1,5 +1,6 @@
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Tests.Shared;
 using Microsoft.AspNetCore.Http.Features;
@@ -8,7 +9,15 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Encoder;
 
 public sealed class Http2ServerResponseEncoderSpec
 {
-    private readonly Http2ServerEncoder _encoder = new();
+    private static Http2ServerEncoderOptions DefaultEncoderOptions() => new()
+    {
+        MaxFrameSize = 16 * 1024,
+        HeaderTableSize = 4096,
+        WriteDateHeader = false,
+        MaxHeaderBytes = 32 * 1024
+    };
+
+    private readonly Http2ServerEncoder _encoder = new(DefaultEncoderOptions());
     private readonly HpackDecoder _decoder = new();
 
     [Fact(Timeout = 5000)]

@@ -1,4 +1,5 @@
 using TurboHTTP.Protocol.Syntax.Http2;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Tests.Shared;
 using Microsoft.AspNetCore.Http.Features;
@@ -7,11 +8,19 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.StateMachine;
 
 public sealed class Http2ServerSettingsSpec
 {
+    private static Http2ServerEncoderOptions DefaultEncoderOptions() => new()
+    {
+        MaxFrameSize = 16 * 1024,
+        HeaderTableSize = 4096,
+        WriteDateHeader = false,
+        MaxHeaderBytes = 32 * 1024
+    };
+
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.5")]
     public void ApplyClientSettings_updates_max_frame_size()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
 
         // Verify default max frame size
         Assert.Equal(16384, encoder.MaxFrameSize);
@@ -27,7 +36,7 @@ public sealed class Http2ServerSettingsSpec
     [Trait("RFC", "RFC9113-6.5")]
     public void ApplyClientSettings_updates_header_table_size()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
 
         var settings = new[] { (SettingsParameter.HeaderTableSize, (uint)8192) };
         encoder.ApplyClientSettings(settings);
@@ -44,7 +53,7 @@ public sealed class Http2ServerSettingsSpec
     [Trait("RFC", "RFC9113-6.5")]
     public void Default_max_frame_size_is_16384()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
 
         Assert.Equal(16384, encoder.MaxFrameSize);
     }
@@ -53,7 +62,7 @@ public sealed class Http2ServerSettingsSpec
     [Trait("RFC", "RFC9113-6.5")]
     public void ResetHpack_allows_encoder_reuse()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
 
         var ctx1 = ServerTestContext.CreateResponse();
         ctx1.Get<IHttpResponseFeature>()?.Headers["x-header"] = "value1";

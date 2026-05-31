@@ -102,10 +102,9 @@ public sealed class Http2ContinuationStateSpec
     public void Headers_without_EndHeaders_then_Continuation_should_emit_request()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -148,10 +147,9 @@ public sealed class Http2ContinuationStateSpec
     public void Continuation_on_wrong_stream_should_throw_protocol_error()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -187,10 +185,9 @@ public sealed class Http2ContinuationStateSpec
     public void Headers_with_EndHeaders_true_should_emit_request_immediately()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -220,10 +217,9 @@ public sealed class Http2ContinuationStateSpec
     public void Headers_without_EndHeaders_should_schedule_headers_timeout()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.ScheduledTimers.Clear();
@@ -255,10 +251,9 @@ public sealed class Http2ContinuationStateSpec
     public void Continuation_with_EndHeaders_should_cancel_headers_timeout()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.ScheduledTimers.Clear();

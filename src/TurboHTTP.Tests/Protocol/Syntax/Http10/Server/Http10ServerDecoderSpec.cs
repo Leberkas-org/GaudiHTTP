@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
@@ -7,7 +8,21 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Server;
 
 public sealed class Http10ServerDecoderSpec
 {
-    private static Http10ServerDecoder MakeDecoder() => new(Http10ServerDecoderOptions.Default);
+    private static Http10ServerDecoderOptions DefaultDecoderOptions() => new()
+    {
+        StreamingThreshold = 64 * 1024,
+        MaxBufferedBodySize = 4 * 1024 * 1024,
+        MaxStreamedBodySize = null,
+        MaxHeaderBytes = 32 * 1024,
+        MaxHeaderCount = 100,
+        HeaderLineMaxLength = 8 * 1024,
+        RequestLineMaxLength = 8 * 1024,
+        MaxRequestTargetLength = 8 * 1024,
+        AllowObsFold = false,
+        BufferPool = MemoryPool<byte>.Shared,
+    };
+
+    private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]

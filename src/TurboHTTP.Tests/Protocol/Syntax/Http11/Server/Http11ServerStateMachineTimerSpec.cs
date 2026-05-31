@@ -36,7 +36,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     public void OnTimerFired_request_headers_should_set_ShouldComplete()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.OnTimerFired("request-headers");
 
@@ -48,7 +48,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     public void OnTimerFired_keep_alive_should_set_ShouldComplete()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.OnTimerFired("keep-alive");
 
@@ -60,7 +60,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     public void DecodeClientData_should_schedule_request_headers_timer()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         // Feed partial request data (no final \r\n\r\n) to trigger NeedMore state
         // This keeps the decoder in incomplete state, allowing timer scheduling
@@ -77,7 +77,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     public void DecodeClientData_should_cancel_request_headers_timer_when_complete()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         // First, feed partial request to schedule timer
         var partialRequest = "GET / HTTP/1.1\r\nHost: localhost\r\n";
@@ -98,7 +98,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     {
         var ops = new FakeServerOps();
 
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         // Decode a complete request first
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
@@ -130,7 +130,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     public void OnBodyMessage_complete_should_schedule_keep_alive_timer()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         // Decode a request
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
@@ -159,7 +159,7 @@ public sealed class Http11ServerStateMachineTimerSpec
     public void Cleanup_should_cancel_all_timers()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         // Decode a partial request to activate request-headers timer
         var partialRequest = "GET / HTTP/1.1\r\nHost: localhost\r\n";

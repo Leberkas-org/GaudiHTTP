@@ -127,7 +127,7 @@ public sealed class Http2ServerFlowControlSpec
                 InitialStreamWindowSize = initialWindowSize
             }
         };
-        var sm = new Http2ServerStateMachine(options, ops);
+        var sm = new Http2ServerStateMachine(options.ToHttp2Options(), ops);
 
         // Send HEADERS on stream 1 with endStream=false to accept body data
         var headerBlock = EncodeHeaders("POST", "/upload", "example.com");
@@ -212,7 +212,7 @@ public sealed class Http2ServerFlowControlSpec
     public void DecodeClientData_with_window_update_should_not_emit_goaway()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -260,7 +260,7 @@ public sealed class Http2ServerFlowControlSpec
                 InitialStreamWindowSize = initialWindowSize
             }
         };
-        var sm = new Http2ServerStateMachine(options, ops);
+        var sm = new Http2ServerStateMachine(options.ToHttp2Options(), ops);
 
         // Send HEADERS
         var headerBlock = EncodeHeaders("POST", "/", "example.com");

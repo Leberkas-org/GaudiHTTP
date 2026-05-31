@@ -17,7 +17,7 @@ public sealed class ServerStateMachineSpec
     public void DecodeClientData_should_emit_request_when_complete_get()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
@@ -42,7 +42,7 @@ public sealed class ServerStateMachineSpec
     public void OnResponse_should_emit_response_headers()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
@@ -80,7 +80,7 @@ public sealed class ServerStateMachineSpec
     public void CanAcceptResponse_should_be_false_when_no_pending_requests()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         Assert.False(sm.CanAcceptResponse);
     }
@@ -90,7 +90,7 @@ public sealed class ServerStateMachineSpec
     public void CanAcceptResponse_should_be_true_after_request_decoded()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
@@ -112,7 +112,7 @@ public sealed class ServerStateMachineSpec
     public void ShouldCloseAfterResponse_should_be_true_when_connection_close_header()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
@@ -135,7 +135,7 @@ public sealed class ServerStateMachineSpec
     public void ShouldCloseAfterResponse_should_be_true_when_http_10_request()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.0\r\n" +
@@ -157,7 +157,7 @@ public sealed class ServerStateMachineSpec
     public void OnResponse_should_set_connection_close_header_when_flag_set()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
@@ -190,7 +190,7 @@ public sealed class ServerStateMachineSpec
     public void OnResponse_should_not_include_body_in_transport_data()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
@@ -223,7 +223,7 @@ public sealed class ServerStateMachineSpec
     public void OnBodyMessage_should_emit_body_chunk_as_transport_data()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
@@ -262,7 +262,7 @@ public sealed class ServerStateMachineSpec
     public void CanAcceptResponse_should_be_false_when_outbound_body_pending()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
@@ -295,7 +295,7 @@ public sealed class ServerStateMachineSpec
     public void DecodeClientData_should_signal_error_for_oversized_uri()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var longUri = "/" + new string('a', 16_000);
         var requestData = Encoding.ASCII.GetBytes(
@@ -318,7 +318,7 @@ public sealed class ServerStateMachineSpec
     public void OnResponse_should_not_include_transfer_encoding_for_204()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "GET / HTTP/1.1\r\n" +
@@ -348,7 +348,7 @@ public sealed class ServerStateMachineSpec
     public void DecodeClientData_should_pass_unknown_transfer_encoding_to_application()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var requestData = Encoding.ASCII.GetBytes(
             "POST / HTTP/1.1\r\n" +

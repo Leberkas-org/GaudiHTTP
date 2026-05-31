@@ -9,14 +9,14 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3StreamRoutingSpec
 {
-    private readonly FakeOps _ops = new();
+    private readonly FakeClientOps _clientOps = new();
     private readonly QpackTableSync _tableSync = new();
 
-    private Http3ClientStateMachine CreateMachine(FakeOps? ops = null)
+    private Http3ClientStateMachine CreateMachine(FakeClientOps? ops = null)
     {
         return new Http3ClientStateMachine(
             new TurboClientOptions(),
-            ops ?? _ops);
+            ops ?? _clientOps);
     }
 
     private HeadersFrame EncodeHeaders(params (string Name, string Value)[] headers)
@@ -72,14 +72,14 @@ public sealed class Http3StreamRoutingSpec
         sm.DecodeServerData(new StreamReadCompleted(4));
 
         // Verify responses were assembled with correct data integrity
-        Assert.Equal(2, _ops.Responses.Count);
+        Assert.Equal(2, _clientOps.Responses.Count);
 
         // Verify stream 0's response body is all 0xAA
-        var body0 = await _ops.Responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var body0 = await _clientOps.Responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.True(body0.All(b => b == 0xAA), "Stream 0 body corrupted");
 
         // Verify stream 4's response body is all 0xBB
-        var body4 = await _ops.Responses[1].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var body4 = await _clientOps.Responses[1].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.True(body4.All(b => b == 0xBB), "Stream 4 body corrupted");
     }
 
@@ -114,15 +114,15 @@ public sealed class Http3StreamRoutingSpec
         sm.DecodeServerData(new StreamReadCompleted(0));
         sm.DecodeServerData(new StreamReadCompleted(4));
 
-        Assert.Equal(2, _ops.Responses.Count);
+        Assert.Equal(2, _clientOps.Responses.Count);
 
         // Verify stream 0 response body is all 0xAA
-        var body0 = await _ops.Responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var body0 = await _clientOps.Responses[0].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodySize, body0.Length);
         Assert.True(body0.All(b => b == 0xAA), "Stream 0 body corrupted — contains bytes from another stream");
 
         // Verify stream 4 response body is all 0xBB
-        var body4 = await _ops.Responses[1].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
+        var body4 = await _clientOps.Responses[1].Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(bodySize, body4.Length);
         Assert.True(body4.All(b => b == 0xBB), "Stream 4 body corrupted — contains bytes from another stream");
     }
@@ -165,8 +165,8 @@ public sealed class Http3StreamRoutingSpec
         sm.DecodeServerData(new StreamReadCompleted(0));
 
         // Response should be assembled despite fragmentation
-        Assert.Single(_ops.Responses);
-        var body = _ops.Responses[0].Content.ReadAsStream(TestContext.Current.CancellationToken);
+        Assert.Single(_clientOps.Responses);
+        var body = _clientOps.Responses[0].Content.ReadAsStream(TestContext.Current.CancellationToken);
         var buffer = new byte[512];
         var bytesRead = body.Read(buffer);
         Assert.Equal(512, bytesRead);
@@ -198,9 +198,9 @@ public sealed class Http3StreamRoutingSpec
         // Flush to get response
         sm.DecodeServerData(new StreamReadCompleted(0));
 
-        Assert.Single(_ops.Responses);
+        Assert.Single(_clientOps.Responses);
         var bodyBuffer = new byte[512];
-        var bodyStream = _ops.Responses[0].Content.ReadAsStream(TestContext.Current.CancellationToken);
+        var bodyStream = _clientOps.Responses[0].Content.ReadAsStream(TestContext.Current.CancellationToken);
         var bytesRead = bodyStream.Read(bodyBuffer);
         var body = bodyBuffer.Take(bytesRead).ToArray();
         Assert.Equal(512, body.Length);

@@ -8,8 +8,16 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerEncoderHardeningSpec
 {
+    private static Http11ServerEncoderOptions DefaultEncoderOptions() => new()
+    {
+        KeepAliveTimeout = TimeSpan.FromSeconds(120),
+        RequestHeadersTimeout = TimeSpan.FromSeconds(30),
+        WriteDateHeader = true,
+        MaxHeaderBytes = 32 * 1024,
+    };
+
     private static Http11ServerEncoder MakeEncoder(bool withDate = false) =>
-        new(Http11ServerEncoderOptions.Default with { WriteDateHeader = withDate });
+        new(DefaultEncoderOptions() with { WriteDateHeader = withDate });
 
     [Theory(Timeout = 5000)]
     [InlineData("Connection")]

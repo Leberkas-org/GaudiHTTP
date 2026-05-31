@@ -7,15 +7,15 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3StateMachineEdgeCasesSpec
 {
-    private readonly FakeOps _ops = new();
+    private readonly FakeClientOps _clientOps = new();
 
     private Http3ClientStateMachine CreateMachine(
         TurboClientOptions? options = null,
-        FakeOps? ops = null)
+        FakeClientOps? ops = null)
     {
         return new Http3ClientStateMachine(
             options ?? new TurboClientOptions(),
-            ops ?? _ops);
+            ops ?? _clientOps);
     }
 
     private static void SimulateConnect(Http3ClientStateMachine sm)
@@ -28,12 +28,12 @@ public sealed class Http3StateMachineEdgeCasesSpec
     public void PreStart_should_emit_control_streams_and_preface()
     {
         var sm = CreateMachine();
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.PreStart();
         SimulateConnect(sm);
 
-        var outbound = _ops.Outbound.ToList();
+        var outbound = _clientOps.Outbound.ToList();
         Assert.NotEmpty(outbound);
 
         var controlStreamOpens = outbound.OfType<OpenStream>()
@@ -53,10 +53,10 @@ public sealed class Http3StateMachineEdgeCasesSpec
     {
         var sm = CreateMachine();
         sm.PreStart();
-        var firstCallOutbound = _ops.Outbound.Count;
+        var firstCallOutbound = _clientOps.Outbound.Count;
 
         sm.PreStart();
-        var secondCallOutbound = _ops.Outbound.Count;
+        var secondCallOutbound = _clientOps.Outbound.Count;
 
         Assert.True(secondCallOutbound >= firstCallOutbound);
     }
@@ -66,12 +66,12 @@ public sealed class Http3StateMachineEdgeCasesSpec
     public void PreStart_should_emit_preface_on_control_stream()
     {
         var sm = CreateMachine();
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.PreStart();
         SimulateConnect(sm);
 
-        var prefaces = _ops.Outbound.OfType<MultiplexedData>()
+        var prefaces = _clientOps.Outbound.OfType<MultiplexedData>()
             .Where(b => b.StreamId == -2)
             .ToList();
         Assert.NotEmpty(prefaces);

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server.Context;
 using TurboHTTP.Server.Context.Features;
@@ -9,6 +10,14 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server;
 
 public sealed class Http2ServerTrailerEncodingSpec
 {
+    private static Http2ServerEncoderOptions DefaultEncoderOptions() => new()
+    {
+        MaxFrameSize = 16 * 1024,
+        HeaderTableSize = 4096,
+        WriteDateHeader = false,
+        MaxHeaderBytes = 32 * 1024
+    };
+
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.1")]
     public void TrailerFeature_should_store_and_retrieve_trailer_headers()
@@ -70,7 +79,7 @@ public sealed class Http2ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void Encoder_should_produce_trailing_HEADERS_frame_with_END_STREAM()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
         var trailers = new TurboResponseHeaderDictionary
         {
             { "grpc-status", "0" },
@@ -92,7 +101,7 @@ public sealed class Http2ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9110-6.5.1")]
     public void Encoder_should_filter_prohibited_trailer_fields()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
         var decoder = new HpackDecoder();
 
         var trailers = new TurboResponseHeaderDictionary

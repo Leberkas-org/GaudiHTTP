@@ -87,7 +87,7 @@ public sealed class Http2ServerBodyStreamingSpec
     public async Task DecodeClientData_with_body_should_emit_request_on_headers_with_streaming_content()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         // Send HEADERS frame with endStream=false (body will follow)
         var headerBlock = EncodeHeaders("POST", "/api/data", "example.com");
@@ -130,7 +130,7 @@ public sealed class Http2ServerBodyStreamingSpec
     public void DecodeClientData_headers_only_should_emit_request_without_pipe_content()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         // Send HEADERS frame with endStream=true (no body)
         var headerBlock = EncodeHeaders("GET", "/api/status", "example.com");
@@ -167,7 +167,7 @@ public sealed class Http2ServerBodyStreamingSpec
                 MaxRequestBodySize = maxBodySize
             }
         };
-        var sm = new Http2ServerStateMachine(options, ops);
+        var sm = new Http2ServerStateMachine(options.ToHttp2Options(), ops);
 
         // Send HEADERS frame with endStream=false
         var headerBlock = EncodeHeaders("POST", "/api/upload", "example.com");
@@ -214,7 +214,7 @@ public sealed class Http2ServerBodyStreamingSpec
     public async Task DecodeClientData_with_multiple_data_frames_should_aggregate_in_pipe()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         // Send HEADERS frame with endStream=false
         var headerBlock = EncodeHeaders("POST", "/api/stream", "example.com");
@@ -263,7 +263,7 @@ public sealed class Http2ServerBodyStreamingSpec
     public void DecodeClientData_with_rst_stream_should_complete_body_writer_with_cancellation()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         // Send HEADERS frame with endStream=false
         var headerBlock = EncodeHeaders("POST", "/api/upload", "example.com");

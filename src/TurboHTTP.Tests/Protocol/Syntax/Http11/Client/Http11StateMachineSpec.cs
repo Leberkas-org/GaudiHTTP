@@ -79,7 +79,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void OnRequest_should_enqueue_request_and_emit_stream_acquire()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         sm.OnRequest(MakeRequest());
@@ -91,7 +91,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void OnRequest_should_emit_network_buffer_with_encoded_data()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         sm.OnRequest(MakeRequest());
@@ -106,7 +106,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void OnRequest_should_set_endpoint_on_first_request()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         sm.OnRequest(MakeRequest());
@@ -118,7 +118,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void OnRequest_should_respect_max_pipeline_depth()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig(maxPipelineDepth: 2));
 
         sm.OnRequest(MakeRequest("/1"));
@@ -131,7 +131,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void OnRequest_should_handle_post_request_with_content()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         var content = new StringContent("test body", Encoding.UTF8);
 
@@ -149,7 +149,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void OnRequest_should_emit_multiple_requests_in_pipeline()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         sm.OnRequest(MakeRequest("/1"));
@@ -169,7 +169,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void OnRequest_should_handle_request_without_content()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         sm.OnRequest(MakeRequest("/", "GET"));
@@ -184,7 +184,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void OnRequest_should_respect_max_buffer_size()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         var content = new StringContent("test", Encoding.UTF8);
 
@@ -200,7 +200,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void DecodeServerData_should_decode_single_response()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -215,7 +215,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void DecodeServerData_should_emit_connection_reuse_item()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -227,7 +227,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void DecodeServerData_should_decode_multiple_pipelined_responses()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -246,7 +246,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void DecodeServerData_should_buffer_close_delimited_response()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -260,7 +260,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void DecodeServerData_should_accumulate_body_for_close_delimited_response()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -277,7 +277,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void DecodeServerData_should_handle_connection_close_header()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -293,7 +293,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void DecodeServerData_should_handle_graceful_disconnect()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
@@ -308,7 +308,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void DecodeServerData_should_clear_effective_pipeline_depth_when_connection_close_with_multiple_inflight()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -324,7 +324,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void DecodeServerData_should_preserve_request_reference()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         var req = MakeRequest();
         sm.OnRequest(req);
@@ -339,7 +339,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void DecodeServerData_should_complete_close_delimited_response_on_graceful_disconnect()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -358,7 +358,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void DecodeServerData_should_fail_request_on_abrupt_close_with_pending_close_delimited()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         var (request, pending) = MakeTrackedRequest();
         sm.OnRequest(request);
@@ -376,7 +376,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void DecodeServerData_should_decode_eof_response_on_graceful_disconnect()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -392,7 +392,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void DecodeServerData_should_stay_alive_after_abrupt_close_when_no_pending()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         var (request, _) = MakeTrackedRequest();
         sm.OnRequest(request);
@@ -409,7 +409,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void DecodeServerData_should_fail_request_on_abrupt_close_with_body_owners()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         var (request, pending) = MakeTrackedRequest();
         sm.OnRequest(request);
@@ -429,7 +429,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void OnUpstreamFinished_should_complete_when_no_inflight_requests()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         sm.OnUpstreamFinished();
@@ -441,7 +441,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void OnUpstreamFinished_should_fail_orphaned_requests()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         var (request1, pending1) = MakeTrackedRequest("/1");
         var (request2, pending2) = MakeTrackedRequest("/2");
@@ -461,7 +461,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void CanAcceptRequest_should_be_true_initially()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         Assert.True(sm.CanAcceptRequest);
@@ -471,7 +471,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void CanAcceptRequest_should_be_false_when_queue_full()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig(maxPipelineDepth: 2));
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -483,7 +483,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void HasInFlightRequests_should_reflect_queue_count()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         Assert.False(sm.HasInFlightRequests);
@@ -495,7 +495,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void Endpoint_should_be_initialized_on_first_request()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         Assert.Equal(default, sm.Endpoint);
@@ -507,7 +507,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void PendingRequestCount_should_reflect_queue_count()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -519,7 +519,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void IsReconnecting_should_be_false_initially()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
 
         Assert.False(sm.IsReconnecting);
@@ -529,7 +529,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void Cleanup_should_clear_inflight_queue()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -543,7 +543,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void Cleanup_should_dispose_body_owners()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -561,7 +561,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void Pipeline_should_correlate_responses_to_requests_in_order()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -583,7 +583,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void CloseDelimited_should_work_with_initial_body_bytes()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -603,7 +603,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void NoBodyResponseTypes_should_not_be_close_delimited()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -618,7 +618,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void Not_Modified_should_not_be_close_delimited()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -633,7 +633,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-9.8")]
     public void TransferEncoding_chunked_should_not_be_close_delimited()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest());
 
@@ -647,7 +647,7 @@ public sealed class Http11StateMachineSpec
     [Trait("RFC", "RFC9112-6")]
     public void Multiple_requests_with_connection_close_should_disable_pipeline()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
         sm.OnRequest(MakeRequest("/1"));
         sm.OnRequest(MakeRequest("/2"));
@@ -664,7 +664,7 @@ public sealed class Http11StateMachineSpec
     [Fact(Timeout = 5000)]
     public void CanAcceptRequest_should_be_false_while_body_pending()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, new TurboClientOptions());
         sm.PreStart();
 
@@ -680,7 +680,7 @@ public sealed class Http11StateMachineSpec
     [Fact(Timeout = 5000)]
     public void CanAcceptRequest_should_become_true_after_OutboundBodyComplete()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, new TurboClientOptions());
         sm.PreStart();
 

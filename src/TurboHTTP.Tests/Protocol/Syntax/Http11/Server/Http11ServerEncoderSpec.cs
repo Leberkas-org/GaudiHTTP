@@ -8,7 +8,15 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerEncoderSpec
 {
-    private readonly Http11ServerEncoder _encoder = new(Http11ServerEncoderOptions.Default);
+    private static Http11ServerEncoderOptions DefaultEncoderOptions() => new()
+    {
+        KeepAliveTimeout = TimeSpan.FromSeconds(120),
+        RequestHeadersTimeout = TimeSpan.FromSeconds(30),
+        WriteDateHeader = true,
+        MaxHeaderBytes = 32 * 1024,
+    };
+
+    private readonly Http11ServerEncoder _encoder = new(DefaultEncoderOptions());
 
     [Fact(Timeout = 5000)]
     public void Encode_should_write_status_line()

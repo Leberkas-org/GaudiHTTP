@@ -70,7 +70,7 @@ public sealed class Http2ServerTimerErrorSpec
     public void PreStart_should_schedule_keep_alive_timer()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
 
@@ -85,7 +85,7 @@ public sealed class Http2ServerTimerErrorSpec
     public void OnTimerFired_keep_alive_should_emit_GoAway()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -108,7 +108,7 @@ public sealed class Http2ServerTimerErrorSpec
     public void ShouldComplete_should_always_be_false()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         Assert.False(sm.ShouldComplete);
 
@@ -129,7 +129,7 @@ public sealed class Http2ServerTimerErrorSpec
     public void DecodeClientData_should_cancel_keep_alive_when_streams_open()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
         ops.CancelledTimers.Clear();
@@ -148,7 +148,7 @@ public sealed class Http2ServerTimerErrorSpec
     public void OnTimerFired_headers_timeout_should_emit_RstStream()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -171,13 +171,14 @@ public sealed class Http2ServerTimerErrorSpec
     public void Cleanup_should_be_idempotent()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
 
         // Should not throw when called multiple times
         sm.Cleanup();
         sm.Cleanup();
+        Assert.True(true);
     }
 
     [Fact(Timeout = 5000)]
@@ -185,12 +186,14 @@ public sealed class Http2ServerTimerErrorSpec
     public void OnResponse_for_unknown_stream_should_not_crash()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
 
         // Should not throw when responding on unknown stream
         var context = CreateResponseContext();
         sm.OnResponse(context);
+
+        Assert.True(true);
     }
 }

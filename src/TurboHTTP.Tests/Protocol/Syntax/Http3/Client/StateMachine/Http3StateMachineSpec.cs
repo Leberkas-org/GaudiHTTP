@@ -9,7 +9,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3StateMachineSpec
 {
-    private readonly FakeOps _ops = new();
+    private readonly FakeClientOps _clientOps = new();
 
     private static readonly ConnectionInfo DummyConnectionInfo = new(
         new IPEndPoint(IPAddress.Loopback, 5000),
@@ -18,11 +18,11 @@ public sealed class Http3StateMachineSpec
 
     private Http3ClientStateMachine CreateMachine(
         TurboClientOptions? options = null,
-        FakeOps? ops = null)
+        FakeClientOps? ops = null)
     {
         return new Http3ClientStateMachine(
             options ?? new TurboClientOptions(),
-            ops ?? _ops);
+            ops ?? _clientOps);
     }
 
     private static TransportBuffer SerializeFrame(Http3Frame frame)
@@ -49,7 +49,7 @@ public sealed class Http3StateMachineSpec
         SimulateConnect(sm);
 
         // Should emit OpenStream messages for control streams
-        Assert.NotEmpty(_ops.Outbound);
+        Assert.NotEmpty(_clientOps.Outbound);
     }
 
     [Fact(Timeout = 5000)]
@@ -171,7 +171,7 @@ public sealed class Http3StateMachineSpec
         sm.DecodeServerData(new MultiplexedData(buffer, -2));
 
         // Should have emitted a CancelPush response on control stream
-        Assert.Contains(_ops.Outbound, o => o is MultiplexedData md && md.StreamId < 0);
+        Assert.Contains(_clientOps.Outbound, o => o is MultiplexedData md && md.StreamId < 0);
     }
 
     [Fact(Timeout = 5000)]
@@ -218,8 +218,8 @@ public sealed class Http3StateMachineSpec
         var sm = CreateMachine();
         sm.PreStart();
         sm.OnRequest(CreateGetRequest());
-        _ops.Outbound.Clear();
-        _ops.Responses.Clear();
+        _clientOps.Outbound.Clear();
+        _clientOps.Responses.Clear();
 
         var qpack = new TurboHTTP.Protocol.Syntax.Http3.Qpack.QpackEncoder(maxTableCapacity: 0);
         var headers = new HeadersFrame(qpack.Encode([(":status", "200")]));
@@ -238,7 +238,7 @@ public sealed class Http3StateMachineSpec
         var sm = CreateMachine();
         sm.PreStart();
         sm.OnRequest(CreateGetRequest());
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         var data = new DataFrame("He"u8.ToArray());
         var buffer = SerializeFrame(data);
@@ -253,11 +253,11 @@ public sealed class Http3StateMachineSpec
     {
         var sm = CreateMachine();
         sm.PreStart();
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.OnRequest(CreateGetRequest());
 
-        Assert.NotEmpty(_ops.Outbound);
+        Assert.NotEmpty(_clientOps.Outbound);
     }
 
     [Fact(Timeout = 5000)]
@@ -318,12 +318,12 @@ public sealed class Http3StateMachineSpec
         sm.PreStart();
         sm.OnRequest(CreateGetRequest());
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.OnRequest(CreateGetRequest());
 
         Assert.True(sm.ReconnectBufferCount > 0);
-        Assert.Empty(_ops.Outbound); // not emitted during reconnect
+        Assert.Empty(_clientOps.Outbound); // not emitted during reconnect
     }
 
     [Fact(Timeout = 5000)]
@@ -334,7 +334,7 @@ public sealed class Http3StateMachineSpec
         sm.PreStart();
         sm.OnRequest(CreateGetRequest());
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.OnRequest(CreateGetRequest());
         var bufferedCount = sm.ReconnectBufferCount;
@@ -344,7 +344,7 @@ public sealed class Http3StateMachineSpec
 
         Assert.False(sm.IsReconnecting);
         Assert.Equal(0, sm.ReconnectBufferCount);
-        Assert.NotEmpty(_ops.Outbound); // replayed frames
+        Assert.NotEmpty(_clientOps.Outbound); // replayed frames
     }
 
     [Fact(Timeout = 5000)]
@@ -415,7 +415,7 @@ public sealed class Http3StateMachineSpec
 
         sm.OnUpstreamFinished();
 
-        Assert.Equal(2, _ops.Responses.Count);
+        Assert.Equal(2, _clientOps.Responses.Count);
     }
 
     [Fact(Timeout = 5000)]
@@ -442,14 +442,14 @@ public sealed class Http3StateMachineSpec
         sm.OnRequest(CreateGetRequest("https://example.com/b"));
 
         // Responses are emitted on HEADERS (streaming model)
-        Assert.Equal(2, _ops.Responses.Count);
-        Assert.Equal(HttpStatusCode.OK, _ops.Responses[0].StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, _ops.Responses[1].StatusCode);
+        Assert.Equal(2, _clientOps.Responses.Count);
+        Assert.Equal(HttpStatusCode.OK, _clientOps.Responses[0].StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, _clientOps.Responses[1].StatusCode);
 
         // StreamReadCompleted completes the body handles
         sm.DecodeServerData(new StreamReadCompleted(4));
         sm.DecodeServerData(new StreamReadCompleted(0));
-        Assert.Equal(2, _ops.Responses.Count);
+        Assert.Equal(2, _clientOps.Responses.Count);
     }
 
     [Fact(Timeout = 5000)]
@@ -471,8 +471,8 @@ public sealed class Http3StateMachineSpec
         sm.DecodeServerData(new MultiplexedData(SerializeFrame(headers), 4));
         sm.DecodeServerData(new StreamReadCompleted(4));
 
-        Assert.Single(_ops.Responses);
-        Assert.Same(req2, _ops.Responses[0].RequestMessage);
+        Assert.Single(_clientOps.Responses);
+        Assert.Same(req2, _clientOps.Responses[0].RequestMessage);
     }
 
     [Fact(Timeout = 5000)]
@@ -482,12 +482,12 @@ public sealed class Http3StateMachineSpec
         var sm = CreateMachine();
         sm.PreStart();
         SimulateConnect(sm);
-        _ops.Outbound.Clear(); // Clear control stream setup frames
+        _clientOps.Outbound.Clear(); // Clear control stream setup frames
 
         sm.OnRequest(CreateGetRequest());
 
         // All request frames should be tagged as MultiplexedData with stream ID 0
-        var tagged = _ops.Outbound
+        var tagged = _clientOps.Outbound
             .OfType<MultiplexedData>()
             .ToList();
         Assert.NotEmpty(tagged);
@@ -501,12 +501,12 @@ public sealed class Http3StateMachineSpec
         var sm = CreateMachine();
         sm.PreStart();
         SimulateConnect(sm);
-        _ops.Outbound.Clear(); // Clear control stream setup frames
+        _clientOps.Outbound.Clear(); // Clear control stream setup frames
 
         sm.OnRequest(CreateGetRequest("https://example.com/a"));
         sm.OnRequest(CreateGetRequest("https://example.com/b"));
 
-        var tagged = _ops.Outbound.OfType<MultiplexedData>().ToList();
+        var tagged = _clientOps.Outbound.OfType<MultiplexedData>().ToList();
         Assert.NotEmpty(tagged);
         var streamIds = tagged.Select(t => t.StreamId).Distinct().ToList();
         Assert.Equal(2, streamIds.Count);

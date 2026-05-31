@@ -50,7 +50,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_decode_complete_request()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("GET /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
@@ -67,7 +67,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_not_complete_before_response()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
@@ -82,7 +82,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void OnResponse_should_not_emit_transport_data_before_body_delivered()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var context = CreateResponseContext();
 
@@ -97,7 +97,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     {
         var inbox = Inbox.Create(Sys);
         var ops = new FakeServerOps { StageActor = inbox.Receiver };
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
         sm.PreStart();
 
         var context = await CreateResponseContextWithBody("hello");
@@ -124,7 +124,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void OnResponse_should_add_connection_close_header()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var context = CreateResponseContext();
 
@@ -138,7 +138,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void CanAcceptResponse_should_always_be_true()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         Assert.True(sm.CanAcceptResponse);
     }
@@ -148,7 +148,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void Cleanup_should_abort_active_body()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         sm.Cleanup();
 
@@ -161,7 +161,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     {
         var inbox = Inbox.Create(Sys);
         var ops = new FakeServerOps { StageActor = inbox.Receiver };
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
         sm.PreStart();
 
         var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
@@ -187,7 +187,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_signal_error_for_unknown_method()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("PATCH /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
         sm.DecodeClientData(new TransportData(requestBuffer));
@@ -202,7 +202,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_detect_simple_request()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("GET /path\r\n");
         sm.DecodeClientData(new TransportData(requestBuffer));
@@ -215,7 +215,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     public void DecodeClientData_should_handle_post_without_content_length()
     {
         var ops = MakeOps();
-        var sm = new Http10ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("POST /path HTTP/1.0\r\nHost: example.com\r\n\r\n");
         sm.DecodeClientData(new TransportData(requestBuffer));

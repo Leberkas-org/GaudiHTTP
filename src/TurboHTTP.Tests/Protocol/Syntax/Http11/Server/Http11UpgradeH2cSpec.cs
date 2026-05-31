@@ -62,7 +62,7 @@ public sealed class Http11UpgradeH2CSpec
     public void DecodeClientData_should_trigger_switch_when_upgrade_h2c_with_switchable_ops()
     {
         var ops = new SwitchCapableOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.DecodeClientData(MakeData(
             "GET / HTTP/1.1\r\n" +
@@ -86,7 +86,7 @@ public sealed class Http11UpgradeH2CSpec
     public void DecodeClientData_should_ignore_upgrade_when_ops_not_switchable()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.DecodeClientData(MakeData(
             "GET / HTTP/1.1\r\n" +
@@ -106,7 +106,7 @@ public sealed class Http11UpgradeH2CSpec
     public void DecodeClientData_should_ignore_upgrade_without_http2_settings()
     {
         var ops = new SwitchCapableOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.DecodeClientData(MakeData(
             "GET / HTTP/1.1\r\n" +

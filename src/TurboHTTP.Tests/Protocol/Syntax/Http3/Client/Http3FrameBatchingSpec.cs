@@ -11,7 +11,7 @@ public sealed class Http3FrameBatchingSpec
     [Fact(Timeout = 5000)]
     public void EncodeRequest_should_emit_single_MultiplexedData_for_headeronly_request()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var encoderOpts = Http3ClientEncoderOptions.Default;
         var decoderOpts = Http3ClientDecoderOptions.Default;
         var clientOpts = new TurboClientOptions { DangerousAcceptAnyServerCertificate = true };

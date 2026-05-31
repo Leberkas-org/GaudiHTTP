@@ -52,7 +52,7 @@ public sealed class Http2StateMachineReconnectSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void DecodeServerData_should_start_reconnect_on_disconnect_with_inflight()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/a"));
@@ -70,7 +70,7 @@ public sealed class Http2StateMachineReconnectSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void DecodeServerData_should_not_replay_non_idempotent_requests()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/a")); // stream 1
@@ -88,7 +88,7 @@ public sealed class Http2StateMachineReconnectSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void DecodeServerData_should_replay_requests_on_connection_restored()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet("/a"));
@@ -107,7 +107,7 @@ public sealed class Http2StateMachineReconnectSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void DecodeServerData_should_set_CanAcceptRequest_false_when_reconnecting()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
@@ -121,7 +121,7 @@ public sealed class Http2StateMachineReconnectSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void DecodeServerData_should_fail_when_max_reconnect_exceeded()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(maxReconnect: 1), ops);
         sm.PreStart();
         var (req, pending) = MakeTrackedGet();
@@ -138,7 +138,7 @@ public sealed class Http2StateMachineReconnectSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void DecodeServerData_should_emit_new_connect_when_reconnect_under_limit()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(maxReconnect: 3), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());

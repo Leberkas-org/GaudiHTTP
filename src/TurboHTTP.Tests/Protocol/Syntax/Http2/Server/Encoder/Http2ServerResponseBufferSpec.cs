@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Tests.Shared;
@@ -10,6 +11,14 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Encoder;
 
 public sealed class Http2ServerResponseBufferSpec
 {
+    private static Http2ServerEncoderOptions DefaultEncoderOptions() => new()
+    {
+        MaxFrameSize = 16 * 1024,
+        HeaderTableSize = 4096,
+        WriteDateHeader = false,
+        MaxHeaderBytes = 32 * 1024
+    };
+
     private static byte[] BuildHeadersFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endStream = false,
         bool endHeaders = true)
     {
@@ -114,7 +123,7 @@ public sealed class Http2ServerResponseBufferSpec
     public void OnResponse_with_no_body_should_send_headers_with_endstream()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         // Send HEADERS frame for stream 1
         var headerBlock = EncodeHeaders("GET", "/api/status", "example.com");
@@ -146,7 +155,7 @@ public sealed class Http2ServerResponseBufferSpec
     public void OnResponse_with_body_should_schedule_drain_timer_and_not_set_endstream()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         // Send HEADERS frame for stream 1
         var headerBlock = EncodeHeaders("GET", "/api/data", "example.com");
@@ -177,7 +186,7 @@ public sealed class Http2ServerResponseBufferSpec
     public void WindowUpdate_should_drain_outbound_buffer()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         var headerBlock = EncodeHeaders("GET", "/api/data", "example.com");
         var headersFrameData = BuildHeadersFrame(streamId: 1, headerBlock, endStream: true, endHeaders: true);
@@ -197,7 +206,7 @@ public sealed class Http2ServerResponseBufferSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void ServerResponseEncoder_EncodeHeaders_with_body_flag_should_not_set_endstream()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
 
         var ctx = ServerTestContext.CreateResponse();
 
@@ -212,7 +221,7 @@ public sealed class Http2ServerResponseBufferSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void ServerResponseEncoder_EncodeHeaders_without_body_flag_should_set_endstream()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
 
         var ctx = ServerTestContext.CreateResponse(204);
 
@@ -227,7 +236,7 @@ public sealed class Http2ServerResponseBufferSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void ServerResponseEncoder_ApplyClientSettings_should_update_max_frame_size()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
         var initialMaxFrameSize = encoder.MaxFrameSize;
 
         encoder.ApplyClientSettings([(SettingsParameter.MaxFrameSize, 32768u)]);
@@ -240,7 +249,7 @@ public sealed class Http2ServerResponseBufferSpec
     [Trait("RFC", "RFC9113-6.2")]
     public void ServerResponseEncoder_ApplyClientSettings_should_ignore_initial_window_size()
     {
-        var encoder = new Http2ServerEncoder();
+        var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
 
         // This should not throw and should be ignored by encoder
         encoder.ApplyClientSettings([(SettingsParameter.InitialWindowSize, 32768u)]);
