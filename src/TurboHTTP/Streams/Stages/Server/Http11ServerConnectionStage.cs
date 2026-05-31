@@ -13,12 +13,14 @@ internal sealed class Http11ServerConnectionStage : GraphStage<ServerConnectionS
     private readonly Outlet<IFeatureCollection> _outRequest = new("Http11Connection.Out.Request");
     private readonly Inlet<IFeatureCollection> _inResponse = new("Http11Connection.In.Response");
     private readonly Outlet<ITransportOutbound> _outNetwork = new("Http11Connection.Out.Network");
-    private readonly TurboServerOptions _options;
+    private readonly Http1ConnectionOptions _options;
+    private readonly Http2ConnectionOptions _h2UpgradeOptions;
     private readonly IServiceProvider? _services;
 
     public Http11ServerConnectionStage(TurboServerOptions options, IServiceProvider? services = null)
     {
-        _options = options;
+        _options = options.ToHttp1Options();
+        _h2UpgradeOptions = options.ToHttp2Options();
         _services = services;
     }
 
@@ -26,6 +28,6 @@ internal sealed class Http11ServerConnectionStage : GraphStage<ServerConnectionS
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionServerStageLogic<Http11ServerStateMachine>(this,
-            ops => new Http11ServerStateMachine(_options, ops),
+            ops => new Http11ServerStateMachine(_options, _h2UpgradeOptions, ops),
             _services);
 }

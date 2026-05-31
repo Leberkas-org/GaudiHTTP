@@ -13,12 +13,12 @@ internal sealed class Http30ServerConnectionStage : GraphStage<ServerConnectionS
     private readonly Outlet<IFeatureCollection> _outRequest = new("Http30Connection.Out.Request");
     private readonly Inlet<IFeatureCollection> _inResponse = new("Http30Connection.In.Response");
     private readonly Outlet<ITransportOutbound> _outNetwork = new("Http30Connection.Out.Network");
-    private readonly TurboServerOptions _options;
+    private readonly Http3ConnectionOptions _options;
     private readonly IServiceProvider? _services;
 
     public Http30ServerConnectionStage(TurboServerOptions options, IServiceProvider? services = null)
     {
-        _options = options;
+        _options = options.ToHttp3Options();
         _services = services;
     }
 
