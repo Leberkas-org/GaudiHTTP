@@ -13,12 +13,12 @@ internal sealed class Http20ServerConnectionStage : GraphStage<ServerConnectionS
     private readonly Outlet<IFeatureCollection> _outRequest = new("Http20Connection.Out.Request");
     private readonly Inlet<IFeatureCollection> _inResponse = new("Http20Connection.In.Response");
     private readonly Outlet<ITransportOutbound> _outNetwork = new("Http20Connection.Out.Network");
-    private readonly TurboServerOptions _options;
+    private readonly Http2ConnectionOptions _options;
     private readonly IServiceProvider? _services;
 
     public Http20ServerConnectionStage(TurboServerOptions options, IServiceProvider? services = null)
     {
-        _options = options;
+        _options = options.ToHttp2Options();
         _services = services;
     }
 

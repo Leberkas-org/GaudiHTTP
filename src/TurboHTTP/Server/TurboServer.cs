@@ -2,7 +2,6 @@ using Akka;
 using Akka.Actor;
 using Akka.Configuration;
 using Akka.Hosting.Logging;
-using Akka.Streams;
 using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -56,79 +55,84 @@ public sealed class TurboServer : IServer
             _ownsSystem = true;
         }
 
-        var materializer = _system.Materializer();
+        var resolver = new EndpointResolver();
+        var resolvedEndpoints = resolver.Resolve(_options);
 
-        var parallelism = _options.Http2.MaxConcurrentStreams;
+        var parallelism = _options.Limits.MaxConcurrentRequests > 0
+            ? _options.Limits.MaxConcurrentRequests
+            : int.MaxValue;
+
         var bridgeFlow = Flow.FromGraph(new ApplicationBridgeStage<TContext>(
             application,
             parallelism,
             _options.HandlerTimeout,
             _options.HandlerGracePeriod));
 
-        var resolver = new EndpointResolver();
-        var resolvedEndpoints = resolver.Resolve(_options);
-
-        var addressesFeature = _features.Get<IServerAddressesFeature>()!;
-        foreach (var endpoint in resolvedEndpoints)
-        {
-            var opts = endpoint.Options;
-            var scheme = (opts is TcpListenerOptions tcp && tcp.ServerCertificate is not null) ? "https" : "http";
-            var host = opts.Host ?? "localhost";
-            if (host == "0.0.0.0" || host == "::")
-            {
-                host = "localhost";
-            }
-            addressesFeature.Addresses.Add(string.Concat(scheme, "://", host, ":", opts.Port.ToString()));
-        }
-
-        var listenerProps = new List<Props>(resolvedEndpoints.Count);
-        foreach (var endpoint in resolvedEndpoints)
-        {
-            listenerProps.Add(ListenerActor.Create(
-                endpoint.Factory,
-                endpoint.Options,
-                _options,
-                bridgeFlow,
-                _services,
-                materializer,
-                endpoint.ConnectionLoggingCategory));
-        }
-
         _supervisor = _system.ActorOf(
             Props.Create(() => new ServerSupervisorActor()),
             "turbo-server");
 
-        await _supervisor.Ask<ServerSupervisorActor.ListenersReady>(
-            new ServerSupervisorActor.StartListeners(listenerProps),
+        var listenersReady = await _supervisor.Ask<ServerSupervisorActor.ListenersReady>(
+            new ServerSupervisorActor.StartServer(bridgeFlow, _options, resolvedEndpoints),
             TimeSpan.FromSeconds(30),
             cancellationToken);
 
-        var cs = CoordinatedShutdown.Get(_system);
-
-        cs.AddTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "turbo-stop-accepting", () =>
+        var addressesFeature = _features.Get<IServerAddressesFeature>()!;
+        for (var i = 0; i < resolvedEndpoints.Count; i++)
         {
-            _supervisor.Tell(new ServerSupervisorActor.StopAccepting());
-            return Task.FromResult(Done.Instance);
-        });
+            var opts = resolvedEndpoints[i].Options;
+            var scheme = opts is TcpListenerOptions { ServerCertificate: not null } ? "https" : "http";
+            var host = opts.Host;
+            if (host is "0.0.0.0" or "::")
+            {
+                host = "localhost";
+            }
 
-        cs.AddTask(CoordinatedShutdown.PhaseServiceUnbind, "turbo-goaway", () =>
-        {
-            _supervisor.Tell(new ServerSupervisorActor.BeginDrain(_options.GracefulShutdownTimeout));
-            return Task.FromResult(Done.Instance);
-        });
+            var port = i < listenersReady.BoundPorts.Count ? listenersReady.BoundPorts[i] : opts.Port;
+            addressesFeature.Addresses.Add(string.Concat(scheme, "://", host, ":", port.ToString()));
+        }
 
-        cs.AddTask(CoordinatedShutdown.PhaseServiceRequestsDone, "turbo-drain", async () =>
+        if (_ownsSystem)
         {
-            await Task.Delay(_options.GracefulShutdownTimeout, CancellationToken.None);
-            return Done.Instance;
-        });
+            var cs = CoordinatedShutdown.Get(_system);
+
+            cs.AddTask(CoordinatedShutdown.PhaseBeforeServiceUnbind, "turbo-stop-accepting", () =>
+            {
+                _supervisor.Tell(new ServerSupervisorActor.StopAccepting());
+                return Task.FromResult(Done.Instance);
+            });
+
+            cs.AddTask(CoordinatedShutdown.PhaseServiceUnbind, "turbo-goaway", () =>
+            {
+                _supervisor.Tell(new ServerSupervisorActor.BeginDrain(_options.GracefulShutdownTimeout));
+                return Task.FromResult(Done.Instance);
+            });
+
+            cs.AddTask(CoordinatedShutdown.PhaseServiceRequestsDone, "turbo-drain", async () =>
+            {
+                await Task.Delay(_options.GracefulShutdownTimeout, CancellationToken.None);
+                return Done.Instance;
+            });
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        if (_system is not null)
+        if (_system is null)
+        {
+            return;
+        }
+
+        if (_ownsSystem)
         {
             await CoordinatedShutdown.Get(_system).Run(CoordinatedShutdown.ClrExitReason.Instance);
+        }
+        else
+        {
+            _supervisor.Tell(new ServerSupervisorActor.StopAccepting());
+            _supervisor.Tell(new ServerSupervisorActor.BeginDrain(_options.GracefulShutdownTimeout));
+            await Task.Delay(_options.GracefulShutdownTimeout, cancellationToken);
+            await _supervisor.GracefulStop(_options.GracefulShutdownTimeout);
         }
     }
 

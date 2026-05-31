@@ -60,7 +60,20 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             {
                 Tracing.For("Stage").Info(this, "network upstream failure: {0}", ex.Message);
                 _sm.OnDownstreamFinished();
-                CompleteStage();
+                if (!IsClosed(_outRequest))
+                {
+                    Complete(_outRequest);
+                }
+
+                if (!IsClosed(_inResponse))
+                {
+                    Cancel(_inResponse);
+                }
+
+                if (!IsClosed(_outNetwork))
+                {
+                    Complete(_outNetwork);
+                }
             });
 
         SetHandler(_outRequest, onPull: () =>
@@ -122,10 +135,42 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             onUpstreamFailure: _ =>
             {
                 _sm.OnDownstreamFinished();
-                CompleteStage();
+                if (!IsClosed(_outRequest))
+                {
+                    Complete(_outRequest);
+                }
+
+                if (!IsClosed(_inNetwork))
+                {
+                    Cancel(_inNetwork);
+                }
+
+                if (!IsClosed(_outNetwork))
+                {
+                    Complete(_outNetwork);
+                }
             });
 
-        SetHandler(_outNetwork, onPull: OnNetworkPull);
+        SetHandler(_outNetwork,
+            onPull: OnNetworkPull,
+            onDownstreamFinish: _ =>
+            {
+                _sm.OnDownstreamFinished();
+                if (!IsClosed(_outRequest))
+                {
+                    Complete(_outRequest);
+                }
+
+                if (!IsClosed(_inResponse))
+                {
+                    Cancel(_inResponse);
+                }
+
+                if (!IsClosed(_inNetwork))
+                {
+                    Cancel(_inNetwork);
+                }
+            });
     }
 
     public override void PreStart()
@@ -200,7 +245,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     {
         if (_outboundQueue.Count > 0)
         {
-            Push(_outNetwork, _outboundQueue.Dequeue());
+            PushOutbound();
             return;
         }
 
@@ -212,6 +257,13 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         if (timerKey is string name)
         {
             _sm.OnTimerFired(name);
+
+            // If the state machine signals termination (data-rate violation, keep-alive timeout, etc.),
+            // abort the connection immediately. For H2/H3, ShouldComplete is always false, so this is safe.
+            if (_sm.ShouldComplete)
+            {
+                CompleteStage();
+            }
         }
     }
 
@@ -333,8 +385,68 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     {
         if (_outboundQueue.Count > 0 && IsAvailable(_outNetwork))
         {
+            PushOutbound();
+        }
+    }
+
+    private void PushOutbound()
+    {
+        if (_outboundQueue.Count == 1)
+        {
+            Push(_outNetwork, _outboundQueue.Dequeue());
+            return;
+        }
+
+        if (!TryCoalesceOutbound())
+        {
             Push(_outNetwork, _outboundQueue.Dequeue());
         }
+    }
+
+    private bool TryCoalesceOutbound()
+    {
+        var totalSize = 0;
+        var coalesceCount = 0;
+        const int maxCoalesce = 8;
+
+        foreach (var item in _outboundQueue)
+        {
+            if (item is not TransportData { Buffer: var buf })
+            {
+                break;
+            }
+
+            totalSize += buf.Length;
+            coalesceCount++;
+            if (coalesceCount >= maxCoalesce)
+            {
+                break;
+            }
+        }
+
+        if (coalesceCount < 2)
+        {
+            return false;
+        }
+
+        var merged = TransportBuffer.Rent(totalSize);
+        var dest = merged.FullMemory.Span;
+        var offset = 0;
+
+        for (var i = 0; i < coalesceCount; i++)
+        {
+            var item = _outboundQueue.Dequeue();
+            if (item is TransportData { Buffer: var buf })
+            {
+                buf.Span.CopyTo(dest[offset..]);
+                offset += buf.Length;
+                buf.Dispose();
+            }
+        }
+
+        merged.Length = offset;
+        Push(_outNetwork, new TransportData(merged));
+        return true;
     }
 
     private void TryPullResponse()

@@ -1,61 +1,103 @@
+using Akka;
 using Akka.Actor;
 using Akka.Event;
+using Akka.Streams;
+using Akka.Streams.Dsl;
+using Microsoft.AspNetCore.Http.Features;
+using Servus.Akka.Transport;
+using TurboHTTP.Server;
+using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Streams.Lifecycle;
 
 internal sealed class ServerSupervisorActor : ReceiveActor
 {
     private readonly ILoggingAdapter _log = Context.GetLogger();
-    private readonly Dictionary<string, IActorRef> _activeConnections = new();
-    private readonly List<IActorRef> _listeners = [];
+    private readonly List<ConnectionStageHandle> _handles = [];
+    private readonly List<int> _boundPorts = [];
     private IActorRef _startRequester = ActorRefs.Nobody;
     private int _pendingListenerCount;
+    private IActorRef _drainRequester = ActorRefs.Nobody;
+    private SharedKillSwitch? _pipelineKillSwitch;
 
-    public sealed record StartListeners(IReadOnlyList<Props> ListenerProps);
-    public sealed record ListenersReady;
+    public sealed record StartServer(
+        IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> BridgeFlow,
+        TurboServerOptions Options,
+        IReadOnlyList<ListenerBinding> Bindings);
+
+    public sealed record ListenersReady(IReadOnlyList<int> BoundPorts);
     public sealed record StopAccepting;
     public sealed record BeginDrain(TimeSpan Timeout);
     public sealed record DrainComplete;
-    public sealed record GetConnectionCount;
 
     public ServerSupervisorActor()
     {
-        Receive<StartListeners>(OnStartListeners);
-        Receive<ListenerActor.ListeningStarted>(_ => OnListenerReady());
+        Receive<StartServer>(OnStartServer);
+        Receive<ListenerActor.ListeningStarted>(OnListenerReady);
         Receive<StopAccepting>(_ => OnStopAccepting());
         Receive<BeginDrain>(OnBeginDrain);
-        Receive<ListenerActor.ConnectionStarted>(OnConnectionStarted);
-        Receive<ConnectionActor.ConnectionCompleted>(OnConnectionCompleted);
-        Receive<GetConnectionCount>(_ => Sender.Tell(_activeConnections.Count));
+        Receive<DrainComplete>(OnDrainComplete);
     }
 
-    private void OnStartListeners(StartListeners msg)
+    private void OnStartServer(StartServer msg)
     {
         _startRequester = Sender;
-        _pendingListenerCount = msg.ListenerProps.Count;
+        var materializer = Context.Materializer();
+
+        _pipelineKillSwitch = KillSwitches.Shared("server-pipeline");
+
+        var responseHub = new ResponseDispatcherHub();
+
+        var (requestSink, responseDispatcher) = MergeHub.Source<IFeatureCollection>(perProducerBufferSize: 64)
+            .Via(_pipelineKillSwitch.Flow<IFeatureCollection>())
+            .Via(msg.BridgeFlow)
+            .ToMaterialized(responseHub, Keep.Both)
+            .Run(materializer);
+
+        var dispatcher = new FairShareDispatcher(
+            msg.Options.Limits.MaxConcurrentRequests,
+            msg.Options.Limits.MinRequestGuarantee);
+
+        var pipelineHandles = new PipelineHandles(requestSink, responseDispatcher, dispatcher);
+
+        _pendingListenerCount = msg.Bindings.Count;
 
         if (_pendingListenerCount == 0)
         {
-            _startRequester.Tell(new ListenersReady());
+            _startRequester.Tell(new ListenersReady([]));
             return;
         }
 
-        for (var i = 0; i < msg.ListenerProps.Count; i++)
+        for (var i = 0; i < msg.Bindings.Count; i++)
         {
+            var binding = msg.Bindings[i];
+            var engine = binding.Options is QuicListenerOptions
+                ? ProtocolRouter.ResolveEngine(new Version(3, 0), msg.Options)
+                : ProtocolRouter.ResolveNegotiating(msg.Options);
+
+            var props = ListenerActor.Create(
+                binding.Factory,
+                binding.Options,
+                msg.Options,
+                pipelineHandles,
+                engine);
+
             var name = string.Concat("listener-", i);
-            var listener = Context.ActorOf(msg.ListenerProps[i], name);
+            var listener = Context.ActorOf(props, name);
             listener.Tell(new ListenerActor.StartListening());
-            _listeners.Add(listener);
         }
     }
 
-    private void OnListenerReady()
+    private void OnListenerReady(ListenerActor.ListeningStarted msg)
     {
+        _boundPorts.Add(msg.BoundPort);
+        _handles.Add(msg.Handle);
         _pendingListenerCount--;
+
         if (_pendingListenerCount <= 0)
         {
-            _log.Info("All {0} listener(s) ready", _listeners.Count);
-            _startRequester.Tell(new ListenersReady());
+            _log.Info("All {0} listener(s) ready", _handles.Count);
+            _startRequester.Tell(new ListenersReady(_boundPorts));
             _startRequester = ActorRefs.Nobody;
         }
     }
@@ -63,36 +105,48 @@ internal sealed class ServerSupervisorActor : ReceiveActor
     private void OnStopAccepting()
     {
         _log.Info("Supervisor: stop accepting on all listeners");
-        foreach (var listener in _listeners)
+        foreach (var handle in _handles)
         {
-            listener.Tell(new ListenerActor.StopAccepting());
+            handle.AcceptSwitch.Shutdown();
         }
     }
 
     private void OnBeginDrain(BeginDrain msg)
     {
-        _log.Info("Supervisor: draining {0} connections (timeout: {1})", _activeConnections.Count, msg.Timeout);
-        foreach (var listener in _listeners)
-        {
-            listener.Tell(new ListenerActor.GracefulStop(msg.Timeout));
-        }
+        _log.Info("Supervisor: initiating graceful drain (timeout: {0})", msg.Timeout);
+        _drainRequester = Sender;
 
-        if (_activeConnections.Count == 0)
+        _pipelineKillSwitch?.Shutdown();
+
+        if (_handles.Count == 0)
         {
             Sender.Tell(new DrainComplete());
+            _drainRequester = ActorRefs.Nobody;
+            return;
         }
+
+        var self = Self;
+        var completionTasks = new List<Task>(_handles.Count);
+
+        foreach (var handle in _handles)
+        {
+            handle.DrainSwitch.Shutdown();
+            completionTasks.Add(handle.CompletionTask);
+        }
+
+        Task.WhenAny(
+            Task.WhenAll(completionTasks),
+            Task.Delay(msg.Timeout))
+            .PipeTo(self,
+                success: _ => new DrainComplete(),
+                failure: ex => new DrainComplete());
     }
 
-    private void OnConnectionStarted(ListenerActor.ConnectionStarted msg)
+    private void OnDrainComplete(DrainComplete msg)
     {
-        _activeConnections[msg.ConnectionId] = msg.ConnectionActor;
-        _log.Debug("Connection {0} started, active={1}", msg.ConnectionId, _activeConnections.Count);
-    }
-
-    private void OnConnectionCompleted(ConnectionActor.ConnectionCompleted msg)
-    {
-        _activeConnections.Remove(msg.ConnectionId);
-        _log.Debug("Connection {0} completed ({1}), active={2}", msg.ConnectionId, msg.Reason, _activeConnections.Count);
+        _log.Info("Supervisor: drain completed");
+        _drainRequester.Tell(new DrainComplete());
+        _drainRequester = ActorRefs.Nobody;
     }
 
     protected override SupervisorStrategy SupervisorStrategy()
