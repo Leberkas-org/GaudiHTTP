@@ -1,24 +1,18 @@
+using System.Buffers;
+
 namespace TurboHTTP.Protocol.Syntax.Http11.Options;
 
 internal sealed record Http11ServerDecoderOptions
 {
-    public SharedHttpOptions Shared { get; init; } = SharedHttpOptions.Default;
-    public int MaxPipelinedRequests { get; init; } = 10;
-
-    public static Http11ServerDecoderOptions Default { get; } = new();
-
-    public void Validate()
-    {
-        if (MaxPipelinedRequests <= 0)
-        {
-            throw new ArgumentException("MaxPipelinedRequests must be greater than zero.", nameof(MaxPipelinedRequests));
-        }
-
-        if (Shared is null)
-        {
-            throw new ArgumentException("Shared must not be null.", nameof(Shared));
-        }
-
-        Shared.Validate();
-    }
+    public required int MaxPipelinedRequests { get; init; }
+    public required long StreamingThreshold { get; init; }
+    public required long MaxBufferedBodySize { get; init; }
+    public required long? MaxStreamedBodySize { get; init; }
+    public required int MaxHeaderBytes { get; init; }
+    public required int MaxHeaderCount { get; init; }
+    public required int HeaderLineMaxLength { get; init; }
+    public required int RequestLineMaxLength { get; init; }
+    public required int MaxRequestTargetLength { get; init; }
+    public required bool AllowObsFold { get; init; }
+    public required MemoryPool<byte> BufferPool { get; init; }
 }

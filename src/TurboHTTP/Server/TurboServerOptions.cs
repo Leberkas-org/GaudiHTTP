@@ -1,7 +1,7 @@
 using System.Net;
 using Servus.Akka.Transport;
-using Servus.Akka.Transport.Tcp.Listener;
 using Servus.Akka.Transport.Quic.Listener;
+using Servus.Akka.Transport.Tcp.Listener;
 
 namespace TurboHTTP.Server;
 

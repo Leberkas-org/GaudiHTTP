@@ -1,18 +1,17 @@
+using System.Buffers;
+
 namespace TurboHTTP.Protocol.Syntax.Http10.Options;
 
 internal sealed record Http10ServerDecoderOptions
 {
-    public SharedHttpOptions Shared { get; init; } = SharedHttpOptions.Default;
-
-    public static Http10ServerDecoderOptions Default { get; } = new();
-
-    public void Validate()
-    {
-        if (Shared is null)
-        {
-            throw new ArgumentException("Http10ServerDecoderOptions.Shared must not be null.");
-        }
-
-        Shared.Validate();
-    }
+    public required long StreamingThreshold { get; init; }
+    public required long MaxBufferedBodySize { get; init; }
+    public required long? MaxStreamedBodySize { get; init; }
+    public required int MaxHeaderBytes { get; init; }
+    public required int MaxHeaderCount { get; init; }
+    public required int HeaderLineMaxLength { get; init; }
+    public required int RequestLineMaxLength { get; init; }
+    public required int MaxRequestTargetLength { get; init; }
+    public required bool AllowObsFold { get; init; }
+    public required MemoryPool<byte> BufferPool { get; init; }
 }
