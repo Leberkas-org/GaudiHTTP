@@ -210,7 +210,7 @@ builder.Host.UseTurboHttp(options =>
     
     // HTTP/3 settings
     options.Http3.MaxHeaderListSize = 8192;
-    options.Http3.EnableWebTransport = false;
+    options.Http3.QpackBlockedStreams = 100;
 });
 ```
 
