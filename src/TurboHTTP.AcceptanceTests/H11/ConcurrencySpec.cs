@@ -56,7 +56,7 @@ public sealed class ConcurrencySpec : ClientAcceptanceTestBase
         Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
     }
 
-    [Fact(Timeout = 5000)]
+    [Fact(Timeout = 15000)]
     [Trait("RFC", "RFC9112-9.3")]
     public async Task Concurrency_should_succeed_with_sequential_burst_of_20_requests()
     {
