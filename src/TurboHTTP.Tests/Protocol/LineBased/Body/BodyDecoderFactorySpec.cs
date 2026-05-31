@@ -1,4 +1,3 @@
-using System.Buffers;
 using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Semantics;
 
@@ -9,7 +8,7 @@ public sealed class BodyDecoderFactorySpec
     private const int Threshold = 1024;
 
     private static IBodyDecoder Create(BodyClassification c)
-        => BodyDecoderFactory.Create(c, Threshold, MemoryPool<byte>.Shared);
+        => BodyDecoderFactory.Create(c, new BodyDecoderOptions { StreamingThreshold = Threshold });
 
     [Theory(Timeout = 5000)]
     [InlineData(0)]
@@ -63,7 +62,7 @@ public sealed class BodyDecoderFactorySpec
     {
         var decoder = BodyDecoderFactory.Create(
             new BodyClassification(BodyFraming.Chunked, null),
-            Threshold, MemoryPool<byte>.Shared, maxChunkExtensionLength: 8);
+            new BodyDecoderOptions { StreamingThreshold = Threshold, MaxChunkExtensionLength = 8 });
         var longExt = new string('a', 64);
         var data = System.Text.Encoding.ASCII.GetBytes($"5;{longExt}=v\r\nhello\r\n0\r\n\r\n");
 

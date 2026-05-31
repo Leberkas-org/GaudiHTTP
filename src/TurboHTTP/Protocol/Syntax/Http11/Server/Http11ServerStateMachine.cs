@@ -291,7 +291,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             _outboundBodyPending = true;
 
             var bodyStream = turboBody.GetResponseStream();
-            var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version11, _responseBodyChunkSize);
+            var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version11, new BodyEncoderOptions { ChunkSize = _responseBodyChunkSize });
             if (encoder is not null)
             {
                 _encoder.SetActiveBodyEncoder(encoder);

@@ -12,11 +12,11 @@ internal sealed class ContentLengthBufferedDecoder : IBodyDecoder
     public IReadOnlyList<(string Name, string Value)> Trailers => [];
     public bool IsComplete { get; private set; }
 
-    public ContentLengthBufferedDecoder(int expected, MemoryPool<byte> pool)
+    public ContentLengthBufferedDecoder(int expected)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(expected);
         _expected = expected;
-        _owner = pool.Rent(Math.Max(expected, 1));
+        _owner = MemoryPool<byte>.Shared.Rent(Math.Max(expected, 1));
         IsComplete = expected == 0;
     }
 

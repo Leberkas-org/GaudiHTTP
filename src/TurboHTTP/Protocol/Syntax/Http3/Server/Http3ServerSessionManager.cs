@@ -163,7 +163,7 @@ internal sealed class Http3ServerSessionManager
         }
 
         var bodyStream = turboBody.GetResponseStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, _responseBodyChunkSize);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, new BodyEncoderOptions { ChunkSize = _responseBodyChunkSize });
         if (encoder is null)
         {
             _ops.OnOutbound(new CompleteWrites(streamId));

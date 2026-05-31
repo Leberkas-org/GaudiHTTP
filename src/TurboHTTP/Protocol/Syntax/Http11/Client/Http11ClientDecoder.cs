@@ -93,10 +93,12 @@ internal sealed class Http11ClientDecoder
 
             _bodyDecoder = BodyDecoderFactory.Create(
                 classification,
-                _options.Shared.StreamingThreshold,
-                _options.Shared.BufferPool,
-                _options.Shared.MaxBufferedBodySize,
-                _options.Shared.MaxStreamedBodySize);
+                new BodyDecoderOptions
+                {
+                    StreamingThreshold = _options.Shared.StreamingThreshold,
+                    MaxBufferedBodySize = _options.Shared.MaxBufferedBodySize,
+                    MaxStreamedBodySize = _options.Shared.MaxStreamedBodySize,
+                });
 
             _phase = Phase.Body;
         }

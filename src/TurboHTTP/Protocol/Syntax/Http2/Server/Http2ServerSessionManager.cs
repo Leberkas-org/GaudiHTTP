@@ -201,7 +201,7 @@ internal sealed class Http2ServerSessionManager
         }
 
         var bodyStream = turboBody.GetResponseStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, _responseBodyChunkSize);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, new BodyEncoderOptions { ChunkSize = _responseBodyChunkSize });
         if (encoder is null)
         {
             CloseStream(streamId);
