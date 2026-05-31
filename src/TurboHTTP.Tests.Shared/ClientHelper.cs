@@ -1,4 +1,3 @@
-using TurboHTTP.Client;
 using Akka.Actor;
 using Akka.Configuration;
 using Akka.DependencyInjection;
@@ -7,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using TurboHTTP.Client;
 
 namespace TurboHTTP.Tests.Shared;
 
