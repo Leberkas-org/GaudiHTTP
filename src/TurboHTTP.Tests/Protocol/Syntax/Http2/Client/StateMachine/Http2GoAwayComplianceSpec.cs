@@ -37,7 +37,7 @@ public sealed class Http2GoAwayComplianceSpec
     [Trait("RFC", "RFC9113-6.8")]
     public void StateMachine_should_not_accept_requests_when_goaway_received()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
 

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
@@ -7,12 +8,23 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Server;
 
 public sealed class Http10ServerDecoderSecuritySpec
 {
-    private static Http10ServerDecoder MakeDecoder(SharedHttpOptions? shared = null)
+    private static Http10ServerDecoderOptions DefaultDecoderOptions() => new()
     {
-        var options = shared is null
-            ? Http10ServerDecoderOptions.Default
-            : new Http10ServerDecoderOptions { Shared = shared };
-        return new Http10ServerDecoder(options);
+        StreamingThreshold = 64 * 1024,
+        MaxBufferedBodySize = 4 * 1024 * 1024,
+        MaxStreamedBodySize = null,
+        MaxHeaderBytes = 32 * 1024,
+        MaxHeaderCount = 100,
+        HeaderLineMaxLength = 8 * 1024,
+        RequestLineMaxLength = 8 * 1024,
+        MaxRequestTargetLength = 8 * 1024,
+        AllowObsFold = false,
+        BufferPool = MemoryPool<byte>.Shared,
+    };
+
+    private static Http10ServerDecoder MakeDecoder(Http10ServerDecoderOptions? options = null)
+    {
+        return new Http10ServerDecoder(options ?? DefaultDecoderOptions());
     }
 
     [Fact(Timeout = 5000)]
@@ -78,8 +90,8 @@ public sealed class Http10ServerDecoderSecuritySpec
     [Fact(Timeout = 5000)]
     public void Feed_should_reject_header_block_exceeding_max_header_bytes()
     {
-        var shared = new SharedHttpOptions { MaxHeaderBytes = 64 };
-        var decoder = MakeDecoder(shared);
+        var options = DefaultDecoderOptions() with { MaxHeaderBytes = 64 };
+        var decoder = MakeDecoder(options);
         var headerValue = new string('x', 100);
         var raw = Encoding.ASCII.GetBytes($"GET / HTTP/1.0\r\nX-Custom: {headerValue}\r\n\r\n");
 
@@ -89,8 +101,8 @@ public sealed class Http10ServerDecoderSecuritySpec
     [Fact(Timeout = 5000)]
     public void Feed_should_reject_header_count_exceeding_max()
     {
-        var shared = new SharedHttpOptions { MaxHeaderCount = 2 };
-        var decoder = MakeDecoder(shared);
+        var options = DefaultDecoderOptions() with { MaxHeaderCount = 2 };
+        var decoder = MakeDecoder(options);
         var raw = "GET / HTTP/1.0\r\nX-One: 1\r\nX-Two: 2\r\nX-Three: 3\r\n\r\n"u8.ToArray();
 
         Assert.ThrowsAny<Exception>(() => decoder.Feed(raw, out _));
@@ -99,8 +111,8 @@ public sealed class Http10ServerDecoderSecuritySpec
     [Fact(Timeout = 5000)]
     public void Feed_should_reject_header_line_exceeding_max_length()
     {
-        var shared = new SharedHttpOptions { HeaderLineMaxLength = 32 };
-        var decoder = MakeDecoder(shared);
+        var options = DefaultDecoderOptions() with { HeaderLineMaxLength = 32 };
+        var decoder = MakeDecoder(options);
         var longValue = new string('a', 50);
         var raw = Encoding.ASCII.GetBytes($"GET / HTTP/1.0\r\nX-Long: {longValue}\r\n\r\n");
 
@@ -110,8 +122,8 @@ public sealed class Http10ServerDecoderSecuritySpec
     [Fact(Timeout = 5000)]
     public void Feed_should_reject_request_line_exceeding_max_length()
     {
-        var shared = new SharedHttpOptions { RequestLineMaxLength = 32 };
-        var decoder = MakeDecoder(shared);
+        var options = DefaultDecoderOptions() with { RequestLineMaxLength = 32 };
+        var decoder = MakeDecoder(options);
         var raw = Encoding.ASCII.GetBytes($"GET /{new string('a', 40)} HTTP/1.0\r\nContent-Length: 0\r\n\r\n");
 
         Assert.ThrowsAny<Exception>(() => decoder.Feed(raw, out _));
@@ -121,8 +133,8 @@ public sealed class Http10ServerDecoderSecuritySpec
     [Trait("RFC", "RFC9112-5.2")]
     public void Feed_should_accept_obs_fold_when_allowed()
     {
-        var shared = new SharedHttpOptions { AllowObsFold = true };
-        var decoder = MakeDecoder(shared);
+        var options = DefaultDecoderOptions() with { AllowObsFold = true };
+        var decoder = MakeDecoder(options);
         var raw = "GET / HTTP/1.0\r\nX-Multi: value1\r\n continued\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
 
         var outcome = decoder.Feed(raw, out _);
@@ -133,8 +145,8 @@ public sealed class Http10ServerDecoderSecuritySpec
     [Trait("RFC", "RFC9112-5.2")]
     public void Feed_should_reject_obs_fold_when_not_allowed()
     {
-        var shared = new SharedHttpOptions { AllowObsFold = false };
-        var decoder = MakeDecoder(shared);
+        var options = DefaultDecoderOptions() with { AllowObsFold = false };
+        var decoder = MakeDecoder(options);
         var raw = "GET / HTTP/1.0\r\nX-Multi: value1\r\n continued\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
 
         var ex = Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, out _));

@@ -19,11 +19,11 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
 /// </summary>
 public sealed class Http3SettingsPopulationSpec
 {
-    private readonly FakeOps _ops = new();
+    private readonly FakeClientOps _clientOps = new();
 
     private Http3ClientStateMachine CreateMachine(TurboClientOptions? options = null)
     {
-        return new Http3ClientStateMachine(options ?? new TurboClientOptions(), _ops);
+        return new Http3ClientStateMachine(options ?? new TurboClientOptions(), _clientOps);
     }
 
     private static void SimulateConnect(Http3ClientStateMachine sm)
@@ -43,12 +43,12 @@ public sealed class Http3SettingsPopulationSpec
             }
         };
         var sm = CreateMachine(opts);
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.PreStart();
         SimulateConnect(sm);
 
-        var settings = ExtractSettingsFromOutbound(_ops);
+        var settings = ExtractSettingsFromOutbound(_clientOps);
         Assert.NotNull(settings);
         Assert.Equal(8192L, settings.QpackMaxTableCapacity);
     }
@@ -65,12 +65,12 @@ public sealed class Http3SettingsPopulationSpec
             }
         };
         var sm = CreateMachine(opts);
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.PreStart();
         SimulateConnect(sm);
 
-        var settings = ExtractSettingsFromOutbound(_ops);
+        var settings = ExtractSettingsFromOutbound(_clientOps);
         Assert.NotNull(settings);
         Assert.Equal(50L, settings.QpackBlockedStreams);
     }
@@ -87,12 +87,12 @@ public sealed class Http3SettingsPopulationSpec
             }
         };
         var sm = CreateMachine(opts);
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.PreStart();
         SimulateConnect(sm);
 
-        var settings = ExtractSettingsFromOutbound(_ops);
+        var settings = ExtractSettingsFromOutbound(_clientOps);
         Assert.NotNull(settings);
         Assert.Equal(32768L, settings.MaxFieldSectionSize);
     }
@@ -111,12 +111,12 @@ public sealed class Http3SettingsPopulationSpec
             }
         };
         var sm = CreateMachine(opts);
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.PreStart();
         SimulateConnect(sm);
 
-        var settings = ExtractSettingsFromOutbound(_ops);
+        var settings = ExtractSettingsFromOutbound(_clientOps);
         Assert.NotNull(settings);
         // Verify all three are present and correct
         Assert.Equal(4096L, settings.QpackMaxTableCapacity);
@@ -129,13 +129,13 @@ public sealed class Http3SettingsPopulationSpec
     public void PreStart_should_emit_settings_on_control_stream()
     {
         var sm = CreateMachine();
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.PreStart();
         SimulateConnect(sm);
 
         // Find control stream data (stream ID -2) containing SETTINGS
-        var controlStreamData = _ops.Outbound
+        var controlStreamData = _clientOps.Outbound
             .OfType<MultiplexedData>()
             .Where(d => d.StreamId == -2)
             .ToList();
@@ -144,10 +144,10 @@ public sealed class Http3SettingsPopulationSpec
         Assert.NotEmpty(controlStreamData);
     }
 
-    private static Http3Settings? ExtractSettingsFromOutbound(FakeOps ops)
+    private static Http3Settings? ExtractSettingsFromOutbound(FakeClientOps clientOps)
     {
         // Find the control stream data (-2) that contains SETTINGS
-        var controlStreamData = ops.Outbound
+        var controlStreamData = clientOps.Outbound
             .OfType<MultiplexedData>()
             .FirstOrDefault(d => d.StreamId == -2);
 

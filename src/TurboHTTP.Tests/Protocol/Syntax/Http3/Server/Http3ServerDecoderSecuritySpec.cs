@@ -1,4 +1,5 @@
 using TurboHTTP.Protocol.Syntax.Http3;
+using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 
@@ -6,13 +7,21 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class Http3ServerDecoderSecuritySpec
 {
+    private static Http3ServerDecoderOptions DefaultDecoderOptions() => new()
+    {
+        MaxConcurrentStreams = 100,
+        MaxFieldSectionSize = 64 * 1024,
+        MaxHeaderBytes = 32 * 1024,
+        MaxHeaderCount = 100,
+    };
+
     private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0);
     private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0);
     private readonly Http3ServerDecoder _decoder;
 
     public Http3ServerDecoderSecuritySpec()
     {
-        _decoder = new Http3ServerDecoder(_decoderTableSync);
+        _decoder = new Http3ServerDecoder(_decoderTableSync, DefaultDecoderOptions());
     }
 
     private HeadersFrame EncodeAndSync(List<(string Name, string Value)> headers)
@@ -266,7 +275,7 @@ public sealed class Http3ServerDecoderSecuritySpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void DecodeHeaders_should_reject_field_section_exceeding_max_size()
     {
-        var decoderWithLimit = new Http3ServerDecoder(_decoderTableSync, maxFieldSectionSize: 128);
+        var decoderWithLimit = new Http3ServerDecoder(_decoderTableSync, DefaultDecoderOptions() with { MaxFieldSectionSize = 128 });
 
         var headers = new List<(string Name, string Value)>
         {

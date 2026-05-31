@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
+using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Tests.Shared;
 
@@ -11,6 +11,26 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3StreamLifecycleSpec
 {
+    private static Http3ConnectionOptions DefaultConnectionOptions() => new()
+    {
+        Limits = new ResolvedServerLimits(
+            MaxRequestBodySize: 30 * 1024 * 1024,
+            KeepAliveTimeout: TimeSpan.FromSeconds(130),
+            RequestHeadersTimeout: TimeSpan.FromSeconds(30),
+            MinRequestBodyDataRate: 240,
+            MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
+            MinResponseDataRate: 240,
+            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5)),
+        MaxConcurrentStreams = 100,
+        MaxHeaderListSize = 32 * 1024,
+        MaxHeaderCount = 100,
+        QpackMaxTableCapacity = 0,
+        QpackBlockedStreams = 0,
+        BodyBufferThreshold = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
+        BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
+    };
+
     private static IFeatureCollection CreateResponseContext(long streamId = 999)
     {
         var features = new TurboFeatureCollection();
@@ -57,9 +77,7 @@ public sealed class Http3StreamLifecycleSpec
 
     private static Http3ServerSessionManager CreateSM(FakeServerOps ops)
     {
-        var enc = new Http3ServerEncoderOptions { QpackMaxTableCapacity = 0 };
-        var dec = new Http3ServerDecoderOptions { MaxConcurrentStreams = 100 };
-        return new Http3ServerSessionManager(enc, dec, ops);
+        return new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
     }
 
     [Fact(Timeout = 5000)]

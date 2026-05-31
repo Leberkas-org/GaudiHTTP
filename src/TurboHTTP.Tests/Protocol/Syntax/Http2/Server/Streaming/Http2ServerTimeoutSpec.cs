@@ -90,7 +90,7 @@ public sealed class Http2ServerTimeoutSpec
                 KeepAliveTimeout = TimeSpan.FromSeconds(130)
             }
         };
-        var sm = new Http2ServerStateMachine(options, ops);
+        var sm = new Http2ServerStateMachine(options.ToHttp2Options(), ops);
 
         sm.PreStart();
 
@@ -106,7 +106,7 @@ public sealed class Http2ServerTimeoutSpec
     public void KeepAlive_timeout_should_emit_goaway()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -127,7 +127,7 @@ public sealed class Http2ServerTimeoutSpec
     public void KeepAlive_should_cancel_on_stream_open()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
         ops.CancelledTimers.Clear();
@@ -159,7 +159,7 @@ public sealed class Http2ServerTimeoutSpec
                 RequestHeadersTimeout = TimeSpan.FromSeconds(30)
             }
         };
-        var sm = new Http2ServerStateMachine(options, ops);
+        var sm = new Http2ServerStateMachine(options.ToHttp2Options(), ops);
 
         sm.PreStart();
 
@@ -209,7 +209,7 @@ public sealed class Http2ServerTimeoutSpec
                 RequestHeadersTimeout = TimeSpan.FromSeconds(30)
             }
         };
-        var sm = new Http2ServerStateMachine(options, ops);
+        var sm = new Http2ServerStateMachine(options.ToHttp2Options(), ops);
 
         sm.PreStart();
 
@@ -267,10 +267,10 @@ public sealed class Http2ServerTimeoutSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.4")]
-    public void Body_rate_check_should_schedule_on_data_frame()
+    public void Data_rate_check_should_schedule_on_request_data_frame()
     {
         var ops = new FakeServerOps();
-        var sm = new Http2ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http2ServerStateMachine(new TurboServerOptions().ToHttp2Options(), ops);
 
         sm.PreStart();
 
@@ -296,10 +296,10 @@ public sealed class Http2ServerTimeoutSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        // Body rate check timer should be scheduled
-        var rateTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name == "body-rate-check");
+        // Data rate check timer should be scheduled
+        var rateTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name == "data-rate-check");
         Assert.NotNull(rateTimer.Name);
-        Assert.Equal("body-rate-check", rateTimer.Name);
+        Assert.Equal("data-rate-check", rateTimer.Name);
         Assert.Equal(TimeSpan.FromSeconds(1), rateTimer.Delay);
     }
 }

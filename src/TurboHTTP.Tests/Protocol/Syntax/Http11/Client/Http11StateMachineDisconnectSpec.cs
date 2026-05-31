@@ -35,7 +35,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.6")]
     public void Http11StateMachine_should_fail_inflight_on_abrupt_disconnect()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
             new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 0 } });
         var (request, pending) = MakeTrackedRequest();
@@ -51,7 +51,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.6")]
     public void Http11StateMachine_should_try_eof_decode_on_graceful_disconnect()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, new TurboClientOptions());
 
         sm.OnRequest(MakeRequest());
@@ -68,7 +68,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.6")]
     public void Http11StateMachine_should_reconnect_on_disconnect_with_inflight()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
             new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3 } });
 
@@ -85,7 +85,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.6")]
     public void Http11StateMachine_should_replay_buffered_requests_on_reconnect()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
             new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3 } });
 
@@ -106,7 +106,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.6")]
     public void Http11StateMachine_should_fail_buffered_on_max_reconnect_exceeded()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
             new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 1 } });
         var (request, pending) = MakeTrackedRequest();
@@ -124,7 +124,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.6")]
     public void OnUpstreamFinished_should_fail_orphaned_requests()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, new TurboClientOptions());
         var (request, pending) = MakeTrackedRequest();
 
@@ -139,7 +139,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.6")]
     public void OnUpstreamFinished_should_fail_buffered_queue_when_reconnecting()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
             new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3 } });
         var (request, pending) = MakeTrackedRequest();
@@ -158,7 +158,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void Cleanup_should_clear_all_state()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, new TurboClientOptions());
 
         sm.OnRequest(MakeRequest());
@@ -174,7 +174,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void PendingRequestCount_should_reflect_inflight_queue()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
             new TurboClientOptions { Http1 = new Http1Options { MaxPipelineDepth = 4 } });
 
@@ -190,7 +190,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void PendingRequestCount_should_reflect_reconnect_buffer()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
             new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3, MaxPipelineDepth = 4 } });
 
@@ -207,7 +207,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void CanAcceptRequest_should_be_false_when_pipeline_full()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
             new TurboClientOptions { Http1 = new Http1Options { MaxPipelineDepth = 1 } });
 
@@ -220,7 +220,7 @@ public sealed class Http11StateMachineDisconnectSpec
     [Trait("RFC", "RFC9112-9.3")]
     public void CanAcceptRequest_should_be_false_when_reconnecting()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
             new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3 } });
 

@@ -8,11 +8,11 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3DuplicateStreamSpec
 {
-    private readonly FakeOps _ops = new();
+    private readonly FakeClientOps _clientOps = new();
 
     private Http3ClientStateMachine CreateMachine()
     {
-        return new Http3ClientStateMachine(new TurboClientOptions(), _ops);
+        return new Http3ClientStateMachine(new TurboClientOptions(), _clientOps);
     }
 
     private static TransportBuffer BuildStreamTypeBuffer(StreamType type, byte[]? trailingData = null)
@@ -33,7 +33,7 @@ public sealed class Http3DuplicateStreamSpec
     {
         var sm = CreateMachine();
         sm.PreStart();
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.DecodeServerData(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
 
@@ -103,7 +103,7 @@ public sealed class Http3DuplicateStreamSpec
     {
         var sm = CreateMachine();
         sm.PreStart();
-        _ops.Outbound.Clear();
+        _clientOps.Outbound.Clear();
 
         sm.DecodeServerData(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
         var buf1 = BuildStreamTypeBuffer(StreamType.Control, [0x00]);

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
@@ -7,7 +8,22 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerDecoderSpec
 {
-    private readonly Http11ServerDecoder _decoder = new(Http11ServerDecoderOptions.Default);
+    private static Http11ServerDecoderOptions DefaultDecoderOptions() => new()
+    {
+        MaxPipelinedRequests = 10,
+        StreamingThreshold = 64 * 1024,
+        MaxBufferedBodySize = 4 * 1024 * 1024,
+        MaxStreamedBodySize = null,
+        MaxHeaderBytes = 32 * 1024,
+        MaxHeaderCount = 100,
+        HeaderLineMaxLength = 8 * 1024,
+        RequestLineMaxLength = 8 * 1024,
+        MaxRequestTargetLength = 8 * 1024,
+        AllowObsFold = false,
+        BufferPool = MemoryPool<byte>.Shared,
+    };
+
+    private readonly Http11ServerDecoder _decoder = new(DefaultDecoderOptions());
 
     [Fact(Timeout = 5000)]
     public void Feed_should_decode_simple_request()
@@ -78,7 +94,7 @@ public sealed class Http11ServerDecoderSpec
     public void Feed_should_handle_bare_cr_in_request_line()
     {
         var raw = "GET /path\rHTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ServerDecoder(Http11ServerDecoderOptions.Default);
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
 
         var outcome = decoder.Feed(raw, out _);
 
@@ -90,7 +106,7 @@ public sealed class Http11ServerDecoderSpec
     public void Feed_should_ignore_leading_crlf_before_request_line()
     {
         var raw = "\r\nGET /path HTTP/1.1\r\nHost: x\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ServerDecoder(Http11ServerDecoderOptions.Default);
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
 
         var outcome = decoder.Feed(raw, out _);
 
@@ -107,7 +123,7 @@ public sealed class Http11ServerDecoderSpec
     public void Feed_should_reject_whitespace_before_first_header()
     {
         var raw = "GET / HTTP/1.1\r\n \r\nHost: x\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ServerDecoder(Http11ServerDecoderOptions.Default);
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
 
         _ = Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, out _));
     }
@@ -117,7 +133,7 @@ public sealed class Http11ServerDecoderSpec
     public void Feed_should_accept_absolute_form_request_target()
     {
         var raw = "GET http://example.com/path HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
-        var decoder = new Http11ServerDecoder(Http11ServerDecoderOptions.Default);
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
 
         var outcome = decoder.Feed(raw, out _);
 
@@ -130,7 +146,7 @@ public sealed class Http11ServerDecoderSpec
     [Fact(Timeout = 5000)]
     public void GetRequestFeature_should_parse_method_and_path()
     {
-        var decoder = new Http11ServerDecoder(Http11ServerDecoderOptions.Default);
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
         var data = "POST /api/items?page=2 HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"u8;
         var outcome = decoder.Feed(data, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);

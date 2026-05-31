@@ -94,10 +94,9 @@ public sealed class Http2FlowControlEnforcementSpec
     public void WindowUpdate_on_stream_0_should_not_crash()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -116,10 +115,9 @@ public sealed class Http2FlowControlEnforcementSpec
     public void Data_on_closed_stream_should_emit_RstStream()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -177,10 +175,9 @@ public sealed class Http2FlowControlEnforcementSpec
     public void Empty_data_with_EndStream_should_complete_request_body()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame

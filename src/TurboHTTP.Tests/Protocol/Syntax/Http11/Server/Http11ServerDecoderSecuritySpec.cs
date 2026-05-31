@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
@@ -7,12 +8,24 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11ServerDecoderSecuritySpec
 {
-    private static Http11ServerDecoder MakeDecoder(SharedHttpOptions? shared = null)
+    private static Http11ServerDecoderOptions DefaultDecoderOptions() => new()
     {
-        var options = shared != null
-            ? new Http11ServerDecoderOptions { Shared = shared }
-            : Http11ServerDecoderOptions.Default;
-        return new Http11ServerDecoder(options);
+        MaxPipelinedRequests = 10,
+        StreamingThreshold = 64 * 1024,
+        MaxBufferedBodySize = 4 * 1024 * 1024,
+        MaxStreamedBodySize = null,
+        MaxHeaderBytes = 32 * 1024,
+        MaxHeaderCount = 100,
+        HeaderLineMaxLength = 8 * 1024,
+        RequestLineMaxLength = 8 * 1024,
+        MaxRequestTargetLength = 8 * 1024,
+        AllowObsFold = false,
+        BufferPool = MemoryPool<byte>.Shared,
+    };
+
+    private static Http11ServerDecoder MakeDecoder(Http11ServerDecoderOptions? options = null)
+    {
+        return new Http11ServerDecoder(options ?? DefaultDecoderOptions());
     }
 
     [Fact(Timeout = 5000)]
@@ -114,9 +127,13 @@ public sealed class Http11ServerDecoderSecuritySpec
                                "0\r\n\r\n";
         var bytes = Encoding.ASCII.GetBytes(request);
 
-        var outcome = decoder.Feed(bytes, out _);
+        var outcome = decoder.Feed(bytes, out var consumed);
 
-        Assert.Equal(DecodeOutcome.Complete, outcome);
+        Assert.Equal(DecodeOutcome.HeadersReady, outcome);
+
+        var bodyOutcome = decoder.Feed(bytes.AsSpan(consumed), out _);
+
+        Assert.Equal(DecodeOutcome.Complete, bodyOutcome);
     }
 
     [Fact(Timeout = 5000)]
@@ -132,9 +149,13 @@ public sealed class Http11ServerDecoderSecuritySpec
                                "0\r\n\r\n";
         var bytes = Encoding.ASCII.GetBytes(request);
 
-        var outcome = decoder.Feed(bytes, out _);
+        var outcome = decoder.Feed(bytes, out var consumed);
 
-        Assert.Equal(DecodeOutcome.Complete, outcome);
+        Assert.Equal(DecodeOutcome.HeadersReady, outcome);
+
+        var bodyOutcome = decoder.Feed(bytes.AsSpan(consumed), out _);
+
+        Assert.Equal(DecodeOutcome.Complete, bodyOutcome);
     }
 
     [Fact(Timeout = 5000)]
@@ -217,8 +238,8 @@ public sealed class Http11ServerDecoderSecuritySpec
     [Trait("RFC", "RFC9112-5.2")]
     public void Feed_should_reject_obs_fold_when_not_allowed()
     {
-        var shared = new SharedHttpOptions { AllowObsFold = false };
-        var decoder = MakeDecoder(shared);
+        var options = DefaultDecoderOptions() with { AllowObsFold = false };
+        var decoder = MakeDecoder(options);
         const string request = "GET / HTTP/1.1\r\n" +
                                "Host: example.com\r\n" +
                                "X-Custom: value\r\n" +

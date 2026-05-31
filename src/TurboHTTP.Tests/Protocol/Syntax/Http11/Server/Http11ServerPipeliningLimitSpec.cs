@@ -33,7 +33,7 @@ public sealed class Http11ServerPipeliningLimitSpec
                 MaxPipelinedRequests = 3
             }
         };
-        var sm = new Http11ServerStateMachine(options, ops);
+        var sm = new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
         var request = BuildPipelinedRequests(3);
         var buffer = MakeBuffer(request);
 
@@ -55,7 +55,7 @@ public sealed class Http11ServerPipeliningLimitSpec
                 MaxPipelinedRequests = 2
             }
         };
-        var sm = new Http11ServerStateMachine(options, ops);
+        var sm = new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
         var request = BuildPipelinedRequests(4); // Try to send 4 requests
         var buffer = MakeBuffer(request);
 
@@ -79,7 +79,7 @@ public sealed class Http11ServerPipeliningLimitSpec
                 MaxPipelinedRequests = 1
             }
         };
-        var sm = new Http11ServerStateMachine(options, ops);
+        var sm = new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
         var request = BuildPipelinedRequests(2); // Try to send 2 requests with limit 1
         var buffer = MakeBuffer(request);
 
@@ -101,7 +101,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     public void ServerStateMachine_default_limit_should_be_16()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
         var request = BuildPipelinedRequests(16);
         var buffer = MakeBuffer(request);
 
@@ -116,7 +116,7 @@ public sealed class Http11ServerPipeliningLimitSpec
     public void ServerStateMachine_should_reject_17th_request_with_default_limit()
     {
         var ops = new FakeServerOps();
-        var sm = new Http11ServerStateMachine(new TurboServerOptions(), ops);
+        var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
         var request = BuildPipelinedRequests(17);
         var buffer = MakeBuffer(request);
 
@@ -138,7 +138,7 @@ public sealed class Http11ServerPipeliningLimitSpec
                 MaxPipelinedRequests = 100
             }
         };
-        var sm = new Http11ServerStateMachine(options, ops);
+        var sm = new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
         var request = BuildPipelinedRequests(100);
         var buffer = MakeBuffer(request);
 
@@ -161,7 +161,7 @@ public sealed class Http11ServerPipeliningLimitSpec
                 MaxPipelinedRequests = 0
             }
         };
-        Assert.Throws<ArgumentException>(() => new Http11ServerStateMachine(invalidOpts1, ops));
+        Assert.Throws<ArgumentException>(() => new Http11ServerStateMachine(invalidOpts1.ToHttp1Options(), invalidOpts1.ToHttp2Options(), ops));
 
         var invalidOpts2 = new TurboServerOptions
         {
@@ -170,7 +170,7 @@ public sealed class Http11ServerPipeliningLimitSpec
                 MaxPipelinedRequests = -1
             }
         };
-        Assert.Throws<ArgumentException>(() => new Http11ServerStateMachine(invalidOpts2, ops));
+        Assert.Throws<ArgumentException>(() => new Http11ServerStateMachine(invalidOpts2.ToHttp1Options(), invalidOpts2.ToHttp2Options(), ops));
     }
 
     [Fact(Timeout = 5000)]
@@ -185,7 +185,7 @@ public sealed class Http11ServerPipeliningLimitSpec
                 MaxPipelinedRequests = 2
             }
         };
-        var sm = new Http11ServerStateMachine(options, ops);
+        var sm = new Http11ServerStateMachine(options.ToHttp1Options(), options.ToHttp2Options(), ops);
 
         // First buffer with 2 requests
         var buffer1 = MakeBuffer(BuildPipelinedRequests(2));

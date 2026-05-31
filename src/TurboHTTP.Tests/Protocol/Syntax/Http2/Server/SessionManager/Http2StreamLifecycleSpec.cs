@@ -91,11 +91,10 @@ public sealed class Http2StreamLifecycleSpec
     public void Should_accept_streams_up_to_max_concurrent()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions { MaxConcurrentStreams = 2 };
+        var baseOptions = new TurboServerOptions { Http2 = { MaxConcurrentStreams = 2 } };
+        var options = baseOptions.ToHttp2Options();
 
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -123,11 +122,10 @@ public sealed class Http2StreamLifecycleSpec
     public void Should_refuse_stream_above_max_concurrent()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions { MaxConcurrentStreams = 1 };
+        var baseOptions = new TurboServerOptions { Http2 = { MaxConcurrentStreams = 1 } };
+        var options = baseOptions.ToHttp2Options();
 
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear(); // Clear initial SETTINGS frame
@@ -176,11 +174,10 @@ public sealed class Http2StreamLifecycleSpec
     public void RstStream_on_active_stream_should_close_it()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
 
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -207,10 +204,9 @@ public sealed class Http2StreamLifecycleSpec
     public void RstStream_on_closed_stream_should_not_crash()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -232,10 +228,9 @@ public sealed class Http2StreamLifecycleSpec
     public void Headers_with_EndStream_true_should_emit_request_immediately()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -259,10 +254,9 @@ public sealed class Http2StreamLifecycleSpec
     public void Cleanup_should_be_idempotent()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear();
@@ -288,10 +282,9 @@ public sealed class Http2StreamLifecycleSpec
     public void OnResponse_for_unknown_stream_should_not_crash()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
-        var options = new TurboServerOptions();
-        var sm = new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var baseOptions = new TurboServerOptions();
+        var options = baseOptions.ToHttp2Options();
+        var sm = new Http2ServerSessionManager(options, ops);
 
         sm.PreStart();
         ops.Outbound.Clear();

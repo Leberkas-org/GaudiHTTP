@@ -1,6 +1,7 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Protocol.Syntax.Http3;
+using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
 using TurboHTTP.Tests.Shared;
@@ -15,7 +16,14 @@ public sealed class Http3ServerEncoderHardeningSpec
 
     public Http3ServerEncoderHardeningSpec()
     {
-        _encoder = new Http3ServerEncoder(_encoderTableSync);
+        var options = new Http3ServerEncoderOptions
+        {
+            WriteDateHeader = false,
+            QpackMaxTableCapacity = 4096,
+            QpackBlockedStreams = 100,
+            MaxHeaderBytes = 8192
+        };
+        _encoder = new Http3ServerEncoder(_encoderTableSync, options);
     }
 
     [Fact(Timeout = 5000)]
@@ -100,7 +108,14 @@ public sealed class Http3ServerEncoderHardeningSpec
 
         // Encode response1 with its own encoder/decoder pair
         var encoder1Sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
-        var encoder1 = new Http3ServerEncoder(encoder1Sync);
+        var options1 = new Http3ServerEncoderOptions
+        {
+            WriteDateHeader = false,
+            QpackMaxTableCapacity = 4096,
+            QpackBlockedStreams = 100,
+            MaxHeaderBytes = 8192
+        };
+        var encoder1 = new Http3ServerEncoder(encoder1Sync, options1);
         var frame1 = encoder1.EncodeHeaders(ctx1);
 
         var decoderSync1 = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
@@ -113,7 +128,14 @@ public sealed class Http3ServerEncoderHardeningSpec
 
         // Encode response2 with its own encoder/decoder pair
         var encoder2Sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
-        var encoder2 = new Http3ServerEncoder(encoder2Sync);
+        var options2 = new Http3ServerEncoderOptions
+        {
+            WriteDateHeader = false,
+            QpackMaxTableCapacity = 4096,
+            QpackBlockedStreams = 100,
+            MaxHeaderBytes = 8192
+        };
+        var encoder2 = new Http3ServerEncoder(encoder2Sync, options2);
         var frame2 = encoder2.EncodeHeaders(ctx2);
 
         var decoderSync2 = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);

@@ -9,15 +9,15 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 
 public sealed class Http3GoAwayComplianceSpec
 {
-    private readonly FakeOps _ops = new();
+    private readonly FakeClientOps _clientOps = new();
 
     private static readonly ConnectionInfo DummyConnectionInfo = new(
         new IPEndPoint(IPAddress.Loopback, 5000),
         new IPEndPoint(IPAddress.Loopback, 443),
         TransportProtocol.Tcp);
 
-    private Http3ClientStateMachine CreateMachine(FakeOps? ops = null)
-        => new(new TurboClientOptions(), ops ?? _ops);
+    private Http3ClientStateMachine CreateMachine(FakeClientOps? ops = null)
+        => new(new TurboClientOptions(), ops ?? _clientOps);
 
     private static TransportBuffer SerializeFrame(Http3Frame frame)
     {

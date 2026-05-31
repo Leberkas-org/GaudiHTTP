@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http3;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Syntax.Http3.Server;
+using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Tests.Shared;
 
@@ -11,6 +11,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server.SessionManager;
 
 public sealed class Http3BodyRateTimeoutSpec
 {
+
     private static byte[] BuildRequest(string method, string path)
     {
         var tableSync = new QpackTableSync(0, 0, 0, 0);
@@ -39,16 +40,34 @@ public sealed class Http3BodyRateTimeoutSpec
         return buf;
     }
 
+    private static Http3ConnectionOptions DefaultConnectionOptions() => new()
+    {
+        Limits = new ResolvedServerLimits(
+            MaxRequestBodySize: 30 * 1024 * 1024,
+            KeepAliveTimeout: TimeSpan.FromSeconds(130),
+            RequestHeadersTimeout: TimeSpan.FromSeconds(30),
+            MinRequestBodyDataRate: 240,
+            MinRequestBodyDataRateGracePeriod: TimeSpan.FromSeconds(5),
+            MinResponseDataRate: 240,
+            MinResponseDataRateGracePeriod: TimeSpan.FromSeconds(5)),
+        MaxConcurrentStreams = 100,
+        MaxHeaderListSize = 32 * 1024,
+        MaxHeaderCount = 100,
+        QpackMaxTableCapacity = 0,
+        QpackBlockedStreams = 0,
+        BodyBufferThreshold = 64 * 1024,
+        ResponseBodyChunkSize = 16 * 1024,
+        BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
+    };
+
     private static Http3ServerSessionManager CreateSM(FakeServerOps ops)
     {
-        var enc = new Http3ServerEncoderOptions { QpackMaxTableCapacity = 0 };
-        var dec = new Http3ServerDecoderOptions { MaxConcurrentStreams = 100 };
-        return new Http3ServerSessionManager(enc, dec, ops);
+        return new Http3ServerSessionManager(DefaultConnectionOptions(), ops);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-4.3")]
-    public void First_DATA_frame_should_schedule_body_rate_check()
+    public void First_DATA_frame_should_schedule_data_rate_check()
     {
         var ops = new FakeServerOps();
         var sm = CreateSM(ops);
@@ -81,9 +100,9 @@ public sealed class Http3BodyRateTimeoutSpec
         dataBuffer.Length = dataBytes.Length;
         sm.DecodeClientData(new MultiplexedData(dataBuffer, streamId));
 
-        // body-rate-check timer should now be scheduled
-        Assert.True(ops.ScheduledTimers.Any(t => t.Name == "body-rate-check"),
-            "body-rate-check timer should be scheduled after first DATA frame");
+        // data-rate-check timer should now be scheduled
+        Assert.True(ops.ScheduledTimers.Any(t => t.Name == "data-rate-check"),
+            "data-rate-check timer should be scheduled after first DATA frame");
     }
 
     [Fact(Timeout = 5000)]

@@ -11,10 +11,9 @@ public sealed class Http2SettingsGoawaySpec
 {
     private static Http2ServerSessionManager CreateSessionManager(FakeServerOps ops)
     {
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
         var options = new TurboServerOptions();
-        return new Http2ServerSessionManager(encoderOptions, decoderOptions, ops, options);
+        var h2Options = options.ToHttp2Options();
+        return new Http2ServerSessionManager(h2Options, ops);
     }
 
     private static byte[] BuildSettingsFrame(bool isAck = false)
@@ -206,15 +205,13 @@ public sealed class Http2SettingsGoawaySpec
     public void PreStart_should_emit_settings_with_configured_stream_window_size()
     {
         var ops = new FakeServerOps();
-        var encoderOptions = new Http2ServerEncoderOptions();
-        var decoderOptions = new Http2ServerDecoderOptions();
         const int customStreamWindow = 256 * 1024;
         var options = new TurboServerOptions
         {
             Http2 = { InitialStreamWindowSize = customStreamWindow }
         };
-        var sessionManager = new Http2ServerSessionManager(
-            encoderOptions, decoderOptions, ops, options);
+        var h2Options = options.ToHttp2Options();
+        var sessionManager = new Http2ServerSessionManager(h2Options, ops);
 
         sessionManager.PreStart();
 

@@ -24,7 +24,7 @@ public sealed class Http2StateMachineKeepAliveSpec
     [Trait("RFC", "RFC9113-6.7")]
     public void OnTimerFired_should_emit_ping_frame_on_keepalive_timer()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -38,7 +38,7 @@ public sealed class Http2StateMachineKeepAliveSpec
     [Trait("RFC", "RFC9113-6.7")]
     public void OnTimerFired_should_not_emit_duplicate_ping_when_awaiting_ack()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();
@@ -53,7 +53,7 @@ public sealed class Http2StateMachineKeepAliveSpec
     [Trait("RFC", "RFC9113-6.7")]
     public void OnTimerFired_should_not_close_when_timeout_not_elapsed()
     {
-        var ops = new FakeOps();
+        var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         ops.Outbound.Clear();

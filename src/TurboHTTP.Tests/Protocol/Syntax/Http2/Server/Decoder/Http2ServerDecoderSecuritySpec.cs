@@ -1,13 +1,23 @@
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server.Decoder;
 
 public sealed class Http2ServerDecoderSecuritySpec
 {
+    private static Http2ServerDecoderOptions DefaultDecoderOptions() => new()
+    {
+        HeaderTableSize = 16 * 1024,
+        MaxConcurrentStreams = 100,
+        MaxFieldSectionSize = 64 * 1024,
+        MaxHeaderBytes = 32 * 1024,
+        MaxHeaderCount = 100,
+    };
+
     private readonly HpackEncoder _encoder = new(useHuffman: false);
-    private readonly Http2ServerDecoder _decoder = new();
+    private readonly Http2ServerDecoder _decoder = new(DefaultDecoderOptions());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.3")]
@@ -257,7 +267,7 @@ public sealed class Http2ServerDecoderSecuritySpec
     public void DecodeHeaders_should_reject_single_header_exceeding_max_size()
     {
         var maxHeaderSize = 64;
-        var decoder = new Http2ServerDecoder(maxHeaderSize: maxHeaderSize);
+        var decoder = new Http2ServerDecoder(DefaultDecoderOptions() with { MaxHeaderBytes = maxHeaderSize });
 
         var largeValue = new string('x', 100);
         var headers = new List<HpackHeader>
@@ -284,7 +294,7 @@ public sealed class Http2ServerDecoderSecuritySpec
     public void DecodeHeaders_should_reject_total_headers_exceeding_max_total_size()
     {
         var maxTotalHeaderSize = 128;
-        var decoder = new Http2ServerDecoder(maxTotalHeaderSize: maxTotalHeaderSize);
+        var decoder = new Http2ServerDecoder(DefaultDecoderOptions() with { MaxFieldSectionSize = maxTotalHeaderSize });
 
         var headers = new List<HpackHeader>
         {
