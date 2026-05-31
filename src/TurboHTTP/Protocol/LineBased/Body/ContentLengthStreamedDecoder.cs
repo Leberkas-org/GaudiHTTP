@@ -5,19 +5,18 @@ internal sealed class ContentLengthStreamedDecoder : IBodyDecoder
     private readonly long _expected;
     private readonly BodyHandle _handle;
     private long _received;
-    private bool _complete;
 
     public bool IsBuffered => false;
     public IReadOnlyList<(string Name, string Value)> Trailers => [];
-    public bool IsComplete => _complete;
+    public bool IsComplete { get; private set; }
 
     public ContentLengthStreamedDecoder(long expected, long maxBodySize = 10_485_760)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(expected);
         _expected = expected;
         _handle = new BodyHandle(maxBodySize);
-        _complete = expected == 0;
-        if (_complete)
+        IsComplete = expected == 0;
+        if (IsComplete)
         {
             _handle.Complete();
         }
@@ -25,7 +24,7 @@ internal sealed class ContentLengthStreamedDecoder : IBodyDecoder
 
     public bool Feed(ReadOnlySpan<byte> data, out int consumed)
     {
-        if (_complete)
+        if (IsComplete)
         {
             consumed = 0;
             return true;
@@ -40,28 +39,28 @@ internal sealed class ContentLengthStreamedDecoder : IBodyDecoder
         }
 
         consumed = take;
-        _complete = _received == _expected;
-        if (_complete)
+        IsComplete = _received == _expected;
+        if (IsComplete)
         {
             _handle.Complete();
         }
 
-        return _complete;
+        return IsComplete;
     }
 
     public bool OnEof()
     {
-        if (!_complete)
+        if (!IsComplete)
         {
             _handle.Abort(new HttpProtocolException("Connection closed before content-length satisfied."));
         }
 
-        return _complete;
+        return IsComplete;
     }
 
     public int Drain(ReadOnlySpan<byte> data)
     {
-        if (_complete)
+        if (IsComplete)
         {
             return 0;
         }
@@ -73,8 +72,8 @@ internal sealed class ContentLengthStreamedDecoder : IBodyDecoder
             _received += take;
         }
 
-        _complete = _received == _expected;
-        if (_complete)
+        IsComplete = _received == _expected;
+        if (IsComplete)
         {
             _handle.Complete();
         }

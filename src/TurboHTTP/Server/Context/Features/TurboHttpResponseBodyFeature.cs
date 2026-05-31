@@ -117,9 +117,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         private readonly PipeWriter _inner;
         private readonly TaskCompletionSource _headerCommit = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private Func<Task>? _onStarting;
-        private bool _started;
         private bool _completed;
-        private long _bytesWritten;
 
         public ResponsePipeWriter(PipeWriter inner)
         {
@@ -127,16 +125,17 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         }
 
         public Task WhenHeadersReady => _headerCommit.Task;
-        public bool HasStarted => _started;
-        public long BytesWritten => _bytesWritten;
+        public bool HasStarted { get; private set; }
+
+        public long BytesWritten { get; private set; }
 
         public void SetOnStarting(Func<Task> onStarting) => _onStarting = onStarting;
 
         public void CommitHeaders()
         {
-            if (!_started)
+            if (!HasStarted)
             {
-                _started = true;
+                HasStarted = true;
                 _headerCommit.TrySetResult();
             }
         }
@@ -149,14 +148,14 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         public override void Advance(int bytes)
         {
             _inner.Advance(bytes);
-            _bytesWritten += bytes;
+            BytesWritten += bytes;
         }
 
         public override void CancelPendingFlush() => _inner.CancelPendingFlush();
 
         public override ValueTask<FlushResult> FlushAsync(CancellationToken cancellationToken = default)
         {
-            if (_started)
+            if (HasStarted)
             {
                 return _inner.FlushAsync(cancellationToken);
             }
@@ -166,7 +165,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
         public override ValueTask<FlushResult> WriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken = default)
         {
-            if (_started)
+            if (HasStarted)
             {
                 return _inner.WriteAsync(source, cancellationToken);
             }
@@ -176,7 +175,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
         private async ValueTask<FlushResult> CommitAndFlushAsync(CancellationToken cancellationToken)
         {
-            _started = true;
+            HasStarted = true;
             try
             {
                 if (_onStarting is not null)
@@ -194,7 +193,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
         private async ValueTask<FlushResult> CommitAndWriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken)
         {
-            _started = true;
+            HasStarted = true;
             try
             {
                 if (_onStarting is not null)
@@ -207,7 +206,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
                 _headerCommit.TrySetResult();
             }
 
-            _bytesWritten += source.Length;
+            BytesWritten += source.Length;
             return await _inner.WriteAsync(source, cancellationToken);
         }
 

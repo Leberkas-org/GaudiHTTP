@@ -4,7 +4,9 @@ namespace TurboHTTP.Protocol;
 
 internal sealed class BodyHandle(long maxBodySize) : IDisposable
 {
-    private readonly Pipe _pipe = new();
+    private static readonly PipeOptions NoPausePipeOptions = new(pauseWriterThreshold: 0);
+
+    private readonly Pipe _pipe = new(NoPausePipeOptions);
     private long _totalBytes;
     private bool _completed;
 
@@ -18,7 +20,9 @@ internal sealed class BodyHandle(long maxBodySize) : IDisposable
         _totalBytes += data.Length;
         if (_totalBytes > maxBodySize)
         {
-            throw new HttpProtocolException($"Request body size {_totalBytes} exceeds limit {maxBodySize}.");
+            var ex = new HttpProtocolException($"Request body size {_totalBytes} exceeds limit {maxBodySize}.");
+            Abort(ex);
+            throw ex;
         }
 
         var memory = _pipe.Writer.GetSpan(data.Length);

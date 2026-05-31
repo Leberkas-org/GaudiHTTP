@@ -7,18 +7,17 @@ internal sealed class ContentLengthBufferedDecoder : IBodyDecoder
     private readonly int _expected;
     private readonly IMemoryOwner<byte> _owner;
     private int _received;
-    private bool _complete;
 
     public bool IsBuffered => true;
     public IReadOnlyList<(string Name, string Value)> Trailers => [];
-    public bool IsComplete => _complete;
+    public bool IsComplete { get; private set; }
 
     public ContentLengthBufferedDecoder(int expected, MemoryPool<byte> pool)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(expected);
         _expected = expected;
         _owner = pool.Rent(Math.Max(expected, 1));
-        _complete = expected == 0;
+        IsComplete = expected == 0;
     }
 
     public bool Feed(ReadOnlySpan<byte> data, out int consumed)
@@ -32,15 +31,15 @@ internal sealed class ContentLengthBufferedDecoder : IBodyDecoder
         }
 
         consumed = take;
-        _complete = _received == _expected;
-        return _complete;
+        IsComplete = _received == _expected;
+        return IsComplete;
     }
 
-    public bool OnEof() => _complete;
+    public bool OnEof() => IsComplete;
 
     public int Drain(ReadOnlySpan<byte> data)
     {
-        if (_complete)
+        if (IsComplete)
         {
             return 0;
         }
@@ -52,7 +51,7 @@ internal sealed class ContentLengthBufferedDecoder : IBodyDecoder
             _received += take;
         }
 
-        _complete = _received == _expected;
+        IsComplete = _received == _expected;
         return take;
     }
 
