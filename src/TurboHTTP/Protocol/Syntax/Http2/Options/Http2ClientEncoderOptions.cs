@@ -2,7 +2,6 @@ namespace TurboHTTP.Protocol.Syntax.Http2.Options;
 
 internal sealed record Http2ClientEncoderOptions
 {
-    public SharedHttpOptions Shared { get; init; } = SharedHttpOptions.Default;
     public int HeaderTableSize { get; init; } = 64 * 1024;
     public int MaxFrameSize { get; init; } = 16 * 1024;
 
@@ -19,12 +18,5 @@ internal sealed record Http2ClientEncoderOptions
         {
             throw new ArgumentException("MaxFrameSize must be between 16384 and 16777215.", nameof(MaxFrameSize));
         }
-
-        if (Shared is null)
-        {
-            throw new ArgumentException("Shared must not be null.", nameof(Shared));
-        }
-
-        Shared.Validate();
     }
 }

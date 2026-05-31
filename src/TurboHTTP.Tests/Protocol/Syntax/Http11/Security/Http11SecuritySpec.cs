@@ -36,7 +36,7 @@ public sealed class Http11SecuritySpec
     {
         // 5 extra + Content-Length = 6 total, exceeds custom MaxHeaderCount = 5
         var raw = BuildResponseWithNHeaders(5);
-        var opts = new Http11ClientDecoderOptions { Shared = SharedHttpOptions.Default with { MaxHeaderCount = 5 } };
+        var opts = new Http11ClientDecoderOptions { MaxHeaderCount = 5 };
         var decoder = new Http11ClientDecoder(opts);
 
         Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.Span, false, out _));

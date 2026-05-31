@@ -38,25 +38,8 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         _options = options;
         _ops = ops;
 
-        var shared = SharedHttpOptions.Default with
-        {
-            MaxBufferedBodySize = options.MaxBufferedBodySize,
-            MaxStreamedBodySize = options.MaxStreamedBodySize,
-        };
-
-        var encoderOpts = new Http3ClientEncoderOptions
-        {
-            QpackMaxTableCapacity = options.Http3.QpackMaxTableCapacity,
-            QpackBlockedStreams = options.Http3.QpackBlockedStreams,
-            Shared = shared,
-        };
-
-        var decoderOpts = new Http3ClientDecoderOptions
-        {
-            MaxConcurrentStreams = options.Http3.MaxConcurrentStreams,
-            MaxFieldSectionSize = options.Http3.MaxFieldSectionSize,
-            Shared = shared,
-        };
+        var encoderOpts = options.ToHttp3EncoderOptions();
+        var decoderOpts = options.ToHttp3DecoderOptions();
 
         _clientSession = new Http3ClientSessionManager(encoderOpts, decoderOpts, options, ops);
         _reconnect = new ReconnectionManager(options.Http3.MaxReconnectAttempts, options.Http3.MaxReconnectBufferSize);

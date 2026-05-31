@@ -54,10 +54,7 @@ public sealed class Http10ClientDecoderSpec
     [Trait("RFC", "RFC1945-6.2")]
     public async Task Decoder_should_stream_body_above_threshold()
     {
-        var opts = Http10ClientDecoderOptions.Default with
-        {
-            Shared = SharedHttpOptions.Default with { StreamingThreshold = 4 },
-        };
+        var opts = Http10ClientDecoderOptions.Default with { StreamingThreshold = 4 };
         var raw = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello"u8.ToArray();
         var decoder = new Http10ClientDecoder(opts);
 
