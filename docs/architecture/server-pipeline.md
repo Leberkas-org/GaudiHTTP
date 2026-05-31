@@ -55,7 +55,7 @@ Each connection is managed by a dedicated `ConnectionActor`:
 
 1. **Bind** — `ListenerActor` binds to a TCP or QUIC port
 2. **Accept** — When a client connects, `ListenerActor` spawns a new `ConnectionActor` for that connection
-3. **Materialize** — `ConnectionActor` materialises the Akka.Streams graph (protocol engine → middleware → routing → dispatcher)
+3. **Materialize** — `ConnectionActor` materialises the Akka.Streams graph (protocol engine → `ApplicationBridgeStage` → your ASP.NET Core pipeline, where middleware and routing run)
 4. **Process** — The graph processes requests and generates responses for the lifetime of the connection
 5. **Cleanup** — When the client disconnects (or after idle timeout), the actor terminates and releases resources
 

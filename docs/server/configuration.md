@@ -27,15 +27,16 @@ Access via `options.Limits`.
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `MaxConcurrentConnections` | `int` | 0 (unlimited) | Maximum concurrent connections |
-| `MaxConcurrentUpgradedConnections` | `int` | 0 (unlimited) | Maximum upgraded connections (WebSocket) |
+| `MaxConcurrentRequests` | `int` | 0 (unlimited) | Maximum concurrent in-flight requests across all connections |
+| `MinRequestGuarantee` | `int` | 10 | Minimum requests admitted even when the concurrency cap is reached |
 | `MaxRequestBodySize` | `long` | 30 * 1024 * 1024 | Global max request body size |
 | `MaxRequestHeaderCount` | `int` | 100 | Maximum request headers |
 | `MaxRequestHeadersTotalSize` | `int` | 32 * 1024 | Maximum total header bytes |
 | `KeepAliveTimeout` | `TimeSpan` | 130s | Idle connection timeout |
 | `RequestHeadersTimeout` | `TimeSpan` | 30s | Time to receive request headers |
-| `MinRequestBodyDataRate` | `double` | 0 | Minimum body bytes/sec (0 = disabled) |
+| `MinRequestBodyDataRate` | `double` | 240 | Minimum body bytes/sec (0 = disabled) |
 | `MinRequestBodyDataRateGracePeriod` | `TimeSpan` | 5s | Grace period before enforcing body rate |
-| `MinResponseDataRate` | `double` | 0 | Minimum response bytes/sec (0 = disabled) |
+| `MinResponseDataRate` | `double` | 240 | Minimum response bytes/sec (0 = disabled) |
 | `MinResponseDataRateGracePeriod` | `TimeSpan` | 5s | Grace period before enforcing response rate |
 
 ## HTTP/1.x Options
@@ -49,10 +50,14 @@ Access via `options.Http1`.
 | `MaxPipelinedRequests` | `int` | 16 | Maximum queued pipelined requests |
 | `MaxChunkExtensionLength` | `int` | 4096 | Maximum bytes for chunk extensions |
 | `BodyReadTimeout` | `TimeSpan` | 30s | Timeout for reading request body |
-| `MaxRequestBodySize` | `long` | 30_000_000 | HTTP/1.x-specific body size limit |
-| `MaxHeaderListSize` | `int` | 32 * 1024 | Maximum total header bytes |
+| `MaxHeaderListSize` | `int?` | null (uses global) | Max total header bytes (null = uses `Limits.MaxRequestHeadersTotalSize`) |
+| `MaxRequestBodySize` | `long?` | null (uses global) | HTTP/1.x-specific body size limit |
 | `KeepAliveTimeout` | `TimeSpan?` | null (uses global) | Per-protocol keep-alive override |
 | `RequestHeadersTimeout` | `TimeSpan?` | null (uses global) | Per-protocol headers timeout override |
+| `MinRequestBodyDataRate` | `double?` | null (uses global) | Per-protocol minimum body bytes/sec override |
+| `MinRequestBodyDataRateGracePeriod` | `TimeSpan?` | null (uses global) | Grace period before enforcing body rate |
+| `MinResponseDataRate` | `double?` | null (uses global) | Per-protocol minimum response bytes/sec override |
+| `MinResponseDataRateGracePeriod` | `TimeSpan?` | null (uses global) | Grace period before enforcing response rate |
 
 ## HTTP/2 Options
 
@@ -64,14 +69,16 @@ Access via `options.Http2`.
 | `InitialConnectionWindowSize` | `int` | 1 * 1024 * 1024 | Connection-level flow control window |
 | `InitialStreamWindowSize` | `int` | 768 * 1024 | Per-stream flow control window |
 | `MaxFrameSize` | `int` | 16 * 1024 | Maximum HTTP/2 frame payload size |
-| `MaxHeaderListSize` | `int` | 32 * 1024 | Maximum total header bytes |
+| `MaxHeaderListSize` | `int?` | null (uses global) | Max total header bytes (null = uses `Limits.MaxRequestHeadersTotalSize`) |
 | `HeaderTableSize` | `int` | 4 * 1024 | HPACK dynamic table size |
-| `MaxRequestBodySize` | `long` | 30_000_000 | HTTP/2-specific body size limit |
 | `MaxResponseBufferSize` | `long` | 64 * 1024 | Response buffering before backpressure |
-| `KeepAliveTimeout` | `TimeSpan` | 130s | Connection idle timeout |
-| `RequestHeadersTimeout` | `TimeSpan` | 30s | Time to receive request headers |
-| `MinRequestBodyDataRate` | `int` | 240 | Minimum body bytes/sec |
-| `MinRequestBodyDataRateGracePeriod` | `TimeSpan` | 5s | Grace period before enforcing rate |
+| `MaxRequestBodySize` | `long?` | null (uses global) | HTTP/2-specific body size limit |
+| `KeepAliveTimeout` | `TimeSpan?` | null (uses global) | Connection idle timeout |
+| `RequestHeadersTimeout` | `TimeSpan?` | null (uses global) | Time to receive request headers |
+| `MinRequestBodyDataRate` | `double?` | null (uses global) | Minimum body bytes/sec |
+| `MinRequestBodyDataRateGracePeriod` | `TimeSpan?` | null (uses global) | Grace period before enforcing body rate |
+| `MinResponseDataRate` | `double?` | null (uses global) | Minimum response bytes/sec |
+| `MinResponseDataRateGracePeriod` | `TimeSpan?` | null (uses global) | Grace period before enforcing response rate |
 
 ## HTTP/3 Options
 
@@ -80,14 +87,16 @@ Access via `options.Http3`.
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `MaxConcurrentStreams` | `int` | 100 | Maximum concurrent streams per connection |
-| `MaxHeaderListSize` | `int` | 32 * 1024 | Maximum total header bytes |
+| `MaxHeaderListSize` | `int?` | null (uses global) | Max total header bytes (null = uses `Limits.MaxRequestHeadersTotalSize`) |
 | `QpackMaxTableCapacity` | `int` | 0 | QPACK dynamic table capacity (0 = static only) |
-| `EnableWebTransport` | `bool` | false | Enable WebTransport support |
-| `MaxRequestBodySize` | `long` | 30_000_000 | HTTP/3-specific body size limit |
-| `KeepAliveTimeout` | `TimeSpan` | 130s | Connection idle timeout |
-| `RequestHeadersTimeout` | `TimeSpan` | 30s | Time to receive request headers |
-| `MinRequestBodyDataRate` | `int` | 240 | Minimum body bytes/sec |
-| `MinRequestBodyDataRateGracePeriod` | `TimeSpan` | 5s | Grace period before enforcing rate |
+| `QpackBlockedStreams` | `int` | 100 | Maximum concurrent QPACK-blocked streams |
+| `MaxRequestBodySize` | `long?` | null (uses global) | HTTP/3-specific body size limit |
+| `KeepAliveTimeout` | `TimeSpan?` | null (uses global) | Connection idle timeout |
+| `RequestHeadersTimeout` | `TimeSpan?` | null (uses global) | Time to receive request headers |
+| `MinRequestBodyDataRate` | `double?` | null (uses global) | Minimum body bytes/sec |
+| `MinRequestBodyDataRateGracePeriod` | `TimeSpan?` | null (uses global) | Grace period before enforcing body rate |
+| `MinResponseDataRate` | `double?` | null (uses global) | Minimum response bytes/sec |
+| `MinResponseDataRateGracePeriod` | `TimeSpan?` | null (uses global) | Grace period before enforcing response rate |
 
 ## Example: Full Configuration
 

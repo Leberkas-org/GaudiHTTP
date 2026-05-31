@@ -96,15 +96,16 @@ public sealed class TurboServerOptions
 public sealed class TurboServerLimits
 {
     int MaxConcurrentConnections { get; set; }              // default: 0 (unlimited)
-    int MaxConcurrentUpgradedConnections { get; set; }      // default: 0 (unlimited)
+    int MaxConcurrentRequests { get; set; }                 // default: 0 (unlimited)
+    int MinRequestGuarantee { get; set; }                   // default: 10
     long MaxRequestBodySize { get; set; }                   // default: 30 * 1024 * 1024
     int MaxRequestHeaderCount { get; set; }                 // default: 100
     int MaxRequestHeadersTotalSize { get; set; }            // default: 32 * 1024
     TimeSpan KeepAliveTimeout { get; set; }                 // default: 130s
     TimeSpan RequestHeadersTimeout { get; set; }            // default: 30s
-    double MinRequestBodyDataRate { get; set; }             // default: 0
+    double MinRequestBodyDataRate { get; set; }             // default: 240
     TimeSpan MinRequestBodyDataRateGracePeriod { get; set; } // default: 5s
-    double MinResponseDataRate { get; set; }                // default: 0
+    double MinResponseDataRate { get; set; }                // default: 240
     TimeSpan MinResponseDataRateGracePeriod { get; set; }   // default: 5s
 }
 ```
@@ -172,15 +173,19 @@ public enum HttpProtocols
 ```csharp
 public sealed class Http1ServerOptions
 {
-    int MaxRequestLineLength { get; set; }    // default: 8192
-    int MaxRequestTargetLength { get; set; }  // default: 8192
+    int MaxRequestLineLength { get; set; }    // default: 8 * 1024
+    int MaxRequestTargetLength { get; set; }  // default: 8 * 1024
     int MaxPipelinedRequests { get; set; }    // default: 16
-    int MaxChunkExtensionLength { get; set; } // default: 4096
+    int MaxChunkExtensionLength { get; set; } // default: 4 * 1024
     TimeSpan BodyReadTimeout { get; set; }    // default: 30s
-    long MaxRequestBodySize { get; set; }     // default: 30_000_000
-    int MaxHeaderListSize { get; set; }       // default: 32 * 1024
-    TimeSpan? KeepAliveTimeout { get; set; }      // default: null (uses global)
-    TimeSpan? RequestHeadersTimeout { get; set; } // default: null (uses global)
+    int? MaxHeaderListSize { get; set; }                      // default: null (uses Limits.MaxRequestHeadersTotalSize)
+    long? MaxRequestBodySize { get; set; }                    // default: null (uses Limits)
+    TimeSpan? KeepAliveTimeout { get; set; }                  // default: null (uses Limits)
+    TimeSpan? RequestHeadersTimeout { get; set; }             // default: null (uses Limits)
+    double? MinRequestBodyDataRate { get; set; }              // default: null (uses Limits)
+    TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; } // default: null (uses Limits)
+    double? MinResponseDataRate { get; set; }                 // default: null (uses Limits)
+    TimeSpan? MinResponseDataRateGracePeriod { get; set; }    // default: null (uses Limits)
 }
 ```
 
@@ -195,14 +200,16 @@ public sealed class Http2ServerOptions
     int InitialConnectionWindowSize { get; set; }    // default: 1 * 1024 * 1024
     int InitialStreamWindowSize { get; set; }        // default: 768 * 1024
     int MaxFrameSize { get; set; }                   // default: 16 * 1024
-    int MaxHeaderListSize { get; set; }              // default: 32 * 1024
     int HeaderTableSize { get; set; }                // default: 4 * 1024
-    long MaxRequestBodySize { get; set; }            // default: 30_000_000
+    int? MaxHeaderListSize { get; set; }             // default: null (uses Limits.MaxRequestHeadersTotalSize)
     long MaxResponseBufferSize { get; set; }         // default: 64 * 1024
-    TimeSpan KeepAliveTimeout { get; set; }          // default: 130s
-    TimeSpan RequestHeadersTimeout { get; set; }     // default: 30s
-    int MinRequestBodyDataRate { get; set; }         // default: 240
-    TimeSpan MinRequestBodyDataRateGracePeriod { get; set; } // default: 5s
+    long? MaxRequestBodySize { get; set; }                    // default: null (uses Limits)
+    TimeSpan? KeepAliveTimeout { get; set; }                  // default: null (uses Limits)
+    TimeSpan? RequestHeadersTimeout { get; set; }             // default: null (uses Limits)
+    double? MinRequestBodyDataRate { get; set; }              // default: null (uses Limits)
+    TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; } // default: null (uses Limits)
+    double? MinResponseDataRate { get; set; }                 // default: null (uses Limits)
+    TimeSpan? MinResponseDataRateGracePeriod { get; set; }    // default: null (uses Limits)
 }
 ```
 
@@ -214,13 +221,15 @@ public sealed class Http2ServerOptions
 public sealed class Http3ServerOptions
 {
     int MaxConcurrentStreams { get; set; }    // default: 100
-    int MaxHeaderListSize { get; set; }      // default: 32 * 1024
-    int QpackMaxTableCapacity { get; set; }  // default: 0
-    bool EnableWebTransport { get; set; }    // default: false
-    long MaxRequestBodySize { get; set; }    // default: 30_000_000
-    TimeSpan KeepAliveTimeout { get; set; }  // default: 130s
-    TimeSpan RequestHeadersTimeout { get; set; }     // default: 30s
-    int MinRequestBodyDataRate { get; set; }         // default: 240
-    TimeSpan MinRequestBodyDataRateGracePeriod { get; set; } // default: 5s
+    int? MaxHeaderListSize { get; set; }      // default: null (uses Limits.MaxRequestHeadersTotalSize)
+    int QpackMaxTableCapacity { get; set; }   // default: 0
+    int QpackBlockedStreams { get; set; }     // default: 100
+    long? MaxRequestBodySize { get; set; }                    // default: null (uses Limits)
+    TimeSpan? KeepAliveTimeout { get; set; }                  // default: null (uses Limits)
+    TimeSpan? RequestHeadersTimeout { get; set; }             // default: null (uses Limits)
+    double? MinRequestBodyDataRate { get; set; }              // default: null (uses Limits)
+    TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; } // default: null (uses Limits)
+    double? MinResponseDataRate { get; set; }                 // default: null (uses Limits)
+    TimeSpan? MinResponseDataRateGracePeriod { get; set; }    // default: null (uses Limits)
 }
 ```

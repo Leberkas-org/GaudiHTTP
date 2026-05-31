@@ -38,14 +38,14 @@ model {
 
       ClientStreamManager = component 'ClientStreamManager' {
         #client
-        technology 'Class'
-        description 'Materialises the Akka.Streams pipeline and manages stream lifecycle'
+        technology 'ReceiveActor'
+        description 'Per-client actor: routes consumer registrations and creates the StreamOwner that owns the pipeline'
       }
 
       StreamOwner = component 'StreamOwner' {
         #client
-        technology 'Class'
-        description 'Owns the materialised stream lifecycle: starts, monitors, and restarts the pipeline on failure'
+        technology 'ReceiveActor'
+        description 'Per-client actor: materialises the Akka.Streams pipeline, registers consumers, and monitors and restarts it on failure'
       }
 
       TurboClientOptions = component 'TurboClientOptions' {
@@ -345,17 +345,17 @@ model {
   turbohttp.client.ClientStreamManager -> turbohttp.client.StreamOwner 'Manages lifecycle'
   turbohttp.client.ITurboHttpClient -> turbohttp.client.TurboClientOptions 'Reads configuration'
 
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.RequestEnricher 'Wraps with enrichment'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.HandlerBidiStage 'Wraps with handlers'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.TracingBidiStage 'Wraps with tracing'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.RedirectBidiStage 'Wraps with redirects'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.CookieBidiStage 'Wraps with cookies'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.RetryBidiStage 'Wraps with retry'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.ExpectContinueBidiStage 'Wraps with 100-continue'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.CacheBidiStage 'Wraps with caching'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.ContentEncodingBidiStage 'Wraps with compression'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.AltSvcBidiStage 'Wraps with Alt-Svc'
-  turbohttp.client.ClientStreamManager -> turbohttp.streams.Engine 'Wraps with engine'
+  turbohttp.client.StreamOwner -> turbohttp.streams.RequestEnricher 'Enriches requests before the pipeline'
+  turbohttp.client.StreamOwner -> turbohttp.streams.HandlerBidiStage 'Wraps with handlers'
+  turbohttp.client.StreamOwner -> turbohttp.streams.TracingBidiStage 'Wraps with tracing'
+  turbohttp.client.StreamOwner -> turbohttp.streams.RedirectBidiStage 'Wraps with redirects'
+  turbohttp.client.StreamOwner -> turbohttp.streams.CookieBidiStage 'Wraps with cookies'
+  turbohttp.client.StreamOwner -> turbohttp.streams.RetryBidiStage 'Wraps with retry'
+  turbohttp.client.StreamOwner -> turbohttp.streams.ExpectContinueBidiStage 'Wraps with 100-continue'
+  turbohttp.client.StreamOwner -> turbohttp.streams.CacheBidiStage 'Wraps with caching'
+  turbohttp.client.StreamOwner -> turbohttp.streams.ContentEncodingBidiStage 'Wraps with compression'
+  turbohttp.client.StreamOwner -> turbohttp.streams.AltSvcBidiStage 'Wraps with Alt-Svc'
+  turbohttp.client.StreamOwner -> turbohttp.streams.Engine 'Wraps with engine'
 
   turbohttp.streams.Http10ClientEngine -> servus.TcpConnectionStage 'TCP transport'
   turbohttp.streams.Http11ClientEngine -> servus.TcpConnectionStage 'TCP transport'
