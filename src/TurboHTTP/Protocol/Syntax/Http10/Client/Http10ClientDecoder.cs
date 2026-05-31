@@ -29,7 +29,6 @@ internal sealed class Http10ClientDecoder
 
     public Http10ClientDecoder(Http10ClientDecoderOptions options)
     {
-        options.Validate();
         _options = options;
         _headerReader = new HeaderBlockReader(
             options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);

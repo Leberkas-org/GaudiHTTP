@@ -38,7 +38,6 @@ internal sealed class Http11ClientDecoder
 
     public Http11ClientDecoder(Http11ClientDecoderOptions options)
     {
-        options.Validate();
         _options = options;
         _headerReader = new HeaderBlockReader(
             options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);

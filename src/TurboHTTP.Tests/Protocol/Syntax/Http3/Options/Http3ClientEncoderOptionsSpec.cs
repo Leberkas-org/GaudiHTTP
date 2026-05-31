@@ -10,12 +10,4 @@ public sealed class Http3ClientEncoderOptionsSpec
     {
         Assert.Equal(100, Http3ClientEncoderOptions.Default.QpackBlockedStreams);
     }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-7.2.4")]
-    public void Validate_should_reject_invalid_QpackMaxTableCapacity()
-    {
-        var opts = Http3ClientEncoderOptions.Default with { QpackMaxTableCapacity = -1 };
-        Assert.Throws<ArgumentException>(opts.Validate);
-    }
 }

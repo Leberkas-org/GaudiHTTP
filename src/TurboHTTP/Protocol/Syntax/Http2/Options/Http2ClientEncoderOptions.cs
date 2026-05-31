@@ -6,17 +6,4 @@ internal sealed record Http2ClientEncoderOptions
     public int MaxFrameSize { get; init; } = 16 * 1024;
 
     public static Http2ClientEncoderOptions Default { get; } = new();
-
-    public void Validate()
-    {
-        if (HeaderTableSize < 0)
-        {
-            throw new ArgumentException("HeaderTableSize must be >= 0.", nameof(HeaderTableSize));
-        }
-
-        if (MaxFrameSize is < 16 * 1024 or > (16 * 1024 * 1024) - 1)
-        {
-            throw new ArgumentException("MaxFrameSize must be between 16384 and 16777215.", nameof(MaxFrameSize));
-        }
-    }
 }
