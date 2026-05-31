@@ -9,14 +9,14 @@ namespace TurboHTTP.Tests.Shared;
 
 internal sealed class FakeServerOps : IServerStageOperations
 {
-    private readonly List<IFeatureCollection> _features = [];
+    public List<IFeatureCollection> Requests { get; } = [];
 
-    public List<IFeatureCollection> Requests => _features;
     public List<ITransportOutbound> Outbound { get; } = [];
     public List<(string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
     public List<string> CancelledTimers { get; } = [];
+    public int CompleteStageCalls { get; set; }
 
-    public void OnRequest(IFeatureCollection features) => _features.Add(features);
+    public void OnRequest(IFeatureCollection features) => Requests.Add(features);
     public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
 
     public void OnScheduleTimer(string name, TimeSpan delay)

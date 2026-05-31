@@ -1,12 +1,11 @@
-using System.Diagnostics;
 using System.Text;
 using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.TestKit;
 using Servus.Akka.Transport;
-using Xunit;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http3;
+using Xunit;
 using FrameDecoder = TurboHTTP.Protocol.Syntax.Http2.FrameDecoder;
 
 namespace TurboHTTP.Tests.Shared;
@@ -174,7 +173,7 @@ public abstract class EngineTestBase : StreamTestBase
 
         var stage = new TestConnectionStageBuilder()
             .AutoConnect()
-            .OnOutbound<TransportData>((msg, ctx) =>
+            .OnOutbound<TransportData>((_, ctx) =>
             {
                 transportDataCount++;
 
@@ -437,8 +436,6 @@ public abstract class EngineTestBase : StreamTestBase
 
             bytes.AddRange(span.ToArray());
         }
-
-        Debug.WriteLine($"DrainOutboundBytes: {messageCount} outbound messages, {bytes.Count} total bytes");
 
         return bytes;
     }

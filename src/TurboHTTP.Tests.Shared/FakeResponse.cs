@@ -14,52 +14,13 @@ public static class FakeResponse
         [500] = "Internal Server Error", [502] = "Bad Gateway", [503] = "Service Unavailable"
     };
 
-    private static string GetReason(int status) =>
-        ReasonPhrases.TryGetValue(status, out var reason) ? reason : "Unknown";
+    private static string GetReason(int status) => ReasonPhrases.GetValueOrDefault(status, "Unknown");
 
-    public static byte[] Http10(int status, string? body = null,
-        params (string Name, string Value)[] headers)
+    public static byte[] Http10(int status, string? body = null, params (string Name, string Value)[] headers)
         => BuildHttp1("HTTP/1.0", status, body, headers);
 
-    public static byte[] Http11(int status, string? body = null,
-        params (string Name, string Value)[] headers)
+    public static byte[] Http11(int status, string? body = null, params (string Name, string Value)[] headers)
         => BuildHttp1("HTTP/1.1", status, body, headers);
-
-    public static byte[] Ok(string body) => Http11(200, body);
-    public static byte[] NotFound() => Http11(404);
-
-    public static byte[] H2(int status, string? body = null,
-        params (string Name, string Value)[] headers)
-    {
-        var builder = new H2ResponseBuilder()
-            .Settings()
-            .SettingsAck()
-            .Headers(1, status, headers.Length > 0 ? headers.Select(h => (h.Name, h.Value)).ToList() : null,
-                endStream: body is null)
-            .WindowUpdate(0, 1_048_576);
-
-        if (body is not null)
-        {
-            builder.Data(1, body);
-        }
-
-        return builder.Build();
-    }
-
-    public static byte[] H3(int status, string? body = null,
-        params (string Name, string Value)[] headers)
-    {
-        var builder = new H3ResponseBuilder()
-            .Headers(status, headers.Length > 0 ? headers.Select(h => (h.Name, h.Value)).ToList() : null,
-                endStream: body is null);
-
-        if (body is not null)
-        {
-            builder.Data(body);
-        }
-
-        return builder.Build();
-    }
 
     private static byte[] BuildHttp1(string version, int status, string? body,
         (string Name, string Value)[] headers)
