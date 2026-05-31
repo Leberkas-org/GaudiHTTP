@@ -11,57 +11,29 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
     private const string DrainBodyPrefix = "drain-body:";
     private const string HeadersTimeoutPrefix = "headers-timeout:";
     private const string KeepAliveTimeout = "keep-alive-timeout";
-    private const string BodyRateCheck = "body-rate-check:";
+    private const string DataRateCheck = "data-rate-check";
+    private const string BodyConsumptionPrefix = "body-consumption:";
 
     private readonly IServerStageOperations _ops;
     private readonly Http2ServerSessionManager _sessionManager;
 
     private readonly TimeSpan _keepAliveTimeout;
     private readonly TimeSpan _requestHeadersTimeout;
-    private readonly int _minBodyDataRate;
-    private readonly TimeSpan _bodyRateGracePeriod;
     private int _activeStreamCount;
 
     public bool CanAcceptResponse => _sessionManager.ActiveStreamCount > 0;
     public bool ShouldComplete => false;
     public int MaxQueuedRequests => _sessionManager.MaxConcurrentStreams;
 
-    public Http2ServerStateMachine(TurboServerOptions options, IServerStageOperations ops)
+    public Http2ServerStateMachine(Http2ConnectionOptions options, IServerStageOperations ops)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
 
-        var shared = SharedHttpOptions.Default with
-        {
-            MaxBufferedBodySize = options.BodyBufferThreshold,
-            MaxStreamedBodySize = options.Http2.MaxRequestBodySize,
-            MaxHeaderBytes = options.Http2.MaxHeaderListSize,
-        };
+        _sessionManager = new Http2ServerSessionManager(options, ops);
 
-        var encoderOpts = new Http2ServerEncoderOptions
-        {
-            Shared = shared,
-            HeaderTableSize = options.Http2.HeaderTableSize,
-            MaxFrameSize = options.Http2.MaxFrameSize,
-        };
-
-        var decoderOpts = new Http2ServerDecoderOptions
-        {
-            Shared = shared,
-            MaxConcurrentStreams = options.Http2.MaxConcurrentStreams,
-            MaxFieldSectionSize = options.Http2.MaxHeaderListSize,
-        };
-
-        _sessionManager = new Http2ServerSessionManager(
-            encoderOpts,
-            decoderOpts,
-            ops,
-            options);
-
-        _keepAliveTimeout = options.Http2.KeepAliveTimeout;
-        _requestHeadersTimeout = options.Http2.RequestHeadersTimeout;
-        _minBodyDataRate = options.Http2.MinRequestBodyDataRate;
-        _bodyRateGracePeriod = options.Http2.MinRequestBodyDataRateGracePeriod;
+        _keepAliveTimeout = options.Limits.KeepAliveTimeout;
+        _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
     }
 
     public void PreStart()
@@ -130,9 +102,18 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
             return;
         }
 
-        if (name == BodyRateCheck)
+        if (name == DataRateCheck)
         {
-            _sessionManager.CheckBodyRates(_minBodyDataRate, _bodyRateGracePeriod);
+            _sessionManager.CheckDataRates();
+            return;
+        }
+
+        if (name.StartsWith(BodyConsumptionPrefix))
+        {
+            if (int.TryParse(name.AsSpan(BodyConsumptionPrefix.Length), out var consumptionStreamId))
+            {
+                _sessionManager.EmitRstStream(consumptionStreamId, Http2ErrorCode.Cancel);
+            }
         }
     }
 

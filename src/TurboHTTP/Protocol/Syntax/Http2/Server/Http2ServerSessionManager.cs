@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Protocol.Server;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
@@ -20,10 +21,12 @@ internal sealed class Http2ServerSessionManager
     private readonly IServerStageOperations _ops;
     private readonly FrameDecoder _frameDecoder = new();
     private readonly Http2ServerDecoder _requestDecoder;
-    private readonly Http2ServerEncoder _responseEncoder = new();
+    private readonly Http2ServerEncoder _responseEncoder;
     private readonly FlowController _flow;
     private readonly StreamTracker _tracker;
     private readonly long _maxRequestBodySize;
+    private readonly int _responseBodyChunkSize;
+    private readonly TimeSpan _bodyConsumptionTimeout;
     private readonly int _initialStreamWindowSize;
 
     private readonly Dictionary<int, StreamState> _streams = new();
@@ -31,30 +34,36 @@ internal sealed class Http2ServerSessionManager
 
     private int _nextContinuationStreamId;
     private bool _continuationEndStream;
-    private readonly Dictionary<int, BodyRateState> _bodyRateStates = new();
+    private readonly DataRateMonitor _requestRate;
+    private readonly DataRateMonitor _responseRate;
     private bool _prefaceConsumed;
 
     public int ActiveStreamCount => _streams.Count;
     public int MaxConcurrentStreams => _decoderOptions.MaxConcurrentStreams;
 
     public Http2ServerSessionManager(
-        Http2ServerEncoderOptions encoderOptions,
-        Http2ServerDecoderOptions decoderOptions,
-        IServerStageOperations ops,
-        TurboServerOptions options)
+        Http2ConnectionOptions options,
+        IServerStageOperations ops)
     {
-        _encoderOptions = encoderOptions;
-        _decoderOptions = decoderOptions;
+        _encoderOptions = options.ToEncoderOptions();
+        _decoderOptions = options.ToDecoderOptions();
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
-        
-        _requestDecoder = new Http2ServerDecoder(options.Http2.HeaderTableSize, options.Http2.MaxHeaderListSize);
-        _flow = new FlowController(options.Http2.InitialConnectionWindowSize, options.Http2.InitialStreamWindowSize);
-        _tracker = new StreamTracker(initialNextStreamId: 1, decoderOptions.MaxConcurrentStreams);
-        _maxRequestBodySize = options.Http2.MaxRequestBodySize;
-        _initialStreamWindowSize = options.Http2.InitialStreamWindowSize;
+
+        _responseEncoder = new Http2ServerEncoder(_encoderOptions);
+        _requestDecoder = new Http2ServerDecoder(_decoderOptions);
+        _flow = new FlowController(options.InitialConnectionWindowSize, options.InitialStreamWindowSize);
+        _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
+        _maxRequestBodySize = options.Limits.MaxRequestBodySize;
+        _responseBodyChunkSize = options.ResponseBodyChunkSize;
+        _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
+        _initialStreamWindowSize = options.InitialStreamWindowSize;
+
+        var rate = options.ToRateMonitor();
+        _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
+        _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
 
         var statePoolCapacity = Math.Min(
-            decoderOptions.MaxConcurrentStreams > 0 ? decoderOptions.MaxConcurrentStreams : 100,
+            options.MaxConcurrentStreams > 0 ? options.MaxConcurrentStreams : 100,
             MaxStatePoolCapacity);
         _statePool = new StackStreamStatePool<StreamState>(
             statePoolCapacity,
@@ -160,6 +169,11 @@ internal sealed class Http2ServerSessionManager
 
         state.SetFeatures(features);
 
+        if (state.HasBodyDecoder && _bodyConsumptionTimeout > TimeSpan.Zero)
+        {
+            _ops.OnScheduleTimer(string.Concat("body-consumption:", streamId.ToString()), _bodyConsumptionTimeout);
+        }
+
         var responseFeature = features.Get<IHttpResponseFeature>();
         var responseBody = features.Get<IHttpResponseBodyFeature>();
         var contentLength = ExtractContentLength(responseFeature);
@@ -177,6 +191,7 @@ internal sealed class Http2ServerSessionManager
             CloseStream(streamId);
             return;
         }
+
         if (responseBody is not TurboHttpResponseBodyFeature turboBody)
         {
             CloseStream(streamId);
@@ -184,7 +199,7 @@ internal sealed class Http2ServerSessionManager
         }
 
         var bodyStream = turboBody.GetResponseStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, _responseBodyChunkSize);
         if (encoder is null)
         {
             CloseStream(streamId);
@@ -204,12 +219,10 @@ internal sealed class Http2ServerSessionManager
 
         foreach (var header in responseFeature.Headers)
         {
-            if (header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
+            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase) &&
+                header.Value.FirstOrDefault() is { } value && long.TryParse(value, out var length))
             {
-                if (header.Value.FirstOrDefault() is { } value && long.TryParse(value, out var length))
-                {
-                    return length;
-                }
+                return length;
             }
         }
 
@@ -455,16 +468,15 @@ internal sealed class Http2ServerSessionManager
                 return;
             }
 
+            if (data.EndStream)
+            {
+                _ops.OnCancelTimer(string.Concat("body-consumption:", streamId.ToString()));
+            }
+
             if (!data.Data.IsEmpty)
             {
-                if (!_bodyRateStates.TryGetValue(streamId, out var rateState))
-                {
-                    rateState = new BodyRateState();
-                    _bodyRateStates[streamId] = rateState;
-                    _ops.OnScheduleTimer("body-rate-check", TimeSpan.FromSeconds(1));
-                }
-
-                rateState.TotalBytes += data.Data.Length;
+                _requestRate.Observe(streamId, data.Data.Length, Environment.TickCount64);
+                EnsureRateTimer();
             }
         }
 
@@ -605,7 +617,9 @@ internal sealed class Http2ServerSessionManager
 
     private void CloseStream(int streamId)
     {
-        _bodyRateStates.Remove(streamId);
+        _requestRate.Remove(streamId);
+        _responseRate.Remove(streamId);
+        _ops.OnCancelTimer(string.Concat("body-consumption:", streamId.ToString()));
 
         if (_streams.TryGetValue(streamId, out var state))
         {
@@ -628,6 +642,12 @@ internal sealed class Http2ServerSessionManager
 
     private void EmitFrame(Http2Frame frame)
     {
+        if (frame is DataFrame df && df.Data.Length > 0)
+        {
+            _responseRate.Observe(df.StreamId, df.Data.Length, Environment.TickCount64);
+            EnsureRateTimer();
+        }
+
         var totalSize = frame.SerializedSize;
         var buf = TransportBuffer.Rent(totalSize);
         var span = buf.FullMemory.Span;
@@ -651,56 +671,25 @@ internal sealed class Http2ServerSessionManager
         EmitFrame(new GoAwayFrame(lastStreamId, errorCode, debugData));
     }
 
-    public void CheckBodyRates(int minDataRate, TimeSpan gracePeriod)
+    public void CheckDataRates()
     {
         var now = Environment.TickCount64;
-        var streamsToReset = new List<int>();
+        var violations = new List<long>();
 
-        foreach (var (streamId, state) in _bodyRateStates)
+        _requestRate.Check(now, violations);
+        _responseRate.Check(now, violations);
+
+        var violationSet = new HashSet<long>(violations);
+        foreach (var streamId in violationSet)
         {
-            var elapsedMs = now - state.LastCheckTimestamp;
-            if (elapsedMs < 500)
-            {
-                continue;
-            }
-
-            var elapsedSeconds = elapsedMs / 1000.0;
-            var bytesTransferred = state.TotalBytes - state.LastCheckBytes;
-            var rate = bytesTransferred / elapsedSeconds;
-
-            state.LastCheckBytes = state.TotalBytes;
-            state.LastCheckTimestamp = now;
-
-            if (rate < minDataRate)
-            {
-                if (!state.InGracePeriod)
-                {
-                    state.InGracePeriod = true;
-                    state.GracePeriodStartTimestamp = now;
-                }
-                else
-                {
-                    var graceElapsedMs = now - state.GracePeriodStartTimestamp;
-                    if (graceElapsedMs > (long)gracePeriod.TotalMilliseconds)
-                    {
-                        streamsToReset.Add(streamId);
-                    }
-                }
-            }
-            else
-            {
-                state.InGracePeriod = false;
-            }
+            EmitRstStream((int)streamId, Http2ErrorCode.EnhanceYourCalm);
         }
 
-        foreach (var streamId in streamsToReset)
+        if (_requestRate.Count > 0 || _responseRate.Count > 0)
         {
-            EmitRstStream(streamId, Http2ErrorCode.EnhanceYourCalm);
-        }
-
-        if (_bodyRateStates.Count > 0)
-        {
-            _ops.OnScheduleTimer("body-rate-check", TimeSpan.FromSeconds(1));
+            _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
         }
     }
+
+    private void EnsureRateTimer() => _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
 }

@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Semantics;
@@ -24,18 +23,15 @@ internal sealed class Http11ServerDecoder
     private HttpMethod _method = null!;
     private string _target = null!;
     private Version _version = null!;
-    private IBodyDecoder? _bodyDecoder;
 
     public Http11ServerDecoder(Http11ServerDecoderOptions options)
     {
-        options.Validate();
         _options = options;
-        var s = options.Shared;
         _headerReader =
-            new HeaderBlockReader(s.MaxHeaderBytes, s.MaxHeaderCount, s.HeaderLineMaxLength, s.AllowObsFold);
+            new HeaderBlockReader(options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
     }
 
-    public IBodyDecoder? CurrentBodyDecoder => _bodyDecoder;
+    public IBodyDecoder? CurrentBodyDecoder { get; private set; }
 
     public DecodeOutcome Feed(ReadOnlySpan<byte> data, out int consumed)
     {
@@ -44,9 +40,15 @@ internal sealed class Http11ServerDecoder
 
         if (_phase == Phase.RequestLine)
         {
-            if (!RequestLineParser.TryParse(data, _options.Shared.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
+            if (!RequestLineParser.TryParse(data, _options.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
             {
                 return DecodeOutcome.NeedMore;
+            }
+
+            if (target.Length > _options.MaxRequestTargetLength)
+            {
+                throw new HttpProtocolException(
+                    $"Request target length {target.Length} exceeds limit ({_options.MaxRequestTargetLength}).");
             }
 
             _method = method;
@@ -67,18 +69,32 @@ internal sealed class Http11ServerDecoder
             }
 
             var classification = BodySemantics.ClassifyRequest(_method, _headerReader.GetHeaders(), _version);
-            _bodyDecoder = BodyDecoderFactory.Create(
+            CurrentBodyDecoder = BodyDecoderFactory.Create(
                 classification,
-                _options.Shared.StreamingThreshold,
-                _options.Shared.BufferPool,
-                _options.Shared.MaxBufferedBodySize,
-                _options.Shared.MaxStreamedBodySize);
+                _options.StreamingThreshold,
+                _options.BufferPool,
+                _options.MaxBufferedBodySize,
+                _options.MaxStreamedBodySize);
+
+            if (CurrentBodyDecoder.IsComplete)
+            {
+                _phase = Phase.Done;
+                consumed = pos;
+                return DecodeOutcome.Complete;
+            }
+
             _phase = Phase.Body;
+
+            if (!CurrentBodyDecoder.IsBuffered)
+            {
+                consumed = pos;
+                return DecodeOutcome.HeadersReady;
+            }
         }
 
         if (_phase == Phase.Body)
         {
-            var done = _bodyDecoder!.Feed(data[pos..], out var bConsumed);
+            var done = CurrentBodyDecoder!.Feed(data[pos..], out var bConsumed);
             pos += bConsumed;
             consumed = pos;
             if (done)
@@ -111,11 +127,9 @@ internal sealed class Http11ServerDecoder
 
     public TurboHttpRequestFeature GetRequestFeature()
     {
-        var headers = new HeaderDictionary();
-        HeaderRouter.ApplyToHeaderDictionary(headers, _headerReader.GetHeaders());
-        var body = _bodyDecoder?.GetBodyStream() ?? Stream.Null;
+        var body = CurrentBodyDecoder?.GetBodyStream() ?? Stream.Null;
 
-        return new TurboHttpRequestFeature
+        var feature = new TurboHttpRequestFeature
         {
             Protocol = _version switch
             {
@@ -127,9 +141,13 @@ internal sealed class Http11ServerDecoder
             Path = ParsePath(_target),
             QueryString = ParseQueryString(_target),
             RawTarget = _target,
-            Headers = headers,
             Body = body,
         };
+
+        // Populate directly into the feature's header dictionary, avoiding a throwaway
+        // HeaderDictionary allocation plus the copy loop in the Headers setter.
+        HeaderRouter.ApplyToHeaderDictionary(feature.Headers, _headerReader.GetHeaders());
+        return feature;
     }
 
     private static string ParsePath(string target)
@@ -151,7 +169,7 @@ internal sealed class Http11ServerDecoder
         _method = null!;
         _target = null!;
         _version = null!;
-        _bodyDecoder = null;
+        CurrentBodyDecoder = null;
         _headerReader.Reset();
     }
 }

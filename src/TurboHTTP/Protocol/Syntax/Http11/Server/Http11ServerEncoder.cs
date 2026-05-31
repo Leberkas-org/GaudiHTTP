@@ -15,7 +15,6 @@ internal sealed class Http11ServerEncoder
 
     public Http11ServerEncoder(Http11ServerEncoderOptions options)
     {
-        options.Validate();
         _options = options;
     }
 

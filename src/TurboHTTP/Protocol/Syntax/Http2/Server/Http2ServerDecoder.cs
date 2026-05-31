@@ -1,6 +1,6 @@
-using Microsoft.AspNetCore.Http;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
+using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Server;
@@ -16,11 +16,14 @@ internal sealed class Http2ServerDecoder
     private HpackDecoder _hpack = new();
     private readonly int _maxHeaderSize;
     private readonly int _maxTotalHeaderSize;
+    private readonly int _maxHeaderCount;
 
-    public Http2ServerDecoder(int maxHeaderSize = 16 * 1024, int maxTotalHeaderSize = 64 * 1024)
+    public Http2ServerDecoder(Http2ServerDecoderOptions options)
     {
-        _maxHeaderSize = maxHeaderSize;
-        _maxTotalHeaderSize = maxTotalHeaderSize;
+        ArgumentNullException.ThrowIfNull(options);
+        _maxHeaderSize = options.MaxHeaderBytes;
+        _maxTotalHeaderSize = options.MaxFieldSectionSize;
+        _maxHeaderCount = options.MaxHeaderCount;
     }
 
     public void ResetHpack()
@@ -35,7 +38,9 @@ internal sealed class Http2ServerDecoder
         ValidateRequestHeaders(headers);
 
         var feature = new TurboHttpRequestFeature { Protocol = "HTTP/2" };
-        var headerDict = new HeaderDictionary();
+        // Write directly into the feature's header dictionary, avoiding a throwaway
+        // HeaderDictionary allocation plus the copy loop in the Headers setter.
+        var headerDict = feature.Headers;
 
         string? path = null;
         string? scheme = null;
@@ -95,7 +100,6 @@ internal sealed class Http2ServerDecoder
             feature.QueryString = queryIdx >= 0 ? path[queryIdx..] : string.Empty;
         }
 
-        feature.Headers = headerDict;
         state.InitRequestFeature(feature);
 
         if (!endStream)
@@ -126,6 +130,12 @@ internal sealed class Http2ServerDecoder
 
     private void ValidateHeaderSize(List<HpackHeader> headers, int streamId)
     {
+        if (headers.Count > _maxHeaderCount)
+        {
+            throw new HttpProtocolException(
+                $"RFC 9113 §10.5.1: Header count {headers.Count} exceeds limit ({_maxHeaderCount}) on stream {streamId}.");
+        }
+
         var totalHeaderSize = 0;
 
         for (var i = 0; i < headers.Count; i++)
