@@ -35,7 +35,7 @@ The idle timeout is measured from the moment a connection returns to the pool wi
 If a connection is dropped unexpectedly (network interruption, server-side timeout, or RST), TurboHTTP detects the failure and reconnects automatically. While reconnecting, queued requests wait for the connection to recover. Once reconnected, TurboHTTP replays the queue.
 
 ::: tip Backoff timing
-Reconnect attempts use exponential backoff — each failed attempt waits progressively longer before the next try (1 s → 2 s → 4 s → 8 s → 16 s cap).
+Reconnect attempts use exponential backoff — each failed attempt waits progressively longer before the next try (100 ms → 200 ms → 400 ms → 800 ms → 1.6 s → 3.2 s → 6.4 s → 12.8 s → 25.6 s → 30 s cap).
 :::
 
 ## Per-Host Concurrency Limits

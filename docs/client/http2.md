@@ -93,12 +93,12 @@ HTTP/2 over cleartext (`http://` URLs, sometimes called h2c) is also supported. 
 
 ## Frame Size
 
-Each HTTP/2 request and response is broken into frames before being sent over the wire. The default maximum frame size is 16 KiB. Increase it for workloads that transfer large bodies to reduce framing overhead:
+Each HTTP/2 request and response is broken into frames before being sent over the wire. The default maximum frame size is 64 KiB (the protocol minimum is 16 KiB). Increase it for workloads that transfer large bodies to reduce framing overhead:
 
 ```csharp
 builder.Services.AddTurboHttpClient("http2-api", options =>
 {
-    options.Http2.MaxFrameSize = 4 * 1024 * 1024; // 4 MiB (default: 16 KiB, max: 16 MiB)
+    options.Http2.MaxFrameSize = 4 * 1024 * 1024; // 4 MiB (default: 64 KiB, max: 16 MiB)
 });
 ```
 

@@ -20,9 +20,9 @@ When a response arrives:
 1. TurboHTTP reads the `Content-Encoding` header.
 2. The body is decompressed using the appropriate algorithm.
 3. The `Content-Encoding` header is removed from the response.
-4. `Content-Length` is updated to reflect the decompressed size.
+4. `Content-Length` is removed (the decompressed size is not known up front).
 
-The final `HttpResponseMessage` you receive has an uncompressed body and accurate content headers.
+The final `HttpResponseMessage` you receive has an uncompressed body.
 
 ```csharp
 var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "/data"));
@@ -37,7 +37,7 @@ If a response uses multiple encodings (e.g., `Content-Encoding: gzip, br`), Turb
 
 ## Unknown Encodings
 
-If the server sends a `Content-Encoding` value that TurboHTTP does not recognise, it throws `HttpDecoderException` rather than silently returning corrupted data. This prevents your application from processing a response body it cannot correctly interpret.
+If the server sends a `Content-Encoding` value that TurboHTTP does not recognise, the response is passed through unchanged with the compressed body intact. TurboHTTP only decompresses encodings it recognises (gzip, deflate, br, identity).
 
 ## Overriding Accept-Encoding
 

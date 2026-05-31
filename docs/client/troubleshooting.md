@@ -98,19 +98,29 @@ builder.Services.AddTurboHttpClient("my-api", options =>
 
 ### POST Requests Are Not Retried
 
-**By design.** POST is not idempotent — retrying it could create duplicate resources. Only idempotent methods (GET, HEAD, PUT, DELETE, OPTIONS, TRACE) are retried automatically.
+**By design.** POST and other non-idempotent methods (PUT, DELETE, PATCH) are never automatically retried — retrying them could create duplicate resources or cause unintended side effects. Only idempotent methods (GET, HEAD, OPTIONS, TRACE) are retried automatically.
 
-If you need to retry POST, configure a custom retry policy via the builder:
+This behaviour **cannot be disabled or bypassed** via `RetryOptions`. The idempotency check is baked into the retry evaluator and cannot be configured away.
+
+If you need to retry POST in your application, implement retry logic in your own code:
 
 ```csharp
-builder.Services.AddTurboHttpClient("my-client", options =>
+var maxRetries = 3;
+for (var attempt = 1; attempt <= maxRetries; attempt++)
 {
-    options.BaseAddress = new Uri("https://api.example.com");
-})
-.WithRetry(retry => { retry.MaxRetries = 3; });
+    try
+    {
+        using var response = await client.SendAsync(postRequest, ct);
+        return response;
+    }
+    catch (HttpRequestException ex) when (attempt < maxRetries)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)), ct);
+    }
+}
 ```
 
-The built-in retry handles idempotent method detection and backoff automatically.
+The built-in `.WithRetry()` handles idempotent method detection and backoff automatically — use it for GET, PUT, DELETE, etc., but implement custom retry logic for POST if needed.
 
 ### High Memory Usage
 

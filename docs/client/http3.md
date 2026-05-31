@@ -83,22 +83,12 @@ options.Http3.EnableAltSvcDiscovery = true;  // default: false
 
 This is opt-in because not all environments support QUIC (firewalls may block UDP). Enable it when you know your network path supports QUIC and want automatic protocol upgrade.
 
-## Server Push
-
-HTTP/3 supports server push, where the server proactively sends resources the client hasn't requested yet. This is disabled by default:
-
-```csharp
-options.Http3.AllowServerPush = true;  // default: false
-```
-
-When disabled, any PUSH_PROMISE frames from the server are rejected.
-
 ## QPACK Header Compression
 
 HTTP/3 uses QPACK for header compression (the QUIC equivalent of HPACK in HTTP/2). TurboHTTP manages QPACK encoding and decoding automatically. Tune the dynamic table size if needed:
 
 ```csharp
-options.Http3.QpackMaxTableCapacity = 8192;  // default: 4096
+options.Http3.QpackMaxTableCapacity = 8192;  // default: 16 * 1024 (16 KiB)
 options.Http3.QpackBlockedStreams = 200;      // default: 100
 ```
 
