@@ -16,6 +16,10 @@
     <PropertyGroup>
         <IsPackable>true</IsPackable>
         <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+        <!-- Enforce the committed lock file in CI (GitHub Actions sets CI=true): restore fails
+             if packages.lock.json is out of date. Left off locally so developers can still
+             change dependencies and regenerate the lock file via a normal restore. -->
+        <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
     </PropertyGroup>
     <PropertyGroup>
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
