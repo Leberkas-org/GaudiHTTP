@@ -5,10 +5,12 @@ public sealed class Http3ServerOptions
     public int MaxConcurrentStreams { get; set; } = 100;
     public int MaxHeaderListSize { get; set; } = 32 * 1024;
     public int QpackMaxTableCapacity { get; set; }
-    public bool EnableWebTransport { get; set; }
-    public long MaxRequestBodySize { get; set; } = 30_000_000;
-    public TimeSpan KeepAliveTimeout { get; set; } = TimeSpan.FromSeconds(130);
-    public TimeSpan RequestHeadersTimeout { get; set; } = TimeSpan.FromSeconds(30);
-    public int MinRequestBodyDataRate { get; set; } = 240;
-    public TimeSpan MinRequestBodyDataRateGracePeriod { get; set; } = TimeSpan.FromSeconds(5);
+    public int QpackBlockedStreams { get; set; } = 100;
+    public long? MaxRequestBodySize { get; set; }
+    public TimeSpan? KeepAliveTimeout { get; set; }
+    public TimeSpan? RequestHeadersTimeout { get; set; }
+    public double? MinRequestBodyDataRate { get; set; }
+    public TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; }
+    public double? MinResponseDataRate { get; set; }
+    public TimeSpan? MinResponseDataRateGracePeriod { get; set; }
 }
