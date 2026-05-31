@@ -50,8 +50,8 @@ model {
 
       TurboClientOptions = component 'TurboClientOptions' {
         #client
-        technology 'Record'
-        description 'BaseAddress, DefaultRequestVersion, DefaultRequestHeaders'
+        technology 'Class'
+        description 'BaseAddress, ConnectTimeout, and nested Http1/Http2/Http3 options'
       }
     }
 
@@ -205,7 +205,7 @@ model {
       ConnectionActor = actor 'ConnectionActor' {
         #server
         technology 'ReceiveActor'
-        description 'Per-connection actor: materialises the server-side Akka.Streams graph (protocol engine + middleware + routing) for a single client connection'
+        description 'Per-connection actor: materialises the server-side Akka.Streams graph, selecting the appropriate protocol engine via ProtocolRouter and bridging to ApplicationBridgeStage; middleware and routing are handled by ASP.NET Core'
       }
 
       ProtocolRouter = component 'ProtocolRouter' {
