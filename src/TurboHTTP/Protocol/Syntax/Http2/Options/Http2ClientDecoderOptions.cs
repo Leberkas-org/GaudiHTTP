@@ -2,7 +2,6 @@ namespace TurboHTTP.Protocol.Syntax.Http2.Options;
 
 internal sealed record Http2ClientDecoderOptions
 {
-    public SharedHttpOptions Shared { get; init; } = SharedHttpOptions.Default;
     public int MaxConcurrentStreams { get; init; } = 100;
     public int InitialConnectionWindowSize { get; init; } = 64 * 1024 * 1024;
     public int InitialStreamWindowSize { get; init; } = 2 * 1024 * 1024;
@@ -25,12 +24,5 @@ internal sealed record Http2ClientDecoderOptions
         {
             throw new ArgumentException("InitialStreamWindowSize must be > 0.", nameof(InitialStreamWindowSize));
         }
-
-        if (Shared is null)
-        {
-            throw new ArgumentException("Shared must not be null.", nameof(Shared));
-        }
-
-        Shared.Validate();
     }
 }

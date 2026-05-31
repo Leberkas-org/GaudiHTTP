@@ -9,8 +9,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Client;
 
 public sealed class Http10ClientEncoderSpec : TestKit
 {
-    private static Http10ClientEncoder MakeEncoder() =>
-        new(Http10ClientEncoderOptions.Default);
+    private static Http10ClientEncoder MakeEncoder() => new();
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]

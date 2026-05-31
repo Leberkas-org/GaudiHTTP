@@ -40,8 +40,8 @@ internal sealed class Http11ClientDecoder
     {
         options.Validate();
         _options = options;
-        var s = options.Shared;
-        _headerReader = new HeaderBlockReader(s.MaxHeaderBytes, s.MaxHeaderCount, s.HeaderLineMaxLength, s.AllowObsFold);
+        _headerReader = new HeaderBlockReader(
+            options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
     }
 
     public DecodeOutcome Feed(ReadOnlySpan<byte> data, bool requestMethodWasHead, out int consumed)
@@ -95,9 +95,9 @@ internal sealed class Http11ClientDecoder
                 classification,
                 new BodyDecoderOptions
                 {
-                    StreamingThreshold = _options.Shared.StreamingThreshold,
-                    MaxBufferedBodySize = _options.Shared.MaxBufferedBodySize,
-                    MaxStreamedBodySize = _options.Shared.MaxStreamedBodySize,
+                    StreamingThreshold = _options.StreamingThreshold,
+                    MaxBufferedBodySize = _options.MaxBufferedBodySize,
+                    MaxStreamedBodySize = _options.MaxStreamedBodySize,
                 });
 
             _phase = Phase.Body;

@@ -1,4 +1,3 @@
-using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Client;
@@ -6,23 +5,15 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Client;
 public sealed class Http10ClientDecoderOptionsSpec
 {
     [Fact(Timeout = 5000)]
-    public void Default_should_hold_SharedHttpOptions_Default()
+    public void Default_should_have_sensible_values()
     {
-        Assert.Same(SharedHttpOptions.Default, Http10ClientDecoderOptions.Default.Shared);
+        Assert.Equal(64L * 1024, Http10ClientDecoderOptions.Default.StreamingThreshold);
     }
 
     [Fact(Timeout = 5000)]
-    public void Validate_should_delegate_to_Shared()
+    public void Validate_should_reject_negative_StreamingThreshold()
     {
-        var bad = SharedHttpOptions.Default with { StreamingThreshold = -1 };
-        var opts = Http10ClientDecoderOptions.Default with { Shared = bad };
-        Assert.Throws<ArgumentException>(opts.Validate);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void Validate_should_reject_null_Shared()
-    {
-        var opts = Http10ClientDecoderOptions.Default with { Shared = null! };
+        var opts = Http10ClientDecoderOptions.Default with { StreamingThreshold = -1 };
         Assert.Throws<ArgumentException>(opts.Validate);
     }
 }

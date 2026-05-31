@@ -52,19 +52,10 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
         _ops = ops;
         _options = options;
 
-        var decoderOpts = new Http10ClientDecoderOptions
-        {
-            Shared = SharedHttpOptions.Default with
-            {
-                MaxHeaderBytes = options.Http1.MaxResponseHeadersLength * 1024,
-                MaxBufferedBodySize = options.MaxBufferedBodySize,
-                MaxStreamedBodySize = options.MaxStreamedBodySize,
-            }
-        };
-        var encoderOpts = Http10ClientEncoderOptions.Default;
+        var decoderOpts = options.ToHttp10DecoderOptions();
 
         _decoder = new Http10ClientDecoder(decoderOpts);
-        _encoder = new Http10ClientEncoder(encoderOpts);
+        _encoder = new Http10ClientEncoder();
     }
 
     public void PreStart()

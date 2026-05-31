@@ -3,19 +3,11 @@ using System.Net;
 using Akka.Actor;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.LineBased.Body;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Client;
 
 internal sealed class Http10ClientEncoder
 {
-    private readonly Http10ClientEncoderOptions _options;
-
-    public Http10ClientEncoder(Http10ClientEncoderOptions options)
-    {
-        options.Validate();
-        _options = options;
-    }
 
     public int Encode(Span<byte> destination, HttpRequestMessage request, IActorRef stageActor)
     {

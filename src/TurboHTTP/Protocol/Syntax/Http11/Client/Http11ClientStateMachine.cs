@@ -53,21 +53,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
         _ops = ops;
         _options = options;
 
-        var decoderOpts = new Http11ClientDecoderOptions
-        {
-            Shared = SharedHttpOptions.Default with
-            {
-                MaxHeaderBytes = options.Http1.MaxResponseHeadersLength * 1024,
-                MaxBufferedBodySize = options.MaxBufferedBodySize,
-                MaxStreamedBodySize = options.MaxStreamedBodySize,
-            },
-            MaxPipelineDepth = options.Http1.MaxPipelineDepth,
-        };
-        var encoderOpts = new Http11ClientEncoderOptions
-        {
-            AutoHost = options.Http1.AutoHost,
-            AutoAcceptEncoding = options.Http1.AutoAcceptEncoding,
-        };
+        var decoderOpts = options.ToHttp11DecoderOptions();
+        var encoderOpts = options.ToHttp11EncoderOptions();
 
         _decoder = new Http11ClientDecoder(decoderOpts);
         _encoder = new Http11ClientEncoder(encoderOpts);

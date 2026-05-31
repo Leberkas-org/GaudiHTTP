@@ -34,25 +34,8 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
         _options = options;
         _ops = ops;
 
-        var shared = SharedHttpOptions.Default with
-        {
-            MaxBufferedBodySize = options.MaxBufferedBodySize,
-            MaxStreamedBodySize = options.MaxStreamedBodySize,
-        };
-
-        var encoderOpts = new Http2ClientEncoderOptions
-        {
-            HeaderTableSize = options.Http2.HeaderTableSize,
-            Shared = shared,
-        };
-
-        var decoderOpts = new Http2ClientDecoderOptions
-        {
-            MaxConcurrentStreams = options.Http2.MaxConcurrentStreams,
-            InitialConnectionWindowSize = options.Http2.InitialConnectionWindowSize,
-            InitialStreamWindowSize = options.Http2.InitialStreamWindowSize,
-            Shared = shared,
-        };
+        var encoderOpts = options.ToHttp2EncoderOptions();
+        var decoderOpts = options.ToHttp2DecoderOptions();
 
         _clientSession = new Http2ClientSessionManager(encoderOpts, decoderOpts, options, ops);
         _reconnect = new ReconnectionManager(options.Http2.MaxReconnectAttempts);

@@ -1,4 +1,3 @@
-using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Options;
@@ -7,18 +6,9 @@ public sealed class Http2ClientDecoderOptionsSpec
 {
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113")]
-    public void Default_should_hold_SharedHttpOptions_Default()
+    public void Default_should_have_sensible_values()
     {
-        Assert.Same(SharedHttpOptions.Default, Http2ClientDecoderOptions.Default.Shared);
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113")]
-    public void Validate_should_delegate_to_Shared()
-    {
-        var bad = SharedHttpOptions.Default with { StreamingThreshold = -1 };
-        var opts = Http2ClientDecoderOptions.Default with { Shared = bad };
-        Assert.Throws<ArgumentException>(opts.Validate);
+        Assert.Equal(100, Http2ClientDecoderOptions.Default.MaxConcurrentStreams);
     }
 
     [Fact(Timeout = 5000)]

@@ -2,7 +2,6 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Options;
 
 internal sealed record Http3ClientEncoderOptions
 {
-    public SharedHttpOptions Shared { get; init; } = SharedHttpOptions.Default;
     public int QpackMaxTableCapacity { get; init; } = 16 * 1024;
     public int QpackBlockedStreams { get; init; } = 100;
 
@@ -10,13 +9,6 @@ internal sealed record Http3ClientEncoderOptions
 
     public void Validate()
     {
-        if (Shared is null)
-        {
-            throw new ArgumentException("Shared must not be null.", nameof(Shared));
-        }
-
-        Shared.Validate();
-
         if (QpackMaxTableCapacity < 0)
         {
             throw new ArgumentException("QpackMaxTableCapacity must be >= 0.", nameof(QpackMaxTableCapacity));
