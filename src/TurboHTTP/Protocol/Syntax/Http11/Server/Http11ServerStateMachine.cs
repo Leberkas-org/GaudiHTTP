@@ -22,7 +22,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
     private readonly TimeSpan _bodyConsumptionTimeout;
     private readonly TimeSpan _bodyReadTimeout;
-    private readonly int _responseBodyChunkSize;
+    private readonly BodyEncoderOptions _bodyEncoderOptions;
     private readonly long _maxRequestBodySize;
     private readonly Http2ConnectionOptions _h2UpgradeOptions;
 
@@ -49,7 +49,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         _h2UpgradeOptions = h2UpgradeOptions;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _bodyReadTimeout = options.BodyReadTimeout;
-        _responseBodyChunkSize = options.ResponseBodyChunkSize;
+        _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _now = clock ?? (() => Environment.TickCount64);
 
@@ -291,7 +291,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             _outboundBodyPending = true;
 
             var bodyStream = turboBody.GetResponseStream();
-            var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version11, new BodyEncoderOptions { ChunkSize = _responseBodyChunkSize });
+            var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version11, _bodyEncoderOptions);
             if (encoder is not null)
             {
                 _encoder.SetActiveBodyEncoder(encoder);

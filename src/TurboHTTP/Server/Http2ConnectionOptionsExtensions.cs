@@ -1,9 +1,15 @@
+using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
 
 namespace TurboHTTP.Server;
 
 internal static class Http2ConnectionOptionsExtensions
 {
+    public static BodyEncoderOptions ToBodyEncoderOptions(this Http2ConnectionOptions o) => new()
+    {
+        ChunkSize = o.ResponseBodyChunkSize,
+    };
+
     public static Http2ServerEncoderOptions ToEncoderOptions(this Http2ConnectionOptions o) => new()
     {
         MaxFrameSize = o.MaxFrameSize,

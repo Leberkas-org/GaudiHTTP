@@ -1,9 +1,15 @@
+using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 
 namespace TurboHTTP.Server;
 
 internal static class Http3ConnectionOptionsExtensions
 {
+    public static BodyEncoderOptions ToBodyEncoderOptions(this Http3ConnectionOptions o) => new()
+    {
+        ChunkSize = o.ResponseBodyChunkSize,
+    };
+
     public static Http3ServerEncoderOptions ToEncoderOptions(this Http3ConnectionOptions o) => new()
     {
         WriteDateHeader = true,

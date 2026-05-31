@@ -19,7 +19,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
     private readonly Http10ServerDecoder _decoder;
     private readonly Http10ServerEncoder _encoder;
     private readonly long _maxRequestBodySize;
-    private readonly int _responseBodyChunkSize;
+    private readonly BodyEncoderOptions _bodyEncoderOptions;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
     private readonly Func<long> _now;
@@ -39,7 +39,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
-        _responseBodyChunkSize = options.ResponseBodyChunkSize;
+        _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _now = clock ?? (() => Environment.TickCount64);
 
         var rate = options.ToRateMonitor();
@@ -106,7 +106,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         if (responseBody is TurboHttpResponseBodyFeature turboBody)
         {
             var bodyStream = turboBody.GetResponseStream();
-            var encoder = BodyEncoderFactory.Create(bodyStream, null, HttpVersion.Version10, new BodyEncoderOptions { ChunkSize = _responseBodyChunkSize });
+            var encoder = BodyEncoderFactory.Create(bodyStream, null, HttpVersion.Version10, _bodyEncoderOptions);
             if (encoder is not null)
             {
                 _activeBodyEncoder = encoder;
