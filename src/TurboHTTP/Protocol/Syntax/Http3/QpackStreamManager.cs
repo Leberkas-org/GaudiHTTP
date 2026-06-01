@@ -24,42 +24,24 @@ internal sealed class QpackStreamManager(
         emit(new OpenStream(CriticalStreamId.QpackDecoder, StreamDirection.Unidirectional));
     }
 
+    // RFC 9204 §2.2: a malformed QPACK encoder/decoder instruction is a connection error
+    // (QPACK_ENCODER_STREAM_ERROR / QPACK_DECODER_STREAM_ERROR). The dynamic table is desynchronized,
+    // so the connection cannot continue — let QpackException/HuffmanException propagate to the caller,
+    // which tears the connection down instead of decoding subsequent header blocks against a corrupt table.
     public void ProcessEncoderInstructions(ReadOnlySpan<byte> data)
     {
-        try
-        {
-            TableSync.ProcessEncoderInstructions(data);
-        }
-        catch (Exception ex)
-        {
-            Tracing.For("Protocol").Warning(this, "QPACK encoder stream error absorbed — {0}", ex.Message);
-        }
+        TableSync.ProcessEncoderInstructions(data);
     }
 
     public void ProcessDecoderInstructions(ReadOnlySpan<byte> data)
     {
-        try
-        {
-            TableSync.ProcessDecoderInstructions(data);
-        }
-        catch (Exception ex)
-        {
-            Tracing.For("Protocol").Warning(this, "QPACK decoder stream error absorbed — {0}", ex.Message);
-        }
+        TableSync.ProcessDecoderInstructions(data);
     }
 
     public IReadOnlyList<(int StreamId, IReadOnlyList<(string Name, string Value)> Headers)> ProcessEncoderInstructionsAndResolveBlocked(ReadOnlySpan<byte> data)
     {
-        try
-        {
-            TableSync.ProcessEncoderInstructions(data);
-            return TableSync.ResolveBlockedStreams();
-        }
-        catch (Exception ex)
-        {
-            Tracing.For("Protocol").Warning(this, "QPACK encoder stream error absorbed — {0}", ex.Message);
-            return [];
-        }
+        TableSync.ProcessEncoderInstructions(data);
+        return TableSync.ResolveBlockedStreams();
     }
 
     public void FlushPendingInstructions()

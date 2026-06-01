@@ -311,10 +311,12 @@ public sealed class Http2ServerDecoderSecuritySpec
         var encoded = EncodeHeaders(headers);
         var state = BuildStreamState(encoded);
 
-        var ex = Assert.Throws<HttpProtocolException>(() =>
+        // Total header-list size is enforced at the HPACK layer (RFC 9113 §6.5.2 / MAX_HEADER_LIST_SIZE),
+        // which rejects during decode before the full list is materialized — a COMPRESSION_ERROR.
+        var ex = Assert.Throws<HpackException>(() =>
             decoder.DecodeHeadersToFeature(streamId: 1, endStream: true, state));
 
-        Assert.Contains("exceeds MaxTotalHeaderSize", ex.Message);
+        Assert.Contains("MAX_HEADER_LIST_SIZE", ex.Message);
         Assert.Contains("128", ex.Message);
     }
 

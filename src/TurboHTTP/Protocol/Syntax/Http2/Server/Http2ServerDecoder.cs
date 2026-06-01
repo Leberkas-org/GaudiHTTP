@@ -23,11 +23,15 @@ internal sealed class Http2ServerDecoder
         _maxHeaderSize = options.MaxHeaderBytes;
         _maxTotalHeaderSize = options.MaxFieldSectionSize;
         _maxHeaderCount = options.MaxHeaderCount;
+        // RFC 9113 §6.5.2: enforce the cumulative decoded header-list size (MAX_HEADER_LIST_SIZE) inside
+        // the HPACK decoder so a decompression bomb is rejected mid-decode, before the full list is built.
+        _hpack.SetMaxHeaderListSize(_maxTotalHeaderSize);
     }
 
     public void ResetHpack()
     {
         _hpack = new HpackDecoder();
+        _hpack.SetMaxHeaderListSize(_maxTotalHeaderSize);
     }
 
     public TurboHttpRequestFeature? DecodeHeadersToFeature(int streamId, bool endStream, StreamState state)
@@ -133,8 +137,8 @@ internal sealed class Http2ServerDecoder
                 $"RFC 9113 §10.5.1: Header count {headers.Count} exceeds limit ({_maxHeaderCount}) on stream {streamId}.");
         }
 
-        var totalHeaderSize = 0;
-
+        // Cumulative header-list size is enforced inside the HPACK decoder (MAX_HEADER_LIST_SIZE); here we
+        // only bound the size of any single header field (RFC 9113 §10.5.1).
         for (var i = 0; i < headers.Count; i++)
         {
             var headerSize = headers[i].Name.Length + headers[i].Value.Length;
@@ -145,16 +149,6 @@ internal sealed class Http2ServerDecoder
                     $"RFC 9113 §10.5.1: Single header field size {headerSize} bytes " +
                     $"exceeds MaxHeaderSize limit ({_maxHeaderSize} bytes) " +
                     $"on stream {streamId} — header '{headers[i].Name}'.");
-            }
-
-            totalHeaderSize += headerSize;
-
-            if (totalHeaderSize > _maxTotalHeaderSize)
-            {
-                throw new HttpProtocolException(
-                    $"RFC 9113 §10.5.1: Total header block size {totalHeaderSize} bytes " +
-                    $"exceeds MaxTotalHeaderSize limit ({_maxTotalHeaderSize} bytes) " +
-                    $"on stream {streamId}.");
             }
         }
     }
