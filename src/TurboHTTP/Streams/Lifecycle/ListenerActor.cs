@@ -15,7 +15,7 @@ internal sealed class ListenerActor : ReceiveActor
     private readonly IListenerFactory _factory;
     private readonly ListenerOptions _listenerOptions;
     private readonly TurboServerOptions _serverOptions;
-    private readonly PipelineHandles _pipelineHandles;
+    private readonly ServerPipeline _pipeline;
     private readonly IServerProtocolEngine _engine;
 
     public sealed record StartListening;
@@ -26,13 +26,13 @@ internal sealed class ListenerActor : ReceiveActor
         IListenerFactory factory,
         ListenerOptions listenerOptions,
         TurboServerOptions serverOptions,
-        PipelineHandles pipelineHandles,
+        ServerPipeline pipeline,
         IServerProtocolEngine engine)
     {
         _factory = factory;
         _listenerOptions = listenerOptions;
         _serverOptions = serverOptions;
-        _pipelineHandles = pipelineHandles;
+        _pipeline = pipeline;
         _engine = engine;
 
         Receive<StartListening>(_ => OnStartListening());
@@ -44,7 +44,7 @@ internal sealed class ListenerActor : ReceiveActor
 
         var listenerSource = _factory.Bind(_listenerOptions);
         var completionTcs = new TaskCompletionSource<Done>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var connectionStage = new ConnectionStage(_serverOptions, _pipelineHandles, _engine);
+        var connectionStage = new ConnectionStage(_serverOptions, _pipeline, _engine);
         var materializer = Context.Materializer();
 
         var sender = Sender;
@@ -70,8 +70,8 @@ internal sealed class ListenerActor : ReceiveActor
         IListenerFactory factory,
         ListenerOptions listenerOptions,
         TurboServerOptions serverOptions,
-        PipelineHandles pipelineHandles,
+        ServerPipeline pipeline,
         IServerProtocolEngine engine)
         => Props.Create(() => new ListenerActor(
-            factory, listenerOptions, serverOptions, pipelineHandles, engine));
+            factory, listenerOptions, serverOptions, pipeline, engine));
 }

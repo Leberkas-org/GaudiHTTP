@@ -2,7 +2,6 @@ using Akka;
 using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
-using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
@@ -46,19 +45,8 @@ internal sealed class ServerSupervisorActor : ReceiveActor
 
         _pipelineKillSwitch = KillSwitches.Shared("server-pipeline");
 
-        var responseHub = new ResponseDispatcherHub();
-
-        var (requestSink, responseDispatcher) = MergeHub.Source<IFeatureCollection>(perProducerBufferSize: 64)
-            .Via(_pipelineKillSwitch.Flow<IFeatureCollection>())
-            .Via(msg.BridgeFlow)
-            .ToMaterialized(responseHub, Keep.Both)
-            .Run(materializer);
-
-        var dispatcher = new FairShareDispatcher(
-            msg.Options.Limits.MaxConcurrentRequests,
-            msg.Options.Limits.MinRequestGuarantee);
-
-        var pipelineHandles = new PipelineHandles(requestSink, responseDispatcher, dispatcher);
+        var pipeline = ServerPipeline.Materialize(
+            msg.BridgeFlow, msg.Options, _pipelineKillSwitch, materializer);
 
         _pendingListenerCount = msg.Bindings.Count;
 
@@ -79,7 +67,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor
                 binding.Factory,
                 binding.Options,
                 msg.Options,
-                pipelineHandles,
+                pipeline,
                 engine);
 
             var name = string.Concat("listener-", i);

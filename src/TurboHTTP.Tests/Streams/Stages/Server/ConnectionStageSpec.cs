@@ -13,15 +13,12 @@ namespace TurboHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ConnectionStageSpec : StreamTestBase
 {
-    private PipelineHandles CreatePassthroughPipeline()
+    private ServerPipeline CreatePassthroughPipeline()
     {
-        var dispatcher = new FairShareDispatcher(0, 0);
-        var requestSink = Sink.Ignore<IFeatureCollection>().MapMaterializedValue(_ => NotUsed.Instance);
-        var responseHub = new ResponseDispatcherHub();
-        var responseDispatcher = Source.Empty<IFeatureCollection>()
-            .ToMaterialized(responseHub, Keep.Right)
-            .Run(Materializer);
-        return new PipelineHandles(requestSink, responseDispatcher, dispatcher);
+        var options = new TurboServerOptions { Limits = { MaxConcurrentRequests = 0 } };
+        var killSwitch = KillSwitches.Shared("connstage-test-pipeline");
+        return ServerPipeline.Materialize(
+            Flow.Create<IFeatureCollection>(), options, killSwitch, Materializer);
     }
 
     private sealed class PassthroughEngine : IServerProtocolEngine
@@ -63,11 +60,11 @@ public sealed class ConnectionStageSpec : StreamTestBase
     public async Task ConnectionStage_should_complete_when_inlet_closes_with_no_connections()
     {
         var options = new TurboServerOptions();
-        var pipelineHandles = CreatePassthroughPipeline();
+        var pipeline = CreatePassthroughPipeline();
         var engine = new PassthroughEngine();
         var completionTcs = new TaskCompletionSource<Done>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var stage = new ConnectionStage(options, pipelineHandles, engine);
+        var stage = new ConnectionStage(options, pipeline, engine);
         var flow = stage.CreateFlow(completionTcs);
 
         _ = Source.Empty<Flow<ITransportOutbound, ITransportInbound, NotUsed>>()
@@ -82,11 +79,11 @@ public sealed class ConnectionStageSpec : StreamTestBase
     public async Task ConnectionStage_should_complete_after_connections_finish()
     {
         var options = new TurboServerOptions();
-        var pipelineHandles = CreatePassthroughPipeline();
+        var pipeline = CreatePassthroughPipeline();
         var engine = new PassthroughEngine();
         var completionTcs = new TaskCompletionSource<Done>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var stage = new ConnectionStage(options, pipelineHandles, engine);
+        var stage = new ConnectionStage(options, pipeline, engine);
         var flow = stage.CreateFlow(completionTcs);
 
         _ = Source.From([FakeConnectionFlow(), FakeConnectionFlow()])
@@ -101,12 +98,12 @@ public sealed class ConnectionStageSpec : StreamTestBase
     public async Task ConnectionStage_should_drain_on_shared_kill_switch()
     {
         var options = new TurboServerOptions();
-        var pipelineHandles = CreatePassthroughPipeline();
+        var pipeline = CreatePassthroughPipeline();
         var engine = new PassthroughEngine();
         var drainSwitch = KillSwitches.Shared("test-drain");
         var completionTcs = new TaskCompletionSource<Done>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var stage = new ConnectionStage(options, pipelineHandles, engine, drainSwitch);
+        var stage = new ConnectionStage(options, pipeline, engine, drainSwitch);
         var flow = stage.CreateFlow(completionTcs);
 
         _ = Source.From([HangingConnectionFlow(), HangingConnectionFlow()])

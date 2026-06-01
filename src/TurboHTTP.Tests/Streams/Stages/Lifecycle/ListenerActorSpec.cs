@@ -31,15 +31,12 @@ public sealed class ListenerActorSpec : TestKit
         }
     }
 
-    private PipelineHandles CreateDummyPipelineHandles()
+    private ServerPipeline CreateDummyPipeline()
     {
-        var dispatcher = new FairShareDispatcher(0, 0);
-        var requestSink = Sink.Ignore<IFeatureCollection>().MapMaterializedValue(_ => NotUsed.Instance);
-        var responseHub = new ResponseDispatcherHub();
-        var responseDispatcher = Source.Empty<IFeatureCollection>()
-            .ToMaterialized(responseHub, Keep.Right)
-            .Run(Sys.Materializer());
-        return new PipelineHandles(requestSink, responseDispatcher, dispatcher);
+        var options = new TurboServerOptions { Limits = { MaxConcurrentRequests = 0 } };
+        var killSwitch = KillSwitches.Shared("listener-test-pipeline");
+        return ServerPipeline.Materialize(
+            Flow.Create<IFeatureCollection>(), options, killSwitch, Sys.Materializer());
     }
 
     private sealed class DummyProtocolEngine : IServerProtocolEngine
@@ -69,7 +66,7 @@ public sealed class ListenerActorSpec : TestKit
             new DummyListenerFactory(9000),
             new TcpListenerOptions { Host = "localhost", Port = 0 },
             new TurboServerOptions(),
-            CreateDummyPipelineHandles(),
+            CreateDummyPipeline(),
             new DummyProtocolEngine()));
 
         listener.Tell(new ListenerActor.StartListening(), TestActor);

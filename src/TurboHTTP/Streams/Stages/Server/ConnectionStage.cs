@@ -9,7 +9,7 @@ namespace TurboHTTP.Streams.Stages.Server;
 
 internal sealed class ConnectionStage(
     TurboServerOptions options,
-    PipelineHandles pipelineHandles,
+    ServerPipeline pipeline,
     IServerProtocolEngine engine,
     SharedKillSwitch? drainSwitch = null,
     IServiceProvider? services = null)
@@ -28,7 +28,7 @@ internal sealed class ConnectionStage(
     {
         return new StageImpl(
             options,
-            pipelineHandles,
+            pipeline,
             engine,
             DrainSwitch,
             services,
@@ -39,7 +39,7 @@ internal sealed class ConnectionStage(
         StageImpl : GraphStage<FlowShape<Flow<ITransportOutbound, ITransportInbound, NotUsed>, NotUsed>>
     {
         internal readonly TurboServerOptions Options;
-        internal readonly PipelineHandles PipelineHandles;
+        internal readonly ServerPipeline Pipeline;
         internal readonly IServerProtocolEngine Engine;
         internal readonly SharedKillSwitch DrainSwitch;
         internal readonly IServiceProvider? Services;
@@ -54,14 +54,14 @@ internal sealed class ConnectionStage(
 
         public StageImpl(
             TurboServerOptions options,
-            PipelineHandles pipelineHandles,
+            ServerPipeline pipeline,
             IServerProtocolEngine engine,
             SharedKillSwitch drainSwitch,
             IServiceProvider? services,
             TaskCompletionSource<Done> completionTcs)
         {
             Options = options;
-            PipelineHandles = pipelineHandles;
+            Pipeline = pipeline;
             Engine = engine;
             DrainSwitch = drainSwitch;
             Services = services;
@@ -145,7 +145,7 @@ internal sealed class ConnectionStage(
                 var protocolBidi = _stage.Engine.CreateFlow(_stage.Services);
                 var isH2OrH3 = _stage.Engine.ProtocolVersion.Major >= 2;
                 var bridgeFlow =
-                    ConnectionFlowFactory.Create(connectionId, _stage.PipelineHandles, unordered: isH2OrH3);
+                    _stage.Pipeline.CreateConnectionFlow(connectionId, unordered: isH2OrH3);
                 var composed = protocolBidi.Join(bridgeFlow);
 
                 var completionTask = connectionFlow
