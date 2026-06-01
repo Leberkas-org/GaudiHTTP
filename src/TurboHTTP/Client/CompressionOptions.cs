@@ -12,15 +12,15 @@ public sealed class CompressionOptions
     public string Encoding { get; set; } = WellKnownHeaders.GzipValue;
 
     /// <summary>
-    /// Minimum request body size in bytes that triggers compression.
+    /// Minimum request body size (in bytes) that triggers compression.
     /// Bodies smaller than this threshold pass through uncompressed.
     /// Default is 1024.
     /// </summary>
-    public long MinBodySizeBytes { get; set; } = 1024;
+    public long MinBodySize { get; set; } = 1024;
 
     internal CompressionPolicy To() => new()
     {
         Encoding = Encoding,
-        MinBodySizeBytes = MinBodySizeBytes,
+        MinBodySizeBytes = MinBodySize,
     };
 }

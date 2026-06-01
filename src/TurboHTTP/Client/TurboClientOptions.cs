@@ -34,23 +34,16 @@ public sealed class TurboClientOptions
     public Http3ClientOptions Http3 { get; init; } = new();
 
     /// <summary>
-    /// Maximum response body size (in bytes) that will be buffered in memory.
-    /// Bodies larger than this are streamed. Default is 4 MB.
+    /// Response bodies whose size (in bytes) is below this threshold are buffered fully in memory;
+    /// at or above it the body is streamed. Shared across all protocol versions. Default is 64 KB.
     /// </summary>
-    public long MaxBufferedBodySize { get; set; } = 4 * 1024 * 1024L;
+    public int ResponseBodyBufferThreshold { get; set; } = 64 * 1024;
 
     /// <summary>
-    /// Maximum response body size (in bytes) when streaming.
-    /// Null means unlimited. Default is null.
+    /// Maximum size (in bytes) of a streamed response body.
+    /// <see langword="null"/> means unlimited. Default is <see langword="null"/>.
     /// </summary>
-    public long? MaxStreamedBodySize { get; set; } = null;
-
-    /// <summary>
-    /// Response body size (in bytes) below which the body is buffered fully in memory before being
-    /// surfaced; at or above it the body is streamed. Shared across all protocol versions and used as
-    /// the streaming threshold for line-based (HTTP/1.x) response decoding. Default is 64 KB.
-    /// </summary>
-    public int BodyBufferThreshold { get; set; } = 64 * 1024;
+    public long? MaxStreamedResponseBodySize { get; set; } = null;
 
     /// <summary>
     /// Chunk size (in bytes) used when the client streams a request body to the server.
@@ -79,11 +72,11 @@ public sealed class TurboClientOptions
     public TimeSpan PooledConnectionLifetime { get; set; } = Timeout.InfiniteTimeSpan;
 
     /// <summary>
-    /// Maximum number of distinct endpoint substreams (identified by <c>(scheme, host, port, version)</c>)
+    /// Maximum number of distinct endpoints (identified by <c>(scheme, host, port, version)</c>)
     /// that may be active concurrently. Controls the ceiling for per-endpoint multiplexing and connection pooling.
     /// Must be at least 1. Default is 256. TurboHTTP-specific.
     /// </summary>
-    public uint MaxEndpointSubstreams { get; set; } = 256;
+    public uint MaxConcurrentEndpoints { get; set; } = 256;
 
     /// <summary>
     /// TLS protocol versions to enable. Defaults to <see cref="SslProtocols.None"/>,

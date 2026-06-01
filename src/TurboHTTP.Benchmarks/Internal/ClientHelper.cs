@@ -98,7 +98,7 @@ internal sealed class ClientHelper : IAsyncDisposable
                 MaxReconnectAttempts = 10,
                 MaxReconnectBufferSize = 256,
             },
-            MaxEndpointSubstreams = 16384,
+            MaxConcurrentEndpoints = 16384,
         };
 
         return Build(baseAddress, version, options);

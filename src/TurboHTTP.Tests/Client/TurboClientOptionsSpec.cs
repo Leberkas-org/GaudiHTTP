@@ -107,22 +107,22 @@ public sealed class TurboClientOptionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void MaxEndpointSubstreams_DefaultIs256()
+    public void MaxConcurrentEndpoints_DefaultIs256()
     {
         var options = new TurboClientOptions();
 
-        Assert.Equal(256u, options.MaxEndpointSubstreams);
+        Assert.Equal(256u, options.MaxConcurrentEndpoints);
     }
 
     [Fact(Timeout = 5000)]
-    public void MaxEndpointSubstreams_CanBeSet()
+    public void MaxConcurrentEndpoints_CanBeSet()
     {
         var options = new TurboClientOptions
         {
-            MaxEndpointSubstreams = 512
+            MaxConcurrentEndpoints = 512
         };
 
-        Assert.Equal(512u, options.MaxEndpointSubstreams);
+        Assert.Equal(512u, options.MaxConcurrentEndpoints);
     }
 
     [Fact(Timeout = 5000)]

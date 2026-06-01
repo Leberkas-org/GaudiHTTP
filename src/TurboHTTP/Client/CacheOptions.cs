@@ -11,7 +11,7 @@ public sealed class CacheOptions
     /// Maximum body size (in bytes) for a single stored response. Default 50 MiB.
     /// Responses larger than this limit are not cached.
     /// </summary>
-    public long MaxBodyBytes { get; set; } = 52_428_800; // 50 MiB
+    public long MaxBodySize { get; set; } = 50 * 1024 * 1024;
 
     /// <summary>
     /// When true the cache acts as a shared (proxy) cache: s-maxage is honoured,
@@ -24,7 +24,7 @@ public sealed class CacheOptions
     internal CachePolicy To() => new()
     {
         MaxEntries = MaxEntries,
-        MaxBodyBytes = MaxBodyBytes,
+        MaxBodyBytes = MaxBodySize,
         SharedCache = SharedCache,
     };
 }

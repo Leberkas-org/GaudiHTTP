@@ -51,7 +51,7 @@ public sealed class EngineSpec
         var descriptor = PipelineDescriptor.Empty;
         var options = new TurboClientOptions
         {
-            MaxEndpointSubstreams = 20,
+            MaxConcurrentEndpoints = 20,
             Http1 = new Http1ClientOptions { MaxPipelineDepth = 2 }
         };
 

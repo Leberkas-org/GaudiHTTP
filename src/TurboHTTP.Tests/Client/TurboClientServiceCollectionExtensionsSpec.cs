@@ -145,16 +145,16 @@ public sealed class TurboClientServiceCollectionExtensionsSpec
     public void AddTurboHttpClient_MultipleExtensions_AllConfigured()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("client1", opt => opt.MaxEndpointSubstreams = 100);
-        services.AddTurboHttpClient("client2", opt => opt.MaxEndpointSubstreams = 200);
+        services.AddTurboHttpClient("client1", opt => opt.MaxConcurrentEndpoints = 100);
+        services.AddTurboHttpClient("client2", opt => opt.MaxConcurrentEndpoints = 200);
 
         var sp = services.BuildServiceProvider();
         var optionsMonitor = sp.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
         var options1 = optionsMonitor.Get("client1");
         var options2 = optionsMonitor.Get("client2");
 
-        Assert.Equal(100u, options1.MaxEndpointSubstreams);
-        Assert.Equal(200u, options2.MaxEndpointSubstreams);
+        Assert.Equal(100u, options1.MaxConcurrentEndpoints);
+        Assert.Equal(200u, options2.MaxConcurrentEndpoints);
     }
 
     [Fact(Timeout = 5000)]
