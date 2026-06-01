@@ -3,6 +3,7 @@ using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
+using Servus.Akka.Streams;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 

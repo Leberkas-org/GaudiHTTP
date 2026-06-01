@@ -25,6 +25,7 @@
     <Project Path="Servus.Akka.AspNetCore/Servus.Akka.AspNetCore.csproj" />
     <Project Path="Servus.Akka.AspNetCore.Tests/Servus.Akka.AspNetCore.Tests.csproj" />
     <Project Path="../lib/servus.akka/src/Servus.Akka.TestKit/Servus.Akka.TestKit.csproj" />
+    <Project Path="../lib/servus.akka/src/Servus.Akka.Tests/Servus.Akka.Tests.csproj" />
     <Project Path="../lib/servus.akka/src/Servus.Akka/Servus.Akka.csproj" />
   </Folder>
   <Folder Name="/Tests/">
