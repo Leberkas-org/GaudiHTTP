@@ -3,7 +3,7 @@ using Servus.Core.Diagnostics;
 
 namespace TurboHTTP.Diagnostics;
 
-internal static class TurboHttpMetricsExtensions
+internal static class TurboClientMetricsExtensions
 {
     private static Counter<long>? _requestCount;
     private static Histogram<double>? _requestDuration;

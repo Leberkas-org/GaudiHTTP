@@ -12,7 +12,7 @@ namespace TurboHTTP.Streams.Stages.Features;
 /// <see cref="Activity"/> for each request flowing through the pipeline.
 /// <para>
 /// Request direction (In1→Out1): starts a root activity via
-/// <see cref="TurboHttpInstrumentationExtensions.StartRequest"/> and stores it in
+/// <see cref="TurboClientInstrumentationExtensions.StartRequest"/> and stores it in
 /// <see cref="HttpRequestMessage.Options"/> so downstream stages can parent child activities.
 /// </para>
 /// <para>
@@ -139,7 +139,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
         var activity = Tracing.StartRequest(request);
         if (activity is not null)
         {
-            request.Options.Set(TurboHttpInstrumentationExtensions.RequestActivityKey, activity);
+            request.Options.Set(TurboClientInstrumentationExtensions.RequestActivityKey, activity);
             Tracing.InjectTraceContext(activity, request);
             _currentActivity = activity;
         }
@@ -181,7 +181,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
         var request = response.RequestMessage;
 
         if (request?.Options
-                .TryGetValue(TurboHttpInstrumentationExtensions.RequestActivityKey, out var activity) == true)
+                .TryGetValue(TurboClientInstrumentationExtensions.RequestActivityKey, out var activity) == true)
         {
             Tracing.SetHttpResponse(activity, response);
             activity.Stop();
@@ -238,7 +238,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
             return;
         }
 
-        var method = TurboHttpInstrumentationExtensions.NormalizeMethod(request.Method.Method);
+        var method = TurboClientInstrumentationExtensions.NormalizeMethod(request.Method.Method);
         var host = request.RequestUri?.Host ?? "unknown";
         var port = request.RequestUri?.Port ?? 0;
         var scheme = request.RequestUri?.Scheme ?? "https";
@@ -257,7 +257,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
             return;
         }
 
-        var method = TurboHttpInstrumentationExtensions.NormalizeMethod(request.Method.Method);
+        var method = TurboClientInstrumentationExtensions.NormalizeMethod(request.Method.Method);
         var host = request.RequestUri?.Host ?? "unknown";
         var port = request.RequestUri?.Port ?? 0;
         var scheme = request.RequestUri?.Scheme ?? "https";
@@ -282,12 +282,12 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
             return;
         }
 
-        var method = TurboHttpInstrumentationExtensions.NormalizeMethod(request.Method.Method);
+        var method = TurboClientInstrumentationExtensions.NormalizeMethod(request.Method.Method);
         var statusCode = (int)response.StatusCode;
         var host = request.RequestUri?.Host ?? "unknown";
         var port = request.RequestUri?.Port ?? 0;
         var scheme = request.RequestUri?.Scheme ?? "https";
-        var protocolVersion = TurboHttpInstrumentationExtensions.FormatProtocolVersion(response.Version);
+        var protocolVersion = TurboClientInstrumentationExtensions.FormatProtocolVersion(response.Version);
 
         Metrics.RequestCount().Add(1,
             new KeyValuePair<string, object?>("http.request.method", method),
@@ -326,7 +326,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
             return;
         }
 
-        var method = TurboHttpInstrumentationExtensions.NormalizeMethod(request.Method.Method);
+        var method = TurboClientInstrumentationExtensions.NormalizeMethod(request.Method.Method);
         var host = request.RequestUri?.Host ?? "unknown";
         var port = request.RequestUri?.Port ?? 0;
         var scheme = request.RequestUri?.Scheme ?? "https";

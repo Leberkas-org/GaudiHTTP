@@ -293,7 +293,7 @@ internal sealed class RedirectStateMachine(IFeatureStageOperations ops, Redirect
             var newRequest = handler.BuildRedirectRequest(original, response);
 
             Activity? rootActivity = null;
-            if (original.Options.TryGetValue(TurboHttpInstrumentationExtensions.RequestActivityKey,
+            if (original.Options.TryGetValue(TurboClientInstrumentationExtensions.RequestActivityKey,
                     out rootActivity))
             {
                 Tracing.AddRedirectEvent(
@@ -311,7 +311,7 @@ internal sealed class RedirectStateMachine(IFeatureStageOperations ops, Redirect
 
             if (rootActivity is not null)
             {
-                newRequest.Options.Set(TurboHttpInstrumentationExtensions.RequestActivityKey, rootActivity);
+                newRequest.Options.Set(TurboClientInstrumentationExtensions.RequestActivityKey, rootActivity);
             }
 
             response.Dispose();
