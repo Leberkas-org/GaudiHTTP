@@ -1,0 +1,47 @@
+namespace TurboHTTP.Protocol.Syntax.Http2;
+
+/// <summary>
+/// Pure decision function for HTTP/2 adaptive receive-window growth.
+/// Mirrors SocketsHttpHandler's BDP heuristic: grow when the connection's measured
+/// bandwidth-delay product exceeds the current window scaled by a multiplier.
+/// Holds no window state — the caller owns the window.
+/// </summary>
+internal sealed class WindowScaler
+{
+    private readonly int _maxWindow;
+    private readonly double _multiplier;
+
+    public WindowScaler(int maxWindow, double multiplier)
+    {
+        _maxWindow = maxWindow;
+        _multiplier = multiplier;
+    }
+
+    /// <summary>
+    /// Returns the new window size (>= currentWindow), doubling up to the cap when the link is
+    /// keeping the current window saturated. Returns currentWindow unchanged when RTT is unknown,
+    /// the sample is degenerate, or growth is not warranted.
+    /// </summary>
+    public int ComputeNewWindow(int currentWindow, long deliveredBytes, TimeSpan elapsed, TimeSpan minRtt)
+    {
+        if (currentWindow >= _maxWindow)
+        {
+            return currentWindow;
+        }
+
+        if (minRtt <= TimeSpan.Zero || elapsed <= TimeSpan.Zero || deliveredBytes <= 0)
+        {
+            return currentWindow;
+        }
+
+        var bdpTerm = (double)deliveredBytes * minRtt.Ticks;
+        var windowTerm = (double)currentWindow * elapsed.Ticks * _multiplier;
+
+        if (bdpTerm > windowTerm)
+        {
+            return Math.Min(_maxWindow, currentWindow * 2);
+        }
+
+        return currentWindow;
+    }
+}
