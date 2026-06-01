@@ -39,26 +39,24 @@ internal sealed class Http2ClientSessionManager
     public RequestEndpoint Endpoint { get; private set; }
 
     public Http2ClientSessionManager(
-        Http2ClientEncoderOptions encoderOptions,
-        Http2ClientDecoderOptions decoderOptions,
         TurboClientOptions options,
         IClientStageOperations ops)
     {
-        _encoderOptions = encoderOptions;
-        _decoderOptions = decoderOptions;
+        _encoderOptions = options.ToHttp2EncoderOptions();
+        _decoderOptions = options.ToHttp2DecoderOptions();
         _options = options;
         _ops = ops;
-        _tracker = new StreamTracker(1, decoderOptions.MaxConcurrentStreams);
+        _tracker = new StreamTracker(1, _decoderOptions.MaxConcurrentStreams);
         _flow = new FlowController(
-            decoderOptions.InitialConnectionWindowSize,
-            decoderOptions.InitialStreamWindowSize);
-        _requestEncoder = new Http2ClientEncoder(useHuffman: true, maxFrameSize: encoderOptions.MaxFrameSize);
+            _decoderOptions.InitialConnectionWindowSize,
+            _decoderOptions.InitialStreamWindowSize);
+        _requestEncoder = new Http2ClientEncoder(useHuffman: true, maxFrameSize: _encoderOptions.MaxFrameSize);
         var poolCapacity = Math.Min(
             _tracker.MaxConcurrentStreams > 0 ? _tracker.MaxConcurrentStreams : 100,
             1000);
         _statePool = new StackStreamStatePool<StreamState>(poolCapacity, () => new StreamState());
         _responseDecoder = new Http2ClientDecoder();
-        _responseDecoder.SetMaxAllowedTableSize(encoderOptions.HeaderTableSize);
+        _responseDecoder.SetMaxAllowedTableSize(_encoderOptions.HeaderTableSize);
     }
 
     public TransportData? TryBuildPreface()
@@ -355,8 +353,7 @@ internal sealed class Http2ClientSessionManager
         if (data.EndStream)
         {
             var hasActiveBodyEncoder = _streams.TryGetValue(data.StreamId, out var state)
-                                      && state.HasBodyEncoder
-                                      && !state.IsBodyEncoderComplete;
+                                       && state is { HasBodyEncoder: true, IsBodyEncoderComplete: false };
             if (!hasActiveBodyEncoder)
             {
                 CloseStream(data.StreamId);
@@ -623,7 +620,7 @@ internal sealed class Http2ClientSessionManager
             return;
         }
 
-        while (state.PeekBodyChunk() is { } next)
+        while (state.PeekBodyChunk() is not null)
         {
             var window = (int)Math.Min(_flow.GetSendWindow(streamId), int.MaxValue);
             if (window <= 0)

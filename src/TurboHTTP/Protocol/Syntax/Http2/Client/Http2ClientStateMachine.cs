@@ -32,11 +32,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
     {
         _options = options;
         _ops = ops;
-
-        var encoderOpts = options.ToHttp2EncoderOptions();
-        var decoderOpts = options.ToHttp2DecoderOptions();
-
-        _clientSession = new Http2ClientSessionManager(encoderOpts, decoderOpts, options, ops);
+        _clientSession = new Http2ClientSessionManager(options, ops);
         _reconnect = new ReconnectionManager(options.Http2.MaxReconnectAttempts);
     }
 
@@ -107,30 +103,30 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
         switch (name)
         {
             case KeepAlivePingTimerKey:
+            {
+                var policy = _options.Http2.KeepAlivePingPolicy;
+                if (policy == HttpKeepAlivePingPolicy.WithActiveRequests && !_clientSession.HasInFlightRequests)
                 {
-                    var policy = _options.Http2.KeepAlivePingPolicy;
-                    if (policy == HttpKeepAlivePingPolicy.WithActiveRequests && !_clientSession.HasInFlightRequests)
-                    {
-                        return;
-                    }
-
-                    _clientSession.SendKeepAlivePing();
-                    ScheduleKeepAlivePingTimeout();
-                    break;
+                    return;
                 }
+
+                _clientSession.SendKeepAlivePing();
+                ScheduleKeepAlivePingTimeout();
+                break;
+            }
             case KeepAlivePingTimeoutKey:
+            {
+                if (_clientSession.IsKeepAliveTimedOut(_options.Http2.KeepAlivePingTimeout))
                 {
-                    if (_clientSession.IsKeepAliveTimedOut(_options.Http2.KeepAlivePingTimeout))
+                    Tracing.For("Protocol").Info(this, "HTTP/2: Keep-alive PING timeout — closing connection");
+                    if (_clientSession.HasInFlightRequests)
                     {
-                        Tracing.For("Protocol").Info(this, "HTTP/2: Keep-alive PING timeout — closing connection");
-                        if (_clientSession.HasInFlightRequests)
-                        {
-                            OnConnectionLost(lastStreamId: 0);
-                        }
+                        OnConnectionLost(lastStreamId: 0);
                     }
-
-                    break;
                 }
+
+                break;
+            }
         }
     }
 
