@@ -30,7 +30,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
 
     public bool ConnectionWillClose { get; private set; }
 
-    public bool IsBodyStreaming => _phase == Phase.Body && !_isHttp09 && (_bodyDecoder?.IsBuffered != true);
+    public bool IsBodyStreaming => _phase == Phase.Body && !_isHttp09 && _bodyDecoder?.IsBuffered != true;
 
     internal bool HasActiveBody => _phase == Phase.Body;
 
