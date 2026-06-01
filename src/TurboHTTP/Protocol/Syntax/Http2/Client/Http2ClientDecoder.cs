@@ -9,7 +9,6 @@ internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSi
     private const string PseudoHeaderSection = "RFC 9113 §8.1.2.2";
     private const string UppercaseSection = "RFC 9113 §8.2.1";
     private const string TokenSection = "RFC 9113 §10.3";
-    private const string FieldValueSection = "RFC 9113 §10.3";
     private const string ConnectionSection = "RFC 9113 §8.2.2";
 
     private static readonly HttpContent SharedEmptyContent = new ByteArrayContent([]);
@@ -94,7 +93,7 @@ internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSi
             static h => h.Value,
             UppercaseSection,
             TokenSection,
-            FieldValueSection,
+            TokenSection,
             ConnectionSection);
     }
 

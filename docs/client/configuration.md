@@ -76,7 +76,7 @@ options.BaseAddress = new Uri("https://api.example.com/v2/");
 | `ConnectTimeout`              | `TimeSpan` | `00:00:15` | Timeout for establishing a new TCP connection     |
 | `PooledConnectionIdleTimeout` | `TimeSpan` | `00:01:30` | Time a connection may remain idle before eviction |
 | `PooledConnectionLifetime`    | `TimeSpan` | `infinite` | Maximum lifetime of a pooled connection           |
-| `MaxEndpointSubstreams`       | `uint`     | `256`      | Maximum concurrently active endpoint substreams   |
+| `MaxConcurrentEndpoints`      | `uint`     | `256`      | Maximum concurrently active endpoints             |
 
 ```csharp
 options.ConnectTimeout = TimeSpan.FromSeconds(5);
@@ -86,18 +86,11 @@ options.PooledConnectionLifetime = TimeSpan.FromMinutes(10);
 
 ### Body Buffering
 
-| Property                  | Type    | Default              | Description                                                                                |
-| ------------------------- | ------- | -------------------- | ------------------------------------------------------------------------------------------ |
-| `MaxBufferedBodySize`     | `long`  | `4 * 1024 * 1024` (4 MB) | Responses at or below this size are buffered in memory; larger responses are streamed  |
-| `MaxStreamedBodySize`     | `long?` | `null`               | Cap on a streamed response body; `null` = unlimited                                        |
-| `BodyBufferThreshold`     | `int`   | `64 * 1024` (64 KB)  | Shared HTTP/1.x streaming threshold — bytes buffered before flushing to the caller         |
-| `RequestBodyChunkSize`    | `int`   | `16 * 1024` (16 KB)  | Chunk size used when streaming a request body to the server                                |
-
-```csharp
-// Keep all responses up to 16 MB in memory; stream anything larger without a size cap
-options.MaxBufferedBodySize = 16 * 1024 * 1024;
-options.MaxStreamedBodySize = null; // unlimited (default)
-```
+| Property                        | Type    | Default             | Description                                                                                                                           |
+| ------------------------------- | ------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `ResponseBodyBufferThreshold`   | `int`   | `64 * 1024` (64 KB) | Response bodies below this size are buffered fully in memory; at or above it the body is streamed (shared across all protocol versions) |
+| `MaxStreamedResponseBodySize`   | `long?` | `null`              | Cap on a streamed response body; `null` = unlimited                                                                                   |
+| `RequestBodyChunkSize`          | `int`   | `16 * 1024` (16 KB) | Chunk size used when streaming a request body to the server                                                                           |
 
 ### HTTP/1.x Options
 
@@ -239,7 +232,7 @@ See [Automatic Retries guide](./retries) for which methods and status codes trig
 
 ```csharp
 .WithCache()
-.WithCache(c => { c.MaxEntries = 200; c.MaxBodyBytes = 5 * 1024 * 1024; })
+.WithCache(c => { c.MaxEntries = 200; c.MaxBodySize = 5 * 1024 * 1024; })
 ```
 
 To share a single store across multiple named clients, implement the `ICacheStore` interface and pass it to `WithCache()`:
@@ -271,7 +264,7 @@ By default, each client gets its own in-memory cache. Pass a shared `ICacheStore
 | Property       | Type   | Default             | Description                                 |
 | -------------- | ------ | ------------------- | ------------------------------------------- |
 | `MaxEntries`   | `int`  | `1000`              | Maximum entries in the LRU store            |
-| `MaxBodyBytes` | `long` | `52428800` (50 MiB) | Maximum body size per cached response       |
+| `MaxBodySize`  | `long` | `50 * 1024 * 1024` (50 MiB) | Maximum body size per cached response |
 | `SharedCache`  | `bool` | `false`             | When `true`, acts as a shared (proxy) cache |
 
 See [HTTP Caching guide](./caching) for freshness evaluation and conditional request behaviour.
@@ -315,10 +308,10 @@ See [Cookies guide](./cookies) for session and domain handling.
 
 ```csharp
 .WithRequestCompression()                                                              // gzip bodies >= 1 KiB
-.WithRequestCompression(c => { c.Encoding = "br"; c.MinBodySizeBytes = 4096; })
+.WithRequestCompression(c => { c.Encoding = "br"; c.MinBodySize = 4096; })
 
 .WithExpectContinue()                                                                  // Expect: 100-continue for bodies >= 1 KiB
-.WithExpectContinue(e => { e.MinBodySizeBytes = 8192; })
+.WithExpectContinue(e => { e.MinBodySize = 8192; })
 ```
 
 See [Content Encoding guide](./content-encoding) for details.

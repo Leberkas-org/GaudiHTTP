@@ -126,9 +126,9 @@ The built-in `.WithRetry()` handles idempotent method detection and backoff auto
 
 **Possible causes:**
 
-1. **Cache too large** — reduce `MaxEntries` or `MaxBodyBytes` when registering:
+1. **Cache too large** — reduce `MaxEntries` or `MaxBodySize` when registering:
    ```csharp
-   .WithCache(c => { c.MaxEntries = 100; c.MaxBodyBytes = 10 * 1024 * 1024; })
+   .WithCache(c => { c.MaxEntries = 100; c.MaxBodySize = 10 * 1024 * 1024; })
    ```
 2. **Response bodies not disposed** — always dispose `HttpResponseMessage` when done:
    ```csharp

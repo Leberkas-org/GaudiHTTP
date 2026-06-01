@@ -29,7 +29,7 @@ builder.Services.AddTurboHttpClient("rest-api", options =>
 .WithCache(cache =>
 {
     cache.MaxEntries = 500;
-    cache.MaxBodyBytes = 10 * 1024 * 1024;  // 10 MiB
+    cache.MaxBodySize = 10 * 1024 * 1024;  // 10 MiB
 });
 ```
 

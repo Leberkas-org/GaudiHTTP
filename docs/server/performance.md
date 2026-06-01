@@ -31,7 +31,7 @@ Higher values improve throughput for clients sending many parallel requests. Low
 ### Request Body Buffer
 
 ```csharp
-options.BodyBufferThreshold = 128 * 1024;  // 128 KB
+options.RequestBodyBufferThreshold = 128 * 1024;  // 128 KB
 ```
 
 Default is 64 KB. Request bodies smaller than this threshold are buffered in memory. Larger bodies stream directly to the application.

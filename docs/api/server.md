@@ -60,7 +60,7 @@ public sealed class TurboServerOptions
     TimeSpan HandlerTimeout { get; set; }            // default: 30s
     TimeSpan HandlerGracePeriod { get; set; }        // default: 5s
 
-    int BodyBufferThreshold { get; set; }            // default: 64 * 1024
+    int RequestBodyBufferThreshold { get; set; }     // default: 64 * 1024
     TimeSpan BodyConsumptionTimeout { get; set; }    // default: 30s
     int ResponseBodyChunkSize { get; set; }          // default: 16 * 1024
 
