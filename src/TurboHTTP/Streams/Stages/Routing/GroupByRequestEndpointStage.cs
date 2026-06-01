@@ -9,8 +9,7 @@ namespace TurboHTTP.Streams.Stages.Routing;
 
 internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, Source<T, NotUsed>>>
 {
-    internal static readonly HttpRequestOptionsKey<int>
-        ConnectionAffinitySlot = new("TurboHTTP.ConnectionAffinitySlot");
+    private static readonly HttpRequestOptionsKey<int> ConnectionAffinitySlot = new("TurboHTTP.ConnectionAffinitySlot");
 
     private readonly Inlet<T> _in = new("GroupByRequestKey.In");
     private readonly Outlet<Source<T, NotUsed>> _out = new("GroupByRequestKey.Out");
@@ -35,7 +34,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new Logic(this, inheritedAttributes);
+        => new Logic(this);
 
     private sealed class SubflowState(ChannelSourceStage<T> channelStage, RequestEndpoint key)
     {
@@ -81,6 +80,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
     private sealed class SubflowGroup
     {
         private readonly Dictionary<int, SubflowState> _slotsById = new();
+
         // Parallel list kept in sync with _slotsById for O(1) round-robin indexing
         // (Dictionary.Values.ElementAt is O(n) and allocates an enumerator per call).
         private readonly List<SubflowState> _slotList = [];
@@ -121,16 +121,6 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
         public bool ContainsSlot(SubflowState state)
             => _slotsById.TryGetValue(state.SlotId, out var found) && ReferenceEquals(found, state);
 
-        /// <summary>Returns the first slot that has capacity, or null.</summary>
-        public SubflowState? FindCapacitySlot()
-        {
-            foreach (var slot in _slotsById.Values)
-            {
-                if (slot.HasCapacity) return slot;
-            }
-
-            return null;
-        }
 
         /// <summary>Returns the alive slot with the matching slot ID, or null if not found or dead (O(1)).</summary>
         public SubflowState? FindBySlotId(int slotId)
@@ -147,27 +137,6 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             }
 
             return null;
-        }
-
-        /// <summary>Returns the alive slot with the fewest total queued items, or null.</summary>
-        public SubflowState? FindLeastLoaded()
-        {
-            SubflowState? best = null;
-
-            foreach (var slot in _slotsById.Values)
-            {
-                if (slot.IsDead)
-                {
-                    continue;
-                }
-
-                if (best is null || slot.TotalPending < best.TotalPending)
-                {
-                    best = slot;
-                }
-            }
-
-            return best;
         }
 
         /// <summary>Returns the next alive slot in round-robin order, or null if all slots are dead.</summary>
@@ -244,7 +213,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
         private bool _upstreamFinished;
         private int _totalSlotCount;
 
-        public Logic(GroupByRequestEndpointStage<T> stage, Attributes inheritedAttributes) : base(stage.Shape)
+        public Logic(GroupByRequestEndpointStage<T> stage) : base(stage.Shape)
         {
             _stage = stage;
 

@@ -166,6 +166,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             }
 
             CompleteResponseBody(features);
+            FireOnCompleted(features);
             Emit(features);
 
             if (_upstreamFinished && _inFlight == 0)
@@ -201,6 +202,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 var responseFeature = features.Get<IHttpResponseFeature>();
                 responseFeature?.StatusCode = 500;
                 CompleteResponseBody(features);
+                FireOnCompleted(features);
                 Emit(features);
             }
 
@@ -221,6 +223,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 var responseFeature = features.Get<IHttpResponseFeature>();
                 responseFeature?.StatusCode = 500;
                 CompleteResponseBody(features);
+                FireOnCompleted(features);
                 Emit(features);
                 return;
             }
@@ -233,6 +236,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 _stage._application.DisposeContext(appContext, null);
                 _appContexts.Remove(seq);
                 CompleteResponseBody(features);
+                FireOnCompleted(features);
                 Emit(features);
             }
             else if (task.IsFaulted)
@@ -243,6 +247,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 _stage._application.DisposeContext(appContext, task.Exception);
                 _appContexts.Remove(seq);
                 CompleteResponseBody(features);
+                FireOnCompleted(features);
                 Emit(features);
             }
             else
@@ -291,6 +296,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                     if (handlerTask.IsCompleted)
                     {
                         CompleteResponseBody(features);
+                        FireOnCompleted(features);
                         _inFlight--;
                         if (_metricsEnabled)
                         {
@@ -319,6 +325,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                     }
 
                     CompleteResponseBody(finishedFeatures);
+                    FireOnCompleted(finishedFeatures);
                     _inFlight--;
                     if (_metricsEnabled)
                     {
@@ -342,6 +349,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                     }
 
                     CompleteResponseBody(faultedFeatures);
+                    FireOnCompleted(faultedFeatures);
                     _inFlight--;
                     if (_metricsEnabled)
                     {
@@ -374,6 +382,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                     CleanupTimeout(seq);
                     DisposeAppContext(seq, null);
                     CompleteResponseBody(features);
+                    FireOnCompleted(features);
                     Emit(features);
                     break;
 
@@ -395,6 +404,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                     var respFeature = features.Get<IHttpResponseFeature>();
                     respFeature?.StatusCode = 500;
                     CompleteResponseBody(features);
+                    FireOnCompleted(features);
                     Emit(features);
                     break;
             }
@@ -470,6 +480,14 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             bodyFeature?.Complete();
         }
 
+        private static void FireOnCompleted(IFeatureCollection features)
+        {
+            if (features.Get<IHttpResponseFeature>() is TurboHttpResponseFeature responseFeature)
+            {
+                responseFeature.FireOnCompletedAsync().ContinueWith(static _ => { }, TaskContinuationOptions.OnlyOnFaulted);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.NoInlining)]
         private void CheckBackpressure()
         {
@@ -489,6 +507,34 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             {
                 _backpressureSignaled = false;
             }
+        }
+
+        public override void PostStop()
+        {
+            foreach (var (_, features) in _activeFeatures)
+            {
+                if (features.Get<IHttpRequestLifetimeFeature>() is TurboHttpRequestLifetimeFeature lifetime)
+                {
+                    lifetime.Abort();
+                }
+
+                CompleteResponseBody(features);
+            }
+
+            foreach (var (_, cts) in _activeTimeouts)
+            {
+                cts.Cancel();
+                cts.Dispose();
+            }
+
+            foreach (var (_, appCtx) in _appContexts)
+            {
+                _stage._application.DisposeContext(appCtx, null);
+            }
+
+            _activeFeatures.Clear();
+            _activeTimeouts.Clear();
+            _appContexts.Clear();
         }
     }
 }

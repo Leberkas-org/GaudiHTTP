@@ -540,6 +540,7 @@ internal sealed class Http2ClientSessionManager
         if (state.HasResponse)
         {
             _responseDecoder.DecodeTrailers(state);
+            state.ClearHeaderBuffer();
             if (endStream)
             {
                 _streams.Remove(streamId);
@@ -554,8 +555,29 @@ internal sealed class Http2ClientSessionManager
         if (endStream)
         {
             var response = _responseDecoder.DecodeHeaders(streamId, true, state);
+            state.ClearHeaderBuffer();
             if (response is null)
             {
+                return;
+            }
+
+            if ((int)response.StatusCode < 200)
+            {
+                if (_correlationMap.TryGetValue(streamId, out var interimReq))
+                {
+                    response.RequestMessage = interimReq;
+                }
+
+                _ops.OnResponse(response);
+
+                if (endStream)
+                {
+                    _correlationMap.Remove(streamId);
+                    _streams.Remove(streamId);
+                    state.Reset();
+                    _statePool.Return(state);
+                }
+
                 return;
             }
 
@@ -579,6 +601,13 @@ internal sealed class Http2ClientSessionManager
         }
 
         var streamingResponse = _responseDecoder.DecodeHeadersForStreaming(streamId, state);
+        state.ClearHeaderBuffer();
+
+        if ((int)streamingResponse.StatusCode < 200)
+        {
+            return;
+        }
+
         state.InitBodyDecoder(BodyDecoderFactory.Create(streaming: true, _options.MaxStreamedResponseBodySize ?? long.MaxValue));
         var bodyStream = state.GetBodyStream();
         streamingResponse.Content = new StreamContent(bodyStream);

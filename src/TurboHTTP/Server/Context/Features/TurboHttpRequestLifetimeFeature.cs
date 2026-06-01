@@ -4,7 +4,29 @@ namespace TurboHTTP.Server.Context.Features;
 
 internal sealed class TurboHttpRequestLifetimeFeature : IHttpRequestLifetimeFeature
 {
-    public CancellationToken RequestAborted { get; set; }
+    private CancellationTokenSource _cts = new();
 
-    public void Abort() => RequestAborted = new CancellationToken(true);
+    public CancellationToken RequestAborted
+    {
+        get => _cts.Token;
+        set
+        {
+            if (value == _cts.Token)
+            {
+                return;
+            }
+
+            var old = _cts;
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(value);
+            old.Dispose();
+        }
+    }
+
+    public void Abort() => _cts.Cancel();
+
+    internal void Reset()
+    {
+        _cts.Dispose();
+        _cts = new CancellationTokenSource();
+    }
 }

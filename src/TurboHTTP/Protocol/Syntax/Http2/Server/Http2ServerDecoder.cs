@@ -111,6 +111,28 @@ internal sealed class Http2ServerDecoder
         return feature;
     }
 
+    public List<(string Name, string Value)> DecodeTrailers(StreamState state)
+    {
+        var headers = _hpack.Decode(state.GetHeaderSpan());
+        var trailers = new List<(string Name, string Value)>();
+
+        foreach (var h in headers)
+        {
+            if (h.Name.StartsWith(WellKnownHeaders.Colon))
+            {
+                throw new HttpProtocolException(
+                    "RFC 9113 §8.1: Pseudo-headers are not allowed in trailers.");
+            }
+
+            if (TrailerFieldValidator.IsAllowedInTrailer(h.Name))
+            {
+                trailers.Add((h.Name, h.Value));
+            }
+        }
+
+        return trailers;
+    }
+
     private static void ValidateRequestHeaders(List<HpackHeader> headers)
     {
         PseudoHeaderValidator.ValidateRequestPseudoHeaders(

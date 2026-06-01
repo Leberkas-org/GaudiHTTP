@@ -51,12 +51,11 @@ internal sealed class EndpointDispatchStage
     }
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
-        => new Logic(this, inheritedAttributes);
+        => new Logic(this);
 
     private sealed class Logic : GraphStageLogic
     {
         private readonly EndpointDispatchStage _stage;
-        private readonly Attributes _inheritedAttributes;
 
         // Sink/Source pair connected to the inner flow — set on first element
         private SubSinkInlet<HttpResponseMessage>? _innerSink;
@@ -76,10 +75,9 @@ internal sealed class EndpointDispatchStage
         private bool _innerFlowFinished;
         private Exception? _innerFlowFailure;
 
-        public Logic(EndpointDispatchStage stage, Attributes inheritedAttributes) : base(stage.Shape)
+        public Logic(EndpointDispatchStage stage) : base(stage.Shape)
         {
             _stage = stage;
-            _inheritedAttributes = inheritedAttributes;
 
             SetHandler(stage._in,
                 onPush: OnPush,

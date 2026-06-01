@@ -105,6 +105,28 @@ internal sealed class Http3ServerDecoder
         return feature;
     }
 
+    public void DecodeTrailers(HeadersFrame frame, StreamState state)
+    {
+        ArgumentNullException.ThrowIfNull(frame);
+        ArgumentNullException.ThrowIfNull(state);
+
+        var result = _tableSync.TryDecodeOrBlock(frame.HeaderBlock, (int)state.StreamId);
+        if (result.IsBlocked)
+        {
+            return;
+        }
+
+        var headers = result.Headers!;
+        foreach (var (name, _) in headers)
+        {
+            if (name.StartsWith(WellKnownHeaders.Colon))
+            {
+                throw new HttpProtocolException(
+                    "RFC 9114 §4.3: Pseudo-headers are not allowed in trailers.");
+            }
+        }
+    }
+
     private static void ValidateRequestHeaders(IReadOnlyList<(string Name, string Value)> headers)
     {
         PseudoHeaderValidator.ValidateRequestPseudoHeaders(
