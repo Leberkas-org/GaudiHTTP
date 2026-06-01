@@ -1,4 +1,4 @@
-namespace TurboHTTP.Protocol.Server;
+namespace TurboHTTP.Protocol;
 
 internal sealed class DataRateMonitor(double minDataRate, TimeSpan gracePeriod)
 {
