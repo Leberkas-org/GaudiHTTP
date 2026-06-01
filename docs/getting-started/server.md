@@ -49,6 +49,8 @@ curl http://localhost:5100/
 ## 4. Add HTTPS
 
 ```csharp
+using TurboHTTP.Server;
+
 builder.Host.UseTurboHttp(options =>
 {
     options.ListenLocalhost(5100);
@@ -66,7 +68,7 @@ TurboHTTP is a transport-level replacement — it handles TCP/QUIC connections, 
 
 | | Kestrel | TurboHTTP |
 |---|---------|-----------|
-| Transport | libuv / SocketsHttpHandler | Akka.Streams + Servus.Akka.Transport |
+| Transport | Sockets (Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets) | Akka.Streams + Servus.Akka.Transport |
 | Connection model | Thread pool | Actor per connection |
 | Protocols | HTTP/1.1, HTTP/2, HTTP/3 | HTTP/1.0, HTTP/1.1, HTTP/2, HTTP/3 |
 | Backpressure | Pipe-based | Akka.Streams reactive streams |

@@ -11,6 +11,11 @@ namespace TurboHTTP.Diagnostics;
 /// </summary>
 public static class TurboTraceExtensions
 {
+    /// <summary>
+    /// Registers a <see cref="LoggerTraceListener"/> backed by <see cref="ILoggerFactory"/> as the
+    /// Servus trace sink. Calls to the internal tracing API are forwarded to the standard
+    /// Microsoft.Extensions.Logging pipeline at the mapped log level.
+    /// </summary>
     public static IServiceCollection AddTurboLoggerTracing(
         this IServiceCollection services,
         TraceLevel minimumLevel = TraceLevel.Debug,
@@ -26,6 +31,11 @@ public static class TurboTraceExtensions
         return services;
     }
 
+    /// <summary>
+    /// Registers a caller-supplied <see cref="IServusTraceListener"/> as the Servus trace sink.
+    /// Use this overload when you already have a custom listener and want to configure its minimum
+    /// level and optional category filter without creating a logger-backed listener.
+    /// </summary>
     public static IServiceCollection AddTurboTracing(
         this IServiceCollection services,
         IServusTraceListener listener,
@@ -38,24 +48,28 @@ public static class TurboTraceExtensions
         return services;
     }
 
+    /// <summary>Adds the TurboHTTP client activity source to the OpenTelemetry tracer provider.</summary>
     public static TracerProviderBuilder AddTurboHttpInstrumentation(this TracerProviderBuilder builder)
     {
         return builder
             .AddSource(Servus.Core.Servus.Tracing.Source.Name);
     }
 
+    /// <summary>Adds the TurboHTTP client meter to the OpenTelemetry meter provider.</summary>
     public static MeterProviderBuilder AddTurboHttpInstrumentation(this MeterProviderBuilder builder)
     {
         return builder
             .AddMeter(Servus.Core.Servus.Metrics.Meter.Name);
     }
 
+    /// <summary>Adds the TurboHTTP server activity source to the OpenTelemetry tracer provider.</summary>
     public static TracerProviderBuilder AddTurboServerInstrumentation(this TracerProviderBuilder builder)
     {
         return builder
             .AddSource(Servus.Core.Servus.Tracing.Source.Name);
     }
 
+    /// <summary>Adds the TurboHTTP server meter to the OpenTelemetry meter provider.</summary>
     public static MeterProviderBuilder AddTurboServerInstrumentation(this MeterProviderBuilder builder)
     {
         return builder

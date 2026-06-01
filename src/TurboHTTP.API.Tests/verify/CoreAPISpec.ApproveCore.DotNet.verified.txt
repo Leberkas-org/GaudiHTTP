@@ -461,6 +461,7 @@ namespace TurboHTTP.Server
         public long MaxRequestBodySize { get; set; }
         public int MaxRequestHeaderCount { get; set; }
         public int MaxRequestHeadersTotalSize { get; set; }
+        public int MaxResetStreamsPerWindow { get; set; }
         public double MinRequestBodyDataRate { get; set; }
         public System.TimeSpan MinRequestBodyDataRateGracePeriod { get; set; }
         public int MinRequestGuarantee { get; set; }

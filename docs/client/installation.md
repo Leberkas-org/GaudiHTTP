@@ -95,17 +95,17 @@ public sealed class GatewayService
 
 ## Typed Clients
 
-Bind a client directly to a service class:
+Register a named client and resolve it directly as a typed `ITurboHttpClient` subtype:
 
 ```csharp
-builder.Services.AddTurboHttpClient<OrderService>(options =>
+builder.Services.AddTurboHttpClient<OrderClient>(options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
 .WithRetry();
 ```
 
-The DI container injects `ITurboHttpClient` into `OrderService` automatically.
+`TClient` must be `ITurboHttpClient` or a class that derives from it — the registration casts `factory.CreateClient(name)` to `TClient` at resolution time. Passing an arbitrary POCO service class (one that does not implement `ITurboHttpClient`) will throw `InvalidCastException` when the service is resolved.
 
 ## Fluent Builder API
 

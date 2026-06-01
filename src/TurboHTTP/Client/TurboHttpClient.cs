@@ -7,6 +7,10 @@ using TurboHTTP.Streams.Lifecycle;
 
 namespace TurboHTTP.Client;
 
+/// <summary>
+/// Default <see cref="ITurboHttpClient"/> implementation backed by an Akka Streams pipeline.
+/// Instances are created by <see cref="ITurboHttpClientFactory.CreateClient"/> — do not instantiate directly.
+/// </summary>
 public sealed class TurboHttpClient : ITurboHttpClient
 {
     private static readonly int MaxPooledCts = Math.Max(Environment.ProcessorCount * 4, 64);
@@ -29,6 +33,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
     private readonly ICredentials? _credentials;
     private readonly bool _preAuthenticate;
 
+    /// <inheritdoc />
     public Uri? BaseAddress
     {
         get => _baseAddress;
@@ -39,8 +44,10 @@ public sealed class TurboHttpClient : ITurboHttpClient
         }
     }
 
+    /// <inheritdoc />
     public HttpRequestHeaders DefaultRequestHeaders => _defaultHeadersHolder.Headers;
 
+    /// <inheritdoc />
     public Version DefaultRequestVersion
     {
         get => _defaultRequestVersion;
@@ -51,6 +58,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
         }
     }
 
+    /// <inheritdoc />
     public HttpVersionPolicy DefaultVersionPolicy
     {
         get => _defaultVersionPolicy;
@@ -61,6 +69,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
         }
     }
 
+    /// <inheritdoc />
     public TimeSpan Timeout
     {
         get => _timeout;
@@ -71,8 +80,10 @@ public sealed class TurboHttpClient : ITurboHttpClient
         }
     }
 
+    /// <inheritdoc />
     public ChannelWriter<HttpRequestMessage> Requests { get; }
 
+    /// <inheritdoc />
     public ChannelReader<HttpResponseMessage> Responses { get; }
 
     internal Guid ConsumerId => _consumerRegistration.ConsumerId;
@@ -114,6 +125,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
         _consumerRegistration = consumerRegistration;
     }
 
+    /// <inheritdoc />
     public async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         ThrowIfDisposed();
@@ -196,6 +208,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
         }
     }
 
+    /// <summary>Disposes the client, cancels all pending requests, and releases the consumer registration.</summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
@@ -215,6 +228,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
         }
     }
 
+    /// <inheritdoc />
     public void CancelPendingRequests()
     {
         foreach (var pending in _pendingTcs.Keys)

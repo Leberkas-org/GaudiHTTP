@@ -6,6 +6,10 @@ using TurboHTTP.Internal;
 
 namespace TurboHTTP.Client;
 
+/// <summary>
+/// Extension methods for <see cref="HttpRequestMessage"/> and <see cref="HttpResponseMessage"/>
+/// that integrate with the TurboHTTP pipeline.
+/// </summary>
 public static class Extensions
 {
     /// <summary>
@@ -32,6 +36,11 @@ public static class Extensions
         return request;
     }
 
+    /// <summary>
+    /// Attaches a <see cref="PendingRequest"/> correlation ticket to <paramref name="request"/> and
+    /// returns a <see cref="ValueTask{TResult}"/> that completes when the pipeline delivers the matching response.
+    /// Intended for use with the channel-based <see cref="ITurboHttpClient.Requests"/> API.
+    /// </summary>
     public static ValueTask<HttpResponseMessage> GetResponseAsync(this HttpRequestMessage request,
         CancellationToken ct = default)
     {

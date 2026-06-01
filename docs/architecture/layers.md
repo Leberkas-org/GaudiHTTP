@@ -19,7 +19,7 @@ Console.WriteLine(response.StatusCode);
 - Takes an `HttpRequestMessage`
 - Returns a `Task<HttpResponseMessage>`
 - Supports `CancellationToken` for cancellation
-- Respects timeouts in `TurboClientOptions`
+- Respects the `Timeout` set on the client instance (`ITurboHttpClient.Timeout`)
 
 All pipeline features (cookies, caching, retries, redirects) apply automatically. You don't think about them.
 

@@ -10,16 +10,16 @@ The server request pipeline shows how an incoming request flows through the serv
 
 ## Request Flow
 
-Each connection is bound to a single `ConnectionActor` that owns the entire Akka.Streams graph:
+Each connection is handled by a `ConnectionStage` that owns the Akka.Streams sub-graph for that connection:
 
 ```
 Incoming TCP/QUIC Connection
     ↓
 [Transport] — TCP or QUIC listener accepts connection (Servus.Akka)
     ↓
-[ListenerActor] — spawns ConnectionActor per client
+[ListenerActor] — materializes ConnectionStage per client connection
     ↓
-[ProtocolRouter] — detects HTTP/1.0, 1.1, 2, or 3 from initial bytes
+[ProtocolRouter] — picks engine by transport (QUIC → Http30ServerEngine; TCP → NegotiatingServerEngine)
     ↓
 [Http*ServerEngine] — protocol-specific decoder (Http10/11/20/30ServerEngine)
     ↓
@@ -41,8 +41,8 @@ Outgoing TCP/QUIC Bytes
 | Stage                        | Role                                                                                                                                      |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `Transport` (TCP/QUIC)       | Accepts incoming connections over TCP or QUIC (via Servus.Akka.Transport)                                                              |
-| `ListenerActor`              | Binds to a port and spawns a `ConnectionActor` for each incoming connection                                                             |
-| `ProtocolRouter`             | Inspects initial bytes to detect HTTP version; routes to appropriate server engine                                                    |
+| `ListenerActor`              | Binds to a port and materializes a `ConnectionStage` flow that handles each incoming connection                                         |
+| `ProtocolRouter`             | Static helper used by `ServerSupervisorActor` to pick a server engine by transport: QUIC bindings get `Http30ServerEngine` directly; TCP bindings get `NegotiatingServerEngine`, which performs byte-level protocol detection |
 | `Http*ServerEngine`          | Protocol-specific state machine: parses request bytes, manages connection/stream-level flow control, encodes response frames            |
 | `ApplicationBridgeStage`      | Wraps the parsed protocol request as an `IFeatureCollection` (standard ASP.NET Core `HttpContext`); then ASP.NET Core takes over    |
 | **(ASP.NET Core)**           | **Middleware** (app.Use/UseMiddleware) → **Routing** (endpoint routing) → **Model Binding** → **Handler Execution** (Minimal APIs, Controllers, etc.) |
@@ -51,13 +51,13 @@ Outgoing TCP/QUIC Bytes
 
 ## Connection Lifecycle
 
-Each connection is managed by a dedicated `ConnectionActor`:
+Each connection is managed by a dedicated `ConnectionStage` graph:
 
 1. **Bind** — `ListenerActor` binds to a TCP or QUIC port
-2. **Accept** — When a client connects, `ListenerActor` spawns a new `ConnectionActor` for that connection
-3. **Materialize** — `ConnectionActor` materialises the Akka.Streams graph (protocol engine → `ApplicationBridgeStage` → your ASP.NET Core pipeline, where middleware and routing run)
+2. **Accept** — When a client connects, `ConnectionStage` materializes a sub-graph for that connection
+3. **Materialize** — The sub-graph composes the protocol engine with `ApplicationBridgeStage` and the shared ASP.NET Core pipeline (middleware and routing)
 4. **Process** — The graph processes requests and generates responses for the lifetime of the connection
-5. **Cleanup** — When the client disconnects (or after idle timeout), the actor terminates and releases resources
+5. **Cleanup** — When the client disconnects (or after idle timeout), the sub-graph completes and releases resources
 
 ---
 
@@ -67,25 +67,27 @@ After the handler returns a response, it flows back through the pipeline:
 
 1. ASP.NET Core populates the `IHttpResponseFeature` (status code, headers, response body stream)
 2. The protocol engine encodes the response to wire bytes using the appropriate HTTP version (1.0, 1.1, 2, or 3)
-3. The transport layer (via `ConnectionActor` and Servus.Akka.Transport) sends the bytes to the client
+3. The transport layer (via `ConnectionStage` and Servus.Akka.Transport) sends the bytes to the client
 4. For HTTP/1.1+, the connection can remain open and reuse for the next request; for HTTP/1.0, the connection closes after sending the response
 
 ---
 
 ## Protocol Detection
 
-When a new connection arrives, `ProtocolRouter` inspects the initial bytes to determine which server engine to use:
+When a new connection arrives, `ServerSupervisorActor` uses `ProtocolRouter` to pick an engine based on the transport:
 
-- **HTTP/1.x** — First line is `METHOD /path HTTP/1.x` (ASCII text)
-- **HTTP/2** — First bytes are the HTTP/2 connection preface (`PRI * HTTP/2.0`) or `SETTINGS` frame
-- **HTTP/3** — Connection arrives over QUIC (UDP-based transport)
+- **QUIC connections** — routed directly to `Http30ServerEngine` (HTTP/3 is QUIC-only; there is no h3-over-TCP/TLS path)
+- **TCP connections** — handed to `NegotiatingServerEngine`, which wraps `ProtocolNegotiatingStateMachine` to detect the protocol
 
-With TLS (HTTPS), ALPN negotiation happens during the TLS handshake:
-- `h2` → HTTP/2
-- `h3` → HTTP/3
-- `http/1.1` or `http/1.0` → HTTP/1.1 (fallback)
+`ProtocolNegotiatingStateMachine` selects the engine as follows:
 
-For plaintext connections, the router auto-detects from the initial bytes.
+- **With TLS (HTTPS)** — ALPN negotiation during the TLS handshake decides the protocol:
+  - `h2` → HTTP/2
+  - Any other negotiated protocol → HTTP/1.1 (fallback)
+- **Without TLS (plaintext)** — the state machine buffers incoming bytes and sniffs:
+  - First 4 bytes are `PRI ` → HTTP/2 (start of the HTTP/2 connection preface)
+  - Request line contains `HTTP/1.0\r\n` → HTTP/1.0
+  - Request line ends with `\n` → HTTP/1.1
 
 ---
 

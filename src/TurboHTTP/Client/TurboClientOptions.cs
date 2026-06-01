@@ -10,6 +10,17 @@ namespace TurboHTTP.Client;
 /// Snapshot of <see cref="TurboHttpClient"/> configuration captured at request-submission time.
 /// Passed into the pipeline so that per-request options reflect the values set on the client at the moment of submission.
 /// </summary>
+/// <summary>
+/// Immutable snapshot of <see cref="TurboHttpClient"/> configuration captured at request-submission time.
+/// Passed into the Akka Streams pipeline so per-request options always reflect the client state at the moment of submission.
+/// </summary>
+/// <param name="BaseAddress">The base URI used to resolve relative request URIs.</param>
+/// <param name="DefaultRequestHeaders">Default headers that are added to every outgoing request.</param>
+/// <param name="DefaultRequestVersion">The default HTTP version for new requests.</param>
+/// <param name="DefaultVersionPolicy">The policy that determines which HTTP version is negotiated.</param>
+/// <param name="Timeout">The per-request timeout applied by <see cref="ITurboHttpClient.SendAsync"/>.</param>
+/// <param name="Credentials">Optional credentials for server authentication.</param>
+/// <param name="PreAuthenticate">When <see langword="true"/>, the Authorization header is sent proactively without waiting for a 401.</param>
 public record TurboRequestOptions(
     Uri? BaseAddress,
     HttpRequestHeaders DefaultRequestHeaders,
@@ -19,6 +30,12 @@ public record TurboRequestOptions(
     ICredentials? Credentials = null,
     bool PreAuthenticate = false);
 
+/// <summary>
+/// Top-level configuration for a named TurboHTTP client.
+/// Set via <c>AddTurboHttpClient(name, o => { … })</c> in <see cref="TurboClientServiceCollectionExtensions"/>.
+/// Contains per-protocol sub-options (<see cref="Http1"/>, <see cref="Http2"/>, <see cref="Http3"/>)
+/// as well as shared transport, TLS, proxy, and pool settings.
+/// </summary>
 public sealed class TurboClientOptions
 {
     /// <summary>Base address used to resolve relative request URIs.</summary>

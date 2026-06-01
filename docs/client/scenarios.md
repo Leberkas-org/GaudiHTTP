@@ -36,8 +36,10 @@ builder.Services.AddTurboHttpClient("rest-api", options =>
 Usage:
 
 ```csharp
-public class ApiService(ITurboHttpClientFactory factory)
+public class ApiService(ITurboHttpClientFactory factory, ITokenProvider tokenProvider)
 {
+    private readonly ITokenProvider _tokenProvider = tokenProvider;
+
     public async Task<UserDto> GetUserAsync(int userId, CancellationToken ct)
     {
         var client = factory.CreateClient("rest-api");
@@ -50,12 +52,12 @@ public class ApiService(ITurboHttpClientFactory factory)
         var json = await response.Content.ReadAsStringAsync(ct);
         return JsonSerializer.Deserialize<UserDto>(json)!;
     }
-}
 
-private string GetAccessToken()
-{
-    // Fetch from secure token store, refresh if expired, etc.
-    return _tokenProvider.GetToken();
+    private string GetAccessToken()
+    {
+        // Fetch from secure token store, refresh if expired, etc.
+        return _tokenProvider.GetToken();
+    }
 }
 ```
 

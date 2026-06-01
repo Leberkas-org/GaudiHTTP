@@ -51,7 +51,7 @@ builder.Services.AddTurboHttpClient("api", options =>
 {
     options.BaseAddress = new Uri("https://api.example.com");
 })
-.WithRetry()              // automatic retries for GET, PUT, DELETE
+.WithRetry()              // automatic retries for idempotent methods (GET, HEAD, OPTIONS, TRACE, PUT, DELETE)
 .WithCache()              // in-memory HTTP caching with ETag
 .WithCookies()            // automatic cookie storage and injection
 .WithRedirect()           // follow redirect chains

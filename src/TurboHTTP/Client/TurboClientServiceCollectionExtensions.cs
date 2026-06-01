@@ -134,6 +134,10 @@ public static class TurboClientServiceCollectionExtensions
         return services.AddTurboHttpClient(name, configure);
     }
 
+    /// <summary>
+    /// Creates the default (unnamed) <see cref="ITurboHttpClient"/> from <paramref name="factory"/>.
+    /// Equivalent to calling <c>factory.CreateClient(string.Empty)</c>.
+    /// </summary>
     public static ITurboHttpClient CreateClient(this ITurboHttpClientFactory factory)
     {
         ArgumentNullException.ThrowIfNull(factory);
@@ -144,7 +148,7 @@ public static class TurboClientServiceCollectionExtensions
 /// <summary>
 /// DI marker registered once per <c>AddTurboHttpClient()</c> call.
 /// Resolved via <c>IServiceProvider.GetServices&lt;TurboHttpClientName&gt;()</c>
-/// to determine the maximum <see cref="TurboClientOptions.MaxEndpointSubstreams"/>
+/// to determine the maximum <see cref="TurboClientOptions.MaxConcurrentEndpoints"/>
 /// across all registered clients for dispatcher thread sizing.
 /// </summary>
 internal sealed record TurboHttpClientName(string Name);

@@ -2,6 +2,10 @@ using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Client;
 
+/// <summary>
+/// Configuration for the <c>Expect: 100-continue</c> handshake applied to large request bodies.
+/// Pass to <c>WithExpectContinue</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// </summary>
 public sealed class Expect100Options
 {
     /// <summary>

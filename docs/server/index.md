@@ -57,7 +57,7 @@ TurboHTTP implements these ASP.NET Core feature interfaces per request:
 | `IHttpRequestBodyDetectionFeature` | Whether the request has a body |
 | `IHttpResponseTrailersFeature` | HTTP trailer headers |
 | `IHttpConnectionFeature` | Connection ID, local/remote addresses |
-| `ITlsHandshakeFeature` | TLS protocol, cipher suite |
+| `ITlsHandshakeFeature` | TLS protocol, cipher suite (TurboHTTP's own interface: `TurboHTTP.Server.Context.Features.ITlsHandshakeFeature`) |
 | `IHttpRequestLifetimeFeature` | Request abort token |
 | `IHttpRequestIdentifierFeature` | Unique request identifier |
 | `IHttpMaxRequestBodySizeFeature` | Request body size limit |
