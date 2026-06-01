@@ -20,7 +20,7 @@ internal sealed class Http2ClientSessionManager
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;
     private readonly StackStreamStatePool<StreamState> _statePool;
-    private readonly FrameDecoder _frameDecoder = new();
+    private readonly FrameDecoder _frameDecoder;
     private readonly Http2ClientDecoder _responseDecoder;
     private readonly Http2ClientEncoder _requestEncoder;
     private readonly Dictionary<int, HttpRequestMessage> _correlationMap = new();
@@ -82,6 +82,8 @@ internal sealed class Http2ClientSessionManager
         _statePool = new StackStreamStatePool<StreamState>(poolCapacity, () => new StreamState());
         _responseDecoder = new Http2ClientDecoder(_decoderOptions.MaxHeaderSize, _decoderOptions.MaxHeaderListSize);
         _responseDecoder.SetMaxAllowedTableSize(_encoderOptions.HeaderTableSize);
+        // RFC 9113 §4.2: enforce the MAX_FRAME_SIZE we advertise in the preface on inbound frames.
+        _frameDecoder = new FrameDecoder(_encoderOptions.MaxFrameSize);
     }
 
     public TransportData? TryBuildPreface()
@@ -93,6 +95,7 @@ internal sealed class Http2ClientSessionManager
 
         _prefaceSent = true;
         var (prefaceOwner, prefaceLength) = PrefaceBuilder.Build(
+            _decoderOptions.InitialStreamWindowSize,
             _decoderOptions.InitialConnectionWindowSize,
             _encoderOptions.HeaderTableSize,
             _encoderOptions.MaxFrameSize);
@@ -218,7 +221,7 @@ internal sealed class Http2ClientSessionManager
                 break;
 
             case RstStreamFrame rst:
-                CloseStream(rst.StreamId);
+                HandleRstStream(rst);
                 break;
 
             case WindowUpdateFrame win:
@@ -429,6 +432,22 @@ internal sealed class Http2ClientSessionManager
             goAway.LastStreamId, goAway.ErrorCode);
     }
 
+    private void HandleRstStream(RstStreamFrame rst)
+    {
+        // RFC 9113 §8.1: a stream reset before the response completed leaves a caller awaiting a
+        // response that will never arrive. Fail that request so the caller observes the reset instead
+        // of hanging until a timeout. (A request already removed by DecodeHeaders is past this point;
+        // its streaming body is torn down by CloseStream → AbortBody.)
+        if (_correlationMap.Remove(rst.StreamId, out var request))
+        {
+            request.Fail(new HttpRequestException(
+                string.Concat("HTTP/2 stream ", rst.StreamId.ToString(), " was reset by the server (error code ",
+                    rst.ErrorCode.ToString(), ").")));
+        }
+
+        CloseStream(rst.StreamId);
+    }
+
     private void CloseStream(int streamId)
     {
         if (_streams.TryGetValue(streamId, out var state) && state.HasBodyDecoder)
@@ -454,7 +473,7 @@ internal sealed class Http2ClientSessionManager
             _streams[frame.StreamId] = state;
         }
 
-        state.AppendHeader(frame.HeaderBlockFragment.Span);
+        state.AppendHeader(frame.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderListSize);
 
         if (!frame.EndHeaders)
         {
@@ -473,7 +492,7 @@ internal sealed class Http2ClientSessionManager
             return;
         }
 
-        state.AppendHeader(frame.HeaderBlockFragment.Span);
+        state.AppendHeader(frame.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderListSize);
 
         if (frame.EndHeaders)
         {

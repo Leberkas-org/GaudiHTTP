@@ -25,6 +25,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private readonly TSM _sm;
     private readonly Queue<IFeatureCollection> _requestQueue = new();
     private readonly Queue<ITransportOutbound> _outboundQueue = new();
+    private bool _completeAfterFlush;
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
     private TurboHttpConnectionFeature? _connectionFeature;
@@ -232,6 +233,14 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             Tracing.For("Stage").Warning(this, "DecodeClientData threw: {0}", ex.Message);
         }
 
+        // The state machine signals a connection-fatal error by enqueuing a GOAWAY and setting
+        // ShouldComplete. Flush the GOAWAY to the network, then close the connection.
+        if (_sm.ShouldComplete)
+        {
+            CompleteAfterFlushingOutbound();
+            return;
+        }
+
         if (_requestQueue.Count > 0)
         {
             TryPushRequest();
@@ -398,13 +407,31 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         if (_outboundQueue.Count == 1)
         {
             Push(_outNetwork, _outboundQueue.Dequeue());
-            return;
         }
-
-        if (!TryCoalesceOutbound())
+        else if (!TryCoalesceOutbound())
         {
             Push(_outNetwork, _outboundQueue.Dequeue());
         }
+
+        if (_completeAfterFlush && _outboundQueue.Count == 0)
+        {
+            CompleteStage();
+        }
+    }
+
+    private void CompleteAfterFlushingOutbound()
+    {
+        _completeAfterFlush = true;
+
+        if (_outboundQueue.Count == 0)
+        {
+            CompleteStage();
+            return;
+        }
+
+        // Push now if the network outlet has demand; otherwise the next OnNetworkPull drains the
+        // queue and PushOutbound completes the stage once the GOAWAY has been emitted.
+        TryPushOutbound();
     }
 
     private bool TryCoalesceOutbound()

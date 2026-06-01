@@ -4,6 +4,7 @@ using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Semantics;
+using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
@@ -16,6 +17,10 @@ internal sealed class Http2ServerSessionManager
 {
     private const int MaxStatePoolCapacity = 1000;
 
+    // RFC 9113 §5.1 / CVE-2023-44487 (Rapid Reset): client-initiated resets are counted within this
+    // sliding window; exceeding the configured budget closes the connection with ENHANCE_YOUR_CALM.
+    private const long ResetWindowMs = 30_000;
+
     private const string BodyConsumptionPrefix = "body-consumption:";
     private const string HeadersTimeoutPrefix = "headers-timeout:";
     private const string DataRateCheck = "data-rate-check";
@@ -25,7 +30,7 @@ internal sealed class Http2ServerSessionManager
     private readonly Http2ServerEncoderOptions _encoderOptions;
     private readonly Http2ServerDecoderOptions _decoderOptions;
     private readonly IServerStageOperations _ops;
-    private readonly FrameDecoder _frameDecoder = new();
+    private readonly FrameDecoder _frameDecoder;
     private readonly Http2ServerDecoder _requestDecoder;
     private readonly Http2ServerEncoder _responseEncoder;
     private readonly FlowController _flow;
@@ -44,6 +49,11 @@ internal sealed class Http2ServerSessionManager
     private readonly DataRateMonitor _responseRate;
     private readonly TimeProvider _clock;
     private bool _prefaceConsumed;
+    private int _highestProcessedStreamId;
+
+    private readonly int _maxResetStreamsPerWindow;
+    private int _resetCount;
+    private long _resetWindowStart;
 
     private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
@@ -62,9 +72,12 @@ internal sealed class Http2ServerSessionManager
 
         _responseEncoder = new Http2ServerEncoder(_encoderOptions);
         _requestDecoder = new Http2ServerDecoder(_decoderOptions);
+        // RFC 9113 §4.2: enforce the MAX_FRAME_SIZE we advertise in SETTINGS on inbound frames.
+        _frameDecoder = new FrameDecoder(_encoderOptions.MaxFrameSize);
         _flow = new FlowController(options.InitialConnectionWindowSize, options.InitialStreamWindowSize);
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
+        _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
         _maxResponseBufferSize = options.MaxResponseBufferSize;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
@@ -102,18 +115,57 @@ internal sealed class Http2ServerSessionManager
         }
     }
 
+    /// <summary>
+    /// True once a connection-fatal protocol error (or graceful teardown) has occurred. The owning
+    /// state machine surfaces this so the stage flushes the pending GOAWAY and closes the connection.
+    /// </summary>
+    public bool ShouldComplete { get; private set; }
+
     public void DecodeClientData(TransportBuffer buffer)
     {
-        if (!_prefaceConsumed)
+        try
         {
-            SkipConnectionPreface(buffer);
-        }
+            if (!_prefaceConsumed)
+            {
+                SkipConnectionPreface(buffer);
+            }
 
-        var frames = _frameDecoder.Decode(buffer);
-        for (var i = 0; i < frames.Count; i++)
-        {
-            ProcessFrame(frames[i]);
+            var frames = _frameDecoder.Decode(buffer);
+            for (var i = 0; i < frames.Count; i++)
+            {
+                ProcessFrame(frames[i]);
+            }
         }
+        catch (StreamProtocolException e)
+        {
+            // RFC 9113 §5.4.2: stream-scoped error — reset just that stream, keep the connection.
+            EmitRstStream(e.StreamId, (Http2ErrorCode)e.ErrorCode);
+        }
+        catch (ConnectionProtocolException e)
+        {
+            TerminateConnection((Http2ErrorCode)e.ErrorCode, e.Message);
+        }
+        catch (HpackException e)
+        {
+            // RFC 9113 §4.3: HPACK decoding failures are a connection-level COMPRESSION_ERROR; the
+            // dynamic table is now desynchronized so the connection cannot continue.
+            TerminateConnection(Http2ErrorCode.CompressionError, e.Message);
+        }
+        catch (HuffmanException e)
+        {
+            TerminateConnection(Http2ErrorCode.CompressionError, e.Message);
+        }
+        catch (HttpProtocolException e)
+        {
+            // RFC 9113 §5.4.1: any other framing/protocol violation is connection-fatal.
+            TerminateConnection(Http2ErrorCode.ProtocolError, e.Message);
+        }
+    }
+
+    private void TerminateConnection(Http2ErrorCode errorCode, string reason)
+    {
+        EmitGoAway(_highestProcessedStreamId, errorCode, reason);
+        ShouldComplete = true;
     }
 
     private static ReadOnlySpan<byte> ConnectionPrefaceMagic => "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8;
@@ -396,15 +448,19 @@ internal sealed class Http2ServerSessionManager
         }
 
         var state = GetOrCreateStreamState(streamId);
+        if (streamId > _highestProcessedStreamId)
+        {
+            _highestProcessedStreamId = streamId;
+        }
 
         if (headers.EndHeaders)
         {
-            state.AppendHeader(headers.HeaderBlockFragment.Span);
+            state.AppendHeader(headers.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
             DecodeAndEmitRequest(streamId, state, headers.EndStream);
         }
         else
         {
-            state.AppendHeader(headers.HeaderBlockFragment.Span);
+            state.AppendHeader(headers.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
             _nextContinuationStreamId = streamId;
             _continuationEndStream = headers.EndStream;
             _ops.OnScheduleTimer(string.Concat(HeadersTimeoutPrefix, streamId.ToString()), TimeSpan.FromSeconds(30));
@@ -427,7 +483,7 @@ internal sealed class Http2ServerSessionManager
             return;
         }
 
-        state.AppendHeader(continuation.HeaderBlockFragment.Span);
+        state.AppendHeader(continuation.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
 
         if (continuation.EndHeaders)
         {
@@ -561,6 +617,34 @@ internal sealed class Http2ServerSessionManager
     private void HandleRstStreamFrame(RstStreamFrame rst)
     {
         CloseStream(rst.StreamId);
+        TrackStreamReset();
+    }
+
+    /// <summary>
+    /// RFC 9113 §5.1 / CVE-2023-44487: counts client-initiated resets within a sliding window. A client
+    /// that opens-and-resets streams faster than the configured budget is cut off with
+    /// GOAWAY(ENHANCE_YOUR_CALM) — MaxConcurrentStreams alone never saturates under this attack.
+    /// </summary>
+    private void TrackStreamReset()
+    {
+        if (_maxResetStreamsPerWindow <= 0)
+        {
+            return;
+        }
+
+        var now = Now();
+        if (now - _resetWindowStart >= ResetWindowMs)
+        {
+            _resetWindowStart = now;
+            _resetCount = 0;
+        }
+
+        _resetCount++;
+        if (_resetCount > _maxResetStreamsPerWindow)
+        {
+            TerminateConnection(Http2ErrorCode.EnhanceYourCalm,
+                "RFC 9113 §5.1 / CVE-2023-44487: excessive stream resets.");
+        }
     }
 
     private void DecodeAndEmitRequest(int streamId, StreamState state, bool endStream)

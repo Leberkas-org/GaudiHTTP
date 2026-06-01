@@ -70,10 +70,25 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
             return;
         }
 
-        var frames = _clientSession.DecodeFrames(buffer);
-        for (var i = 0; i < frames.Count; i++)
+        int frameCount;
+        try
         {
-            _clientSession.ProcessFrame(frames[i]);
+            var frames = _clientSession.DecodeFrames(buffer);
+            frameCount = frames.Count;
+            for (var i = 0; i < frames.Count; i++)
+            {
+                _clientSession.ProcessFrame(frames[i]);
+            }
+        }
+        catch (HttpProtocolException ex)
+        {
+            // RFC 9113 §5.4.1: a connection-fatal protocol error leaves the decoder desynchronized.
+            // Drop the connection instead of swallowing and continuing; the resulting TransportDisconnected
+            // routes through OnConnectionLost, which replays idempotent in-flight requests and fails the rest.
+            Tracing.For("Protocol").Info(this,
+                "HTTP/2: connection protocol error — disconnecting: {0}", ex.Message);
+            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
+            return;
         }
 
         if (_clientSession is { GoAwayReceived: true, HasInFlightRequests: true })
@@ -82,7 +97,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
             return;
         }
 
-        if (frames.Count > 0)
+        if (frameCount > 0)
         {
             ResetKeepAliveTimer();
         }

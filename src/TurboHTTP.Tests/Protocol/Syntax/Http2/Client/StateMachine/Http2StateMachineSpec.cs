@@ -1,5 +1,6 @@
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
+using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Client;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
@@ -287,6 +288,53 @@ public sealed class Http2StateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.4.1")]
+    public void DecodeServerData_should_disconnect_on_connection_protocol_error()
+    {
+        // RFC 9113 §5.4.1 / §6.10: a connection-fatal framing error must tear down the connection, not
+        // be swallowed and decoding continued against a desynchronized decoder. A bare CONTINUATION with
+        // no preceding HEADERS is such an error.
+        var ops = new FakeClientOps();
+        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        sm.PreStart();
+        sm.OnRequest(MakeGet());
+        ops.Outbound.Clear();
+
+        var badFrame = SerializeFrame(new ContinuationFrame(1, ReadOnlyMemory<byte>.Empty, endHeaders: true));
+        sm.DecodeServerData(new TransportData(badFrame));
+
+        Assert.Contains(ops.Outbound, o => o is DisconnectTransport);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-8.1")]
+    public async Task DecodeServerData_should_fail_in_flight_request_when_stream_is_reset()
+    {
+        // RFC 9113 §8.1: a RST_STREAM before any response must fail the waiting caller, not leave its
+        // Task hanging until an unrelated timeout. The error code is surfaced to the caller.
+        var ops = new FakeClientOps();
+        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        sm.PreStart();
+
+        var request = MakeGet();
+        var pending = PendingRequest.Rent();
+        var version = pending.Version;
+        request.Options.Set(OptionsKey.Key, pending);
+        request.Options.Set(OptionsKey.VersionKey, version);
+        var valueTask = new ValueTask<HttpResponseMessage>(pending, version);
+
+        sm.OnRequest(request);
+
+        var rst = new RstStreamFrame(1, Http2ErrorCode.RefusedStream);
+        sm.DecodeServerData(new TransportData(SerializeFrame(rst)));
+
+        Assert.True(valueTask.IsFaulted);
+        await Assert.ThrowsAsync<HttpRequestException>(async () => await valueTask);
+
+        PendingRequest.Return(pending);
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.9")]
     public void DecodeServerData_should_handle_window_update_on_connection()
     {
@@ -365,7 +413,10 @@ public sealed class Http2StateMachineSpec
     public void DecodeServerData_should_disconnect_when_connection_flow_control_violated()
     {
         var ops = new FakeClientOps();
-        var sm = new Http2ClientStateMachine(MakeConfig(), ops);
+        // Advertise a MAX_FRAME_SIZE large enough that the 100 KB frame is legal at the frame layer,
+        // so this exercises flow-control enforcement (100000 > 65535 stream window) rather than the
+        // separate MAX_FRAME_SIZE check.
+        var sm = new Http2ClientStateMachine(MakeConfig(maxFrameSize: 128 * 1024), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
         ops.Outbound.Clear();

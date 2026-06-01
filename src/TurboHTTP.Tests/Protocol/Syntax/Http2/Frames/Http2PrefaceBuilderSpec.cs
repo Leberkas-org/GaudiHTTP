@@ -25,11 +25,13 @@ public sealed class Http2PrefaceBuilderSpec
         return (key, value);
     }
 
+    private const int DefaultWindow = 65535;
+
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-3.4")]
     public void PrefaceBuilder_should_emit_default_header_table_size_4096()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535, 4096, 16 * 1024);
+        var (owner, length) = PrefaceBuilder.Build(DefaultWindow, DefaultWindow, 4096, 16 * 1024);
         var span = owner.Memory.Span[..length];
         var settings = ParseSettings(span, out _);
 
@@ -44,7 +46,7 @@ public sealed class Http2PrefaceBuilderSpec
     [Trait("RFC", "RFC9113-3.4")]
     public void PrefaceBuilder_should_emit_custom_header_table_size_when_specified()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535, headerTableSize: 8192, 16 * 1024);
+        var (owner, length) = PrefaceBuilder.Build(DefaultWindow, DefaultWindow, headerTableSize: 8192, 16 * 1024);
         var span = owner.Memory.Span[..length];
         var settings = ParseSettings(span, out _);
 
@@ -59,7 +61,7 @@ public sealed class Http2PrefaceBuilderSpec
     [Trait("RFC", "RFC9113-3.4")]
     public void PrefaceBuilder_should_emit_custom_max_frame_size_when_specified()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535, 4096, maxFrameSize: 32768);
+        var (owner, length) = PrefaceBuilder.Build(DefaultWindow, DefaultWindow, 4096, maxFrameSize: 32768);
         var span = owner.Memory.Span[..length];
         var settings = ParseSettings(span, out _);
 
@@ -74,7 +76,7 @@ public sealed class Http2PrefaceBuilderSpec
     [Trait("RFC", "RFC9113-3.4")]
     public void PrefaceBuilder_should_emit_enable_push_0()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535, 4096, 16 * 1024);
+        var (owner, length) = PrefaceBuilder.Build(DefaultWindow, DefaultWindow, 4096, 16 * 1024);
         var span = owner.Memory.Span[..length];
         var settings = ParseSettings(span, out _);
 
@@ -86,29 +88,69 @@ public sealed class Http2PrefaceBuilderSpec
     }
 
     [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-6.9")]
-    public void PrefaceBuilder_should_include_window_update_when_initial_window_exceeds_65535()
+    [Trait("RFC", "RFC9113-6.5.2")]
+    public void PrefaceBuilder_should_advertise_stream_window_as_initial_window_size_not_connection_window()
     {
-        const int largeWindow = 64 * 1024 * 1024;
-        var (owner, length) = PrefaceBuilder.Build(largeWindow, 4096, 16 * 1024);
+        // RFC 9113 §6.5.2: SETTINGS_INITIAL_WINDOW_SIZE is the PER-STREAM window. Advertising the
+        // (much larger) connection window here causes the peer to send more than one stream window
+        // of DATA before the first WINDOW_UPDATE, driving the local stream window negative → false
+        // FLOW_CONTROL_ERROR. The two windows must be distinct.
+        const int streamWindow = DefaultWindow;
+        const int connectionWindow = 64 * 1024 * 1024;
+
+        var (owner, length) = PrefaceBuilder.Build(streamWindow, connectionWindow, 4096, 16 * 1024);
         var span = owner.Memory.Span[..length];
+        var settings = ParseSettings(span, out _);
 
-        ParseSettings(span, out var hasWindowUpdate);
+        var (key, value) = ReadSetting(settings, 2);
 
-        Assert.True(hasWindowUpdate, "Expected WINDOW_UPDATE frame for window > 65535");
+        Assert.Equal(SettingsParameter.InitialWindowSize, key);
+        Assert.Equal((uint)streamWindow, value);
         owner.Dispose();
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.9")]
-    public void PrefaceBuilder_should_not_include_window_update_when_initial_window_is_65535()
+    public void PrefaceBuilder_should_size_window_update_from_connection_window_not_stream_window()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535, 4096, 16 * 1024);
+        const int streamWindow = DefaultWindow;
+        const int connectionWindow = 64 * 1024 * 1024;
+
+        var (owner, length) = PrefaceBuilder.Build(streamWindow, connectionWindow, 4096, 16 * 1024);
+        var span = owner.Memory.Span[..length];
+
+        ParseSettings(span, out var hasWindowUpdate);
+        Assert.True(hasWindowUpdate, "Expected WINDOW_UPDATE for connection window > 65535");
+
+        var increment = BinaryPrimitives.ReadUInt32BigEndian(span[(length - 4)..]);
+        Assert.Equal((uint)(connectionWindow - DefaultWindow), increment);
+        owner.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9")]
+    public void PrefaceBuilder_should_include_window_update_when_connection_window_exceeds_65535()
+    {
+        const int largeConnectionWindow = 64 * 1024 * 1024;
+        var (owner, length) = PrefaceBuilder.Build(DefaultWindow, largeConnectionWindow, 4096, 16 * 1024);
         var span = owner.Memory.Span[..length];
 
         ParseSettings(span, out var hasWindowUpdate);
 
-        Assert.False(hasWindowUpdate, "No WINDOW_UPDATE expected when window == 65535");
+        Assert.True(hasWindowUpdate, "Expected WINDOW_UPDATE frame for connection window > 65535");
+        owner.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9")]
+    public void PrefaceBuilder_should_not_include_window_update_when_connection_window_is_65535()
+    {
+        var (owner, length) = PrefaceBuilder.Build(DefaultWindow, DefaultWindow, 4096, 16 * 1024);
+        var span = owner.Memory.Span[..length];
+
+        ParseSettings(span, out var hasWindowUpdate);
+
+        Assert.False(hasWindowUpdate, "No WINDOW_UPDATE expected when connection window == 65535");
         owner.Dispose();
     }
 }

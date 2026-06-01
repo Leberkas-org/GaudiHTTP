@@ -7,4 +7,5 @@ internal readonly record struct ResolvedServerLimits(
     double MinRequestBodyDataRate,
     TimeSpan MinRequestBodyDataRateGracePeriod,
     double MinResponseDataRate,
-    TimeSpan MinResponseDataRateGracePeriod);
+    TimeSpan MinResponseDataRateGracePeriod,
+    int MaxResetStreamsPerWindow = 200);

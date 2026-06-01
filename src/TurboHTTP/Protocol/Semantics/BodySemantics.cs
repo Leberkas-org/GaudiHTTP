@@ -67,10 +67,24 @@ internal static class BodySemantics
                 throw new HttpProtocolException("Transfer-Encoding not allowed in HTTP/1.0 messages.");
             }
 
-            if (te.Contains(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))
+            // RFC 9112 §6.1: chunked MUST be the final transfer coding and applied only once.
+            // A substring match ("chunked, gzip", "x-chunked-foo") would let a body of unknown length
+            // be parsed as the next request (request smuggling), so tokenize and inspect the final coding.
+            if (FinalCodingIsChunked(te))
             {
                 return new BodyClassification(BodyFraming.Chunked, null);
             }
+
+            // Transfer-Encoding present but the final coding is not chunked.
+            // Request: length is unreliable — reject (400). Response: length is determined by
+            // reading until the connection closes (RFC 9112 §6.1).
+            if (!isResponse)
+            {
+                throw new HttpProtocolException(
+                    "Transfer-Encoding present but the final coding is not 'chunked'; rejected as unreliable body length (RFC 9112 §6.1).");
+            }
+
+            return new BodyClassification(BodyFraming.Close, null);
         }
 
         if (cl is not null)
@@ -90,6 +104,31 @@ internal static class BodySemantics
         }
 
         return new BodyClassification(BodyFraming.None, null);
+    }
+
+    /// <summary>
+    /// Returns true only when the comma-separated transfer-coding list ends with exactly "chunked"
+    /// and "chunked" appears nowhere else (RFC 9112 §6.1: applied once, as the final coding).
+    /// </summary>
+    private static bool FinalCodingIsChunked(string transferEncoding)
+    {
+        var codings = transferEncoding.Split(',');
+        var finalIndex = codings.Length - 1;
+
+        if (!codings[finalIndex].Trim().Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        for (var i = 0; i < finalIndex; i++)
+        {
+            if (codings[i].Trim().Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static string NormalizeContentLength(string combined)

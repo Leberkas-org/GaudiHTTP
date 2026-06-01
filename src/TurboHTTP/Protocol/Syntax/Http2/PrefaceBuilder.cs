@@ -4,8 +4,24 @@ namespace TurboHTTP.Protocol.Syntax.Http2;
 
 internal static class PrefaceBuilder
 {
+    private const int DefaultInitialWindowSize = 65535;
+
+    /// <summary>
+    /// Builds the HTTP/2 client connection preface (magic + SETTINGS [+ optional connection
+    /// WINDOW_UPDATE]).
+    /// </summary>
+    /// <param name="streamInitialWindowSize">
+    /// Per-stream receive window advertised via SETTINGS_INITIAL_WINDOW_SIZE (RFC 9113 §6.5.2).
+    /// This must match the credit the local FlowController grants each stream — advertising the
+    /// connection window here lets the peer overrun a stream and trips a false FLOW_CONTROL_ERROR.
+    /// </param>
+    /// <param name="connectionInitialWindowSize">
+    /// Desired connection-level receive window. SETTINGS cannot change the connection window, so any
+    /// amount above the protocol default (65535) is granted via a stream-0 WINDOW_UPDATE (RFC 9113 §6.9).
+    /// </param>
     public static (IMemoryOwner<byte> Owner, int Length) Build(
-        int initialWindowSize,
+        int streamInitialWindowSize,
+        int connectionInitialWindowSize,
         int headerTableSize,
         int maxFrameSize)
     {
@@ -16,12 +32,12 @@ internal static class PrefaceBuilder
         {
             (SettingsParameter.HeaderTableSize, (uint)headerTableSize),
             (SettingsParameter.EnablePush, 0),
-            (SettingsParameter.InitialWindowSize, (uint)initialWindowSize),
+            (SettingsParameter.InitialWindowSize, (uint)streamInitialWindowSize),
             (SettingsParameter.MaxFrameSize, (uint)maxFrameSize),
         };
 
         var settingsPayloadSize = settingsParams.Length * 6;
-        var needsWindowUpdate = initialWindowSize > 65535;
+        var needsWindowUpdate = connectionInitialWindowSize > DefaultInitialWindowSize;
         const int windowUpdatePayloadSize = 4;
         var totalSize = magic.Length + frameHeaderSize + settingsPayloadSize;
         if (needsWindowUpdate)
@@ -47,7 +63,7 @@ internal static class PrefaceBuilder
 
         if (!needsWindowUpdate) return (owner, totalSize);
 
-        var windowUpdateIncrement = initialWindowSize - 65535;
+        var windowUpdateIncrement = connectionInitialWindowSize - DefaultInitialWindowSize;
         w.WriteUInt24BigEndian(windowUpdatePayloadSize);
         w.WriteByte((byte)FrameType.WindowUpdate);
         w.WriteByte(0);

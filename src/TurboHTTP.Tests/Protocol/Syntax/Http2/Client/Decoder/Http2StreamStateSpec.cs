@@ -1,3 +1,4 @@
+using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http2;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client.Decoder;
@@ -323,6 +324,37 @@ public sealed class Http2StreamStateSpec
 
         Assert.Same(resp1, resp2);
         Assert.Same(resp2, resp3);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.10")]
+    public void AppendHeader_should_reject_block_exceeding_max_accumulated_bytes()
+    {
+        // RFC 9113 §6.10 / CVE-2024-27316: a HEADERS + CONTINUATION sequence must not be allowed to
+        // accumulate an unbounded header block. The compressed accumulation is capped so the flood is
+        // rejected before HPACK decode rather than after the buffer has already grown.
+        var state = new StreamState();
+        var chunk = new byte[1024];
+
+        Assert.Throws<HttpProtocolException>(() =>
+        {
+            for (var i = 0; i < 100; i++)
+            {
+                state.AppendHeader(chunk, maxAccumulatedBytes: 8 * 1024);
+            }
+        });
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.10")]
+    public void AppendHeader_within_max_accumulated_bytes_should_not_throw()
+    {
+        var state = new StreamState();
+
+        state.AppendHeader(new byte[4096], maxAccumulatedBytes: 8 * 1024);
+        state.AppendHeader(new byte[4096], maxAccumulatedBytes: 8 * 1024);
+
+        Assert.Equal(8192, state.GetHeaderSpan().Length);
     }
 
     [Fact(Timeout = 5000)]

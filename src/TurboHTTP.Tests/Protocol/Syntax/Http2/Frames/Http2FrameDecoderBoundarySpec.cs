@@ -201,6 +201,44 @@ public sealed class Http2FrameDecoderBoundarySpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4.2")]
+    public void Http2FrameDecoder_should_throw_frame_size_error_when_frame_exceeds_configured_max()
+    {
+        // RFC 9113 §4.2: a frame whose length exceeds the locally-advertised SETTINGS_MAX_FRAME_SIZE
+        // is a FRAME_SIZE_ERROR. A DATA frame is used so the failure is the size check, not a
+        // frame-type-specific length rule.
+        var decoder = new FrameDecoder(16384);
+        const int overSize = 16385;
+        var frame = new byte[9 + overSize];
+        frame[0] = (byte)(overSize >> 16);
+        frame[1] = (byte)(overSize >> 8);
+        frame[2] = (byte)(overSize & 0xFF);
+        frame[3] = 0x00; // DATA
+        frame[8] = 1; // stream 1
+
+        Assert.Throws<HttpProtocolException>(() => decoder.Decode(frame));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4.2")]
+    public void Http2FrameDecoder_should_accept_frame_exactly_at_configured_max()
+    {
+        var decoder = new FrameDecoder(16384);
+        const int maxPayload = 16384;
+        var frame = new byte[9 + maxPayload];
+        frame[0] = (byte)(maxPayload >> 16);
+        frame[1] = (byte)(maxPayload >> 8);
+        frame[2] = (byte)(maxPayload & 0xFF);
+        frame[3] = 0x00; // DATA
+        frame[8] = 1; // stream 1
+
+        var frames = decoder.Decode(frame);
+
+        Assert.NotEmpty(frames);
+        Assert.IsType<DataFrame>(frames[0]);
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-4.1")]
     public void Http2FrameDecoder_should_ignore_when_unknown_frame_type_has_large_payload()
     {
