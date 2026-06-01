@@ -517,7 +517,7 @@ public sealed class Http3StateMachineSpec
     public void OnTimerFired_should_handle_idle_timeout()
     {
         var sm = CreateMachine(new TurboClientOptions
-        { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromMilliseconds(1) } });
+        { Http3 = new Http3ClientOptions { IdleTimeout = TimeSpan.FromMilliseconds(1) } });
         sm.PreStart();
 
         // Timer firing should check idle timeout and potentially emit GoAway

@@ -19,24 +19,19 @@ public record TurboRequestOptions(
     ICredentials? Credentials = null,
     bool PreAuthenticate = false);
 
-/// <summary>
-/// Configuration for a <see cref="TurboHttpClient"/> instance.
-/// Property names and defaults are aligned with <see cref="System.Net.Http.SocketsHttpHandler"/>
-/// where applicable, so TurboHttp is a familiar drop-in for existing HttpClient users.
-/// </summary>
 public sealed class TurboClientOptions
 {
     /// <summary>Base address used to resolve relative request URIs.</summary>
     public Uri? BaseAddress { get; set; }
 
     /// <summary>HTTP/1.x-specific configuration.</summary>
-    public Http1Options Http1 { get; init; } = new();
+    public Http1ClientOptions Http1 { get; init; } = new();
 
     /// <summary>HTTP/2-specific configuration.</summary>
-    public Http2Options Http2 { get; init; } = new();
+    public Http2ClientOptions Http2 { get; init; } = new();
 
     /// <summary>HTTP/3-specific configuration.</summary>
-    public Http3Options Http3 { get; init; } = new();
+    public Http3ClientOptions Http3 { get; init; } = new();
 
     /// <summary>
     /// Maximum response body size (in bytes) that will be buffered in memory.
@@ -49,6 +44,19 @@ public sealed class TurboClientOptions
     /// Null means unlimited. Default is null.
     /// </summary>
     public long? MaxStreamedBodySize { get; set; } = null;
+
+    /// <summary>
+    /// Response body size (in bytes) below which the body is buffered fully in memory before being
+    /// surfaced; at or above it the body is streamed. Shared across all protocol versions and used as
+    /// the streaming threshold for line-based (HTTP/1.x) response decoding. Default is 64 KB.
+    /// </summary>
+    public int BodyBufferThreshold { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Chunk size (in bytes) used when the client streams a request body to the server.
+    /// Shared across all protocol versions (line-based and multiplexed body encoders). Default is 16 KB.
+    /// </summary>
+    public int RequestBodyChunkSize { get; set; } = 16 * 1024;
 
     /// <summary>
     /// Timeout for establishing a new TCP connection.

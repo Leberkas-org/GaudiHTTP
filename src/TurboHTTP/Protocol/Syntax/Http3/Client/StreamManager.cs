@@ -17,7 +17,8 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 internal sealed class StreamManager(
     IClientStageOperations ops,
     Http3ClientDecoder responseDecoder,
-    QpackTableSync tableSync)
+    QpackTableSync tableSync,
+    long maxResponseBodySize)
 {
     private const int MaxPoolSize = 256;
     private const int MaxDecoderPoolSize = 256;
@@ -56,7 +57,7 @@ internal sealed class StreamManager(
     /// <summary>
     /// Assembles a response from an HTTP/3 frame (HEADERS or DATA) on the given stream.
     /// </summary>
-    public void AssembleResponse(Http3Frame frame, long streamId, RequestEndpoint endpoint)
+    public void AssembleResponse(Http3Frame frame, long streamId)
     {
         ResponseProduced = false;
 
@@ -69,7 +70,7 @@ internal sealed class StreamManager(
         switch (frame)
         {
             case HeadersFrame headers:
-                HandleResponseHeaders(headers, state, endpoint);
+                HandleResponseHeaders(headers, state);
                 break;
 
             case DataFrame data:
@@ -187,9 +188,9 @@ internal sealed class StreamManager(
                     responseDecoder.AssembleHeaders(headers, state);
                 }
 
-                if (state.HasResponse && !state.HasBodyDecoder)
+                if (state is { HasResponse: true, HasBodyDecoder: false })
                 {
-                    state.InitBodyDecoder(new StreamingBodyDecoder());
+                    state.InitBodyDecoder(new StreamingBodyDecoder(maxResponseBodySize));
                     var response = state.GetResponse();
                     var bodyStream = state.GetBodyStream();
                     response.Content = new StreamContent(bodyStream);
@@ -233,18 +234,6 @@ internal sealed class StreamManager(
     public void Correlate(long streamId, HttpRequestMessage request)
     {
         _correlationMap[streamId] = request;
-    }
-
-    /// <summary>
-    /// Returns all correlated requests as a list and clears the correlation map.
-    /// Used during reconnection to snapshot old correlations for replay.
-    /// </summary>
-    public List<HttpRequestMessage> SnapshotAndClearCorrelations()
-    {
-        var result = new List<HttpRequestMessage>(_correlationMap.Count);
-        result.AddRange(_correlationMap.Values);
-        _correlationMap.Clear();
-        return result;
     }
 
     /// <summary>
@@ -312,7 +301,7 @@ internal sealed class StreamManager(
         }
     }
 
-    private void HandleResponseHeaders(HeadersFrame frame, StreamState state, RequestEndpoint endpoint)
+    private void HandleResponseHeaders(HeadersFrame frame, StreamState state)
     {
         var result = tableSync.TryDecodeOrBlock(frame.HeaderBlock, (int)state.StreamId);
 
@@ -328,7 +317,7 @@ internal sealed class StreamManager(
 
         var streamId = state.StreamId;
 
-        state.InitBodyDecoder(new StreamingBodyDecoder());
+        state.InitBodyDecoder(new StreamingBodyDecoder(maxResponseBodySize));
         var response = state.GetResponse();
         var bodyStream = state.GetBodyStream();
         response.Content = new StreamContent(bodyStream);
@@ -350,8 +339,6 @@ internal sealed class StreamManager(
 
         // Emit response immediately on headers
         ops.OnResponse(response);
-
-        FlushDecoderInstructionsCallback?.Invoke(endpoint);
     }
 
     private void HandleResponseData(DataFrame frame, StreamState state)
@@ -451,12 +438,6 @@ internal sealed class StreamManager(
             decoder.Dispose();
         }
     }
-
-    /// <summary>
-    /// Callback to flush QPACK decoder instructions after header decoding.
-    /// Set by <see cref="Http3ClientStateMachine"/> to avoid circular dependency.
-    /// </summary>
-    internal Action<RequestEndpoint>? FlushDecoderInstructionsCallback { get; init; }
 
     /// <summary>
     /// Callback invoked when a stream is closed (response emitted).

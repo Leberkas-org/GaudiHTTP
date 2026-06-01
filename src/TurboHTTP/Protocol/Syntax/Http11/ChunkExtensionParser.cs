@@ -1,3 +1,5 @@
+using TurboHTTP.Protocol.Semantics;
+
 namespace TurboHTTP.Protocol.Syntax.Http11;
 
 /// <summary>
@@ -118,14 +120,5 @@ internal static class ChunkExtensionParser
         return pos >= data.Length;
     }
 
-    private static bool IsTokenChar(byte b)
-    {
-        return b switch
-        {
-            (byte)'!' or (byte)'#' or (byte)'$' or (byte)'%' or (byte)'&' or (byte)'\''
-                or (byte)'*' or (byte)'+' or (byte)'-' or (byte)'.' or (byte)'^' or (byte)'_'
-                or (byte)'`' or (byte)'|' or (byte)'~' => true,
-            _ => b is >= (byte)'0' and <= (byte)'9' or >= (byte)'A' and <= (byte)'Z' or >= (byte)'a' and <= (byte)'z'
-        };
-    }
+    private static bool IsTokenChar(byte b) => HeaderValidation.IsTokenChar(b);
 }

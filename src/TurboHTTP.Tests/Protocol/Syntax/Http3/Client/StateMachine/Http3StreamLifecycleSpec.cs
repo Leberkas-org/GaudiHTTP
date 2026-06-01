@@ -37,7 +37,7 @@ public sealed class Http3StreamLifecycleSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Encoder_should_produce_single_headers_frame_per_request()
     {
-        var tableSync = new QpackTableSync();
+        var tableSync = new QpackTableSync(0, 4096, 100, null);
         var encoder = new Http3ClientEncoder(tableSync);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         var frames = encoder.Encode(request);

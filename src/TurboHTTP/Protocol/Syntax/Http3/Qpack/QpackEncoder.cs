@@ -19,7 +19,7 @@ internal sealed class QpackEncoder
     private int _instructionBytesWritten;
     private readonly Dictionary<int, int> _pendingSections = new();
 
-    public QpackEncoder(int maxTableCapacity = 4096)
+    public QpackEncoder(int maxTableCapacity)
     {
         if (maxTableCapacity < 0)
         {

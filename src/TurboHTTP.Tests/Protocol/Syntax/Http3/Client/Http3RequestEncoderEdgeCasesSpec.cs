@@ -8,7 +8,7 @@ public sealed class Http3RequestEncoderEdgeCasesSpec
 {
     private static Http3ClientEncoder CreateEncoder()
     {
-        var tableSync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100);
+        var tableSync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         return new Http3ClientEncoder(tableSync);
     }
 

@@ -1,3 +1,4 @@
+using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Client;
@@ -8,7 +9,7 @@ public sealed class CompressionOptions
     /// The content encoding to apply (e.g. "gzip", "deflate", "br").
     /// Default is "gzip".
     /// </summary>
-    public string Encoding { get; set; } = "gzip";
+    public string Encoding { get; set; } = WellKnownHeaders.GzipValue;
 
     /// <summary>
     /// Minimum request body size in bytes that triggers compression.

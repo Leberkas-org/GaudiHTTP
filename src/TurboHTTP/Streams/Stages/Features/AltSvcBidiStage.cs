@@ -3,6 +3,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Features.AltSvc;
+using TurboHTTP.Protocol;
 using static Servus.Core.Servus;
 
 namespace TurboHTTP.Streams.Stages.Features;
@@ -99,7 +100,7 @@ internal sealed class AltSvcBidiStage
                     var response = Grab(stage._inResponse);
                     try
                     {
-                        if (response.Headers.TryGetValues("Alt-Svc", out var altSvcValues))
+                        if (response.Headers.TryGetValues(WellKnownHeaders.AltSvc, out var altSvcValues))
                         {
                             var host = response.RequestMessage?.RequestUri?.Host;
                             if (!string.IsNullOrEmpty(host))

@@ -30,7 +30,7 @@ internal static class BodySemantics
             return new BodyClassification(BodyFraming.None, null);
         }
 
-        if (!ContentLengthSemantics.BodyRequired((HttpStatusCode)statusCode, "GET"))
+        if (!ContentLengthSemantics.BodyRequired((HttpStatusCode)statusCode, WellKnownHeaders.Get))
         {
             return new BodyClassification(BodyFraming.None, null);
         }

@@ -9,7 +9,7 @@ public sealed class CloseDelimitedBodyDecoderSpec
     [Trait("RFC", "RFC9112-6.3")]
     public async Task Decoder_should_accumulate_until_eof()
     {
-        var decoder = new CloseDelimitedBodyDecoder();
+        var decoder = new CloseDelimitedBodyDecoder(10 * 1024 * 1024);
         Assert.False(decoder.Feed("part1"u8, out var c1));
         Assert.Equal(5, c1);
         Assert.False(decoder.Feed("part2"u8, out var c2));
@@ -27,7 +27,7 @@ public sealed class CloseDelimitedBodyDecoderSpec
     [Fact(Timeout = 5000)]
     public void Feed_should_never_return_true()
     {
-        var decoder = new CloseDelimitedBodyDecoder();
+        var decoder = new CloseDelimitedBodyDecoder(10 * 1024 * 1024);
         Assert.False(decoder.Feed("data"u8, out _));
         decoder.Dispose();
     }

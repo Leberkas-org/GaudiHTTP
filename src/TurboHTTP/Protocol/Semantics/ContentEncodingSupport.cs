@@ -6,7 +6,7 @@ namespace TurboHTTP.Protocol.Semantics;
 /// </summary>
 internal static class ContentEncodingSupport
 {
-    private static readonly string[] SupportedCodings = ["gzip", "deflate", "br", "identity"];
+    private static readonly string[] SupportedCodings = [WellKnownHeaders.GzipValue, WellKnownHeaders.DeflateValue, WellKnownHeaders.BrValue, WellKnownHeaders.IdentityValue];
     private static readonly IReadOnlyList<string> SupportedCodingsList = SupportedCodings.AsReadOnly();
 
     /// <summary>

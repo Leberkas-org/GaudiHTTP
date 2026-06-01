@@ -1,12 +1,12 @@
-using TurboHTTP.Protocol.Syntax.Http10.Options;
+using TurboHTTP.Client;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Client;
 
 public sealed class Http10ClientDecoderOptionsSpec
 {
     [Fact(Timeout = 5000)]
-    public void Default_should_have_sensible_values()
+    public void Default_client_options_should_project_sensible_decoder_values()
     {
-        Assert.Equal(64L * 1024, Http10ClientDecoderOptions.Default.StreamingThreshold);
+        Assert.Equal(64L * 1024, new TurboClientOptions().ToHttp10DecoderOptions().StreamingThreshold);
     }
 }

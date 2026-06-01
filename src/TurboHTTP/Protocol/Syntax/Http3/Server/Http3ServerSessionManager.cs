@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Server;
@@ -189,8 +190,8 @@ internal sealed class Http3ServerSessionManager
 
         foreach (var header in responseFeature.Headers)
         {
-            if (header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase) &&
-                header.Value.FirstOrDefault() is { } value && long.TryParse(value, out var length))
+            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase) &&
+                header.Value.FirstOrDefault() is { } value && ContentLengthSemantics.TryParse(value, out var length))
             {
                 return length;
             }

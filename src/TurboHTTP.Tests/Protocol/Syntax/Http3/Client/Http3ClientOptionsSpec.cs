@@ -2,13 +2,13 @@ using TurboHTTP.Client;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
 
-public sealed class Http3OptionsSpec
+public sealed class Http3ClientOptionsSpec
 {
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-7.2.4.1")]
     public void Http3Options_should_have_correct_defaults()
     {
-        var options = new Http3Options();
+        var options = new Http3ClientOptions();
 
         Assert.Equal(4, options.MaxConnectionsPerServer);
         Assert.Equal(16_384, options.QpackMaxTableCapacity);
@@ -22,7 +22,7 @@ public sealed class Http3OptionsSpec
     [Trait("RFC", "RFC9114-7.2.4.1")]
     public void Http3Options_should_allow_custom_values()
     {
-        var options = new Http3Options
+        var options = new Http3ClientOptions
         {
             MaxConnectionsPerServer = 8,
             QpackMaxTableCapacity = 8192,

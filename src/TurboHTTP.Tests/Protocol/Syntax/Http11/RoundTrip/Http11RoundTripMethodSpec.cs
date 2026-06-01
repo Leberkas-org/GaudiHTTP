@@ -4,12 +4,13 @@ using Akka.Actor;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
 
 public sealed class Http11RoundTripMethodSpec
 {
-    private static readonly Http11ClientEncoder Encoder = new(Http11ClientEncoderOptions.Default);
+    private static readonly Http11ClientEncoder Encoder = new(ClientOptionDefaults.Http11Encoder());
 
     private static int EncodeRequest(HttpRequestMessage request, Span<byte> buffer)
     {
@@ -33,7 +34,7 @@ public sealed class Http11RoundTripMethodSpec
 
     private static HttpResponseMessage Decode(ReadOnlyMemory<byte> data)
     {
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var outcome = decoder.Feed(data.Span, false, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
         return decoder.GetResponse();
@@ -149,7 +150,7 @@ public sealed class Http11RoundTripMethodSpec
         var encoded = Encoding.ASCII.GetString(buf, 0, written);
         Assert.StartsWith("HEAD /resource HTTP/1.1", encoded);
 
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var raw = BuildResponse(200, "OK", "",
             ("Content-Length", "0"),
             ("Content-Type", "application/octet-stream"));

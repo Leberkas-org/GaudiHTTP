@@ -15,8 +15,8 @@ public sealed class Http3ServerMaxFieldSectionSizeSpec
         MaxHeaderCount = 100,
     };
 
-    private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0);
-    private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0);
+    private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0, maxBlockedStreams: 100, configuredEncoderLimit: null);
+    private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0, maxBlockedStreams: 100, configuredEncoderLimit: null);
 
     private HeadersFrame EncodeAndSync(List<(string Name, string Value)> headers)
     {

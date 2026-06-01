@@ -10,7 +10,6 @@ internal sealed class Http3ServerDecoder
     private const string PseudoHeaderSection = "RFC 9114 §4.3.1";
     private const string UppercaseSection = "RFC 9114 §4.2";
     private const string TokenSection = "RFC 9114 §10.3";
-    private const string FieldValueSection = "RFC 9114 §10.3";
     private const string ConnectionSection = "RFC 9114 §4.2";
 
     private readonly QpackTableSync _tableSync;
@@ -25,8 +24,6 @@ internal sealed class Http3ServerDecoder
         _maxFieldSectionSize = options.MaxFieldSectionSize;
         _maxHeaderCount = options.MaxHeaderCount;
     }
-
-    public ReadOnlyMemory<byte> DecoderInstructions => _tableSync.Decoder.DecoderInstructions;
 
     public TurboHttpRequestFeature? DecodeHeadersToFeature(HeadersFrame frame, StreamState state, bool endStream)
     {
@@ -46,7 +43,7 @@ internal sealed class Http3ServerDecoder
 
         var feature = new TurboHttpRequestFeature
         {
-            Protocol = "HTTP/3"
+            Protocol = WellKnownHeaders.Http30
         };
 
         var isConnect = false;
@@ -90,8 +87,8 @@ internal sealed class Http3ServerDecoder
         if (!isConnect)
         {
             var path = state.GetPseudoHeader(WellKnownHeaders.Path);
-            var scheme = state.GetPseudoHeader(WellKnownHeaders.Scheme);
-            var authority = state.GetPseudoHeader(WellKnownHeaders.Authority);
+            _ = state.GetPseudoHeader(WellKnownHeaders.Scheme);
+            _ = state.GetPseudoHeader(WellKnownHeaders.Authority);
 
             feature.RawTarget = path;
             feature.QueryString = ParseQueryString(path);
@@ -108,7 +105,7 @@ internal sealed class Http3ServerDecoder
         return feature;
     }
 
-    internal static void ValidateRequestHeaders(IReadOnlyList<(string Name, string Value)> headers)
+    private static void ValidateRequestHeaders(IReadOnlyList<(string Name, string Value)> headers)
     {
         PseudoHeaderValidator.ValidateRequestPseudoHeaders(
             headers,
@@ -122,7 +119,7 @@ internal sealed class Http3ServerDecoder
             static h => h.Value,
             UppercaseSection,
             TokenSection,
-            FieldValueSection,
+            TokenSection,
             ConnectionSection);
     }
 

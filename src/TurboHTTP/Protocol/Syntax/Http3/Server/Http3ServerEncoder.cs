@@ -65,12 +65,12 @@ internal sealed class Http3ServerEncoder
                     continue;
                 }
 
-                var value = h.Value.Count == 1 ? h.Value[0]! : string.Join(", ", h.Value);
+                var value = ContentHeaderClassifier.JoinHeaderValues(h.Value);
                 headers.Add((ContentHeaderClassifier.ToLowerAscii(h.Key), value));
             }
         }
 
-        if (options.WriteDateHeader && !headers.Any(h => h.Name.Equals("date", StringComparison.OrdinalIgnoreCase)))
+        if (options.WriteDateHeader && !headers.Any(h => h.Name.Equals(WellKnownHeaders.Date, StringComparison.OrdinalIgnoreCase)))
         {
             headers.Add(("date", DateHeaderCache.GetValue()));
         }

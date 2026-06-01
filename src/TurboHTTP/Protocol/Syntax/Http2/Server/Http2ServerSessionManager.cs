@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
@@ -226,7 +227,7 @@ internal sealed class Http2ServerSessionManager
         foreach (var header in responseFeature.Headers)
         {
             if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase) &&
-                header.Value.FirstOrDefault() is { } value && long.TryParse(value, out var length))
+                header.Value.FirstOrDefault() is { } value && ContentLengthSemantics.TryParse(value, out var length))
             {
                 return length;
             }
@@ -648,7 +649,7 @@ internal sealed class Http2ServerSessionManager
 
     private void EmitFrame(Http2Frame frame)
     {
-        if (frame is DataFrame df && df.Data.Length > 0)
+        if (frame is DataFrame { Data.Length: > 0 } df)
         {
             _responseRate.Observe(df.StreamId, df.Data.Length, Now());
             EnsureRateTimer();

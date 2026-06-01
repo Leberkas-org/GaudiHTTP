@@ -14,6 +14,7 @@ internal static class BodyDecoderOptionsExtensions
         StreamingThreshold = o.StreamingThreshold,
         MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedBodySize,
+        MaxChunkExtensionLength = int.MaxValue,
     };
 
     public static BodyDecoderOptions ToBodyDecoderOptions(this Http11ClientDecoderOptions o) => new()
@@ -21,6 +22,7 @@ internal static class BodyDecoderOptionsExtensions
         StreamingThreshold = o.StreamingThreshold,
         MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedBodySize,
+        MaxChunkExtensionLength = o.MaxChunkExtensionLength,
     };
 
     public static BodyDecoderOptions ToBodyDecoderOptions(this Http10ServerDecoderOptions o) => new()
@@ -28,6 +30,7 @@ internal static class BodyDecoderOptionsExtensions
         StreamingThreshold = o.StreamingThreshold,
         MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedBodySize,
+        MaxChunkExtensionLength = int.MaxValue,
     };
 
     public static BodyDecoderOptions ToBodyDecoderOptions(this Http11ServerDecoderOptions o) => new()

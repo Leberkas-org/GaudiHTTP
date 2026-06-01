@@ -8,7 +8,7 @@ public sealed class BodyDecoderFactorySpec
     private const int Threshold = 1024;
 
     private static IBodyDecoder Create(BodyClassification c)
-        => BodyDecoderFactory.Create(c, new BodyDecoderOptions { StreamingThreshold = Threshold });
+        => BodyDecoderFactory.Create(c, new BodyDecoderOptions { StreamingThreshold = Threshold, MaxBufferedBodySize = 4 * 1024 * 1024, MaxStreamedBodySize = null, MaxChunkExtensionLength = int.MaxValue });
 
     [Theory(Timeout = 5000)]
     [InlineData(0)]
@@ -62,7 +62,7 @@ public sealed class BodyDecoderFactorySpec
     {
         var decoder = BodyDecoderFactory.Create(
             new BodyClassification(BodyFraming.Chunked, null),
-            new BodyDecoderOptions { StreamingThreshold = Threshold, MaxChunkExtensionLength = 8 });
+            new BodyDecoderOptions { StreamingThreshold = Threshold, MaxBufferedBodySize = 4 * 1024 * 1024, MaxStreamedBodySize = null, MaxChunkExtensionLength = 8 });
         var longExt = new string('a', 64);
         var data = System.Text.Encoding.ASCII.GetBytes($"5;{longExt}=v\r\nhello\r\n0\r\n\r\n");
 

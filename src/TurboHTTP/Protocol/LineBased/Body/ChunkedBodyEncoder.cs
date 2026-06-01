@@ -4,7 +4,7 @@ using Akka.Actor;
 
 namespace TurboHTTP.Protocol.LineBased.Body;
 
-internal sealed class ChunkedBodyEncoder(int chunkSize = 16 * 1024) : IBodyEncoder
+internal sealed class ChunkedBodyEncoder(int chunkSize) : IBodyEncoder
 {
     private readonly CancellationTokenSource _cts = new();
 

@@ -19,15 +19,15 @@ internal static class BodyDecoderFactory
                     return new ContentLengthBufferedDecoder((int)n);
                 }
 
-                var effectiveMax = options.MaxStreamedBodySize ?? options.MaxBodySize;
+                var effectiveMax = options.MaxStreamedBodySize ?? long.MaxValue;
                 return new ContentLengthStreamedDecoder(n, effectiveMax);
             }
 
             case BodyFraming.Chunked:
-                return new ChunkedBodyDecoder(options.MaxStreamedBodySize ?? options.MaxBodySize, options.MaxChunkExtensionLength);
+                return new ChunkedBodyDecoder(options.MaxStreamedBodySize ?? long.MaxValue, options.MaxChunkExtensionLength);
 
             case BodyFraming.Close:
-                return new CloseDelimitedBodyDecoder(options.MaxStreamedBodySize ?? options.MaxBodySize);
+                return new CloseDelimitedBodyDecoder(options.MaxStreamedBodySize ?? long.MaxValue);
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(classification));

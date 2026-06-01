@@ -1,4 +1,4 @@
-using TurboHTTP.Protocol.Syntax.Http2.Options;
+using TurboHTTP.Client;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Options;
 
@@ -6,8 +6,8 @@ public sealed class Http2ClientEncoderOptionsSpec
 {
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113")]
-    public void Default_should_have_sensible_values()
+    public void Default_client_options_should_project_sensible_encoder_values()
     {
-        Assert.Equal(16 * 1024, Http2ClientEncoderOptions.Default.MaxFrameSize);
+        Assert.Equal(64 * 1024, new TurboClientOptions().ToHttp2EncoderOptions().MaxFrameSize);
     }
 }

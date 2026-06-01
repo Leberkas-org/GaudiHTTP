@@ -44,7 +44,7 @@ internal sealed class QpackDecoder
     /// Maximum number of streams that may be blocked waiting for dynamic table updates
     /// (SETTINGS_QPACK_BLOCKED_STREAMS). Default 0 means no blocking allowed.
     /// </param>
-    public QpackDecoder(int maxTableCapacity = 4096, int maxBlockedStreams = 100)
+    public QpackDecoder(int maxTableCapacity, int maxBlockedStreams)
     {
         if (maxTableCapacity < 0)
         {

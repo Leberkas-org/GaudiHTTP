@@ -2,6 +2,7 @@ using System.Text;
 using Akka.Actor;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Client;
 
@@ -10,7 +11,7 @@ public sealed class Http11HeaderReuseSpec
     [Fact(Timeout = 5000)]
     public void Encode_should_produce_valid_output_on_second_call()
     {
-        var encoder = new Http11ClientEncoder(Http11ClientEncoderOptions.Default);
+        var encoder = new Http11ClientEncoder(ClientOptionDefaults.Http11Encoder());
 
         var request1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/first");
         var buffer1 = new byte[4 * 1024];
@@ -31,7 +32,7 @@ public sealed class Http11HeaderReuseSpec
     [Fact(Timeout = 5000)]
     public void Encode_should_not_leak_headers_between_calls()
     {
-        var encoder = new Http11ClientEncoder(Http11ClientEncoderOptions.Default);
+        var encoder = new Http11ClientEncoder(ClientOptionDefaults.Http11Encoder());
 
         var request1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         request1.Headers.Add("X-Custom", "value1");

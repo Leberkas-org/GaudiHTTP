@@ -3,12 +3,13 @@ using System.Text.RegularExpressions;
 using Akka.Actor;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11ClientEncoderSpec
 {
-    private readonly Http11ClientEncoder _encoder = new(Http11ClientEncoderOptions.Default);
+    private readonly Http11ClientEncoder _encoder = new(ClientOptionDefaults.Http11Encoder());
 
     [Fact(Timeout = 5000)]
     public void Encode_should_write_request_line()

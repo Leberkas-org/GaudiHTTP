@@ -1,3 +1,5 @@
+using TurboHTTP.Protocol;
+
 namespace TurboHTTP.Features.Caching;
 
 /// <summary>
@@ -77,12 +79,12 @@ internal static class CacheControlParser
             }
 
             // Case-insensitive directive matching (RFC 9111 §5.2)
-            if (name.Equals("no-cache", StringComparison.OrdinalIgnoreCase))
+            if (name.Equals(WellKnownHeaders.NoCache.Name, StringComparison.OrdinalIgnoreCase))
             {
                 noCache = true;
                 noCacheFields = ParseFieldList(value);
             }
-            else if (name.Equals("no-store", StringComparison.OrdinalIgnoreCase))
+            else if (name.Equals(WellKnownHeaders.NoStore.Name, StringComparison.OrdinalIgnoreCase))
             {
                 noStore = true;
             }
@@ -102,11 +104,11 @@ internal static class CacheControlParser
             {
                 proxyRevalidate = true;
             }
-            else if (name.Equals("public", StringComparison.OrdinalIgnoreCase))
+            else if (name.Equals(WellKnownHeaders.PublicDirective.Name, StringComparison.OrdinalIgnoreCase))
             {
                 isPublic = true;
             }
-            else if (name.Equals("private", StringComparison.OrdinalIgnoreCase))
+            else if (name.Equals(WellKnownHeaders.PrivateDirective.Name, StringComparison.OrdinalIgnoreCase))
             {
                 isPrivate = true;
                 privateFields = ParseFieldList(value);

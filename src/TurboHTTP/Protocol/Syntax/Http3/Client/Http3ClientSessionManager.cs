@@ -23,7 +23,6 @@ internal sealed class Http3ClientSessionManager
     private readonly StreamManager _streamManager;
 
     private readonly Http3ClientEncoder _requestEncoder;
-    private readonly Http3ClientDecoder _responseDecoder;
     private readonly QpackTableSync _tableSync;
 
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
@@ -33,7 +32,6 @@ internal sealed class Http3ClientSessionManager
     private readonly List<ITransportOutbound> _preConnectBuffer = [];
 
     public bool CanOpenStream => _tracker.CanOpenStream();
-    public bool GoAwayReceived { get; private set; }
     public bool HasInFlightRequests => _correlationMap.Count > 0 || _streamManager.HasInFlightRequests;
     public RequestEndpoint Endpoint { get; private set; }
 
@@ -57,9 +55,9 @@ internal sealed class Http3ClientSessionManager
             configuredEncoderLimit: encoderOptions.QpackMaxTableCapacity);
 
         _requestEncoder = new Http3ClientEncoder(_tableSync);
-        _responseDecoder = new Http3ClientDecoder(_tableSync, decoderOptions.MaxFieldSectionSize);
-        _qpackStreamManager = new QpackStreamManager(ops, _requestEncoder, _responseDecoder, _tableSync);
-        _streamManager = new StreamManager(ops, _responseDecoder, _tableSync)
+        var responseDecoder = new Http3ClientDecoder(_tableSync, decoderOptions.MaxFieldSectionSize);
+        _qpackStreamManager = new QpackStreamManager(ops, _requestEncoder, responseDecoder, _tableSync);
+        _streamManager = new StreamManager(ops, responseDecoder, _tableSync, _options.MaxStreamedBodySize ?? long.MaxValue)
         {
             OnStreamClosedCallback = OnStreamClosed
         };
@@ -120,7 +118,7 @@ internal sealed class Http3ClientSessionManager
 
         var contentLength = request.Content?.Headers.ContentLength;
         var bodyStream = request.Content?.ReadAsStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, new BodyEncoderOptions { ChunkSize = _options.RequestBodyChunkSize });
         if (encoder is null)
         {
             EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
@@ -204,7 +202,7 @@ internal sealed class Http3ClientSessionManager
 
     public void AssembleResponse(Http3Frame frame, long streamId)
     {
-        _streamManager.AssembleResponse(frame, streamId, Endpoint);
+        _streamManager.AssembleResponse(frame, streamId);
     }
 
     public void FlushPendingResponse(long streamId)

@@ -47,7 +47,7 @@ internal static class ConnectionHeaderSemantics
         foreach (var part in parts)
         {
             var trimmed = part.Trim();
-            if (string.Equals(trimmed, "close", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(trimmed, WellKnownHeaders.CloseValue, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
@@ -70,7 +70,7 @@ internal static class ConnectionHeaderSemantics
         foreach (var part in parts)
         {
             var trimmed = part.Trim();
-            if (string.Equals(trimmed, "upgrade", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(trimmed, WellKnownHeaders.Upgrade, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }

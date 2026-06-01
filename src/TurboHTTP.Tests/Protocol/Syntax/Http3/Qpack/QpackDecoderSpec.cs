@@ -15,7 +15,7 @@ public sealed class QpackDecoderSpec
         var headers = new List<(string, string)> { (":method", "GET") };
         var encoded = encoder.Encode(headers);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(maxTableCapacity: 0, 100);
         var decoded = decoder.Decode(encoded.Span);
 
         Assert.Single(decoded);
@@ -36,7 +36,7 @@ public sealed class QpackDecoderSpec
         };
         var encoded = encoder.Encode(headers);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(maxTableCapacity: 0, 100);
         var decoded = decoder.Decode(encoded.Span);
 
         Assert.Equal(3, decoded.Count);
@@ -57,7 +57,7 @@ public sealed class QpackDecoderSpec
         var encoded = encoder.Encode(headers);
 
         // Decoder must have the same dynamic table state
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
         decoder.DynamicTable.Insert("x-custom", "value1");
 
         var decoded = decoder.Decode(encoded.Span);
@@ -76,7 +76,7 @@ public sealed class QpackDecoderSpec
         var headers = new List<(string, string)> { (":path", "/very/long/path/that/exceeds/capacity") };
         var encoded = encoder.Encode(headers);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 32);
+        var decoder = new QpackDecoder(maxTableCapacity: 32, 100);
         var decoded = decoder.Decode(encoded.Span);
 
         Assert.Single(decoded);
@@ -92,7 +92,7 @@ public sealed class QpackDecoderSpec
         var headers = new List<(string, string)> { ("x-custom", "my-value") };
         var encoded = encoder.Encode(headers);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(maxTableCapacity: 0, 100);
         var decoded = decoder.Decode(encoded.Span);
 
         Assert.Single(decoded);
@@ -108,7 +108,7 @@ public sealed class QpackDecoderSpec
         var headers = new List<(string, string)> { ("authorization", "Bearer token123") };
         var encoded = encoder.Encode(headers);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
         var decoded = decoder.Decode(encoded.Span);
 
         Assert.Single(decoded);
@@ -124,7 +124,7 @@ public sealed class QpackDecoderSpec
         var headers = new List<(string, string)> { ("x-test", "www.example.com") };
         var encoded = encoder.Encode(headers);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(maxTableCapacity: 0, 100);
         var decoded = decoder.Decode(encoded.Span);
 
         Assert.Single(decoded);
@@ -142,7 +142,7 @@ public sealed class QpackDecoderSpec
         var encoded = encoder.Encode(headers);
 
         // Decoder has empty dynamic table (InsertCount = 0) but encoded block has RIC = 1
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
 
         Assert.Throws<QpackException>(() => decoder.Decode(encoded.Span));
     }
@@ -192,7 +192,7 @@ public sealed class QpackDecoderSpec
         var headers = new List<(string, string)> { ("x-custom", "value1") };
         var encoded = encoder.Encode(headers);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
         decoder.DynamicTable.Insert("x-custom", "value1");
 
         decoder.Decode(encoded.Span, streamId: 4);
@@ -218,7 +218,7 @@ public sealed class QpackDecoderSpec
         var headers = new List<(string, string)> { (":method", "GET") };
         var encoded = encoder.Encode(headers);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(maxTableCapacity: 0, 100);
         decoder.Decode(encoded.Span);
 
         Assert.Equal(0, decoder.DecoderInstructions.Length);
@@ -240,7 +240,7 @@ public sealed class QpackDecoderSpec
         // Post-base indexed: 0001xxxx, 4-bit prefix, postBaseIndex=0
         WriteInt(0, 4, 0x10, buf);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
         decoder.DynamicTable.Insert("x-post-base", "pb-value");
 
         var decoded = decoder.Decode(buf.WrittenSpan, streamId: 1);
@@ -269,7 +269,7 @@ public sealed class QpackDecoderSpec
         var valueBytes = "new-value"u8.ToArray();
         WriteStr(valueBytes.AsSpan(), 7, 0x00, false, buf);
 
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
         decoder.DynamicTable.Insert("x-post-name", "original");
 
         var decoded = decoder.Decode(buf.WrittenSpan, streamId: 1);
@@ -286,7 +286,7 @@ public sealed class QpackDecoderSpec
         var encoder = new QpackEncoder(maxTableCapacity: 0);
         var encoded = encoder.Encode(new List<(string, string)>());
 
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(maxTableCapacity: 0, 100);
         var decoded = decoder.Decode(encoded.Span);
 
         Assert.Empty(decoded);

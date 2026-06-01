@@ -69,6 +69,17 @@ internal static class HeaderValidation
         return start == 0 && end == value.Length ? value : value[start..end];
     }
 
+    public static bool IsTokenChar(byte b)
+    {
+        return b switch
+        {
+            >= (byte)'A' and <= (byte)'Z' or >= (byte)'a' and <= (byte)'z' or >= (byte)'0' and <= (byte)'9' => true,
+            _ => b is (byte)'!' or (byte)'#' or (byte)'$' or (byte)'%' or (byte)'&' or (byte)'\''
+                or (byte)'*' or (byte)'+' or (byte)'-' or (byte)'.' or (byte)'^' or (byte)'_'
+                or (byte)'`' or (byte)'|' or (byte)'~'
+        };
+    }
+
     private static bool IsTokenChar(char c)
     {
         return c switch

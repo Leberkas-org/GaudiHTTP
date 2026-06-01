@@ -98,28 +98,11 @@ internal static class HeaderBuilder
 
     private static void AddHeader(HeaderCollection collection, string name, IEnumerable<string> values)
     {
-        string? combined = null;
-        StringBuilder? sb = null;
-
-        foreach (var value in values)
+        var combined = ContentHeaderClassifier.JoinHeaderValues(values);
+        if (combined is not null)
         {
-            if (combined is null)
-            {
-                combined = value;
-            }
-            else
-            {
-                sb ??= new StringBuilder(combined);
-                sb.Append(WellKnownHeaders.CommaSpace).Append(value);
-            }
+            collection.Add(name, combined);
         }
-
-        if (combined is null)
-        {
-            return;
-        }
-
-        collection.Add(name, sb?.ToString() ?? combined);
     }
 
     private static void AddTeHeader(HeaderCollection collection, IEnumerable<string> values)

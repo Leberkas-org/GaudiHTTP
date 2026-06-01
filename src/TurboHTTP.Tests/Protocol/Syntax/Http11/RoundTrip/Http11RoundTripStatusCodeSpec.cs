@@ -3,6 +3,7 @@ using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
 
@@ -25,7 +26,7 @@ public sealed class Http11RoundTripStatusCodeSpec
 
     private static HttpResponseMessage Decode(ReadOnlyMemory<byte> data)
     {
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var outcome = decoder.Feed(data.Span, false, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
         return decoder.GetResponse();

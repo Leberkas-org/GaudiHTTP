@@ -3,6 +3,7 @@ using Akka.Event;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.LineBased.Body;
+using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
@@ -161,7 +162,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                 var features = FeatureCollectionFactory.Create(feature, hasBody, _ops.Services, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
 
-                if (!ShouldComplete && feature.Protocol == "HTTP/1.0")
+                if (!ShouldComplete && feature.Protocol == WellKnownHeaders.Http10)
                 {
                     ShouldComplete = true;
                 }
@@ -246,7 +247,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         var contentLength = ExtractContentLength(responseFeature);
         var hasExplicitChunked = responseFeature?.Headers?.Any(h =>
-            h.Key.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase)
+            h.Key.Equals(WellKnownHeaders.TransferEncoding, StringComparison.OrdinalIgnoreCase)
             && h.Value.Any(v => v.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))) ?? false;
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
@@ -391,9 +392,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         foreach (var header in responseFeature.Headers)
         {
-            if (header.Key.Equals("Content-Length", StringComparison.OrdinalIgnoreCase))
+            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase))
             {
-                if (header.Value.FirstOrDefault() is { } value && long.TryParse(value, out var length))
+                if (header.Value.FirstOrDefault() is { } value && ContentLengthSemantics.TryParse(value, out var length))
                 {
                     return length;
                 }
@@ -417,10 +418,10 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             return false;
         }
 
-        var hasUpgrade = requestHeaders.TryGetValue("Upgrade", out var upgradeValue)
+        var hasUpgrade = requestHeaders.TryGetValue(WellKnownHeaders.Upgrade, out var upgradeValue)
                          && !string.IsNullOrEmpty(upgradeValue)
-                         && upgradeValue.ToString().Split(',')
-                             .Any(v => v.Trim().Equals("h2c", StringComparison.OrdinalIgnoreCase));
+                         && ConnectionHeaderSemantics.Parse(upgradeValue.ToString())
+                             .Contains("h2c", StringComparer.OrdinalIgnoreCase);
 
         if (!hasUpgrade)
         {

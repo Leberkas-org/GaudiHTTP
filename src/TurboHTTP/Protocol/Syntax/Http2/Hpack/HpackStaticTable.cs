@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using System.Text;
+using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
@@ -55,20 +56,20 @@ internal static class HpackStaticTable
     public static readonly (string Name, string Value)[] Entries =
     [
         (string.Empty, string.Empty), // [0]  reserved
-        (":authority", string.Empty), // [1]
-        (":method", "GET"), // [2]
-        (":method", "POST"), // [3]
-        (":path", "/"), // [4]
-        (":path", "/index.html"), // [5]
-        (":scheme", "http"), // [6]
-        (":scheme", "https"), // [7]
-        (":status", "200"), // [8]
-        (":status", "204"), // [9]
-        (":status", "206"), // [10]
-        (":status", "304"), // [11]
-        (":status", "400"), // [12]
-        (":status", "404"), // [13]
-        (":status", "500"), // [14]
+        (WellKnownHeaders.Authority, string.Empty), // [1]
+        (WellKnownHeaders.Method, "GET"), // [2]
+        (WellKnownHeaders.Method, "POST"), // [3]
+        (WellKnownHeaders.Path, "/"), // [4]
+        (WellKnownHeaders.Path, "/index.html"), // [5]
+        (WellKnownHeaders.Scheme, "http"), // [6]
+        (WellKnownHeaders.Scheme, "https"), // [7]
+        (WellKnownHeaders.Status, "200"), // [8]
+        (WellKnownHeaders.Status, "204"), // [9]
+        (WellKnownHeaders.Status, "206"), // [10]
+        (WellKnownHeaders.Status, "304"), // [11]
+        (WellKnownHeaders.Status, "400"), // [12]
+        (WellKnownHeaders.Status, "404"), // [13]
+        (WellKnownHeaders.Status, "500"), // [14]
         ("accept-charset", string.Empty), // [15]
         ("accept-encoding", "gzip, deflate"), // [16]
         ("accept-language", string.Empty), // [17]

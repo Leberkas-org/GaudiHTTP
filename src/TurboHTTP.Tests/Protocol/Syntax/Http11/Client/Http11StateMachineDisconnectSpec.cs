@@ -37,7 +37,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
-            new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 0 } });
+            new TurboClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 0 } });
         var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
@@ -70,7 +70,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
-            new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3 } });
+            new TurboClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } });
 
         sm.OnRequest(MakeRequest());
         ops.Outbound.Clear();
@@ -87,7 +87,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
-            new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3 } });
+            new TurboClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } });
 
         sm.OnRequest(MakeRequest());
         sm.OnRequest(MakeRequest("http://example.com/other"));
@@ -108,7 +108,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
-            new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 1 } });
+            new TurboClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 1 } });
         var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
@@ -141,7 +141,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
-            new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3 } });
+            new TurboClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } });
         var (request, pending) = MakeTrackedRequest();
 
         sm.OnRequest(request);
@@ -176,7 +176,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
-            new TurboClientOptions { Http1 = new Http1Options { MaxPipelineDepth = 4 } });
+            new TurboClientOptions { Http1 = new Http1ClientOptions { MaxPipelineDepth = 4 } });
 
         Assert.Equal(0, sm.PendingRequestCount);
 
@@ -192,7 +192,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
-            new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3, MaxPipelineDepth = 4 } });
+            new TurboClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3, MaxPipelineDepth = 4 } });
 
         sm.OnRequest(MakeRequest());
         sm.OnRequest(MakeRequest("http://example.com/b"));
@@ -209,7 +209,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
-            new TurboClientOptions { Http1 = new Http1Options { MaxPipelineDepth = 1 } });
+            new TurboClientOptions { Http1 = new Http1ClientOptions { MaxPipelineDepth = 1 } });
 
         sm.OnRequest(MakeRequest());
 
@@ -222,7 +222,7 @@ public sealed class Http11StateMachineDisconnectSpec
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops,
-            new TurboClientOptions { Http1 = new Http1Options { MaxReconnectAttempts = 3 } });
+            new TurboClientOptions { Http1 = new Http1ClientOptions { MaxReconnectAttempts = 3 } });
 
         sm.OnRequest(MakeRequest());
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));

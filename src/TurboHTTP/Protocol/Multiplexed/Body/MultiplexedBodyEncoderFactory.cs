@@ -2,14 +2,12 @@ namespace TurboHTTP.Protocol.Multiplexed.Body;
 
 internal static class BodyEncoderFactory
 {
-    public static IBodyEncoder? Create(Stream? bodyStream, long? contentLength, BodyEncoderOptions? options = null)
+    public static IBodyEncoder? Create(Stream? bodyStream, long? contentLength, BodyEncoderOptions options)
     {
         if (bodyStream is null)
         {
             return null;
         }
-
-        options ??= BodyEncoderOptions.Default;
 
         if (contentLength is not null)
         {

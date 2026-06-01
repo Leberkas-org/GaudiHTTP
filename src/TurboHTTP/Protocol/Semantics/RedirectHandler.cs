@@ -66,7 +66,6 @@ internal sealed class RedirectHandler
         if (RedirectCount == 0)
         {
             var normalized = NormalizeUriForComparison(original.RequestUri);
-            System.Diagnostics.Debug.WriteLine($"[Redirect] Initial URI: {original.RequestUri} → normalized: {normalized}");
             _visitedUris.Add(normalized);
         }
 
@@ -79,7 +78,6 @@ internal sealed class RedirectHandler
         }
 
         var locationUri = ResolveLocationUri(original.RequestUri, response);
-        System.Diagnostics.Debug.WriteLine($"[Redirect] Redirect #{RedirectCount + 1}: LocationUri={locationUri}");
 
         // Detect HTTPS → HTTP downgrade
         if (!_policy.AllowHttpsToHttpDowngrade &&
@@ -95,7 +93,6 @@ internal sealed class RedirectHandler
         // Detect redirect loops — normalized comparison is case-insensitive for
         // scheme/host and case-sensitive for path/query; fragments are ignored.
         var normalizedLocation = NormalizeUriForComparison(locationUri);
-        System.Diagnostics.Debug.WriteLine($"[Redirect] Normalized location: {normalizedLocation}, visited count: {_visitedUris.Count}, visited: {string.Join(", ", _visitedUris)}");
         if (!_visitedUris.Add(normalizedLocation))
         {
             throw new RedirectException(

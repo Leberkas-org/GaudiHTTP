@@ -4,7 +4,7 @@ namespace TurboHTTP.Client;
 /// HTTP/2-specific configuration options.
 /// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c>.
 /// </summary>
-public sealed class Http2Options
+public sealed class Http2ClientOptions
 {
     /// <summary>
     /// Maximum number of concurrent TCP connections per server for HTTP/2.
@@ -40,13 +40,13 @@ public sealed class Http2Options
 
     /// <summary>
     /// Upper bound the per-stream receive window may grow to under adaptive scaling, in bytes.
-    /// Default is 16 MB (matches SocketsHttpHandler's MaxHttp2StreamWindowSize).
+    /// Default is 16 MB.
     /// </summary>
     public int MaxStreamWindowSize { get; set; } = 16 * 1024 * 1024;
 
     /// <summary>
     /// Threshold multiplier for adaptive window growth. Higher values grow the window less eagerly.
-    /// Default is 1.0 (matches SocketsHttpHandler).
+    /// Default is 1.0.
     /// </summary>
     public double WindowScaleThresholdMultiplier { get; set; } = 1.0;
 
@@ -73,6 +73,13 @@ public sealed class Http2Options
     /// for more aggressive header compression.
     /// </summary>
     public int HeaderTableSize { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Maximum combined size (in bytes) of a decoded HPACK response header list the client will accept
+    /// (RFC 9113 §6.5.2, SETTINGS_MAX_HEADER_LIST_SIZE). Guards against header-bomb responses.
+    /// Default is 64 KB.
+    /// </summary>
+    public int MaxResponseHeaderListSize { get; set; } = 64 * 1024;
 
     /// <summary>
     /// Maximum number of reconnect attempts when a TCP connection drops with in-flight requests.

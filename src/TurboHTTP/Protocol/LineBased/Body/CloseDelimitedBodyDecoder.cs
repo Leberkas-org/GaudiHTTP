@@ -1,6 +1,6 @@
 namespace TurboHTTP.Protocol.LineBased.Body;
 
-internal sealed class CloseDelimitedBodyDecoder(long maxBodySize = 10_485_760) : IBodyDecoder
+internal sealed class CloseDelimitedBodyDecoder(long maxBodySize) : IBodyDecoder
 {
     private readonly BodyHandle _handle = new(maxBodySize);
 

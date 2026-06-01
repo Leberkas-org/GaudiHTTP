@@ -2,6 +2,7 @@ using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Security;
 
@@ -9,7 +10,7 @@ public sealed class Http11FuzzBodySpec
 {
     private const int IterationsPerSeed = 100;
     private const long MaxBytesPerIteration = 1_048_576;
-    private static readonly Http11ClientDecoderOptions DecoderOptions = Http11ClientDecoderOptions.Default;
+    private static readonly Http11ClientDecoderOptions DecoderOptions = ClientOptionDefaults.Http11Decoder();
 
     private static void AssertDecodeNeverCrashes(Http11ClientDecoder decoder, ReadOnlyMemory<byte> data)
     {

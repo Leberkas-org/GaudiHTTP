@@ -3,12 +3,13 @@ using Akka.Actor;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Semantics.Redirect;
 
 public sealed class UriRedirectSpec
 {
-    private static readonly Http11ClientEncoder Encoder = new(Http11ClientEncoderOptions.Default);
+    private static readonly Http11ClientEncoder Encoder = new(ClientOptionDefaults.Http11Encoder());
 
     private static string EncodeHttp11(HttpRequestMessage request, int bufferSize = 16384)
     {

@@ -6,12 +6,10 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 
 internal sealed class Http3ClientDecoder
 {
-    private static readonly HttpContent SharedEmptyContent = new ByteArrayContent([]);
-
     private readonly QpackTableSync _tableSync;
     private readonly int _maxFieldSectionSize;
 
-    public Http3ClientDecoder(QpackTableSync tableSync, int maxFieldSectionSize = int.MaxValue)
+    public Http3ClientDecoder(QpackTableSync tableSync, int maxFieldSectionSize)
     {
         ArgumentNullException.ThrowIfNull(tableSync);
         _tableSync = tableSync;
@@ -73,7 +71,7 @@ internal sealed class Http3ClientDecoder
                 response.Headers.TryAddWithoutValidation(h.Name, h.Value);
 
                 if (string.Equals(h.Name, WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase) &&
-                    long.TryParse(h.Value, out var cl))
+                    ContentLengthSemantics.TryParse(h.Value, out var cl))
                 {
                     state.ExpectedContentLength = cl;
                 }

@@ -11,7 +11,7 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Get_request_produces_single_headers_frame()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
 
         var frames = encoder.Encode(request);
@@ -24,7 +24,7 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Post_with_body_produces_headers_only()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/api")
         {
             Content = new StringContent("payload", Encoding.UTF8, "text/plain"),
@@ -40,7 +40,7 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Post_with_empty_body_produces_headers_only()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Post, "https://example.com/api")
         {
             Content = new ByteArrayContent([]),
@@ -56,7 +56,7 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Put_with_body_produces_headers_only()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var body = "Hello, HTTP/3!"u8.ToArray();
         var request = new HttpRequestMessage(HttpMethod.Put, "https://example.com/resource")
         {
@@ -73,7 +73,7 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Delete_without_body_produces_single_headers()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Delete, "https://example.com/item/42");
 
         var frames = encoder.Encode(request);
@@ -87,8 +87,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void All_four_pseudo_headers_present()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path");
 
         var frames = encoder.Encode(request);
@@ -112,8 +112,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [InlineData("OPTIONS")]
     public void Method_pseudo_header_reflects_http_method(string method)
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(new HttpMethod(method), "https://example.com/");
 
         var frames = encoder.Encode(request);
@@ -127,8 +127,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Path_includes_query_string()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/search?q=test&page=2");
 
         var frames = encoder.Encode(request);
@@ -142,8 +142,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Path_without_query_string()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/resource");
 
         var frames = encoder.Encode(request);
@@ -157,8 +157,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Scheme_is_https()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
 
         var frames = encoder.Encode(request);
@@ -172,8 +172,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Scheme_is_http()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
         var frames = encoder.Encode(request);
@@ -187,8 +187,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Authority_includes_non_default_port()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com:8443/");
 
         var frames = encoder.Encode(request);
@@ -202,8 +202,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Authority_omits_default_https_port()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com:443/");
 
         var frames = encoder.Encode(request);
@@ -217,8 +217,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.3.1")]
     public void Pseudo_headers_appear_first()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         request.Headers.TryAddWithoutValidation("accept", "text/html");
 
@@ -247,7 +247,7 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Headers_frame_contains_qpack_block()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
 
         var frames = encoder.Encode(request);
@@ -260,8 +260,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Qpack_header_block_decodable()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
 
         var frames = encoder.Encode(request);
@@ -275,7 +275,7 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Dynamic_table_emits_encoder_instructions()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync(encoderMaxCapacity: 4096));
+        var encoder = new Http3ClientEncoder(new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null));
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
         request.Headers.TryAddWithoutValidation("x-custom-header", "custom-value");
 
@@ -289,7 +289,7 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void Static_table_only_emits_no_instructions()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
 
         encoder.Encode(request);
@@ -301,8 +301,8 @@ public sealed class Http3RequestEncoderBasicSpec
     [Trait("RFC", "RFC9114-4.1")]
     public void EncodeToQpackBlock_returns_raw_block()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
+        var decoder = new QpackDecoder(0, 100);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/test");
 
         var (owner, length) = encoder.EncodeToQpackBlock(request);

@@ -3,6 +3,7 @@ using TurboHTTP.Client;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Tests.Shared;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
 
@@ -12,8 +13,8 @@ public sealed class Http3FrameBatchingSpec
     public void EncodeRequest_should_emit_single_MultiplexedData_for_headeronly_request()
     {
         var ops = new FakeClientOps();
-        var encoderOpts = Http3ClientEncoderOptions.Default;
-        var decoderOpts = Http3ClientDecoderOptions.Default;
+        var encoderOpts = ClientOptionDefaults.Http3Encoder();
+        var decoderOpts = ClientOptionDefaults.Http3Decoder();
         var clientOpts = new TurboClientOptions { DangerousAcceptAnyServerCertificate = true };
 
         var session = new Http3ClientSessionManager(encoderOpts, decoderOpts, clientOpts, ops);

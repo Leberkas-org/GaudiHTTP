@@ -10,7 +10,7 @@ public sealed class Http3ConnectEncodingSpec
     {
         var frames = encoder.Encode(request);
         var headersFrame = (HeadersFrame)frames[0];
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(0, 100);
         return decoder.Decode(headersFrame.HeaderBlock.Span);
     }
 
@@ -18,7 +18,7 @@ public sealed class Http3ConnectEncodingSpec
     [Trait("RFC", "RFC9114-4.4")]
     public void Encode_should_omit_scheme_when_connect()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Connect, "https://proxy.example.com:443/");
         var headers = DecodeHeaders(encoder, request);
         Assert.DoesNotContain(headers, h => h.Name == ":scheme");
@@ -28,7 +28,7 @@ public sealed class Http3ConnectEncodingSpec
     [Trait("RFC", "RFC9114-4.4")]
     public void Encode_should_omit_path_when_connect()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Connect, "https://proxy.example.com:443/");
         var headers = DecodeHeaders(encoder, request);
         Assert.DoesNotContain(headers, h => h.Name == ":path");
@@ -38,7 +38,7 @@ public sealed class Http3ConnectEncodingSpec
     [Trait("RFC", "RFC9114-4.4")]
     public void Encode_should_include_authority_with_port_when_connect()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Connect, "https://proxy.example.com:8443/");
         var headers = DecodeHeaders(encoder, request);
         Assert.Contains(headers, h => h.Name == ":authority" && h.Value.Contains("8443"));
@@ -48,7 +48,7 @@ public sealed class Http3ConnectEncodingSpec
     [Trait("RFC", "RFC9114-4.4")]
     public void Encode_should_include_method_connect_when_connect()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Connect, "https://proxy.example.com:443/");
         var headers = DecodeHeaders(encoder, request);
         Assert.Contains(headers, h => h is { Name: ":method", Value: "CONNECT" });

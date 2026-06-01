@@ -3,7 +3,7 @@ using Akka.Actor;
 
 namespace TurboHTTP.Protocol.LineBased.Body;
 
-internal sealed class ContentLengthStreamedBodyEncoder(int chunkSize = 16 * 1024) : IBodyEncoder
+internal sealed class ContentLengthStreamedBodyEncoder(int chunkSize) : IBodyEncoder
 {
     private readonly CancellationTokenSource _cts = new();
 

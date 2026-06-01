@@ -52,7 +52,7 @@ public sealed class EngineSpec
         var options = new TurboClientOptions
         {
             MaxEndpointSubstreams = 20,
-            Http1 = new Http1Options { MaxPipelineDepth = 2 }
+            Http1 = new Http1ClientOptions { MaxPipelineDepth = 2 }
         };
 
         // Act

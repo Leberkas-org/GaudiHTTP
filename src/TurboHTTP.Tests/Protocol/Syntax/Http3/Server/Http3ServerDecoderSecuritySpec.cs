@@ -15,8 +15,8 @@ public sealed class Http3ServerDecoderSecuritySpec
         MaxHeaderCount = 100,
     };
 
-    private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0);
-    private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0);
+    private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0, maxBlockedStreams: 100, configuredEncoderLimit: null);
+    private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 0, decoderMaxCapacity: 0, maxBlockedStreams: 100, configuredEncoderLimit: null);
     private readonly Http3ServerDecoder _decoder;
 
     public Http3ServerDecoderSecuritySpec()

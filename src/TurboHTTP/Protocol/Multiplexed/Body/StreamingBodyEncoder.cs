@@ -2,7 +2,7 @@ using System.Buffers;
 
 namespace TurboHTTP.Protocol.Multiplexed.Body;
 
-internal sealed class StreamingBodyEncoder(int chunkSize = 16 * 1024) : IPausableBodyEncoder
+internal sealed class StreamingBodyEncoder(int chunkSize) : IPausableBodyEncoder
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly object _gate = new();

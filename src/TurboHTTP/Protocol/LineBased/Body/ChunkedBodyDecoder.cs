@@ -4,7 +4,7 @@ using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.LineBased.Body;
 
-internal sealed class ChunkedBodyDecoder(long maxBodySize = 10_485_760, int maxChunkExtensionLength = int.MaxValue)
+internal sealed class ChunkedBodyDecoder(long maxBodySize, int maxChunkExtensionLength)
     : IBodyDecoder
 {
     private enum Phase
