@@ -10,8 +10,18 @@ internal sealed class FlowController : IFlowController<int>
     private int _windowUpdateThreshold;
 
     private int _initialRecvStreamWindow;
+    private readonly WindowScaler? _scaler;
+    private readonly TimeProvider? _clock;
+    private readonly Dictionary<int, long> _deliveredSinceSample = new();
+    private readonly Dictionary<int, long> _lastSampleTimestamp = new();
 
     public int RecvConnectionWindow { get; private set; }
+
+    /// <summary>Current per-stream receive window size (grows under adaptive scaling).</summary>
+    public int CurrentStreamWindow => _initialRecvStreamWindow;
+
+    /// <summary>Latest measured min-RTT, pushed in by the session manager. Zero = unknown.</summary>
+    public TimeSpan MinRtt { get; set; } = TimeSpan.Zero;
 
     private long _connectionSendWindow;
     private long _initialSendStreamWindow;
@@ -20,6 +30,8 @@ internal sealed class FlowController : IFlowController<int>
     public FlowController(
         int connectionWindowSize,
         int streamWindowSize,
+        WindowScaler? scaler = null,
+        TimeProvider? clock = null,
         long initialConnectionSendWindow = 65535,
         long initialStreamSendWindow = 65535)
     {
@@ -27,6 +39,8 @@ internal sealed class FlowController : IFlowController<int>
         _initialRecvStreamWindow = streamWindowSize;
         _connectionSendWindow = initialConnectionSendWindow;
         _initialSendStreamWindow = initialStreamSendWindow;
+        _scaler = scaler;
+        _clock = clock;
 
         const int minWindowUpdateThreshold = 8_192;
         _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 2);
@@ -93,6 +107,12 @@ internal sealed class FlowController : IFlowController<int>
             _pendingStreamIncrements.TryAdd(streamId, 0);
             _pendingStreamIncrements[streamId] += dataLength;
 
+            if (_scaler is not null)
+            {
+                _deliveredSinceSample.TryAdd(streamId, 0);
+                _deliveredSinceSample[streamId] += dataLength;
+            }
+
             if (_pendingConnIncrement >= _windowUpdateThreshold)
             {
                 var increment = _pendingConnIncrement;
@@ -104,6 +124,27 @@ internal sealed class FlowController : IFlowController<int>
             if (_pendingStreamIncrements[streamId] >= _windowUpdateThreshold)
             {
                 var increment = _pendingStreamIncrements[streamId];
+
+                if (_scaler is not null && _clock is not null && MinRtt > TimeSpan.Zero)
+                {
+                    var nowTicks = _clock.GetTimestamp();
+                    if (_lastSampleTimestamp.TryGetValue(streamId, out var lastTicks))
+                    {
+                        var elapsed = _clock.GetElapsedTime(lastTicks, nowTicks);
+                        var delivered = _deliveredSinceSample.GetValueOrDefault(streamId, 0);
+                        var newWindow = _scaler.ComputeNewWindow(_initialRecvStreamWindow, delivered, elapsed, MinRtt);
+                        if (newWindow > _initialRecvStreamWindow)
+                        {
+                            increment += newWindow - _initialRecvStreamWindow;
+                            _initialRecvStreamWindow = newWindow;
+                            _windowUpdateThreshold = Math.Max(8_192, newWindow / 2);
+                        }
+                    }
+
+                    _lastSampleTimestamp[streamId] = nowTicks;
+                    _deliveredSinceSample[streamId] = 0;
+                }
+
                 _recvStreamWindows[streamId] += increment;
                 streamUpdate = new WindowUpdateSignal<int>(streamId, increment);
                 _pendingStreamIncrements[streamId] = 0;
@@ -149,6 +190,8 @@ internal sealed class FlowController : IFlowController<int>
         _pendingStreamIncrements.Remove(streamId);
         _recvStreamWindows.Remove(streamId);
         _streamSendWindows.Remove(streamId);
+        _deliveredSinceSample.Remove(streamId);
+        _lastSampleTimestamp.Remove(streamId);
 
         return signal;
     }
@@ -169,6 +212,9 @@ internal sealed class FlowController : IFlowController<int>
         _streamSendWindows.Clear();
         _pendingConnIncrement = 0;
         _pendingStreamIncrements.Clear();
+        _deliveredSinceSample.Clear();
+        _lastSampleTimestamp.Clear();
+        MinRtt = TimeSpan.Zero;
 
         const int minWindowUpdateThreshold = 8_192;
         _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 2);
