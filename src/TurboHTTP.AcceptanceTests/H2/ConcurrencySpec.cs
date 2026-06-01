@@ -135,9 +135,15 @@ public sealed class ConcurrencySpec : AcceptanceTestBase
         {
             const int count = 8;
             var enc = new HpackEncoder(useHuffman: false);
-            var settings = new SettingsFrame([]).Serialize();
+            var settings = new SettingsFrame(
+                [(SettingsParameter.InitialWindowSize, (uint)(1 * 1024 * 1024))]).Serialize();
+            var connWindowUpdate = new WindowUpdateFrame(0, 16 * 1024 * 1024).Serialize();
 
-            var frameBuffers = new List<byte[]> { settings };
+            var settingsAndWindow = new byte[settings.Length + connWindowUpdate.Length];
+            settings.CopyTo(settingsAndWindow, 0);
+            connWindowUpdate.CopyTo(settingsAndWindow, settings.Length);
+
+            var frameBuffers = new List<byte[]> { settingsAndWindow };
             for (var i = 0; i < count; i++)
             {
                 var streamId = 1 + i * 2;
