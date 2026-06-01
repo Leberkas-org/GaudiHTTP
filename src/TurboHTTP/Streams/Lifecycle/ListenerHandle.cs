@@ -3,7 +3,6 @@ using Akka.Streams;
 
 namespace TurboHTTP.Streams.Lifecycle;
 
-internal sealed record ConnectionStageHandle(
+internal sealed record ListenerHandle(
     UniqueKillSwitch AcceptSwitch,
-    SharedKillSwitch DrainSwitch,
     Task<Done> CompletionTask);
