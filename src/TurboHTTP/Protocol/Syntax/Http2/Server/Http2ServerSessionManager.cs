@@ -15,6 +15,11 @@ namespace TurboHTTP.Protocol.Syntax.Http2.Server;
 internal sealed class Http2ServerSessionManager
 {
     private const int MaxStatePoolCapacity = 1000;
+
+    private const string BodyConsumptionPrefix = "body-consumption:";
+    private const string HeadersTimeoutPrefix = "headers-timeout:";
+    private const string DataRateCheck = "data-rate-check";
+
     private readonly StackStreamStatePool<StreamState> _statePool;
 
     private readonly Http2ServerEncoderOptions _encoderOptions;
@@ -178,7 +183,7 @@ internal sealed class Http2ServerSessionManager
 
         if (state.HasBodyDecoder && _bodyConsumptionTimeout > TimeSpan.Zero)
         {
-            _ops.OnScheduleTimer(string.Concat("body-consumption:", streamId.ToString()), _bodyConsumptionTimeout);
+            _ops.OnScheduleTimer(string.Concat(BodyConsumptionPrefix, streamId.ToString()), _bodyConsumptionTimeout);
         }
 
         var responseFeature = features.Get<IHttpResponseFeature>();
@@ -402,7 +407,7 @@ internal sealed class Http2ServerSessionManager
             state.AppendHeader(headers.HeaderBlockFragment.Span);
             _nextContinuationStreamId = streamId;
             _continuationEndStream = headers.EndStream;
-            _ops.OnScheduleTimer(string.Concat("headers-timeout:", streamId.ToString()), TimeSpan.FromSeconds(30));
+            _ops.OnScheduleTimer(string.Concat(HeadersTimeoutPrefix, streamId.ToString()), TimeSpan.FromSeconds(30));
         }
     }
 
@@ -429,7 +434,7 @@ internal sealed class Http2ServerSessionManager
             var endStream = _continuationEndStream;
             _nextContinuationStreamId = 0;
             _continuationEndStream = false;
-            _ops.OnCancelTimer(string.Concat("headers-timeout:", streamId.ToString()));
+            _ops.OnCancelTimer(string.Concat(HeadersTimeoutPrefix, streamId.ToString()));
             DecodeAndEmitRequest(streamId, state, endStream);
         }
     }
@@ -477,7 +482,7 @@ internal sealed class Http2ServerSessionManager
 
             if (data.EndStream)
             {
-                _ops.OnCancelTimer(string.Concat("body-consumption:", streamId.ToString()));
+                _ops.OnCancelTimer(string.Concat(BodyConsumptionPrefix, streamId.ToString()));
             }
 
             if (!data.Data.IsEmpty)
@@ -626,7 +631,7 @@ internal sealed class Http2ServerSessionManager
     {
         _requestRate.Remove(streamId);
         _responseRate.Remove(streamId);
-        _ops.OnCancelTimer(string.Concat("body-consumption:", streamId.ToString()));
+        _ops.OnCancelTimer(string.Concat(BodyConsumptionPrefix, streamId.ToString()));
 
         if (_streams.TryGetValue(streamId, out var state))
         {
@@ -694,9 +699,9 @@ internal sealed class Http2ServerSessionManager
 
         if (_requestRate.Count > 0 || _responseRate.Count > 0)
         {
-            _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
+            _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
         }
     }
 
-    private void EnsureRateTimer() => _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
+    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
 }

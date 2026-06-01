@@ -12,6 +12,8 @@ namespace TurboHTTP.Protocol.Syntax.Http10.Server;
 
 internal sealed class Http10ServerStateMachine : IServerStateMachine
 {
+    private const string DataRateCheck = "data-rate-check";
+
     private readonly IServerStageOperations _ops;
     private readonly Http10ServerDecoder _decoder;
     private readonly Http10ServerEncoder _encoder;
@@ -123,7 +125,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
     public void OnTimerFired(string name)
     {
-        if (name == "data-rate-check")
+        if (name == DataRateCheck)
         {
             var violations = new List<long>();
             _requestRate.Check(Now(), violations);
@@ -137,7 +139,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
             if (_requestRate.Count > 0 || _responseRate.Count > 0)
             {
-                _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
+                _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
             }
         }
     }
@@ -218,8 +220,8 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         _deferredBodyOwner?.Dispose();
         _deferredBodyOwner = null;
         _deferredFeatures = null;
-        _ops.OnCancelTimer("data-rate-check");
+        _ops.OnCancelTimer(DataRateCheck);
     }
 
-    private void EnsureRateTimer() => _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
+    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
 }

@@ -9,6 +9,7 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 
 internal sealed class Http3ClientStateMachine : IClientStateMachine
 {
+    private const string IdleTimeoutCheckTimer = "idle-timeout-check";
     private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromSeconds(30);
 
     private readonly TurboClientOptions _options;
@@ -184,7 +185,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     public void OnTimerFired(string name)
     {
-        if (name != "idle-timeout-check")
+        if (name != IdleTimeoutCheckTimer)
         {
             return;
         }
@@ -303,7 +304,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
         var remaining = Connection.TimeUntilExpiry();
         var checkInterval = remaining > TimeSpan.Zero ? remaining : TimeSpan.FromSeconds(1);
-        _ops.OnScheduleTimer("idle-timeout-check", checkInterval);
+        _ops.OnScheduleTimer(IdleTimeoutCheckTimer, checkInterval);
     }
 
     private void BufferForReconnect(HttpRequestMessage request)
