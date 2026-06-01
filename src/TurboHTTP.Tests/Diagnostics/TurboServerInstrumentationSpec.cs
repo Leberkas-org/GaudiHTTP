@@ -246,4 +246,50 @@ public sealed class TurboServerInstrumentationSpec : IDisposable
 
         Assert.Null(activity);
     }
+
+    [Fact(Timeout = 5000)]
+    public void StartRequestActivity_should_extract_traceparent_as_parent_context()
+    {
+        _ = Tracing.StartConnectionActivity("127.0.0.1", 8080, "tcp")!;
+
+        var traceId = ActivityTraceId.CreateRandom();
+        var spanId = ActivitySpanId.CreateRandom();
+        var traceparent = $"00-{traceId}-{spanId}-01";
+
+        var reqActivity = Tracing.StartRequestActivity("GET", "/", "http", traceparent, null)!;
+
+        Assert.Equal(traceId.ToString(), reqActivity.TraceId.ToString());
+        Assert.Equal(spanId.ToString(), reqActivity.ParentSpanId.ToString());
+
+        reqActivity.Stop();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void StartRequestActivity_should_propagate_tracestate()
+    {
+        _ = Tracing.StartConnectionActivity("127.0.0.1", 8080, "tcp")!;
+
+        var traceId = ActivityTraceId.CreateRandom();
+        var spanId = ActivitySpanId.CreateRandom();
+        var traceparent = $"00-{traceId}-{spanId}-01";
+
+        var reqActivity = Tracing.StartRequestActivity("GET", "/", "http", traceparent, "congo=t61rcWkgMzE")!;
+
+        Assert.Equal("congo=t61rcWkgMzE", reqActivity.TraceStateString);
+
+        reqActivity.Stop();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void StartRequestActivity_should_work_without_traceparent()
+    {
+        _ = Tracing.StartConnectionActivity("127.0.0.1", 8080, "tcp")!;
+
+        var reqActivity = Tracing.StartRequestActivity("GET", "/", "http", null, null)!;
+
+        Assert.NotNull(reqActivity);
+        Assert.False(reqActivity.HasRemoteParent);
+
+        reqActivity.Stop();
+    }
 }

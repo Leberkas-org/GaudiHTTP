@@ -53,16 +53,23 @@ internal static class TurboServerInstrumentationExtensions
         activity.Stop();
     }
 
-    public static Activity? StartRequestActivity(this ServusTrace trace, string method, string path, string scheme)
+    public static Activity? StartRequestActivity(this ServusTrace trace, string method, string path, string scheme,
+        string? traceparent = null, string? tracestate = null)
     {
         if (!trace.Source.HasListeners())
         {
             return null;
         }
 
-        var activity = trace.Source.StartActivity(
-            "TurboHTTP.ServerRequest",
-            ActivityKind.Server);
+        ActivityContext parentContext = default;
+        if (traceparent is not null && ActivityContext.TryParse(traceparent, tracestate, out var parsed))
+        {
+            parentContext = parsed;
+        }
+
+        var activity = parentContext != default
+            ? trace.Source.StartActivity("TurboHTTP.ServerRequest", ActivityKind.Server, parentContext)
+            : trace.Source.StartActivity("TurboHTTP.ServerRequest", ActivityKind.Server);
 
         if (activity is null)
         {
