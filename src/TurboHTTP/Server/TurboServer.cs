@@ -56,6 +56,8 @@ public sealed class TurboServer : IServer
         IHttpApplication<TContext> application,
         CancellationToken cancellationToken) where TContext : notnull
     {
+        _options.Validate();
+
         _system = _services.GetService<ActorSystem>();
         if (_system is null)
         {
