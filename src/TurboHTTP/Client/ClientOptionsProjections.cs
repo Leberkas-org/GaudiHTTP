@@ -42,6 +42,7 @@ internal static class ClientOptionsProjections
     public static Http2ClientEncoderOptions ToHttp2EncoderOptions(this TurboClientOptions o) => new()
     {
         HeaderTableSize = o.Http2.HeaderTableSize,
+        MaxFrameSize = o.Http2.MaxFrameSize,
     };
 
     public static Http3ClientDecoderOptions ToHttp3DecoderOptions(this TurboClientOptions o) => new()

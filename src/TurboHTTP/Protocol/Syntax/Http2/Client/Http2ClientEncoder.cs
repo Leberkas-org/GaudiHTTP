@@ -9,10 +9,17 @@ namespace TurboHTTP.Protocol.Syntax.Http2.Client;
 /// Stateful: maintains HPACK encoder and stream ID counter.
 /// One instance per connection.
 /// </summary>
-internal sealed class Http2ClientEncoder(bool useHuffman = false, int maxFrameSize = 16 * 1024)
+internal sealed class Http2ClientEncoder(bool useHuffman = false)
 {
     private HpackEncoder _hpack = new(useHuffman);
-    private int _maxFrameSize = maxFrameSize;
+
+    /// <summary>
+    /// Maximum payload size for frames this client may send, in bytes. Starts at the RFC 9113
+    /// default (16,384) and is raised only when the server advertises a larger
+    /// SETTINGS_MAX_FRAME_SIZE via <see cref="ApplyServerSettings"/>. This is the peer's receive
+    /// limit — it is intentionally NOT driven by the client's own MaxFrameSize option.
+    /// </summary>
+    public int MaxFrameSize { get; private set; } = 16 * 1024;
 
     // Tracks MemoryPool rentals from the previous Encode() call so they can be
     // disposed once the caller has consumed the frame list (contract: callers consume
@@ -81,20 +88,20 @@ internal sealed class Http2ClientEncoder(bool useHuffman = false, int maxFrameSi
 
     private void EncodeHeaders(List<Http2Frame> frames, int streamId, ReadOnlyMemory<byte> headerBlock, bool hasBody)
     {
-        if (headerBlock.Length <= _maxFrameSize)
+        if (headerBlock.Length <= MaxFrameSize)
         {
             frames.Add(new HeadersFrame(streamId, headerBlock, endStream: !hasBody, endHeaders: true));
             return;
         }
 
         // Fragmented header block — first chunk goes in HEADERS frame
-        frames.Add(new HeadersFrame(streamId, headerBlock[.._maxFrameSize], endStream: false,
+        frames.Add(new HeadersFrame(streamId, headerBlock[..MaxFrameSize], endStream: false,
             endHeaders: false));
 
-        var pos = _maxFrameSize;
+        var pos = MaxFrameSize;
         while (pos < headerBlock.Length)
         {
-            var chunkSize = Math.Min(headerBlock.Length - pos, _maxFrameSize);
+            var chunkSize = Math.Min(headerBlock.Length - pos, MaxFrameSize);
             var isLast = pos + chunkSize >= headerBlock.Length;
             frames.Add(new ContinuationFrame(streamId, headerBlock[pos..(pos + chunkSize)],
                 endHeaders: isLast));
@@ -152,7 +159,7 @@ internal sealed class Http2ClientEncoder(bool useHuffman = false, int maxFrameSi
             switch (key)
             {
                 case SettingsParameter.MaxFrameSize:
-                    _maxFrameSize = (int)val;
+                    MaxFrameSize = (int)val;
                     break;
                 case SettingsParameter.HeaderTableSize:
                     _hpack.AcknowledgeTableSizeChange((int)val);

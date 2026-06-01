@@ -88,8 +88,9 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-6.10")]
     public void Http2RequestEncoder_should_use_continuation_frames_when_header_block_larger_than_max_frame_size()
     {
-        // Use a tiny maxFrameSize to force continuation
-        var encoder = new Http2ClientEncoder(useHuffman: false, maxFrameSize: 30);
+        // Force a tiny send frame size via server settings so the header block fragments.
+        var encoder = new Http2ClientEncoder(useHuffman: false);
+        encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 30u)]);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
         request.Headers.TryAddWithoutValidation("x-long-header", new string('a', 100));
 
@@ -163,7 +164,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void Http2RequestEncoder_should_apply_server_settings_max_frame_size()
     {
-        var encoder = new Http2ClientEncoder(maxFrameSize: 16384);
+        var encoder = new Http2ClientEncoder();
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
 
         // Before settings change
@@ -178,6 +179,26 @@ public sealed class Http2RequestEncoderFrameSpec
         // After settings change, should still work
         var frames2 = encoder.Encode(request2, 3);
         Assert.NotEmpty(frames2);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4.2")]
+    public void Http2RequestEncoder_should_default_send_max_frame_size_to_rfc_minimum()
+    {
+        var encoder = new Http2ClientEncoder();
+
+        Assert.Equal(16 * 1024, encoder.MaxFrameSize);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.5.2")]
+    public void Http2RequestEncoder_should_raise_send_max_frame_size_when_server_advertises_larger()
+    {
+        var encoder = new Http2ClientEncoder();
+
+        encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 32768u)]);
+
+        Assert.Equal(32768, encoder.MaxFrameSize);
     }
 
     [Fact(Timeout = 5000)]
@@ -254,7 +275,8 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-6.10")]
     public void Http2RequestEncoder_should_handle_large_header_block_fragmentation()
     {
-        var encoder = new Http2ClientEncoder(useHuffman: false, maxFrameSize: 100);
+        var encoder = new Http2ClientEncoder(useHuffman: false);
+        encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 100u)]);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
         request.Headers.TryAddWithoutValidation("x-large-1", new string('a', 200));
         request.Headers.TryAddWithoutValidation("x-large-2", new string('b', 200));
@@ -300,7 +322,7 @@ public sealed class Http2RequestEncoderFrameSpec
 
         Assert.Contains(headers, h => h.Name == "x-custom-header");
         // Note: custom headers, not pseudo-headers
-        Assert.All(headers.Where(h => !h.Name.StartsWith(":")), h =>
+        Assert.All(headers.Where(h => !h.Name.StartsWith(':')), h =>
             Assert.Equal(h.Name, h.Name.ToLowerInvariant()));
     }
 
