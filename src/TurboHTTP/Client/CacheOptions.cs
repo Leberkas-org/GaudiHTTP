@@ -2,6 +2,10 @@ using TurboHTTP.Features.Caching;
 
 namespace TurboHTTP.Client;
 
+/// <summary>
+/// Configuration for the HTTP response cache applied by the client pipeline.
+/// Pass to <c>WithCache</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// </summary>
 public sealed class CacheOptions
 {
     /// <summary>Maximum number of entries held in the LRU store. Default 1 000.</summary>

@@ -7,5 +7,6 @@ namespace TurboHTTP.Client;
 /// </summary>
 public interface ITurboHttpClientFactory
 {
+    /// <summary>Creates (or retrieves) an <see cref="ITurboHttpClient"/> for the given <paramref name="name"/>.</summary>
     ITurboHttpClient CreateClient(string name);
 }

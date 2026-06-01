@@ -7,7 +7,7 @@ TurboHTTP automatically decompresses compressed HTTP responses. When a server se
 | Encoding | Header token     | Notes                                                  |
 | -------- | ---------------- | ------------------------------------------------------ |
 | Gzip     | `gzip`, `x-gzip` | Most common; used by the majority of web servers       |
-| Deflate  | `deflate`        | Handles both zlib-wrapped and raw deflate formats      |
+| Deflate  | `deflate`        | zlib-wrapped deflate format (RFC 1950)                 |
 | Brotli   | `br`             | Best compression ratio; requires modern server support |
 | Identity | `identity`       | No compression; body passed through unchanged          |
 
@@ -33,7 +33,7 @@ var text = await response.Content.ReadAsStringAsync();
 
 ## Stacked Encodings
 
-If a response uses multiple encodings (e.g., `Content-Encoding: gzip, br`), TurboHTTP decodes them in the correct reverse order — the outermost encoding is decoded first. This matches how stacked encodings are applied by the server.
+TurboHTTP does not support stacked encodings (e.g., `Content-Encoding: gzip, br`). When a response carries multiple comma-separated encoding tokens, decompression will fail silently and the response body will be empty. To avoid this, do not advertise encoding combinations in `Accept-Encoding` that the server might stack — use a single preferred encoding instead.
 
 ## Unknown Encodings
 

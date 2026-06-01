@@ -120,7 +120,7 @@ builder.Host.UseTurboHttp(options =>
 
 | Protocol | Value | Transport | Notes |
 |----------|-------|-----------|-------|
-| `Http1` | HTTP/1.1 only | TCP | Maximum compatibility |
+| `Http1` | HTTP/1.0 and HTTP/1.1 | TCP | Maximum compatibility |
 | `Http2` | HTTP/2 only | TCP | Multiplexing, HPACK compression |
 | `Http1AndHttp2` | Both (default) | TCP | ALPN negotiation selects protocol |
 | `Http3` | HTTP/3 | QUIC (UDP) | Requires HTTPS |

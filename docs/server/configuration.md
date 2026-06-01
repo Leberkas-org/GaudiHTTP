@@ -32,6 +32,7 @@ Access via `options.Limits`.
 | `MaxRequestBodySize` | `long` | 30 * 1024 * 1024 | Global max request body size |
 | `MaxRequestHeaderCount` | `int` | 100 | Maximum request headers |
 | `MaxRequestHeadersTotalSize` | `int` | 32 * 1024 | Maximum total header bytes |
+| `MaxResetStreamsPerWindow` | `int` | 200 | Maximum HTTP/2 stream resets tolerated in a sliding window before the connection is closed (Rapid Reset / CVE-2023-44487 mitigation). Set to 0 to disable. |
 | `KeepAliveTimeout` | `TimeSpan` | 130s | Idle connection timeout |
 | `RequestHeadersTimeout` | `TimeSpan` | 30s | Time to receive request headers |
 | `MinRequestBodyDataRate` | `double` | 240 | Minimum body bytes/sec (0 = disabled) |

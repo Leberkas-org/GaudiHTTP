@@ -2,6 +2,10 @@ using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Client;
 
+/// <summary>
+/// Configuration for the automatic retry policy applied to failed or rate-limited requests.
+/// Pass to <c>WithRetry</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// </summary>
 public sealed class RetryOptions
 {
     /// <summary>

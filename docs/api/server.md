@@ -83,8 +83,8 @@ public sealed class TurboServerOptions
     void ConfigureHttpsDefaults(Action<TurboHttpsOptions> configure);
     void ConfigureEndpointDefaults(Action<TurboListenOptions> configure);
 
-    IList<ListenerBinding> Endpoints { get; }  // read-only, populated by Listen/Bind calls
-    IList<string> Urls { get; }                // read-only, populated by Listen/Bind calls
+    IList<ListenerBinding> Endpoints { get; }  // read-only, populated by Bind() overloads only
+    IList<string> Urls { get; }                // read-only, resolved to bindings at startup (add strings manually or via hosting configuration)
 }
 ```
 
@@ -101,6 +101,7 @@ public sealed class TurboServerLimits
     long MaxRequestBodySize { get; set; }                   // default: 30 * 1024 * 1024
     int MaxRequestHeaderCount { get; set; }                 // default: 100
     int MaxRequestHeadersTotalSize { get; set; }            // default: 32 * 1024
+    int MaxResetStreamsPerWindow { get; set; }               // default: 200 (HTTP/2 Rapid Reset / CVE-2023-44487 mitigation; 0 = disabled)
     TimeSpan KeepAliveTimeout { get; set; }                 // default: 130s
     TimeSpan RequestHeadersTimeout { get; set; }            // default: 30s
     double MinRequestBodyDataRate { get; set; }             // default: 240

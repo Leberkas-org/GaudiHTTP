@@ -53,7 +53,7 @@ Three feedback paths create non-linear behaviour in the pipeline:
 
 ### 1. Cache Hit Short-Circuit (amber)
 
-`CacheBidiStage` checks the in-memory `HttpCacheStore` on every request. If the stored response is still fresh, it is returned immediately. The request never reaches the `Engine` or the network.
+`CacheBidiStage` checks the in-memory `MemoryCacheStore` (via `ICacheStore`) on every request. If the stored response is still fresh, it is returned immediately. The request never reaches the `Engine` or the network.
 
 If the cache entry is stale but has an `ETag` or `Last-Modified` validator, `CacheBidiStage` emits a conditional request (`If-None-Match` / `If-Modified-Since`). On a `304 Not Modified` response, `CacheBidiStage` merges the new headers into the cached entry and returns it.
 
@@ -98,9 +98,9 @@ The server pipeline is TurboHTTP's transport and protocol layer. It hands off re
 ```
 Incoming TCP/QUIC Bytes
     ↓
-[Transport] — accepts connection; ListenerActor spawns ConnectionActor
+[Transport] — accepts connection; ListenerActor materializes a ConnectionStage
     ↓
-[ProtocolRouter] — detects HTTP version from initial bytes
+[ProtocolRouter] — maps transport/Version to the appropriate server engine at bind time
     ↓
 [Server Protocol Engine] — Http10/11/20/30ServerEngine decodes request, encodes response
     ↓
@@ -113,13 +113,13 @@ ASP.NET Core — middleware, routing, handlers, model binding
 Outgoing TCP/QUIC Bytes
 ```
 
-Each connection is bound to a single `ConnectionActor` that owns the entire Akka.Streams graph — from transport bytes through protocol parsing, up to the point where `ApplicationBridgeStage` hands control to ASP.NET Core middleware.
+Each listener is backed by a single `ConnectionStage` Akka Streams graph — materialized by `ListenerActor` — that accepts and processes all incoming connections, routing transport bytes through protocol parsing up to the point where `ApplicationBridgeStage` hands control to ASP.NET Core middleware.
 
 ### Server Pipeline Stages
 
 | Stage                        | Role                                                                                                                                                                                                                |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ProtocolRouter`             | Inspects initial bytes to detect HTTP/1.0, 1.1, 2, or 3; routes to the appropriate server engine state machine                                                                                                     |
+| `ProtocolRouter`             | Static factory that maps a `Version` and transport to the appropriate server engine at bind time; runtime byte-detection (when version is unspecified) is handled by `ProtocolNegotiatingStateMachine` inside the negotiating engine |
 | `Http*ServerEngine`          | Protocol-specific state machine: parses request bytes, manages connection/stream-level flow control, encodes response frames                                                                                        |
 | `ApplicationBridgeStage`      | Wraps the parsed protocol request as an `IFeatureCollection` (standard ASP.NET Core `HttpContext`); hands control to standard ASP.NET Core middleware                                                               |
 

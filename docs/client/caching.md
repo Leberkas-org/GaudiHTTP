@@ -13,7 +13,7 @@ TurboHTTP caches **GET and HEAD responses** that the server declares as cacheabl
   - **Success:** `200 OK`, `203 Non-Authoritative Information`, `204 No Content`
   - **Permanent redirects:** `300 Multiple Choices`, `301 Moved Permanently`, `308 Permanent Redirect`
   - **Definitive errors:** `404 Not Found`, `405 Method Not Allowed`, `410 Gone`, `414 URI Too Long`, `501 Not Implemented`
-- The response does **not** include `Cache-Control: no-store` or `Cache-Control: private`
+- The response does **not** include `Cache-Control: no-store`
 - At least one freshness indicator is present (`max-age`, `s-maxage`, `Expires`, or a heuristic lifetime can be calculated)
 
 Responses to `POST`, `PUT`, `DELETE`, and all other methods are **never cached**. `206 Partial Content` is not cached because TurboHTTP does not reassemble partial content ranges.
@@ -40,7 +40,7 @@ Once a cached response becomes stale, TurboHTTP issues a **conditional request**
 | `no-store`        | Response  | Never cache this response                                                       |
 | `no-cache`        | Response  | Cache the response, but **always revalidate** with the server before serving it |
 | `must-revalidate` | Response  | Once stale, do not serve the cached copy without revalidation                   |
-| `private`         | Response  | Do not cache — response is personalised to one user                             |
+| `private`         | Response  | Only rejected by a shared cache (`SharedCache = true`); a private client cache stores the response normally |
 | `public`          | Response  | Explicitly marks the response as cacheable, even on shared caches               |
 | `no-cache`        | Request   | Bypass cache; fetch a fresh response from the server                            |
 | `no-store`        | Request   | Bypass cache and do not store the response                                      |

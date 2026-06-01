@@ -73,7 +73,7 @@ With HTTP/2, all 1000 requests flow over a single TCP connection as concurrent s
 
 ### Backpressure
 
-The channel has a bounded capacity. If the connection cannot keep up with your producer, `WriteAsync` will pause automatically until there is room. You never drop requests — the channel applies backpressure instead.
+The `Requests` channel is unbounded, so `WriteAsync` never pauses — requests are accepted immediately regardless of how fast the connection can process them. Backpressure is applied further down the pipeline: each endpoint's internal dispatch channel is bounded, so requests queue at that point if the connection is saturated. You never drop requests, but producers that outpace the connection will accumulate requests in memory.
 
 ## What's Included
 
@@ -88,7 +88,7 @@ TurboHTTP works out of the box — no middleware to wire up, no Polly policies t
 | **Cookie Management**                   | `CookieJar` stores `Set-Cookie` responses and injects cookies on subsequent requests automatically   |
 | **Content Encoding**                    | Automatic gzip, deflate, and Brotli decompression                                                    |
 | **Connection Pooling**                  | Per-host pools with idle eviction, automatic reconnect, and configurable concurrency limits          |
-| **Channel-based API**                   | `ChannelWriter`/`ChannelReader` interface for backpressure-aware, high-throughput request pipelines  |
+| **Channel-based API**                   | `ChannelWriter`/`ChannelReader` interface for high-throughput request pipelines; backpressure is enforced at the internal per-endpoint dispatch layer  |
 
 ## Next Steps
 

@@ -71,9 +71,10 @@ app.MapGet("/files/{fileId}", (HttpContext ctx, IFileStore fileStore, string fil
 {
     var metadata = fileStore.GetMetadata(fileId);
 
-    var bytes = Akka.Streams.IO.FileIO
+    var bytes = Akka.Streams.Dsl.FileIO
         .FromFile(new FileInfo(metadata.Path), chunkSize: 8 * 1024)
-        .Select(chunk => (ReadOnlyMemory<byte>)chunk.Memory);
+        .Select(chunk => (ReadOnlyMemory<byte>)chunk.ToArray())
+        .MapMaterializedValue(_ => Akka.NotUsed.Instance);
 
     return AkkaResults.Stream(bytes, materializer, contentType: metadata.ContentType);
 });
@@ -129,7 +130,7 @@ app.MapGet("/metrics/live", (HttpContext ctx, IMetricsSource metrics, IMateriali
 
     var merged = cpuMetrics
         .Merge(memoryMetrics)
-        .Throttle(100, TimeSpan.FromSeconds(1), ThrottleMode.Shaping)
+        .Throttle(100, TimeSpan.FromSeconds(1), 100, ThrottleMode.Shaping)
         .Select(m => new ServerSentEvent(
             Data: m.ToJson(),
             EventType: m.Category));

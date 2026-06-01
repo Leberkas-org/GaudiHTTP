@@ -15,6 +15,11 @@ using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Server;
 
+/// <summary>
+/// TurboHTTP's ASP.NET Core <see cref="IServer"/> implementation. Manages an Akka actor system,
+/// resolves configured endpoints, and routes incoming connections through the application pipeline.
+/// Register via <see cref="TurboServerWebHostBuilderExtensions.UseTurboHttp"/>.
+/// </summary>
 public sealed class TurboServer : IServer
 {
     private static readonly Config LoggingHocon = ConfigurationFactory.ParseString(
@@ -29,6 +34,7 @@ public sealed class TurboServer : IServer
     private bool _ownsSystem;
     private IActorRef _supervisor = ActorRefs.Nobody;
 
+    /// <summary>Initializes a new <see cref="TurboServer"/> with the provided options, logger factory, and service provider.</summary>
     public TurboServer(IOptions<TurboServerOptions> options, ILoggerFactory loggerFactory, IServiceProvider services)
     {
         _options = options.Value;
@@ -39,8 +45,13 @@ public sealed class TurboServer : IServer
         _features.Set<IServerAddressesFeature>(addressesFeature);
     }
 
+    /// <summary>Gets the server feature collection, including the <see cref="IServerAddressesFeature"/> populated after start.</summary>
     public IFeatureCollection Features => _features;
 
+    /// <summary>
+    /// Starts the server: resolves endpoints, creates the Akka actor system if none is registered,
+    /// binds listeners, and populates <see cref="Features"/> with bound addresses.
+    /// </summary>
     public async Task StartAsync<TContext>(
         IHttpApplication<TContext> application,
         CancellationToken cancellationToken) where TContext : notnull
@@ -116,6 +127,10 @@ public sealed class TurboServer : IServer
         }
     }
 
+    /// <summary>
+    /// Stops the server gracefully. If the server owns the actor system it runs a coordinated
+    /// shutdown; otherwise it drains in-flight requests and stops the supervisor actor.
+    /// </summary>
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         if (_system is null)
@@ -136,6 +151,7 @@ public sealed class TurboServer : IServer
         }
     }
 
+    /// <summary>Disposes the actor system if this instance owns it.</summary>
     public void Dispose()
     {
         if (_ownsSystem)

@@ -2,6 +2,10 @@ using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Client;
 
+/// <summary>
+/// Configuration for the automatic redirect-following policy applied to HTTP responses
+/// with 3xx status codes. Pass to <c>WithRedirect</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// </summary>
 public sealed class RedirectOptions
 {
     /// <summary>

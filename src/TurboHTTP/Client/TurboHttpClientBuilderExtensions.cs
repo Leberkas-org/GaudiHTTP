@@ -4,8 +4,15 @@ using TurboHTTP.Features.Cookies;
 
 namespace TurboHTTP.Client;
 
+/// <summary>
+/// Fluent extension methods for configuring an <see cref="ITurboHttpClientBuilder"/> with
+/// cookies, caching, retries, redirects, compression, Expect-100-Continue, and custom handlers.
+/// </summary>
 public static class TurboHttpClientBuilderExtensions
 {
+    /// <summary>
+    /// Enables cookie handling for this client using an in-memory <see cref="CookieJar"/>.
+    /// </summary>
     public static ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
@@ -16,6 +23,9 @@ public static class TurboHttpClientBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Enables cookie handling for this client using the provided <paramref name="store"/>.
+    /// </summary>
     public static ITurboHttpClientBuilder WithCookies(this ITurboHttpClientBuilder builder, ICookieStore store)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d =>
@@ -26,6 +36,9 @@ public static class TurboHttpClientBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Enables response caching using an in-memory store. Optionally configure via <paramref name="configure"/>.
+    /// </summary>
     public static ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder,
         Action<CacheOptions>? configure = null)
     {
@@ -38,6 +51,9 @@ public static class TurboHttpClientBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Enables response caching using the provided <paramref name="store"/>. Optionally configure via <paramref name="configure"/>.
+    /// </summary>
     public static ITurboHttpClientBuilder WithCache(this ITurboHttpClientBuilder builder, ICacheStore store,
         Action<CacheOptions>? configure = null)
     {
@@ -51,6 +67,9 @@ public static class TurboHttpClientBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Enables automatic request retries. Optionally configure via <paramref name="configure"/>.
+    /// </summary>
     public static ITurboHttpClientBuilder WithRetry(this ITurboHttpClientBuilder builder,
         Action<RetryOptions>? configure = null)
     {
@@ -63,6 +82,9 @@ public static class TurboHttpClientBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Enables automatic redirect following. Optionally configure via <paramref name="configure"/>.
+    /// </summary>
     public static ITurboHttpClientBuilder WithRedirect(this ITurboHttpClientBuilder builder,
         Action<RedirectOptions>? configure = null)
     {
@@ -76,12 +98,18 @@ public static class TurboHttpClientBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Enables or disables automatic decompression of response bodies. Default is <c>true</c>.
+    /// </summary>
     public static ITurboHttpClientBuilder WithDecompression(this ITurboHttpClientBuilder builder, bool enabled = true)
     {
         builder.Services.Configure<TurboClientDescriptor>(builder.Name, d => { d.AutomaticDecompression = enabled; });
         return builder;
     }
 
+    /// <summary>
+    /// Enables request body compression. Optionally configure the encoding and minimum body size via <paramref name="configure"/>.
+    /// </summary>
     public static ITurboHttpClientBuilder WithRequestCompression(
         this ITurboHttpClientBuilder builder, Action<CompressionOptions>? configure = null)
     {
@@ -95,6 +123,10 @@ public static class TurboHttpClientBuilderExtensions
         return builder;
     }
 
+    /// <summary>
+    /// Enables <c>Expect: 100-continue</c> negotiation for large request bodies.
+    /// Optionally configure the minimum body size threshold via <paramref name="configure"/>.
+    /// </summary>
     public static ITurboHttpClientBuilder WithExpectContinue(
         this ITurboHttpClientBuilder builder, Action<Expect100Options>? configure = null)
     {

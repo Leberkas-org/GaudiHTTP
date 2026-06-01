@@ -249,9 +249,13 @@ internal sealed class TurboClientDescriptor
 {
     public RedirectPolicy? RedirectPolicy { get; set; }
     public RetryPolicy? RetryPolicy { get; set; }
+    public Expect100Policy? Expect100Policy { get; set; }
+    public bool AutomaticDecompression { get; set; } = true;
+    public CompressionPolicy? CompressionPolicy { get; set; }
     public bool EnableCookies { get; set; }
     public CookieJar? CustomCookieJar { get; set; }
     public CachePolicy? CachePolicy { get; set; }
+    public ICacheStore? CustomCacheStore { get; set; }
 
     // Type-based handlers (AddHandler<T>) — for DI lookup by type
     public List<Type> HandlerTypes { get; } = [];
@@ -271,16 +275,26 @@ A snapshot of the fully resolved configuration — cookie jar instance, cache st
 internal sealed record PipelineDescriptor(
     RedirectPolicy?  RedirectPolicy,
     RetryPolicy?     RetryPolicy,
+    Expect100Policy? Expect100Policy,
+    CompressionPolicy? CompressionPolicy,
     CookieJar?       CookieJar,
-    HttpCacheStore?  CacheStore,
-    IReadOnlyList<TurboHandler> Handlers)
+    Cache?           CacheStore,
+    CachePolicy?     CachePolicy,
+    IReadOnlyList<TurboHandler> Handlers,
+    bool AutomaticDecompression = true,
+    AltSvcCache? AltSvcCache = null)
 {
     public static readonly PipelineDescriptor Empty = new(
         RedirectPolicy: null,
         RetryPolicy: null,
+        Expect100Policy: null,
+        CompressionPolicy: null,
         CookieJar: null,
         CacheStore: null,
-        Handlers: []);
+        CachePolicy: null,
+        Handlers: [],
+        AutomaticDecompression: true,
+        AltSvcCache: null);
 }
 ```
 

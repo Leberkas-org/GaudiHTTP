@@ -1,6 +1,6 @@
 # Cookie Management
 
-TurboHTTP handles cookies automatically. When a server sends a `Set-Cookie` header, TurboHTTP stores it and attaches it to subsequent requests that match the cookie's domain and path — no configuration needed.
+TurboHTTP cookie handling is opt-in. Call `.WithCookies()` on the client builder to enable it. Once enabled, when a server sends a `Set-Cookie` header, TurboHTTP stores it and attaches it to subsequent requests that match the cookie's domain and path.
 
 ## How It Works
 
@@ -13,13 +13,17 @@ Both steps happen transparently inside the request pipeline. Cookies from a logi
 
 ## Cookie Isolation
 
-Each `TurboHttpClient` instance has its own `CookieJar`. Cookies received by one client are never shared with another. This means:
+Cookies are disabled unless `.WithCookies()` is called on the builder. When enabled, each client gets its own isolated `CookieJar`. Cookies received by one client are never shared with another. This means:
 
 - A client used for API calls and a client used for authentication do **not** share cookie state.
 - Creating multiple clients for different services keeps their session cookies completely separate.
 
 ```csharp
-// These two clients have independent cookie jars
+// Enable cookies independently for each client
+builder.Services.AddTurboHttpClient("api", ...).WithCookies();
+builder.Services.AddTurboHttpClient("auth", ...).WithCookies();
+
+// Each client now has its own isolated cookie jar
 var apiClient = factory.CreateClient("api");
 var authClient = factory.CreateClient("auth");
 ```
@@ -118,7 +122,7 @@ Set-Cookie: sid=abc123   ← no expiry: lasts until the client is disposed
 
 ## Sharing a Cookie Store
 
-By default each named client gets its own isolated cookie store. To share cookies across multiple clients — for example, so that a login performed by one client is visible to another — implement `ICookieStore` and pass the same instance to each:
+When `.WithCookies()` is called without arguments, each client gets its own isolated in-memory store. To share cookies across multiple clients — for example, so that a login performed by one client is visible to another — implement `ICookieStore` and pass the same instance to each:
 
 ```csharp
 using TurboHTTP.Features.Cookies;
@@ -142,7 +146,7 @@ builder.Services.AddTurboHttpClient("api", options =>
 A cookie set during login on the `auth` client will now be available to the `api` client.
 
 ::: warning Thread safety
-When an `ICookieStore` is shared across multiple clients it will receive concurrent reads and writes. Your implementation must be thread-safe.
+`ICookieStore` implementations are not required to be thread-safe when used by a single client — the request pipeline accesses the store on one logical thread at a time. However, when the **same store instance is shared across multiple clients**, those pipelines run concurrently and can access the store simultaneously. In that case your implementation must handle concurrent reads and writes safely.
 :::
 
 ::: info How it works

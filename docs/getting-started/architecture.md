@@ -95,7 +95,7 @@ When a request arrives at TurboHTTP Server, it passes through a complementary pi
 ```
 Incoming TCP/QUIC Connection
     ↓
-[Transport] — accepts connection via ListenerActor, spawns ConnectionActor
+[Transport] — accepts connection via ListenerActor, materialises ConnectionStage
     ↓
 [Protocol Negotiation] — detects HTTP version (ALPN over TLS, or byte-sniffing for plaintext)
     ↓
@@ -114,7 +114,7 @@ Incoming TCP/QUIC Connection
 [Network] — sends over TCP or QUIC
 ```
 
-Each connection is managed by a `ConnectionActor` that owns the full Akka.Streams graph for that connection — from transport bytes through protocol decoding, bridging to ASP.NET Core's request processing, and response serialisation.
+Each connection is managed by a `ConnectionStage` graph materialised inside the `ListenerActor` — from transport bytes through protocol decoding, bridging to ASP.NET Core's request processing, and response serialisation.
 
 ### Server Architecture
 
@@ -126,8 +126,7 @@ TurboHTTP Server is an ASP.NET Core `IServer` implementation that replaces Kestr
 
 - **TurboServer** — the `IServer` implementation registered via `builder.Host.UseTurboHttp()`; ASP.NET Core hosting calls `StartAsync<TContext>()`, which creates the ActorSystem and spawns ServerSupervisorActor
 - **ServerSupervisorActor** — manages all listeners and tracks connection counts
-- **ListenerActor** — binds TCP or QUIC transport, accepts incoming connections, spawns a ConnectionActor per client
-- **ConnectionActor** — materialises the protocol engine and bridges to the ASP.NET Core request pipeline for a single client
+- **ListenerActor** — binds TCP or QUIC transport, accepts incoming connections, and materialises a `ConnectionStage` graph that handles the full protocol lifecycle per client
 
 ### Transport Layer
 

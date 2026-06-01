@@ -21,7 +21,7 @@ TCP → [TcpConnectionStage] → Http10ClientConnectionStage → HttpResponseMes
 
 | Component               | Role                                                                                                                                                      |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http10ClientConnectionStage` | Unified stage: serialises request to wire bytes (sets `Connection: close`), parses the HTTP/1.0 response, and correlates request/response (FIFO, depth 1) |
+| `Http10ClientConnectionStage` | Unified stage: serialises request to wire bytes, parses the HTTP/1.0 response, and correlates request/response (FIFO, depth 1) |
 | `TcpConnectionStage`    | TCP transport (from Servus.Akka) — acquires a connection lease from the manager actor, reads/writes bytes                                                 |
 
 **Notable behaviours:**
@@ -82,8 +82,8 @@ TCP → [TcpConnectionStage] → Http20ClientConnectionStage → HttpResponseMes
 
 | Component               | Role                                                                                                                                                                                                                                                                                                                                                                                                |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Http20ClientConnectionStage` | Central unified stage: allocates client stream IDs (1, 3, 5, …), HPACK-encodes request headers and emits `HEADERS` + `DATA` frames, handles frame encoding/decoding (9-byte frame header + payload), manages connection-level frames (`SETTINGS`, `PING`, `WINDOW_UPDATE`, `GOAWAY`), tracks connection and stream-level flow control windows, assembles per-stream `HEADERS` + `DATA` frames into `HttpResponseMessage`, and correlates responses by stream ID |
-| `TcpConnectionStage`    | TCP transport (from Servus.Akka) — emits the HTTP/2 connection preface on first connect                                                                                                                                                                                                                                                                                                             |
+| `Http20ClientConnectionStage` | Central unified stage: emits the HTTP/2 connection preface (magic + SETTINGS [+ WINDOW_UPDATE]) on first connect via `Http2ClientSessionManager`, allocates client stream IDs (1, 3, 5, …), HPACK-encodes request headers and emits `HEADERS` + `DATA` frames, handles frame encoding/decoding (9-byte frame header + payload), manages connection-level frames (`SETTINGS`, `PING`, `WINDOW_UPDATE`, `GOAWAY`), tracks connection and stream-level flow control windows, assembles per-stream `HEADERS` + `DATA` frames into `HttpResponseMessage`, and correlates responses by stream ID |
+| `TcpConnectionStage`    | TCP transport (from Servus.Akka) — reads and writes raw bytes over the TCP connection                                                                                                                                                                                                                                                                                                               |
 
 **HPACK header compression:**
 

@@ -66,7 +66,7 @@ Per-request overrides are also supported via `HttpRequestMessage.Version`.
 
 ### Too Many Redirects
 
-**Symptom:** `RedirectException` with `RedirectError.MaxRedirectsExceeded`.
+**Symptom:** You receive a 3xx redirect response instead of the final destination response — TurboHTTP stopped following redirects after hitting the configured limit.
 
 **Fix:** The server is returning a redirect loop. Either fix the server or increase the redirect limit via the builder:
 
@@ -82,7 +82,7 @@ To debug, remove the `.WithRedirect()` call entirely and inspect the redirect re
 
 ### HTTPS to HTTP Downgrade Blocked
 
-**Symptom:** `RedirectException` with `RedirectError.ProtocolDowngrade` on a redirect.
+**Symptom:** A redirect from `https://` to `http://` is not followed — TurboHTTP returns the 3xx redirect response instead of following it.
 
 **Cause:** A server redirected from `https://` to `http://`, which TurboHTTP blocks by default for security.
 
@@ -98,7 +98,7 @@ builder.Services.AddTurboHttpClient("my-api", options =>
 
 ### POST Requests Are Not Retried
 
-**By design.** POST and other non-idempotent methods (PUT, DELETE, PATCH) are never automatically retried — retrying them could create duplicate resources or cause unintended side effects. Only idempotent methods (GET, HEAD, OPTIONS, TRACE) are retried automatically.
+**By design.** POST, PATCH, and other non-idempotent methods are never automatically retried — retrying them could create duplicate resources or cause unintended side effects. Only idempotent methods (GET, HEAD, OPTIONS, TRACE, PUT, DELETE) are retried automatically.
 
 This behaviour **cannot be disabled or bypassed** via `RetryOptions`. The idempotency check is baked into the retry evaluator and cannot be configured away.
 
@@ -134,9 +134,9 @@ The built-in `.WithRetry()` handles idempotent method detection and backoff auto
    ```csharp
    using var response = await client.SendAsync(request, ct);
    ```
-3. **CookieJar accumulating** — clear periodically if needed:
+3. **CookieJar accumulating** — clear periodically if needed by calling `Clear()` on the `ICookieStore` you passed to `.WithCookies(store)`:
    ```csharp
-   cookieJar.Clear();
+   store.Clear(); // store is the ICookieStore you provided to .WithCookies(store)
    ```
 
 ### HTTP/2 Connection Failures

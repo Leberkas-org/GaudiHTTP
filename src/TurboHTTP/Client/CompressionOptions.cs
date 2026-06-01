@@ -3,6 +3,10 @@ using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Client;
 
+/// <summary>
+/// Configuration for request body compression applied by the client before sending.
+/// Pass to <c>WithRequestCompression</c> on an <see cref="ITurboHttpClientBuilder"/>.
+/// </summary>
 public sealed class CompressionOptions
 {
     /// <summary>
