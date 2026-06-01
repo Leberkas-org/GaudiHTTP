@@ -50,7 +50,10 @@ internal sealed class Http2ClientSessionManager
         _flow = new FlowController(
             _decoderOptions.InitialConnectionWindowSize,
             _decoderOptions.InitialStreamWindowSize);
-        _requestEncoder = new Http2ClientEncoder(useHuffman: true, maxFrameSize: _encoderOptions.MaxFrameSize);
+        // Outgoing frame size starts at the RFC 9113 default (16,384) and is raised only when the
+        // server advertises a larger SETTINGS_MAX_FRAME_SIZE. The client's own MaxFrameSize option
+        // is a receive-side advertisement (sent in the preface), not a send-side limit.
+        _requestEncoder = new Http2ClientEncoder(useHuffman: true);
         var poolCapacity = Math.Min(
             _tracker.MaxConcurrentStreams > 0 ? _tracker.MaxConcurrentStreams : 100,
             1000);
@@ -277,7 +280,9 @@ internal sealed class Http2ClientSessionManager
 
     private void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data)
     {
-        var maxFrame = _encoderOptions.MaxFrameSize;
+        // Split DATA frames by the server's advertised MAX_FRAME_SIZE (tracked by the encoder),
+        // not the client's own receive-side option.
+        var maxFrame = _requestEncoder.MaxFrameSize;
         var remaining = data;
         while (remaining.Length > maxFrame)
         {

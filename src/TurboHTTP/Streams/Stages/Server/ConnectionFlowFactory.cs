@@ -29,7 +29,7 @@ internal static class ConnectionFlowFactory
             .Via(Flow.FromGraph(new FairShareAdmissionStage(connectionId, handles.Dispatcher)));
 
         var responsePath = handles.ResponseDispatcher.Subscribe(connectionId)
-            .Via(Flow.FromGraph(new ResponseReorderStage(connectionId, unordered)))
+            .Via(Flow.FromGraph(new ResponseReorderStage(unordered)))
             .Select(fc =>
             {
                 handles.Dispatcher.Release(connectionId);

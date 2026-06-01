@@ -23,7 +23,7 @@ public sealed class ResponseReorderStageSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public void ResponseReorderStage_should_emit_in_order_for_ordered_mode()
     {
-        var stage = new ResponseReorderStage(connectionId: 1, unordered: false);
+        var stage = new ResponseReorderStage(unordered: false);
         var (up, down) = this.SourceProbe<IFeatureCollection>()
             .Via(Flow.FromGraph(stage))
             .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
@@ -49,7 +49,7 @@ public sealed class ResponseReorderStageSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public void ResponseReorderStage_should_passthrough_for_unordered_mode()
     {
-        var stage = new ResponseReorderStage(connectionId: 1, unordered: true);
+        var stage = new ResponseReorderStage(unordered: true);
         var (up, down) = this.SourceProbe<IFeatureCollection>()
             .Via(Flow.FromGraph(stage))
             .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
@@ -73,7 +73,7 @@ public sealed class ResponseReorderStageSpec : StreamTestBase
     [Fact(Timeout = 5000)]
     public void ResponseReorderStage_should_complete_after_all_buffered_emitted()
     {
-        var stage = new ResponseReorderStage(connectionId: 1, unordered: false);
+        var stage = new ResponseReorderStage(unordered: false);
         var (up, down) = this.SourceProbe<IFeatureCollection>()
             .Via(Flow.FromGraph(stage))
             .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)

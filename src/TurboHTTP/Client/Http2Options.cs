@@ -32,21 +32,27 @@ public sealed class Http2Options
     /// <summary>
     /// Per-stream initial flow control window size in bytes (RFC 9113 §6.9.2).
     /// Advertised via SETTINGS_INITIAL_WINDOW_SIZE in the connection preface.
-    /// Default is 65,535 (RFC 9113 §6.9.2 default).
+    /// Default is 2 MB. This is a static window; the RFC protocol default is 65,535 and
+    /// SocketsHttpHandler instead starts at 65,535 and scales dynamically (BDP/RTT) up to 16 MB.
+    /// TurboHTTP advertises the full window upfront rather than ramping.
     /// </summary>
     public int InitialStreamWindowSize { get; set; } = 2 * 1024 * 1024;
 
     /// <summary>
-    /// Maximum HTTP/2 frame payload size in bytes (RFC 9113 §4.2).
-    /// Advertised via SETTINGS_MAX_FRAME_SIZE in the connection preface.
-    /// Default is 16,384 (RFC 9113 minimum/default).
+    /// Maximum HTTP/2 frame payload size in bytes the client is willing to RECEIVE (RFC 9113 §4.2).
+    /// Advertised to the server via SETTINGS_MAX_FRAME_SIZE in the connection preface.
+    /// This does NOT control the size of frames the client sends — outgoing frames are bounded by
+    /// the server's advertised limit (default 16,384 until the server's SETTINGS arrive).
+    /// Default is 64 KB. Valid range is [16,384, 16,777,215]; 16,384 is the RFC minimum/default.
+    /// SocketsHttpHandler does not expose this knob.
     /// </summary>
     public int MaxFrameSize { get; set; } = 64 * 1024;
 
     /// <summary>
     /// HPACK dynamic table size in bytes (RFC 7541 §4.2).
     /// Advertised via SETTINGS_HEADER_TABLE_SIZE in the connection preface.
-    /// Default is 4,096 (RFC 7541 default).
+    /// Default is 64 KB. The RFC 7541 protocol default is 4,096; TurboHTTP uses a larger table
+    /// for more aggressive header compression.
     /// </summary>
     public int HeaderTableSize { get; set; } = 64 * 1024;
 

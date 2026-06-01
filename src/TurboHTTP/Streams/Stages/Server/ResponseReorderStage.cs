@@ -7,7 +7,6 @@ namespace TurboHTTP.Streams.Stages.Server;
 
 internal sealed class ResponseReorderStage : GraphStage<FlowShape<IFeatureCollection, IFeatureCollection>>
 {
-    private readonly int _connectionId;
     private readonly bool _unordered;
 
     private readonly Inlet<IFeatureCollection> _in = new("ResponseReorder.In");
@@ -15,9 +14,8 @@ internal sealed class ResponseReorderStage : GraphStage<FlowShape<IFeatureCollec
 
     public override FlowShape<IFeatureCollection, IFeatureCollection> Shape { get; }
 
-    public ResponseReorderStage(int connectionId, bool unordered)
+    public ResponseReorderStage(bool unordered)
     {
-        _connectionId = connectionId;
         _unordered = unordered;
         Shape = new FlowShape<IFeatureCollection, IFeatureCollection>(_in, _out);
     }
