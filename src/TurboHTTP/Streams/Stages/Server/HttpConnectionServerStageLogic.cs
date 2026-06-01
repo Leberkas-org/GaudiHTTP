@@ -322,7 +322,11 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         if (features is TurboFeatureCollection turbo)
         {
             turbo.RequestTimestamp = Stopwatch.GetTimestamp();
-            turbo.RequestActivity = Tracing.StartRequestActivity(method, path, scheme);
+
+            var headers = requestFeature.Headers;
+            string? traceparent = headers?["traceparent"];
+            string? tracestate = headers?["tracestate"];
+            turbo.RequestActivity = Tracing.StartRequestActivity(method, path, scheme, traceparent, tracestate);
         }
     }
 
