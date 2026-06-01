@@ -22,11 +22,7 @@ public sealed class WirePipeliningSpec : End2EndSpecBase
         app.MapGet("/p/{id:int}", (int id) => Results.Text($"RESP-{id}"));
     }
 
-    [Fact(Timeout = 15000, Skip = "FINDING: TurboServer answers only the FIRST of several HTTP/1.1 requests " +
-        "pipelined into one TCP segment; req2/req3 sit unprocessed and the connection idles. Unit-level " +
-        "Http11ServerPipeliningSpec passes because it feeds the state machine directly — the real " +
-        "stage/socket path does not re-drive decoding of buffered follow-up requests. Un-skip once the " +
-        "server answers all pipelined requests in order.")]
+    [Fact(Timeout = 15000)]
     public async Task Http11_should_answer_pipelined_requests_in_order_on_one_connection()
     {
         var uri = new Uri(BaseUri);

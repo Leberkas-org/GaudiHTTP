@@ -184,6 +184,10 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     {
         _sm.OnBodyMessage(args.message);
         TryPushOutbound();
+        // Completing an outbound body can clear the state machine's CanAcceptResponse gate
+        // (e.g. _outboundBodyPending). Re-attempt to pull the next pipelined response so the
+        // pipeline doesn't stall waiting for unrelated network demand.
+        TryPullResponse();
     }
 
     private void OnNetworkPush()
