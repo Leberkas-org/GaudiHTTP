@@ -24,7 +24,6 @@ internal static class ClientOptionsProjections
         MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.MaxStreamedBodySize,
         MaxHeaderBytes = o.Http1.MaxResponseHeadersLength * 1024,
-        MaxPipelineDepth = o.Http1.MaxPipelineDepth,
     };
 
     public static Http11ClientEncoderOptions ToHttp11EncoderOptions(this TurboClientOptions o) => new()
