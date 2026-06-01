@@ -17,22 +17,28 @@ public sealed class TurboServerOptions
 
     /// <summary>Gets or sets the time allowed for in-flight requests to complete during shutdown. Default is 30 seconds.</summary>
     public TimeSpan GracefulShutdownTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
     /// <summary>Gets or sets the maximum time a request handler may run before it is cancelled. Default is 30 seconds.</summary>
     public TimeSpan HandlerTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
     /// <summary>Gets or sets additional time granted to handlers after the handler timeout fires to clean up. Default is 5 seconds.</summary>
     public TimeSpan HandlerGracePeriod { get; set; } = TimeSpan.FromSeconds(5);
 
     /// <summary>Gets or sets the maximum number of request body bytes buffered in memory before back-pressure is applied. Default is 64 KiB.</summary>
     public int RequestBodyBufferThreshold { get; set; } = 64 * 1024;
+
     /// <summary>Gets or sets the timeout for the application to consume the complete request body. Default is 30 seconds.</summary>
     public TimeSpan BodyConsumptionTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
     /// <summary>Gets or sets the size of each chunk written to the response body stream. Default is 16 KiB.</summary>
     public int ResponseBodyChunkSize { get; set; } = 16 * 1024;
 
     /// <summary>Gets the HTTP/1.x-specific configuration options.</summary>
     public Http1ServerOptions Http1 { get; } = new();
+
     /// <summary>Gets the HTTP/2-specific configuration options.</summary>
     public Http2ServerOptions Http2 { get; } = new();
+
     /// <summary>Gets the HTTP/3-specific configuration options.</summary>
     public Http3ServerOptions Http3 { get; } = new();
 
@@ -149,5 +155,24 @@ public sealed class TurboServerOptions
     public void Bind(ListenerOptions options, IListenerFactory factory)
     {
         Endpoints.Add(new ListenerBinding { Options = options, Factory = factory });
+    }
+
+    internal void Validate()
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(Limits.MaxRequestBodySize);
+        ArgumentOutOfRangeException.ThrowIfLessThan(Limits.MaxRequestHeadersTotalSize, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(Limits.MaxRequestHeaderCount, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(Limits.KeepAliveTimeout, TimeSpan.Zero);
+
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(HandlerTimeout, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(HandlerGracePeriod, TimeSpan.Zero);
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(Http2.MaxConcurrentStreams, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(Http2.MaxFrameSize, 16 * 1024);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(Http2.MaxFrameSize, 16 * 1024 * 1024 - 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(Http2.InitialStreamWindowSize, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(Http2.InitialConnectionWindowSize, 1);
+
+        ArgumentOutOfRangeException.ThrowIfLessThan(Http3.MaxConcurrentStreams, 1);
     }
 }
