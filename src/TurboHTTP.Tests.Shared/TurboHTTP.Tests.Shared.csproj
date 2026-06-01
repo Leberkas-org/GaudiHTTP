@@ -16,7 +16,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Servus.Akka.TestKit\Servus.Akka.TestKit.csproj"/>
+        <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka.TestKit\Servus.Akka.TestKit.csproj"/>
         <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj"/>
     </ItemGroup>
 

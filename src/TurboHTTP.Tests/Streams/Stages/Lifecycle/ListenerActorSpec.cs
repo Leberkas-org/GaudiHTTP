@@ -8,7 +8,6 @@ using TurboHTTP.Server;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Lifecycle;
 using TurboHTTP.Streams.Stages.Server;
-using Xunit;
 
 namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
 

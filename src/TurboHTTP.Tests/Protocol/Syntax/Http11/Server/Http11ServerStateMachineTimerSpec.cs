@@ -158,8 +158,13 @@ public sealed class Http11ServerStateMachineTimerSpec
     [Trait("RFC", "RFC9112-6.1")]
     public void DecodeClientData_should_schedule_body_read_timer_while_body_streaming()
     {
-        var opts = new TurboServerOptions();
-        opts.Http1.BodyReadTimeout = TimeSpan.FromSeconds(5);
+        var opts = new TurboServerOptions
+        {
+            Http1 =
+            {
+                BodyReadTimeout = TimeSpan.FromSeconds(5)
+            }
+        };
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(opts.ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 

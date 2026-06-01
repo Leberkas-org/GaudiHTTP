@@ -275,20 +275,6 @@ public sealed class OptionsFactorySpec
     }
 
     [Fact(Timeout = 5000)]
-    public void OptionsFactory_should_preserve_http3_connection_migration_setting()
-    {
-        var endpoint = CreateHttp3Endpoint();
-        var clientOptions = new TurboClientOptions
-        {
-            Http3 = new Http3Options { AllowConnectionMigration = false }
-        };
-
-        var options = (QuicTransportOptions)OptionsFactory.Build(endpoint, clientOptions);
-
-        Assert.False(options.AllowConnectionMigration);
-    }
-
-    [Fact(Timeout = 5000)]
     public void OptionsFactory_should_handle_wss_scheme_as_https()
     {
         var endpoint = new RequestEndpoint

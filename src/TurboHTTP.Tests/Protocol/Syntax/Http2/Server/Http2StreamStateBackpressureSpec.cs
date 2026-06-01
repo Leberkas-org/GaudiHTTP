@@ -1,5 +1,4 @@
 using System.Buffers;
-using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Syntax.Http2;
 

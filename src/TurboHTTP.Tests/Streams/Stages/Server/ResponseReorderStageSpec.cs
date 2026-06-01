@@ -1,4 +1,3 @@
-using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Http.Features;
@@ -37,14 +36,14 @@ public sealed class ResponseReorderStageSpec : StreamTestBase
         var r2 = Tagged(1, 2);
 
         // Send out of order: 2, 0, 1
-        up.SendNext(r2);
-        up.SendNext(r0);
-        up.SendNext(r1);
+        up.SendNext(r2, TestContext.Current.CancellationToken);
+        up.SendNext(r0, TestContext.Current.CancellationToken);
+        up.SendNext(r1, TestContext.Current.CancellationToken);
 
         // Should emit in order: 0, 1, 2
-        Assert.Same(r0, down.ExpectNext());
-        Assert.Same(r1, down.ExpectNext());
-        Assert.Same(r2, down.ExpectNext());
+        Assert.Same(r0, down.ExpectNext(TestContext.Current.CancellationToken));
+        Assert.Same(r1, down.ExpectNext(TestContext.Current.CancellationToken));
+        Assert.Same(r2, down.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
@@ -63,12 +62,12 @@ public sealed class ResponseReorderStageSpec : StreamTestBase
         var r2 = Tagged(1, 2);
 
         // Send out of order: 2, 0, 1
-        up.SendNext(r2);
-        Assert.Same(r2, down.ExpectNext());
-        up.SendNext(r0);
-        Assert.Same(r0, down.ExpectNext());
-        up.SendNext(r1);
-        Assert.Same(r1, down.ExpectNext());
+        up.SendNext(r2, TestContext.Current.CancellationToken);
+        Assert.Same(r2, down.ExpectNext(TestContext.Current.CancellationToken));
+        up.SendNext(r0, TestContext.Current.CancellationToken);
+        Assert.Same(r0, down.ExpectNext(TestContext.Current.CancellationToken));
+        up.SendNext(r1, TestContext.Current.CancellationToken);
+        Assert.Same(r1, down.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
@@ -85,12 +84,12 @@ public sealed class ResponseReorderStageSpec : StreamTestBase
         var r0 = Tagged(1, 0);
         var r1 = Tagged(1, 1);
 
-        up.SendNext(r1);
-        up.SendNext(r0);
-        up.SendComplete();
+        up.SendNext(r1, TestContext.Current.CancellationToken);
+        up.SendNext(r0, TestContext.Current.CancellationToken);
+        up.SendComplete(TestContext.Current.CancellationToken);
 
-        Assert.Same(r0, down.ExpectNext());
-        Assert.Same(r1, down.ExpectNext());
-        down.ExpectComplete();
+        Assert.Same(r0, down.ExpectNext(TestContext.Current.CancellationToken));
+        Assert.Same(r1, down.ExpectNext(TestContext.Current.CancellationToken));
+        down.ExpectComplete(TestContext.Current.CancellationToken);
     }
 }

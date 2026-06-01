@@ -45,7 +45,6 @@ internal static class OptionsFactory
                 ConnectTimeout = clientOptions.ConnectTimeout,
                 SocketSendBufferSize = clientOptions.SocketSendBufferSize,
                 SocketReceiveBufferSize = clientOptions.SocketReceiveBufferSize,
-                AllowConnectionMigration = clientOptions.Http3.AllowConnectionMigration,
                 IdleTimeout = clientOptions.Http3.IdleTimeout,
                 MaxConnectionsPerHost = clientOptions.Http3.MaxConnectionsPerServer,
                 MaxBidirectionalStreams = clientOptions.Http3.MaxConcurrentStreams,

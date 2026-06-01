@@ -28,8 +28,9 @@ public sealed class ConnectionStageSpec : StreamTestBase
     {
         public Version ProtocolVersion => new(1, 1);
 
-        public BidiFlow<ITransportInbound, IFeatureCollection, IFeatureCollection, ITransportOutbound, NotUsed> CreateFlow(
-            IServiceProvider? services = null)
+        public BidiFlow<ITransportInbound, IFeatureCollection, IFeatureCollection, ITransportOutbound, NotUsed>
+            CreateFlow(
+                IServiceProvider? services = null)
         {
             var top = Flow.Create<ITransportInbound>()
                 .Select(_ => (IFeatureCollection)new FeatureCollection());
@@ -69,11 +70,11 @@ public sealed class ConnectionStageSpec : StreamTestBase
         var stage = new ConnectionStage(options, pipelineHandles, engine);
         var flow = stage.CreateFlow(completionTcs);
 
-        Source.Empty<Flow<ITransportOutbound, ITransportInbound, NotUsed>>()
+        _ = Source.Empty<Flow<ITransportOutbound, ITransportInbound, NotUsed>>()
             .Via(flow)
             .RunWith(Sink.Ignore<NotUsed>(), Materializer);
 
-        var result = await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var result = await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.Equal(Done.Instance, result);
     }
 
@@ -88,11 +89,11 @@ public sealed class ConnectionStageSpec : StreamTestBase
         var stage = new ConnectionStage(options, pipelineHandles, engine);
         var flow = stage.CreateFlow(completionTcs);
 
-        Source.From(new[] { FakeConnectionFlow(), FakeConnectionFlow() })
+        _ = Source.From([FakeConnectionFlow(), FakeConnectionFlow()])
             .Via(flow)
             .RunWith(Sink.Ignore<NotUsed>(), Materializer);
 
-        var result = await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var result = await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.Equal(Done.Instance, result);
     }
 
@@ -108,14 +109,14 @@ public sealed class ConnectionStageSpec : StreamTestBase
         var stage = new ConnectionStage(options, pipelineHandles, engine, drainSwitch);
         var flow = stage.CreateFlow(completionTcs);
 
-        Source.From(new[] { HangingConnectionFlow(), HangingConnectionFlow() })
+        _ = Source.From([HangingConnectionFlow(), HangingConnectionFlow()])
             .Via(flow)
             .RunWith(Sink.Ignore<NotUsed>(), Materializer);
 
-        await Task.Delay(500);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         drainSwitch.Shutdown();
 
-        var result = await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var result = await completionTcs.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.Equal(Done.Instance, result);
     }
 }

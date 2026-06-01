@@ -6,9 +6,7 @@ using Akka.TestKit.Xunit;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
-using TurboHTTP.Streams;
 using TurboHTTP.Streams.Lifecycle;
-using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
 

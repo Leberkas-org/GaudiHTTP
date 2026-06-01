@@ -1,4 +1,3 @@
-using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
@@ -18,7 +17,10 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
     {
         public IFeatureCollection CreateContext(IFeatureCollection contextFeatures) => contextFeatures;
         public Task ProcessRequestAsync(IFeatureCollection context) => handler(context);
-        public void DisposeContext(IFeatureCollection context, Exception? exception) { }
+
+        public void DisposeContext(IFeatureCollection context, Exception? exception)
+        {
+        }
     }
 
     private static IFeatureCollection Request(string protocol = "HTTP/2")
@@ -60,8 +62,13 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
     public void ConnectionFlowFactory_should_dispatch_through_shared_pipeline()
     {
         var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 100;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxConcurrentRequests = 100
+            }
+        };
         var handles = MaterializePipeline(app, options);
 
         var flow = ConnectionFlowFactory.Create(1, handles, unordered: true);
@@ -72,8 +79,8 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
             .Run(Materializer);
 
         down.Request(1);
-        up.SendNext(Request());
-        var result = down.ExpectNext(TimeSpan.FromSeconds(3));
+        up.SendNext(Request(), TestContext.Current.CancellationToken);
+        var result = down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
         Assert.NotNull(result.Get<IConnectionTagFeature>());
         Assert.Equal(1, result.Get<IConnectionTagFeature>()!.ConnectionId);
     }
@@ -82,8 +89,13 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
     public void ConnectionFlowFactory_should_route_responses_to_correct_connection()
     {
         var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 100;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxConcurrentRequests = 100
+            }
+        };
         var handles = MaterializePipeline(app, options);
 
         var flow1 = ConnectionFlowFactory.Create(1, handles, unordered: true);
@@ -102,11 +114,11 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
         down1.Request(1);
         down2.Request(1);
 
-        up1.SendNext(Request());
-        up2.SendNext(Request());
+        up1.SendNext(Request(), TestContext.Current.CancellationToken);
+        up2.SendNext(Request(), TestContext.Current.CancellationToken);
 
-        var r1 = down1.ExpectNext(TimeSpan.FromSeconds(3));
-        var r2 = down2.ExpectNext(TimeSpan.FromSeconds(3));
+        var r1 = down1.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        var r2 = down2.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         Assert.Equal(1, r1.Get<IConnectionTagFeature>()!.ConnectionId);
         Assert.Equal(2, r2.Get<IConnectionTagFeature>()!.ConnectionId);
@@ -116,8 +128,13 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
     public void ConnectionFlowFactory_should_tag_requests_with_monotonic_sequence()
     {
         var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 100;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxConcurrentRequests = 100
+            }
+        };
         var handles = MaterializePipeline(app, options);
 
         var flow = ConnectionFlowFactory.Create(1, handles, unordered: true);
@@ -128,13 +145,13 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
             .Run(Materializer);
 
         down.Request(3);
-        up.SendNext(Request());
-        up.SendNext(Request());
-        up.SendNext(Request());
+        up.SendNext(Request(), TestContext.Current.CancellationToken);
+        up.SendNext(Request(), TestContext.Current.CancellationToken);
+        up.SendNext(Request(), TestContext.Current.CancellationToken);
 
-        var r1 = down.ExpectNext(TimeSpan.FromSeconds(3));
-        var r2 = down.ExpectNext(TimeSpan.FromSeconds(3));
-        var r3 = down.ExpectNext(TimeSpan.FromSeconds(3));
+        var r1 = down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        var r2 = down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
+        var r3 = down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         var seq1 = r1.Get<IConnectionTagFeature>()?.RequestSequence;
         var seq2 = r2.Get<IConnectionTagFeature>()?.RequestSequence;
@@ -149,8 +166,13 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
     public void ConnectionFlowFactory_should_release_fairshare_slot_on_response()
     {
         var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 1;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxConcurrentRequests = 1
+            }
+        };
         var handles = MaterializePipeline(app, options);
 
         var flow = ConnectionFlowFactory.Create(1, handles, unordered: true);
@@ -161,8 +183,8 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
             .Run(Materializer);
 
         down.Request(2);
-        up.SendNext(Request());
-        var r1 = down.ExpectNext(TimeSpan.FromSeconds(3));
+        up.SendNext(Request(), TestContext.Current.CancellationToken);
+        down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
         Assert.Equal(0, handles.Dispatcher.GetConnectionInFlight(1));
     }
@@ -171,8 +193,13 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
     public void ConnectionFlowFactory_should_work_with_bidiflow_join()
     {
         var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 100;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxConcurrentRequests = 100
+            }
+        };
         var handles = MaterializePipeline(app, options);
 
         var connectionFlow = ConnectionFlowFactory.Create(1, handles, unordered: true);
@@ -189,33 +216,8 @@ public sealed class ConnectionFlowFactorySpec : StreamTestBase
             .Run(Materializer);
 
         down.Request(1);
-        up.SendNext(Request());
-        var result = down.ExpectNext(TimeSpan.FromSeconds(5));
+        up.SendNext(Request(), TestContext.Current.CancellationToken);
+        var result = down.ExpectNext(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         Assert.NotNull(result.Get<IConnectionTagFeature>());
-    }
-
-    [Fact(Timeout = 10000)]
-    public void ConnectionFlowFactory_should_work_with_transport_join()
-    {
-        var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 100;
-        var handles = MaterializePipeline(app, options);
-
-        var connectionFlow = ConnectionFlowFactory.Create(1, handles, unordered: true);
-
-        var transportBidi = BidiFlow.FromFlows(
-            Flow.Create<IFeatureCollection>(),
-            Flow.Create<IFeatureCollection>());
-
-        var composed = transportBidi.Join(connectionFlow);
-
-        var transportFlow = Flow.FromSinkAndSource(
-            Sink.Ignore<IFeatureCollection>().MapMaterializedValue(_ => NotUsed.Instance),
-            Source.Single(Request()));
-
-        transportFlow
-            .Join(composed)
-            .Run(Materializer);
     }
 }

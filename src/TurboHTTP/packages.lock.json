@@ -296,7 +296,9 @@
         "type": "Project",
         "dependencies": {
           "Akka.Hosting": "[1.5.68, )",
-          "Servus.Core": "[0.33.11, )"
+          "Akka.Streams": "[1.5.68, )",
+          "Microsoft.Extensions.DependencyInjection": "[10.0.0, )",
+          "Servus.Core": "[0.33.10, )"
         }
       },
       "OpenTelemetry": {

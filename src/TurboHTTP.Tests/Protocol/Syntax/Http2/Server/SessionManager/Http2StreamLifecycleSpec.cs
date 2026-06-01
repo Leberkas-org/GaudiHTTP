@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;

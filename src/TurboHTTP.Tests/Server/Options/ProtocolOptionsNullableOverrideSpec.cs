@@ -1,5 +1,4 @@
 using TurboHTTP.Server;
-using Xunit;
 
 namespace TurboHTTP.Tests.Server.Options;
 

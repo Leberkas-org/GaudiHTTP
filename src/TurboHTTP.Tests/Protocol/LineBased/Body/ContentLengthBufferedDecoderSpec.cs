@@ -1,4 +1,3 @@
-using System.Buffers;
 using TurboHTTP.Protocol.LineBased.Body;
 
 namespace TurboHTTP.Tests.Protocol.LineBased.Body;
