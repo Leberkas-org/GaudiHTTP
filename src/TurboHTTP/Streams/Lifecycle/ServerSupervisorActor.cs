@@ -46,7 +46,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor
         _pipelineKillSwitch = KillSwitches.Shared("server-pipeline");
 
         var pipeline = ServerPipeline.Materialize(
-            msg.BridgeFlow, msg.Options, _pipelineKillSwitch, materializer);
+            msg.BridgeFlow, msg.Options, _pipelineKillSwitch, materializer, Context);
 
         _pendingListenerCount = msg.Bindings.Count;
 

@@ -1,4 +1,5 @@
 using Akka;
+using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
@@ -12,25 +13,26 @@ internal sealed class ServerPipeline
 {
     private readonly Sink<IFeatureCollection, NotUsed> _requestSink;
     private readonly IDynamicHub<int, IFeatureCollection> _responseHub;
-    private readonly FairShareDispatcher _dispatcher;
+    private readonly IActorRef _coordinator;
 
     private ServerPipeline(
         Sink<IFeatureCollection, NotUsed> requestSink,
         IDynamicHub<int, IFeatureCollection> responseHub,
-        FairShareDispatcher dispatcher)
+        IActorRef coordinator)
     {
         _requestSink = requestSink;
         _responseHub = responseHub;
-        _dispatcher = dispatcher;
+        _coordinator = coordinator;
     }
 
-    public FairShareDispatcher Dispatcher => _dispatcher;
+    public IActorRef Coordinator => _coordinator;
 
     public static ServerPipeline Materialize(
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeFlow,
         TurboServerOptions options,
         SharedKillSwitch pipelineKillSwitch,
-        IMaterializer materializer)
+        IMaterializer materializer,
+        IActorRefFactory actorSystem)
     {
         var hub = new DynamicHub<int, IFeatureCollection>(
             fc => fc.Get<IConnectionTagFeature>()!.ConnectionId);
@@ -41,19 +43,17 @@ internal sealed class ServerPipeline
             .ToMaterialized(hub, Keep.Both)
             .Run(materializer);
 
-        var dispatcher = new FairShareDispatcher(
+        var coordinator = actorSystem.ActorOf(FairShareCoordinator.Props(
             options.Limits.MaxConcurrentRequests,
-            options.Limits.MinRequestGuarantee);
+            options.Limits.MinRequestGuarantee));
 
-        return new ServerPipeline(requestSink, responseHub, dispatcher);
+        return new ServerPipeline(requestSink, responseHub, coordinator);
     }
 
     public Flow<IFeatureCollection, IFeatureCollection, NotUsed> CreateConnectionFlow(
         int connectionId,
         bool unordered)
     {
-        _dispatcher.RegisterConnection(connectionId);
-
         var seq = 0;
 
         var requestPath = Flow.Create<IFeatureCollection>()
@@ -66,13 +66,13 @@ internal sealed class ServerPipeline
                 });
                 return fc;
             })
-            .Via(Flow.FromGraph(new FairShareAdmissionStage(connectionId, _dispatcher)));
+            .Via(Flow.FromGraph(new FairShareAdmissionStage(connectionId, _coordinator)));
 
         var responsePath = _responseHub.Source(connectionId)
             .Via(Flow.FromGraph(new ResponseReorderStage(unordered)))
             .Select(fc =>
             {
-                _dispatcher.Release(connectionId);
+                _coordinator.Tell(new FairShareCoordinator.Release(connectionId));
                 return fc;
             });
 

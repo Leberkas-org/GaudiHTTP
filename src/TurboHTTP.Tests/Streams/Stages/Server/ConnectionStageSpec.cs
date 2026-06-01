@@ -18,7 +18,7 @@ public sealed class ConnectionStageSpec : StreamTestBase
         var options = new TurboServerOptions { Limits = { MaxConcurrentRequests = 0 } };
         var killSwitch = KillSwitches.Shared("connstage-test-pipeline");
         return ServerPipeline.Materialize(
-            Flow.Create<IFeatureCollection>(), options, killSwitch, Materializer);
+            Flow.Create<IFeatureCollection>(), options, killSwitch, Materializer, Sys);
     }
 
     private sealed class PassthroughEngine : IServerProtocolEngine

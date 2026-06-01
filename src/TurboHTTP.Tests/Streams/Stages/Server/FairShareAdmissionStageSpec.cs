@@ -1,3 +1,4 @@
+using Akka.Actor;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Http.Features;
@@ -8,13 +9,16 @@ namespace TurboHTTP.Tests.Streams.Stages.Server;
 
 public sealed class FairShareAdmissionStageSpec : StreamTestBase
 {
+    private IActorRef CreateCoordinator(int totalLimit, int minGuarantee)
+        => Sys.ActorOf(FairShareCoordinator.Props(totalLimit, minGuarantee));
+
     [Fact(Timeout = 5000)]
     public void FairShareAdmissionStage_should_pass_through_when_slot_available()
     {
-        var dispatcher = new FairShareDispatcher(totalLimit: 100, minGuarantee: 10);
-        dispatcher.RegisterConnection(1);
+        var coordinator = CreateCoordinator(totalLimit: 100, minGuarantee: 10);
+        coordinator.Tell(new FairShareCoordinator.Register(1));
 
-        var stage = new FairShareAdmissionStage(1, dispatcher);
+        var stage = new FairShareAdmissionStage(1, coordinator);
         var (up, down) = this.SourceProbe<IFeatureCollection>()
             .Via(Flow.FromGraph(stage))
             .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
@@ -23,16 +27,16 @@ public sealed class FairShareAdmissionStageSpec : StreamTestBase
         down.Request(1);
         var fc = new FeatureCollection();
         up.SendNext(fc, TestContext.Current.CancellationToken);
-        Assert.Same(fc, down.ExpectNext(TestContext.Current.CancellationToken));
+        Assert.Same(fc, down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
-    public void FairShareAdmissionStage_should_stash_when_slot_rejected_and_resume_on_release()
+    public void FairShareAdmissionStage_should_stash_when_no_slot_and_resume_on_release()
     {
-        var dispatcher = new FairShareDispatcher(totalLimit: 1, minGuarantee: 1);
-        dispatcher.RegisterConnection(1);
+        var coordinator = CreateCoordinator(totalLimit: 1, minGuarantee: 1);
+        coordinator.Tell(new FairShareCoordinator.Register(1));
 
-        var stage = new FairShareAdmissionStage(1, dispatcher);
+        var stage = new FairShareAdmissionStage(1, coordinator);
         var (up, down) = this.SourceProbe<IFeatureCollection>()
             .Via(Flow.FromGraph(stage))
             .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
@@ -43,24 +47,21 @@ public sealed class FairShareAdmissionStageSpec : StreamTestBase
         var fc1 = new FeatureCollection();
         var fc2 = new FeatureCollection();
         up.SendNext(fc1, TestContext.Current.CancellationToken);
-        Assert.Same(fc1, down.ExpectNext(TestContext.Current.CancellationToken));
+        Assert.Same(fc1, down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
 
         up.SendNext(fc2, TestContext.Current.CancellationToken);
         down.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
 
-        dispatcher.Release(1);
+        coordinator.Tell(new FairShareCoordinator.Release(1));
         Assert.Same(fc2, down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
-    public void FairShareAdmissionStage_should_unregister_connection_on_stage_stop()
+    public void FairShareAdmissionStage_should_unregister_on_stop()
     {
-        var dispatcher = new FairShareDispatcher(totalLimit: 100, minGuarantee: 10);
-        dispatcher.RegisterConnection(1);
-        dispatcher.TryAcquire(1);
-        Assert.Equal(1, dispatcher.GetConnectionInFlight(1));
+        var coordinator = CreateCoordinator(totalLimit: 100, minGuarantee: 10);
 
-        var stage = new FairShareAdmissionStage(1, dispatcher);
+        var stage = new FairShareAdmissionStage(1, coordinator);
         var (up, down) = this.SourceProbe<IFeatureCollection>()
             .Via(Flow.FromGraph(stage))
             .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
@@ -70,6 +71,7 @@ public sealed class FairShareAdmissionStageSpec : StreamTestBase
         down.Request(1);
         down.ExpectComplete(TestContext.Current.CancellationToken);
 
-        Assert.Equal(0, dispatcher.GetConnectionInFlight(1));
+        coordinator.Tell(new FairShareCoordinator.Acquire(1, TestActor));
+        ExpectNoMsg(TimeSpan.FromMilliseconds(300), TestContext.Current.CancellationToken);
     }
 }
