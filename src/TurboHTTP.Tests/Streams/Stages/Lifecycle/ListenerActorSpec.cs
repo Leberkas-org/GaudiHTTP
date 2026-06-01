@@ -36,7 +36,7 @@ public sealed class ListenerActorSpec : TestKit
         var options = new TurboServerOptions { Limits = { MaxConcurrentRequests = 0 } };
         var killSwitch = KillSwitches.Shared("listener-test-pipeline");
         return ServerPipeline.Materialize(
-            Flow.Create<IFeatureCollection>(), options, killSwitch, Sys.Materializer());
+            Flow.Create<IFeatureCollection>(), options, killSwitch, Sys.Materializer(), Sys);
     }
 
     private sealed class DummyProtocolEngine : IServerProtocolEngine

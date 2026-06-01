@@ -44,7 +44,7 @@ public sealed class ServerPipelineSpec : StreamTestBase
             app, parallelism, options.HandlerTimeout, options.HandlerGracePeriod);
 
         return ServerPipeline.Materialize(
-            Flow.FromGraph(bridgeStage), options, pipelineKillSwitch, Materializer);
+            Flow.FromGraph(bridgeStage), options, pipelineKillSwitch, Materializer, Sys);
     }
 
     [Fact(Timeout = 5000)]
@@ -143,7 +143,8 @@ public sealed class ServerPipelineSpec : StreamTestBase
         up.SendNext(Request(), TestContext.Current.CancellationToken);
         down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
 
-        Assert.Equal(0, pipeline.Dispatcher.GetConnectionInFlight(1));
+        up.SendNext(Request(), TestContext.Current.CancellationToken);
+        down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 10000)]
