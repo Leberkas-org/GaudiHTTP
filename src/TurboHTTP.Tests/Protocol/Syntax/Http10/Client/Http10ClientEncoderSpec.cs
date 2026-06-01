@@ -3,7 +3,6 @@ using Akka.Actor;
 using Akka.TestKit.Xunit;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http10.Client;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Client;
 

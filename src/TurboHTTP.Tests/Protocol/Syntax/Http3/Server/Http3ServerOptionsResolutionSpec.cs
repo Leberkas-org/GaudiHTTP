@@ -1,5 +1,4 @@
 using TurboHTTP.Server;
-using Xunit;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 
@@ -8,20 +7,35 @@ public sealed class Http3ServerOptionsResolutionSpec
     [Fact(Timeout = 5000)]
     public void Body_override_should_win_else_limits()
     {
-        var o = new TurboServerOptions();
-        o.Http3.MaxRequestBodySize = 777;
+        var o = new TurboServerOptions
+        {
+            Http3 =
+            {
+                MaxRequestBodySize = 777
+            }
+        };
         Assert.Equal(777, o.ToHttp3Options().Limits.MaxRequestBodySize);
 
-        var o2 = new TurboServerOptions();
-        o2.Limits.MaxRequestBodySize = 888;
+        var o2 = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxRequestBodySize = 888
+            }
+        };
         Assert.Equal(888, o2.ToHttp3Options().Limits.MaxRequestBodySize);
     }
 
     [Fact(Timeout = 5000)]
     public void QpackBlockedStreams_should_flow_from_Http3ServerOptions_to_ConnectionOptions()
     {
-        var opts = new TurboServerOptions();
-        opts.Http3.QpackBlockedStreams = 42;
+        var opts = new TurboServerOptions
+        {
+            Http3 =
+            {
+                QpackBlockedStreams = 42
+            }
+        };
         Assert.Equal(42, opts.ToHttp3Options().QpackBlockedStreams);
     }
 

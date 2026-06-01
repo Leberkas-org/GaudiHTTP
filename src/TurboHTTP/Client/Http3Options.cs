@@ -56,15 +56,6 @@ public sealed class Http3Options
     public int MaxReconnectAttempts { get; set; } = 3;
 
     /// <summary>
-    /// Whether to allow QUIC connection migration when the client's local IP address or port changes
-    /// (e.g., switching from Wi-Fi to cellular). When enabled, the QUIC connection continues
-    /// transparently after the address change. When disabled, the connection is closed and a new
-    /// connection is established via the reconnect mechanism.
-    /// Default is true. RFC 9000 §9.
-    /// </summary>
-    public bool AllowConnectionMigration { get; set; } = true;
-
-    /// <summary>
     /// Whether to automatically discover HTTP/3 availability via Alt-Svc headers (RFC 7838)
     /// in HTTP/1.1 and HTTP/2 responses. When enabled, Alt-Svc directives advertising "h3"
     /// are cached per-host and subsequent requests to that host are upgraded to HTTP/3

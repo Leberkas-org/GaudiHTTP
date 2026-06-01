@@ -22,7 +22,7 @@
     <ItemGroup>
         <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj" />
         <ProjectReference Include="..\TurboHTTP.Tests.Shared\TurboHTTP.Tests.Shared.csproj" />
-        <ProjectReference Include="..\Servus.Akka\Servus.Akka.csproj" />
+        <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka\Servus.Akka.csproj" />
     </ItemGroup>
 
     <ItemGroup>

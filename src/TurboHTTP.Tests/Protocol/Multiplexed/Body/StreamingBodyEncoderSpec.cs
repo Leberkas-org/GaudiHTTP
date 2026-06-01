@@ -73,7 +73,7 @@ public sealed class StreamingBodyEncoderSpec
         encoder.Start(bodyStream, messages.Add);
 
         await Task.Delay(100, TestContext.Current.CancellationToken);
-        Assert.Equal(0, messages.Count);
+        Assert.Empty(messages);
 
         encoder.Resume();
 

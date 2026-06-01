@@ -61,7 +61,6 @@ namespace TurboHTTP.Client
     public sealed class Http3Options
     {
         public Http3Options() { }
-        public bool AllowConnectionMigration { get; set; }
         public bool EnableAltSvcDiscovery { get; set; }
         public System.TimeSpan IdleTimeout { get; set; }
         public int MaxConcurrentStreams { get; set; }

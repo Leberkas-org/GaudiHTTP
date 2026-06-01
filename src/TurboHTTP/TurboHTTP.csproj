@@ -59,7 +59,7 @@
          target below embeds Servus.Akka.dll in lib/. When the transport moves to the published
          Servus.Akka package, replace this with a PackageReference and drop the target. -->
     <ItemGroup>
-        <ProjectReference Include="..\Servus.Akka\Servus.Akka.csproj" PrivateAssets="all"/>
+        <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka\Servus.Akka.csproj" PrivateAssets="all"/>
     </ItemGroup>
 
     <PropertyGroup>

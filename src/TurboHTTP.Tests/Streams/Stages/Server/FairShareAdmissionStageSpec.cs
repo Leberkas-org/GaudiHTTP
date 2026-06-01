@@ -1,4 +1,3 @@
-using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Http.Features;
@@ -23,8 +22,8 @@ public sealed class FairShareAdmissionStageSpec : StreamTestBase
 
         down.Request(1);
         var fc = new FeatureCollection();
-        up.SendNext(fc);
-        Assert.Same(fc, down.ExpectNext());
+        up.SendNext(fc, TestContext.Current.CancellationToken);
+        Assert.Same(fc, down.ExpectNext(TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
@@ -43,14 +42,14 @@ public sealed class FairShareAdmissionStageSpec : StreamTestBase
 
         var fc1 = new FeatureCollection();
         var fc2 = new FeatureCollection();
-        up.SendNext(fc1);
-        Assert.Same(fc1, down.ExpectNext());
+        up.SendNext(fc1, TestContext.Current.CancellationToken);
+        Assert.Same(fc1, down.ExpectNext(TestContext.Current.CancellationToken));
 
-        up.SendNext(fc2);
-        down.ExpectNoMsg(TimeSpan.FromMilliseconds(200));
+        up.SendNext(fc2, TestContext.Current.CancellationToken);
+        down.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
 
         dispatcher.Release(1);
-        Assert.Same(fc2, down.ExpectNext(TimeSpan.FromSeconds(3)));
+        Assert.Same(fc2, down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
     }
 
     [Fact(Timeout = 5000)]
@@ -67,9 +66,9 @@ public sealed class FairShareAdmissionStageSpec : StreamTestBase
             .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
             .Run(Materializer);
 
-        up.SendComplete();
+        up.SendComplete(TestContext.Current.CancellationToken);
         down.Request(1);
-        down.ExpectComplete();
+        down.ExpectComplete(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, dispatcher.GetConnectionInFlight(1));
     }

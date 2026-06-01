@@ -1,4 +1,3 @@
-using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -17,7 +16,10 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
     {
         public IFeatureCollection CreateContext(IFeatureCollection contextFeatures) => contextFeatures;
         public Task ProcessRequestAsync(IFeatureCollection context) => handler(context);
-        public void DisposeContext(IFeatureCollection context, Exception? exception) { }
+
+        public void DisposeContext(IFeatureCollection context, Exception? exception)
+        {
+        }
     }
 
     private static IFeatureCollection Request(int connectionId = 1, int requestSeq = 0, string protocol = "HTTP/2")
@@ -26,7 +28,8 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
         fc.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Protocol = protocol });
         fc.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
         fc.Set<IHttpResponseBodyFeature>(new TurboHttpResponseBodyFeature());
-        fc.Set<IConnectionTagFeature>(new ConnectionTagFeature { ConnectionId = connectionId, RequestSequence = requestSeq });
+        fc.Set<IConnectionTagFeature>(new ConnectionTagFeature
+            { ConnectionId = connectionId, RequestSequence = requestSeq });
         return fc;
     }
 
@@ -34,8 +37,13 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
     public void ApplicationBridgeStage_should_dispatch_immediate_completions()
     {
         var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 10;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxConcurrentRequests = 10
+            }
+        };
         var stage = new ApplicationBridgeStage<IFeatureCollection>(
             app,
             options.Limits.MaxConcurrentRequests,
@@ -48,8 +56,8 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
             .Run(Materializer);
 
         downstream.Request(1);
-        upstream.SendNext(Request(1));
-        var emitted = downstream.ExpectNext();
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
+        var emitted = downstream.ExpectNext(TestContext.Current.CancellationToken);
         Assert.NotNull(emitted);
     }
 
@@ -68,8 +76,13 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
             return handlers[reqSeq];
         });
 
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 10;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxConcurrentRequests = 10
+            }
+        };
         var stage = new ApplicationBridgeStage<IFeatureCollection>(
             app,
             options.Limits.MaxConcurrentRequests,
@@ -82,25 +95,25 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
             .Run(Materializer);
 
         downstream.Request(3);
-        upstream.SendNext(Request(1, 0));
-        upstream.SendNext(Request(1, 1));
-        upstream.SendNext(Request(1, 2));
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
+        upstream.SendNext(Request(1, 1), TestContext.Current.CancellationToken);
+        upstream.SendNext(Request(1, 2), TestContext.Current.CancellationToken);
 
         // Complete in order: 2, 1, 3 (by requestSeq: 1, 0, 2)
         tcs1.SetResult();
         tcs2.SetResult();
         tcs3.SetResult();
 
-        var first = downstream.ExpectNext();
-        var second = downstream.ExpectNext();
-        var third = downstream.ExpectNext();
+        var first = downstream.ExpectNext(TestContext.Current.CancellationToken);
+        var second = downstream.ExpectNext(TestContext.Current.CancellationToken);
+        var third = downstream.ExpectNext(TestContext.Current.CancellationToken);
 
         var emitOrder = new[]
         {
             first.Get<IConnectionTagFeature>()?.RequestSequence ?? -1,
             second.Get<IConnectionTagFeature>()?.RequestSequence ?? -1,
             third.Get<IConnectionTagFeature>()?.RequestSequence ?? -1,
-        };
+        }.Where(x => x is not -1).ToArray();
 
         // In unordered mode, all three should be emitted
         Assert.Equal(3, emitOrder.Length);
@@ -110,8 +123,13 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
     public void ApplicationBridgeStage_should_handle_handler_exceptions()
     {
         var app = new FakeApplication(_ => throw new InvalidOperationException("Test error"));
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 10;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxConcurrentRequests = 10
+            }
+        };
         var stage = new ApplicationBridgeStage<IFeatureCollection>(
             app,
             options.Limits.MaxConcurrentRequests,
@@ -124,9 +142,9 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
             .Run(Materializer);
 
         downstream.Request(1);
-        upstream.SendNext(Request(1));
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
 
-        var result = downstream.ExpectNext();
+        var result = downstream.ExpectNext(TestContext.Current.CancellationToken);
         Assert.Equal(500, result.Get<IHttpResponseFeature>()?.StatusCode);
     }
 
@@ -134,8 +152,13 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
     public void ApplicationBridgeStage_should_complete_upstream_finished_no_pending()
     {
         var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions();
-        options.Limits.MaxConcurrentRequests = 10;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxConcurrentRequests = 10
+            }
+        };
         var stage = new ApplicationBridgeStage<IFeatureCollection>(
             app,
             options.Limits.MaxConcurrentRequests,
@@ -148,10 +171,10 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
             .Run(Materializer);
 
         downstream.Request(1);
-        upstream.SendNext(Request(1));
-        downstream.ExpectNext();
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
+        downstream.ExpectNext(TestContext.Current.CancellationToken);
 
-        upstream.SendComplete();
-        downstream.ExpectComplete();
+        upstream.SendComplete(TestContext.Current.CancellationToken);
+        downstream.ExpectComplete(TestContext.Current.CancellationToken);
     }
 }
