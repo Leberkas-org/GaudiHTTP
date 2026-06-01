@@ -1,4 +1,5 @@
 using Akka;
+using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
@@ -43,8 +44,8 @@ public sealed class ListenerActorSpec : TestKit
     {
         public Version ProtocolVersion => new(1, 1);
 
-        public BidiFlow<ITransportInbound, IFeatureCollection, IFeatureCollection, ITransportOutbound, NotUsed> CreateFlow(
-            IServiceProvider? services = null)
+        public BidiFlow<ITransportInbound, IFeatureCollection, IFeatureCollection, ITransportOutbound, NotUsed>
+            CreateFlow(IServiceProvider? services = null)
         {
             return BidiFlow.FromFlows(
                 Flow.Create<ITransportInbound>()
@@ -77,7 +78,6 @@ public sealed class ListenerActorSpec : TestKit
         Assert.Equal(9000, listening.BoundPort);
         Assert.NotNull(listening.Handle);
         Assert.NotNull(listening.Handle.AcceptSwitch);
-        Assert.NotNull(listening.Handle.DrainSwitch);
         Assert.NotNull(listening.Handle.CompletionTask);
     }
 }

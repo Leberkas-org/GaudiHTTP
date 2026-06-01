@@ -12,7 +12,8 @@ namespace TurboHTTP.Streams.Lifecycle;
 internal sealed class ServerSupervisorActor : ReceiveActor
 {
     private readonly ILoggingAdapter _log = Context.GetLogger();
-    private readonly List<ConnectionStageHandle> _handles = [];
+    private readonly List<ListenerHandle> _handles = [];
+    private readonly List<IActorRef> _listenerActors = [];
     private readonly List<int> _boundPorts = [];
     private IActorRef _startRequester = ActorRefs.Nobody;
     private int _pendingListenerCount;
@@ -72,6 +73,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor
 
             var name = string.Concat("listener-", i);
             var listener = Context.ActorOf(props, name);
+            _listenerActors.Add(listener);
             listener.Tell(new ListenerActor.StartListening());
         }
     }
@@ -116,9 +118,13 @@ internal sealed class ServerSupervisorActor : ReceiveActor
         var self = Self;
         var completionTasks = new List<Task>(_handles.Count);
 
+        foreach (var listenerActor in _listenerActors)
+        {
+            listenerActor.Tell(new ListenerActor.DrainConnections());
+        }
+
         foreach (var handle in _handles)
         {
-            handle.DrainSwitch.Shutdown();
             completionTasks.Add(handle.CompletionTask);
         }
 
