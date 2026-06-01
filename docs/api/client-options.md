@@ -12,16 +12,15 @@ public sealed class TurboClientOptions
     public Http3ClientOptions Http3 { get; init; } = new();    // HTTP/3 settings
 
     // Body buffering
-    public long MaxBufferedBodySize { get; set; } = 4 * 1024 * 1024;  // 4 MiB; responses at/below this are buffered in memory
-    public long? MaxStreamedBodySize { get; set; }                      // null = unlimited; cap on a streamed response body
-    public int BodyBufferThreshold { get; set; } = 64 * 1024;          // 64 KB; HTTP/1.x streaming threshold
+    public long? MaxStreamedResponseBodySize { get; set; }              // null = unlimited; cap on a streamed response body
+    public int ResponseBodyBufferThreshold { get; set; } = 64 * 1024;  // 64 KB; bodies below this are buffered in memory, at/above streamed
     public int RequestBodyChunkSize { get; set; } = 16 * 1024;         // 16 KB; chunk size when streaming a request body
 
     // Connection pool
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(15);
     public TimeSpan PooledConnectionIdleTimeout { get; set; } = TimeSpan.FromSeconds(90);
     public TimeSpan PooledConnectionLifetime { get; set; } = Timeout.InfiniteTimeSpan;
-    public uint MaxEndpointSubstreams { get; set; } = 256;
+    public uint MaxConcurrentEndpoints { get; set; } = 256;
 
     // TLS
     public bool DangerousAcceptAnyServerCertificate { get; set; }
@@ -52,7 +51,7 @@ public sealed class TurboClientOptions
 | `ConnectTimeout` | `15 s` | TCP/QUIC connection timeout |
 | `PooledConnectionIdleTimeout` | `90 s` | How long idle connections are kept in the pool |
 | `PooledConnectionLifetime` | `infinite` | Maximum lifetime of a pooled connection |
-| `MaxEndpointSubstreams` | `256` | Max concurrently active endpoint substreams |
+| `MaxConcurrentEndpoints` | `256` | Max concurrently active endpoints |
 
 Per-version connection limits are configured on the nested options objects:
 
@@ -217,11 +216,10 @@ options.ClientCertificates = new X509CertificateCollection
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `MaxBufferedBodySize` | `4 * 1024 * 1024` (4 MiB) | Max response body size that will be buffered in memory |
-| `MaxStreamedBodySize` | `null` (unlimited) | Cap on a streamed response body; `null` means no limit |
-| `BodyBufferThreshold` | `64 * 1024` (64 KB) | HTTP/1.x streaming threshold shared across protocols |
+| `ResponseBodyBufferThreshold` | `64 * 1024` (64 KB) | Response bodies below this threshold are buffered fully in memory; at or above it the body is streamed. Shared across all protocol versions. |
+| `MaxStreamedResponseBodySize` | `null` (unlimited) | Cap on a streamed response body; `null` means no limit |
 | `RequestBodyChunkSize` | `16 * 1024` (16 KB) | Chunk size used when streaming a request body |
 
 ::: tip
-For large file downloads or uploads, consume the response as a stream. `MaxStreamedBodySize` defaults to `null` — there is no built-in size cap on streamed responses.
+For large file downloads or uploads, consume the response as a stream. `MaxStreamedResponseBodySize` defaults to `null` — there is no built-in size cap on streamed responses.
 :::

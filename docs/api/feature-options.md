@@ -36,7 +36,7 @@ See [Automatic Retries guide](/client/retries) for which methods and status code
 public sealed class CacheOptions
 {
     public int MaxEntries { get; set; } = 1000;
-    public long MaxBodyBytes { get; set; } = 52_428_800;  // 50 MiB
+    public long MaxBodySize { get; set; } = 50 * 1024 * 1024;  // 50 MiB
     public bool SharedCache { get; set; }
 }
 ```
@@ -44,7 +44,7 @@ public sealed class CacheOptions
 | Property | Default | Description |
 |----------|---------|-------------|
 | `MaxEntries` | `1000` | Max number of responses in the cache |
-| `MaxBodyBytes` | `52_428_800` (50 MiB) | Max total size of cached response bodies |
+| `MaxBodySize` | `50 * 1024 * 1024` (50 MiB) | Max total size of cached response bodies |
 | `SharedCache` | `false` | Whether this is a shared cache (affecting `Cache-Control` directives) |
 
 ```csharp
@@ -53,7 +53,7 @@ builder.Services.AddTurboHttpClient("api", ...).WithCache();
 
 // Smaller cache for constrained environments
 builder.Services.AddTurboHttpClient("api", ...)
-    .WithCache(c => { c.MaxEntries = 100; c.MaxBodyBytes = 5 * 1024 * 1024; });
+    .WithCache(c => { c.MaxEntries = 100; c.MaxBodySize = 5 * 1024 * 1024; });
 
 // Custom store shared across clients
 var sharedStore = new MyCustomCacheStore();  // implement ICacheStore
@@ -103,19 +103,19 @@ See [Redirects guide](/client/redirects) for method rewriting and security detai
 public sealed class CompressionOptions
 {
     public string Encoding { get; set; } = "gzip";
-    public long MinBodySizeBytes { get; set; } = 1024;
+    public long MinBodySize { get; set; } = 1024;
 }
 ```
 
 | Property | Default | Description |
 |----------|---------|-------------|
 | `Encoding` | `"gzip"` | Compression algorithm ("gzip", "br", "deflate") |
-| `MinBodySizeBytes` | `1024` | Don't compress bodies smaller than this |
+| `MinBodySize` | `1024` | Don't compress bodies smaller than this |
 
 ```csharp
 // Request compression with Brotli for large bodies
 builder.Services.AddTurboHttpClient("api", ...)
-    .WithRequestCompression(c => { c.Encoding = "br"; c.MinBodySizeBytes = 4096; });
+    .WithRequestCompression(c => { c.Encoding = "br"; c.MinBodySize = 4096; });
 
 // Response decompression (automatic, no configuration needed)
 builder.Services.AddTurboHttpClient("api", ...).WithDecompression(enabled: true);
@@ -130,18 +130,18 @@ See [Content Encoding guide](/client/content-encoding) for request compression a
 ```csharp
 public sealed class Expect100Options
 {
-    public long MinBodySizeBytes { get; set; } = 1024;
+    public long MinBodySize { get; set; } = 1024;
 }
 ```
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `MinBodySizeBytes` | `1024` | Only use Expect: 100-continue for bodies >= this size |
+| `MinBodySize` | `1024` | Only use Expect: 100-continue for bodies >= this size |
 
 ```csharp
 // Enable 100-continue for bodies > 8 KiB
 builder.Services.AddTurboHttpClient("api", ...)
-    .WithExpectContinue(e => { e.MinBodySizeBytes = 8 * 1024; });
+    .WithExpectContinue(e => { e.MinBodySize = 8 * 1024; });
 ```
 
 See [Content Encoding guide](/client/content-encoding) for Expect: 100-continue details.

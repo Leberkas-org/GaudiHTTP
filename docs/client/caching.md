@@ -122,7 +122,7 @@ builder.Services.AddTurboHttpClient("api", options =>
 .WithCache(cache =>
 {
     cache.MaxEntries = 500;             // maximum number of cached responses (default: 1000)
-    cache.MaxBodyBytes = 512 * 1024;    // maximum body size to cache, in bytes (default: 50 MiB)
+    cache.MaxBodySize = 512 * 1024;     // maximum body size to cache, in bytes (default: 50 MiB)
 });
 ```
 

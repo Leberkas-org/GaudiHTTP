@@ -16,7 +16,7 @@ builder.Host.UseTurboHttp(options =>
 | `HandlerTimeout` | `TimeSpan` | 30s | Maximum time for a request handler to complete |
 | `HandlerGracePeriod` | `TimeSpan` | 5s | Extra time after handler timeout before force-closing |
 | `GracefulShutdownTimeout` | `TimeSpan` | 30s | Time to drain connections during shutdown |
-| `BodyBufferThreshold` | `int` | 64 * 1024 | Request body buffer size before streaming |
+| `RequestBodyBufferThreshold` | `int` | 64 * 1024 | Request body buffer size before streaming |
 | `BodyConsumptionTimeout` | `TimeSpan` | 30s | Time for the app to consume the request body |
 | `ResponseBodyChunkSize` | `int` | 16 * 1024 | Chunk size for response body writes |
 
