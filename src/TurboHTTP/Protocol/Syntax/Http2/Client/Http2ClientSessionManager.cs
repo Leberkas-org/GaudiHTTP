@@ -36,7 +36,7 @@ internal sealed class Http2ClientSessionManager
     public bool CanOpenStream => _tracker.CanOpenStream();
     public bool GoAwayReceived => _flow.GoAwayReceived;
     public int GoAwayLastStreamId { get; private set; }
-    public bool HasInFlightRequests => _correlationMap.Count > 0;
+    public bool HasInFlightRequests => _correlationMap.Count > 0 || _streams.Count > 0;
     public bool HasActiveStreams => _streams.Count > 0;
     public RequestEndpoint Endpoint { get; private set; }
 
@@ -434,10 +434,6 @@ internal sealed class Http2ClientSessionManager
 
     private void HandleRstStream(RstStreamFrame rst)
     {
-        // RFC 9113 §8.1: a stream reset before the response completed leaves a caller awaiting a
-        // response that will never arrive. Fail that request so the caller observes the reset instead
-        // of hanging until a timeout. (A request already removed by DecodeHeaders is past this point;
-        // its streaming body is torn down by CloseStream → AbortBody.)
         if (_correlationMap.Remove(rst.StreamId, out var request))
         {
             request.Fail(new HttpRequestException(

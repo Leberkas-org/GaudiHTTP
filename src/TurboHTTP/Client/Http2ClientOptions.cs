@@ -33,10 +33,10 @@ public sealed class Http2ClientOptions
     /// Per-stream initial flow control window size in bytes (RFC 9113 §6.9.2).
     /// Advertised via SETTINGS_INITIAL_WINDOW_SIZE in the connection preface.
     /// This is the starting window for adaptive scaling (when <see cref="EnableAdaptiveWindowScaling"/> is true),
-    /// or the static window when scaling is disabled. Default is 65,535 (the RFC protocol default).
+    /// or the static window when scaling is disabled. Default is 1 MB.
     /// When adaptive scaling is enabled, the window grows up to <see cref="MaxStreamWindowSize"/>.
     /// </summary>
-    public int InitialStreamWindowSize { get; set; } = 65535;
+    public int InitialStreamWindowSize { get; set; } = 1 * 1024 * 1024;
 
     /// <summary>
     /// Upper bound the per-stream receive window may grow to under adaptive scaling, in bytes.

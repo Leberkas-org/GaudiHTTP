@@ -48,7 +48,7 @@ internal static class ClientOptionDefaults
     {
         MaxConcurrentStreams = 100,
         InitialConnectionWindowSize = 64 * 1024 * 1024,
-        InitialStreamWindowSize = 65535,
+        InitialStreamWindowSize = 1 * 1024 * 1024,
         MaxStreamWindowSize = 16 * 1024 * 1024,
         WindowScaleThresholdMultiplier = 1.0,
         EnableAdaptiveWindowScaling = true,
