@@ -155,4 +155,41 @@ public sealed class DynamicHubSpec : StreamTestBase
         down2.ExpectError(TestContext.Current.CancellationToken);
     }
 
+    [Fact(Timeout = 5000)]
+    public void DynamicHub_single_consumer_should_match_broadcasthub_demand_and_completion()
+    {
+        // DynamicHub path
+        var (hubUp, hub) = this.SourceProbe<int>()
+            .ToMaterialized(Hub(), Keep.Both)
+            .Run(Materializer);
+        var hubDown = hub.Source(0).RunWith(this.SinkProbe<int>(), Materializer);
+
+        // BroadcastHub reference path
+        var (bcUp, bcSource) = this.SourceProbe<int>()
+            .ToMaterialized(BroadcastHub.Sink<int>(bufferSize: 256), Keep.Both)
+            .Run(Materializer);
+        var bcDown = bcSource.RunWith(this.SinkProbe<int>(), Materializer);
+
+        foreach (var down in new[] { hubDown, bcDown })
+        {
+            down.Request(2);
+        }
+
+        hubUp.SendNext(0, TestContext.Current.CancellationToken);
+        hubUp.SendNext(10, TestContext.Current.CancellationToken);
+        bcUp.SendNext(0, TestContext.Current.CancellationToken);
+        bcUp.SendNext(10, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, hubDown.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+        Assert.Equal(0, bcDown.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+        Assert.Equal(10, hubDown.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+        Assert.Equal(10, bcDown.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+
+        hubUp.SendComplete(TestContext.Current.CancellationToken);
+        bcUp.SendComplete(TestContext.Current.CancellationToken);
+        hubDown.Request(1);
+        bcDown.Request(1);
+        hubDown.ExpectComplete(TestContext.Current.CancellationToken);
+        bcDown.ExpectComplete(TestContext.Current.CancellationToken);
+    }
 }
