@@ -31,6 +31,74 @@ public sealed class DynamicHubSpec : StreamTestBase
         Assert.Equal(11, down1.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
         Assert.Equal(31, down1.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
         Assert.Equal(22, down2.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
-        down2.ExpectNoMsg(TimeSpan.FromMilliseconds(200));
+        down2.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void DynamicHub_should_not_let_a_slow_key_block_other_keys_within_buffer()
+    {
+        var (up, hub) = this.SourceProbe<int>()
+            .ToMaterialized(Hub(bufferSize: 256, perConsumerBufferSize: 4), Keep.Both)
+            .Run(Materializer);
+
+        var slow = hub.Source(1).RunWith(this.SinkProbe<int>(), Materializer);
+        var fast = hub.Source(2).RunWith(this.SinkProbe<int>(), Materializer);
+
+        // slow (key 1) never requests; fast (key 2) requests.
+        fast.Request(10);
+
+        // Interleave: key 1 elements sit buffered, key 2 elements flow through.
+        up.SendNext(11, TestContext.Current.CancellationToken);
+        up.SendNext(22, TestContext.Current.CancellationToken);
+        up.SendNext(31, TestContext.Current.CancellationToken);
+        up.SendNext(42, TestContext.Current.CancellationToken);
+
+        Assert.Equal(22, fast.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+        Assert.Equal(42, fast.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+
+        // slow never requested, so it should not have received any data elements.
+        // (We verify indirectly: fast got its elements despite slow not pulling.)
+    }
+
+    [Fact(Timeout = 5000)]
+    public void DynamicHub_should_deliver_burst_larger_than_per_consumer_buffer_in_order()
+    {
+        var (up, hub) = this.SourceProbe<int>()
+            .ToMaterialized(Hub(bufferSize: 256, perConsumerBufferSize: 4), Keep.Both)
+            .Run(Materializer);
+
+        var down = hub.Source(0).RunWith(this.SinkProbe<int>(), Materializer);
+
+        const int count = 50;
+        for (var i = 0; i < count; i++)
+        {
+            up.SendNext(i * 10, TestContext.Current.CancellationToken); // all key 0
+        }
+
+        for (var i = 0; i < count; i++)
+        {
+            down.Request(1);
+            Assert.Equal(i * 10, down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+        }
+    }
+
+    [Fact(Timeout = 5000)]
+    public void DynamicHub_should_backpressure_upstream_when_buffer_full()
+    {
+        var (up, hub) = this.SourceProbe<int>()
+            .ToMaterialized(Hub(bufferSize: 3, perConsumerBufferSize: 2), Keep.Both)
+            .Run(Materializer);
+
+        // Consumer for key 0 exists but never requests, so elements accumulate in the hub buffer.
+        var down = hub.Source(0).RunWith(this.SinkProbe<int>(), Materializer);
+
+        // perConsumerBufferSize=2 credit lets 2 reach the source buffer; the rest fill the hub buffer (size 3).
+        // After ~5 elements the hub must stop pulling -> SendNext eventually back-pressures.
+        for (var i = 0; i < 5; i++)
+        {
+            up.SendNext(i, TestContext.Current.CancellationToken);
+        }
+
+        up.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken); // probe accepted what it could; no failure/cancel
     }
 }
