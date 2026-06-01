@@ -81,4 +81,52 @@ public sealed class BodySemanticsClassifierSpec
             new HeaderCollection(), HttpVersion.Version11);
         Assert.Equal(BodyFraming.None, r.Framing);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.1")]
+    public void Classify_should_reject_request_when_final_transfer_coding_is_not_chunked()
+    {
+        // RFC 9112 §6.1: a request whose final transfer coding is not chunked has no reliable body
+        // length and MUST be rejected (400). Otherwise the body is parsed as the next request (smuggling).
+        Assert.Throws<HttpProtocolException>(() =>
+            BodySemantics.ClassifyRequest(HttpMethod.Post,
+                Headers(("Transfer-Encoding", "gzip")), HttpVersion.Version11));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.1")]
+    public void Classify_should_reject_request_when_chunked_is_not_the_final_transfer_coding()
+    {
+        Assert.Throws<HttpProtocolException>(() =>
+            BodySemantics.ClassifyRequest(HttpMethod.Post,
+                Headers(("Transfer-Encoding", "chunked, gzip")), HttpVersion.Version11));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.1")]
+    public void Classify_should_accept_request_when_chunked_is_the_final_transfer_coding()
+    {
+        var r = BodySemantics.ClassifyRequest(HttpMethod.Post,
+            Headers(("Transfer-Encoding", "gzip, chunked")), HttpVersion.Version11);
+        Assert.Equal(BodyFraming.Chunked, r.Framing);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.1")]
+    public void Classify_should_not_treat_substring_chunked_token_as_chunked()
+    {
+        Assert.Throws<HttpProtocolException>(() =>
+            BodySemantics.ClassifyRequest(HttpMethod.Post,
+                Headers(("Transfer-Encoding", "x-chunked-ext")), HttpVersion.Version11));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.1")]
+    public void Classify_should_read_until_close_for_response_with_non_final_chunked()
+    {
+        // RFC 9112 §6.1: for a RESPONSE, a non-final chunked coding means read-until-close, not chunked.
+        var r = BodySemantics.ClassifyResponse(200, Headers(("Transfer-Encoding", "chunked, gzip")),
+            HttpVersion.Version11, false, connectionWillClose: true);
+        Assert.Equal(BodyFraming.Close, r.Framing);
+    }
 }

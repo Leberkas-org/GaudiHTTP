@@ -16,12 +16,19 @@ internal sealed class ChunkedBodyDecoder(long maxBodySize, int maxChunkExtension
         Complete
     }
 
+    // Memory-safety bounds for the line-oriented phases (RFC 9112 §7.1): maxBodySize covers only
+    // DATA octets, so the chunk-size line and the trailer section need their own caps to prevent a
+    // peer from exhausting memory with an unterminated line or an endless trailer section.
+    private const int MaxControlLineLength = 64 * 1024;
+    private const int MaxTrailerSectionBytes = 32 * 1024;
+
     private readonly BodyHandle _handle = new(maxBodySize);
     private Phase _phase = Phase.ChunkSize;
     private int _currentChunkRemaining;
     private byte[] _stash = [];
     private int _stashLen;
     private List<(string Name, string Value)>? _trailers;
+    private int _trailerSectionBytes;
 
 
     public bool IsBuffered => false;
@@ -70,11 +77,17 @@ internal sealed class ChunkedBodyDecoder(long maxBodySize, int maxChunkExtension
                         }
 
                         var sizeSpan = semi < 0 ? line : line[..semi];
-                        if (!int.TryParse(Encoding.ASCII.GetString(sizeSpan),
-                                NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _currentChunkRemaining))
+                        // RFC 9112 §7.1: chunk-size is an unbounded hex number. Parse as unsigned and
+                        // reject anything above Int32.MaxValue — a signed parse turns large values
+                        // negative, which silently stalls the decoder instead of failing.
+                        if (!ulong.TryParse(Encoding.ASCII.GetString(sizeSpan),
+                                NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var chunkSize)
+                            || chunkSize > int.MaxValue)
                         {
                             throw new HttpProtocolException("Invalid chunk size.");
                         }
+
+                        _currentChunkRemaining = (int)chunkSize;
 
                         pos = crlf + 2;
                         _phase = _currentChunkRemaining == 0 ? Phase.Trailer : Phase.ChunkData;
@@ -142,6 +155,12 @@ internal sealed class ChunkedBodyDecoder(long maxBodySize, int maxChunkExtension
                         }
 
                         var trailerLine = work[pos..crlf];
+                        _trailerSectionBytes += trailerLine.Length + 2;
+                        if (_trailerSectionBytes > MaxTrailerSectionBytes)
+                        {
+                            throw new HttpProtocolException("Trailer section exceeds maximum size.");
+                        }
+
                         if (HeaderFieldParser.TryParse(trailerLine, out var fieldName, out var fieldValue)
                             && TrailerFieldValidator.IsAllowedInTrailer(fieldName))
                         {
@@ -157,6 +176,14 @@ internal sealed class ChunkedBodyDecoder(long maxBodySize, int maxChunkExtension
 
     stash:
         var remaining = work.Length - pos;
+        // Bound the chunk-size / trailer line accumulation: in the line-oriented phases an unterminated
+        // line would otherwise grow _stash without limit. Honour a larger configured extension length.
+        if ((_phase == Phase.ChunkSize || _phase == Phase.Trailer)
+            && remaining > Math.Max(MaxControlLineLength, maxChunkExtensionLength))
+        {
+            throw new HttpProtocolException("Chunk control line exceeds maximum length.");
+        }
+
         if (remaining > 0)
         {
             EnsureStash(remaining);

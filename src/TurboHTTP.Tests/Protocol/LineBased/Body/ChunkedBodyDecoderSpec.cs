@@ -55,6 +55,46 @@ public sealed class ChunkedBodyDecoderSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-7.1")]
+    public void Decoder_should_reject_chunk_size_exceeding_int_max()
+    {
+        // "80000000" hex = 2^31, which overflows a signed Int32 to a negative chunk size, causing the
+        // decoder to silently stall (Math.Min(negative, avail) takes nothing and never completes).
+        var decoder = new ChunkedBodyDecoder(maxBodySize: 10L * 1024 * 1024 * 1024, maxChunkExtensionLength: int.MaxValue);
+        var data = "80000000\r\n"u8.ToArray();
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(data, out _));
+        decoder.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-7.1.2")]
+    public void Decoder_should_reject_oversized_trailer_section()
+    {
+        var decoder = new ChunkedBodyDecoder(maxBodySize: 10 * 1024 * 1024, maxChunkExtensionLength: int.MaxValue);
+        var sb = new StringBuilder("0\r\n");
+        var line = "X-Trailer: " + new string('a', 200) + "\r\n";
+        while (sb.Length < 128 * 1024)
+        {
+            sb.Append(line);
+        }
+
+        var data = Encoding.ASCII.GetBytes(sb.ToString());
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(data, out _));
+        decoder.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-7.1")]
+    public void Decoder_should_reject_overlong_chunk_size_line()
+    {
+        var decoder = new ChunkedBodyDecoder(maxBodySize: 10 * 1024 * 1024, maxChunkExtensionLength: 256);
+        // A chunk-size line that never terminates would otherwise grow the stash buffer without bound.
+        var data = Encoding.ASCII.GetBytes(new string('a', 128 * 1024));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(data, out _));
+        decoder.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-6.5")]
     public async Task Decoder_should_accept_allowed_trailer_fields()
     {

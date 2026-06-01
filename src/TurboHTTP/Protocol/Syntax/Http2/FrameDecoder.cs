@@ -40,6 +40,17 @@ internal sealed class FrameDecoder : IDisposable
     // RFC 9113 §6.1 / §6.2: one-byte Pad Length field precedes padded data.
     private const int PadLengthFieldSize = 1;
 
+    // RFC 9113 §4.2: the largest inbound frame payload we accept — the SETTINGS_MAX_FRAME_SIZE we
+    // advertise to the peer. Frames larger than this are a FRAME_SIZE_ERROR and are rejected before
+    // their payload is buffered, bounding per-connection memory. Defaults to the 24-bit ceiling so a
+    // decoder constructed without an explicit limit performs no enforcement beyond the wire maximum.
+    private readonly int _maxFrameSize;
+
+    public FrameDecoder(int maxFrameSize = (int)MaxMaxFrameSize)
+    {
+        _maxFrameSize = maxFrameSize;
+    }
+
     // Owned working buffer. Kept alive between Decode() calls so that returned frame slices
     // remain valid until the next call (Akka back-pressure guarantees frames are consumed first).
     private TransportBuffer? _workingBuffer;
@@ -118,6 +129,14 @@ internal sealed class FrameDecoder : IDisposable
         {
             var span = working.Span[offset..];
             var payloadLen = (span[0] << 16) | (span[1] << 8) | span[2];
+
+            // RFC 9113 §4.2: reject oversized frames before buffering their payload, so a peer cannot
+            // force us to accumulate an arbitrarily large frame.
+            if (payloadLen > _maxFrameSize)
+            {
+                throw new HttpProtocolException(
+                    $"RFC 9113 §4.2: frame payload length {payloadLen} exceeds advertised SETTINGS_MAX_FRAME_SIZE {_maxFrameSize}.");
+            }
 
             if (workingLength - offset < FrameHeaderSize + payloadLen)
             {

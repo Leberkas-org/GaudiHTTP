@@ -288,6 +288,29 @@ internal sealed class StreamState
         _headerLength += data.Length;
     }
 
+    /// <summary>
+    /// Appends a header-block fragment, rejecting the stream's accumulated (still-compressed) header
+    /// block once it exceeds <paramref name="maxAccumulatedBytes"/>. RFC 9113 §6.10 / CVE-2024-27316:
+    /// bounds a HEADERS+CONTINUATION flood before the block is buffered and HPACK-decoded. Using the
+    /// decoded-size limit as the compressed-size ceiling is conservative — HPACK never expands below
+    /// the compressed input for valid traffic, so legitimate requests are unaffected.
+    /// </summary>
+    public void AppendHeader(ReadOnlySpan<byte> data, int maxAccumulatedBytes)
+    {
+        if (data.IsEmpty)
+        {
+            return;
+        }
+
+        if ((long)_headerLength + data.Length > maxAccumulatedBytes)
+        {
+            throw new HttpProtocolException(
+                $"RFC 9113 §6.10: accumulated header block exceeds the maximum of {maxAccumulatedBytes} bytes.");
+        }
+
+        AppendHeader(data);
+    }
+
     private void DisposeOutboundBuffer()
     {
         if (_outboundBuffer is null)

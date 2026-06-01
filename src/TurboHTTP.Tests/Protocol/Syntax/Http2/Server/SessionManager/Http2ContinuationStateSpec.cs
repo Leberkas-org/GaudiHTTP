@@ -143,7 +143,7 @@ public sealed class Http2ContinuationStateSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.10")]
-    public void Continuation_on_wrong_stream_should_throw_protocol_error()
+    public void Continuation_on_wrong_stream_should_emit_goaway_protocol_error()
     {
         var ops = new FakeServerOps();
         var baseOptions = new TurboServerOptions();
@@ -164,19 +164,31 @@ public sealed class Http2ContinuationStateSpec
             endHeaders: false);
         sm.DecodeClientData(WrapFrame(headersFrame));
 
-        // Send CONTINUATION on stream 3 (wrong stream)
-        // This should throw a protocol exception at the frame decoder level
+        // Send CONTINUATION on stream 3 (wrong stream). RFC 9113 §6.10 requires CONTINUATION on the
+        // same stream; the session manager treats the violation as a connection error, emitting
+        // GOAWAY(PROTOCOL_ERROR) and requesting completion rather than propagating the exception.
         var continuationFrame = BuildContinuationFrame(
             streamId: 3,
             headerBlock[splitPoint..],
             endHeaders: true);
 
-        // RFC 9113 §6.10 requires a CONTINUATION on the same stream
-        // The FrameDecoder catches this before SessionManager processing
-        var ex = Assert.Throws<HttpProtocolException>(() => { sm.DecodeClientData(WrapFrame(continuationFrame)); });
+        sm.DecodeClientData(WrapFrame(continuationFrame));
 
-        Assert.Contains("RFC 9113 §6.10", ex.Message);
-        Assert.Contains("stream", ex.Message);
+        Assert.True(sm.ShouldComplete);
+
+        TransportData? goAway = null;
+        foreach (var item in ops.Outbound)
+        {
+            if (item is TransportData td && td.Buffer.Span[3] == (byte)FrameType.GoAway)
+            {
+                goAway = td;
+            }
+        }
+
+        Assert.NotNull(goAway);
+        var s = goAway!.Buffer.Span;
+        var code = (s[13] << 24) | (s[14] << 16) | (s[15] << 8) | s[16];
+        Assert.Equal((int)Http2ErrorCode.ProtocolError, code);
     }
 
     [Fact(Timeout = 5000)]

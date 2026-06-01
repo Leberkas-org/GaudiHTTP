@@ -345,7 +345,7 @@ public sealed class ServerStateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6.1")]
-    public void DecodeClientData_should_pass_unknown_transfer_encoding_to_application()
+    public void DecodeClientData_should_reject_unknown_transfer_encoding()
     {
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
@@ -362,11 +362,11 @@ public sealed class ServerStateMachineSpec
 
         sm.DecodeClientData(new TransportData(buffer));
 
-        // §6.1 SHOULD respond 501 — but the SM passes the request to the application layer
-        // which is responsible for inspecting TE and returning 501. The SM correctly decodes
-        // the request structure and preserves the TE header for application inspection.
-        Assert.Single(ops.Requests);
-        Assert.Equal("POST", ops.Requests[0].Get<IHttpRequestFeature>()?.Method);
+        // RFC 9112 §6.1: a request whose final transfer coding is not chunked has no reliable body
+        // length and MUST NOT be forwarded — doing so enables request smuggling. The SM rejects it
+        // and closes the connection instead of passing it to the application.
+        Assert.Empty(ops.Requests);
+        Assert.True(sm.ShouldComplete);
     }
 
     private static IFeatureCollection MakeResponseContext(HttpResponseMessage response)

@@ -20,7 +20,7 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
     private int _activeStreamCount;
 
     public bool CanAcceptResponse => _sessionManager.ActiveStreamCount > 0;
-    public bool ShouldComplete => false;
+    public bool ShouldComplete => _sessionManager.ShouldComplete;
     public int MaxQueuedRequests => _sessionManager.MaxConcurrentStreams;
 
     public Http2ServerStateMachine(Http2ConnectionOptions options, IServerStageOperations ops)
