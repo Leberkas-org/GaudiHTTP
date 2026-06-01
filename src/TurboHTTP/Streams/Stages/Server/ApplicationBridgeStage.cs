@@ -51,6 +51,9 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
     private sealed class Logic : TimerGraphStageLogic
     {
+        private const string SoftTimerPrefix = "soft:";
+        private const string HardTimerPrefix = "hard:";
+
         private readonly ApplicationBridgeStage<TContext> _stage;
         private IActorRef? _stageActor;
         private bool _upstreamFinished;
@@ -108,11 +111,11 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 return;
             }
 
-            if (key.StartsWith("soft:") && int.TryParse(key.AsSpan(5), out var softSeq))
+            if (key.StartsWith(SoftTimerPrefix) && int.TryParse(key.AsSpan(SoftTimerPrefix.Length), out var softSeq))
             {
                 OnSoftTimeout(softSeq);
             }
-            else if (key.StartsWith("hard:") && int.TryParse(key.AsSpan(5), out var hardSeq))
+            else if (key.StartsWith(HardTimerPrefix) && int.TryParse(key.AsSpan(HardTimerPrefix.Length), out var hardSeq))
             {
                 OnHardTimeout(hardSeq);
             }
@@ -127,7 +130,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
             cts.Cancel();
             _gracePhase.Add(seq);
-            ScheduleOnce($"hard:{seq}", _stage._handlerGracePeriod);
+            ScheduleOnce($"{HardTimerPrefix}{seq}", _stage._handlerGracePeriod);
         }
 
         private void OnHardTimeout(int seq)
@@ -250,7 +253,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                     : new CancellationTokenSource();
                 _activeTimeouts[seq] = cts;
                 _activeFeatures[seq] = features;
-                ScheduleOnce($"soft:{seq}", _stage._handlerTimeout);
+                ScheduleOnce($"{SoftTimerPrefix}{seq}", _stage._handlerTimeout);
 
                 var bodyFeature = features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
                 var headersReady = bodyFeature?.WhenHeadersReady;
@@ -413,8 +416,8 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         private void CleanupTimeout(int seq)
         {
-            CancelTimer($"soft:{seq}");
-            CancelTimer($"hard:{seq}");
+            CancelTimer($"{SoftTimerPrefix}{seq}");
+            CancelTimer($"{HardTimerPrefix}{seq}");
             _gracePhase.Remove(seq);
             _activeFeatures.Remove(seq);
             if (_activeTimeouts.Remove(seq, out var cts))

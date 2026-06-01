@@ -13,6 +13,12 @@ namespace TurboHTTP.Protocol.Syntax.Http11.Server;
 
 internal sealed class Http11ServerStateMachine : IServerStateMachine
 {
+    private const string KeepAliveTimer = "keep-alive";
+    private const string RequestHeadersTimer = "request-headers";
+    private const string BodyConsumptionTimer = "body-consumption";
+    private const string BodyReadTimer = "body-read";
+    private const string DataRateCheck = "data-rate-check";
+
     private readonly IServerStageOperations _ops;
     private readonly Http11ServerDecoder _decoder;
     private readonly Http11ServerEncoder _encoder;
@@ -99,7 +105,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                 if (drainingDecoder.IsComplete)
                 {
                     _draining = false;
-                    _ops.OnCancelTimer("body-consumption");
+                    _ops.OnCancelTimer(BodyConsumptionTimer);
                     _requestRate.Remove(0);
                     _decoder.Reset();
                 }
@@ -122,7 +128,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             // Schedule request headers timeout if not already active
             if (!_requestHeadersTimerActive && _pendingResponseCount == 0 && !_bodyStreaming && _requestHeadersTimeout > TimeSpan.Zero)
             {
-                _ops.OnScheduleTimer("request-headers", _requestHeadersTimeout);
+                _ops.OnScheduleTimer(RequestHeadersTimer, _requestHeadersTimeout);
                 _requestHeadersTimerActive = true;
             }
 
@@ -139,7 +145,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                 // Cancel the request headers timer once headers are complete
                 if (_requestHeadersTimerActive)
                 {
-                    _ops.OnCancelTimer("request-headers");
+                    _ops.OnCancelTimer(RequestHeadersTimer);
                     _requestHeadersTimerActive = false;
                 }
 
@@ -220,12 +226,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     {
         if (_bodyStreaming && _bodyReadTimeout > TimeSpan.Zero)
         {
-            _ops.OnScheduleTimer("body-read", _bodyReadTimeout);
+            _ops.OnScheduleTimer(BodyReadTimer, _bodyReadTimeout);
             _bodyReadTimerActive = true;
         }
         else if (_bodyReadTimerActive)
         {
-            _ops.OnCancelTimer("body-read");
+            _ops.OnCancelTimer(BodyReadTimer);
             _bodyReadTimerActive = false;
         }
     }
@@ -261,7 +267,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         {
             if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
             {
-                _ops.OnScheduleTimer("keep-alive", _keepAliveTimeout);
+                _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
             }
 
             return;
@@ -274,7 +280,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                 _bodyStreaming = false;
                 if (_bodyReadTimerActive)
                 {
-                    _ops.OnCancelTimer("body-read");
+                    _ops.OnCancelTimer(BodyReadTimer);
                     _bodyReadTimerActive = false;
                 }
             }
@@ -283,7 +289,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
             if (_bodyConsumptionTimeout > TimeSpan.Zero)
             {
-                _ops.OnScheduleTimer("body-consumption", _bodyConsumptionTimeout);
+                _ops.OnScheduleTimer(BodyConsumptionTimer, _bodyConsumptionTimeout);
             }
         }
 
@@ -303,7 +309,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         {
             if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
             {
-                _ops.OnScheduleTimer("keep-alive", _keepAliveTimeout);
+                _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
             }
         }
     }
@@ -314,26 +320,26 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
     public void OnTimerFired(string name)
     {
-        if (name == "keep-alive")
+        if (name == KeepAliveTimer)
         {
             ShouldComplete = true;
         }
-        else if (name == "request-headers")
+        else if (name == RequestHeadersTimer)
         {
             _requestHeadersTimerActive = false;
             ShouldComplete = true;
         }
-        else if (name == "body-consumption")
+        else if (name == BodyConsumptionTimer)
         {
             _draining = false;
             ShouldComplete = true;
         }
-        else if (name == "body-read")
+        else if (name == BodyReadTimer)
         {
             _bodyReadTimerActive = false;
             ShouldComplete = true;
         }
-        else if (name == "data-rate-check")
+        else if (name == DataRateCheck)
         {
             var violations = new List<long>();
             _requestRate.Check(Now(), violations);
@@ -347,7 +353,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
             if (_requestRate.Count > 0 || _responseRate.Count > 0)
             {
-                _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
+                _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
             }
         }
     }
@@ -370,7 +376,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                 // Schedule keep-alive timer after body completes if needed
                 if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
                 {
-                    _ops.OnScheduleTimer("keep-alive", _keepAliveTimeout);
+                    _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
                 }
 
                 break;
@@ -451,20 +457,20 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         _pendingResponseCount = 0;
         if (_requestHeadersTimerActive)
         {
-            _ops.OnCancelTimer("request-headers");
+            _ops.OnCancelTimer(RequestHeadersTimer);
             _requestHeadersTimerActive = false;
         }
 
         if (_bodyReadTimerActive)
         {
-            _ops.OnCancelTimer("body-read");
+            _ops.OnCancelTimer(BodyReadTimer);
             _bodyReadTimerActive = false;
         }
 
-        _ops.OnCancelTimer("keep-alive");
-        _ops.OnCancelTimer("body-consumption");
-        _ops.OnCancelTimer("data-rate-check");
+        _ops.OnCancelTimer(KeepAliveTimer);
+        _ops.OnCancelTimer(BodyConsumptionTimer);
+        _ops.OnCancelTimer(DataRateCheck);
     }
 
-    private void EnsureRateTimer() => _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
+    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
 }

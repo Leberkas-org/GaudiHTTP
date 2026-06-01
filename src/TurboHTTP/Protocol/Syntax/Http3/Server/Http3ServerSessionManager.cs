@@ -17,6 +17,11 @@ internal sealed class Http3ServerSessionManager
 {
     private const int MaxStatePoolCapacity = 1000;
 
+    private const string BodyConsumptionPrefix = "body-consumption:";
+    private const string HeadersTimeoutPrefix = "headers-timeout:";
+    private const string DrainBodyPrefix = "drain-body:";
+    private const string DataRateCheck = "data-rate-check";
+
     private readonly IServerStageOperations _ops;
     private readonly ServerStreamResolver _streamResolver = new();
     private readonly Http3ServerDecoder _requestDecoder;
@@ -143,7 +148,7 @@ internal sealed class Http3ServerSessionManager
 
         if (state.HasBodyDecoder && _bodyConsumptionTimeout > TimeSpan.Zero)
         {
-            _ops.OnScheduleTimer(string.Concat("body-consumption:", streamId.ToString()), _bodyConsumptionTimeout);
+            _ops.OnScheduleTimer(string.Concat(BodyConsumptionPrefix, streamId.ToString()), _bodyConsumptionTimeout);
         }
 
         var headersFrame = _responseEncoder.EncodeHeaders(features);
@@ -178,7 +183,7 @@ internal sealed class Http3ServerSessionManager
 
         state.InitBodyEncoder(encoder);
         state.StartBodyEncoder(bodyStream, streamId, _ops.StageActor);
-        _ops.OnScheduleTimer(string.Concat("drain-body:", streamId.ToString()), TimeSpan.FromMilliseconds(0));
+        _ops.OnScheduleTimer(string.Concat(DrainBodyPrefix, streamId.ToString()), TimeSpan.FromMilliseconds(0));
     }
 
     private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)
@@ -325,11 +330,11 @@ internal sealed class Http3ServerSessionManager
 
         if (_requestRate.Count > 0 || _responseRate.Count > 0)
         {
-            _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
+            _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
         }
     }
 
-    private void EnsureRateTimer() => _ops.OnScheduleTimer("data-rate-check", TimeSpan.FromSeconds(1));
+    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
 
     public void EmitRstStream(long streamId, ErrorCode errorCode)
     {
@@ -399,7 +404,7 @@ internal sealed class Http3ServerSessionManager
                         }
                         else
                         {
-                            _ops.OnScheduleTimer(string.Concat("headers-timeout:", streamId.ToString()),
+                            _ops.OnScheduleTimer(string.Concat(HeadersTimeoutPrefix, streamId.ToString()),
                                 TimeSpan.FromSeconds(30));
                         }
 
@@ -439,8 +444,8 @@ internal sealed class Http3ServerSessionManager
         var requestFeature = state.GetRequestFeature();
         if (requestFeature is not null)
         {
-            _ops.OnCancelTimer(string.Concat("headers-timeout:", streamId.ToString()));
-            _ops.OnCancelTimer(string.Concat("body-consumption:", streamId.ToString()));
+            _ops.OnCancelTimer(string.Concat(HeadersTimeoutPrefix, streamId.ToString()));
+            _ops.OnCancelTimer(string.Concat(BodyConsumptionPrefix, streamId.ToString()));
 
             var hasBody = state.HasBodyDecoder;
             if (hasBody)
@@ -501,7 +506,7 @@ internal sealed class Http3ServerSessionManager
     {
         _requestRate.Remove(streamId);
         _responseRate.Remove(streamId);
-        _ops.OnCancelTimer(string.Concat("body-consumption:", streamId.ToString()));
+        _ops.OnCancelTimer(string.Concat(BodyConsumptionPrefix, streamId.ToString()));
 
         if (_streams.TryGetValue(streamId, out var streamData))
         {
