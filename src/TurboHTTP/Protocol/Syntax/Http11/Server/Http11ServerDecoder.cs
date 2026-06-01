@@ -6,7 +6,7 @@ using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerDecoder
+internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
 {
     private enum Phase
     {
@@ -16,20 +16,12 @@ internal sealed class Http11ServerDecoder
         Done
     }
 
-    private readonly Http11ServerDecoderOptions _options;
-    private readonly HeaderBlockReader _headerReader;
+    private readonly HeaderBlockReader _headerReader = new(options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
 
     private Phase _phase = Phase.RequestLine;
     private HttpMethod _method = null!;
     private string _target = null!;
     private Version _version = null!;
-
-    public Http11ServerDecoder(Http11ServerDecoderOptions options)
-    {
-        _options = options;
-        _headerReader =
-            new HeaderBlockReader(options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
-    }
 
     public IBodyDecoder? CurrentBodyDecoder { get; private set; }
 
@@ -40,15 +32,15 @@ internal sealed class Http11ServerDecoder
 
         if (_phase == Phase.RequestLine)
         {
-            if (!RequestLineParser.TryParse(data, _options.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
+            if (!RequestLineParser.TryParse(data, options.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
             {
                 return DecodeOutcome.NeedMore;
             }
 
-            if (target.Length > _options.MaxRequestTargetLength)
+            if (target.Length > options.MaxRequestTargetLength)
             {
                 throw new HttpProtocolException(
-                    $"Request target length {target.Length} exceeds limit ({_options.MaxRequestTargetLength}).");
+                    $"Request target length {target.Length} exceeds limit ({options.MaxRequestTargetLength}).");
             }
 
             _method = method;
@@ -69,7 +61,7 @@ internal sealed class Http11ServerDecoder
             }
 
             var classification = BodySemantics.ClassifyRequest(_method, _headerReader.GetHeaders(), _version);
-            CurrentBodyDecoder = BodyDecoderFactory.Create(classification, _options.ToBodyDecoderOptions());
+            CurrentBodyDecoder = BodyDecoderFactory.Create(classification, options.ToBodyDecoderOptions());
 
             if (CurrentBodyDecoder.IsComplete)
             {

@@ -4,15 +4,9 @@ using Akka.Actor;
 
 namespace TurboHTTP.Protocol.LineBased.Body;
 
-internal sealed class ChunkedBodyEncoder : IBodyEncoder
+internal sealed class ChunkedBodyEncoder(int chunkSize = 16 * 1024) : IBodyEncoder
 {
-    private readonly int _chunkSize;
     private readonly CancellationTokenSource _cts = new();
-
-    public ChunkedBodyEncoder(int chunkSize = 16 * 1024)
-    {
-        _chunkSize = chunkSize;
-    }
 
     public void Start(Stream bodyStream, IActorRef stageActor)
     {
@@ -23,7 +17,7 @@ internal sealed class ChunkedBodyEncoder : IBodyEncoder
     {
         try
         {
-            var dataBuffer = new byte[_chunkSize];
+            var dataBuffer = new byte[chunkSize];
 
             while (true)
             {

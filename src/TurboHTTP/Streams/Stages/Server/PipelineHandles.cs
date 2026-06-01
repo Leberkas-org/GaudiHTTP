@@ -4,19 +4,12 @@ using Microsoft.AspNetCore.Http.Features;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
-internal sealed class PipelineHandles
+internal sealed class PipelineHandles(
+    Sink<IFeatureCollection, NotUsed> requestSink,
+    IResponseDispatcher<IFeatureCollection> responseDispatcher,
+    FairShareDispatcher dispatcher)
 {
-    public Sink<IFeatureCollection, NotUsed> RequestSink { get; }
-    public IResponseDispatcher<IFeatureCollection> ResponseDispatcher { get; }
-    public FairShareDispatcher Dispatcher { get; }
-
-    public PipelineHandles(
-        Sink<IFeatureCollection, NotUsed> requestSink,
-        IResponseDispatcher<IFeatureCollection> responseDispatcher,
-        FairShareDispatcher dispatcher)
-    {
-        RequestSink = requestSink;
-        ResponseDispatcher = responseDispatcher;
-        Dispatcher = dispatcher;
-    }
+    public Sink<IFeatureCollection, NotUsed> RequestSink { get; } = requestSink;
+    public IResponseDispatcher<IFeatureCollection> ResponseDispatcher { get; } = responseDispatcher;
+    public FairShareDispatcher Dispatcher { get; } = dispatcher;
 }

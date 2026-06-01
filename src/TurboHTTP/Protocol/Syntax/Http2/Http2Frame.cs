@@ -124,17 +124,12 @@ internal abstract class Http2Frame(int streamId)
     protected const int FrameHeaderSize = 9;
 }
 
-internal sealed class DataFrame : Http2Frame
+internal sealed class DataFrame(int streamId, ReadOnlyMemory<byte> data, bool endStream = false)
+    : Http2Frame(streamId)
 {
     public override FrameType Type => FrameType.Data;
-    public ReadOnlyMemory<byte> Data { get; }
-    public bool EndStream { get; }
-
-    public DataFrame(int streamId, ReadOnlyMemory<byte> data, bool endStream = false) : base(streamId)
-    {
-        Data = data;
-        EndStream = endStream;
-    }
+    public ReadOnlyMemory<byte> Data { get; } = data;
+    public bool EndStream { get; } = endStream;
 
     public override int SerializedSize => FrameHeaderSize + Data.Length;
 
@@ -148,20 +143,17 @@ internal sealed class DataFrame : Http2Frame
     }
 }
 
-internal sealed class HeadersFrame : Http2Frame
+internal sealed class HeadersFrame(
+    int streamId,
+    ReadOnlyMemory<byte> headerBlock,
+    bool endStream = false,
+    bool endHeaders = true)
+    : Http2Frame(streamId)
 {
     public override FrameType Type => FrameType.Headers;
-    public ReadOnlyMemory<byte> HeaderBlockFragment { get; }
-    public bool EndStream { get; }
-    public bool EndHeaders { get; }
-
-    public HeadersFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endStream = false, bool endHeaders = true)
-        : base(streamId)
-    {
-        HeaderBlockFragment = headerBlock;
-        EndStream = endStream;
-        EndHeaders = endHeaders;
-    }
+    public ReadOnlyMemory<byte> HeaderBlockFragment { get; } = headerBlock;
+    public bool EndStream { get; } = endStream;
+    public bool EndHeaders { get; } = endHeaders;
 
     public override int SerializedSize => FrameHeaderSize + HeaderBlockFragment.Length;
 
@@ -185,17 +177,12 @@ internal sealed class HeadersFrame : Http2Frame
     }
 }
 
-internal sealed class ContinuationFrame : Http2Frame
+internal sealed class ContinuationFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endHeaders = true)
+    : Http2Frame(streamId)
 {
     public override FrameType Type => FrameType.Continuation;
-    public ReadOnlyMemory<byte> HeaderBlockFragment { get; }
-    public bool EndHeaders { get; }
-
-    public ContinuationFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endHeaders = true) : base(streamId)
-    {
-        HeaderBlockFragment = headerBlock;
-        EndHeaders = endHeaders;
-    }
+    public ReadOnlyMemory<byte> HeaderBlockFragment { get; } = headerBlock;
+    public bool EndHeaders { get; } = endHeaders;
 
     public override int SerializedSize => FrameHeaderSize + HeaderBlockFragment.Length;
 
@@ -209,13 +196,10 @@ internal sealed class ContinuationFrame : Http2Frame
     }
 }
 
-internal sealed class RstStreamFrame : Http2Frame
+internal sealed class RstStreamFrame(int streamId, Http2ErrorCode errorCode) : Http2Frame(streamId)
 {
     public override FrameType Type => FrameType.RstStream;
-    public Http2ErrorCode ErrorCode { get; }
-
-    public RstStreamFrame(int streamId, Http2ErrorCode errorCode) : base(streamId)
-        => ErrorCode = errorCode;
+    public Http2ErrorCode ErrorCode { get; } = errorCode;
 
     public override int SerializedSize => FrameHeaderSize + 4;
 
@@ -228,17 +212,12 @@ internal sealed class RstStreamFrame : Http2Frame
     }
 }
 
-internal sealed class SettingsFrame : Http2Frame
+internal sealed class SettingsFrame(IReadOnlyList<(SettingsParameter Key, uint Value)> parameters, bool isAck = false)
+    : Http2Frame(0)
 {
     public override FrameType Type => FrameType.Settings;
-    public IReadOnlyList<(SettingsParameter, uint)> Parameters { get; }
-    public bool IsAck { get; }
-
-    public SettingsFrame(IReadOnlyList<(SettingsParameter Key, uint Value)> parameters, bool isAck = false) : base(0)
-    {
-        Parameters = parameters;
-        IsAck = isAck;
-    }
+    public IReadOnlyList<(SettingsParameter, uint)> Parameters { get; } = parameters;
+    public bool IsAck { get; } = isAck;
 
     public override int SerializedSize => FrameHeaderSize + (IsAck ? 0 : Parameters.Count * 6);
 
@@ -356,21 +335,17 @@ internal sealed class WindowUpdateFrame : Http2Frame
     }
 }
 
-internal sealed class PushPromiseFrame : Http2Frame
+internal sealed class PushPromiseFrame(
+    int streamId,
+    int promisedStreamId,
+    ReadOnlyMemory<byte> headerBlock,
+    bool endHeaders = true)
+    : Http2Frame(streamId)
 {
     public override FrameType Type => FrameType.PushPromise;
-    public int PromisedStreamId { get; }
-    private ReadOnlyMemory<byte> HeaderBlockFragment { get; }
-    public bool EndHeaders { get; }
-
-    public PushPromiseFrame(int streamId, int promisedStreamId, ReadOnlyMemory<byte> headerBlock,
-        bool endHeaders = true)
-        : base(streamId)
-    {
-        PromisedStreamId = promisedStreamId;
-        HeaderBlockFragment = headerBlock;
-        EndHeaders = endHeaders;
-    }
+    public int PromisedStreamId { get; } = promisedStreamId;
+    private ReadOnlyMemory<byte> HeaderBlockFragment { get; } = headerBlock;
+    public bool EndHeaders { get; } = endHeaders;
 
     public override int SerializedSize => FrameHeaderSize + 4 + HeaderBlockFragment.Length;
 

@@ -3,16 +3,10 @@ using System.Text;
 
 namespace TurboHTTP.Protocol.Semantics;
 
-internal readonly struct HeaderEntry
+internal readonly struct HeaderEntry(string name, string value)
 {
-    public string Name { get; }
-    public string Value { get; }
-
-    public HeaderEntry(string name, string value)
-    {
-        Name = name;
-        Value = value;
-    }
+    public string Name { get; } = name;
+    public string Value { get; } = value;
 }
 
 internal sealed class HeaderCollection : IEnumerable<HeaderEntry>

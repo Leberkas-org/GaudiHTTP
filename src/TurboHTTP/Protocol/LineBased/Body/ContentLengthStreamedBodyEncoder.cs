@@ -3,15 +3,9 @@ using Akka.Actor;
 
 namespace TurboHTTP.Protocol.LineBased.Body;
 
-internal sealed class ContentLengthStreamedBodyEncoder : IBodyEncoder
+internal sealed class ContentLengthStreamedBodyEncoder(int chunkSize = 16 * 1024) : IBodyEncoder
 {
-    private readonly int _chunkSize;
     private readonly CancellationTokenSource _cts = new();
-
-    public ContentLengthStreamedBodyEncoder(int chunkSize = 16 * 1024)
-    {
-        _chunkSize = chunkSize;
-    }
 
     public void Start(Stream bodyStream, IActorRef stageActor)
     {
@@ -24,8 +18,8 @@ internal sealed class ContentLengthStreamedBodyEncoder : IBodyEncoder
         {
             while (true)
             {
-                var owner = MemoryPool<byte>.Shared.Rent(_chunkSize);
-                var bytesRead = await stream.ReadAsync(owner.Memory[.._chunkSize], ct).ConfigureAwait(false);
+                var owner = MemoryPool<byte>.Shared.Rent(chunkSize);
+                var bytesRead = await stream.ReadAsync(owner.Memory[..chunkSize], ct).ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
                     owner.Dispose();

@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
 

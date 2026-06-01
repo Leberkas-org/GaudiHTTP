@@ -234,7 +234,10 @@ internal sealed class CacheBidiStage
     }
 }
 
-internal sealed class CacheStateMachine
+internal sealed class CacheStateMachine(
+    IFeatureStageOperations ops,
+    Cache? store,
+    CachePolicy policy)
 {
     internal enum CacheState
     {
@@ -248,10 +251,6 @@ internal sealed class CacheStateMachine
 
     private sealed record BodyReadFailed(Exception Exception);
 
-    private readonly IFeatureStageOperations _ops;
-    private readonly Cache? _store;
-    private readonly CachePolicy _policy;
-
     private HttpResponseMessage? _bufferedHitResponse;
     private HttpResponseMessage? _pendingCacheResponse;
     private bool _completionDeferred;
@@ -260,16 +259,6 @@ internal sealed class CacheStateMachine
     public CacheState State { get; private set; } = CacheState.Idle;
 
     public int PendingAsyncCount { get; private set; }
-
-    public CacheStateMachine(
-        IFeatureStageOperations ops,
-        Cache? store,
-        CachePolicy policy)
-    {
-        _ops = ops;
-        _store = store;
-        _policy = policy;
-    }
 
     public void SetStageActorRef(IActorRef actorRef)
     {
@@ -289,14 +278,14 @@ internal sealed class CacheStateMachine
                 {
                     var request = msg.Response.RequestMessage!;
                     var now = DateTimeOffset.UtcNow;
-                    _store!.Put(request, msg.Response, msg.Owner, msg.Length, now, now);
+                    store!.Put(request, msg.Response, msg.Owner, msg.Length, now, now);
                     FlushPendingCacheResponse();
                     DecrementPendingAsync();
                     break;
                 }
 
             case BodyReadFailed msg:
-                _ops.Log.Warning("CacheBidiStage: Async body read failed: {0}", msg.Exception.Message);
+                ops.Log.Warning("CacheBidiStage: Async body read failed: {0}", msg.Exception.Message);
                 FlushPendingCacheResponse();
                 DecrementPendingAsync();
                 break;
@@ -305,15 +294,15 @@ internal sealed class CacheStateMachine
 
     public void OnRequest(HttpRequestMessage request)
     {
-        if (_store is null)
+        if (store is null)
         {
-            _ops.OnPushRequest(request);
+            ops.OnPushRequest(request);
             State = CacheState.Forwarded;
             return;
         }
 
-        var entry = _store.Get(request);
-        var result = CacheFreshnessEvaluator.Evaluate(entry, request, DateTimeOffset.UtcNow, _policy);
+        var entry = store.Get(request);
+        var result = CacheFreshnessEvaluator.Evaluate(entry, request, DateTimeOffset.UtcNow, policy);
         var isHit = result.Status is CacheLookupStatus.Fresh or CacheLookupStatus.Stale;
 
         EmitCacheTelemetry(request, isHit);
@@ -330,9 +319,9 @@ internal sealed class CacheStateMachine
 
     public void OnResponse(HttpResponseMessage response)
     {
-        if (_store is null || response.RequestMessage is null)
+        if (store is null || response.RequestMessage is null)
         {
-            _ops.OnPushResponse(response);
+            ops.OnPushResponse(response);
             State = CacheState.Idle;
             return;
         }
@@ -343,13 +332,13 @@ internal sealed class CacheStateMachine
             return;
         }
 
-        _ops.OnPushResponse(processed);
+        ops.OnPushResponse(processed);
         State = CacheState.Idle;
     }
 
     public void FlushBufferedHit()
     {
-        _ops.OnPushResponse(_bufferedHitResponse!);
+        ops.OnPushResponse(_bufferedHitResponse!);
         _bufferedHitResponse = null;
         State = CacheState.Idle;
     }
@@ -363,7 +352,7 @@ internal sealed class CacheStateMachine
 
         var response = _pendingCacheResponse;
         _pendingCacheResponse = null;
-        _ops.OnPushResponse(response);
+        ops.OnPushResponse(response);
         State = CacheState.Idle;
     }
 
@@ -372,7 +361,7 @@ internal sealed class CacheStateMachine
         PendingAsyncCount--;
         if (PendingAsyncCount == 0 && _completionDeferred)
         {
-            _ops.OnCompleteStage();
+            ops.OnCompleteStage();
         }
     }
 
@@ -389,7 +378,7 @@ internal sealed class CacheStateMachine
             new KeyValuePair<string, object?>("cache.result", result));
 
         var uri = request.RequestUri?.OriginalString ?? "";
-        Tracing.For("Cache").Info(_ops, "Cache {0}: {1}", result, uri);
+        Tracing.For("Cache").Info(ops, "Cache {0}: {1}", result, uri);
     }
 
     private void HandleCacheHit(HttpRequestMessage request, CacheLookupResult result)
@@ -404,7 +393,7 @@ internal sealed class CacheStateMachine
 
         _bufferedHitResponse = cachedResponse;
         State = CacheState.HitBuffered;
-        _ops.OnSignalPullResponse();
+        ops.OnSignalPullResponse();
     }
 
     private void HandleCacheMiss(HttpRequestMessage request, CacheLookupResult result)
@@ -419,7 +408,7 @@ internal sealed class CacheStateMachine
             outgoing.Options.Set(CacheBidiStage.RevalidationKey, true);
         }
 
-        _ops.OnPushRequest(outgoing);
+        ops.OnPushRequest(outgoing);
         State = CacheState.Forwarded;
     }
 
@@ -434,7 +423,7 @@ internal sealed class CacheStateMachine
             var statusCode = (int)response.StatusCode;
             if (statusCode is >= 200 and < 400 && request.RequestUri is not null)
             {
-                _store!.Invalidate(request.RequestUri);
+                store!.Invalidate(request.RequestUri);
 
                 InvalidateIfSameOrigin(request.RequestUri, response.Headers.Location);
 
@@ -449,7 +438,7 @@ internal sealed class CacheStateMachine
 
         if (response.StatusCode == HttpStatusCode.NotModified)
         {
-            var entry = _store!.Get(request);
+            var entry = store!.Get(request);
             if (entry is not null)
             {
                 var merged = CacheValidationRequestBuilder.MergeNotModifiedResponse(response, entry);
@@ -457,7 +446,7 @@ internal sealed class CacheStateMachine
 
                 var (owner, length) = Cache.RentBody(entry.Body.Span);
                 var now = DateTimeOffset.UtcNow;
-                _store!.Put(request, merged, owner, length, now, now);
+                store!.Put(request, merged, owner, length, now, now);
 
                 return merged;
             }
@@ -511,7 +500,7 @@ internal sealed class CacheStateMachine
             && string.Equals(requestUri.Host, targetUri.Host, StringComparison.OrdinalIgnoreCase)
             && requestUri.Port == targetUri.Port)
         {
-            _store!.Invalidate(targetUri);
+            store!.Invalidate(targetUri);
         }
     }
 

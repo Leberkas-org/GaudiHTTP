@@ -6,7 +6,7 @@ using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Server;
 
-internal sealed class Http10ServerDecoder
+internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
 {
     private enum Phase
     {
@@ -16,24 +16,16 @@ internal sealed class Http10ServerDecoder
         Done
     }
 
-    private readonly Http10ServerDecoderOptions _options;
-    private readonly HeaderBlockReader _headerReader;
+    private readonly HeaderBlockReader _headerReader = new(options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
 
     private Phase _phase = Phase.RequestLine;
     private HttpMethod _method = null!;
     private string _target = null!;
     private Version _version = null!;
-    private IBodyDecoder? _bodyDecoder;
-    private int _lastBodyBytesConsumed;
 
-    public IBodyDecoder? CurrentBodyDecoder => _bodyDecoder;
-    public int LastBodyBytesConsumed => _lastBodyBytesConsumed;
+    public IBodyDecoder? CurrentBodyDecoder { get; private set; }
 
-    public Http10ServerDecoder(Http10ServerDecoderOptions options)
-    {
-        _options = options;
-        _headerReader = new HeaderBlockReader(options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
-    }
+    public int LastBodyBytesConsumed { get; private set; }
 
     public DecodeOutcome Feed(ReadOnlySpan<byte> data, out int consumed)
     {
@@ -42,15 +34,15 @@ internal sealed class Http10ServerDecoder
 
         if (_phase == Phase.RequestLine)
         {
-            if (!RequestLineParser.TryParse(data, _options.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
+            if (!RequestLineParser.TryParse(data, options.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
             {
                 return DecodeOutcome.NeedMore;
             }
 
-            if (target.Length > _options.MaxRequestTargetLength)
+            if (target.Length > options.MaxRequestTargetLength)
             {
                 throw new HttpProtocolException(
-                    $"Request target length {target.Length} exceeds limit ({_options.MaxRequestTargetLength}).");
+                    $"Request target length {target.Length} exceeds limit ({options.MaxRequestTargetLength}).");
             }
 
             _method = method;
@@ -71,14 +63,14 @@ internal sealed class Http10ServerDecoder
             }
 
             var classification = BodySemantics.ClassifyRequest(_method, _headerReader.GetHeaders(), _version);
-            _bodyDecoder = BodyDecoderFactory.Create(classification, _options.ToBodyDecoderOptions());
+            CurrentBodyDecoder = BodyDecoderFactory.Create(classification, options.ToBodyDecoderOptions());
             _phase = Phase.Body;
         }
 
         if (_phase == Phase.Body)
         {
-            var done = _bodyDecoder!.Feed(data[pos..], out var bConsumed);
-            _lastBodyBytesConsumed = bConsumed;
+            var done = CurrentBodyDecoder!.Feed(data[pos..], out var bConsumed);
+            LastBodyBytesConsumed = bConsumed;
             pos += bConsumed;
             consumed = pos;
             if (done)
@@ -96,14 +88,13 @@ internal sealed class Http10ServerDecoder
 
     public TurboHttpRequestFeature GetRequestFeature()
     {
-        var body = _bodyDecoder?.GetBodyStream() ?? Stream.Null;
+        var body = CurrentBodyDecoder?.GetBodyStream() ?? Stream.Null;
 
         var feature = new TurboHttpRequestFeature
         {
             Protocol = _version switch
             {
                 { Major: 1, Minor: 0 } => "HTTP/1.0",
-                { Major: 1, Minor: 1 } => "HTTP/1.1",
                 _ => "HTTP/1.1"
             },
             Method = _method.Method,

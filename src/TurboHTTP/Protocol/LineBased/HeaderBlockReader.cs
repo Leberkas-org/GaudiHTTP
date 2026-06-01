@@ -8,23 +8,11 @@ internal enum HeaderBlockResult
     Complete,
 }
 
-internal sealed class HeaderBlockReader
+internal sealed class HeaderBlockReader(int maxHeaderBytes, int maxHeaderCount, int maxLineLength, bool allowObsFold)
 {
-    private readonly int _maxHeaderBytes;
-    private readonly int _maxHeaderCount;
-    private readonly int _maxLineLength;
-    private readonly bool _allowObsFold;
     private readonly HeaderCollection _headers = new();
     private int _totalBytes;
     private int _headerCount;
-
-    public HeaderBlockReader(int maxHeaderBytes, int maxHeaderCount, int maxLineLength, bool allowObsFold)
-    {
-        _maxHeaderBytes = maxHeaderBytes;
-        _maxHeaderCount = maxHeaderCount;
-        _maxLineLength = maxLineLength;
-        _allowObsFold = allowObsFold;
-    }
 
     public HeaderCollection GetHeaders() => _headers;
 
@@ -54,22 +42,22 @@ internal sealed class HeaderBlockReader
                 return HeaderBlockResult.Complete;
             }
 
-            if (lineLen > _maxLineLength)
+            if (lineLen > maxLineLength)
             {
-                throw new HttpProtocolException($"Header line exceeds {_maxLineLength} bytes.");
+                throw new HttpProtocolException($"Header line exceeds {maxLineLength} bytes.");
             }
 
             _totalBytes += lineLen + 2;
-            if (_totalBytes > _maxHeaderBytes)
+            if (_totalBytes > maxHeaderBytes)
             {
-                throw new HttpProtocolException($"Header block exceeds {_maxHeaderBytes} bytes.");
+                throw new HttpProtocolException($"Header block exceeds {maxHeaderBytes} bytes.");
             }
 
             var line = data.Slice(pos, lineLen);
 
             if (line[0] == (byte)' ' || line[0] == (byte)'\t')
             {
-                if (!_allowObsFold)
+                if (!allowObsFold)
                 {
                     throw new HttpProtocolException("obs-fold not permitted in header block.");
                 }
@@ -79,9 +67,9 @@ internal sealed class HeaderBlockReader
             }
 
             _headerCount++;
-            if (_headerCount > _maxHeaderCount)
+            if (_headerCount > maxHeaderCount)
             {
-                throw new HttpProtocolException($"Header count exceeds {_maxHeaderCount}.");
+                throw new HttpProtocolException($"Header count exceeds {maxHeaderCount}.");
             }
 
             if (!HeaderFieldParser.TryParse(line, out var name, out var value))

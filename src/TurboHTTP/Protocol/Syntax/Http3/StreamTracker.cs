@@ -5,21 +5,15 @@ namespace TurboHTTP.Protocol.Syntax.Http3;
 /// RFC 9114 §6.1: Client-initiated bidirectional stream IDs are 0, 4, 8, 12, ...
 /// QUIC uses 62-bit variable-length integers, so stream IDs are <see langword="long"/>.
 /// </summary>
-internal sealed class StreamTracker
+internal sealed class StreamTracker(long initialNextStreamId = 0, int maxConcurrentStreams = 100)
 {
     private readonly HashSet<long> _activeStreamIds = [];
 
-    public StreamTracker(long initialNextStreamId = 0, int maxConcurrentStreams = 100)
-    {
-        NextStreamId = initialNextStreamId;
-        MaxConcurrentStreams = maxConcurrentStreams;
-    }
-
     public int ActiveStreamCount { get; private set; }
-    public int MaxConcurrentStreams { get; set; }
+    public int MaxConcurrentStreams { get; set; } = maxConcurrentStreams;
 
     /// <summary>Current next stream ID (for testing/reset visibility).</summary>
-    public long NextStreamId { get; private set; }
+    public long NextStreamId { get; private set; } = initialNextStreamId;
 
     /// <summary>
     /// Returns true if a new stream can be opened without exceeding the concurrency limit.

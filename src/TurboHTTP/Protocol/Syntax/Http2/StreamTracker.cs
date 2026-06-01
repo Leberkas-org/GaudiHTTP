@@ -2,19 +2,14 @@ using TurboHTTP.Protocol.Multiplexed;
 
 namespace TurboHTTP.Protocol.Syntax.Http2;
 
-internal sealed class StreamTracker : IStreamTracker<int>
+internal sealed class StreamTracker(int initialNextStreamId = 1, int maxConcurrentStreams = 100)
+    : IStreamTracker<int>
 {
-    private int _nextStreamId;
+    private int _nextStreamId = initialNextStreamId;
     private readonly HashSet<int> _activeStreamIds = [];
 
-    public StreamTracker(int initialNextStreamId = 1, int maxConcurrentStreams = 100)
-    {
-        _nextStreamId = initialNextStreamId;
-        MaxConcurrentStreams = maxConcurrentStreams;
-    }
-
     public int ActiveStreamCount { get; private set; }
-    public int MaxConcurrentStreams { get; private set; }
+    public int MaxConcurrentStreams { get; private set; } = maxConcurrentStreams;
 
     public bool CanOpenStream() => ActiveStreamCount < MaxConcurrentStreams;
 

@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Text;
 using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
@@ -20,8 +19,7 @@ public sealed class Http11ServerBodyDrainingSpec
         HeaderLineMaxLength = 8 * 1024,
         RequestLineMaxLength = 8 * 1024,
         MaxRequestTargetLength = 8 * 1024,
-        AllowObsFold = false,
-        BufferPool = MemoryPool<byte>.Shared,
+        AllowObsFold = false
     };
 
     [Fact(Timeout = 5000)]

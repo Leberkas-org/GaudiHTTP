@@ -6,7 +6,7 @@ using TurboHTTP.Protocol.Syntax.Http10.Options;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Client;
 
-internal sealed class Http10ClientDecoder
+internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
 {
     private enum Phase
     {
@@ -16,8 +16,8 @@ internal sealed class Http10ClientDecoder
         Done
     }
 
-    private readonly Http10ClientDecoderOptions _options;
-    private readonly HeaderBlockReader _headerReader;
+    private readonly HeaderBlockReader _headerReader = new(
+        options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
 
     private Phase _phase = Phase.StatusLine;
     private Version _version = null!;
@@ -26,13 +26,6 @@ internal sealed class Http10ClientDecoder
     private IBodyDecoder? _bodyDecoder;
     private HttpResponseMessage? _response;
     private bool _isHttp09;
-
-    public Http10ClientDecoder(Http10ClientDecoderOptions options)
-    {
-        _options = options;
-        _headerReader = new HeaderBlockReader(
-            options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
-    }
 
     public DecodeOutcome Feed(ReadOnlySpan<byte> data, bool requestMethodWasHead, out int consumed)
     {
@@ -80,7 +73,7 @@ internal sealed class Http10ClientDecoder
                 _statusCode, headers, _version, requestMethodWasHead,
                 connectionWillClose: !ConnectionSemantics.IsPersistent(headers, _version));
 
-            _bodyDecoder = BodyDecoderFactory.Create(classification, _options.ToBodyDecoderOptions());
+            _bodyDecoder = BodyDecoderFactory.Create(classification, options.ToBodyDecoderOptions());
 
             _phase = Phase.Body;
         }

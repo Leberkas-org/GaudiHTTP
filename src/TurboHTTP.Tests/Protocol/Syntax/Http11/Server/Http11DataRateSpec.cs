@@ -43,6 +43,40 @@ public sealed class Http11DataRateSpec
         return defaultOptions with { Limits = newLimits };
     }
 
+    private static Http1ConnectionOptions CreateOptionsWithRequestRate(double minRate, TimeSpan grace)
+    {
+        var defaultOptions = new TurboServerOptions().ToHttp1Options();
+        var newLimits = defaultOptions.Limits with
+        {
+            MinRequestBodyDataRate = minRate,
+            MinRequestBodyDataRateGracePeriod = grace
+        };
+        return defaultOptions with { Limits = newLimits };
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Slow_request_body_violation_sets_should_complete_with_injected_clock()
+    {
+        var options = CreateOptionsWithRequestRate(1000, TimeSpan.FromSeconds(1));
+        var clock = new FakeTimeProvider();
+        var ops = new FakeServerOps();
+        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops, clock);
+
+        // Chunked request body forces streaming (small Content-Length bodies are buffered, not observed).
+        // One small chunk arrives, then the upload stalls without the terminating chunk.
+        var headersAndPartialChunk = "POST / HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nAAAAA\r\n";
+        sm.DecodeClientData(new TransportData(MakeBuffer(headersAndPartialChunk)));
+
+        clock.Advance(TimeSpan.FromMilliseconds(600));
+        sm.OnTimerFired("data-rate-check");
+        Assert.False(sm.ShouldComplete, "Should be in grace period at first check");
+
+        // 5 bytes in 1700ms = ~2.9 bytes/sec << 1000, grace (1s) expired → violation.
+        clock.Advance(TimeSpan.FromMilliseconds(1100));
+        sm.OnTimerFired("data-rate-check");
+        Assert.True(sm.ShouldComplete, "Expected request body data rate violation after grace expires");
+    }
+
     [Fact(Timeout = 5000)]
     public void Data_rate_monitoring_disabled_by_default()
     {
@@ -50,7 +84,7 @@ public sealed class Http11DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(defaultOptions, new TurboServerOptions().ToHttp2Options(), ops);
 
-        var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
@@ -72,7 +106,7 @@ public sealed class Http11DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
 
-        var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
@@ -97,7 +131,7 @@ public sealed class Http11DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
 
-        var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
@@ -118,7 +152,7 @@ public sealed class Http11DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
 
-        var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
@@ -136,7 +170,7 @@ public sealed class Http11DataRateSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void Response_completion_should_remove_rate_tracking()
+    public async Task Response_completion_should_remove_rate_tracking()
     {
         var options = CreateOptionsWithResponseRate(10000, TimeSpan.FromMilliseconds(100));
         var ops = new FakeServerOps();
@@ -156,7 +190,7 @@ public sealed class Http11DataRateSpec
 
         sm.OnBodyMessage(new OutboundBodyComplete());
 
-        System.Threading.Thread.Sleep(150);
+        await Task.Delay(150, TestContext.Current.CancellationToken);
 
         sm.OnTimerFired("data-rate-check");
 

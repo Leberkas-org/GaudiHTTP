@@ -248,23 +248,14 @@ internal sealed class RetryBidiStage
     }
 }
 
-internal sealed class RetryStateMachine
+internal sealed class RetryStateMachine(IFeatureStageOperations ops, RetryPolicy policy)
 {
     private static readonly HttpRequestOptionsKey<int> AttemptCountKey = new("TurboHTTP.RetryAttemptCount");
-
-    private readonly IFeatureStageOperations _ops;
-    private readonly RetryPolicy _policy;
 
     private readonly Queue<HttpRequestMessage> _readyRetries = new();
     private readonly Dictionary<string, HttpRequestMessage> _waitingRetries = new();
     private long _retryIdCounter;
     private int _inFlightCount;
-
-    public RetryStateMachine(IFeatureStageOperations ops, RetryPolicy policy)
-    {
-        _ops = ops;
-        _policy = policy;
-    }
 
     public bool CanAcceptRequest =>
         _readyRetries.Count == 0
@@ -280,7 +271,7 @@ internal sealed class RetryStateMachine
     public void OnRequest(HttpRequestMessage request)
     {
         _inFlightCount++;
-        _ops.OnPushRequest(request);
+        ops.OnPushRequest(request);
     }
 
     public void OnResponse(HttpResponseMessage response)
@@ -290,7 +281,7 @@ internal sealed class RetryStateMachine
         if (original is null)
         {
             _inFlightCount--;
-            _ops.OnPushResponse(response);
+            ops.OnPushResponse(response);
             return;
         }
 
@@ -302,12 +293,12 @@ internal sealed class RetryStateMachine
             networkFailure: false,
             bodyPartiallyConsumed: false,
             attemptCount: attemptCount,
-            policy: _policy);
+            policy: policy);
 
         if (!decision.ShouldRetry)
         {
             _inFlightCount--;
-            _ops.OnPushResponse(response);
+            ops.OnPushResponse(response);
             return;
         }
 
@@ -322,15 +313,15 @@ internal sealed class RetryStateMachine
         {
             var timerId = $"retry-{_retryIdCounter++}";
             _waitingRetries[timerId] = original;
-            _ops.OnScheduleTimer(timerId, decision.RetryAfterDelay.Value);
+            ops.OnScheduleTimer(timerId, decision.RetryAfterDelay.Value);
         }
         else
         {
             _readyRetries.Enqueue(original);
         }
 
-        _ops.OnSignalPullResponse();
-        _ops.OnSignalPullRequest();
+        ops.OnSignalPullResponse();
+        ops.OnSignalPullRequest();
     }
 
     public void FlushReadyRetry()
@@ -339,7 +330,7 @@ internal sealed class RetryStateMachine
         {
             var request = _readyRetries.Dequeue();
             _inFlightCount++;
-            _ops.OnPushRequest(request);
+            ops.OnPushRequest(request);
         }
     }
 
@@ -347,7 +338,7 @@ internal sealed class RetryStateMachine
     {
         if (IsDrained)
         {
-            _ops.OnCompleteStage();
+            ops.OnCompleteStage();
         }
     }
 
@@ -357,7 +348,7 @@ internal sealed class RetryStateMachine
         if (_waitingRetries.Remove(key, out var request))
         {
             _readyRetries.Enqueue(request);
-            _ops.OnSignalPullRequest();
+            ops.OnSignalPullRequest();
         }
     }
 
@@ -377,7 +368,7 @@ internal sealed class RetryStateMachine
         Metrics.RetryCount().Add(1,
             new KeyValuePair<string, object?>("http.request.method", original.Method.Method),
             new KeyValuePair<string, object?>("server.address", original.RequestUri?.Host ?? "unknown"));
-        Tracing.For("Retry").Warning(_ops, "Retry attempt: {0} {1} (attempt {2})",
+        Tracing.For("Retry").Warning(ops, "Retry attempt: {0} {1} (attempt {2})",
             original.Method.Method,
             original.RequestUri?.OriginalString ?? "",
             attemptCount + 1);

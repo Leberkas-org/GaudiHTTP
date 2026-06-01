@@ -15,5 +15,4 @@ internal sealed record Http11ServerDecoderOptions
     public required int RequestLineMaxLength { get; init; }
     public required int MaxRequestTargetLength { get; init; }
     public required bool AllowObsFold { get; init; }
-    public required MemoryPool<byte> BufferPool { get; init; }
 }

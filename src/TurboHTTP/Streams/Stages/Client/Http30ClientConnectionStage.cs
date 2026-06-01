@@ -6,24 +6,17 @@ using TurboHTTP.Protocol.Syntax.Http3.Client;
 
 namespace TurboHTTP.Streams.Stages.Client;
 
-internal sealed class Http30ClientConnectionStage : GraphStage<ClientConnectionShape>
+internal sealed class Http30ClientConnectionStage(TurboClientOptions options) : GraphStage<ClientConnectionShape>
 {
     private readonly Inlet<ITransportInbound> _inServer = new("Http30Connection.In.Network");
     private readonly Outlet<HttpResponseMessage> _outResponse = new("Http30Connection.Out.Response");
     private readonly Inlet<HttpRequestMessage> _inApp = new("Http30Connection.In.Request");
     private readonly Outlet<ITransportOutbound> _outNetwork = new("Http30Connection.Out.Network");
 
-    private readonly TurboClientOptions _options;
-
-    public Http30ClientConnectionStage(TurboClientOptions options)
-    {
-        _options = options;
-    }
-
     public override ClientConnectionShape Shape => new(_inServer, _outResponse, _inApp, _outNetwork);
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionStageLogic<Http3ClientStateMachine>(
             this,
-            ops => new Http3ClientStateMachine(_options, ops));
+            ops => new Http3ClientStateMachine(options, ops));
 }

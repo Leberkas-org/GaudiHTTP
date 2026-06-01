@@ -8,7 +8,6 @@ namespace TurboHTTP.Protocol.Syntax.Http10.Client;
 
 internal sealed class Http10ClientEncoder
 {
-
     public int Encode(Span<byte> destination, HttpRequestMessage request, IActorRef stageActor)
     {
         if (request.Content is null)

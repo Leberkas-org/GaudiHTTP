@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Server;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;

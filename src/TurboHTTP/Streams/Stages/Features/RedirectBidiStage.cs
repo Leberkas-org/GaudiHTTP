@@ -253,19 +253,10 @@ internal sealed class RedirectBidiStage
     }
 }
 
-internal sealed class RedirectStateMachine
+internal sealed class RedirectStateMachine(IFeatureStageOperations ops, RedirectPolicy policy)
 {
-    private readonly IFeatureStageOperations _ops;
-    private readonly RedirectPolicy _policy;
-
     private readonly Queue<HttpRequestMessage> _readyRedirects = new();
     private int _inFlightCount;
-
-    public RedirectStateMachine(IFeatureStageOperations ops, RedirectPolicy policy)
-    {
-        _ops = ops;
-        _policy = policy;
-    }
 
     public bool CanAcceptRequest => _readyRedirects.Count == 0;
 
@@ -278,7 +269,7 @@ internal sealed class RedirectStateMachine
     public void OnRequest(HttpRequestMessage request)
     {
         _inFlightCount++;
-        _ops.OnPushRequest(request);
+        ops.OnPushRequest(request);
     }
 
     public void OnResponse(HttpResponseMessage response)
@@ -288,7 +279,7 @@ internal sealed class RedirectStateMachine
         if (original is null || !RedirectHandler.IsRedirect(response))
         {
             _inFlightCount--;
-            _ops.OnPushResponse(response);
+            ops.OnPushResponse(response);
             return;
         }
 
@@ -296,7 +287,7 @@ internal sealed class RedirectStateMachine
         {
             if (!original.Options.TryGetValue(RedirectBidiStage.RedirectHandlerKey, out var handler))
             {
-                handler = new RedirectHandler(_policy);
+                handler = new RedirectHandler(policy);
             }
 
             var newRequest = handler.BuildRedirectRequest(original, response);
@@ -311,7 +302,7 @@ internal sealed class RedirectStateMachine
 
             Metrics.RedirectCount().Add(1,
                 new KeyValuePair<string, object?>("http.response.status_code", (int)response.StatusCode));
-            Tracing.For("Redirect").Info(_ops, "Redirect followed: {0} → {2} (HTTP {1})",
+            Tracing.For("Redirect").Info(ops, "Redirect followed: {0} → {2} (HTTP {1})",
                 original.RequestUri?.OriginalString ?? "",
                 (int)response.StatusCode,
                 newRequest.RequestUri?.OriginalString ?? "");
@@ -327,14 +318,14 @@ internal sealed class RedirectStateMachine
 
             _readyRedirects.Enqueue(newRequest);
             _inFlightCount--;
-            _ops.OnSignalPullResponse();
-            _ops.OnSignalPullRequest();
+            ops.OnSignalPullResponse();
+            ops.OnSignalPullRequest();
         }
         catch (RedirectException ex)
         {
-            Tracing.For("Redirect").Warning(_ops, "Redirect error: {0} (for {1})", ex.Message, original.RequestUri);
+            Tracing.For("Redirect").Warning(ops, "Redirect error: {0} (for {1})", ex.Message, original.RequestUri);
             _inFlightCount--;
-            _ops.OnPushResponse(response);
+            ops.OnPushResponse(response);
         }
     }
 
@@ -344,7 +335,7 @@ internal sealed class RedirectStateMachine
         {
             var request = _readyRedirects.Dequeue();
             _inFlightCount++;
-            _ops.OnPushRequest(request);
+            ops.OnPushRequest(request);
         }
     }
 
@@ -352,7 +343,7 @@ internal sealed class RedirectStateMachine
     {
         if (IsDrained)
         {
-            _ops.OnCompleteStage();
+            ops.OnCompleteStage();
         }
     }
 

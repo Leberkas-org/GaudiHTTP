@@ -10,16 +10,10 @@ internal enum BodyFraming
     Close,
 }
 
-internal readonly struct BodyClassification
+internal readonly struct BodyClassification(BodyFraming framing, long? contentLength)
 {
-    public BodyFraming Framing { get; }
-    public long? ContentLength { get; }
-
-    public BodyClassification(BodyFraming framing, long? contentLength)
-    {
-        Framing = framing;
-        ContentLength = contentLength;
-    }
+    public BodyFraming Framing { get; } = framing;
+    public long? ContentLength { get; } = contentLength;
 }
 
 internal static class BodySemantics

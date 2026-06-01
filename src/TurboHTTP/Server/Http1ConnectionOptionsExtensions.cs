@@ -52,7 +52,6 @@ internal static class Http1ConnectionOptionsExtensions
         HeaderLineMaxLength = o.MaxRequestLineLength,
         RequestLineMaxLength = o.MaxRequestLineLength,
         MaxRequestTargetLength = o.MaxRequestTargetLength,
-        AllowObsFold = o.AllowObsFold,
-        BufferPool = MemoryPool<byte>.Shared,
+        AllowObsFold = o.AllowObsFold
     };
 }

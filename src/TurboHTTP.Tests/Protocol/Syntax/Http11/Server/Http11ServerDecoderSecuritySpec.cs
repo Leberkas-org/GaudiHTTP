@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
@@ -20,8 +19,7 @@ public sealed class Http11ServerDecoderSecuritySpec
         HeaderLineMaxLength = 8 * 1024,
         RequestLineMaxLength = 8 * 1024,
         MaxRequestTargetLength = 8 * 1024,
-        AllowObsFold = false,
-        BufferPool = MemoryPool<byte>.Shared,
+        AllowObsFold = false
     };
 
     private static Http11ServerDecoder MakeDecoder(Http11ServerDecoderOptions? options = null)

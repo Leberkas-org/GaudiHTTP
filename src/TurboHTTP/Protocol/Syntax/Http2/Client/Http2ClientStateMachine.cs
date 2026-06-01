@@ -2,7 +2,6 @@ using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Streams.Stages.Client;
 using static Servus.Core.Servus;
 

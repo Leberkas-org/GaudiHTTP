@@ -25,7 +25,6 @@ internal sealed class StreamState
     private IBodyDecoder? _bodyDecoder;
     private IBodyEncoder? _bodyEncoder;
     private Queue<StreamBodyChunk<int>>? _outboundBuffer;
-    private long _pendingOutboundBytes;
     private long _maxOutboundBuffer;
     private bool _encoderPaused;
 
@@ -153,7 +152,7 @@ internal sealed class StreamState
         _maxOutboundBuffer = maxOutboundBuffer;
     }
 
-    public long PendingOutboundBytes => _pendingOutboundBytes;
+    public long PendingOutboundBytes { get; private set; }
 
     public void StartBodyEncoder(Stream bodyStream, int streamId, IActorRef stageActor)
     {
@@ -180,7 +179,7 @@ internal sealed class StreamState
     {
         _outboundBuffer ??= new Queue<StreamBodyChunk<int>>();
         _outboundBuffer.Enqueue(chunk);
-        _pendingOutboundBytes += chunk.Length;
+        PendingOutboundBytes += chunk.Length;
         MaybePauseEncoder();
     }
 
@@ -195,7 +194,7 @@ internal sealed class StreamState
             _outboundBuffer.Enqueue(item);
         }
 
-        _pendingOutboundBytes += chunk.Length;
+        PendingOutboundBytes += chunk.Length;
         MaybePauseEncoder();
     }
 
@@ -214,7 +213,7 @@ internal sealed class StreamState
         if (_outboundBuffer is { Count: > 0 })
         {
             chunk = _outboundBuffer.Dequeue();
-            _pendingOutboundBytes -= chunk.Length;
+            PendingOutboundBytes -= chunk.Length;
             MaybeResumeEncoder();
             return true;
         }
@@ -230,7 +229,7 @@ internal sealed class StreamState
     {
         if (_maxOutboundBuffer > 0
             && !_encoderPaused
-            && _pendingOutboundBytes >= _maxOutboundBuffer
+            && PendingOutboundBytes >= _maxOutboundBuffer
             && _bodyEncoder is IPausableBodyEncoder pausable)
         {
             pausable.Pause();
@@ -241,7 +240,7 @@ internal sealed class StreamState
     private void MaybeResumeEncoder()
     {
         if (_encoderPaused
-            && _pendingOutboundBytes <= _maxOutboundBuffer / 2
+            && PendingOutboundBytes <= _maxOutboundBuffer / 2
             && _bodyEncoder is IPausableBodyEncoder pausable)
         {
             pausable.Resume();
@@ -272,7 +271,7 @@ internal sealed class StreamState
         _bodyEncoder = null;
         DisposeOutboundBuffer();
         _outboundBuffer = null;
-        _pendingOutboundBytes = 0;
+        PendingOutboundBytes = 0;
         _maxOutboundBuffer = 0;
         _encoderPaused = false;
         IsBodyEncoderComplete = false;
@@ -303,7 +302,7 @@ internal sealed class StreamState
             _outboundBuffer.Dequeue().Owner.Dispose();
         }
 
-        _pendingOutboundBytes = 0;
+        PendingOutboundBytes = 0;
     }
 
     private void EnsureHeaderCapacity(int required)
