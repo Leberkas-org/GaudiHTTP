@@ -57,7 +57,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
         _decoder = new Http11ClientDecoder(decoderOpts);
         _encoder = new Http11ClientEncoder(encoderOpts);
-        _effectivePipelineDepth = decoderOpts.MaxPipelineDepth;
+        // Pipeline depth is a connection concern, not a decoder concern — read it straight from options.
+        _effectivePipelineDepth = options.Http1.MaxPipelineDepth;
     }
 
     public void PreStart()

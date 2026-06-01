@@ -9,7 +9,6 @@ internal sealed record Http11ClientDecoderOptions
     public int MaxHeaderCount { get; init; } = 100;
     public int HeaderLineMaxLength { get; init; } = 8 * 1024;
     public bool AllowObsFold { get; init; }
-    public int MaxPipelineDepth { get; init; } = 1;
 
     public static Http11ClientDecoderOptions Default { get; } = new();
 }
