@@ -69,14 +69,23 @@ Set-Cookie: session=xyz; HttpOnly
 
 ### `SameSite`
 
-Controls whether a cookie is sent with cross-site requests. TurboHTTP stores the `SameSite` attribute but does **not** enforce it — the library always sends cookies that match domain and path rules. SameSite enforcement is a browser-level protection that does not apply to programmatic HTTP clients.
+Controls whether a cookie is sent with cross-site requests. Because a programmatic HTTP client has no inherent notion of "the current site", TurboHTTP treats every request as first-party (same-site) by default and sends matching cookies. To opt into `SameSite` enforcement, tell TurboHTTP which site is initiating the request:
 
-| Value      | Meaning                                                        |
-| ---------- | -------------------------------------------------------------- |
-| `Strict`   | Cookie sent only for requests originating from the same site   |
-| `Lax`      | Cookie sent for same-site and top-level cross-site navigations |
-| `None`     | Cookie sent with all requests (requires `Secure`)              |
-| _(absent)_ | No policy; treated like `Lax` in browsers                      |
+```csharp
+var request = new HttpRequestMessage(HttpMethod.Post, "https://api.example.com/transfer")
+    .WithFirstPartyContext(new Uri("https://app.other.com/"));
+```
+
+When a first-party context is set and the target is **cross-site** relative to it, TurboHTTP applies the policy below before injecting cookies:
+
+| Value      | Cross-site behaviour                                             |
+| ---------- | --------------------------------------------------------------- |
+| `Strict`   | Never sent cross-site                                           |
+| `Lax`      | Sent cross-site only for safe top-level navigations (GET/HEAD)  |
+| `None`     | Always sent (requires `Secure`)                                 |
+| _(absent)_ | No restriction — sent like `None`                              |
+
+Two requests are considered same-site when they share the same registrable domain (e.g. `app.example.com` and `api.example.com`). TurboHTTP does not bundle a public-suffix list, so multi-level suffixes like `co.uk` are compared on their last two labels.
 
 ## Expiration
 

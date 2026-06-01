@@ -49,6 +49,21 @@ internal sealed class CookieJar
     }
 
     public void AddCookiesToRequest(Uri requestUri, ref HttpRequestMessage request)
+        => AddCookiesToRequest(requestUri, ref request, firstPartyContext: null, isSafeMethod: true);
+
+    /// <summary>
+    /// Injects applicable cookies into <paramref name="request"/>, enforcing the <c>SameSite</c> attribute
+    /// relative to the request's first-party context (RFC 6265bis §5.8.3).
+    /// </summary>
+    /// <param name="firstPartyContext">
+    /// The site initiating the request. When <see langword="null"/> the request is treated as first-party
+    /// (same-site), preserving the behavior of the simple two-argument overload.
+    /// </param>
+    /// <param name="isSafeMethod">
+    /// Whether the request uses a safe, top-level-navigation method (GET/HEAD). <c>SameSite=Lax</c> cookies
+    /// are sent cross-site only when this is <see langword="true"/>.
+    /// </param>
+    public void AddCookiesToRequest(Uri requestUri, ref HttpRequestMessage request, Uri? firstPartyContext, bool isSafeMethod)
     {
         ArgumentNullException.ThrowIfNull(requestUri);
         ArgumentNullException.ThrowIfNull(request);
@@ -57,6 +72,7 @@ internal sealed class CookieJar
         var requestHost = requestUri.Host.ToLowerInvariant();
         var requestPath = string.IsNullOrEmpty(requestUri.AbsolutePath) ? "/" : requestUri.AbsolutePath;
         var isHttps = requestUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase);
+        var isCrossSite = firstPartyContext is not null && !IsSameSite(requestUri, firstPartyContext);
 
         _applicable.Clear();
 
@@ -78,6 +94,11 @@ internal sealed class CookieJar
             }
 
             if (!PathMatches(cookie.Path, requestPath))
+            {
+                continue;
+            }
+
+            if (isCrossSite && !SameSiteAllowsCrossSite(cookie.SameSite, isSafeMethod))
             {
                 continue;
             }
@@ -114,6 +135,41 @@ internal sealed class CookieJar
     public int Count => _store.Count;
 
     public void Clear() => _store.Clear();
+
+    /// <summary>
+    /// Whether <c>SameSite</c> permits a cookie on a cross-site request.
+    /// <c>Strict</c> never; <c>Lax</c> only on safe top-level navigations; <c>None</c>/<c>Unspecified</c> always.
+    /// </summary>
+    private static bool SameSiteAllowsCrossSite(SameSitePolicy policy, bool isSafeMethod) => policy switch
+    {
+        SameSitePolicy.Strict => false,
+        SameSitePolicy.Lax => isSafeMethod,
+        _ => true,
+    };
+
+    /// <summary>
+    /// Two URIs are same-site when they share the same registrable domain (RFC 6265bis §5.2).
+    /// Uses a last-two-labels approximation; multi-level public suffixes (e.g. <c>co.uk</c>) are not
+    /// resolved because TurboHTTP does not bundle a Public Suffix List.
+    /// </summary>
+    internal static bool IsSameSite(Uri request, Uri firstParty)
+        => string.Equals(
+            RegistrableDomain(request.Host),
+            RegistrableDomain(firstParty.Host),
+            StringComparison.OrdinalIgnoreCase);
+
+    internal static string RegistrableDomain(string host)
+    {
+        if (IsIpAddress(host))
+        {
+            return host;
+        }
+
+        var labels = host.Split('.');
+        return labels.Length <= 2
+            ? host
+            : string.Concat(labels[^2], ".", labels[^1]);
+    }
 
     internal static bool DomainMatches(string cookieDomain, bool isHostOnly, string requestHost)
     {

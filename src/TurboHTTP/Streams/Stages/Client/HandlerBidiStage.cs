@@ -1,4 +1,5 @@
 using TurboHTTP.Client;
+using TurboHTTP.Protocol;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
@@ -58,7 +59,12 @@ internal sealed class HandlerBidiStage
                     catch (Exception ex)
                     {
                         Tracing.For("Handler").Warning(this, "→ ProcessRequest threw: {0}", ex.Message);
-                        Push(stage._outRequest, request);
+                        // Fail only the offending request — keep the shared pipeline alive for other in-flight requests.
+                        request.Fail(ex);
+                        if (!IsClosed(stage._inRequest))
+                        {
+                            Pull(stage._inRequest);
+                        }
                     }
                 },
                 onUpstreamFinish: () => Complete(stage._outRequest),
@@ -83,7 +89,12 @@ internal sealed class HandlerBidiStage
                     catch (Exception ex)
                     {
                         Tracing.For("Handler").Warning(this, "← ProcessResponse threw: {0}", ex.Message);
-                        Push(stage._outResponse, resp);
+                        // Fail only the request this response belongs to — keep the shared pipeline alive.
+                        resp.RequestMessage?.Fail(ex);
+                        if (!IsClosed(stage._inResponse))
+                        {
+                            Pull(stage._inResponse);
+                        }
                     }
                 },
                 onUpstreamFinish: () => Complete(stage._outResponse),

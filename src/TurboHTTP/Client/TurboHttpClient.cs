@@ -126,6 +126,10 @@ public sealed class TurboHttpClient : ITurboHttpClient
 
         _pendingTcs.TryAdd(pending, 0);
 
+        var effectiveTimeout = request.Options.TryGetValue(OptionsKey.TimeoutKey, out var perRequestTimeout)
+            ? perRequestTimeout
+            : Timeout;
+
         try
         {
             try
@@ -137,7 +141,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
                 throw CreateClientDisposedException();
             }
 
-            if (Timeout == System.Threading.Timeout.InfiniteTimeSpan && !cancellationToken.CanBeCanceled)
+            if (effectiveTimeout == System.Threading.Timeout.InfiniteTimeSpan && !cancellationToken.CanBeCanceled)
             {
                 return await pending.GetValueTask();
             }
@@ -160,7 +164,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
 
             try
             {
-                cts.CancelAfter(Timeout);
+                cts.CancelAfter(effectiveTimeout);
                 await using (cts.Token.UnsafeRegister(
                                  static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
                                  pending))

@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHTTP.Client;
 using TurboHTTP.Features.Cookies;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Tests.Shared;
@@ -109,6 +110,47 @@ public sealed class CookieBidiStageSpec : StreamTestBase
         Assert.True(result.Headers.Contains("Cookie"));
         var cookieValue = string.Join("; ", result.Headers.GetValues("Cookie"));
         Assert.Contains("session=abc123", cookieValue);
+    }
+
+    private static CookieJar JarWithStrictCookie(string name, string value, string domain)
+    {
+        var jar = new CookieJar();
+        var response = new HttpResponseMessage();
+        response.Headers.TryAddWithoutValidation(
+            "Set-Cookie", $"{name}={value}; Domain={domain}; Path=/; SameSite=Strict");
+        jar.ProcessResponse(new Uri($"http://{domain}/"), response);
+        return jar;
+    }
+
+    [Fact(Timeout = 10_000)]
+    [Trait("RFC", "RFC6265-5.4")]
+    public async Task CookieBidiStage_should_not_inject_strict_cookie_when_request_is_cross_site()
+    {
+        var jar = JarWithStrictCookie("csrf", "token123", "example.com");
+        var stage = new CookieBidiStage(jar);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path")
+            .WithFirstPartyContext(new Uri("http://other.com/"));
+
+        var results = await RunRequestAsync(stage, request);
+
+        var result = Assert.Single(results);
+        Assert.False(result.Headers.Contains("Cookie"));
+    }
+
+    [Fact(Timeout = 10_000)]
+    [Trait("RFC", "RFC6265-5.4")]
+    public async Task CookieBidiStage_should_inject_strict_cookie_when_request_is_same_site()
+    {
+        var jar = JarWithStrictCookie("csrf", "token123", "example.com");
+        var stage = new CookieBidiStage(jar);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path")
+            .WithFirstPartyContext(new Uri("http://example.com/"));
+
+        var results = await RunRequestAsync(stage, request);
+
+        var result = Assert.Single(results);
+        Assert.True(result.Headers.Contains("Cookie"));
+        Assert.Contains("csrf=token123", string.Join("; ", result.Headers.GetValues("Cookie")));
     }
 
     [Fact(Timeout = 10_000)]
