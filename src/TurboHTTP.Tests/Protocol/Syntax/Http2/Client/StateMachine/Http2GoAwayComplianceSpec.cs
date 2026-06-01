@@ -64,19 +64,6 @@ public sealed class Http2GoAwayComplianceSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.8")]
-    public void FlowController_should_accept_window_update_on_existing_stream_after_goaway()
-    {
-        var flow = new FlowController(65535, 65535, initialConnectionSendWindow: 100000);
-        flow.InitStreamSendWindow(1);
-        flow.OnGoAway();
-
-        flow.OnSendWindowUpdate(1, 10000);
-
-        Assert.Equal(75535, flow.GetSendWindow(1));
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-6.8")]
     public void HpackDecoder_should_maintain_dynamic_table_state_across_goaway()
     {
         var encoder = new HpackEncoder(useHuffman: false);

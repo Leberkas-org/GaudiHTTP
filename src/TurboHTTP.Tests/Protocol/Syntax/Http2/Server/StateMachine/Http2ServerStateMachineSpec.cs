@@ -69,7 +69,7 @@ public sealed class Http2ServerStateMachineSpec
         frame[1] = 0;
         frame[2] = pingDataSize;
         frame[3] = (byte)FrameType.Ping;
-        frame[4] = isAck ? (byte)PingFlags.Ack : (byte)0;
+        frame[4] = isAck ? (byte)Pings.Ack : (byte)0;
         frame[5] = 0;
         frame[6] = 0;
         frame[7] = 0;
@@ -197,7 +197,7 @@ public sealed class Http2ServerStateMachineSpec
 
         // Frame type should be PING (0x6), flags should include ACK (0x1)
         Assert.Equal((byte)FrameType.Ping, responseData[3]);
-        Assert.True((responseData[4] & (byte)PingFlags.Ack) != 0);
+        Assert.True((responseData[4] & (byte)Pings.Ack) != 0);
     }
 
     [Fact(Timeout = 5000)]

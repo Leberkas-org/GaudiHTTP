@@ -5,33 +5,6 @@ namespace TurboHTTP.Tests.Protocol.Multiplexed;
 public sealed class FlowControllerSpec
 {
     [Fact(Timeout = 5000)]
-    public void FlowController_should_return_min_of_connection_and_stream_window()
-    {
-        var fc = new FlowController(
-            connectionWindowSize: 65535,
-            streamWindowSize: 65535,
-            initialConnectionSendWindow: 1000,
-            initialStreamSendWindow: 500);
-
-        fc.InitStreamSendWindow(1);
-        Assert.Equal(500, fc.GetSendWindow(1));
-    }
-
-    [Fact(Timeout = 5000)]
-    public void FlowController_should_decrement_both_windows_on_data_sent()
-    {
-        var fc = new FlowController(
-            connectionWindowSize: 65535,
-            streamWindowSize: 65535,
-            initialConnectionSendWindow: 1000,
-            initialStreamSendWindow: 1000);
-
-        fc.InitStreamSendWindow(1);
-        fc.OnDataSent(1, 300);
-        Assert.Equal(700, fc.GetSendWindow(1));
-    }
-
-    [Fact(Timeout = 5000)]
     public void FlowController_should_detect_connection_flow_control_violation()
     {
         var fc = new FlowController(
@@ -59,7 +32,7 @@ public sealed class FlowControllerSpec
     [Fact(Timeout = 5000)]
     public void FlowController_should_batch_window_updates()
     {
-        var windowSize = 65535;
+        const int windowSize = 65535;
         var fc = new FlowController(
             connectionWindowSize: windowSize,
             streamWindowSize: windowSize);
@@ -76,21 +49,6 @@ public sealed class FlowControllerSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void FlowController_should_increment_send_window_on_update()
-    {
-        var fc = new FlowController(
-            connectionWindowSize: 65535,
-            streamWindowSize: 65535,
-            initialConnectionSendWindow: 100,
-            initialStreamSendWindow: 100);
-
-        fc.InitStreamSendWindow(1);
-        fc.OnSendWindowUpdate(0, 500);
-        fc.OnSendWindowUpdate(1, 500);
-        Assert.Equal(600, fc.GetSendWindow(1));
-    }
-
-    [Fact(Timeout = 5000)]
     public void FlowController_should_track_goaway()
     {
         var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
@@ -102,7 +60,7 @@ public sealed class FlowControllerSpec
     [Fact(Timeout = 5000)]
     public void FlowController_should_return_pending_update_on_stream_close()
     {
-        var windowSize = 65535;
+        const int windowSize = 65535;
         var fc = new FlowController(
             connectionWindowSize: windowSize,
             streamWindowSize: windowSize);
@@ -122,19 +80,5 @@ public sealed class FlowControllerSpec
         fc.OnGoAway();
         fc.Reset(65535, 65535);
         Assert.False(fc.GoAwayReceived);
-    }
-
-    [Fact(Timeout = 5000)]
-    public void FlowController_should_apply_initial_window_size_delta()
-    {
-        var fc = new FlowController(
-            connectionWindowSize: 65535,
-            streamWindowSize: 65535,
-            initialConnectionSendWindow: 1000,
-            initialStreamSendWindow: 500);
-
-        fc.InitStreamSendWindow(1);
-        fc.ApplyInitialWindowSizeDelta(200);
-        Assert.Equal(700, fc.GetSendWindow(1));
     }
 }

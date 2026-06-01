@@ -6,18 +6,9 @@ namespace TurboHTTP.Protocol.Syntax.Http2;
 /// bandwidth-delay product exceeds the current window scaled by a multiplier.
 /// Holds no window state — the caller owns the window.
 /// </summary>
-internal sealed class WindowScaler
+internal sealed class WindowScaler(int maxWindow, double multiplier)
 {
-    private readonly int _maxWindow;
-    private readonly double _multiplier;
-
-    public WindowScaler(int maxWindow, double multiplier)
-    {
-        _maxWindow = maxWindow;
-        _multiplier = multiplier;
-    }
-
-    public int MaxWindow => _maxWindow;
+    public int MaxWindow => maxWindow;
 
     /// <summary>
     /// Returns the new window size (>= currentWindow), doubling up to the cap when the link is
@@ -26,24 +17,14 @@ internal sealed class WindowScaler
     /// </summary>
     public int ComputeNewWindow(int currentWindow, long deliveredBytes, TimeSpan elapsed, TimeSpan minRtt)
     {
-        if (currentWindow >= _maxWindow)
-        {
-            return currentWindow;
-        }
-
-        if (minRtt <= TimeSpan.Zero || elapsed <= TimeSpan.Zero || deliveredBytes <= 0)
+        if (currentWindow >= maxWindow || minRtt <= TimeSpan.Zero || elapsed <= TimeSpan.Zero || deliveredBytes <= 0)
         {
             return currentWindow;
         }
 
         var bdpTerm = (double)deliveredBytes * minRtt.Ticks;
-        var windowTerm = (double)currentWindow * elapsed.Ticks * _multiplier;
+        var windowTerm = (double)currentWindow * elapsed.Ticks * multiplier;
 
-        if (bdpTerm > windowTerm)
-        {
-            return Math.Min(_maxWindow, currentWindow * 2);
-        }
-
-        return currentWindow;
+        return bdpTerm > windowTerm ? Math.Min(maxWindow, currentWindow * 2) : currentWindow;
     }
 }

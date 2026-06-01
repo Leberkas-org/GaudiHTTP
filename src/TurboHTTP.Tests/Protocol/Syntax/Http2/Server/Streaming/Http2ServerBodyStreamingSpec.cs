@@ -51,7 +51,7 @@ public sealed class Http2ServerBodyStreamingSpec
         frame[3] = (byte)FrameType.Data;
 
         byte flags = 0;
-        if (endStream) flags |= (byte)DataFlags.EndStream;
+        if (endStream) flags |= (byte)Datas.EndStream;
         frame[4] = flags;
 
         frame[5] = (byte)(streamId >> 24);

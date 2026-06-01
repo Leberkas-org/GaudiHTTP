@@ -34,14 +34,12 @@ internal sealed class FlowController : IFlowController<int>
         int connectionWindowSize,
         int streamWindowSize,
         WindowScaler? scaler = null,
-        TimeProvider? clock = null,
-        long initialConnectionSendWindow = 65535,
-        long initialStreamSendWindow = 65535)
+        TimeProvider? clock = null)
     {
         RecvConnectionWindow = connectionWindowSize;
         _initialRecvStreamWindow = streamWindowSize;
-        _connectionSendWindow = initialConnectionSendWindow;
-        _initialSendStreamWindow = initialStreamSendWindow;
+        _connectionSendWindow = 65535;
+        _initialSendStreamWindow = 65535;
         _scaler = scaler;
         _clock = clock;
 
@@ -59,8 +57,8 @@ internal sealed class FlowController : IFlowController<int>
     /// <summary>True when a measurement PING is due (scaling on, window below cap, estimator ready).</summary>
     public bool ShouldSendMeasurementPing() =>
         _rtt is not null && _scaler is not null
-        && _initialRecvStreamWindow < _scaler.MaxWindow
-        && _rtt.ShouldSendPing();
+                         && _initialRecvStreamWindow < _scaler.MaxWindow
+                         && _rtt.ShouldSendPing();
 
     public void OnMeasurementPingSent() => _rtt?.OnPingSent();
 

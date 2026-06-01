@@ -12,8 +12,6 @@ namespace TurboHTTP.Protocol.Syntax.Http2;
 /// </summary>
 internal sealed class StreamState
 {
-    private readonly MemoryPool<byte> _pool = MemoryPool<byte>.Shared;
-
     private IMemoryOwner<byte>? _headerOwner;
     private Memory<byte> _headerBuffer;
     private int _headerLength;
@@ -315,7 +313,7 @@ internal sealed class StreamState
 
     private void RentNewHeaderBuffer(int size)
     {
-        var newOwner = _pool.Rent(size);
+        var newOwner = MemoryPool<byte>.Shared.Rent(size);
         if (_headerOwner != null)
         {
             _headerBuffer.Span.CopyTo(newOwner.Memory.Span);

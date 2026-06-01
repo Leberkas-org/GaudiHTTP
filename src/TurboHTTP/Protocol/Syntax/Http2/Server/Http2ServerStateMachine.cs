@@ -17,7 +17,6 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
     private readonly Http2ServerSessionManager _sessionManager;
 
     private readonly TimeSpan _keepAliveTimeout;
-    private readonly TimeSpan _requestHeadersTimeout;
     private int _activeStreamCount;
 
     public bool CanAcceptResponse => _sessionManager.ActiveStreamCount > 0;
@@ -32,13 +31,12 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
         _sessionManager = new Http2ServerSessionManager(options, ops);
 
         _keepAliveTimeout = options.Limits.KeepAliveTimeout;
-        _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
     }
 
     public void PreStart()
     {
         _sessionManager.PreStart();
-        _ops.OnScheduleTimer("keep-alive-timeout", _keepAliveTimeout);
+        _ops.OnScheduleTimer(KeepAliveTimeout, _keepAliveTimeout);
     }
 
     public void DecodeClientData(ITransportInbound data)
@@ -107,12 +105,10 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
             return;
         }
 
-        if (name.StartsWith(BodyConsumptionPrefix))
+        if (name.StartsWith(BodyConsumptionPrefix) &&
+            int.TryParse(name.AsSpan(BodyConsumptionPrefix.Length), out var consumptionStreamId))
         {
-            if (int.TryParse(name.AsSpan(BodyConsumptionPrefix.Length), out var consumptionStreamId))
-            {
-                _sessionManager.EmitRstStream(consumptionStreamId, Http2ErrorCode.Cancel);
-            }
+            _sessionManager.EmitRstStream(consumptionStreamId, Http2ErrorCode.Cancel);
         }
     }
 

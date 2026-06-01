@@ -27,7 +27,7 @@ internal enum FrameType : byte
 }
 
 [Flags]
-internal enum DataFlags : byte
+internal enum Datas : byte
 {
     None = 0x0,
     EndStream = 0x1,
@@ -52,14 +52,14 @@ internal enum Settings : byte
 }
 
 [Flags]
-internal enum PingFlags : byte
+internal enum Pings : byte
 {
     None = 0x0,
     Ack = 0x1,
 }
 
 [Flags]
-internal enum ContinuationFlags : byte
+internal enum Continuations : byte
 {
     None = 0x0,
     EndHeaders = 0x4,
@@ -136,7 +136,7 @@ internal sealed class DataFrame(int streamId, ReadOnlyMemory<byte> data, bool en
     public override void WriteTo(ref Span<byte> span)
     {
         var w = SpanWriter.Create(span);
-        var flags = EndStream ? (byte)DataFlags.EndStream : (byte)DataFlags.None;
+        var flags = EndStream ? (byte)Datas.EndStream : (byte)Datas.None;
         WriteHeader(ref w, Data.Length, FrameType.Data, flags, StreamId);
         w.WriteBytes(Data.Span);
         span = span[w.BytesWritten..];
@@ -189,7 +189,7 @@ internal sealed class ContinuationFrame(int streamId, ReadOnlyMemory<byte> heade
     public override void WriteTo(ref Span<byte> span)
     {
         var w = SpanWriter.Create(span);
-        var flags = EndHeaders ? (byte)ContinuationFlags.EndHeaders : (byte)0;
+        var flags = EndHeaders ? (byte)Continuations.EndHeaders : (byte)0;
         WriteHeader(ref w, HeaderBlockFragment.Length, FrameType.Continuation, flags, StreamId);
         w.WriteBytes(HeaderBlockFragment.Span);
         span = span[w.BytesWritten..];
@@ -269,7 +269,7 @@ internal sealed class PingFrame : Http2Frame
     public override void WriteTo(ref Span<byte> span)
     {
         var w = SpanWriter.Create(span);
-        var flags = IsAck ? (byte)PingFlags.Ack : (byte)0;
+        var flags = IsAck ? (byte)Pings.Ack : (byte)0;
         WriteHeader(ref w, 8, FrameType.Ping, flags, 0);
         w.WriteBytes(Data.Span);
         span = span[w.BytesWritten..];

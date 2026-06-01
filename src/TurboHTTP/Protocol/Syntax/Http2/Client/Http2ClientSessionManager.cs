@@ -16,7 +16,6 @@ internal sealed class Http2ClientSessionManager
     private readonly Http2ClientDecoderOptions _decoderOptions;
     private readonly TurboClientOptions _options;
     private readonly IClientStageOperations _ops;
-    private readonly TimeProvider _clock;
 
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;
@@ -57,7 +56,7 @@ internal sealed class Http2ClientSessionManager
         _decoderOptions = options.ToHttp2DecoderOptions();
         _options = options;
         _ops = ops;
-        _clock = timeProvider ?? TimeProvider.System;
+        var clock = timeProvider ?? TimeProvider.System;
         _tracker = new StreamTracker(1, _decoderOptions.MaxConcurrentStreams);
 
         WindowScaler? scaler = null;
@@ -72,7 +71,7 @@ internal sealed class Http2ClientSessionManager
             _decoderOptions.InitialConnectionWindowSize,
             _decoderOptions.InitialStreamWindowSize,
             scaler,
-            _clock);
+            clock);
         // Outgoing frame size starts at the RFC 9113 default (16,384) and is raised only when the
         // server advertises a larger SETTINGS_MAX_FRAME_SIZE. The client's own MaxFrameSize option
         // is a receive-side advertisement (sent in the preface), not a send-side limit.

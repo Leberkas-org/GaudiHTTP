@@ -14,6 +14,7 @@ namespace TurboHTTP.Protocol.Syntax.Http2.Server;
 internal sealed class Http2ServerSessionManager
 {
     private const int MaxStatePoolCapacity = 1000;
+    private readonly StackStreamStatePool<StreamState> _statePool;
 
     private readonly Http2ServerEncoderOptions _encoderOptions;
     private readonly Http2ServerDecoderOptions _decoderOptions;
@@ -30,7 +31,6 @@ internal sealed class Http2ServerSessionManager
     private readonly int _initialStreamWindowSize;
 
     private readonly Dictionary<int, StreamState> _streams = new();
-    private readonly StackStreamStatePool<StreamState> _statePool;
 
     private int _nextContinuationStreamId;
     private bool _continuationEndStream;
@@ -154,8 +154,8 @@ internal sealed class Http2ServerSessionManager
                 HandlePingFrame(ping);
                 break;
 
-            case GoAwayFrame goAway:
-                HandleGoAwayFrame(goAway);
+            case GoAwayFrame:
+                HandleGoAwayFrame();
                 break;
 
             case RstStreamFrame rst:
@@ -547,7 +547,7 @@ internal sealed class Http2ServerSessionManager
         EmitFrame(ackPing);
     }
 
-    private void HandleGoAwayFrame(GoAwayFrame _)
+    private void HandleGoAwayFrame()
     {
         _flow.OnGoAway();
     }
