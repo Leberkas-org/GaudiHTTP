@@ -5,7 +5,6 @@ using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
-using TurboHTTP.Streams.Stages;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
@@ -25,8 +24,6 @@ internal sealed class ServerPipeline
         _coordinator = coordinator;
     }
 
-    public IActorRef Coordinator => _coordinator;
-
     public static ServerPipeline Materialize(
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeFlow,
         TurboServerOptions options,
@@ -34,8 +31,7 @@ internal sealed class ServerPipeline
         IMaterializer materializer,
         IActorRefFactory actorSystem)
     {
-        var hub = new DynamicHub<int, IFeatureCollection>(
-            fc => fc.Get<IConnectionTagFeature>()!.ConnectionId);
+        var hub = new DynamicHub<int, IFeatureCollection>(fc => fc.Get<IConnectionTagFeature>()!.ConnectionId);
 
         var (requestSink, responseHub) = MergeHub.Source<IFeatureCollection>(perProducerBufferSize: 64)
             .Via(pipelineKillSwitch.Flow<IFeatureCollection>())
