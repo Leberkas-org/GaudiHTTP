@@ -10,7 +10,6 @@ internal sealed class Http2ServerDecoder
     private const string PseudoHeaderSection = "RFC 9113 §8.3.1";
     private const string UppercaseSection = "RFC 9113 §8.2.1";
     private const string TokenSection = "RFC 9113 §10.3";
-    private const string FieldValueSection = "RFC 9113 §10.3";
     private const string ConnectionSection = "RFC 9113 §8.2.2";
 
     private HpackDecoder _hpack = new();
@@ -44,7 +43,6 @@ internal sealed class Http2ServerDecoder
 
         string? path = null;
         string? scheme = null;
-        string? authority = null;
         var isConnect = false;
 
         foreach (var h in headers)
@@ -69,7 +67,6 @@ internal sealed class Http2ServerDecoder
             }
             else if (h.Name == WellKnownHeaders.Authority)
             {
-                authority = h.Value;
                 state.AddPseudoHeader(WellKnownHeaders.Authority, h.Value);
             }
             else if (!h.Name.StartsWith(WellKnownHeaders.Colon))
@@ -124,7 +121,7 @@ internal sealed class Http2ServerDecoder
             static h => h.Value,
             UppercaseSection,
             TokenSection,
-            FieldValueSection,
+            TokenSection,
             ConnectionSection);
     }
 

@@ -26,11 +26,12 @@ internal sealed class Http2ServerEncoder
     // Tracks MemoryPool rentals from the previous EncodeHeaders() call
     private readonly List<IMemoryOwner<byte>> _rentedBodyOwners = new(4);
 
-    public int MaxFrameSize { get; private set; } = 16 * 1024;
+    public int MaxFrameSize { get; private set; }
 
     public Http2ServerEncoder(Http2ServerEncoderOptions options)
     {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        ArgumentNullException.ThrowIfNull(options);
+        _options = options;
         MaxFrameSize = options.MaxFrameSize;
     }
 

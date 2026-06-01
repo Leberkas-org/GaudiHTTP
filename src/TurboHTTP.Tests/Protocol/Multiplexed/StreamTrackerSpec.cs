@@ -7,7 +7,7 @@ public sealed class StreamTrackerSpec
     [Fact(Timeout = 5000)]
     public void StreamTracker_should_allocate_odd_stream_ids_starting_at_one()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(1, 100);
         Assert.Equal(1, tracker.AllocateStreamId());
         Assert.Equal(3, tracker.AllocateStreamId());
         Assert.Equal(5, tracker.AllocateStreamId());
@@ -16,7 +16,7 @@ public sealed class StreamTrackerSpec
     [Fact(Timeout = 5000)]
     public void StreamTracker_should_track_active_stream_count()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(1, 100);
         var id = tracker.AllocateStreamId();
         tracker.OnStreamOpened(id);
         Assert.Equal(1, tracker.ActiveStreamCount);
@@ -27,7 +27,7 @@ public sealed class StreamTrackerSpec
     [Fact(Timeout = 5000)]
     public void StreamTracker_should_enforce_concurrency_limit()
     {
-        var tracker = new StreamTracker(maxConcurrentStreams: 2);
+        var tracker = new StreamTracker(1, 2);
         var id1 = tracker.AllocateStreamId();
         tracker.OnStreamOpened(id1);
         var id2 = tracker.AllocateStreamId();
@@ -40,14 +40,14 @@ public sealed class StreamTrackerSpec
     [Fact(Timeout = 5000)]
     public void StreamTracker_should_return_false_when_closing_unknown_stream()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(1, 100);
         Assert.False(tracker.OnStreamClosed(999));
     }
 
     [Fact(Timeout = 5000)]
     public void StreamTracker_should_reset_all_state()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(1, 100);
         var id = tracker.AllocateStreamId();
         tracker.OnStreamOpened(id);
         tracker.Reset();

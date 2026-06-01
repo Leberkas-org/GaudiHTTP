@@ -5,7 +5,6 @@ using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Client;
-using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Streams.Stages.Client;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Client;
@@ -14,7 +13,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
 {
     private sealed class FakeClientStageOperations : IClientStageOperations
     {
-        public List<Http2Frame> EmittedFrames { get; } = new();
+        public List<Http2Frame> EmittedFrames { get; } = [];
 
         public void OnResponse(HttpResponseMessage response) { }
 
@@ -63,7 +62,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
         Assert.NotEmpty(pings);
 
         // Verify it's a measurement PING (sentinel payload).
-        var measurementPing = pings.First(p => Http2ClientSessionManager.IsRttPing(p));
+        var measurementPing = pings.First(Http2ClientSessionManager.IsRttPing);
         Assert.NotNull(measurementPing);
     }
 
@@ -90,7 +89,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
 
         // Find the emitted measurement PING and advance time.
         var pings = ops.EmittedFrames.OfType<PingFrame>().ToList();
-        var measurementPing = pings.First(p => Http2ClientSessionManager.IsRttPing(p));
+        var measurementPing = pings.First(Http2ClientSessionManager.IsRttPing);
 
         clock.Advance(TimeSpan.FromMilliseconds(50));
 
@@ -125,7 +124,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
         // No measurement PINGs should be emitted.
         var measurementPings = ops.EmittedFrames
             .OfType<PingFrame>()
-            .Where(p => Http2ClientSessionManager.IsRttPing(p))
+            .Where(Http2ClientSessionManager.IsRttPing)
             .ToList();
 
         Assert.Empty(measurementPings);
@@ -166,7 +165,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
 
         var measurementPings = ops.EmittedFrames
             .OfType<PingFrame>()
-            .Where(p => Http2ClientSessionManager.IsRttPing(p))
+            .Where(Http2ClientSessionManager.IsRttPing)
             .ToList();
 
         Assert.Empty(measurementPings);

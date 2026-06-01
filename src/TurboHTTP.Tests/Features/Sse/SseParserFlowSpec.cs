@@ -102,11 +102,10 @@ public sealed class SseParserFlowSpec : TestKit
     [Fact(Timeout = 5000)]
     public async Task Flow_should_handle_split_across_chunks()
     {
-        var result = await Source.From(new[]
-            {
+        var result = await Source.From([
                 (ReadOnlyMemory<byte>)"data: hel"u8.ToArray(),
                 (ReadOnlyMemory<byte>)"lo\n\n"u8.ToArray()
-            })
+            ])
             .Via(SseParserFlow.Instance)
             .RunWith(Sink.Seq<ServerSentEvent>(), _materializer);
 

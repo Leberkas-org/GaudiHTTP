@@ -22,7 +22,7 @@ internal sealed class FrameDecoder : IDisposable
 
     // RFC 9113 §6.5.2: SETTINGS_MAX_FRAME_SIZE must be in [2^14, 2^24−1].
     private const uint MinMaxFrameSize = 16 * 1024;
-    private const uint MaxMaxFrameSize = (16 * 1024 * 1024) - 1;
+    private const uint MaxMaxFrameSize = 16 * 1024 * 1024 - 1;
 
     // RFC 9113 §6.7: PING payload is exactly 8 bytes.
     private const int PingPayloadSize = 8;
@@ -185,7 +185,7 @@ internal sealed class FrameDecoder : IDisposable
                 : new ContinuationFrame(
                     streamId,
                     payload,
-                    (flags & (byte)ContinuationFlags.EndHeaders) != 0),
+                    (flags & (byte)Continuations.EndHeaders) != 0),
 
             FrameType.Ping => streamId != 0
                 ? throw new HttpProtocolException("RFC 9113 §6.7: PING frame MUST be sent on stream 0.")
@@ -222,10 +222,10 @@ internal sealed class FrameDecoder : IDisposable
                 "RFC 9113 §6.1: DATA frame MUST be associated with a stream; stream 0 is invalid.");
         }
 
-        var endStream = (flags & (byte)DataFlags.EndStream) != 0;
+        var endStream = (flags & (byte)Datas.EndStream) != 0;
         var data = payload;
 
-        if ((flags & (byte)DataFlags.Padded) != 0)
+        if ((flags & (byte)Datas.Padded) != 0)
         {
             if (data.IsEmpty)
             {
@@ -282,7 +282,7 @@ internal sealed class FrameDecoder : IDisposable
                 $"PING frame must be exactly {PingPayloadSize} bytes, got {payload.Length}");
         }
 
-        return new PingFrame(payload, (flags & (byte)PingFlags.Ack) != 0);
+        return new PingFrame(payload, (flags & (byte)Pings.Ack) != 0);
     }
 
     private static SettingsFrame ParseSettings(ReadOnlyMemory<byte> payload, byte flags)

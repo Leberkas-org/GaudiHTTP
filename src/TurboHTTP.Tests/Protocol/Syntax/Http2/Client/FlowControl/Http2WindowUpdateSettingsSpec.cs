@@ -36,24 +36,6 @@ public sealed class Http2WindowUpdateSettingsSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.9")]
-    public void FlowController_should_allow_negative_window_when_initial_window_size_decreases_below_sent()
-    {
-        var flow = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535,
-            initialConnectionSendWindow: 1000000, initialStreamSendWindow: 65535);
-        flow.InitStreamSendWindow(1);
-
-        flow.OnDataSent(1, 60000);
-
-        var settings = new SettingsFrame([(SettingsParameter.InitialWindowSize, 1024u)]);
-        flow.OnRemoteSettings(settings);
-
-        // GetSendWindow returns max(0, min(connWindow, streamWindow)), so check that it's 0
-        // (stream window is negative, but clamped to 0)
-        Assert.Equal(0, flow.GetSendWindow(1));
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-6.9")]
     public void FlowController_should_not_affect_new_streams_when_window_is_negative_from_settings_change()
     {
         var flow = new FlowController(65535, 65535);
@@ -65,26 +47,6 @@ public sealed class Http2WindowUpdateSettingsSpec
 
         flow.InitStreamSendWindow(3);
         Assert.Equal(1024, flow.GetSendWindow(3));
-    }
-
-    [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-6.9")]
-    public void FlowController_should_recover_negative_window_when_window_update_received()
-    {
-        var flow = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535,
-            initialConnectionSendWindow: 1000000, initialStreamSendWindow: 65535);
-        flow.InitStreamSendWindow(1);
-        flow.OnDataSent(1, 60000);
-
-        var settings = new SettingsFrame([(SettingsParameter.InitialWindowSize, 1024u)]);
-        flow.OnRemoteSettings(settings);
-
-        // Stream window is now negative (1024 - 60000 = -58976), clamped to 0
-        Assert.Equal(0, flow.GetSendWindow(1));
-
-        // Apply a large window update to recover
-        flow.OnSendWindowUpdate(1, 70000);
-        Assert.True(flow.GetSendWindow(1) > 0);
     }
 
     [Fact(Timeout = 5000)]

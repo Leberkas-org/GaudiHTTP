@@ -29,7 +29,7 @@ public sealed class Http2PrefaceBuilderSpec
     [Trait("RFC", "RFC9113-3.4")]
     public void PrefaceBuilder_should_emit_default_header_table_size_4096()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535);
+        var (owner, length) = PrefaceBuilder.Build(65535, 4096, 16 * 1024);
         var span = owner.Memory.Span[..length];
         var settings = ParseSettings(span, out _);
 
@@ -44,7 +44,7 @@ public sealed class Http2PrefaceBuilderSpec
     [Trait("RFC", "RFC9113-3.4")]
     public void PrefaceBuilder_should_emit_custom_header_table_size_when_specified()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535, headerTableSize: 8192);
+        var (owner, length) = PrefaceBuilder.Build(65535, headerTableSize: 8192, 16 * 1024);
         var span = owner.Memory.Span[..length];
         var settings = ParseSettings(span, out _);
 
@@ -59,7 +59,7 @@ public sealed class Http2PrefaceBuilderSpec
     [Trait("RFC", "RFC9113-3.4")]
     public void PrefaceBuilder_should_emit_custom_max_frame_size_when_specified()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535, maxFrameSize: 32768);
+        var (owner, length) = PrefaceBuilder.Build(65535, 4096, maxFrameSize: 32768);
         var span = owner.Memory.Span[..length];
         var settings = ParseSettings(span, out _);
 
@@ -74,7 +74,7 @@ public sealed class Http2PrefaceBuilderSpec
     [Trait("RFC", "RFC9113-3.4")]
     public void PrefaceBuilder_should_emit_enable_push_0()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535);
+        var (owner, length) = PrefaceBuilder.Build(65535, 4096, 16 * 1024);
         var span = owner.Memory.Span[..length];
         var settings = ParseSettings(span, out _);
 
@@ -90,7 +90,7 @@ public sealed class Http2PrefaceBuilderSpec
     public void PrefaceBuilder_should_include_window_update_when_initial_window_exceeds_65535()
     {
         const int largeWindow = 64 * 1024 * 1024;
-        var (owner, length) = PrefaceBuilder.Build(largeWindow);
+        var (owner, length) = PrefaceBuilder.Build(largeWindow, 4096, 16 * 1024);
         var span = owner.Memory.Span[..length];
 
         ParseSettings(span, out var hasWindowUpdate);
@@ -103,7 +103,7 @@ public sealed class Http2PrefaceBuilderSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void PrefaceBuilder_should_not_include_window_update_when_initial_window_is_65535()
     {
-        var (owner, length) = PrefaceBuilder.Build(65535);
+        var (owner, length) = PrefaceBuilder.Build(65535, 4096, 16 * 1024);
         var span = owner.Memory.Span[..length];
 
         ParseSettings(span, out var hasWindowUpdate);

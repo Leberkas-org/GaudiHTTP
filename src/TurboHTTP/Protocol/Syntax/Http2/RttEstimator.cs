@@ -5,11 +5,8 @@ namespace TurboHTTP.Protocol.Syntax.Http2;
 /// measurement PING is due. Actor-confined: no synchronization. Clocked via <see cref="TimeProvider"/>
 /// so tests can drive it deterministically with FakeTimeProvider.
 /// </summary>
-internal sealed class RttEstimator
+internal sealed class RttEstimator(TimeProvider clock, TimeSpan pingInterval)
 {
-    private readonly TimeProvider _clock;
-    private readonly TimeSpan _pingInterval;
-
     private long _pingSentTimestamp;
     private long _lastPingTimestamp;
     private bool _awaitingAck;
@@ -17,12 +14,6 @@ internal sealed class RttEstimator
 
     /// <summary>Smallest RTT observed so far. <see cref="TimeSpan.Zero"/> means "unknown / no sample yet".</summary>
     public TimeSpan MinRtt { get; private set; } = TimeSpan.Zero;
-
-    public RttEstimator(TimeProvider clock, TimeSpan pingInterval)
-    {
-        _clock = clock;
-        _pingInterval = pingInterval;
-    }
 
     /// <summary>True when no measurement is in flight and the interval since the last ping has elapsed.</summary>
     public bool ShouldSendPing()
@@ -37,12 +28,12 @@ internal sealed class RttEstimator
             return true;
         }
 
-        return _clock.GetElapsedTime(_lastPingTimestamp) >= _pingInterval;
+        return clock.GetElapsedTime(_lastPingTimestamp) >= pingInterval;
     }
 
     public void OnPingSent()
     {
-        _pingSentTimestamp = _clock.GetTimestamp();
+        _pingSentTimestamp = clock.GetTimestamp();
         _lastPingTimestamp = _pingSentTimestamp;
         _awaitingAck = true;
         _everPinged = true;
@@ -56,7 +47,7 @@ internal sealed class RttEstimator
         }
 
         _awaitingAck = false;
-        var rtt = _clock.GetElapsedTime(_pingSentTimestamp);
+        var rtt = clock.GetElapsedTime(_pingSentTimestamp);
         if (MinRtt == TimeSpan.Zero || rtt < MinRtt)
         {
             MinRtt = rtt;

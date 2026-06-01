@@ -48,7 +48,7 @@ public sealed class Http2ServerTimeoutSpec
         frame[1] = (byte)(length >> 8);
         frame[2] = (byte)length;
         frame[3] = (byte)FrameType.Data;
-        frame[4] = endStream ? (byte)DataFlags.EndStream : (byte)0;
+        frame[4] = endStream ? (byte)Datas.EndStream : (byte)0;
 
         frame[5] = (byte)(streamId >> 24);
         frame[6] = (byte)(streamId >> 16);
@@ -253,7 +253,7 @@ public sealed class Http2ServerTimeoutSpec
         frame[1] = (byte)(length >> 8);
         frame[2] = (byte)length;
         frame[3] = (byte)FrameType.Continuation;
-        frame[4] = endHeaders ? (byte)ContinuationFlags.EndHeaders : (byte)0;
+        frame[4] = endHeaders ? (byte)Continuations.EndHeaders : (byte)0;
 
         frame[5] = (byte)(streamId >> 24);
         frame[6] = (byte)(streamId >> 16);

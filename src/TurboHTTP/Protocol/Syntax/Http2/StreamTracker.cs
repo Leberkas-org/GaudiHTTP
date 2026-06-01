@@ -2,8 +2,7 @@ using TurboHTTP.Protocol.Multiplexed;
 
 namespace TurboHTTP.Protocol.Syntax.Http2;
 
-internal sealed class StreamTracker(int initialNextStreamId = 1, int maxConcurrentStreams = 100)
-    : IStreamTracker<int>
+internal sealed class StreamTracker(int initialNextStreamId, int maxConcurrentStreams) : IStreamTracker<int>
 {
     private int _nextStreamId = initialNextStreamId;
     private readonly HashSet<int> _activeStreamIds = [];
