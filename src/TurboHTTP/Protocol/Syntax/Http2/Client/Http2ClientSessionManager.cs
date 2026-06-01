@@ -564,7 +564,7 @@ internal sealed class Http2ClientSessionManager
         }
 
         var streamingResponse = _responseDecoder.DecodeHeadersForStreaming(streamId, state);
-        state.InitBodyDecoder(BodyDecoderFactory.Create(streaming: true, _options.MaxStreamedBodySize ?? long.MaxValue));
+        state.InitBodyDecoder(BodyDecoderFactory.Create(streaming: true, _options.MaxStreamedResponseBodySize ?? long.MaxValue));
         var bodyStream = state.GetBodyStream();
         streamingResponse.Content = new StreamContent(bodyStream);
         state.ApplyContentHeadersTo(streamingResponse.Content);

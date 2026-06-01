@@ -17,7 +17,7 @@ internal static class ServerOptionsProjections
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             AllowObsFold = false,
             BodyReadTimeout = o.Http1.BodyReadTimeout,
-            BodyBufferThreshold = o.BodyBufferThreshold,
+            BodyBufferThreshold = o.RequestBodyBufferThreshold,
             ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
         };
@@ -37,7 +37,7 @@ internal static class ServerOptionsProjections
             MaxHeaderListSize = o.Http2.MaxHeaderListSize ?? o.Limits.MaxRequestHeadersTotalSize,
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             MaxResponseBufferSize = o.Http2.MaxResponseBufferSize,
-            BodyBufferThreshold = o.BodyBufferThreshold,
+            BodyBufferThreshold = o.RequestBodyBufferThreshold,
             ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
         };
@@ -54,7 +54,7 @@ internal static class ServerOptionsProjections
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             QpackMaxTableCapacity = o.Http3.QpackMaxTableCapacity,
             QpackBlockedStreams = o.Http3.QpackBlockedStreams,
-            BodyBufferThreshold = o.BodyBufferThreshold,
+            BodyBufferThreshold = o.RequestBodyBufferThreshold,
             ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
         };

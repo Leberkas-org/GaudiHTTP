@@ -37,7 +37,7 @@ internal static class ProtocolCoreBuilder
 
         var core = (Flow<HttpRequestMessage, HttpResponseMessage, NotUsed>)
             Flow.Create<HttpRequestMessage>()
-                .GroupByRequestEndpoint(RequestEndpoint.FromRequest, maxSubstreams: clientOptions.MaxEndpointSubstreams,
+                .GroupByRequestEndpoint(RequestEndpoint.FromRequest, maxSubstreams: clientOptions.MaxConcurrentEndpoints,
                     maxSubstreamsPerKey: MaxSubstreamsPerKey,
                     maxConcurrencyPerSlot: MaxConcurrencyPerSlot)
                 .ViaSubFlow(endpointDispatch)

@@ -12,7 +12,7 @@ namespace TurboHTTP.Client
     public sealed class CacheOptions
     {
         public CacheOptions() { }
-        public long MaxBodyBytes { get; set; }
+        public long MaxBodySize { get; set; }
         public int MaxEntries { get; set; }
         public bool SharedCache { get; set; }
     }
@@ -20,12 +20,12 @@ namespace TurboHTTP.Client
     {
         public CompressionOptions() { }
         public string Encoding { get; set; }
-        public long MinBodySizeBytes { get; set; }
+        public long MinBodySize { get; set; }
     }
     public sealed class Expect100Options
     {
         public Expect100Options() { }
-        public long MinBodySizeBytes { get; set; }
+        public long MinBodySize { get; set; }
     }
     public static class Extensions
     {
@@ -115,7 +115,6 @@ namespace TurboHTTP.Client
     {
         public TurboClientOptions() { }
         public System.Uri? BaseAddress { get; set; }
-        public int BodyBufferThreshold { get; set; }
         public System.Security.Cryptography.X509Certificates.X509CertificateCollection? ClientCertificates { get; set; }
         public System.TimeSpan ConnectTimeout { get; set; }
         public System.Net.ICredentials? Credentials { get; set; }
@@ -126,14 +125,14 @@ namespace TurboHTTP.Client
         public TurboHTTP.Client.Http1ClientOptions Http1 { get; init; }
         public TurboHTTP.Client.Http2ClientOptions Http2 { get; init; }
         public TurboHTTP.Client.Http3ClientOptions Http3 { get; init; }
-        public long MaxBufferedBodySize { get; set; }
-        public uint MaxEndpointSubstreams { get; set; }
-        public long? MaxStreamedBodySize { get; set; }
+        public uint MaxConcurrentEndpoints { get; set; }
+        public long? MaxStreamedResponseBodySize { get; set; }
         public System.TimeSpan PooledConnectionIdleTimeout { get; set; }
         public System.TimeSpan PooledConnectionLifetime { get; set; }
         public bool PreAuthenticate { get; set; }
         public System.Net.IWebProxy? Proxy { get; set; }
         public int RequestBodyChunkSize { get; set; }
+        public int ResponseBodyBufferThreshold { get; set; }
         public System.Net.Security.RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; set; }
         public int? SocketReceiveBufferSize { get; set; }
         public int? SocketSendBufferSize { get; set; }
@@ -472,7 +471,6 @@ namespace TurboHTTP.Server
     public sealed class TurboServerOptions
     {
         public TurboServerOptions() { }
-        public int BodyBufferThreshold { get; set; }
         public System.TimeSpan BodyConsumptionTimeout { get; set; }
         public System.Collections.Generic.IList<TurboHTTP.Server.ListenerBinding> Endpoints { get; }
         public System.TimeSpan GracefulShutdownTimeout { get; set; }
@@ -482,6 +480,7 @@ namespace TurboHTTP.Server
         public TurboHTTP.Server.Http2ServerOptions Http2 { get; }
         public TurboHTTP.Server.Http3ServerOptions Http3 { get; }
         public TurboHTTP.Server.TurboServerLimits Limits { get; }
+        public int RequestBodyBufferThreshold { get; set; }
         public int ResponseBodyChunkSize { get; set; }
         public System.Collections.Generic.IList<string> Urls { get; }
         public void Bind(Servus.Akka.Transport.QuicListenerOptions options) { }

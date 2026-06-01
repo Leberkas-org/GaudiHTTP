@@ -235,7 +235,7 @@ public sealed class TurboHttpClientBuilderExtensionsSpec
     public void WithRequestCompression_WithPolicy_AssignsCompressionPolicy()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithRequestCompression(x => x.MinBodySizeBytes = 1024);
+        services.AddTurboHttpClient("test").WithRequestCompression(x => x.MinBodySize = 1024);
 
         var descriptor = GetDescriptor(services, "test");
 
@@ -269,7 +269,7 @@ public sealed class TurboHttpClientBuilderExtensionsSpec
     public void WithExpectContinue_WithPolicy_AssignsPolicy()
     {
         var services = new ServiceCollection();
-        services.AddTurboHttpClient("test").WithExpectContinue(x => x.MinBodySizeBytes = 2048);
+        services.AddTurboHttpClient("test").WithExpectContinue(x => x.MinBodySize = 2048);
 
         var descriptor = GetDescriptor(services, "test");
 

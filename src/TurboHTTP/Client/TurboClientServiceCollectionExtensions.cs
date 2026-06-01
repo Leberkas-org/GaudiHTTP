@@ -45,7 +45,7 @@ public static class TurboClientServiceCollectionExtensions
                 // across all registered clients.
                 var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
                 var maxSubstreams = provider.GetServices<TurboHttpClientName>()
-                    .Select(n => optionsMonitor.Get(n.Name).MaxEndpointSubstreams)
+                    .Select(n => optionsMonitor.Get(n.Name).MaxConcurrentEndpoints)
                     .DefaultIfEmpty(256u)
                     .Max();
 
