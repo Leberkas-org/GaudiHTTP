@@ -151,4 +151,19 @@ public sealed class FeatureCollectionFactorySpec
         Assert.NotNull(bodyControl);
         Assert.False(bodyControl.AllowSynchronousIO);
     }
+
+    [Fact(Timeout = 5000)]
+    public void Return_should_reset_lifetime_feature_after_abort()
+    {
+        var requestFeature = new TurboHttpRequestFeature();
+        var features = FeatureCollectionFactory.Create(requestFeature, hasBody: false);
+
+        var lifetime = features.Get<IHttpRequestLifetimeFeature>()!;
+        lifetime.Abort();
+        Assert.True(lifetime.RequestAborted.IsCancellationRequested);
+
+        FeatureCollectionFactory.Return(features);
+
+        Assert.False(lifetime.RequestAborted.IsCancellationRequested);
+    }
 }

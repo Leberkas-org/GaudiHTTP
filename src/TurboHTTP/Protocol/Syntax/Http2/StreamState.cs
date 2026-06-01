@@ -45,6 +45,11 @@ internal sealed class StreamState
         return _headerBuffer[.._headerLength].Span;
     }
 
+    public void ClearHeaderBuffer()
+    {
+        _headerLength = 0;
+    }
+
     public void InitResponse(HttpResponseMessage response)
     {
         _response = response;

@@ -43,6 +43,11 @@ internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSi
         var response = new HttpResponseMessage();
         AssembleResponse(headers, response, state);
 
+        if ((int)response.StatusCode < 200)
+        {
+            return response;
+        }
+
         state.InitResponse(response);
 
         if (!endStream)
@@ -67,7 +72,11 @@ internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSi
         var response = new HttpResponseMessage();
         AssembleResponse(headers, response, state);
 
-        state.InitResponse(response);
+        if ((int)response.StatusCode >= 200)
+        {
+            state.InitResponse(response);
+        }
+
         return response;
     }
 

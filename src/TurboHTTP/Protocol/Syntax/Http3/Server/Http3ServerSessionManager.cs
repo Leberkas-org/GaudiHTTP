@@ -434,16 +434,24 @@ internal sealed class Http3ServerSessionManager
                 {
                     case HeadersFrame headersFrame:
                     {
-                        var requestFeature =
-                            _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
-                        if (requestFeature is not null)
+                        if (state.GetRequestFeature() is not null)
                         {
-                            state.InitRequestFeature(requestFeature);
+                            _requestDecoder.DecodeTrailers(headersFrame, state);
+                            state.FeedBody([], endStream: true);
                         }
                         else
                         {
-                            _ops.OnScheduleTimer(string.Concat(HeadersTimeoutPrefix, streamId.ToString()),
-                                TimeSpan.FromSeconds(30));
+                            var requestFeature =
+                                _requestDecoder.DecodeHeadersToFeature(headersFrame, state, endStream: false);
+                            if (requestFeature is not null)
+                            {
+                                state.InitRequestFeature(requestFeature);
+                            }
+                            else
+                            {
+                                _ops.OnScheduleTimer(string.Concat(HeadersTimeoutPrefix, streamId.ToString()),
+                                    TimeSpan.FromSeconds(30));
+                            }
                         }
 
                         break;

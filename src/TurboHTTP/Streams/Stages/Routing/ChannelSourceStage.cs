@@ -21,8 +21,7 @@ namespace TurboHTTP.Streams.Stages.Routing;
 internal sealed class ChannelSourceStage<T> : GraphStage<SourceShape<T>>
 {
     private readonly Channel<T> _channel;
-    private readonly TaskCompletionSource _completionTcs =
-        new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _completionTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private readonly Outlet<T> _out = new("ChannelSource.Out");
 
@@ -161,6 +160,7 @@ internal sealed class ChannelSourceStage<T> : GraphStage<SourceShape<T>>
                     // deadlock.
                     CompleteStage();
                 }
+
                 return;
             }
 

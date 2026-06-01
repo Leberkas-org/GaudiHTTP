@@ -28,6 +28,7 @@ internal static class FeatureCollectionFactory
         features.Set<IHttpRequestBodyDetectionFeature>(detectionFeature);
 
         var responseBodyFeature = new TurboHttpResponseBodyFeature();
+        responseBodyFeature.SetOnStarting(() => responseFeature.FireOnStartingAsync());
         features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
 
         var trailersFeature = new TurboHttpResponseTrailersFeature();
@@ -70,6 +71,11 @@ internal static class FeatureCollectionFactory
 
         turboFeatures.RequestTimestamp = 0;
         turboFeatures.RequestActivity = null;
+
+        if (features.Get<IHttpRequestLifetimeFeature>() is TurboHttpRequestLifetimeFeature lifetime)
+        {
+            lifetime.Reset();
+        }
 
         _tPool ??= new Stack<TurboFeatureCollection>(MaxPoolSize);
 

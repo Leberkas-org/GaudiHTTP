@@ -441,22 +441,32 @@ internal sealed class Http2ServerSessionManager
             return;
         }
 
-        if (!_tracker.CanOpenStream())
+        var isTrailer = _streams.TryGetValue(streamId, out var existing) && existing.GetRequestFeature() is not null;
+
+        if (!isTrailer && !_tracker.CanOpenStream())
         {
             EmitRstStream(streamId, Http2ErrorCode.RefusedStream);
             return;
         }
 
-        var state = GetOrCreateStreamState(streamId);
-        if (streamId > _highestProcessedStreamId)
+        var state = isTrailer ? existing! : GetOrCreateStreamState(streamId);
+        if (!isTrailer && streamId > _highestProcessedStreamId)
         {
             _highestProcessedStreamId = streamId;
         }
 
         if (headers.EndHeaders)
         {
-            state.AppendHeader(headers.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
-            DecodeAndEmitRequest(streamId, state, headers.EndStream);
+            if (isTrailer)
+            {
+                state.AppendHeader(headers.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
+                HandleTrailers(streamId, state);
+            }
+            else
+            {
+                state.AppendHeader(headers.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
+                DecodeAndEmitRequest(streamId, state, headers.EndStream);
+            }
         }
         else
         {
@@ -645,6 +655,25 @@ internal sealed class Http2ServerSessionManager
             TerminateConnection(Http2ErrorCode.EnhanceYourCalm,
                 "RFC 9113 §5.1 / CVE-2023-44487: excessive stream resets.");
         }
+    }
+
+    private void HandleTrailers(int streamId, StreamState state)
+    {
+        try
+        {
+            _requestDecoder.DecodeTrailers(state);
+        }
+        catch (HttpProtocolException ex)
+        {
+            Tracing.For("Protocol")
+                .Warning(this, "HTTP/2: Trailer decode error on stream {0}: {1}", streamId, ex.Message);
+            EmitRstStream(streamId, Http2ErrorCode.ProtocolError);
+            state.ClearHeaderBuffer();
+            return;
+        }
+
+        state.ClearHeaderBuffer();
+        state.FeedBody([], endStream: true);
     }
 
     private void DecodeAndEmitRequest(int streamId, StreamState state, bool endStream)

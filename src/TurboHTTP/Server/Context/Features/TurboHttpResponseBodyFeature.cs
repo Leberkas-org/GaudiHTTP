@@ -49,10 +49,9 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         }
     }
 
-    public Task StartAsync(CancellationToken cancellationToken = default)
+    public async Task StartAsync(CancellationToken cancellationToken = default)
     {
-        _writer.CommitHeaders();
-        return Task.CompletedTask;
+        await _writer.CommitHeadersAsync();
     }
 
     public async Task SendFileAsync(string path, long offset, long? count,
@@ -131,6 +130,25 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             {
                 HasStarted = true;
                 _headerCommit.TrySetResult();
+            }
+        }
+
+        public async Task CommitHeadersAsync()
+        {
+            if (!HasStarted)
+            {
+                HasStarted = true;
+                try
+                {
+                    if (_onStarting is not null)
+                    {
+                        await _onStarting();
+                    }
+                }
+                finally
+                {
+                    _headerCommit.TrySetResult();
+                }
             }
         }
 
