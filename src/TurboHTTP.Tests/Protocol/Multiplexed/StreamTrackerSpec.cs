@@ -54,4 +54,64 @@ public sealed class StreamTrackerSpec
         Assert.Equal(0, tracker.ActiveStreamCount);
         Assert.Equal(1, tracker.AllocateStreamId());
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1.1")]
+    public void TryAcceptClientStream_should_reject_stream_id_zero()
+    {
+        var tracker = new StreamTracker(1, 100);
+        var result = tracker.TryAcceptClientStream(0);
+        Assert.Equal(StreamAcceptResult.InvalidId, result);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1.1")]
+    public void TryAcceptClientStream_should_reject_even_stream_id()
+    {
+        var tracker = new StreamTracker(1, 100);
+        Assert.Equal(StreamAcceptResult.InvalidId, tracker.TryAcceptClientStream(2));
+        Assert.Equal(StreamAcceptResult.InvalidId, tracker.TryAcceptClientStream(4));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1.1")]
+    public void TryAcceptClientStream_should_reject_non_monotonic_stream_id()
+    {
+        var tracker = new StreamTracker(1, 100);
+        Assert.Equal(StreamAcceptResult.Accepted, tracker.TryAcceptClientStream(3));
+        Assert.Equal(StreamAcceptResult.NonMonotonic, tracker.TryAcceptClientStream(1));
+        Assert.Equal(StreamAcceptResult.NonMonotonic, tracker.TryAcceptClientStream(3));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1.1")]
+    public void TryAcceptClientStream_should_reject_when_at_concurrency_limit()
+    {
+        var tracker = new StreamTracker(1, 1);
+        Assert.Equal(StreamAcceptResult.Accepted, tracker.TryAcceptClientStream(1));
+        Assert.Equal(StreamAcceptResult.RefusedStream, tracker.TryAcceptClientStream(3));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1.1")]
+    public void TryAcceptClientStream_should_accept_valid_monotonic_odd_ids()
+    {
+        var tracker = new StreamTracker(1, 100);
+        Assert.Equal(StreamAcceptResult.Accepted, tracker.TryAcceptClientStream(1));
+        Assert.Equal(StreamAcceptResult.Accepted, tracker.TryAcceptClientStream(3));
+        Assert.Equal(StreamAcceptResult.Accepted, tracker.TryAcceptClientStream(5));
+        Assert.Equal(3, tracker.ActiveStreamCount);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-5.1.1")]
+    public void TryAcceptClientStream_should_track_highest_stream_id()
+    {
+        var tracker = new StreamTracker(1, 100);
+        Assert.Equal(0, tracker.HighestAcceptedStreamId);
+        tracker.TryAcceptClientStream(1);
+        Assert.Equal(1, tracker.HighestAcceptedStreamId);
+        tracker.TryAcceptClientStream(5);
+        Assert.Equal(5, tracker.HighestAcceptedStreamId);
+    }
 }
