@@ -6,7 +6,7 @@ namespace TurboHTTP.Server.Context.Features;
 
 internal sealed class TurboHttpResponseTrailersFeature : IHttpResponseTrailersFeature
 {
-    private TurboResponseHeaderDictionary _trailers = new();
+    private readonly TurboResponseHeaderDictionary _trailers = new();
 
     public IHeaderDictionary Trailers
     {
@@ -15,15 +15,7 @@ internal sealed class TurboHttpResponseTrailersFeature : IHttpResponseTrailersFe
     }
 
     public IEnumerable<KeyValuePair<string, Microsoft.Extensions.Primitives.StringValues>> GetAllowedTrailers()
-    {
-        foreach (var header in _trailers)
-        {
-            if (TrailerFieldValidator.IsAllowedInTrailer(header.Key))
-            {
-                yield return header;
-            }
-        }
-    }
+        => _trailers.Where(header => TrailerFieldValidator.IsAllowedInTrailer(header.Key));
 
     internal void Reset()
     {

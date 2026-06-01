@@ -27,8 +27,6 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
     public PipeWriter Writer => _writer;
 
-    public Task WhenSinkCompleted => Task.CompletedTask;
-
     public Sink<ReadOnlyMemory<byte>, Task> BodySink
     {
         get
@@ -111,7 +109,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
     internal Stream GetResponseStream() => _pipe.Reader.AsStream();
 
-    internal sealed class ResponsePipeWriter(PipeWriter inner) : PipeWriter
+    private sealed class ResponsePipeWriter(PipeWriter inner) : PipeWriter
     {
         private readonly TaskCompletionSource _headerCommit = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private Func<Task>? _onStarting;
@@ -175,7 +173,8 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             return CommitAndFlushAsync(cancellationToken);
         }
 
-        public override ValueTask<FlushResult> WriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken = default)
+        public override ValueTask<FlushResult> WriteAsync(ReadOnlyMemory<byte> source,
+            CancellationToken cancellationToken = default)
         {
             if (HasStarted)
             {
@@ -203,7 +202,8 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             return await inner.FlushAsync(cancellationToken);
         }
 
-        private async ValueTask<FlushResult> CommitAndWriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken)
+        private async ValueTask<FlushResult> CommitAndWriteAsync(ReadOnlyMemory<byte> source,
+            CancellationToken cancellationToken)
         {
             HasStarted = true;
             try
