@@ -28,11 +28,11 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
     public RequestEndpoint Endpoint => _clientSession.Endpoint;
     public int ReconnectBufferCount => _reconnect.BufferedCount;
 
-    public Http2ClientStateMachine(TurboClientOptions options, IClientStageOperations ops)
+    public Http2ClientStateMachine(TurboClientOptions options, IClientStageOperations ops, TimeProvider? timeProvider = null)
     {
         _options = options;
         _ops = ops;
-        _clientSession = new Http2ClientSessionManager(options, ops);
+        _clientSession = new Http2ClientSessionManager(options, ops, timeProvider);
         _reconnect = new ReconnectionManager(options.Http2.MaxReconnectAttempts);
     }
 

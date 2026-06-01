@@ -1,6 +1,6 @@
-using TurboHTTP.Protocol.Server;
+using TurboHTTP.Protocol;
 
-namespace TurboHTTP.Tests.Protocol.Server;
+namespace TurboHTTP.Tests.Protocol;
 
 public sealed class DataRateMonitorSpec
 {

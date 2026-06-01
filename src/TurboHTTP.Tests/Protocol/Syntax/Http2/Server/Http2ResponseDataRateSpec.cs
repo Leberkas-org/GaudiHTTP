@@ -1,4 +1,4 @@
-using TurboHTTP.Protocol.Server;
+using TurboHTTP.Protocol;
 using TurboHTTP.Server;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server;

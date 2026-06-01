@@ -16,6 +16,8 @@ internal sealed class Http2ClientSessionManager
     private readonly Http2ClientDecoderOptions _decoderOptions;
     private readonly TurboClientOptions _options;
     private readonly IClientStageOperations _ops;
+    private readonly TimeProvider _clock;
+    private readonly RttEstimator? _rtt;
 
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;
@@ -31,6 +33,8 @@ internal sealed class Http2ClientSessionManager
     private bool _awaitingPingAck;
     private long _pingSentTimestamp;
 
+    private static readonly byte[] RttPingPayload = "RTTPROBE"u8.ToArray();
+
     public bool CanOpenStream => _tracker.CanOpenStream();
     public bool GoAwayReceived => _flow.GoAwayReceived;
     public int GoAwayLastStreamId { get; private set; }
@@ -38,18 +42,39 @@ internal sealed class Http2ClientSessionManager
     public bool HasActiveStreams => _streams.Count > 0;
     public RequestEndpoint Endpoint { get; private set; }
 
+    /// <summary>TEST ONLY: latest measured min-RTT, or zero if scaling disabled / no sample.</summary>
+    internal TimeSpan MinRttForTest => _rtt?.MinRtt ?? TimeSpan.Zero;
+
+    /// <summary>True if the PING carries the measurement sentinel payload.</summary>
+    internal static bool IsRttPing(PingFrame ping) =>
+        ping.Data.Span.SequenceEqual(RttPingPayload);
+
     public Http2ClientSessionManager(
         TurboClientOptions options,
-        IClientStageOperations ops)
+        IClientStageOperations ops,
+        TimeProvider? timeProvider = null)
     {
         _encoderOptions = options.ToHttp2EncoderOptions();
         _decoderOptions = options.ToHttp2DecoderOptions();
         _options = options;
         _ops = ops;
+        _clock = timeProvider ?? TimeProvider.System;
         _tracker = new StreamTracker(1, _decoderOptions.MaxConcurrentStreams);
+
+        WindowScaler? scaler = null;
+        if (_decoderOptions.EnableAdaptiveWindowScaling)
+        {
+            scaler = new WindowScaler(
+                _decoderOptions.MaxStreamWindowSize,
+                _decoderOptions.WindowScaleThresholdMultiplier);
+            _rtt = new RttEstimator(_clock, TimeSpan.FromMilliseconds(100));
+        }
+
         _flow = new FlowController(
             _decoderOptions.InitialConnectionWindowSize,
-            _decoderOptions.InitialStreamWindowSize);
+            _decoderOptions.InitialStreamWindowSize,
+            scaler,
+            _clock);
         // Outgoing frame size starts at the RFC 9113 default (16,384) and is raised only when the
         // server advertises a larger SETTINGS_MAX_FRAME_SIZE. The client's own MaxFrameSize option
         // is a receive-side advertisement (sent in the preface), not a send-side limit.
@@ -226,6 +251,20 @@ internal sealed class Http2ClientSessionManager
         EmitFrame(new PingFrame(data, isAck: false));
     }
 
+    private void MaybeSendMeasurementPing()
+    {
+        if (_rtt is null || _flow.CurrentStreamWindow >= _decoderOptions.MaxStreamWindowSize)
+        {
+            return;
+        }
+
+        if (_rtt.ShouldSendPing())
+        {
+            _rtt.OnPingSent();
+            EmitFrame(new PingFrame(RttPingPayload, isAck: false));
+        }
+    }
+
     public bool IsKeepAliveTimedOut(TimeSpan timeout)
     {
         if (!_awaitingPingAck)
@@ -353,6 +392,8 @@ internal sealed class Http2ClientSessionManager
             EmitFrame(new WindowUpdateFrame(streamUpdate.StreamId, streamUpdate.Increment));
         }
 
+        MaybeSendMeasurementPing();
+
         HandleData(data);
 
         if (data.EndStream)
@@ -370,6 +411,13 @@ internal sealed class Http2ClientSessionManager
     {
         if (ping.IsAck)
         {
+            if (_rtt is not null && IsRttPing(ping))
+            {
+                _rtt.OnPingAck();
+                _flow.MinRtt = _rtt.MinRtt;
+                return;
+            }
+
             _awaitingPingAck = false;
             return;
         }
