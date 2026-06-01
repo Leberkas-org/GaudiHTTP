@@ -17,7 +17,11 @@ public sealed class FlowControllerAdaptiveScalingSpec
     {
         var clock = new FakeTimeProvider();
         var fc = NewScaling(clock);
-        fc.MinRtt = TimeSpan.FromMilliseconds(100);
+
+        // Establish a 100ms min-RTT via measurement PING.
+        fc.OnMeasurementPingSent();
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        fc.OnMeasurementPingAck();
 
         fc.OnInboundData(1, Start / 2);
         clock.Advance(TimeSpan.FromMilliseconds(10));
@@ -60,7 +64,11 @@ public sealed class FlowControllerAdaptiveScalingSpec
     {
         var clock = new FakeTimeProvider();
         var fc = NewScaling(clock);
-        fc.MinRtt = TimeSpan.FromMilliseconds(100);
+
+        // Establish a 100ms min-RTT via measurement PING.
+        fc.OnMeasurementPingSent();
+        clock.Advance(TimeSpan.FromMilliseconds(100));
+        fc.OnMeasurementPingAck();
 
         fc.OnInboundData(1, Start / 2);
         clock.Advance(TimeSpan.FromMilliseconds(10));

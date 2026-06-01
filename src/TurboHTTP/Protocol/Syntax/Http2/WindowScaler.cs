@@ -17,6 +17,8 @@ internal sealed class WindowScaler
         _multiplier = multiplier;
     }
 
+    public int MaxWindow => _maxWindow;
+
     /// <summary>
     /// Returns the new window size (>= currentWindow), doubling up to the cap when the link is
     /// keeping the current window saturated. Returns currentWindow unchanged when RTT is unknown,
