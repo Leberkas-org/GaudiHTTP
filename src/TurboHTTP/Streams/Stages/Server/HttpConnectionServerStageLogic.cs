@@ -307,7 +307,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             Metrics.ServerActiveRequests().Add(1,
                 new KeyValuePair<string, object?>("url.scheme", scheme),
                 new KeyValuePair<string, object?>("http.request.method",
-                    TurboHttpInstrumentationExtensions.NormalizeMethod(method)));
+                    TurboClientInstrumentationExtensions.NormalizeMethod(method)));
         }
 
         if (features is TurboFeatureCollection turbo)
@@ -330,7 +330,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             Metrics.ServerActiveRequests().Add(-1,
                 new KeyValuePair<string, object?>("url.scheme", scheme),
                 new KeyValuePair<string, object?>("http.request.method",
-                    TurboHttpInstrumentationExtensions.NormalizeMethod(requestFeature.Method)));
+                    TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method)));
         }
 
         if (features is TurboFeatureCollection turbo)
@@ -346,7 +346,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                 var elapsed = Stopwatch.GetElapsedTime(turbo.RequestTimestamp);
                 Metrics.ServerRequestDuration().Record(elapsed.TotalSeconds,
                     new KeyValuePair<string, object?>("http.request.method",
-                        TurboHttpInstrumentationExtensions.NormalizeMethod(requestFeature.Method)),
+                        TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method)),
                     new KeyValuePair<string, object?>("http.response.status_code", statusCode),
                     new KeyValuePair<string, object?>("url.scheme", requestFeature.Scheme ?? "http"));
             }

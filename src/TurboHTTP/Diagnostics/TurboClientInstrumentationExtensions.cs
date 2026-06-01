@@ -3,7 +3,7 @@ using Servus.Core.Diagnostics;
 
 namespace TurboHTTP.Diagnostics;
 
-internal static class TurboHttpInstrumentationExtensions
+internal static class TurboClientInstrumentationExtensions
 {
     internal static readonly HttpRequestOptionsKey<Activity> RequestActivityKey
         = new("TurboHTTP.RequestActivity");
