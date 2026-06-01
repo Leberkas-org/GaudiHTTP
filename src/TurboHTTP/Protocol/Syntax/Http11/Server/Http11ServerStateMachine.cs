@@ -28,7 +28,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
-    private readonly Func<long> _now;
+    private readonly TimeProvider _clock;
+
+    private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
     private int _pendingResponseCount;
     private bool _outboundBodyPending;
@@ -41,7 +43,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     public bool ShouldComplete { get; private set; }
     public int MaxQueuedRequests { get; }
 
-    public Http11ServerStateMachine(Http1ConnectionOptions options, Http2ConnectionOptions h2UpgradeOptions, IServerStageOperations ops, Func<long>? clock = null)
+    public Http11ServerStateMachine(Http1ConnectionOptions options, Http2ConnectionOptions h2UpgradeOptions, IServerStageOperations ops, TimeProvider? timeProvider = null)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
@@ -51,7 +53,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         _bodyReadTimeout = options.BodyReadTimeout;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
-        _now = clock ?? (() => Environment.TickCount64);
+        _clock = timeProvider ?? TimeProvider.System;
 
         var rate = options.ToRateMonitor();
         _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
@@ -92,7 +94,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             {
                 var drained = drainingDecoder.Drain(span[pos..]);
                 pos += drained;
-                _requestRate.Observe(0, drained, _now());
+                _requestRate.Observe(0, drained, Now());
                 EnsureRateTimer();
 
                 if (drainingDecoder.IsComplete)
@@ -107,7 +109,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             {
                 var done = streamingDecoder.Feed(span[pos..], out var bConsumed);
                 pos += bConsumed;
-                _requestRate.Observe(0, bConsumed, _now());
+                _requestRate.Observe(0, bConsumed, Now());
                 EnsureRateTimer();
 
                 if (done)
@@ -183,7 +185,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                     {
                         var bodyDone = _decoder.CurrentBodyDecoder!.Feed(span[pos..], out var bConsumed);
                         pos += bConsumed;
-                        _requestRate.Observe(0, bConsumed, _now());
+                        _requestRate.Observe(0, bConsumed, Now());
                         EnsureRateTimer();
                         if (bodyDone)
                         {
@@ -335,8 +337,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         else if (name == "data-rate-check")
         {
             var violations = new List<long>();
-            _requestRate.Check(_now(), violations);
-            _responseRate.Check(_now(), violations);
+            _requestRate.Check(Now(), violations);
+            _responseRate.Check(Now(), violations);
 
             if (violations.Count > 0)
             {
@@ -357,7 +359,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         {
             case OutboundBodyChunk chunk:
                 // Observe response body bytes before sending
-                _responseRate.Observe(0, chunk.Length, _now());
+                _responseRate.Observe(0, chunk.Length, Now());
                 EnsureRateTimer();
                 // Hand the chunk's pooled buffer straight to the transport — no rent + copy.
                 _ops.OnOutbound(new TransportData(TransportBuffer.Wrap(chunk.Owner, chunk.Length)));

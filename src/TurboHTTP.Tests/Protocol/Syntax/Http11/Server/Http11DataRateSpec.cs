@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
@@ -11,7 +12,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 public sealed class Http11DataRateSpec
 {
-    private static IFeatureCollection CreateResponseContext()
+    private static TurboFeatureCollection CreateResponseContext()
     {
         var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
@@ -31,14 +32,6 @@ public sealed class Http11DataRateSpec
         return buffer;
     }
 
-    private static TransportBuffer MakeBuffer(byte[] data)
-    {
-        var buffer = TransportBuffer.Rent(data.Length);
-        data.CopyTo(buffer.FullMemory.Span);
-        buffer.Length = data.Length;
-        return buffer;
-    }
-
     private static Http1ConnectionOptions CreateOptionsWithResponseRate(double minRate, TimeSpan grace)
     {
         var defaultOptions = new TurboServerOptions().ToHttp1Options();
@@ -46,17 +39,6 @@ public sealed class Http11DataRateSpec
         {
             MinResponseDataRate = minRate,
             MinResponseDataRateGracePeriod = grace
-        };
-        return defaultOptions with { Limits = newLimits };
-    }
-
-    private static Http1ConnectionOptions CreateOptionsWithRequestRate(double minRate, TimeSpan grace)
-    {
-        var defaultOptions = new TurboServerOptions().ToHttp1Options();
-        var newLimits = defaultOptions.Limits with
-        {
-            MinRequestBodyDataRate = minRate,
-            MinRequestBodyDataRateGracePeriod = grace
         };
         return defaultOptions with { Limits = newLimits };
     }
@@ -160,7 +142,7 @@ public sealed class Http11DataRateSpec
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
 
-        var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
@@ -185,12 +167,11 @@ public sealed class Http11DataRateSpec
     public void Slow_response_body_violation_sets_should_complete_with_injected_clock()
     {
         var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(1));
-        long now = 0;
-        Func<long> clock = () => now;
+        var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops, clock);
 
-        var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
@@ -205,13 +186,13 @@ public sealed class Http11DataRateSpec
 
         // Advance clock to first check point (600ms, triggers first rate calculation but still in grace)
         // With 10 bytes in 600ms = 16.67 bytes/sec < 1000 bytes/sec, enters grace period
-        now = 600;
+        clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
         Assert.False(sm.ShouldComplete, "Should be in grace period at first check");
 
         // Advance clock past grace period (1100ms total, and grace started at 600ms)
         // Now > GracePeriodStart (600) + 1000ms grace = 1600ms, so should violate
-        now = 1700;
+        clock.Advance(TimeSpan.FromMilliseconds(1100));
         sm.OnTimerFired("data-rate-check");
         Assert.True(sm.ShouldComplete, "Expected data rate violation to set ShouldComplete after grace expires");
     }
@@ -220,12 +201,11 @@ public sealed class Http11DataRateSpec
     public void Fast_response_body_within_grace_should_not_violate_with_injected_clock()
     {
         var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(5));
-        long now = 0;
-        Func<long> clock = () => now;
+        var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops, clock);
 
-        var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
@@ -239,12 +219,12 @@ public sealed class Http11DataRateSpec
         sm.OnBodyMessage(new OutboundBodyChunk(owner, responseBody.Length));
 
         // Check at time=600ms (first rate check, enters grace)
-        now = 600;
+        clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
         Assert.False(sm.ShouldComplete);
 
         // Check at time=3600ms (within 5s grace period from 600ms = 5600ms) — should still be OK
-        now = 3600;
+        clock.Advance(TimeSpan.FromMilliseconds(3000));
         sm.OnTimerFired("data-rate-check");
         Assert.False(sm.ShouldComplete, "Should not abort when within grace period");
     }

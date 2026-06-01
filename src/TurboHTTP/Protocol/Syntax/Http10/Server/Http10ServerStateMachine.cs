@@ -22,7 +22,9 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
     private readonly BodyEncoderOptions _bodyEncoderOptions;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
-    private readonly Func<long> _now;
+    private readonly TimeProvider _clock;
+
+    private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
     private IFeatureCollection? _deferredFeatures;
     private IMemoryOwner<byte>? _deferredBodyOwner;
@@ -34,13 +36,13 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
     public int MaxQueuedRequests => 1;
 
-    public Http10ServerStateMachine(Http1ConnectionOptions options, IServerStageOperations ops, Func<long>? clock = null)
+    public Http10ServerStateMachine(Http1ConnectionOptions options, IServerStageOperations ops, TimeProvider? timeProvider = null)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
-        _now = clock ?? (() => Environment.TickCount64);
+        _clock = timeProvider ?? TimeProvider.System;
 
         var rate = options.ToRateMonitor();
         _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
@@ -74,7 +76,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
             // Observe request body bytes if body decoder is active
             if (_decoder.LastBodyBytesConsumed > 0)
             {
-                _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, _now());
+                _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());
                 EnsureRateTimer();
             }
 
@@ -127,8 +129,8 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         if (name == "data-rate-check")
         {
             var violations = new List<long>();
-            _requestRate.Check(_now(), violations);
-            _responseRate.Check(_now(), violations);
+            _requestRate.Check(Now(), violations);
+            _responseRate.Check(Now(), violations);
 
             if (violations.Count > 0)
             {
@@ -155,7 +157,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
                 // Observe response body bytes as chunks arrive
                 if (chunk.Length > 0)
                 {
-                    _responseRate.Observe(0, chunk.Length, _now());
+                    _responseRate.Observe(0, chunk.Length, Now());
                     EnsureRateTimer();
                 }
                 break;

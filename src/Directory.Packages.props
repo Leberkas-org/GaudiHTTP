@@ -3,21 +3,23 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
-  <ItemGroup Label="Akka.NET">
+  <ItemGroup>
     <PackageVersion Include="Akka.Hosting" Version="1.5.68" />
     <PackageVersion Include="Akka.Streams" Version="1.5.68" />
-    <PackageVersion Include="Akka.Streams.TestKit" Version="1.5.68" />
-    <PackageVersion Include="Akka.TestKit.Xunit" Version="1.5.68" />
     <PackageVersion Include="Servus.Akka" Version="0.3.13" />
     <PackageVersion Include="Servus.Core" Version="0.33.11" />
     <PackageVersion Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.10" />
   </ItemGroup>
   <ItemGroup Label="Testing">
+    <PackageVersion Include="Akka.Streams.TestKit" Version="1.5.68" />
+    <PackageVersion Include="Akka.TestKit.Xunit" Version="1.5.68" />
     <PackageVersion Include="Testcontainers" Version="4.12.0" />
     <PackageVersion Include="xunit.v3.mtp-v2" Version="3.2.2" />
     <PackageVersion Include="PublicApiGenerator" Version="11.5.4" />
     <PackageVersion Include="Verify.DiffPlex" Version="3.2.0" />
     <PackageVersion Include="Verify.XunitV3" Version="31.18.0" />
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.6.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.7.0" />
   </ItemGroup>
   <ItemGroup Label="Benchmarks">
@@ -29,6 +31,5 @@
     <PackageVersion Include="OpenTelemetry" Version="1.15.3" />
   </ItemGroup>
   <ItemGroup Label="ASP.NET Core Server">
-    <PackageVersion Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.10" />
   </ItemGroup>
 </Project>
