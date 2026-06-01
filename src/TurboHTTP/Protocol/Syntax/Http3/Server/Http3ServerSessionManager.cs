@@ -44,6 +44,7 @@ internal sealed class Http3ServerSessionManager
     private readonly TimeProvider _clock;
 
     private bool _controlPrefaceSent;
+    private bool _settingsReceived;
 
     private readonly int _maxResetStreamsPerWindow;
     private int _resetCount;
@@ -454,7 +455,12 @@ internal sealed class Http3ServerSessionManager
                         break;
                     }
 
-                    case SettingsFrame:
+                    case SettingsFrame settings:
+                    {
+                        HandleSettingsFrame(settings);
+                        break;
+                    }
+
                     case GoAwayFrame:
                     {
                         break;
@@ -486,6 +492,19 @@ internal sealed class Http3ServerSessionManager
                 EmitRstStream(streamId, ErrorCode.MessageError);
             }
         }
+    }
+
+    private void HandleSettingsFrame(SettingsFrame settings)
+    {
+        if (_settingsReceived)
+        {
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/3 RFC 9114 §7.2.4: duplicate SETTINGS frame on control stream — closing connection.");
+            ShouldComplete = true;
+            return;
+        }
+
+        _settingsReceived = true;
     }
 
     /// <summary>
