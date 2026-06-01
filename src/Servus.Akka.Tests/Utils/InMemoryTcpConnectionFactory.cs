@@ -7,6 +7,9 @@ namespace Servus.Akka.Tests.Utils;
 internal sealed class InMemoryTcpConnectionFactory : ITcpConnectionFactory
 {
     private readonly List<ConnectionLease> _established = [];
+    private readonly TimeProvider? _timeProvider;
+
+    public InMemoryTcpConnectionFactory(TimeProvider? timeProvider = null) => _timeProvider = timeProvider;
 
     public IReadOnlyList<ConnectionLease> EstablishedLeases => _established;
 
@@ -17,7 +20,7 @@ internal sealed class InMemoryTcpConnectionFactory : ITcpConnectionFactory
         var state = new ClientState(Stream.Null);
         var cts = new CancellationTokenSource();
         var handle = new ConnectionHandle(state.OutboundWriter, state.InboundReader, cts.Token);
-        var lease = new ConnectionLease(handle, state, cts, ConnectionInfo.None);
+        var lease = new ConnectionLease(handle, state, cts, ConnectionInfo.None, _timeProvider);
 
         _established.Add(lease);
         return Task.FromResult(lease);
