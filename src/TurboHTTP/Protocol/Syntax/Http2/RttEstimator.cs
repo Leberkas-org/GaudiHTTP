@@ -62,4 +62,13 @@ internal sealed class RttEstimator
             MinRtt = rtt;
         }
     }
+
+    public void Reset()
+    {
+        MinRtt = TimeSpan.Zero;
+        _awaitingAck = false;
+        _everPinged = false;
+        _pingSentTimestamp = 0;
+        _lastPingTimestamp = 0;
+    }
 }

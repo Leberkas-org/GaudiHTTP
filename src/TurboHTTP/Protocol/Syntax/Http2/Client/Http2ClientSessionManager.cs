@@ -17,7 +17,6 @@ internal sealed class Http2ClientSessionManager
     private readonly TurboClientOptions _options;
     private readonly IClientStageOperations _ops;
     private readonly TimeProvider _clock;
-    private readonly RttEstimator? _rtt;
 
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;
@@ -43,7 +42,7 @@ internal sealed class Http2ClientSessionManager
     public RequestEndpoint Endpoint { get; private set; }
 
     /// <summary>TEST ONLY: latest measured min-RTT, or zero if scaling disabled / no sample.</summary>
-    internal TimeSpan MinRttForTest => _rtt?.MinRtt ?? TimeSpan.Zero;
+    internal TimeSpan MinRttForTest => _flow.MinRtt;
 
     /// <summary>True if the PING carries the measurement sentinel payload.</summary>
     internal static bool IsRttPing(PingFrame ping) =>
@@ -67,7 +66,6 @@ internal sealed class Http2ClientSessionManager
             scaler = new WindowScaler(
                 _decoderOptions.MaxStreamWindowSize,
                 _decoderOptions.WindowScaleThresholdMultiplier);
-            _rtt = new RttEstimator(_clock, TimeSpan.FromMilliseconds(100));
         }
 
         _flow = new FlowController(
@@ -253,14 +251,9 @@ internal sealed class Http2ClientSessionManager
 
     private void MaybeSendMeasurementPing()
     {
-        if (_rtt is null || _flow.CurrentStreamWindow >= _decoderOptions.MaxStreamWindowSize)
+        if (_flow.ShouldSendMeasurementPing())
         {
-            return;
-        }
-
-        if (_rtt.ShouldSendPing())
-        {
-            _rtt.OnPingSent();
+            _flow.OnMeasurementPingSent();
             EmitFrame(new PingFrame(RttPingPayload, isAck: false));
         }
     }
@@ -411,10 +404,9 @@ internal sealed class Http2ClientSessionManager
     {
         if (ping.IsAck)
         {
-            if (_rtt is not null && IsRttPing(ping))
+            if (IsRttPing(ping))
             {
-                _rtt.OnPingAck();
-                _flow.MinRtt = _rtt.MinRtt;
+                _flow.OnMeasurementPingAck();
                 return;
             }
 

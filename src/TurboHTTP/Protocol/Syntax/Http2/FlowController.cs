@@ -12,16 +12,19 @@ internal sealed class FlowController : IFlowController<int>
     private int _initialRecvStreamWindow;
     private readonly WindowScaler? _scaler;
     private readonly TimeProvider? _clock;
+    private readonly RttEstimator? _rtt;
     private readonly Dictionary<int, long> _deliveredSinceSample = new();
     private readonly Dictionary<int, long> _lastSampleTimestamp = new();
+
+    private static readonly TimeSpan MeasurementPingInterval = TimeSpan.FromMilliseconds(100);
 
     public int RecvConnectionWindow { get; private set; }
 
     /// <summary>Current per-stream receive window size (grows under adaptive scaling).</summary>
     public int CurrentStreamWindow => _initialRecvStreamWindow;
 
-    /// <summary>Latest measured min-RTT, pushed in by the session manager. Zero = unknown.</summary>
-    public TimeSpan MinRtt { get; set; } = TimeSpan.Zero;
+    /// <summary>Latest measured min-RTT. Zero = unknown / scaling disabled.</summary>
+    public TimeSpan MinRtt => _rtt?.MinRtt ?? TimeSpan.Zero;
 
     private long _connectionSendWindow;
     private long _initialSendStreamWindow;
@@ -42,11 +45,26 @@ internal sealed class FlowController : IFlowController<int>
         _scaler = scaler;
         _clock = clock;
 
+        if (_scaler is not null && _clock is not null)
+        {
+            _rtt = new RttEstimator(_clock, MeasurementPingInterval);
+        }
+
         const int minWindowUpdateThreshold = 8_192;
         _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 2);
     }
 
     public bool GoAwayReceived { get; private set; }
+
+    /// <summary>True when a measurement PING is due (scaling on, window below cap, estimator ready).</summary>
+    public bool ShouldSendMeasurementPing() =>
+        _rtt is not null && _scaler is not null
+        && _initialRecvStreamWindow < _scaler.MaxWindow
+        && _rtt.ShouldSendPing();
+
+    public void OnMeasurementPingSent() => _rtt?.OnPingSent();
+
+    public void OnMeasurementPingAck() => _rtt?.OnPingAck();
 
     public long GetSendWindow(int streamId)
     {
@@ -214,7 +232,7 @@ internal sealed class FlowController : IFlowController<int>
         _pendingStreamIncrements.Clear();
         _deliveredSinceSample.Clear();
         _lastSampleTimestamp.Clear();
-        MinRtt = TimeSpan.Zero;
+        _rtt?.Reset();
 
         const int minWindowUpdateThreshold = 8_192;
         _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 2);
