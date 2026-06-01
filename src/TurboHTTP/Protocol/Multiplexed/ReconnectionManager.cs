@@ -1,17 +1,9 @@
 namespace TurboHTTP.Protocol.Multiplexed;
 
-internal sealed class ReconnectionManager
+internal sealed class ReconnectionManager(int maxAttempts, int maxBufferSize = int.MaxValue)
 {
-    private readonly int _maxAttempts;
-    private readonly int _maxBufferSize;
     private readonly List<HttpRequestMessage> _buffer = [];
     private int _attempts;
-
-    public ReconnectionManager(int maxAttempts, int maxBufferSize = int.MaxValue)
-    {
-        _maxAttempts = maxAttempts;
-        _maxBufferSize = maxBufferSize;
-    }
 
     public bool IsReconnecting { get; private set; }
     public int BufferedCount => _buffer.Count;
@@ -35,7 +27,7 @@ internal sealed class ReconnectionManager
 
     public bool OnReconnectAttemptFailed()
     {
-        if (_attempts >= _maxAttempts)
+        if (_attempts >= maxAttempts)
         {
             IsReconnecting = false;
             _attempts = 0;
@@ -48,7 +40,7 @@ internal sealed class ReconnectionManager
 
     public bool Buffer(HttpRequestMessage request)
     {
-        if (_buffer.Count >= _maxBufferSize)
+        if (_buffer.Count >= maxBufferSize)
         {
             return false;
         }

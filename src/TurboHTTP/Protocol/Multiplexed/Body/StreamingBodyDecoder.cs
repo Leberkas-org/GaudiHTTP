@@ -1,13 +1,8 @@
 namespace TurboHTTP.Protocol.Multiplexed.Body;
 
-internal sealed class StreamingBodyDecoder : IBodyDecoder
+internal sealed class StreamingBodyDecoder(long maxBodySize = long.MaxValue) : IBodyDecoder
 {
-    private readonly BodyHandle _handle;
-
-    public StreamingBodyDecoder(long maxBodySize = long.MaxValue)
-    {
-        _handle = new BodyHandle(maxBodySize);
-    }
+    private readonly BodyHandle _handle = new(maxBodySize);
 
     public bool IsBuffered => false;
     public bool IsComplete { get; private set; }

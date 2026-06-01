@@ -205,31 +205,23 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         _inner.PreStart();
     }
 
-    private sealed class UpgradeAwareOps : IServerStageOperations, IProtocolSwitchCapable
+    private sealed class UpgradeAwareOps(IServerStageOperations real, ProtocolNegotiatingStateMachine parent)
+        : IServerStageOperations, IProtocolSwitchCapable
     {
-        private readonly IServerStageOperations _real;
-        private readonly ProtocolNegotiatingStateMachine _parent;
-
-        public UpgradeAwareOps(IServerStageOperations real, ProtocolNegotiatingStateMachine parent)
-        {
-            _real = real;
-            _parent = parent;
-        }
-
-        public void OnRequest(IFeatureCollection features) => _real.OnRequest(features);
-        public void OnOutbound(ITransportOutbound item) => _real.OnOutbound(item);
-        public void OnScheduleTimer(string name, TimeSpan delay) => _real.OnScheduleTimer(name, delay);
-        public void OnCancelTimer(string name) => _real.OnCancelTimer(name);
-        public ILoggingAdapter Log => _real.Log;
-        public IActorRef StageActor => _real.StageActor;
-        public Akka.Streams.IMaterializer Materializer => _real.Materializer;
-        public IServiceProvider? Services => _real.Services;
-        public TurboHttpConnectionFeature? ConnectionFeature => _real.ConnectionFeature;
-        public TlsHandshakeFeature? TlsHandshakeFeature => _real.TlsHandshakeFeature;
+        public void OnRequest(IFeatureCollection features) => real.OnRequest(features);
+        public void OnOutbound(ITransportOutbound item) => real.OnOutbound(item);
+        public void OnScheduleTimer(string name, TimeSpan delay) => real.OnScheduleTimer(name, delay);
+        public void OnCancelTimer(string name) => real.OnCancelTimer(name);
+        public ILoggingAdapter Log => real.Log;
+        public IActorRef StageActor => real.StageActor;
+        public Akka.Streams.IMaterializer Materializer => real.Materializer;
+        public IServiceProvider? Services => real.Services;
+        public TurboHttpConnectionFeature? ConnectionFeature => real.ConnectionFeature;
+        public TlsHandshakeFeature? TlsHandshakeFeature => real.TlsHandshakeFeature;
 
         public void RequestProtocolSwitch(Func<IServerStageOperations, IServerStateMachine> newSmFactory)
         {
-            _parent.HandleUpgrade(newSmFactory);
+            parent.HandleUpgrade(newSmFactory);
         }
     }
 }

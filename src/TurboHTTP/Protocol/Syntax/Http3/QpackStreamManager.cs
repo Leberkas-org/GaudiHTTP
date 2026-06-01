@@ -6,28 +6,16 @@ using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http3;
 
-internal sealed class QpackStreamManager
+internal sealed class QpackStreamManager(
+    IClientStageOperations ops,
+    Client.Http3ClientEncoder requestEncoder,
+    Client.Http3ClientDecoder responseDecoder,
+    QpackTableSync tableSync)
 {
-    private readonly IClientStageOperations _ops;
-    private readonly Client.Http3ClientEncoder _requestEncoder;
-    private readonly Client.Http3ClientDecoder _responseDecoder;
-
     private bool _encoderPrefaceSent;
     private bool _decoderPrefaceSent;
 
-    public QpackTableSync TableSync { get; }
-
-    public QpackStreamManager(
-        IClientStageOperations ops,
-        Client.Http3ClientEncoder requestEncoder,
-        Client.Http3ClientDecoder responseDecoder,
-        QpackTableSync tableSync)
-    {
-        _ops = ops;
-        _requestEncoder = requestEncoder;
-        _responseDecoder = responseDecoder;
-        TableSync = tableSync;
-    }
+    public QpackTableSync TableSync { get; } = tableSync;
 
     public void OpenCriticalStreams(Action<ITransportOutbound> emit)
     {
@@ -82,7 +70,7 @@ internal sealed class QpackStreamManager
 
     public void FlushEncoderInstructions()
     {
-        var instructions = _requestEncoder.EncoderInstructions;
+        var instructions = requestEncoder.EncoderInstructions;
         if (instructions.Length == 0)
         {
             return;
@@ -109,12 +97,12 @@ internal sealed class QpackStreamManager
         owner.Memory.Span[..totalLength].CopyTo(buf.FullMemory.Span);
         buf.Length = totalLength;
 
-        _ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.QpackEncoder));
+        ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.QpackEncoder));
     }
 
     public void FlushDecoderInstructions()
     {
-        var sectionAck = _responseDecoder.DecoderInstructions;
+        var sectionAck = responseDecoder.DecoderInstructions;
 
         var buf = TransportBuffer.Rent(1 + sectionAck.Length + 16);
         var dest = buf.FullMemory.Span;
@@ -143,7 +131,7 @@ internal sealed class QpackStreamManager
 
         _decoderPrefaceSent = true;
         buf.Length = offset;
-        _ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.QpackDecoder));
+        ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.QpackDecoder));
     }
 
     public void ApplyPeerSettings(Settings settings)

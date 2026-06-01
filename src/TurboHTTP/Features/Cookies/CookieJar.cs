@@ -3,20 +3,13 @@ using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Features.Cookies;
 
-internal sealed class CookieJar
+internal sealed class CookieJar(ICookieStore store)
 {
-    private readonly ICookieStore _store;
-
     private readonly List<CookieStoreEntry> _applicable = [];
 
     public CookieJar()
         : this(new MemoryCookieStore())
     {
-    }
-
-    public CookieJar(ICookieStore store)
-    {
-        _store = store;
     }
 
     public void ProcessResponse(Uri requestUri, HttpResponseMessage response)
@@ -39,11 +32,11 @@ internal sealed class CookieJar
                 continue;
             }
 
-            _store.Remove(entry.Name, entry.Domain, entry.Path);
+            store.Remove(entry.Name, entry.Domain, entry.Path);
 
             if (!IsExpired(entry, now))
             {
-                _store.Add(ToStoreEntry(entry));
+                store.Add(ToStoreEntry(entry));
             }
         }
     }
@@ -76,7 +69,7 @@ internal sealed class CookieJar
 
         _applicable.Clear();
 
-        foreach (var cookie in _store.GetAll())
+        foreach (var cookie in store.GetAll())
         {
             if (IsExpired(cookie, now))
             {
@@ -132,9 +125,9 @@ internal sealed class CookieJar
             string.Join(WellKnownHeaders.SemiColonSpace, parts));
     }
 
-    public int Count => _store.Count;
+    public int Count => store.Count;
 
-    public void Clear() => _store.Clear();
+    public void Clear() => store.Clear();
 
     /// <summary>
     /// Whether <c>SameSite</c> permits a cookie on a cross-site request.

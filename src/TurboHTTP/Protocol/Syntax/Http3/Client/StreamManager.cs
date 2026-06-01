@@ -14,14 +14,13 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 /// frame-decoder / stream-state pooling for an HTTP/3 connection.
 /// Extracted from <see cref="Http3ClientStateMachine"/> for single-responsibility.
 /// </summary>
-internal sealed class StreamManager
+internal sealed class StreamManager(
+    IClientStageOperations ops,
+    Http3ClientDecoder responseDecoder,
+    QpackTableSync tableSync)
 {
     private const int MaxPoolSize = 256;
     private const int MaxDecoderPoolSize = 256;
-
-    private readonly IClientStageOperations _ops;
-    private readonly Http3ClientDecoder _responseDecoder;
-    private readonly QpackTableSync _tableSync;
 
     private readonly Dictionary<long, StreamState> _streams = new();
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
@@ -35,13 +34,6 @@ internal sealed class StreamManager
 
     /// <summary>Whether there are in-flight requests awaiting responses.</summary>
     public bool HasInFlightRequests => _correlationMap.Count > 0 || _streams.Count > 0;
-
-    public StreamManager(IClientStageOperations ops, Http3ClientDecoder responseDecoder, QpackTableSync tableSync)
-    {
-        _ops = ops;
-        _responseDecoder = responseDecoder;
-        _tableSync = tableSync;
-    }
 
     /// <summary>
     /// Decodes a TransportBuffer into HTTP/3 frames using a per-stream decoder.
@@ -192,7 +184,7 @@ internal sealed class StreamManager
             {
                 if (!state.HasResponse)
                 {
-                    _responseDecoder.AssembleHeaders(headers, state);
+                    responseDecoder.AssembleHeaders(headers, state);
                 }
 
                 if (state.HasResponse && !state.HasBodyDecoder)
@@ -218,7 +210,7 @@ internal sealed class StreamManager
                     }
 
                     // Emit response immediately on resolved headers
-                    _ops.OnResponse(response);
+                    ops.OnResponse(response);
                 }
             }
         }
@@ -322,14 +314,14 @@ internal sealed class StreamManager
 
     private void HandleResponseHeaders(HeadersFrame frame, StreamState state, RequestEndpoint endpoint)
     {
-        var result = _tableSync.TryDecodeOrBlock(frame.HeaderBlock, (int)state.StreamId);
+        var result = tableSync.TryDecodeOrBlock(frame.HeaderBlock, (int)state.StreamId);
 
         if (result.IsBlocked)
         {
             return;
         }
 
-        if (!_responseDecoder.AssembleHeaders(result.Headers!, state))
+        if (!responseDecoder.AssembleHeaders(result.Headers!, state))
         {
             return;
         }
@@ -357,7 +349,7 @@ internal sealed class StreamManager
         }
 
         // Emit response immediately on headers
-        _ops.OnResponse(response);
+        ops.OnResponse(response);
 
         FlushDecoderInstructionsCallback?.Invoke(endpoint);
     }
@@ -401,7 +393,7 @@ internal sealed class StreamManager
             Tracing.For("Protocol").Warning(this, "{0}", partialContentResult.ErrorMessage!);
         }
 
-        _ops.OnResponse(response);
+        ops.OnResponse(response);
 
         ReturnStreamState(streamId);
     }

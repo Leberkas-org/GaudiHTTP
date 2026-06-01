@@ -28,13 +28,10 @@ internal sealed class TurboHttpRequestFeature : IHttpRequestFeature
         get => _headers;
         set
         {
-            if (value is not null)
+            _headers.Clear();
+            foreach (var kvp in value)
             {
-                _headers.Clear();
-                foreach (var kvp in value)
-                {
-                    _headers[kvp.Key] = kvp.Value;
-                }
+                _headers[kvp.Key] = kvp.Value;
             }
         }
     }

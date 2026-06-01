@@ -6,7 +6,7 @@ using TurboHTTP.Protocol.Syntax.Http11.Options;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Client;
 
-internal sealed class Http11ClientDecoder
+internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
 {
     private enum Phase
     {
@@ -16,8 +16,8 @@ internal sealed class Http11ClientDecoder
         Done
     }
 
-    private readonly Http11ClientDecoderOptions _options;
-    private readonly HeaderBlockReader _headerReader;
+    private readonly HeaderBlockReader _headerReader = new(
+        options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
 
     private Phase _phase = Phase.StatusLine;
     private bool _bodyCompletedByEof;
@@ -35,13 +35,6 @@ internal sealed class Http11ClientDecoder
     internal bool HasActiveBody => _phase == Phase.Body;
 
     private static ReadOnlySpan<byte> HttpSlashPrefix => WellKnownHeaders.Http.Bytes.Span;
-
-    public Http11ClientDecoder(Http11ClientDecoderOptions options)
-    {
-        _options = options;
-        _headerReader = new HeaderBlockReader(
-            options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
-    }
 
     public DecodeOutcome Feed(ReadOnlySpan<byte> data, bool requestMethodWasHead, out int consumed)
     {
@@ -90,7 +83,7 @@ internal sealed class Http11ClientDecoder
                 _statusCode, headers, _version, requestMethodWasHead,
                 connectionWillClose: ConnectionWillClose);
 
-            _bodyDecoder = BodyDecoderFactory.Create(classification, _options.ToBodyDecoderOptions());
+            _bodyDecoder = BodyDecoderFactory.Create(classification, options.ToBodyDecoderOptions());
 
             _phase = Phase.Body;
         }

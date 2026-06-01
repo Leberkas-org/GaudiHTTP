@@ -1,15 +1,13 @@
 using System.Buffers;
+using System.Net;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Server;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Streams.Stages.Server;
 using static Servus.Core.Servus;
-using HttpVersion = System.Net.HttpVersion;
-
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Server;
 
@@ -112,7 +110,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
             if (encoder is not null)
             {
                 _activeBodyEncoder = encoder;
-                encoder.Start(bodyStream!, _ops.StageActor);
+                encoder.Start(bodyStream, _ops.StageActor);
                 return;
             }
         }

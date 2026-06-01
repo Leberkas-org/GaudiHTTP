@@ -8,22 +8,15 @@ using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Streams;
 
-internal sealed class NegotiatingServerEngine : IServerProtocolEngine
+internal sealed class NegotiatingServerEngine(TurboServerOptions options) : IServerProtocolEngine
 {
-    private readonly TurboServerOptions _options;
-
-    public NegotiatingServerEngine(TurboServerOptions options)
-    {
-        _options = options;
-    }
-
     public Version ProtocolVersion => new(1, 1);
 
     public BidiFlow<ITransportInbound, IFeatureCollection, IFeatureCollection, ITransportOutbound, NotUsed> CreateFlow(IServiceProvider? services = null)
     {
         return BidiFlow.FromGraph(GraphDsl.Create(b =>
         {
-            var connection = b.Add(new ProtocolNegotiatorConnectionStage(_options, services));
+            var connection = b.Add(new ProtocolNegotiatorConnectionStage(options, services));
 
             return new BidiShape<
                 ITransportInbound,

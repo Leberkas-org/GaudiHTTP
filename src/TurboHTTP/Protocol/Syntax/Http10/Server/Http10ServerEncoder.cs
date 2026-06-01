@@ -7,15 +7,9 @@ using TurboHTTP.Protocol.Syntax.Http10.Options;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Server;
 
-internal sealed class Http10ServerEncoder
+internal sealed class Http10ServerEncoder(Http10ServerEncoderOptions options)
 {
-    private readonly Http10ServerEncoderOptions _options;
     private readonly HeaderCollection _reusableHeaders = new();
-
-    public Http10ServerEncoder(Http10ServerEncoderOptions options)
-    {
-        _options = options;
-    }
 
     public int Encode(Span<byte> _, IFeatureCollection features, IActorRef stageActor)
     {
@@ -31,7 +25,6 @@ internal sealed class Http10ServerEncoder
         StatusLineWriter.Write(ref writer, HttpVersion.Version10, statusCode);
 
         _reusableHeaders.Clear();
-        var headers = _reusableHeaders;
         var responseHeaders = responseFeature?.Headers;
         if (responseHeaders is not null)
         {
@@ -46,20 +39,20 @@ internal sealed class Http10ServerEncoder
                 {
                     if (v is not null)
                     {
-                        headers.Add(h.Key, v);
+                        _reusableHeaders.Add(h.Key, v);
                     }
                 }
             }
         }
 
-        headers.Add(WellKnownHeaders.ContentLength, ContentLengthCache.GetValue(body.Length));
+        _reusableHeaders.Add(WellKnownHeaders.ContentLength, ContentLengthCache.GetValue(body.Length));
 
-        if (_options.WriteDateHeader && !headers.Contains(WellKnownHeaders.Date))
+        if (options.WriteDateHeader && !_reusableHeaders.Contains(WellKnownHeaders.Date))
         {
-            headers.Add(WellKnownHeaders.Date, DateHeaderCache.GetValue());
+            _reusableHeaders.Add(WellKnownHeaders.Date, DateHeaderCache.GetValue());
         }
 
-        HeaderBlockWriter.Write(ref writer, headers);
+        HeaderBlockWriter.Write(ref writer, _reusableHeaders);
 
         if (body.Length > 0)
         {

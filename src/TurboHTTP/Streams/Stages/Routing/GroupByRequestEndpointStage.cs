@@ -37,23 +37,23 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new Logic(this, inheritedAttributes);
 
-    private sealed class SubflowState
+    private sealed class SubflowState(ChannelSourceStage<T> channelStage, RequestEndpoint key)
     {
         private static int _nextSlotId;
 
         public readonly int SlotId = Interlocked.Increment(ref _nextSlotId);
-        public readonly ChannelSourceStage<T> ChannelStage;
+        public readonly ChannelSourceStage<T> ChannelStage = channelStage;
 
         /// <summary>
         /// Aliases <see cref="ChannelSourceStage{T}.Completion"/> for dead-slot detection.
         /// Replaces the former <c>ISourceQueueWithComplete.WatchCompletionAsync()</c> task.
         /// </summary>
-        public readonly Task WatchTask;
+        public readonly Task WatchTask = channelStage.Completion;
 
         public readonly Queue<T> Pending = new();
 
         /// <summary>The endpoint key this slot belongs to, so write-ready callbacks can look up the group.</summary>
-        public readonly RequestEndpoint Key;
+        public readonly RequestEndpoint Key = key;
 
         /// <summary>
         /// True when a <see cref="System.Threading.Channels.ChannelWriter{T}.WaitToWriteAsync"/>
@@ -68,13 +68,6 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
         public Action? WriteReadyCallback;
 
         public bool WatchRegistered;
-
-        public SubflowState(ChannelSourceStage<T> channelStage, RequestEndpoint key)
-        {
-            ChannelStage = channelStage;
-            WatchTask = channelStage.Completion;
-            Key = key;
-        }
 
         public bool IsDead => WatchTask.IsCompleted;
 

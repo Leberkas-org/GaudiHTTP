@@ -37,15 +37,20 @@ internal sealed class Http2ServerSessionManager
     private bool _continuationEndStream;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
+    private readonly TimeProvider _clock;
     private bool _prefaceConsumed;
+
+    private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
     public int ActiveStreamCount => _streams.Count;
     public int MaxConcurrentStreams => _decoderOptions.MaxConcurrentStreams;
 
     public Http2ServerSessionManager(
         Http2ConnectionOptions options,
-        IServerStageOperations ops)
+        IServerStageOperations ops,
+        TimeProvider? timeProvider = null)
     {
+        _clock = timeProvider ?? TimeProvider.System;
         _encoderOptions = options.ToEncoderOptions();
         _decoderOptions = options.ToDecoderOptions();
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
@@ -477,7 +482,7 @@ internal sealed class Http2ServerSessionManager
 
             if (!data.Data.IsEmpty)
             {
-                _requestRate.Observe(streamId, data.Data.Length, Environment.TickCount64);
+                _requestRate.Observe(streamId, data.Data.Length, Now());
                 EnsureRateTimer();
             }
         }
@@ -646,7 +651,7 @@ internal sealed class Http2ServerSessionManager
     {
         if (frame is DataFrame df && df.Data.Length > 0)
         {
-            _responseRate.Observe(df.StreamId, df.Data.Length, Environment.TickCount64);
+            _responseRate.Observe(df.StreamId, df.Data.Length, Now());
             EnsureRateTimer();
         }
 
@@ -675,7 +680,7 @@ internal sealed class Http2ServerSessionManager
 
     public void CheckDataRates()
     {
-        var now = Environment.TickCount64;
+        var now = Now();
         var violations = new List<long>();
 
         _requestRate.Check(now, violations);

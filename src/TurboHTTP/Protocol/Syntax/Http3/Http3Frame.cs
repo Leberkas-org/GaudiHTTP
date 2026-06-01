@@ -187,15 +187,10 @@ internal sealed class CancelPushFrame : Http3Frame
 /// Each parameter is an identifier-value pair of QUIC variable-length integers.
 /// Unlike HTTP/2, there is no ACK mechanism — the transport provides reliability.
 /// </summary>
-internal sealed class SettingsFrame : Http3Frame
+internal sealed class SettingsFrame(IReadOnlyList<(long Identifier, long Value)> parameters) : Http3Frame
 {
     public override FrameType Type => FrameType.Settings;
-    public IReadOnlyList<(long Identifier, long Value)> Parameters { get; }
-
-    public SettingsFrame(IReadOnlyList<(long Identifier, long Value)> parameters)
-    {
-        Parameters = parameters;
-    }
+    public IReadOnlyList<(long Identifier, long Value)> Parameters { get; } = parameters;
 
     protected override int PayloadSize
     {

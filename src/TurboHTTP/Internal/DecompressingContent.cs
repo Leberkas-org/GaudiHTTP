@@ -3,16 +3,9 @@ using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Internal;
 
-internal sealed class DecompressingContent : HttpContent
+internal sealed class DecompressingContent(HttpContent inner, string encoding) : HttpContent
 {
-    private HttpContent? _inner;
-    private readonly string _encoding;
-
-    public DecompressingContent(HttpContent inner, string encoding)
-    {
-        _inner = inner;
-        _encoding = encoding;
-    }
+    private HttpContent? _inner = inner;
 
     protected override void SerializeToStream(Stream stream, TransportContext? context, CancellationToken ct)
     {
@@ -20,7 +13,7 @@ internal sealed class DecompressingContent : HttpContent
         using var source = inner.ReadAsStream(ct);
         try
         {
-            using var decompressor = ContentEncoding.CreateDecompressor(source, _encoding);
+            using var decompressor = ContentEncoding.CreateDecompressor(source, encoding);
             decompressor.CopyTo(stream);
         }
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or Protocol.HttpProtocolException)
@@ -34,7 +27,7 @@ internal sealed class DecompressingContent : HttpContent
         await using var source = await inner.ReadAsStreamAsync().ConfigureAwait(false);
         try
         {
-            await using var decompressor = ContentEncoding.CreateDecompressor(source, _encoding);
+            await using var decompressor = ContentEncoding.CreateDecompressor(source, encoding);
             await decompressor.CopyToAsync(stream).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or Protocol.HttpProtocolException)
@@ -48,7 +41,7 @@ internal sealed class DecompressingContent : HttpContent
         await using var source = await inner.ReadAsStreamAsync(ct).ConfigureAwait(false);
         try
         {
-            await using var decompressor = ContentEncoding.CreateDecompressor(source, _encoding);
+            await using var decompressor = ContentEncoding.CreateDecompressor(source, encoding);
             await decompressor.CopyToAsync(stream, ct).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException or Protocol.HttpProtocolException)

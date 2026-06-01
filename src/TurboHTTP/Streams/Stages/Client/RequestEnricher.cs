@@ -10,18 +10,11 @@ namespace TurboHTTP.Streams.Stages.Client;
 /// Applied as a <c>Select()</c> transform in the pipeline — no separate GraphStage needed.
 /// Handles: URI resolution, version defaults, header merging, Referer sanitization, If-Range validation.
 /// </summary>
-internal sealed class RequestEnricher
+internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
 {
-    private readonly Func<TurboRequestOptions> _optionsFactory;
-
-    public RequestEnricher(Func<TurboRequestOptions> optionsFactory)
-    {
-        _optionsFactory = optionsFactory;
-    }
-
     public HttpRequestMessage Enrich(HttpRequestMessage request)
     {
-        var options = _optionsFactory.Invoke();
+        var options = optionsFactory.Invoke();
 
         // Rule 1: URI resolution
         if (request.RequestUri is null || !request.RequestUri.IsAbsoluteUri)

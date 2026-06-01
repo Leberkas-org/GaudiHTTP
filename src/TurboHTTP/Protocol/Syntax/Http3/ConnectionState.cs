@@ -4,32 +4,22 @@ namespace TurboHTTP.Protocol.Syntax.Http3;
 /// Encapsulates all HTTP/3 connection-level state in a single class.
 /// Manages GoAway, Settings, idle timeout, and push state.
 /// </summary>
-internal sealed class ConnectionState
+internal sealed class ConnectionState(TimeSpan idleTimeout, int maxPushCount = 0)
 {
-    private readonly TimeSpan _idleTimeout;
-
     public bool GoAwayReceived { get; set; }
     public long LastGoAwayStreamId { get; private set; } = -1;
     public bool RemoteSettingsReceived { get; private set; }
     public Settings? RemoteSettings { get; private set; }
     public long? RemoteMaxFieldSectionSize => RemoteSettings?.MaxFieldSectionSize;
 
-    private long _lastActivity;
+    private long _lastActivity = Environment.TickCount64;
 
     public int ActiveStreamCount { get; private set; }
-    public bool IsTimeoutDisabled => _idleTimeout == TimeSpan.Zero;
+    public bool IsTimeoutDisabled => idleTimeout == TimeSpan.Zero;
     public long MaxPushId { get; set; }
 
     private readonly HashSet<long> _cancelledPushIds = [];
     private int _pushCount;
-    private readonly int _maxPushCount;
-
-    public ConnectionState(TimeSpan idleTimeout, int maxPushCount = 0)
-    {
-        _idleTimeout = idleTimeout;
-        _maxPushCount = maxPushCount;
-        _lastActivity = Environment.TickCount64;
-    }
 
     public void OnServerGoAway(GoAwayFrame frame)
     {
@@ -99,7 +89,7 @@ internal sealed class ConnectionState
             return false;
         }
 
-        return Environment.TickCount64 - _lastActivity >= (long)_idleTimeout.TotalMilliseconds;
+        return Environment.TickCount64 - _lastActivity >= (long)idleTimeout.TotalMilliseconds;
     }
 
     public TimeSpan TimeUntilExpiry()
@@ -109,7 +99,7 @@ internal sealed class ConnectionState
             return TimeSpan.MaxValue;
         }
 
-        var remainingMs = (long)_idleTimeout.TotalMilliseconds - (Environment.TickCount64 - _lastActivity);
+        var remainingMs = (long)idleTimeout.TotalMilliseconds - (Environment.TickCount64 - _lastActivity);
         return remainingMs > 0 ? TimeSpan.FromMilliseconds(remainingMs) : TimeSpan.Zero;
     }
 
@@ -142,10 +132,10 @@ internal sealed class ConnectionState
 
     public void RecordPush()
     {
-        if (_pushCount >= _maxPushCount)
+        if (_pushCount >= maxPushCount)
         {
             throw new HttpProtocolException(
-                $"Server exceeded push limit of {_maxPushCount} push promises (RFC 9114 §10.5).");
+                $"Server exceeded push limit of {maxPushCount} push promises (RFC 9114 §10.5).");
         }
 
         _pushCount++;

@@ -1,18 +1,11 @@
 namespace TurboHTTP.Protocol.Server;
 
-internal sealed class DataRateMonitor
+internal sealed class DataRateMonitor(double minDataRate, TimeSpan gracePeriod)
 {
-    private readonly double _minDataRate;
-    private readonly long _gracePeriodMs;
+    private readonly long _gracePeriodMs = (long)gracePeriod.TotalMilliseconds;
     private readonly Dictionary<long, DataRateState> _states = new();
 
-    public DataRateMonitor(double minDataRate, TimeSpan gracePeriod)
-    {
-        _minDataRate = minDataRate;
-        _gracePeriodMs = (long)gracePeriod.TotalMilliseconds;
-    }
-
-    public bool Enabled => _minDataRate > 0;
+    public bool Enabled => minDataRate > 0;
     public int Count => _states.Count;
 
     public void Observe(long streamId, long bytes, long now)
@@ -52,7 +45,7 @@ internal sealed class DataRateMonitor
             state.LastCheckBytes = state.TotalBytes;
             state.LastCheckTimestamp = now;
 
-            if (rate < _minDataRate)
+            if (rate < minDataRate)
             {
                 if (!state.InGracePeriod)
                 {

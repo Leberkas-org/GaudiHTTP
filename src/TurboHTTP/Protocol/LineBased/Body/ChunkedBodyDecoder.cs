@@ -4,7 +4,8 @@ using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.LineBased.Body;
 
-internal sealed class ChunkedBodyDecoder : IBodyDecoder
+internal sealed class ChunkedBodyDecoder(long maxBodySize = 10_485_760, int maxChunkExtensionLength = int.MaxValue)
+    : IBodyDecoder
 {
     private enum Phase
     {
@@ -15,8 +16,7 @@ internal sealed class ChunkedBodyDecoder : IBodyDecoder
         Complete
     }
 
-    private readonly BodyHandle _handle;
-    private readonly int _maxChunkExtensionLength;
+    private readonly BodyHandle _handle = new(maxBodySize);
     private Phase _phase = Phase.ChunkSize;
     private int _currentChunkRemaining;
     private byte[] _stash = [];
@@ -27,12 +27,6 @@ internal sealed class ChunkedBodyDecoder : IBodyDecoder
     public bool IsBuffered => false;
     public IReadOnlyList<(string Name, string Value)> Trailers => _trailers ?? (IReadOnlyList<(string Name, string Value)>)[];
     public bool IsComplete => _phase == Phase.Complete;
-
-    public ChunkedBodyDecoder(long maxBodySize = 10_485_760, int maxChunkExtensionLength = int.MaxValue)
-    {
-        _handle = new BodyHandle(maxBodySize);
-        _maxChunkExtensionLength = maxChunkExtensionLength;
-    }
 
     public bool Feed(ReadOnlySpan<byte> data, out int consumed)
     {
@@ -70,7 +64,7 @@ internal sealed class ChunkedBodyDecoder : IBodyDecoder
 
                         var line = work[pos..crlf];
                         var semi = line.IndexOf((byte)';');
-                        if (semi >= 0 && line.Length - semi > _maxChunkExtensionLength)
+                        if (semi >= 0 && line.Length - semi > maxChunkExtensionLength)
                         {
                             throw new HttpProtocolException("Chunk extension exceeds configured maximum length.");
                         }

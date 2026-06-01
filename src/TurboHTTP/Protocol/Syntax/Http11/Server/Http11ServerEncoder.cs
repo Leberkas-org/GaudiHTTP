@@ -7,16 +7,10 @@ using TurboHTTP.Protocol.Syntax.Http11.Options;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerEncoder
+internal sealed class Http11ServerEncoder(Http11ServerEncoderOptions options)
 {
-    private readonly Http11ServerEncoderOptions _options;
     private readonly HeaderCollection _reusableHeaders = new();
     private IBodyEncoder? _activeBodyEncoder;
-
-    public Http11ServerEncoder(Http11ServerEncoderOptions options)
-    {
-        _options = options;
-    }
 
     public void SetActiveBodyEncoder(IBodyEncoder encoder)
     {
@@ -39,7 +33,6 @@ internal sealed class Http11ServerEncoder
         StatusLineWriter.Write(ref writer, HttpVersion.Version11, statusCode);
 
         _reusableHeaders.Clear();
-        var headers = _reusableHeaders;
         var responseHeaders = responseFeature?.Headers;
         if (responseHeaders is not null)
         {
@@ -54,7 +47,7 @@ internal sealed class Http11ServerEncoder
                 {
                     if (v is not null)
                     {
-                        headers.Add(h.Key, v);
+                        _reusableHeaders.Add(h.Key, v);
                     }
                 }
             }
@@ -62,27 +55,27 @@ internal sealed class Http11ServerEncoder
 
         if (isChunked)
         {
-            if (!headers.Contains(WellKnownHeaders.TransferEncoding))
+            if (!_reusableHeaders.Contains(WellKnownHeaders.TransferEncoding))
             {
-                headers.Add(WellKnownHeaders.TransferEncoding, WellKnownHeaders.ChunkedValue);
+                _reusableHeaders.Add(WellKnownHeaders.TransferEncoding, WellKnownHeaders.ChunkedValue);
             }
         }
-        else if (!headers.Contains(WellKnownHeaders.ContentLength))
+        else if (!_reusableHeaders.Contains(WellKnownHeaders.ContentLength))
         {
-            headers.Add(WellKnownHeaders.ContentLength, ContentLengthCache.GetValue(0L));
+            _reusableHeaders.Add(WellKnownHeaders.ContentLength, ContentLengthCache.GetValue(0L));
         }
 
-        if (_options.WriteDateHeader && !headers.Contains(WellKnownHeaders.Date))
+        if (options.WriteDateHeader && !_reusableHeaders.Contains(WellKnownHeaders.Date))
         {
-            headers.Add(WellKnownHeaders.Date, DateHeaderCache.GetValue());
+            _reusableHeaders.Add(WellKnownHeaders.Date, DateHeaderCache.GetValue());
         }
 
         if (connectionClose)
         {
-            headers.Add(WellKnownHeaders.Connection, WellKnownHeaders.CloseValue);
+            _reusableHeaders.Add(WellKnownHeaders.Connection, WellKnownHeaders.CloseValue);
         }
 
-        HeaderBlockWriter.Write(ref writer, headers);
+        HeaderBlockWriter.Write(ref writer, _reusableHeaders);
 
         // Body encoding is handled separately via the BodySink
         return writer.BytesWritten;

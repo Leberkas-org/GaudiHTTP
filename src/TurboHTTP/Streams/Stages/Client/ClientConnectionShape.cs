@@ -4,24 +4,17 @@ using Servus.Akka.Transport;
 
 namespace TurboHTTP.Streams.Stages.Client;
 
-internal sealed class ClientConnectionShape : Shape
+internal sealed class ClientConnectionShape(
+    Inlet<ITransportInbound> inNetwork,
+    Outlet<HttpResponseMessage> outResponse,
+    Inlet<HttpRequestMessage> inRequest,
+    Outlet<ITransportOutbound> outNetwork)
+    : Shape
 {
-    public Inlet<ITransportInbound> InNetwork { get; }
-    public Outlet<HttpResponseMessage> OutResponse { get; }
-    public Inlet<HttpRequestMessage> InRequest { get; }
-    public Outlet<ITransportOutbound> OutNetwork { get; }
-
-    public ClientConnectionShape(
-        Inlet<ITransportInbound> inNetwork,
-        Outlet<HttpResponseMessage> outResponse,
-        Inlet<HttpRequestMessage> inRequest,
-        Outlet<ITransportOutbound> outNetwork)
-    {
-        InNetwork = inNetwork;
-        OutResponse = outResponse;
-        InRequest = inRequest;
-        OutNetwork = outNetwork;
-    }
+    public Inlet<ITransportInbound> InNetwork { get; } = inNetwork;
+    public Outlet<HttpResponseMessage> OutResponse { get; } = outResponse;
+    public Inlet<HttpRequestMessage> InRequest { get; } = inRequest;
+    public Outlet<ITransportOutbound> OutNetwork { get; } = outNetwork;
 
     public override ImmutableArray<Inlet> Inlets => [InNetwork, InRequest];
 

@@ -7,13 +7,13 @@ using TurboHTTP.Server;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
-internal sealed class ConnectionStage
+internal sealed class ConnectionStage(
+    TurboServerOptions options,
+    PipelineHandles pipelineHandles,
+    IServerProtocolEngine engine,
+    SharedKillSwitch? drainSwitch = null,
+    IServiceProvider? services = null)
 {
-    private readonly TurboServerOptions _options;
-    private readonly PipelineHandles _pipelineHandles;
-    private readonly IServerProtocolEngine _engine;
-    private readonly IServiceProvider? _services;
-
     public SharedKillSwitch DrainSwitch
     {
         get
@@ -21,31 +21,17 @@ internal sealed class ConnectionStage
             field ??= KillSwitches.Shared(string.Concat("drain-", Guid.NewGuid()));
             return field;
         }
-    }
-
-    public ConnectionStage(
-        TurboServerOptions options,
-        PipelineHandles pipelineHandles,
-        IServerProtocolEngine engine,
-        SharedKillSwitch? drainSwitch = null,
-        IServiceProvider? services = null)
-    {
-        _options = options;
-        _pipelineHandles = pipelineHandles;
-        _engine = engine;
-        DrainSwitch = drainSwitch;
-        _services = services;
-    }
+    } = drainSwitch;
 
     public IGraph<FlowShape<Flow<ITransportOutbound, ITransportInbound, NotUsed>, NotUsed>, NotUsed> CreateFlow(
         TaskCompletionSource<Done> completionTcs)
     {
         return new StageImpl(
-            _options,
-            _pipelineHandles,
-            _engine,
+            options,
+            pipelineHandles,
+            engine,
             DrainSwitch,
-            _services,
+            services,
             completionTcs);
     }
 

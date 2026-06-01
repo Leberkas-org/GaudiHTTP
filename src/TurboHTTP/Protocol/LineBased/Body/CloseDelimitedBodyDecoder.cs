@@ -1,17 +1,12 @@
 namespace TurboHTTP.Protocol.LineBased.Body;
 
-internal sealed class CloseDelimitedBodyDecoder : IBodyDecoder
+internal sealed class CloseDelimitedBodyDecoder(long maxBodySize = 10_485_760) : IBodyDecoder
 {
-    private readonly BodyHandle _handle;
+    private readonly BodyHandle _handle = new(maxBodySize);
 
     public bool IsBuffered => false;
     public IReadOnlyList<(string Name, string Value)> Trailers => [];
     public bool IsComplete => false;
-
-    public CloseDelimitedBodyDecoder(long maxBodySize = 10_485_760)
-    {
-        _handle = new BodyHandle(maxBodySize);
-    }
 
     public bool Feed(ReadOnlySpan<byte> data, out int consumed)
     {

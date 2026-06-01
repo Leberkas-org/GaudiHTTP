@@ -127,18 +127,12 @@ internal sealed class TracingBidiStage
     }
 }
 
-internal sealed class TracingBidiProcessor
+internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
 {
     private static readonly HttpRequestOptionsKey<long> RequestTimestampKey = new("TurboHTTP.RequestTimestamp");
 
-    private readonly IFeatureStageOperations _ops;
     private Activity? _currentActivity;
     private HttpRequestMessage? _currentRequest;
-
-    public TracingBidiProcessor(IFeatureStageOperations ops)
-    {
-        _ops = ops;
-    }
 
     public void OnRequestPush(HttpRequestMessage request)
     {
@@ -152,7 +146,7 @@ internal sealed class TracingBidiProcessor
 
         var method = request.Method.Method;
         var uri = request.RequestUri?.OriginalString ?? "";
-        Tracing.For("Request").Info(_ops, "Request started: {0} {1}", method, uri);
+        Tracing.For("Request").Info(ops, "Request started: {0} {1}", method, uri);
 
         _currentRequest = request;
 
@@ -165,12 +159,12 @@ internal sealed class TracingBidiProcessor
             request.Options.Set(RequestTimestampKey, Stopwatch.GetTimestamp());
         }
 
-        _ops.OnPushRequest(request);
+        ops.OnPushRequest(request);
     }
 
     public void OnRequestUpstreamFailure(Exception ex)
     {
-        Tracing.For("Request").Warning(_ops, $"Request failed: {ex.GetType().Name} - {ex.Message}");
+        Tracing.For("Request").Warning(ops, $"Request failed: {ex.GetType().Name} - {ex.Message}");
 
         if (_currentActivity is not null)
         {
@@ -201,7 +195,7 @@ internal sealed class TracingBidiProcessor
         }
 
         var statusCode = (int)response.StatusCode;
-        Tracing.For("Request").Info(_ops, "Request completed: {0} ({1:F1}ms)", statusCode, durationMs);
+        Tracing.For("Request").Info(ops, "Request completed: {0} ({1:F1}ms)", statusCode, durationMs);
 
 
         RecordActiveRequestEnd(request);
@@ -209,12 +203,12 @@ internal sealed class TracingBidiProcessor
 
         RecordRequestMetrics(response, durationMs);
 
-        _ops.OnPushResponse(response);
+        ops.OnPushResponse(response);
     }
 
     public void OnResponseUpstreamFailure(Exception ex)
     {
-        Tracing.For("Request").Warning(_ops, $"Request failed: {ex.GetType().Name} - {ex.Message}");
+        Tracing.For("Request").Warning(ops, $"Request failed: {ex.GetType().Name} - {ex.Message}");
 
         if (_currentActivity is not null)
         {

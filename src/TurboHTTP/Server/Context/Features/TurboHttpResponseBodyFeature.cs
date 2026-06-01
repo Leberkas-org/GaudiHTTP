@@ -112,17 +112,11 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
     internal Stream GetResponseStream() => _pipe.Reader.AsStream();
 
-    internal sealed class ResponsePipeWriter : PipeWriter
+    internal sealed class ResponsePipeWriter(PipeWriter inner) : PipeWriter
     {
-        private readonly PipeWriter _inner;
         private readonly TaskCompletionSource _headerCommit = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private Func<Task>? _onStarting;
         private bool _completed;
-
-        public ResponsePipeWriter(PipeWriter inner)
-        {
-            _inner = inner;
-        }
 
         public Task WhenHeadersReady => _headerCommit.Task;
         public bool HasStarted { get; private set; }
@@ -140,24 +134,24 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             }
         }
 
-        public override bool CanGetUnflushedBytes => _inner.CanGetUnflushedBytes;
-        public override long UnflushedBytes => _inner.UnflushedBytes;
-        public override Memory<byte> GetMemory(int sizeHint = 0) => _inner.GetMemory(sizeHint);
-        public override Span<byte> GetSpan(int sizeHint = 0) => _inner.GetSpan(sizeHint);
+        public override bool CanGetUnflushedBytes => inner.CanGetUnflushedBytes;
+        public override long UnflushedBytes => inner.UnflushedBytes;
+        public override Memory<byte> GetMemory(int sizeHint = 0) => inner.GetMemory(sizeHint);
+        public override Span<byte> GetSpan(int sizeHint = 0) => inner.GetSpan(sizeHint);
 
         public override void Advance(int bytes)
         {
-            _inner.Advance(bytes);
+            inner.Advance(bytes);
             BytesWritten += bytes;
         }
 
-        public override void CancelPendingFlush() => _inner.CancelPendingFlush();
+        public override void CancelPendingFlush() => inner.CancelPendingFlush();
 
         public override ValueTask<FlushResult> FlushAsync(CancellationToken cancellationToken = default)
         {
             if (HasStarted)
             {
-                return _inner.FlushAsync(cancellationToken);
+                return inner.FlushAsync(cancellationToken);
             }
 
             return CommitAndFlushAsync(cancellationToken);
@@ -167,7 +161,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         {
             if (HasStarted)
             {
-                return _inner.WriteAsync(source, cancellationToken);
+                return inner.WriteAsync(source, cancellationToken);
             }
 
             return CommitAndWriteAsync(source, cancellationToken);
@@ -188,7 +182,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
                 _headerCommit.TrySetResult();
             }
 
-            return await _inner.FlushAsync(cancellationToken);
+            return await inner.FlushAsync(cancellationToken);
         }
 
         private async ValueTask<FlushResult> CommitAndWriteAsync(ReadOnlyMemory<byte> source, CancellationToken cancellationToken)
@@ -207,7 +201,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             }
 
             BytesWritten += source.Length;
-            return await _inner.WriteAsync(source, cancellationToken);
+            return await inner.WriteAsync(source, cancellationToken);
         }
 
         public override void Complete(Exception? exception = null)
@@ -215,7 +209,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             if (!_completed)
             {
                 _completed = true;
-                _inner.Complete(exception);
+                inner.Complete(exception);
             }
         }
 
@@ -224,7 +218,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             if (!_completed)
             {
                 _completed = true;
-                return _inner.CompleteAsync(exception);
+                return inner.CompleteAsync(exception);
             }
 
             return default;

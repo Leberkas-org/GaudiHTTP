@@ -176,30 +176,21 @@ internal sealed class ContentEncodingBidiStage
     }
 }
 
-internal sealed class ContentEncodingBidiProcessor
+internal sealed class ContentEncodingBidiProcessor(
+    IFeatureStageOperations ops,
+    CompressionPolicy? compressionPolicy,
+    bool automaticDecompression)
 {
-    private readonly IFeatureStageOperations _ops;
-    private readonly CompressionPolicy? _compressionPolicy;
-    private readonly bool _automaticDecompression;
-
-    public ContentEncodingBidiProcessor(
-        IFeatureStageOperations ops,
-        CompressionPolicy? compressionPolicy,
-        bool automaticDecompression)
-    {
-        _ops = ops;
-        _compressionPolicy = compressionPolicy;
-        _automaticDecompression = automaticDecompression;
-    }
+    private readonly bool _automaticDecompression = automaticDecompression;
 
     public void OnRequestPushWithCompression(HttpRequestMessage request)
     {
-        _ops.OnPushRequest(CompressIfNeeded(request, _compressionPolicy!));
+        ops.OnPushRequest(CompressIfNeeded(request, compressionPolicy!));
     }
 
     public void OnResponsePushWithDecompression(HttpResponseMessage response)
     {
-        _ops.OnPushResponse(Decompress(response));
+        ops.OnPushResponse(Decompress(response));
     }
 
     private HttpRequestMessage CompressIfNeeded(HttpRequestMessage request, CompressionPolicy policy)
