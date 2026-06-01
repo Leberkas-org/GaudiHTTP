@@ -31,6 +31,8 @@ namespace TurboHTTP.Client
     {
         public static Akka.Streams.Dsl.Source<Servus.Akka.Sse.ServerSentEvent, Akka.NotUsed> AsEventStream(this System.Net.Http.HttpResponseMessage response) { }
         public static System.Threading.Tasks.ValueTask<System.Net.Http.HttpResponseMessage> GetResponseAsync(this System.Net.Http.HttpRequestMessage request, System.Threading.CancellationToken ct = default) { }
+        public static System.Net.Http.HttpRequestMessage WithFirstPartyContext(this System.Net.Http.HttpRequestMessage request, System.Uri firstParty) { }
+        public static System.Net.Http.HttpRequestMessage WithTimeout(this System.Net.Http.HttpRequestMessage request, System.TimeSpan timeout) { }
     }
     public sealed class Http1Options
     {
