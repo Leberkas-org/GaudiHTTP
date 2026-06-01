@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http10.Server;
@@ -174,8 +175,7 @@ public sealed class Http10DataRateSpec
     public void Slow_response_body_violation_sets_should_complete_with_injected_clock()
     {
         var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(1));
-        long now = 0;
-        Func<long> clock = () => now;
+        var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops, clock);
 
@@ -194,13 +194,13 @@ public sealed class Http10DataRateSpec
 
         // Advance clock to first check point (600ms, triggers first rate calculation but still in grace)
         // With 10 bytes in 600ms < 1000 bytes/sec, enters grace period
-        now = 600;
+        clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
         Assert.False(sm.ShouldComplete, "Should be in grace period at first check");
 
         // Advance clock past grace period (1700ms total, and grace started at 600ms)
         // Now > GracePeriodStart (600) + 1000ms grace = 1600ms, so should violate
-        now = 1700;
+        clock.Advance(TimeSpan.FromMilliseconds(1100));
         sm.OnTimerFired("data-rate-check");
         Assert.True(sm.ShouldComplete, "Expected data rate violation to set ShouldComplete after grace expires");
 
@@ -212,8 +212,7 @@ public sealed class Http10DataRateSpec
     public void Fast_response_body_within_grace_should_not_violate_with_injected_clock()
     {
         var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(5));
-        long now = 0;
-        Func<long> clock = () => now;
+        var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops, clock);
 
@@ -227,12 +226,12 @@ public sealed class Http10DataRateSpec
         sm.OnBodyMessage(new OutboundBodyComplete());
 
         // Check at time=600ms (first rate check, enters grace)
-        now = 600;
+        clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
         Assert.False(sm.ShouldComplete);
 
         // Check at time=3600ms (within 5s grace period from 600ms = 5600ms) — should still be OK
-        now = 3600;
+        clock.Advance(TimeSpan.FromMilliseconds(3000));
         sm.OnTimerFired("data-rate-check");
         Assert.False(sm.ShouldComplete, "Should not abort when within grace period");
     }
@@ -241,8 +240,7 @@ public sealed class Http10DataRateSpec
     public void Slow_request_body_violation_sets_should_complete_with_injected_clock()
     {
         var options = CreateOptionsWithRequestRate(1000, TimeSpan.FromSeconds(1));
-        long now = 0;
-        Func<long> clock = () => now;
+        var clock = new FakeTimeProvider();
         var ops = new FakeServerOps();
         var sm = new Http10ServerStateMachine(options, ops, clock);
 
@@ -258,13 +256,13 @@ public sealed class Http10DataRateSpec
         sm.DecodeClientData(new TransportData(buffer2));
 
         // Advance clock to first check point (600ms)
-        now = 600;
+        clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
         Assert.False(sm.ShouldComplete, "Should be in grace period at first check");
 
         // Advance clock past grace period (1700ms total)
         // Only 5 bytes sent in 1700ms = 2.94 bytes/sec << 1000, so violation
-        now = 1700;
+        clock.Advance(TimeSpan.FromMilliseconds(1100));
         sm.OnTimerFired("data-rate-check");
         Assert.True(sm.ShouldComplete, "Expected request body data rate violation after grace expires");
     }
