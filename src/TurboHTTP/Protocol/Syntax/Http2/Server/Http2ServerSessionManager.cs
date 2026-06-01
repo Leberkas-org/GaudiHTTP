@@ -49,7 +49,7 @@ internal sealed class Http2ServerSessionManager
     private readonly DataRateMonitor _responseRate;
     private readonly TimeProvider _clock;
     private bool _prefaceConsumed;
-    private int _highestProcessedStreamId;
+
 
     private readonly int _maxResetStreamsPerWindow;
     private int _resetCount;
@@ -119,7 +119,7 @@ internal sealed class Http2ServerSessionManager
     /// True once a connection-fatal protocol error (or graceful teardown) has occurred. The owning
     /// state machine surfaces this so the stage flushes the pending GOAWAY and closes the connection.
     /// </summary>
-    public bool ShouldComplete { get; private set; }
+    public bool ShouldComplete { get; internal set; }
 
     public void DecodeClientData(TransportBuffer buffer)
     {
@@ -164,7 +164,7 @@ internal sealed class Http2ServerSessionManager
 
     private void TerminateConnection(Http2ErrorCode errorCode, string reason)
     {
-        EmitGoAway(_highestProcessedStreamId, errorCode, reason);
+        EmitGoAway(_tracker.HighestAcceptedStreamId, errorCode, reason);
         ShouldComplete = true;
     }
 
@@ -443,17 +443,26 @@ internal sealed class Http2ServerSessionManager
 
         var isTrailer = _streams.TryGetValue(streamId, out var existing) && existing.GetRequestFeature() is not null;
 
-        if (!isTrailer && !_tracker.CanOpenStream())
+        if (!isTrailer)
         {
-            EmitRstStream(streamId, Http2ErrorCode.RefusedStream);
-            return;
+            var acceptResult = _tracker.TryAcceptClientStream(streamId);
+            switch (acceptResult)
+            {
+                case StreamAcceptResult.InvalidId:
+                    TerminateConnection(Http2ErrorCode.ProtocolError,
+                        "RFC 9113 §5.1.1: client stream ID must be odd and non-zero.");
+                    return;
+                case StreamAcceptResult.NonMonotonic:
+                    TerminateConnection(Http2ErrorCode.ProtocolError,
+                        "RFC 9113 §5.1.1: stream ID must be monotonically increasing.");
+                    return;
+                case StreamAcceptResult.RefusedStream:
+                    EmitRstStream(streamId, Http2ErrorCode.RefusedStream);
+                    return;
+            }
         }
 
         var state = isTrailer ? existing! : GetOrCreateStreamState(streamId);
-        if (!isTrailer && streamId > _highestProcessedStreamId)
-        {
-            _highestProcessedStreamId = streamId;
-        }
 
         if (headers.EndHeaders)
         {
@@ -688,7 +697,6 @@ internal sealed class Http2ServerSessionManager
 
             state.InitRequestFeature(requestFeature);
 
-            _tracker.OnStreamOpened(streamId);
             _flow.InitStreamSendWindow(streamId);
 
             var hasBody = !endStream;
