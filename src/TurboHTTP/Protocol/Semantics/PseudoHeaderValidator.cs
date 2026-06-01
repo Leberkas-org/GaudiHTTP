@@ -31,6 +31,7 @@ internal static class PseudoHeaderValidator
         var lastPseudoIndex = -1;
         var firstRegularIndex = int.MaxValue;
         string? methodValue = null;
+        string? pathValue = null;
 
         for (var i = 0; i < headers.Count; i++)
         {
@@ -69,6 +70,10 @@ internal static class PseudoHeaderValidator
                 {
                     methodValue = getValue(headers[i]);
                 }
+                else if (flag == PseudoFlags.Path)
+                {
+                    pathValue = getValue(headers[i]);
+                }
 
                 break;
             }
@@ -96,6 +101,12 @@ internal static class PseudoHeaderValidator
         {
             throw new HttpProtocolException(
                 $"{rfcSection}: Missing required pseudo-headers: {FormatMissing(missing)}");
+        }
+
+        if (pathValue is not null && pathValue.Length == 0)
+        {
+            throw new HttpProtocolException(
+                string.Concat(rfcSection, ": :path pseudo-header MUST NOT be empty for non-CONNECT requests"));
         }
     }
 
