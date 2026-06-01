@@ -44,6 +44,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
         {
             Http2 = new Http2ClientOptions
             {
+                InitialStreamWindowSize = 64 * 1024,
                 MaxStreamWindowSize = 1024 * 1024,
                 WindowScaleThresholdMultiplier = 1.0,
                 EnableAdaptiveWindowScaling = true
@@ -74,6 +75,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
         {
             Http2 = new Http2ClientOptions
             {
+                InitialStreamWindowSize = 64 * 1024,
                 MaxStreamWindowSize = 1024 * 1024,
                 WindowScaleThresholdMultiplier = 1.0,
                 EnableAdaptiveWindowScaling = true
@@ -139,6 +141,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
         {
             Http2 = new Http2ClientOptions
             {
+                InitialStreamWindowSize = 64 * 1024,
                 MaxStreamWindowSize = 1024 * 1024,
                 WindowScaleThresholdMultiplier = 1.0,
                 EnableAdaptiveWindowScaling = true
