@@ -90,6 +90,13 @@ internal sealed class Http3ServerSessionManager
         _ops.OnOutbound(preface);
     }
 
+    /// <summary>
+    /// True once a connection-fatal H3/QPACK error has occurred. The owning state machine surfaces
+    /// this so the connection stage closes the QUIC connection rather than continuing against a
+    /// desynchronized decoder.
+    /// </summary>
+    public bool ShouldComplete { get; private set; }
+
     public void DecodeClientData(ITransportInbound data)
     {
         switch (data)
@@ -385,7 +392,22 @@ internal sealed class Http3ServerSessionManager
 
         var (decoder, state) = streamData;
 
-        var frames = decoder.DecodeAll(buffer.Span, out _);
+        IReadOnlyList<Http3Frame> frames;
+        try
+        {
+            frames = decoder.DecodeAll(buffer.Span, out _);
+        }
+        catch (Exception ex) when (ex is HttpProtocolException or QpackException or HuffmanException)
+        {
+            // RFC 9114 §8: a framing error is connection-fatal and leaves the decoder desynchronized.
+            // Close the connection instead of swallowing and continuing.
+            buffer.Dispose();
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/3 connection framing error on stream {0} — closing connection: {1}", streamId, ex.Message);
+            ShouldComplete = true;
+            return;
+        }
+
         buffer.Dispose();
 
         foreach (var frame in frames)
@@ -424,10 +446,29 @@ internal sealed class Http3ServerSessionManager
                     }
                 }
             }
-            catch (HttpProtocolException ex)
+            catch (QpackException ex)
+            {
+                // RFC 9204 §2.2: a QPACK decode failure desynchronizes the dynamic table for the whole
+                // connection — it cannot continue.
+                Tracing.For("Protocol").Warning(this,
+                    "HTTP/3 QPACK error on stream {0} — closing connection: {1}", streamId, ex.Message);
+                ShouldComplete = true;
+                return;
+            }
+            catch (HuffmanException ex)
             {
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/3 frame processing error on stream {0}: {1}", streamId, ex.Message);
+                    "HTTP/3 Huffman error on stream {0} — closing connection: {1}", streamId, ex.Message);
+                ShouldComplete = true;
+                return;
+            }
+            catch (HttpProtocolException ex)
+            {
+                // RFC 9114 §4.1.2: a malformed message is a stream-scoped error — reset the stream,
+                // the connection survives.
+                Tracing.For("Protocol").Warning(this,
+                    "HTTP/3 message error on stream {0} — resetting stream: {1}", streamId, ex.Message);
+                EmitRstStream(streamId, ErrorCode.MessageError);
             }
         }
     }

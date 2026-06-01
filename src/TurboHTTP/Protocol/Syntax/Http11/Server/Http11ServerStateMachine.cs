@@ -48,7 +48,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     public bool ShouldComplete { get; private set; }
     public int MaxQueuedRequests { get; }
 
-    public Http11ServerStateMachine(Http1ConnectionOptions options, Http2ConnectionOptions h2UpgradeOptions, IServerStageOperations ops, TimeProvider? timeProvider = null)
+    public Http11ServerStateMachine(Http1ConnectionOptions options, Http2ConnectionOptions h2UpgradeOptions,
+        IServerStageOperations ops, TimeProvider? timeProvider = null)
     {
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         ArgumentNullException.ThrowIfNull(options);
@@ -126,7 +127,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             }
 
             // Schedule request headers timeout if not already active
-            if (!_requestHeadersTimerActive && _pendingResponseCount == 0 && !_bodyStreaming && _requestHeadersTimeout > TimeSpan.Zero)
+            if (!_requestHeadersTimerActive && _pendingResponseCount == 0 && !_bodyStreaming &&
+                _requestHeadersTimeout > TimeSpan.Zero)
             {
                 _ops.OnScheduleTimer(RequestHeadersTimer, _requestHeadersTimeout);
                 _requestHeadersTimerActive = true;
@@ -252,7 +254,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         var suppressBody = statusCode is >= 100 and < 200 or 204 or 304;
 
         var contentLength = ExtractContentLength(responseFeature);
-        var hasExplicitChunked = responseFeature?.Headers?.Any(h =>
+        var hasExplicitChunked = responseFeature?.Headers.Any(h =>
             h.Key.Equals(WellKnownHeaders.TransferEncoding, StringComparison.OrdinalIgnoreCase)
             && h.Value.Any(v => v.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))) ?? false;
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
@@ -298,7 +300,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             _outboundBodyPending = true;
 
             var bodyStream = turboBody.GetResponseStream();
-            var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version11, _bodyEncoderOptions);
+            var encoder =
+                BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version11, _bodyEncoderOptions);
             if (encoder is not null)
             {
                 _encoder.SetActiveBodyEncoder(encoder);
@@ -398,12 +401,10 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         foreach (var header in responseFeature.Headers)
         {
-            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase))
+            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase) &&
+                header.Value.FirstOrDefault() is { } value && ContentLengthSemantics.TryParse(value, out var length))
             {
-                if (header.Value.FirstOrDefault() is { } value && ContentLengthSemantics.TryParse(value, out var length))
-                {
-                    return length;
-                }
+                return length;
             }
         }
 
