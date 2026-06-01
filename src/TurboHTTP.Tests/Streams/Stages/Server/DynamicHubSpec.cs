@@ -101,4 +101,58 @@ public sealed class DynamicHubSpec : StreamTestBase
 
         up.ExpectNoMsg(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken); // probe accepted what it could; no failure/cancel
     }
+
+    [Fact(Timeout = 5000)]
+    public void DynamicHub_should_buffer_pending_elements_until_key_subscribes()
+    {
+        var (up, hub) = this.SourceProbe<int>()
+            .ToMaterialized(Hub(), Keep.Both)
+            .Run(Materializer);
+
+        up.SendNext(70, TestContext.Current.CancellationToken); // key 0, no consumer yet
+        up.SendNext(80, TestContext.Current.CancellationToken); // key 0
+
+        var down = hub.Source(0).RunWith(this.SinkProbe<int>(), Materializer);
+        down.Request(2);
+
+        Assert.Equal(70, down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+        Assert.Equal(80, down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void DynamicHub_should_drain_then_complete_consumers_on_upstream_finish()
+    {
+        var (up, hub) = this.SourceProbe<int>()
+            .ToMaterialized(Hub(), Keep.Both)
+            .Run(Materializer);
+
+        var down = hub.Source(0).RunWith(this.SinkProbe<int>(), Materializer);
+
+        up.SendNext(90, TestContext.Current.CancellationToken);
+        up.SendComplete(TestContext.Current.CancellationToken);
+
+        down.Request(1);
+        Assert.Equal(90, down.ExpectNext(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
+        down.ExpectComplete(TestContext.Current.CancellationToken);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void DynamicHub_should_propagate_failure_to_all_consumers()
+    {
+        var (up, hub) = this.SourceProbe<int>()
+            .ToMaterialized(Hub(), Keep.Both)
+            .Run(Materializer);
+
+        var down1 = hub.Source(1).RunWith(this.SinkProbe<int>(), Materializer);
+        var down2 = hub.Source(2).RunWith(this.SinkProbe<int>(), Materializer);
+        down1.Request(1);
+        down2.Request(1);
+
+        var boom = new InvalidOperationException("boom");
+        up.SendError(boom, TestContext.Current.CancellationToken);
+
+        down1.ExpectError(TestContext.Current.CancellationToken);
+        down2.ExpectError(TestContext.Current.CancellationToken);
+    }
+
 }
