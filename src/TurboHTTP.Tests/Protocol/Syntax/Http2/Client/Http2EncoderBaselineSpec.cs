@@ -10,7 +10,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-3")]
     public void Http2Encoder_should_encode_get_request_to_headers_frame()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
 
         var frames = encoder.Encode(request, 1);
@@ -23,7 +23,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-3")]
     public void Http2Encoder_should_assign_stream_id_to_request()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
         var frames = encoder.Encode(request, 5);
@@ -35,7 +35,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.1.2.1")]
     public void Http2Encoder_should_include_pseudo_headers_in_request()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.example.com/resource");
 
         var headerBlock = encoder.EncodeToHpackBlock(request);
@@ -51,7 +51,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.1.1")]
     public void Http2Encoder_should_set_method_to_get_for_get_request()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
         var headerBlock = encoder.EncodeToHpackBlock(request);
@@ -64,7 +64,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.1.1")]
     public void Http2Encoder_should_set_method_to_post_for_post_request()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/");
 
         var headerBlock = encoder.EncodeToHpackBlock(request);
@@ -77,7 +77,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.1.1")]
     public void Http2Encoder_should_set_path_from_uri()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/api/resource");
 
         var headerBlock = encoder.EncodeToHpackBlock(request);
@@ -90,7 +90,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.1.1")]
     public void Http2Encoder_should_set_scheme_to_http()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
         var headerBlock = encoder.EncodeToHpackBlock(request);
@@ -103,7 +103,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.1.1")]
     public void Http2Encoder_should_set_scheme_to_https()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");
 
         var headerBlock = encoder.EncodeToHpackBlock(request);
@@ -116,7 +116,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.1.1")]
     public void Http2Encoder_should_set_authority_from_uri()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://api.example.com:8080/");
 
         var headerBlock = encoder.EncodeToHpackBlock(request);
@@ -129,7 +129,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.2.2")]
     public void Http2Encoder_should_encode_regular_headers()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         request.Headers.Add("User-Agent", "TestClient/1.0");
 
@@ -143,7 +143,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void Http2Encoder_should_produce_headers_frame_with_end_stream_for_get()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
         var frames = encoder.Encode(request, 1);
@@ -156,7 +156,7 @@ public sealed class Http2EncoderBaselineSpec
     [Trait("RFC", "RFC9113-8.1.2.1")]
     public void Http2Encoder_should_produce_headers_without_end_stream_for_post()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
         {
             Content = new StringContent("body"),

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Server.Context.Features;
 
@@ -7,11 +8,11 @@ internal sealed class TurboHttpRequestFeature : IHttpRequestFeature
 {
     private readonly TurboResponseHeaderDictionary _headers = new();
 
-    public string Protocol { get; set; } = "HTTP/1.1";
+    public string Protocol { get; set; } = WellKnownHeaders.Http11;
 
     public string Scheme { get; set; } = "http";
 
-    public string Method { get; set; } = "GET";
+    public string Method { get; set; } = WellKnownHeaders.Get;
 
     public string PathBase { get; set; } = string.Empty;
 

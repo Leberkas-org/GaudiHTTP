@@ -15,7 +15,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -31,7 +31,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -47,7 +47,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "100")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -63,7 +63,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "201")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -79,7 +79,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "204")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -95,7 +95,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "304")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -111,7 +111,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "400")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -127,7 +127,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "401")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -143,7 +143,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "403")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -159,7 +159,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "404")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -175,7 +175,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "500")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -191,7 +191,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "502")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -207,7 +207,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "503")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -223,7 +223,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -240,7 +240,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: false, state);
 
@@ -256,7 +256,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
     }
@@ -269,7 +269,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "204")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -285,7 +285,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder(maxHeaderSize: 1); // Very small limit
+        var decoder = new Http2ClientDecoder(maxHeaderSize: 1, maxTotalHeaderSize: 64 * 1024); // Very small limit
 
         Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
     }
@@ -298,7 +298,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder(maxTotalHeaderSize: 1); // Very small limit
+        var decoder = new Http2ClientDecoder(maxHeaderSize: 16 * 1024, maxTotalHeaderSize: 1); // Very small limit
 
         Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
     }
@@ -311,7 +311,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder(maxHeaderSize: 1);
+        var decoder = new Http2ClientDecoder(maxHeaderSize: 1, maxTotalHeaderSize: 64 * 1024);
 
         var ex = Assert.Throws<HttpProtocolException>(() =>
             decoder.DecodeHeaders(streamId: 42, endStream: true, state));
@@ -322,7 +322,7 @@ public sealed class Http2ResponseDecoderSpec
     [Trait("RFC", "RFC9113-6.5.2")]
     public void ResetHpack_should_create_new_decoder()
     {
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
         var initialDecoder = typeof(Http2ClientDecoder)
             .GetField("_hpack", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
             ?.GetValue(decoder);
@@ -343,7 +343,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response1 = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
         var state2 = new StreamState();
@@ -363,7 +363,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "418")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -379,7 +379,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "invalid")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         Assert.Throws<FormatException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
     }
@@ -388,7 +388,7 @@ public sealed class Http2ResponseDecoderSpec
     [Trait("RFC", "RFC9113-6.5.2")]
     public void DecodeHeaders_should_default_max_header_size_to_16kb()
     {
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
         Assert.NotNull(decoder);
     }
 
@@ -396,7 +396,7 @@ public sealed class Http2ResponseDecoderSpec
     [Trait("RFC", "RFC9113-6.5.2")]
     public void DecodeHeaders_should_default_max_total_header_size_to_64kb()
     {
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
         Assert.NotNull(decoder);
     }
 
@@ -413,7 +413,7 @@ public sealed class Http2ResponseDecoderSpec
     public void DecodeHeaders_with_empty_header_block()
     {
         var state = new StreamState();
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
     }
@@ -430,7 +430,7 @@ public sealed class Http2ResponseDecoderSpec
             var encoded = encoder.Encode([(":status", status)]);
             var state = new StreamState();
             state.AppendHeader(encoded.Span);
-            var decoder = new Http2ClientDecoder();
+            var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
             var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -447,7 +447,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -463,7 +463,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -480,7 +480,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: true, state);
 
@@ -495,7 +495,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder(maxHeaderSize: 1);
+        var decoder = new Http2ClientDecoder(maxHeaderSize: 1, maxTotalHeaderSize: 64 * 1024);
 
         var ex =
             Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(streamId: 999, endStream: true, state));
@@ -510,7 +510,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder(maxHeaderSize: 1);
+        var decoder = new Http2ClientDecoder(maxHeaderSize: 1, maxTotalHeaderSize: 64 * 1024);
 
         Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
     }
@@ -523,7 +523,7 @@ public sealed class Http2ResponseDecoderSpec
         var encoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(encoded.Span);
-        var decoder = new Http2ClientDecoder(maxHeaderSize: 1);
+        var decoder = new Http2ClientDecoder(maxHeaderSize: 1, maxTotalHeaderSize: 64 * 1024);
 
         Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
     }
@@ -536,7 +536,7 @@ public sealed class Http2ResponseDecoderSpec
         var statusEncoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(statusEncoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: false, state);
         Assert.Null(response);
@@ -560,7 +560,7 @@ public sealed class Http2ResponseDecoderSpec
         var statusEncoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(statusEncoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: false, state);
         Assert.Null(response);
@@ -582,7 +582,7 @@ public sealed class Http2ResponseDecoderSpec
         var statusEncoded = encoder.Encode([(":status", "200")]);
         var state = new StreamState();
         state.AppendHeader(statusEncoded.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
 
         var response = decoder.DecodeHeaders(streamId: 1, endStream: false, state);
         Assert.Null(response);

@@ -5,7 +5,5 @@ namespace TurboHTTP.Protocol.LineBased.Body;
 /// </summary>
 internal sealed record BodyEncoderOptions
 {
-    public int ChunkSize { get; init; } = 16 * 1024;
-
-    public static BodyEncoderOptions Default { get; } = new();
+    public required int ChunkSize { get; init; }
 }

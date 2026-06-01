@@ -10,7 +10,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client.StateMachine;
 public sealed class Http3StreamRoutingSpec
 {
     private readonly FakeClientOps _clientOps = new();
-    private readonly QpackTableSync _tableSync = new();
+    private readonly QpackTableSync _tableSync = new(0, 4096, 100, null);
 
     private Http3ClientStateMachine CreateMachine(FakeClientOps? ops = null)
     {

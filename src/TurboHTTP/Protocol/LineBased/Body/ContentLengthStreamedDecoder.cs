@@ -10,7 +10,7 @@ internal sealed class ContentLengthStreamedDecoder : IBodyDecoder
     public IReadOnlyList<(string Name, string Value)> Trailers => [];
     public bool IsComplete { get; private set; }
 
-    public ContentLengthStreamedDecoder(long expected, long maxBodySize = 10_485_760)
+    public ContentLengthStreamedDecoder(long expected, long maxBodySize)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(expected);
         _expected = expected;

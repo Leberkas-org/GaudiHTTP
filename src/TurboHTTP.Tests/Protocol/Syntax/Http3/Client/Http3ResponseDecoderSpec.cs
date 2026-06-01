@@ -7,12 +7,12 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Client;
 
 public sealed class Http3ResponseDecoderSpec
 {
-    private readonly QpackTableSync _tableSync = new();
+    private readonly QpackTableSync _tableSync = new(0, 4096, 100, null);
     private readonly Http3ClientDecoder _decoder;
 
     public Http3ResponseDecoderSpec()
     {
-        _decoder = new Http3ClientDecoder(_tableSync);
+        _decoder = new Http3ClientDecoder(_tableSync, int.MaxValue);
     }
 
     private HeadersFrame EncodeHeaders(params (string Name, string Value)[] headers)

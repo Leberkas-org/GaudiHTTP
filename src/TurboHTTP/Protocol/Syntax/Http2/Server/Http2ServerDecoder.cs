@@ -36,7 +36,7 @@ internal sealed class Http2ServerDecoder
         ValidateHeaderSize(headers, streamId);
         ValidateRequestHeaders(headers);
 
-        var feature = new TurboHttpRequestFeature { Protocol = "HTTP/2" };
+        var feature = new TurboHttpRequestFeature { Protocol = WellKnownHeaders.Http20 };
         // Write directly into the feature's header dictionary, avoiding a throwaway
         // HeaderDictionary allocation plus the copy loop in the Headers setter.
         var headerDict = feature.Headers;

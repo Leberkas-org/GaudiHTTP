@@ -72,7 +72,7 @@ public abstract class IntegrationSpecBase : Xunit.IAsyncLifetime
             Assert.Skip("QUIC is not available.");
         }
 
-        if (variant.Version == TestHttpVersion.H10 && variant.Tls && !Server.IsHttp10TlsSupported)
+        if (variant is { Version: TestHttpVersion.H10, Tls: true } && !Server.IsHttp10TlsSupported)
         {
             Assert.Skip("HTTP/1.0 over TLS is not supported by this backend.");
         }

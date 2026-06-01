@@ -9,7 +9,7 @@ public sealed class QpackTableSyncSpec
     [Trait("RFC", "RFC9204-2.1.1")]
     public void Should_SyncDecoderTable_ViaEncoderInstructions()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
         var decoder = sync.Decoder;
 
@@ -43,7 +43,7 @@ public sealed class QpackTableSyncSpec
     [Trait("RFC", "RFC9204-2.1.1")]
     public void Should_TrackInsertCount_AcrossMultipleHeaderBlocks()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
         var decoder = sync.Decoder;
 
@@ -82,7 +82,7 @@ public sealed class QpackTableSyncSpec
     [Trait("RFC", "RFC9204-2.1.1")]
     public void Should_SkipInserts_WhenHeadersAlreadyInTable()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
         var decoder = sync.Decoder;
 
@@ -114,7 +114,7 @@ public sealed class QpackTableSyncSpec
     [Trait("RFC", "RFC9204-2.1.2")]
     public void Should_BlockStream_WhenRequiredInsertCountExceedsKnown()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 10);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         var headers = new List<(string, string)>
@@ -138,7 +138,7 @@ public sealed class QpackTableSyncSpec
     [Trait("RFC", "RFC9204-2.1.2")]
     public void Should_ResolveBlockedStream_WhenInsertCountReached()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 10);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         var headers = new List<(string, string)>
@@ -170,7 +170,7 @@ public sealed class QpackTableSyncSpec
     [Trait("RFC", "RFC9204-2.1.2")]
     public void Should_ResolveMultipleBlockedStreams_InBatch()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 10);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         // Encode two different header blocks
@@ -211,7 +211,7 @@ public sealed class QpackTableSyncSpec
     [Trait("RFC", "RFC9204-4.4.3")]
     public void Should_UpdateKnownReceivedCount_ViaInsertCountIncrement()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var decoder = sync.Decoder;
 
         // Manually insert entries into decoder's table (simulating encoder instructions)
@@ -231,7 +231,7 @@ public sealed class QpackTableSyncSpec
 
         // Process the instruction on the encoder side — QpackTableSync forwards
         // decoder instructions to the QpackEncoder, updating its KnownReceivedCount.
-        var encoderSync = new QpackTableSync(encoderMaxCapacity: 4096);
+        var encoderSync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         encoderSync.ProcessDecoderInstructions(buf[..written]);
 
         Assert.Equal(2, encoderSync.Encoder.KnownReceivedCount);
@@ -241,7 +241,7 @@ public sealed class QpackTableSyncSpec
     [Trait("RFC", "RFC9204-4.4.2")]
     public void Should_RemoveBlockedStream_OnStreamCancellation()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 10);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         var headers = new List<(string, string)> { ("x-cancel-me", "will-cancel") };

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using TurboHTTP.Client;
+using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Streams.Stages.Client;
@@ -54,7 +55,7 @@ internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
         }
 
         // Rule 5: PreAuthenticate — inject Authorization header when credentials are available
-        if (options is { PreAuthenticate: true, Credentials: not null } && !request.Headers.Contains("Authorization"))
+        if (options is { PreAuthenticate: true, Credentials: not null } && !request.Headers.Contains(WellKnownHeaders.Authorization))
         {
             InjectAuthorization(request, options.Credentials);
         }
@@ -97,7 +98,7 @@ internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
     /// </summary>
     private static void SanitizeReferer(HttpRequestMessage request)
     {
-        if (!request.Headers.TryGetValues("Referer", out var values))
+        if (!request.Headers.TryGetValues(WellKnownHeaders.Referer, out var values))
         {
             return;
         }
@@ -119,7 +120,7 @@ internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
             && request.RequestUri is not null
             && request.RequestUri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase))
         {
-            request.Headers.Remove("Referer");
+            request.Headers.Remove(WellKnownHeaders.Referer);
             return;
         }
 
@@ -129,7 +130,7 @@ internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
 
         if (!needsStrip) return;
         var sanitized = UriSanitizer.FormatAbsoluteWithoutUserInfo(refererUri);
-        request.Headers.Remove("Referer");
-        request.Headers.TryAddWithoutValidation("Referer", sanitized);
+        request.Headers.Remove(WellKnownHeaders.Referer);
+        request.Headers.TryAddWithoutValidation(WellKnownHeaders.Referer, sanitized);
     }
 }

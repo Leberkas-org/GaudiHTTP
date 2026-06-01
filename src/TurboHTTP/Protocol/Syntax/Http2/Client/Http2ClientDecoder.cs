@@ -4,7 +4,7 @@ using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Client;
 
-internal sealed class Http2ClientDecoder(int maxHeaderSize = 16 * 1024, int maxTotalHeaderSize = 64 * 1024)
+internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSize)
 {
     private const string PseudoHeaderSection = "RFC 9113 §8.1.2.2";
     private const string UppercaseSection = "RFC 9113 §8.2.1";

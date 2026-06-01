@@ -72,7 +72,7 @@ public sealed class QpackDynamicTableActivationSpec
     [Trait("RFC", "RFC9204-3.2.3")]
     public void TableSync_should_activate_encoder_via_UpdateEncoderCapacity()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 0, configuredEncoderLimit: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: 4096);
 
         sync.UpdateEncoderCapacity(8192);
 
@@ -87,7 +87,7 @@ public sealed class QpackDynamicTableActivationSpec
     [Trait("RFC", "RFC9204-3.2.3")]
     public void UpdateEncoderCapacity_should_cap_at_configured_limit()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 0, configuredEncoderLimit: 2048);
+        var sync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: 2048);
 
         sync.UpdateEncoderCapacity(16384);
 
@@ -98,7 +98,7 @@ public sealed class QpackDynamicTableActivationSpec
     [Trait("RFC", "RFC9204-3.2.3")]
     public void UpdateEncoderCapacity_should_use_peer_value_when_smaller()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 0, configuredEncoderLimit: 16384);
+        var sync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: 16384);
 
         sync.UpdateEncoderCapacity(1024);
 
@@ -109,7 +109,7 @@ public sealed class QpackDynamicTableActivationSpec
     [Trait("RFC", "RFC9204-3.2.3")]
     public void UpdateEncoderCapacity_should_noop_when_peer_sends_zero()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 0, configuredEncoderLimit: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: 4096);
 
         sync.UpdateEncoderCapacity(0);
 
@@ -125,7 +125,7 @@ public sealed class QpackDynamicTableActivationSpec
     [Trait("RFC", "RFC9204-3.2.3")]
     public void UpdateEncoderCapacity_should_noop_when_configured_limit_is_zero()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 0, configuredEncoderLimit: 0);
+        var sync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: 0);
 
         sync.UpdateEncoderCapacity(4096);
 
@@ -141,7 +141,7 @@ public sealed class QpackDynamicTableActivationSpec
     [Trait("RFC", "RFC9204-3.2.3")]
     public void Reset_should_return_encoder_to_disabled_state()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 0, configuredEncoderLimit: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: 4096);
 
         sync.UpdateEncoderCapacity(4096);
         Assert.Equal(4096, sync.Encoder.DynamicTable.Capacity);
@@ -160,7 +160,7 @@ public sealed class QpackDynamicTableActivationSpec
     [Trait("RFC", "RFC9204-3.2.3")]
     public void Encoder_should_roundtrip_after_activation()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 0, configuredEncoderLimit: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: 4096);
         sync.UpdateEncoderCapacity(4096);
 
         var headers = new List<(string, string)>

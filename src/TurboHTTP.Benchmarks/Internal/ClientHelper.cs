@@ -40,20 +40,20 @@ internal sealed class ClientHelper : IAsyncDisposable
             BaseAddress = baseAddress,
             DangerousAcceptAnyServerCertificate = true,
             // H1.x: many connections with shallow pipelining to handle CL up to 8192.
-            Http1 = new Http1Options
+            Http1 = new Http1ClientOptions
             {
                 MaxConnectionsPerServer = 512,
                 MaxPipelineDepth = 64
             },
             // H2: 16 connections × 1000 streams = 16 000 in-flight capacity.
-            Http2 = new Http2Options
+            Http2 = new Http2ClientOptions
             {
                 MaxConnectionsPerServer = 16,
                 MaxConcurrentStreams = 1000
             },
             // H3: 8 connections × 1000 streams = 8000 in-flight capacity.
             // QPACK dynamic table at 32 KiB for better header compression on repeated requests.
-            Http3 = new Http3Options
+            Http3 = new Http3ClientOptions
             {
                 MaxConnectionsPerServer = 8,
                 MaxConcurrentStreams = 1000,
@@ -83,11 +83,11 @@ internal sealed class ClientHelper : IAsyncDisposable
             DangerousAcceptAnyServerCertificate = true,
             // Streaming H1.x: enough connections to saturate high-CL scenarios
             // (H1.1 is head-of-line blocked per connection, so depth alone doesn't help).
-            Http1 = new Http1Options { MaxConnectionsPerServer = 128, MaxPipelineDepth = 64 },
+            Http1 = new Http1ClientOptions { MaxConnectionsPerServer = 128, MaxPipelineDepth = 64 },
             // H2: 16 connections × 1000 streams for high-CL streaming.
-            Http2 = new Http2Options { MaxConnectionsPerServer = 16, MaxConcurrentStreams = 1000 },
+            Http2 = new Http2ClientOptions { MaxConnectionsPerServer = 16, MaxConcurrentStreams = 1000 },
             // H3: 8 connections × 1000 streams, larger QPACK table for repeated header patterns.
-            Http3 = new Http3Options
+            Http3 = new Http3ClientOptions
             {
                 MaxConnectionsPerServer = 8,
                 MaxConcurrentStreams = 1000,

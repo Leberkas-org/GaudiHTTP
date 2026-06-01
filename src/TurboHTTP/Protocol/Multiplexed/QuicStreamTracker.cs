@@ -1,6 +1,6 @@
 namespace TurboHTTP.Protocol.Multiplexed;
 
-internal sealed class QuicStreamTracker(long initialNextStreamId = 0, int maxConcurrentStreams = 100)
+internal sealed class QuicStreamTracker(long initialNextStreamId, int maxConcurrentStreams)
     : IStreamTracker<long>
 {
     private readonly HashSet<long> _activeStreamIds = [];

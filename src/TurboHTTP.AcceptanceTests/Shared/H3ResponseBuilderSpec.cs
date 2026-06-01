@@ -31,10 +31,10 @@ public sealed class H3ResponseBuilderSpec
         Assert.Equal(8192L, settings.Parameters[1].Value);
 
         var headers = Assert.IsType<HeadersFrame>(frames[1]);
-        var qpackDecoder = new QpackDecoder();
+        var qpackDecoder = new QpackDecoder(4096, 100);
         var decoded = qpackDecoder.Decode(headers.HeaderBlock.Span);
-        Assert.Contains(decoded, h => h.Name == ":status" && h.Value == "200");
-        Assert.Contains(decoded, h => h.Name == "content-type" && h.Value == "text/plain");
+        Assert.Contains(decoded, h => h is { Name: ":status", Value: "200" });
+        Assert.Contains(decoded, h => h is { Name: "content-type", Value: "text/plain" });
 
         var data = Assert.IsType<DataFrame>(frames[2]);
         Assert.Equal("hello"u8.ToArray(), data.Data.ToArray());
@@ -86,7 +86,7 @@ public sealed class H3ResponseBuilderSpec
         Assert.Single(frames);
         var headers = Assert.IsType<HeadersFrame>(frames[0]);
 
-        var qpackDecoder = new QpackDecoder();
+        var qpackDecoder = new QpackDecoder(4096, 100);
         var decoded = qpackDecoder.Decode(headers.HeaderBlock.Span);
         Assert.Single(decoded);
         Assert.Equal(":status", decoded[0].Name);

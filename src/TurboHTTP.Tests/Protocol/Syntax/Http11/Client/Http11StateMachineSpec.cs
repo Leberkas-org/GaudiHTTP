@@ -13,7 +13,7 @@ public sealed class Http11StateMachineSpec
     private static TurboClientOptions MakeConfig(int maxPipelineDepth = 8)
         => new()
         {
-            Http1 = new Http1Options
+            Http1 = new Http1ClientOptions
             {
                 MaxPipelineDepth = maxPipelineDepth
             }

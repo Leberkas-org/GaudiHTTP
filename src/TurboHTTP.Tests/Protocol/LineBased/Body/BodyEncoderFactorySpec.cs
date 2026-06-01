@@ -31,7 +31,7 @@ public sealed class BodyEncoderFactorySpec
     [Fact(Timeout = 5000)]
     public void Create_should_return_null_for_null_content()
     {
-        var encoder = BodyEncoderFactory.Create(null, contentLength: null, HttpVersion.Version11);
+        var encoder = BodyEncoderFactory.Create(null, contentLength: null, HttpVersion.Version11, new BodyEncoderOptions { ChunkSize = 16 * 1024 });
         Assert.Null(encoder);
     }
 
@@ -41,7 +41,7 @@ public sealed class BodyEncoderFactorySpec
         var content = new ByteArrayContent(new byte[100]);
         var contentLength = content.Headers.ContentLength;
         var bodyStream = content.ReadAsStream(TestContext.Current.CancellationToken);
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version11);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version11, new BodyEncoderOptions { ChunkSize = 16 * 1024 });
         Assert.IsType<ContentLengthStreamedBodyEncoder>(encoder);
         encoder.Dispose();
     }
@@ -52,7 +52,7 @@ public sealed class BodyEncoderFactorySpec
         var content = new StreamContent(new NonSeekableStream());
         var bodyStream = content.ReadAsStream(TestContext.Current.CancellationToken);
 
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength: null, HttpVersion.Version11);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength: null, HttpVersion.Version11, new BodyEncoderOptions { ChunkSize = 16 * 1024 });
 
         Assert.IsType<ChunkedBodyEncoder>(encoder);
         encoder.Dispose();
@@ -64,7 +64,7 @@ public sealed class BodyEncoderFactorySpec
         var content = new ByteArrayContent(new byte[200_000]);
         var contentLength = content.Headers.ContentLength;
         var bodyStream = content.ReadAsStream(TestContext.Current.CancellationToken);
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version10);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, HttpVersion.Version10, new BodyEncoderOptions { ChunkSize = 16 * 1024 });
         Assert.IsType<ContentLengthBufferedBodyEncoder>(encoder);
         encoder.Dispose();
     }
@@ -74,7 +74,7 @@ public sealed class BodyEncoderFactorySpec
     {
         var content = new StreamContent(new MemoryStream(new byte[100]));
         var bodyStream = content.ReadAsStream(TestContext.Current.CancellationToken);
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength: null, HttpVersion.Version10);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength: null, HttpVersion.Version10, new BodyEncoderOptions { ChunkSize = 16 * 1024 });
         Assert.IsType<ContentLengthBufferedBodyEncoder>(encoder);
         encoder.Dispose();
     }
@@ -83,7 +83,7 @@ public sealed class BodyEncoderFactorySpec
     public void Create_stream_with_content_length_should_return_content_length_encoder()
     {
         var stream = new MemoryStream("hello"u8.ToArray());
-        var encoder = BodyEncoderFactory.Create(stream, contentLength: 5, HttpVersion.Version11);
+        var encoder = BodyEncoderFactory.Create(stream, contentLength: 5, HttpVersion.Version11, new BodyEncoderOptions { ChunkSize = 16 * 1024 });
         Assert.IsType<ContentLengthStreamedBodyEncoder>(encoder);
         encoder.Dispose();
     }
@@ -92,7 +92,7 @@ public sealed class BodyEncoderFactorySpec
     public void Create_stream_without_content_length_should_return_chunked_encoder()
     {
         var stream = new MemoryStream("hello"u8.ToArray());
-        var encoder = BodyEncoderFactory.Create(stream, contentLength: null, HttpVersion.Version11);
+        var encoder = BodyEncoderFactory.Create(stream, contentLength: null, HttpVersion.Version11, new BodyEncoderOptions { ChunkSize = 16 * 1024 });
         Assert.IsType<ChunkedBodyEncoder>(encoder);
         encoder.Dispose();
     }
@@ -100,7 +100,7 @@ public sealed class BodyEncoderFactorySpec
     [Fact(Timeout = 5000)]
     public void Create_null_stream_should_return_null()
     {
-        var encoder = BodyEncoderFactory.Create(null, contentLength: null, HttpVersion.Version11);
+        var encoder = BodyEncoderFactory.Create(null, contentLength: null, HttpVersion.Version11, new BodyEncoderOptions { ChunkSize = 16 * 1024 });
         Assert.Null(encoder);
     }
 
@@ -108,7 +108,7 @@ public sealed class BodyEncoderFactorySpec
     public void Create_stream_http10_should_return_buffered_encoder()
     {
         var stream = new MemoryStream("hello"u8.ToArray());
-        var encoder = BodyEncoderFactory.Create(stream, contentLength: 5, HttpVersion.Version10);
+        var encoder = BodyEncoderFactory.Create(stream, contentLength: 5, HttpVersion.Version10, new BodyEncoderOptions { ChunkSize = 16 * 1024 });
         Assert.IsType<ContentLengthBufferedBodyEncoder>(encoder);
         encoder.Dispose();
     }

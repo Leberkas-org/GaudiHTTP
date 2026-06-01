@@ -62,7 +62,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         var decoder = new HpackDecoder();
         var headers = decoder.Decode(headersFrame.HeaderBlockFragment.Span);
 
-        Assert.Contains(headers, h => h.Name == ":method" && h.Value == "GET");
+        Assert.Contains(headers, h => h is { Name: ":method", Value: "GET" });
     }
 
     [Fact(Timeout = 5000)]
@@ -81,7 +81,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         var decoder = new HpackDecoder();
         var headers = decoder.Decode(headersFrame.HeaderBlockFragment.Span);
 
-        Assert.Contains(headers, h => h.Name == ":path" && h.Value == "/some/path");
+        Assert.Contains(headers, h => h is { Name: ":path", Value: "/some/path" });
     }
 
     [Fact(Timeout = 5000)]
@@ -100,7 +100,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         var decoder = new HpackDecoder();
         var headers = decoder.Decode(headersFrame.HeaderBlockFragment.Span);
 
-        Assert.Contains(headers, h => h.Name == ":scheme" && h.Value == "http");
+        Assert.Contains(headers, h => h is { Name: ":scheme", Value: "http" });
     }
 
     [Fact(Timeout = 5000)]
@@ -119,7 +119,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         var decoder = new HpackDecoder();
         var headers = decoder.Decode(headersFrame.HeaderBlockFragment.Span);
 
-        Assert.Contains(headers, h => h.Name == ":authority" && h.Value == "example.com");
+        Assert.Contains(headers, h => h is { Name: ":authority", Value: "example.com" });
     }
 
     [Fact(Timeout = 5000)]
@@ -177,7 +177,7 @@ public sealed class RequestFormatSpec : AcceptanceTestBase
         var decoder = new HpackDecoder();
         var headers = decoder.Decode(headersFrame.HeaderBlockFragment.Span);
 
-        Assert.Contains(headers, h => h.Name == ":method" && h.Value == "POST");
+        Assert.Contains(headers, h => h is { Name: ":method", Value: "POST" });
     }
 
     [Fact(Timeout = 5000)]

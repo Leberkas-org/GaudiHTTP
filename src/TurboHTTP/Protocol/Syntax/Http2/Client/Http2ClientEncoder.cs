@@ -9,7 +9,7 @@ namespace TurboHTTP.Protocol.Syntax.Http2.Client;
 /// Stateful: maintains HPACK encoder and stream ID counter.
 /// One instance per connection.
 /// </summary>
-internal sealed class Http2ClientEncoder(bool useHuffman = false)
+internal sealed class Http2ClientEncoder(bool useHuffman)
 {
     private HpackEncoder _hpack = new(useHuffman);
 

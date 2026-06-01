@@ -9,7 +9,7 @@ public sealed class QpackRoundTripSpec
     public void Should_RoundTrip_StaticOnly()
     {
         var encoder = new QpackEncoder(maxTableCapacity: 0);
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(maxTableCapacity: 0, 100);
 
         var headers = new List<(string, string)>
         {
@@ -36,7 +36,7 @@ public sealed class QpackRoundTripSpec
     {
         // Capacity 0 disables dynamic table → forces static refs + pure literals
         var encoder = new QpackEncoder(maxTableCapacity: 0);
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(maxTableCapacity: 0, 100);
 
         var headers = new List<(string, string)>
         {
@@ -62,7 +62,7 @@ public sealed class QpackRoundTripSpec
     public void Should_RoundTrip_DynamicTableEntries()
     {
         var encoder = new QpackEncoder(maxTableCapacity: 4096);
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
 
         var headers = new List<(string, string)>
         {
@@ -90,7 +90,7 @@ public sealed class QpackRoundTripSpec
     public void Should_RoundTrip_RepeatedHeadersReuseDynamicTable()
     {
         var encoder = new QpackEncoder(maxTableCapacity: 4096);
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
 
         var headers = new List<(string, string)>
         {
@@ -123,7 +123,7 @@ public sealed class QpackRoundTripSpec
     public void Should_RoundTrip_SensitiveHeaders()
     {
         var encoder = new QpackEncoder(maxTableCapacity: 4096);
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
 
         var headers = new List<(string, string)>
         {
@@ -155,7 +155,7 @@ public sealed class QpackRoundTripSpec
     public void Should_RoundTrip_MixedSensitiveAndNormal()
     {
         var encoder = new QpackEncoder(maxTableCapacity: 4096);
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
 
         var headers = new List<(string, string)>
         {
@@ -185,7 +185,7 @@ public sealed class QpackRoundTripSpec
     public void Should_RoundTrip_LargeHeaderList()
     {
         var encoder = new QpackEncoder(maxTableCapacity: 4096);
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
 
         var headers = new List<(string, string)>
         {
@@ -219,7 +219,7 @@ public sealed class QpackRoundTripSpec
     public void Should_RoundTrip_EmptyHeaderList()
     {
         var encoder = new QpackEncoder(maxTableCapacity: 4096);
-        var decoder = new QpackDecoder(maxTableCapacity: 4096);
+        var decoder = new QpackDecoder(maxTableCapacity: 4096, 100);
 
         var encoded = encoder.Encode(new List<(string, string)>());
         var decoded = decoder.Decode(encoded.Span);

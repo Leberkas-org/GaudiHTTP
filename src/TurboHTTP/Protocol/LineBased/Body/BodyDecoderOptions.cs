@@ -7,11 +7,8 @@ namespace TurboHTTP.Protocol.LineBased.Body;
 /// </summary>
 internal sealed record BodyDecoderOptions
 {
-    public long StreamingThreshold { get; init; } = 64 * 1024;
-    public long MaxBufferedBodySize { get; init; } = 4 * 1024 * 1024;
-    public long? MaxStreamedBodySize { get; init; }
-    public long MaxBodySize { get; init; } = 10 * 1024 * 1024;
-    public int MaxChunkExtensionLength { get; init; } = int.MaxValue;
-
-    public static BodyDecoderOptions Default { get; } = new();
+    public required long StreamingThreshold { get; init; }
+    public required long MaxBufferedBodySize { get; init; }
+    public required long? MaxStreamedBodySize { get; init; }
+    public required int MaxChunkExtensionLength { get; init; }
 }

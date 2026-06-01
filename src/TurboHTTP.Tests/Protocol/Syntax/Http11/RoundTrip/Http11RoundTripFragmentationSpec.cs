@@ -2,6 +2,7 @@ using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
 
@@ -19,7 +20,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var part1 = new ReadOnlyMemory<byte>(bytes, 0, splitAt);
         var part2 = new ReadOnlyMemory<byte>(bytes, splitAt, bytes.Length - splitAt);
 
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var outcome1 = decoder.Feed(part1.Span, false, out _);
         var outcome2 = decoder.Feed(part2.Span, false, out _);
 
@@ -36,7 +37,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var headerBytes = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n"u8.ToArray();
         var bodyBytes = "hello"u8.ToArray();
 
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var outcome1 = decoder.Feed(headerBytes.AsSpan(), false, out _);
         var outcome2 = decoder.Feed(bodyBytes.AsSpan(), false, out _);
 
@@ -59,7 +60,7 @@ public sealed class Http11RoundTripFragmentationSpec
         var part1 = new ReadOnlyMemory<byte>(bytes, 0, splitAt);
         var part2 = new ReadOnlyMemory<byte>(bytes, splitAt, bytes.Length - splitAt);
 
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var outcome1 = decoder.Feed(part1.Span, false, out _);
         var outcome2 = decoder.Feed(part2.Span, false, out _);
 
@@ -78,7 +79,7 @@ public sealed class Http11RoundTripFragmentationSpec
 
         // The decoder does not buffer internally between calls, so callers must accumulate
         // unconsumed bytes and re-feed from the start of any incomplete parse unit.
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var accum = new byte[bytes.Length];
         var accumLen = 0;
         HttpResponseMessage? finalResponse = null;
@@ -111,7 +112,7 @@ public sealed class Http11RoundTripFragmentationSpec
             (ReadOnlyMemory<byte>)"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nfoo\r\n"u8.ToArray();
         var part2 = (ReadOnlyMemory<byte>)"3\r\nbar\r\n0\r\n\r\n"u8.ToArray();
 
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var outcome1 = decoder.Feed(part1.Span, false, out _);
         var outcome2 = decoder.Feed(part2.Span, false, out _);
 

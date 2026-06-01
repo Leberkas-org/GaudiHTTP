@@ -8,14 +8,14 @@ public sealed class Http3RequestPathAuthoritySpec
 {
     private static Http3ClientEncoder CreateEncoder()
     {
-        return new Http3ClientEncoder(new QpackTableSync());
+        return new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
     }
 
     private static IReadOnlyList<(string Name, string Value)> DecodeHeaders(Http3ClientEncoder encoder, HttpRequestMessage request)
     {
         var frames = encoder.Encode(request);
         var headersFrame = (HeadersFrame)frames[0];
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(0, 100);
         return decoder.Decode(headersFrame.HeaderBlock.Span);
     }
 

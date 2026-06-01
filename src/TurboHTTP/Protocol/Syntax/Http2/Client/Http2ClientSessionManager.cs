@@ -80,7 +80,7 @@ internal sealed class Http2ClientSessionManager
             _tracker.MaxConcurrentStreams > 0 ? _tracker.MaxConcurrentStreams : 100,
             1000);
         _statePool = new StackStreamStatePool<StreamState>(poolCapacity, () => new StreamState());
-        _responseDecoder = new Http2ClientDecoder();
+        _responseDecoder = new Http2ClientDecoder(_decoderOptions.MaxHeaderSize, _decoderOptions.MaxHeaderListSize);
         _responseDecoder.SetMaxAllowedTableSize(_encoderOptions.HeaderTableSize);
     }
 
@@ -182,7 +182,7 @@ internal sealed class Http2ClientSessionManager
 
         var contentLength = request.Content?.Headers.ContentLength;
         var bodyStream = request.Content?.ReadAsStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength);
+        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, new BodyEncoderOptions { ChunkSize = _options.RequestBodyChunkSize });
         if (encoder is null)
         {
             return;
@@ -564,7 +564,7 @@ internal sealed class Http2ClientSessionManager
         }
 
         var streamingResponse = _responseDecoder.DecodeHeadersForStreaming(streamId, state);
-        state.InitBodyDecoder(BodyDecoderFactory.Create(streaming: true));
+        state.InitBodyDecoder(BodyDecoderFactory.Create(streaming: true, _options.MaxStreamedBodySize ?? long.MaxValue));
         var bodyStream = state.GetBodyStream();
         streamingResponse.Content = new StreamContent(bodyStream);
         state.ApplyContentHeadersTo(streamingResponse.Content);

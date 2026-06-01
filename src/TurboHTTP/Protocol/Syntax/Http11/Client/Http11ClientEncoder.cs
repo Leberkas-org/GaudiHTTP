@@ -19,7 +19,7 @@ internal sealed class Http11ClientEncoder(Http11ClientEncoderOptions options)
 
         var contentLength = request.Content?.Headers.ContentLength;
         var bodyStream = request.Content?.ReadAsStream();
-        var bodyEncoder = BodyEncoderFactory.Create(bodyStream, contentLength, request.Version);
+        var bodyEncoder = BodyEncoderFactory.Create(bodyStream, contentLength, request.Version, new BodyEncoderOptions { ChunkSize = options.ChunkSize });
 
         var writer = SpanWriter.Create(destination);
         var targetStr = request.ResolveTarget();

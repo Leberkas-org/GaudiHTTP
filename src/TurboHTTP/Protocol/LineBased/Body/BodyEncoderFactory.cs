@@ -4,14 +4,12 @@ namespace TurboHTTP.Protocol.LineBased.Body;
 
 internal static class BodyEncoderFactory
 {
-    public static IBodyEncoder? Create(Stream? bodyStream, long? contentLength, Version httpVersion, BodyEncoderOptions? options = null)
+    public static IBodyEncoder? Create(Stream? bodyStream, long? contentLength, Version httpVersion, BodyEncoderOptions options)
     {
         if (bodyStream is null)
         {
             return null;
         }
-
-        options ??= BodyEncoderOptions.Default;
 
         if (httpVersion == HttpVersion.Version10)
         {

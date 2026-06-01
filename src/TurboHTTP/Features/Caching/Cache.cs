@@ -72,7 +72,7 @@ internal sealed class Cache(ICacheStore store, CachePolicy? policy = null)
 
         if (_policy.SharedCache)
         {
-            if (response.Headers.TryGetValues("Cache-Control", out var ccVals))
+            if (response.Headers.TryGetValues(WellKnownHeaders.CacheControl, out var ccVals))
             {
                 var cc = CacheControlParser.Parse(string.Join(", ", ccVals));
                 if (cc is { Private: true, PrivateFields: null })
@@ -300,7 +300,7 @@ internal sealed class Cache(ICacheStore store, CachePolicy? policy = null)
         }
 
         var varyNames = new List<string>();
-        if (response.Headers.TryGetValues("Vary", out var varyValues))
+        if (response.Headers.TryGetValues(WellKnownHeaders.Vary, out var varyValues))
         {
             foreach (var v in varyValues)
             {

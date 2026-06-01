@@ -18,7 +18,7 @@ public sealed class Http3CookieHeaderSpec
             ("cookie", "b=2"),
         };
         var encoded = encoder.Encode(headers);
-        var decoder = new QpackDecoder(maxTableCapacity: 0);
+        var decoder = new QpackDecoder(0, 100);
         var decoded = decoder.Decode(encoded.Span);
         var cookieHeaders = decoded.Where(h => h.Name == "cookie").ToList();
         Assert.Equal(2, cookieHeaders.Count);
@@ -30,8 +30,8 @@ public sealed class Http3CookieHeaderSpec
     [Trait("RFC", "RFC9114-4.2")]
     public void ResponseDecoder_should_accept_single_cookie_header()
     {
-        var tableSync = new QpackTableSync();
-        var decoder = new Http3ClientDecoder(tableSync);
+        var tableSync = new QpackTableSync(0, 4096, 100, null);
+        var decoder = new Http3ClientDecoder(tableSync, int.MaxValue);
         var frame = new HeadersFrame(tableSync.Encoder.Encode([
             (":status", "200"),
             ("cookie", "session=abc123")
@@ -45,8 +45,8 @@ public sealed class Http3CookieHeaderSpec
     [Trait("RFC", "RFC9114-4.2")]
     public void ResponseDecoder_should_accept_multiple_cookie_headers()
     {
-        var tableSync = new QpackTableSync();
-        var decoder = new Http3ClientDecoder(tableSync);
+        var tableSync = new QpackTableSync(0, 4096, 100, null);
+        var decoder = new Http3ClientDecoder(tableSync, int.MaxValue);
         var frame = new HeadersFrame(tableSync.Encoder.Encode([
             (":status", "200"),
             ("cookie", "a=1"),

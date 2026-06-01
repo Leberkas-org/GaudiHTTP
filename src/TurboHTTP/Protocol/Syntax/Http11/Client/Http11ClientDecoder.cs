@@ -49,7 +49,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
                 _version = HttpVersion.Version11;
                 _statusCode = 200;
                 _reason = "OK";
-                _bodyDecoder = new CloseDelimitedBodyDecoder();
+                _bodyDecoder = new CloseDelimitedBodyDecoder(options.MaxStreamedBodySize ?? long.MaxValue);
                 _phase = Phase.Body;
             }
             else

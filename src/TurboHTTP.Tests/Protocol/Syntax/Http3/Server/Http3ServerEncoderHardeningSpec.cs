@@ -10,8 +10,8 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http3.Server;
 
 public sealed class Http3ServerEncoderHardeningSpec
 {
-    private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
-    private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
+    private readonly QpackTableSync _encoderTableSync = new(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
+    private readonly QpackTableSync _decoderTableSync = new(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
     private readonly Http3ServerEncoder _encoder;
 
     public Http3ServerEncoderHardeningSpec()
@@ -107,7 +107,7 @@ public sealed class Http3ServerEncoderHardeningSpec
         ctx2.Get<IHttpResponseFeature>()?.Headers["x-second"] = "second-value";
 
         // Encode response1 with its own encoder/decoder pair
-        var encoder1Sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
+        var encoder1Sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var options1 = new Http3ServerEncoderOptions
         {
             WriteDateHeader = false,
@@ -118,7 +118,7 @@ public sealed class Http3ServerEncoderHardeningSpec
         var encoder1 = new Http3ServerEncoder(encoder1Sync, options1);
         var frame1 = encoder1.EncodeHeaders(ctx1);
 
-        var decoderSync1 = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
+        var decoderSync1 = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         if (!encoder1.EncoderInstructions.IsEmpty)
         {
             decoderSync1.ProcessEncoderInstructions(encoder1.EncoderInstructions.Span);
@@ -127,7 +127,7 @@ public sealed class Http3ServerEncoderHardeningSpec
         var decoded1 = decoderSync1.Decoder.Decode(frame1.HeaderBlock.Span, streamId: 1);
 
         // Encode response2 with its own encoder/decoder pair
-        var encoder2Sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
+        var encoder2Sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var options2 = new Http3ServerEncoderOptions
         {
             WriteDateHeader = false,
@@ -138,7 +138,7 @@ public sealed class Http3ServerEncoderHardeningSpec
         var encoder2 = new Http3ServerEncoder(encoder2Sync, options2);
         var frame2 = encoder2.EncodeHeaders(ctx2);
 
-        var decoderSync2 = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
+        var decoderSync2 = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         if (!encoder2.EncoderInstructions.IsEmpty)
         {
             decoderSync2.ProcessEncoderInstructions(encoder2.EncoderInstructions.Span);

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Servus.Core.Diagnostics;
+using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Diagnostics;
 
@@ -7,7 +8,7 @@ internal static class TurboServerInstrumentationExtensions
 {
     private static readonly HashSet<string> StandardMethods = new(StringComparer.OrdinalIgnoreCase)
     {
-        "GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH"
+        WellKnownHeaders.Get, WellKnownHeaders.Head, WellKnownHeaders.Post, WellKnownHeaders.Put, WellKnownHeaders.Delete, WellKnownHeaders.Connect, WellKnownHeaders.Options, WellKnownHeaders.Trace, WellKnownHeaders.Patch
     };
 
     public static bool IsServerTracingActive(this ServusTrace trace)

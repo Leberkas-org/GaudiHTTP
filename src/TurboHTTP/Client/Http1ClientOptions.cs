@@ -4,7 +4,7 @@ namespace TurboHTTP.Client;
 /// HTTP/1.x-specific configuration options.
 /// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c>.
 /// </summary>
-public sealed class Http1Options
+public sealed class Http1ClientOptions
 {
     /// <summary>
     /// Maximum number of concurrent TCP connections per server for HTTP/1.x.
@@ -23,7 +23,7 @@ public sealed class Http1Options
     /// <summary>
     /// Maximum length of the response headers, in kilobytes (KB).
     /// This limits the combined size of all response header fields received from the server.
-    /// Default is 64 (same as <c>SocketsHttpHandler.MaxResponseHeadersLength</c>).
+    /// Default is 64.
     /// </summary>
     public int MaxResponseHeadersLength { get; set; } = 64;
 
@@ -46,5 +46,23 @@ public sealed class Http1Options
     /// </summary>
     public int MaxReconnectAttempts { get; set; } = 3;
 
+    /// <summary>
+    /// Maximum number of header fields accepted in an HTTP/1.x response.
+    /// Guards against malicious servers flooding the client with header lines. Default is 100
+    /// </summary>
+    public int MaxResponseHeaderCount { get; set; } = 100;
+
+    /// <summary>
+    /// Maximum length (in bytes) of a single response status/header line in HTTP/1.x.
+    /// Default is 8 KB.
+    /// </summary>
+    public int MaxResponseHeaderLineLength { get; set; } = 8 * 1024;
+
+    /// <summary>
+    /// Maximum length (in bytes) of the chunk extension on a single chunked-transfer chunk in an
+    /// HTTP/1.1 response. Default is <see cref="int.MaxValue"/> (unbounded); set a smaller value to
+    /// guard against malicious servers.
+    /// </summary>
+    public int MaxChunkExtensionLength { get; set; } = int.MaxValue;
 }
 

@@ -3,6 +3,7 @@ using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
 
@@ -39,7 +40,7 @@ public sealed class Http11RoundTripNoBodySpec
 
     private static List<HttpResponseMessage> Decode(ReadOnlyMemory<byte> data, bool isHead = false)
     {
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var responses = new List<HttpResponseMessage>();
         var span = data.Span;
         while (span.Length > 0)
@@ -187,7 +188,7 @@ public sealed class Http11RoundTripNoBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTrip_should_decode_get_after_head_when_same_decoder_used_for_both()
     {
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
         const string headRaw = "HTTP/1.1 200 OK\r\nContent-Length: 42\r\n\r\n";
         var headBytes = Encoding.ASCII.GetBytes(headRaw);

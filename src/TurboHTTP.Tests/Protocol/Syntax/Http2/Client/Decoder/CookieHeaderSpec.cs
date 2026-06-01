@@ -41,7 +41,7 @@ public sealed class CookieHeaderSpec
 
         var state = new StreamState();
         state.AppendHeader(block.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
         var response = decoder.DecodeHeaders(1, endStream: true, state);
 
         Assert.NotNull(response);
@@ -64,7 +64,7 @@ public sealed class CookieHeaderSpec
 
         var state = new StreamState();
         state.AppendHeader(block.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
         var response = decoder.DecodeHeaders(1, endStream: true, state);
 
         Assert.NotNull(response);
@@ -107,7 +107,7 @@ public sealed class CookieHeaderSpec
 
         var state = new StreamState();
         state.AppendHeader(block.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
         var response = decoder.DecodeHeaders(1, endStream: true, state);
 
         Assert.NotNull(response);
@@ -131,7 +131,7 @@ public sealed class CookieHeaderSpec
 
         var state = new StreamState();
         state.AppendHeader(block.Span);
-        var decoder = new Http2ClientDecoder();
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
         var response = decoder.DecodeHeaders(1, endStream: true, state);
 
         Assert.NotNull(response);

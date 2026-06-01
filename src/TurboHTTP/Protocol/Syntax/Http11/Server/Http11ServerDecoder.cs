@@ -103,7 +103,7 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
         {
             foreach (var v in _headerReader.GetHeaders().GetValues(WellKnownHeaders.Connection))
             {
-                if (string.Equals(v, WellKnownHeaders.CloseValue, StringComparison.OrdinalIgnoreCase))
+                if (ConnectionHeaderSemantics.HasCloseOption(v))
                 {
                     return true;
                 }
@@ -120,9 +120,9 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
         {
             Protocol = _version switch
             {
-                { Major: 1, Minor: 0 } => "HTTP/1.0",
-                { Major: 1, Minor: 1 } => "HTTP/1.1",
-                _ => "HTTP/1.1"
+                { Major: 1, Minor: 0 } => WellKnownHeaders.Http10,
+                { Major: 1, Minor: 1 } => WellKnownHeaders.Http11,
+                _ => WellKnownHeaders.Http11
             },
             Method = _method.Method,
             Path = ParsePath(_target),

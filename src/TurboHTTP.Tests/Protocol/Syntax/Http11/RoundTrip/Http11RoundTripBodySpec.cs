@@ -3,12 +3,13 @@ using Akka.Actor;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
+using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
 
 public sealed class Http11RoundTripBodySpec
 {
-    private static readonly Http11ClientEncoder Encoder = new(Http11ClientEncoderOptions.Default);
+    private static readonly Http11ClientEncoder Encoder = new(ClientOptionDefaults.Http11Encoder());
 
     private static int EncodeRequest(HttpRequestMessage request, Span<byte> buffer)
     {
@@ -64,7 +65,7 @@ public sealed class Http11RoundTripBodySpec
 
     private static List<HttpResponseMessage> Decode(ReadOnlyMemory<byte> data)
     {
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var responses = new List<HttpResponseMessage>();
         var span = data.Span;
         while (span.Length > 0)
@@ -236,7 +237,7 @@ public sealed class Http11RoundTripBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTripBody_should_decode_after_reset_when_content_length_roundtrip()
     {
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var r1 = BuildResponse(200, "OK", "first", ("Content-Length", "5"));
         decoder.Feed(r1.Span, false, out _);
         decoder.Reset();
@@ -253,7 +254,7 @@ public sealed class Http11RoundTripBodySpec
     [Trait("RFC", "RFC9112-6")]
     public async Task Http11RoundTripBody_should_decode_all_sizes_when_keep_alive_varying_body_sizes()
     {
-        var decoder = new Http11ClientDecoder(Http11ClientDecoderOptions.Default);
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var sizes = new[] { 1, 10, 100, 1000 };
 
         foreach (var size in sizes)

@@ -59,7 +59,7 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
     [Trait("RFC", "RFC9113-6.9")]
     public void Http2Engine_should_have_64_mib_initial_connection_window_when_default_options_used()
     {
-        var options = new Http2Options();
+        var options = new Http2ClientOptions();
 
         Assert.Equal(64 * 1024 * 1024, options.InitialConnectionWindowSize);
     }

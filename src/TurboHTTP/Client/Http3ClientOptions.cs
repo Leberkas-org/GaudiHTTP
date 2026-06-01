@@ -4,7 +4,7 @@ namespace TurboHTTP.Client;
 /// HTTP/3-specific configuration options.
 /// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c>.
 /// </summary>
-public sealed class Http3Options
+public sealed class Http3ClientOptions
 {
     /// <summary>
     /// Maximum number of concurrent QUIC connections per server for HTTP/3.

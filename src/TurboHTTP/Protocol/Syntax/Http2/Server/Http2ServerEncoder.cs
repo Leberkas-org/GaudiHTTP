@@ -102,7 +102,7 @@ internal sealed class Http2ServerEncoder
                     continue;
                 }
 
-                var value = h.Value.Count == 1 ? h.Value[0]! : string.Join(WellKnownHeaders.CommaSpace, h.Value);
+                var value = ContentHeaderClassifier.JoinHeaderValues(h.Value);
                 headers.Add(new HpackHeader(ContentHeaderClassifier.ToLowerAscii(h.Key), value));
             }
         }
@@ -112,7 +112,7 @@ internal sealed class Http2ServerEncoder
             var hasDate = false;
             for (var i = 0; i < headers.Count; i++)
             {
-                if (headers[i].Name.Equals("date", StringComparison.OrdinalIgnoreCase))
+                if (headers[i].Name.Equals(WellKnownHeaders.Date, StringComparison.OrdinalIgnoreCase))
                 {
                     hasDate = true;
                     break;

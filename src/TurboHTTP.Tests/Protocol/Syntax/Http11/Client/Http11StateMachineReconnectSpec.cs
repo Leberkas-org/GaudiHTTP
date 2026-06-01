@@ -31,7 +31,7 @@ public sealed class Http11StateMachineReconnectSpec
     private static TurboClientOptions MakeConfig(int maxPipelineDepth = 4, int maxReconnectAttempts = 3) =>
         new()
         {
-            Http1 = new Http1Options
+            Http1 = new Http1ClientOptions
             {
                 MaxPipelineDepth = maxPipelineDepth,
                 MaxReconnectAttempts = maxReconnectAttempts

@@ -46,7 +46,7 @@ public sealed class StreamingBodyEncoderSpec
         Random.Shared.NextBytes(body);
         var content = new ByteArrayContent(body);
 
-        using var encoder = new StreamingBodyEncoder();
+        using var encoder = new StreamingBodyEncoder(16 * 1024);
         var bodyStream = await content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
         encoder.Start(bodyStream, messages.Add);
 

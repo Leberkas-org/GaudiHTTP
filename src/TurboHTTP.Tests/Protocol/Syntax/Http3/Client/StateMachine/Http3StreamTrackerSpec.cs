@@ -8,7 +8,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void AllocateStreamId_should_return_zero_for_first_allocation()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(0, 100);
 
         var id = tracker.AllocateStreamId();
 
@@ -19,7 +19,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void AllocateStreamId_should_increment_by_four()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(0, 100);
 
         var first = tracker.AllocateStreamId();
         var second = tracker.AllocateStreamId();
@@ -34,7 +34,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void AllocateStreamId_should_use_custom_initial_id()
     {
-        var tracker = new StreamTracker(initialNextStreamId: 12);
+        var tracker = new StreamTracker(initialNextStreamId: 12, maxConcurrentStreams: 100);
 
         var id = tracker.AllocateStreamId();
 
@@ -46,7 +46,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void NextStreamId_should_reflect_current_counter()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(0, 100);
 
         Assert.Equal(0L, tracker.NextStreamId);
         tracker.AllocateStreamId();
@@ -59,7 +59,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void CanOpenStream_should_return_true_when_below_limit()
     {
-        var tracker = new StreamTracker(maxConcurrentStreams: 2);
+        var tracker = new StreamTracker(initialNextStreamId: 0, maxConcurrentStreams: 2);
 
         Assert.True(tracker.CanOpenStream());
     }
@@ -68,7 +68,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void CanOpenStream_should_return_false_when_at_limit()
     {
-        var tracker = new StreamTracker(maxConcurrentStreams: 2);
+        var tracker = new StreamTracker(initialNextStreamId: 0, maxConcurrentStreams: 2);
         tracker.OnStreamOpened(0);
         tracker.OnStreamOpened(4);
 
@@ -79,7 +79,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void CanOpenStream_should_return_true_after_stream_closed()
     {
-        var tracker = new StreamTracker(maxConcurrentStreams: 1);
+        var tracker = new StreamTracker(initialNextStreamId: 0, maxConcurrentStreams: 1);
         tracker.OnStreamOpened(0);
 
         Assert.False(tracker.CanOpenStream());
@@ -93,7 +93,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void OnStreamOpened_should_increment_active_count()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(0, 100);
 
         Assert.Equal(0, tracker.ActiveStreamCount);
         tracker.OnStreamOpened(0);
@@ -106,7 +106,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void OnStreamClosed_should_decrement_active_count()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(0, 100);
         tracker.OnStreamOpened(0);
         tracker.OnStreamOpened(4);
 
@@ -119,7 +119,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void OnStreamClosed_should_return_false_for_unknown_stream()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(0, 100);
 
         var result = tracker.OnStreamClosed(99);
 
@@ -131,7 +131,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void OnStreamClosed_should_return_true_for_tracked_stream()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(0, 100);
         tracker.OnStreamOpened(0);
 
         var result = tracker.OnStreamClosed(0);
@@ -143,7 +143,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void Reset_should_clear_active_streams()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(0, 100);
         tracker.OnStreamOpened(0);
         tracker.OnStreamOpened(4);
 
@@ -156,7 +156,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void Reset_should_restart_stream_id_allocation_from_zero()
     {
-        var tracker = new StreamTracker();
+        var tracker = new StreamTracker(0, 100);
         tracker.AllocateStreamId(); // 0
         tracker.AllocateStreamId(); // 4
 
@@ -170,7 +170,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void MaxConcurrentStreams_should_be_settable()
     {
-        var tracker = new StreamTracker(maxConcurrentStreams: 1);
+        var tracker = new StreamTracker(initialNextStreamId: 0, maxConcurrentStreams: 1);
         tracker.OnStreamOpened(0);
 
         Assert.False(tracker.CanOpenStream());
@@ -185,7 +185,7 @@ public sealed class Http3StreamTrackerSpec
     public void StreamIds_should_support_large_values()
     {
         // QUIC uses 62-bit variable-length integers — verify long works for large IDs
-        var tracker = new StreamTracker(initialNextStreamId: 4_611_686_018_427_387_900L);
+        var tracker = new StreamTracker(initialNextStreamId: 4_611_686_018_427_387_900L, maxConcurrentStreams: 100);
 
         var id = tracker.AllocateStreamId();
 
@@ -199,7 +199,7 @@ public sealed class Http3StreamTrackerSpec
     [Trait("RFC", "RFC9114-6")]
     public void StreamTracker_should_use_configured_max_concurrent_streams()
     {
-        var tracker = new StreamTracker(maxConcurrentStreams: 250);
+        var tracker = new StreamTracker(initialNextStreamId: 0, maxConcurrentStreams: 250);
 
         for (var i = 0; i < 250; i++)
         {

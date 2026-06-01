@@ -42,7 +42,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
         var clock = new FakeTimeProvider();
         var options = new TurboClientOptions
         {
-            Http2 = new Http2Options
+            Http2 = new Http2ClientOptions
             {
                 MaxStreamWindowSize = 1024 * 1024,
                 WindowScaleThresholdMultiplier = 1.0,
@@ -72,7 +72,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
         var clock = new FakeTimeProvider();
         var options = new TurboClientOptions
         {
-            Http2 = new Http2Options
+            Http2 = new Http2ClientOptions
             {
                 MaxStreamWindowSize = 1024 * 1024,
                 WindowScaleThresholdMultiplier = 1.0,
@@ -108,7 +108,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
         var clock = new FakeTimeProvider();
         var options = new TurboClientOptions
         {
-            Http2 = new Http2Options
+            Http2 = new Http2ClientOptions
             {
                 EnableAdaptiveWindowScaling = false
             }
@@ -137,7 +137,7 @@ public sealed class Http2ClientSessionManagerScalingSpec
         var clock = new FakeTimeProvider();
         var options = new TurboClientOptions
         {
-            Http2 = new Http2Options
+            Http2 = new Http2ClientOptions
             {
                 MaxStreamWindowSize = 1024 * 1024,
                 WindowScaleThresholdMultiplier = 1.0,

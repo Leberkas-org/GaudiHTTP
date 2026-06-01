@@ -37,7 +37,7 @@ internal static class CacheValidationRequestBuilder
         // RFC 9111 §4.3.1 — If-None-Match from ETag (preferred over If-Modified-Since)
         if (entry.ETag is not null)
         {
-            conditional.Headers.TryAddWithoutValidation("If-None-Match", entry.ETag);
+            conditional.Headers.TryAddWithoutValidation(WellKnownHeaders.IfNoneMatch, entry.ETag);
         }
 
         // RFC 9111 §4.3.1 — If-Modified-Since from Last-Modified
@@ -114,7 +114,7 @@ internal static class CacheValidationRequestBuilder
         // RFC 9111 §4.3.1 — If-None-Match from ETag
         if (entry.ETag is not null)
         {
-            head.Headers.TryAddWithoutValidation("If-None-Match", entry.ETag);
+            head.Headers.TryAddWithoutValidation(WellKnownHeaders.IfNoneMatch, entry.ETag);
         }
 
         // RFC 9111 §4.3.1 — If-Modified-Since from Last-Modified

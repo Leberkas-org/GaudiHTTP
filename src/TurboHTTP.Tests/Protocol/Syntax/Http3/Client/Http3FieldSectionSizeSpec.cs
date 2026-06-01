@@ -10,7 +10,7 @@ public sealed class Http3FieldSectionSizeSpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void ResponseDecoder_should_reject_oversized_field_section()
     {
-        var tableSync = new QpackTableSync(encoderMaxCapacity: 0);
+        var tableSync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var decoder = new Http3ClientDecoder(tableSync, maxFieldSectionSize: 64);
 
         var longValue = new string('x', 100);
@@ -27,7 +27,7 @@ public sealed class Http3FieldSectionSizeSpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void ResponseDecoder_should_accept_field_section_within_limit()
     {
-        var tableSync = new QpackTableSync(encoderMaxCapacity: 0);
+        var tableSync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var decoder = new Http3ClientDecoder(tableSync, maxFieldSectionSize: 65536);
 
         var headerFrame = new HeadersFrame(
@@ -43,7 +43,7 @@ public sealed class Http3FieldSectionSizeSpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void RequestEncoder_should_reject_headers_exceeding_peer_limit()
     {
-        var tableSync = new QpackTableSync(encoderMaxCapacity: 0)
+        var tableSync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null)
         {
             RemoteMaxFieldSectionSize = 32
         };
@@ -59,7 +59,7 @@ public sealed class Http3FieldSectionSizeSpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void RequestEncoder_should_allow_headers_within_peer_limit()
     {
-        var tableSync = new QpackTableSync(encoderMaxCapacity: 0)
+        var tableSync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null)
         {
             RemoteMaxFieldSectionSize = 65536
         };
@@ -76,7 +76,7 @@ public sealed class Http3FieldSectionSizeSpec
     [Trait("RFC", "RFC9114-4.2.2")]
     public void RequestEncoder_should_skip_check_when_no_peer_limit()
     {
-        var tableSync = new QpackTableSync(encoderMaxCapacity: 0);
+        var tableSync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
 
         var encoder = new Http3ClientEncoder(tableSync);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/");

@@ -1,4 +1,4 @@
-[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/leberkas-org/TurboHTTP.git")]
+﻿[assembly: System.Reflection.AssemblyMetadata("RepositoryUrl", "https://github.com/leberkas-org/TurboHTTP.git")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.AcceptanceTests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Benchmarks")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Client")]
@@ -34,19 +34,23 @@ namespace TurboHTTP.Client
         public static System.Net.Http.HttpRequestMessage WithFirstPartyContext(this System.Net.Http.HttpRequestMessage request, System.Uri firstParty) { }
         public static System.Net.Http.HttpRequestMessage WithTimeout(this System.Net.Http.HttpRequestMessage request, System.TimeSpan timeout) { }
     }
-    public sealed class Http1Options
+    public sealed class Http1ClientOptions
     {
-        public Http1Options() { }
+        public Http1ClientOptions() { }
         public bool AutoAcceptEncoding { get; set; }
         public bool AutoHost { get; set; }
+        public int MaxChunkExtensionLength { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxPipelineDepth { get; set; }
         public int MaxReconnectAttempts { get; set; }
+        public int MaxResponseHeaderCount { get; set; }
+        public int MaxResponseHeaderLineLength { get; set; }
         public int MaxResponseHeadersLength { get; set; }
     }
-    public sealed class Http2Options
+    public sealed class Http2ClientOptions
     {
-        public Http2Options() { }
+        public Http2ClientOptions() { }
+        public bool EnableAdaptiveWindowScaling { get; set; }
         public int HeaderTableSize { get; set; }
         public int InitialConnectionWindowSize { get; set; }
         public int InitialStreamWindowSize { get; set; }
@@ -57,10 +61,13 @@ namespace TurboHTTP.Client
         public int MaxConnectionsPerServer { get; set; }
         public int MaxFrameSize { get; set; }
         public int MaxReconnectAttempts { get; set; }
+        public int MaxResponseHeaderListSize { get; set; }
+        public int MaxStreamWindowSize { get; set; }
+        public double WindowScaleThresholdMultiplier { get; set; }
     }
-    public sealed class Http3Options
+    public sealed class Http3ClientOptions
     {
-        public Http3Options() { }
+        public Http3ClientOptions() { }
         public bool EnableAltSvcDiscovery { get; set; }
         public System.TimeSpan IdleTimeout { get; set; }
         public int MaxConcurrentStreams { get; set; }
@@ -108,6 +115,7 @@ namespace TurboHTTP.Client
     {
         public TurboClientOptions() { }
         public System.Uri? BaseAddress { get; set; }
+        public int BodyBufferThreshold { get; set; }
         public System.Security.Cryptography.X509Certificates.X509CertificateCollection? ClientCertificates { get; set; }
         public System.TimeSpan ConnectTimeout { get; set; }
         public System.Net.ICredentials? Credentials { get; set; }
@@ -115,9 +123,9 @@ namespace TurboHTTP.Client
         public System.Net.ICredentials? DefaultProxyCredentials { get; set; }
         public System.Net.Security.RemoteCertificateValidationCallback? EffectiveServerCertificateValidationCallback { get; }
         public System.Security.Authentication.SslProtocols EnabledSslProtocols { get; set; }
-        public TurboHTTP.Client.Http1Options Http1 { get; init; }
-        public TurboHTTP.Client.Http2Options Http2 { get; init; }
-        public TurboHTTP.Client.Http3Options Http3 { get; init; }
+        public TurboHTTP.Client.Http1ClientOptions Http1 { get; init; }
+        public TurboHTTP.Client.Http2ClientOptions Http2 { get; init; }
+        public TurboHTTP.Client.Http3ClientOptions Http3 { get; init; }
         public long MaxBufferedBodySize { get; set; }
         public uint MaxEndpointSubstreams { get; set; }
         public long? MaxStreamedBodySize { get; set; }
@@ -125,6 +133,7 @@ namespace TurboHTTP.Client
         public System.TimeSpan PooledConnectionLifetime { get; set; }
         public bool PreAuthenticate { get; set; }
         public System.Net.IWebProxy? Proxy { get; set; }
+        public int RequestBodyChunkSize { get; set; }
         public System.Net.Security.RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; set; }
         public int? SocketReceiveBufferSize { get; set; }
         public int? SocketSendBufferSize { get; set; }

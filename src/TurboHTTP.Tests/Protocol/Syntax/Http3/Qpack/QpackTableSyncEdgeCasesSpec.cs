@@ -9,7 +9,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-2.1")]
     public void Should_Initialize_With_Zero_EncoderCapacity()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
 
         Assert.Equal(0, sync.Encoder.DynamicTable.Capacity);
         Assert.Equal(4096, sync.Decoder.DynamicTable.Capacity);
@@ -19,7 +19,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-2.1")]
     public void Should_Initialize_With_Large_Capacities()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 65536, decoderMaxCapacity: 65536, maxBlockedStreams: 1000);
+        var sync = new QpackTableSync(encoderMaxCapacity: 65536, decoderMaxCapacity: 65536, maxBlockedStreams: 1000, configuredEncoderLimit: null);
 
         Assert.Equal(65536, sync.Encoder.DynamicTable.Capacity);
         Assert.Equal(65536, sync.Decoder.DynamicTable.Capacity);
@@ -30,7 +30,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     public void Should_Throw_On_Negative_MaxBlockedStreams()
     {
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new QpackTableSync(maxBlockedStreams: -1));
+            new QpackTableSync(encoderMaxCapacity: 0, decoderMaxCapacity: 4096, maxBlockedStreams: -1, configuredEncoderLimit: null));
 
         Assert.Equal("maxBlockedStreams", ex.ParamName);
     }
@@ -39,7 +39,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-2.1")]
     public void Should_Throw_When_BlockingExceeds_MaxBlockedStreams_Zero()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 0);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 0, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         var headers = new List<(string, string)> { ("x-test", "value") };
@@ -56,7 +56,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-2.1")]
     public void Should_Throw_When_MaxBlockedStreams_Exceeded()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 2);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 2, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         // Create and block first two streams with custom headers that will be inserted
@@ -88,7 +88,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.3")]
     public void Should_Handle_Empty_EncoderInstructions()
     {
-        var sync = new QpackTableSync();
+        var sync = new QpackTableSync(0, 4096, 100, null);
         var data = ReadOnlySpan<byte>.Empty;
 
         var count = sync.ProcessEncoderInstructions(data);
@@ -100,7 +100,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.3")]
     public void Should_Apply_Multiple_EncoderInstructions()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 256);
+        var sync = new QpackTableSync(encoderMaxCapacity: 256, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         // Encode multiple unique headers to generate multiple insert instructions
@@ -125,7 +125,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.4")]
     public void Should_Handle_Empty_DecoderInstructions()
     {
-        var sync = new QpackTableSync();
+        var sync = new QpackTableSync(0, 4096, 100, null);
         var data = ReadOnlySpan<byte>.Empty;
 
         var count = sync.ProcessDecoderInstructions(data);
@@ -137,7 +137,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.4.1")]
     public void Should_Update_EncoderKnownReceivedCount_OnSectionAck()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         // Insert entry into encoder's dynamic table
@@ -161,7 +161,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.4.3")]
     public void Should_Process_InsertCountIncrement_InDecoderInstructions()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         Assert.Equal(0, encoder.KnownReceivedCount);
@@ -181,7 +181,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.4.2")]
     public void Should_Remove_Only_Cancelled_BlockedStream()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 10);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         // Block multiple streams
@@ -207,7 +207,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-2.1.2")]
     public void Should_Resolve_Only_Ready_BlockedStreams()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 10);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         // Create three headers to get InsertCount = 3
@@ -246,7 +246,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-2.1.2")]
     public void Should_Resolve_All_BlockedStreams_When_ConditionMet()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 10);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         // Block multiple streams
@@ -282,7 +282,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.4.3")]
     public void Should_Have_Zero_KnownReceivedCount_Initially()
     {
-        var sync = new QpackTableSync();
+        var sync = new QpackTableSync(0, 4096, 100, null);
 
         Assert.Equal(0, sync.KnownReceivedCount);
     }
@@ -291,7 +291,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.4.3")]
     public void Should_Return_Zero_Increment_When_NoChange()
     {
-        var sync = new QpackTableSync();
+        var sync = new QpackTableSync(0, 4096, 100, null);
 
         var buf = new byte[16];
         var writer = SpanWriter.Create(buf);
@@ -304,7 +304,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.4.3")]
     public void Should_Update_KnownReceivedCount_OnWriteIncrement()
     {
-        var sync = new QpackTableSync();
+        var sync = new QpackTableSync(0, 4096, 100, null);
 
         // Insert entries into decoder's table
         sync.Decoder.DynamicTable.Insert("x-test-1", "value1");
@@ -325,7 +325,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-2.1")]
     public void Should_Reset_ClearsAllState()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10, configuredEncoderLimit: null);
 
         // Add some state - manually insert to have tracked state
         sync.Decoder.DynamicTable.Insert("x-test-1", "value1");
@@ -348,7 +348,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.3")]
     public void Should_Apply_SetDynamicTableCapacity_Instruction()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
 
         // Manually emit a SetCapacity instruction (simulating encoder instruction)
         // and apply it to decoder
@@ -382,7 +382,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.3")]
     public void Should_Apply_Duplicate_Instruction()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
 
         // Insert initial entry
         sync.Decoder.DynamicTable.Insert("x-test", "original");
@@ -415,7 +415,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-2.1")]
     public void Should_Maintain_Accurate_BlockedStreamCount()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096, maxBlockedStreams: 10);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 10, configuredEncoderLimit: null);
         var encoder = sync.Encoder;
 
         Assert.Equal(0, sync.BlockedStreamCount);
@@ -446,7 +446,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-2.1")]
     public void Should_Return_Current_InsertCount()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
 
         Assert.Equal(0, sync.InsertCount);
 
@@ -461,7 +461,7 @@ public sealed class QpackTableSyncEdgeCasesSpec
     [Trait("RFC", "RFC9204-4.3")]
     public void Should_Apply_InsertWithNameReference_Static()
     {
-        var sync = new QpackTableSync(encoderMaxCapacity: 4096);
+        var sync = new QpackTableSync(encoderMaxCapacity: 4096, decoderMaxCapacity: 4096, maxBlockedStreams: 100, configuredEncoderLimit: null);
 
         // Write Insert with name reference to static table (e.g., :method = value)
         var buffer = new byte[32];

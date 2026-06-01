@@ -1,4 +1,5 @@
 using System.Globalization;
+using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Features.Cookies;
 
@@ -89,7 +90,7 @@ internal static class CookieParser
                         // RFC 6265 §5.2.4: Path attribute value
                         pathAttr = string.IsNullOrEmpty(attrValue) ? null : attrValue;
                     }
-                    else if (attrName.Equals("Expires", StringComparison.OrdinalIgnoreCase))
+                    else if (attrName.Equals(WellKnownHeaders.Expires, StringComparison.OrdinalIgnoreCase))
                     {
                         if (TryParseExpires(attrValue, out var expires))
                         {

@@ -264,7 +264,7 @@ public sealed class IntermediaryEncapsulationSpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Encoder_rejects_userinfo_uri()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Get, "https://user:pass@example.com/");
 
         var ex = Assert.Throws<HttpProtocolException>(() => encoder.Encode(request));
@@ -275,7 +275,7 @@ public sealed class IntermediaryEncapsulationSpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Encoder_rejects_fragment_uri()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/page#section");
 
         var ex = Assert.Throws<HttpProtocolException>(() => encoder.Encode(request));
@@ -286,7 +286,7 @@ public sealed class IntermediaryEncapsulationSpec
     [Trait("RFC", "RFC9114-10.3")]
     public void Encoder_accepts_normal_request()
     {
-        var encoder = new Http3ClientEncoder(new QpackTableSync());
+        var encoder = new Http3ClientEncoder(new QpackTableSync(0, 4096, 100, null));
         var request = new HttpRequestMessage(HttpMethod.Get, "https://example.com/path?q=1");
 
         var frames = encoder.Encode(request);

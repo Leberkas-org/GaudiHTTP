@@ -40,7 +40,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
                 _version = HttpVersion.Version10;
                 _statusCode = 200;
                 _reason = "OK";
-                _bodyDecoder = new CloseDelimitedBodyDecoder();
+                _bodyDecoder = new CloseDelimitedBodyDecoder(options.MaxStreamedBodySize ?? long.MaxValue);
                 _phase = Phase.Body;
             }
             else

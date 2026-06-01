@@ -10,7 +10,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void Http2RequestEncoder_should_produce_headers_frame_with_end_stream_when_encoding_get_request()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
 
         var frames = encoder.Encode(request, 1);
@@ -27,7 +27,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void Http2RequestEncoder_should_produce_headers_without_end_stream_when_encoding_post_request()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/submit")
         {
             Content = new StringContent("hello world"),
@@ -46,7 +46,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.3.1")]
     public void Http2RequestEncoder_should_contain_pseudo_headers_when_encoding_get_request_header_block()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "https://api.example.com/v1/data?q=1");
 
         var headers = new HpackDecoder().Decode(encoder.EncodeToHpackBlock(request));
@@ -61,7 +61,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.3.1")]
     public void Http2RequestEncoder_should_include_query_in_path_when_encoding_request_with_query()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/search?term=foo&page=2");
 
         var headers = new HpackDecoder().Decode(encoder.EncodeToHpackBlock(request));
@@ -73,7 +73,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.2.2")]
     public void Http2RequestEncoder_should_strip_connection_headers_when_encoding()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         request.Headers.TryAddWithoutValidation("connection", "keep-alive");
         request.Headers.TryAddWithoutValidation("x-custom", "value");
@@ -118,7 +118,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-5.1.1")]
     public void Http2RequestEncoder_should_have_same_stream_id_on_all_frames_when_encoding_post_request()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/data")
         {
             Content = new ByteArrayContent([1, 2, 3, 4]),
@@ -133,7 +133,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void Http2RequestEncoder_should_produce_headers_frame_with_end_headers()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
         var frames = encoder.Encode(request, 1);
@@ -146,7 +146,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void Http2RequestEncoder_should_encode_multiple_requests_with_increasing_stream_ids()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/1");
         var request2 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/2");
 
@@ -164,7 +164,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void Http2RequestEncoder_should_apply_server_settings_max_frame_size()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
 
         // Before settings change
@@ -185,7 +185,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-4.2")]
     public void Http2RequestEncoder_should_default_send_max_frame_size_to_rfc_minimum()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
 
         Assert.Equal(16 * 1024, encoder.MaxFrameSize);
     }
@@ -194,7 +194,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-6.5.2")]
     public void Http2RequestEncoder_should_raise_send_max_frame_size_when_server_advertises_larger()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
 
         encoder.ApplyServerSettings([(SettingsParameter.MaxFrameSize, 32768u)]);
 
@@ -205,7 +205,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-6.5")]
     public void Http2RequestEncoder_should_apply_server_settings_header_table_size()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         encoder.ApplyServerSettings([(SettingsParameter.HeaderTableSize, 2048)]);
 
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
@@ -219,7 +219,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void Http2RequestEncoder_should_apply_server_settings_initial_window_size()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
 
         // Apply new initial window size
         encoder.ApplyServerSettings([(SettingsParameter.InitialWindowSize, 32768)]);
@@ -237,7 +237,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-5.1.1")]
     public void Http2RequestEncoder_should_reset_hpack_encoder()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
 
         var frames1 = encoder.Encode(request, 1);
@@ -254,7 +254,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-6.5")]
     public void Http2RequestEncoder_should_throw_when_stream_id_negative()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
 
         var ex = Assert.Throws<HttpProtocolException>(() => encoder.Encode(request, -1));
@@ -265,7 +265,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.3.1")]
     public void Http2RequestEncoder_should_throw_when_request_uri_null()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, (string)null!);
 
         Assert.Throws<ArgumentNullException>(() => encoder.Encode(request, 1));
@@ -293,7 +293,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-6.9")]
     public void Http2RequestEncoder_should_respect_connection_window_for_post_body()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var largeBody = new byte[32768]; // Larger than default window
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/data")
         {
@@ -313,7 +313,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-2.3.2")]
     public void Http2RequestEncoder_should_lowercase_header_names()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         request.Headers.TryAddWithoutValidation("X-Custom-Header", "value");
         request.Headers.TryAddWithoutValidation("CONTENT-TYPE", "text/plain");
@@ -330,7 +330,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.2")]
     public void Http2RequestEncoder_should_strip_all_forbidden_headers()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         request.Headers.TryAddWithoutValidation("connection", "upgrade");
         request.Headers.TryAddWithoutValidation("keep-alive", "timeout=5");
@@ -356,7 +356,7 @@ public sealed class Http2RequestEncoderFrameSpec
     [Trait("RFC", "RFC9113-8.1")]
     public void Http2RequestEncoder_should_produce_headers_without_end_stream_for_post_with_empty_body()
     {
-        var encoder = new Http2ClientEncoder();
+        var encoder = new Http2ClientEncoder(useHuffman: true);
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/");
         request.Content = new ByteArrayContent([]);
 

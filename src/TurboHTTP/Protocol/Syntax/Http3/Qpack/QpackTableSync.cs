@@ -48,12 +48,12 @@ internal sealed class QpackTableSync
     /// (SETTINGS_QPACK_BLOCKED_STREAMS).
     /// </param>
     /// <param name="configuredEncoderLimit">
-    /// Our configured upper bound for the encoder's dynamic table (from Http3Options).
+    /// Our configured upper bound for the encoder's dynamic table (from Http3ClientOptions).
     /// Used by <see cref="UpdateEncoderCapacity"/> to cap the peer's advertised capacity.
     /// When null, defaults to <paramref name="encoderMaxCapacity"/>.
     /// </param>
-    public QpackTableSync(int encoderMaxCapacity = 0, int decoderMaxCapacity = 4096,
-        int maxBlockedStreams = 100, int? configuredEncoderLimit = null)
+    public QpackTableSync(int encoderMaxCapacity, int decoderMaxCapacity,
+        int maxBlockedStreams, int? configuredEncoderLimit)
     {
         if (maxBlockedStreams < 0)
         {

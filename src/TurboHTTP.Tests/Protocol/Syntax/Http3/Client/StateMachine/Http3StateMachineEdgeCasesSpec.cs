@@ -212,7 +212,7 @@ public sealed class Http3StateMachineEdgeCasesSpec
     public void OnTimerFired_should_schedule_idle_check()
     {
         var sm = CreateMachine(new TurboClientOptions
-        { Http3 = new Http3Options { IdleTimeout = TimeSpan.FromSeconds(10) } });
+        { Http3 = new Http3ClientOptions { IdleTimeout = TimeSpan.FromSeconds(10) } });
         sm.PreStart();
 
         sm.OnTimerFired("idle-timeout-check");

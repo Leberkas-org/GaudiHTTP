@@ -94,8 +94,8 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
         {
             Protocol = _version switch
             {
-                { Major: 1, Minor: 0 } => "HTTP/1.0",
-                _ => "HTTP/1.1"
+                { Major: 1, Minor: 0 } => WellKnownHeaders.Http10,
+                _ => WellKnownHeaders.Http11
             },
             Method = _method.Method,
             Path = ParsePath(_target),
