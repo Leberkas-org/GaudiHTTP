@@ -26,7 +26,7 @@ public abstract class ServerSpecBase : IAsyncLifetime
 
     protected virtual HttpClient? CreateHttpClient() => new();
 
-    public async ValueTask InitializeAsync()
+    public virtual async ValueTask InitializeAsync()
     {
         Port = GetFreePort();
         var builder = WebApplication.CreateBuilder();

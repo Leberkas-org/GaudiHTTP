@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using TurboHTTP.Server;
@@ -17,16 +18,22 @@ public abstract class MultiProtocolTlsServerSpecBase : ServerSpecBase
 
     protected virtual Version DefaultClientVersion => HttpVersion.Version20;
 
-    protected sealed override void ConfigureServer(WebApplicationBuilder builder, ushort port)
+    protected override void ConfigureServer(WebApplicationBuilder builder, ushort port)
     {
         var certificate = CreateSelfSignedCertificate("localhost");
-        builder.Host.UseTurboHttp(options =>
+        builder.Host.UseTurboHttp(options => ConfigureListener(options, port, certificate));
+    }
+
+    /// <summary>
+    /// Binds the server listener. Default is TCP + TLS advertising <see cref="ServerProtocols"/>.
+    /// H3 subclasses override this to bind a QUIC listener.
+    /// </summary>
+    protected virtual void ConfigureListener(TurboServerOptions options, ushort port, X509Certificate2 certificate)
+    {
+        options.ListenLocalhost(port, listen =>
         {
-            options.ListenLocalhost(port, listen =>
-            {
-                listen.UseHttps(certificate);
-                listen.Protocols = ServerProtocols;
-            });
+            listen.UseHttps(certificate);
+            listen.Protocols = ServerProtocols;
         });
     }
 
