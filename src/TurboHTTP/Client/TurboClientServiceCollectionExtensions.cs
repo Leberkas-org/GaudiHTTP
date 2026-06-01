@@ -106,8 +106,11 @@ public static class TurboClientServiceCollectionExtensions
         where TClient : class
     {
         var name = typeof(TClient).Name;
-        services.AddTransient<TClient>(sp =>
-            (TClient)sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(name));
+        services.AddTransient(sp =>
+        {
+            var client = sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(name);
+            return ActivatorUtilities.CreateInstance<TClient>(sp, client);
+        });
         return services.AddTurboHttpClient(name, configure);
     }
 
@@ -129,8 +132,15 @@ public static class TurboClientServiceCollectionExtensions
     {
         var name = typeof(TClient).Name;
         services.AddTransient<TClient>(sp =>
-            (TClient)sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(name));
-        services.AddTransient<TImpl>(sp => (TImpl)sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(name));
+        {
+            var client = sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(name);
+            return ActivatorUtilities.CreateInstance<TImpl>(sp, client);
+        });
+        services.AddTransient(sp =>
+        {
+            var client = sp.GetRequiredService<ITurboHttpClientFactory>().CreateClient(name);
+            return ActivatorUtilities.CreateInstance<TImpl>(sp, client);
+        });
         return services.AddTurboHttpClient(name, configure);
     }
 
