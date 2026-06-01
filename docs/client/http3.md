@@ -52,26 +52,17 @@ builder.Services.AddTurboHttpClient("http3-api", options =>
 
 ### All HTTP/3 options
 
-| Property                   | Type       | Default              | Description                                   |
-| -------------------------- | ---------- | -------------------- | --------------------------------------------- |
-| `MaxConnectionsPerServer`  | `int`      | `4`                  | Max concurrent QUIC connections per host      |
-| `QpackMaxTableCapacity`    | `int`      | `16 * 1024` (16 KiB) | QPACK dynamic table size in bytes             |
-| `QpackBlockedStreams`      | `int`      | `100`                | Max streams blocked waiting for QPACK encoder |
-| `MaxFieldSectionSize`      | `int`      | `64 * 1024` (64 KiB) | Max header block size                         |
-| `IdleTimeout`              | `TimeSpan` | `30 s`               | QUIC idle timeout                             |
-| `MaxReconnectAttempts`     | `int`      | `3`                  | Max reconnect attempts on connection drop     |
-| `AllowConnectionMigration` | `bool`     | `true`               | Allow QUIC connection migration               |
-| `EnableAltSvcDiscovery`    | `bool`     | `false`              | Auto-discover HTTP/3 via Alt-Svc headers      |
-
-## Connection Migration
-
-QUIC connections can survive IP address changes. When the client moves between networks (e.g., Wi-Fi to cellular), the connection continues transparently without re-establishing:
-
-```csharp
-options.Http3.AllowConnectionMigration = true;  // default: true
-```
-
-When disabled, TurboHTTP closes the connection on address change and reconnects via the normal reconnect mechanism.
+| Property                   | Type       | Default              | Description                                               |
+| -------------------------- | ---------- | -------------------- | --------------------------------------------------------- |
+| `MaxConnectionsPerServer`  | `int`      | `4`                  | Max concurrent QUIC connections per host                  |
+| `MaxConcurrentStreams`      | `int`      | `100`                | Max concurrent request streams per connection             |
+| `QpackMaxTableCapacity`    | `int`      | `16 * 1024` (16 KiB) | QPACK dynamic table size in bytes                         |
+| `QpackBlockedStreams`      | `int`      | `100`                | Max streams blocked waiting for QPACK encoder             |
+| `MaxFieldSectionSize`      | `int`      | `64 * 1024` (64 KiB) | Max header block size                                     |
+| `IdleTimeout`              | `TimeSpan` | `30 s`               | QUIC idle timeout                                         |
+| `MaxReconnectAttempts`     | `int`      | `3`                  | Max reconnect attempts on connection drop                 |
+| `EnableAltSvcDiscovery`    | `bool`     | `false`              | Auto-discover HTTP/3 via Alt-Svc headers                  |
+| `MaxReconnectBufferSize`   | `int`      | `64`                 | Max number of requests buffered during a reconnect        |
 
 ## Alt-Svc Discovery
 

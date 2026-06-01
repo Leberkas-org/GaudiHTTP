@@ -7,13 +7,15 @@ public sealed class TurboClientOptions
     public Uri? BaseAddress { get; set; }
 
     // Version-specific options (nested)
-    public Http1Options Http1 { get; init; } = new();    // HTTP/1.x settings
-    public Http2Options Http2 { get; init; } = new();    // HTTP/2 settings
-    public Http3Options Http3 { get; init; } = new();    // HTTP/3 settings
+    public Http1ClientOptions Http1 { get; init; } = new();    // HTTP/1.x settings
+    public Http2ClientOptions Http2 { get; init; } = new();    // HTTP/2 settings
+    public Http3ClientOptions Http3 { get; init; } = new();    // HTTP/3 settings
 
     // Body buffering
-    public long MaxBufferedBodySize { get; set; } = 4 * 1024 * 1024;  // 4 MiB
-    public long? MaxStreamedBodySize { get; set; }                      // unlimited
+    public long MaxBufferedBodySize { get; set; } = 4 * 1024 * 1024;  // 4 MiB; responses at/below this are buffered in memory
+    public long? MaxStreamedBodySize { get; set; }                      // null = unlimited; cap on a streamed response body
+    public int BodyBufferThreshold { get; set; } = 64 * 1024;          // 64 KB; HTTP/1.x streaming threshold
+    public int RequestBodyChunkSize { get; set; } = 16 * 1024;         // 16 KB; chunk size when streaming a request body
 
     // Connection pool
     public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromSeconds(15);
@@ -67,14 +69,17 @@ See [Connection Pooling guide](/client/connection-pooling) for pool lifecycle de
 ## HTTP/1.x Options
 
 ```csharp
-public sealed class Http1Options
+public sealed class Http1ClientOptions
 {
     public int MaxConnectionsPerServer { get; set; } = 6;
     public int MaxPipelineDepth { get; set; } = 16;
-    public int MaxResponseHeadersLength { get; set; } = 64;  // KB
+    public int MaxResponseHeadersLength { get; set; } = 64;             // KB
     public bool AutoHost { get; set; } = true;
     public bool AutoAcceptEncoding { get; set; } = true;
     public int MaxReconnectAttempts { get; set; } = 3;
+    public int MaxResponseHeaderCount { get; set; } = 100;              // max number of response header fields
+    public int MaxResponseHeaderLineLength { get; set; } = 8 * 1024;   // 8 KB; max length of a single header line
+    public int MaxChunkExtensionLength { get; set; } = int.MaxValue;   // max total length of chunk extensions; unbounded by default
 }
 ```
 
@@ -82,22 +87,29 @@ public sealed class Http1Options
 |----------|---------|-------------|
 | `MaxConnectionsPerServer` | `6` | Max concurrent TCP connections per host |
 | `MaxPipelineDepth` | `16` | Max pipelined requests per connection |
-| `MaxResponseHeadersLength` | `64` (KB) | Max response header size |
+| `MaxResponseHeadersLength` | `64` (KB) | Max total response header block size |
 | `AutoHost` | `true` | Automatically inject `Host` header |
 | `AutoAcceptEncoding` | `true` | Automatically inject `Accept-Encoding` header |
 | `MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
+| `MaxResponseHeaderCount` | `100` | Max number of response header fields |
+| `MaxResponseHeaderLineLength` | `8 * 1024` (8 KB) | Max length of a single response header line |
+| `MaxChunkExtensionLength` | `int.MaxValue` | Max total length of chunk extensions; unbounded by default |
 
 ## HTTP/2 Options
 
 ```csharp
-public sealed class Http2Options
+public sealed class Http2ClientOptions
 {
     public int MaxConnectionsPerServer { get; set; } = 6;
     public int MaxConcurrentStreams { get; set; } = 100;
     public int InitialConnectionWindowSize { get; set; } = 64 * 1024 * 1024;  // 64 MB
-    public int InitialStreamWindowSize { get; set; } = 2 * 1024 * 1024;        // 2 MB
+    public int InitialStreamWindowSize { get; set; } = 65535;
+    public int MaxStreamWindowSize { get; set; } = 16 * 1024 * 1024;          // 16 MB
+    public double WindowScaleThresholdMultiplier { get; set; } = 1.0;
+    public bool EnableAdaptiveWindowScaling { get; set; } = true;
     public int MaxFrameSize { get; set; } = 64 * 1024;                        // 64 KB
     public int HeaderTableSize { get; set; } = 64 * 1024;                     // 64 KB
+    public int MaxResponseHeaderListSize { get; set; } = 64 * 1024;           // 64 KB; max total size of response header list
     public int MaxReconnectAttempts { get; set; } = 3;
     public TimeSpan KeepAlivePingDelay { get; set; } = Timeout.InfiniteTimeSpan;
     public TimeSpan KeepAlivePingTimeout { get; set; } = TimeSpan.FromSeconds(20);
@@ -110,9 +122,13 @@ public sealed class Http2Options
 | `MaxConnectionsPerServer` | `6` | Max concurrent TCP connections per host |
 | `MaxConcurrentStreams` | `100` | Max concurrent streams per connection |
 | `InitialConnectionWindowSize` | `64 * 1024 * 1024` (64 MB) | Connection-level flow control window |
-| `InitialStreamWindowSize` | `2 * 1024 * 1024` (2 MB) | Per-stream flow control window |
+| `InitialStreamWindowSize` | `65535` | Initial per-stream flow control window |
+| `MaxStreamWindowSize` | `16 * 1024 * 1024` (16 MB) | Maximum per-stream flow control window |
+| `WindowScaleThresholdMultiplier` | `1.0` | RTT multiplier controlling when to scale the stream window |
+| `EnableAdaptiveWindowScaling` | `true` | Grow the stream receive window based on observed throughput |
 | `MaxFrameSize` | `64 * 1024` (64 KB) | Max frame payload size |
 | `HeaderTableSize` | `64 * 1024` (64 KB) | HPACK dynamic table size |
+| `MaxResponseHeaderListSize` | `64 * 1024` (64 KB) | Max total size of the response header list |
 | `MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
 | `KeepAlivePingDelay` | `infinite` | Delay before sending keep-alive PING |
 | `KeepAlivePingTimeout` | `20 s` | Timeout for PING acknowledgment |
@@ -130,7 +146,7 @@ See [HTTP/2 & Multiplexing guide](/client/http2) for multiplexing configuration.
 ## HTTP/3 Options
 
 ```csharp
-public sealed class Http3Options
+public sealed class Http3ClientOptions
 {
     public int MaxConnectionsPerServer { get; set; } = 4;
     public int MaxConcurrentStreams { get; set; } = 100;
@@ -139,7 +155,6 @@ public sealed class Http3Options
     public int MaxFieldSectionSize { get; set; } = 64 * 1024;    // 64 KB
     public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromSeconds(30);
     public int MaxReconnectAttempts { get; set; } = 3;
-    public bool AllowConnectionMigration { get; set; } = true;
     public bool EnableAltSvcDiscovery { get; set; }
     public int MaxReconnectBufferSize { get; set; } = 64;
 }
@@ -154,7 +169,6 @@ public sealed class Http3Options
 | `MaxFieldSectionSize` | `64 * 1024` (64 KB) | Max header block size |
 | `IdleTimeout` | `30 s` | QUIC idle timeout |
 | `MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
-| `AllowConnectionMigration` | `true` | Allow QUIC connection migration |
 | `EnableAltSvcDiscovery` | `false` | Auto-discover HTTP/3 via Alt-Svc headers |
 | `MaxReconnectBufferSize` | `64` | Max datagram buffers during reconnection |
 
@@ -203,9 +217,11 @@ options.ClientCertificates = new X509CertificateCollection
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `MaxBufferedBodySize` | `4 * 1024 * 1024` (4 MiB) | Max response body size before buffering fails |
-| `MaxStreamedBodySize` | `null` (unlimited) | Max body size for streamed (unbuffered) consumption |
+| `MaxBufferedBodySize` | `4 * 1024 * 1024` (4 MiB) | Max response body size that will be buffered in memory |
+| `MaxStreamedBodySize` | `null` (unlimited) | Cap on a streamed response body; `null` means no limit |
+| `BodyBufferThreshold` | `64 * 1024` (64 KB) | HTTP/1.x streaming threshold shared across protocols |
+| `RequestBodyChunkSize` | `16 * 1024` (16 KB) | Chunk size used when streaming a request body |
 
 ::: tip
-For large file downloads or uploads, use `MaxStreamedBodySize` to handle bodies larger than `MaxBufferedBodySize` without buffering the entire response in memory.
+For large file downloads or uploads, consume the response as a stream. `MaxStreamedBodySize` defaults to `null` — there is no built-in size cap on streamed responses.
 :::

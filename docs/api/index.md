@@ -9,7 +9,7 @@ TurboHTTP's public API is organized into client, server, and feature configurati
 | `ITurboHttpClientFactory` | Creates named client instances | [Client API](./client) |
 | `ITurboHttpClient` | The HTTP client — `SendAsync` and channel-based API | [Client API](./client) |
 | `TurboClientOptions` | Connection, TLS, proxy, and protocol settings | [Client Options](./client-options) |
-| `Http1Options` / `Http2Options` / `Http3Options` | Per-protocol tuning | [Client Options](./client-options) |
+| `Http1ClientOptions` / `Http2ClientOptions` / `Http3ClientOptions` | Per-protocol tuning | [Client Options](./client-options) |
 | `RetryOptions` / `CacheOptions` / `RedirectOptions` | Feature configuration | [Feature Options](./feature-options) |
 | Builder extensions (`.WithRetry()`, `.WithCache()`, etc.) | Fluent feature composition | [Feature Options](./feature-options) |
 
