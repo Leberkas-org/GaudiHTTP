@@ -106,6 +106,8 @@ internal sealed class Http3ServerSessionManager
     /// </summary>
     public bool ShouldComplete { get; private set; }
 
+    public void SetComplete() => ShouldComplete = true;
+
     public void DecodeClientData(ITransportInbound data)
     {
         switch (data)
@@ -184,13 +186,7 @@ internal sealed class Http3ServerSessionManager
         var hasBody = contentLength is not null and not 0
                       || (contentLength is null && hasStarted);
 
-        if (!hasBody)
-        {
-            _ops.OnOutbound(new CompleteWrites(streamId));
-            return;
-        }
-
-        if (responseBody is not TurboHttpResponseBodyFeature turboBody)
+        if (!hasBody || responseBody is not TurboHttpResponseBodyFeature turboBody)
         {
             _ops.OnOutbound(new CompleteWrites(streamId));
             return;
@@ -246,35 +242,6 @@ internal sealed class Http3ServerSessionManager
                     failed.Reason.Message);
                 EmitRstStream(failed.StreamId, ErrorCode.GeneralProtocolError);
                 break;
-        }
-    }
-
-    private void HandleOutboundBodyChunk(StreamBodyChunk<long> chunk)
-    {
-        if (!_streams.TryGetValue(chunk.StreamId, out var streamData))
-        {
-            chunk.Owner.Dispose();
-            return;
-        }
-
-        var (_, state) = streamData;
-        state.EnqueueBodyChunk(chunk);
-        DrainOutboundBuffer(chunk.StreamId);
-    }
-
-    private void HandleOutboundBodyComplete(long streamId)
-    {
-        if (!_streams.TryGetValue(streamId, out var streamData))
-        {
-            return;
-        }
-
-        var (_, state) = streamData;
-        state.MarkBodyEncoderComplete();
-
-        if (!state.HasPendingOutbound)
-        {
-            _ops.OnOutbound(new CompleteWrites(streamId));
         }
     }
 
@@ -357,13 +324,43 @@ internal sealed class Http3ServerSessionManager
         }
     }
 
-    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
 
     public void EmitRstStream(long streamId, ErrorCode errorCode)
     {
         _ops.OnOutbound(new ResetStream(streamId, (long)errorCode));
         CloseStream(streamId);
     }
+
+    private void HandleOutboundBodyChunk(StreamBodyChunk<long> chunk)
+    {
+        if (!_streams.TryGetValue(chunk.StreamId, out var streamData))
+        {
+            chunk.Owner.Dispose();
+            return;
+        }
+
+        var (_, state) = streamData;
+        state.EnqueueBodyChunk(chunk);
+        DrainOutboundBuffer(chunk.StreamId);
+    }
+
+    private void HandleOutboundBodyComplete(long streamId)
+    {
+        if (!_streams.TryGetValue(streamId, out var streamData))
+        {
+            return;
+        }
+
+        var (_, state) = streamData;
+        state.MarkBodyEncoderComplete();
+
+        if (!state.HasPendingOutbound)
+        {
+            _ops.OnOutbound(new CompleteWrites(streamId));
+        }
+    }
+
+    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
 
     private void HandleTaggedStreamData(MultiplexedData multiplexed)
     {
@@ -374,25 +371,19 @@ internal sealed class Http3ServerSessionManager
             return;
         }
 
-        if (logicalStreamId == CriticalStreamId.ControlId)
+        switch (logicalStreamId)
         {
-            ProcessFrameData(transportBuffer, CriticalStreamId.ControlId);
-            return;
+            case CriticalStreamId.ControlId:
+                ProcessFrameData(transportBuffer, CriticalStreamId.ControlId);
+                return;
+            case CriticalStreamId.QpackEncoderId:
+            case CriticalStreamId.QpackDecoderId:
+                transportBuffer.Dispose();
+                return;
+            default:
+                ProcessFrameData(transportBuffer, logicalStreamId);
+                break;
         }
-
-        if (logicalStreamId == CriticalStreamId.QpackEncoderId)
-        {
-            transportBuffer.Dispose();
-            return;
-        }
-
-        if (logicalStreamId == CriticalStreamId.QpackDecoderId)
-        {
-            transportBuffer.Dispose();
-            return;
-        }
-
-        ProcessFrameData(transportBuffer, logicalStreamId);
     }
 
     private void ProcessFrameData(TransportBuffer buffer, long streamId)

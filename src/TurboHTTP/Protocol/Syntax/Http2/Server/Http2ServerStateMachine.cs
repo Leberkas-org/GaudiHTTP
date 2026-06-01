@@ -76,6 +76,7 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
         if (name == KeepAliveTimeout)
         {
             _sessionManager.EmitGoAway(0, Http2ErrorCode.NoError, "Keep-alive timeout");
+            _sessionManager.ShouldComplete = true;
             return;
         }
 

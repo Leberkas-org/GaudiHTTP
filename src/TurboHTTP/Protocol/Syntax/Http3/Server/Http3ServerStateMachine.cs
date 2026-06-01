@@ -17,7 +17,6 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
     private readonly Http3ServerSessionManager _sessionManager;
 
     private readonly TimeSpan _keepAliveTimeout;
-    private readonly TimeSpan _requestHeadersTimeout;
     private int _activeStreamCount;
 
     public bool CanAcceptResponse => _sessionManager.ActiveStreamCount > 0;
@@ -32,7 +31,6 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
         _sessionManager = new Http3ServerSessionManager(options, ops);
 
         _keepAliveTimeout = options.Limits.KeepAliveTimeout;
-        _requestHeadersTimeout = options.Limits.RequestHeadersTimeout;
     }
 
     public void PreStart()
@@ -76,12 +74,7 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
     {
         if (name == KeepAliveTimeout)
         {
-            if (_activeStreamCount == 0)
-            {
-                return;
-            }
-
-            _ops.OnScheduleTimer(KeepAliveTimeout, _keepAliveTimeout);
+            _sessionManager.SetComplete();
             return;
         }
 
@@ -111,12 +104,10 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
             return;
         }
 
-        if (name.StartsWith(BodyConsumptionPrefix))
+        if (name.StartsWith(BodyConsumptionPrefix) &&
+            long.TryParse(name.AsSpan(BodyConsumptionPrefix.Length), out var consumptionStreamId))
         {
-            if (long.TryParse(name.AsSpan(BodyConsumptionPrefix.Length), out var consumptionStreamId))
-            {
-                _sessionManager.EmitRstStream(consumptionStreamId, ErrorCode.GeneralProtocolError);
-            }
+            _sessionManager.EmitRstStream(consumptionStreamId, ErrorCode.GeneralProtocolError);
         }
     }
 
