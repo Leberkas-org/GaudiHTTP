@@ -32,11 +32,29 @@ public sealed class Http2Options
     /// <summary>
     /// Per-stream initial flow control window size in bytes (RFC 9113 §6.9.2).
     /// Advertised via SETTINGS_INITIAL_WINDOW_SIZE in the connection preface.
-    /// Default is 2 MB. This is a static window; the RFC protocol default is 65,535 and
-    /// SocketsHttpHandler instead starts at 65,535 and scales dynamically (BDP/RTT) up to 16 MB.
-    /// TurboHTTP advertises the full window upfront rather than ramping.
+    /// This is the starting window for adaptive scaling (when <see cref="EnableAdaptiveWindowScaling"/> is true),
+    /// or the static window when scaling is disabled. Default is 65,535 (the RFC protocol default).
+    /// When adaptive scaling is enabled, the window grows up to <see cref="MaxStreamWindowSize"/>.
     /// </summary>
-    public int InitialStreamWindowSize { get; set; } = 2 * 1024 * 1024;
+    public int InitialStreamWindowSize { get; set; } = 65535;
+
+    /// <summary>
+    /// Upper bound the per-stream receive window may grow to under adaptive scaling, in bytes.
+    /// Default is 16 MB (matches SocketsHttpHandler's MaxHttp2StreamWindowSize).
+    /// </summary>
+    public int MaxStreamWindowSize { get; set; } = 16 * 1024 * 1024;
+
+    /// <summary>
+    /// Threshold multiplier for adaptive window growth. Higher values grow the window less eagerly.
+    /// Default is 1.0 (matches SocketsHttpHandler).
+    /// </summary>
+    public double WindowScaleThresholdMultiplier { get; set; } = 1.0;
+
+    /// <summary>
+    /// Enables client-side adaptive (BDP-based) receive-window scaling. When false, the per-stream
+    /// window stays static at <see cref="InitialStreamWindowSize"/>. Default is true.
+    /// </summary>
+    public bool EnableAdaptiveWindowScaling { get; set; } = true;
 
     /// <summary>
     /// Maximum HTTP/2 frame payload size in bytes the client is willing to RECEIVE (RFC 9113 §4.2).

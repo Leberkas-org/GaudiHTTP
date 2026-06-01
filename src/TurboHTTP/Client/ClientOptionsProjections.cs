@@ -37,6 +37,9 @@ internal static class ClientOptionsProjections
         MaxConcurrentStreams = o.Http2.MaxConcurrentStreams,
         InitialConnectionWindowSize = o.Http2.InitialConnectionWindowSize,
         InitialStreamWindowSize = o.Http2.InitialStreamWindowSize,
+        MaxStreamWindowSize = o.Http2.MaxStreamWindowSize,
+        WindowScaleThresholdMultiplier = o.Http2.WindowScaleThresholdMultiplier,
+        EnableAdaptiveWindowScaling = o.Http2.EnableAdaptiveWindowScaling,
     };
 
     public static Http2ClientEncoderOptions ToHttp2EncoderOptions(this TurboClientOptions o) => new()
