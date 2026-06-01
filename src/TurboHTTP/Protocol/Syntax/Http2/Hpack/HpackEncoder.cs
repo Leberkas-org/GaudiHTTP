@@ -114,7 +114,10 @@ internal sealed class HpackEncoder
     {
         ArgumentNullException.ThrowIfNull(headers);
 
-        var owner = MemoryPool<byte>.Shared.Rent(4096);
+        // Size the buffer to the worst-case encoded length so large cookies/JWTs don't overflow the span
+        // (the previous fixed 4096-byte rent threw IndexOutOfRange mid-encode). Huffman never exceeds the
+        // raw byte count, so the non-Huffman upper bound below is always sufficient.
+        var owner = MemoryPool<byte>.Shared.Rent(Math.Max(4096, EstimateMaxEncodedSize(headers)));
         var span = owner.Memory.Span;
 
         var totalWritten = 0;
@@ -137,6 +140,26 @@ internal sealed class HpackEncoder
         }
 
         return (owner, totalWritten);
+    }
+
+    /// <summary>
+    /// Worst-case encoded size for the header list (RFC 7541): per header, a representation integer
+    /// (≤5 bytes), a name-length prefix (≤5 bytes) and a value-length prefix (≤5 bytes), plus the raw
+    /// UTF-8 name and value bytes. A leading dynamic-table-size update adds at most a few bytes.
+    /// Huffman encoding only shrinks strings, so this bound holds for both Huffman and raw output.
+    /// </summary>
+    private static int EstimateMaxEncodedSize(IReadOnlyList<(string Name, string Value)> headers)
+    {
+        var total = 8; // leading dynamic table size update
+        for (var i = 0; i < headers.Count; i++)
+        {
+            var (name, value) = headers[i];
+            total += 16
+                     + Encoding.UTF8.GetByteCount(name ?? string.Empty)
+                     + Encoding.UTF8.GetByteCount(value ?? string.Empty);
+        }
+
+        return total;
     }
 
     private int EncodeHeader(HpackHeader header, ref Span<byte> output, bool useHuffman)

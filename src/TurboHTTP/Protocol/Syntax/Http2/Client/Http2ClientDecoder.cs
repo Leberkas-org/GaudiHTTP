@@ -13,7 +13,16 @@ internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSi
 
     private static readonly HttpContent SharedEmptyContent = new ByteArrayContent([]);
 
-    private HpackDecoder _hpack = new();
+    // RFC 9113 §6.5.2: enforce the cumulative decoded header-list size (MAX_HEADER_LIST_SIZE) inside the
+    // HPACK decoder so a decompression bomb is rejected mid-decode, before the full list is materialized.
+    private HpackDecoder _hpack = CreateHpack(maxTotalHeaderSize);
+
+    private static HpackDecoder CreateHpack(int maxHeaderListSize)
+    {
+        var hpack = new HpackDecoder();
+        hpack.SetMaxHeaderListSize(maxHeaderListSize);
+        return hpack;
+    }
 
     public void SetMaxAllowedTableSize(int size)
     {
@@ -22,7 +31,7 @@ internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSi
 
     public void ResetHpack()
     {
-        _hpack = new HpackDecoder();
+        _hpack = CreateHpack(maxTotalHeaderSize);
     }
 
     public HttpResponseMessage? DecodeHeaders(int streamId, bool endStream, StreamState state)
@@ -99,8 +108,8 @@ internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSi
 
     private void ValidateHeaderSize(List<HpackHeader> headers, int streamId)
     {
-        var totalHeaderSize = 0;
-
+        // Cumulative header-list size is enforced inside the HPACK decoder (MAX_HEADER_LIST_SIZE); here we
+        // only bound the size of any single header field (RFC 9113 §10.5.1).
         for (var i = 0; i < headers.Count; i++)
         {
             var headerSize = headers[i].Name.Length + headers[i].Value.Length;
@@ -111,16 +120,6 @@ internal sealed class Http2ClientDecoder(int maxHeaderSize, int maxTotalHeaderSi
                     $"RFC 9113 §10.5.1: Single header field size {headerSize} bytes " +
                     $"exceeds MaxHeaderSize limit ({maxHeaderSize} bytes) " +
                     $"on stream {streamId} — header '{headers[i].Name}'.");
-            }
-
-            totalHeaderSize += headerSize;
-
-            if (totalHeaderSize > maxTotalHeaderSize)
-            {
-                throw new HttpProtocolException(
-                    $"RFC 9113 §10.5.1: Total header block size {totalHeaderSize} bytes " +
-                    $"exceeds MaxTotalHeaderSize limit ({maxTotalHeaderSize} bytes) " +
-                    $"on stream {streamId}.");
             }
         }
     }

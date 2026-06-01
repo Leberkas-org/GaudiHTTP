@@ -172,9 +172,29 @@ internal sealed class QpackDecoder
         {
             case EncoderInstructionType.InsertWithNameReference:
                 {
-                    var name = instruction.IsStatic
-                        ? QpackStaticTable.Entries[instruction.NameIndex].Name
-                        : DynamicTable.GetEntry(DynamicTable.InsertCount - 1 - instruction.NameIndex)!.Value.Name;
+                    string name;
+                    if (instruction.IsStatic)
+                    {
+                        if (instruction.NameIndex < 0 || instruction.NameIndex >= QpackStaticTable.Entries.Length)
+                        {
+                            throw new QpackException(
+                                $"RFC 9204 §3.2.4 violation: static name index {instruction.NameIndex} out of range.");
+                        }
+
+                        name = QpackStaticTable.Entries[instruction.NameIndex].Name;
+                    }
+                    else
+                    {
+                        var entry = DynamicTable.GetEntry(DynamicTable.InsertCount - 1 - instruction.NameIndex);
+                        if (entry is null)
+                        {
+                            throw new QpackException(
+                                $"RFC 9204 §3.2.4 violation: dynamic name index {instruction.NameIndex} references a non-existent entry.");
+                        }
+
+                        name = entry.Value.Name;
+                    }
+
                     DynamicTable.Insert(name, instruction.Value);
                     break;
                 }

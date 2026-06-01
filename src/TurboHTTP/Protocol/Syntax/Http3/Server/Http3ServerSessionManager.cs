@@ -17,6 +17,10 @@ internal sealed class Http3ServerSessionManager
 {
     private const int MaxStatePoolCapacity = 1000;
 
+    // RFC 9114 §8.1 / CVE-2023-44487 (Rapid Reset): client-initiated stream aborts are counted within
+    // this sliding window; exceeding the configured budget closes the connection (H3_EXCESSIVE_LOAD).
+    private const long ResetWindowMs = 30_000;
+
     private const string BodyConsumptionPrefix = "body-consumption:";
     private const string HeadersTimeoutPrefix = "headers-timeout:";
     private const string DrainBodyPrefix = "drain-body:";
@@ -41,6 +45,10 @@ internal sealed class Http3ServerSessionManager
 
     private bool _controlPrefaceSent;
 
+    private readonly int _maxResetStreamsPerWindow;
+    private int _resetCount;
+    private long _resetWindowStart;
+
     private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
     public int ActiveStreamCount => _streams.Count;
@@ -56,6 +64,7 @@ internal sealed class Http3ServerSessionManager
         _decoderOptions = options.ToDecoderOptions();
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
+        _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
 
@@ -121,6 +130,13 @@ internal sealed class Http3ServerSessionManager
 
             case StreamClosed { Id.Value: >= 0 } streamClosed:
             {
+                // RFC 9114 §8.1 / CVE-2023-44487: an abnormal close (QUIC RESET_STREAM) is a client-initiated
+                // abort — count it toward the Rapid Reset budget. A graceful FIN arrives as StreamReadCompleted.
+                if (streamClosed.Reason == DisconnectReason.Error)
+                {
+                    TrackStreamReset();
+                }
+
                 FlushPendingRequest(streamClosed.Id.Value);
                 return;
             }
@@ -470,6 +486,34 @@ internal sealed class Http3ServerSessionManager
                     "HTTP/3 message error on stream {0} — resetting stream: {1}", streamId, ex.Message);
                 EmitRstStream(streamId, ErrorCode.MessageError);
             }
+        }
+    }
+
+    /// <summary>
+    /// RFC 9114 §8.1 / CVE-2023-44487: counts client-initiated stream aborts within a sliding window. A
+    /// client that opens-and-resets request streams faster than the configured budget is cut off
+    /// (H3_EXCESSIVE_LOAD) — MaxConcurrentStreams alone never saturates under this attack.
+    /// </summary>
+    private void TrackStreamReset()
+    {
+        if (_maxResetStreamsPerWindow <= 0)
+        {
+            return;
+        }
+
+        var now = Now();
+        if (now - _resetWindowStart >= ResetWindowMs)
+        {
+            _resetWindowStart = now;
+            _resetCount = 0;
+        }
+
+        _resetCount++;
+        if (_resetCount > _maxResetStreamsPerWindow)
+        {
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/3 RFC 9114 §8.1 / CVE-2023-44487: excessive stream resets — closing connection (ExcessiveLoad).");
+            ShouldComplete = true;
         }
     }
 

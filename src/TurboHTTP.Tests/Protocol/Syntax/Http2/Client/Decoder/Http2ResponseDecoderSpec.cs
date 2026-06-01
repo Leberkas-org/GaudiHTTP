@@ -300,7 +300,8 @@ public sealed class Http2ResponseDecoderSpec
         state.AppendHeader(encoded.Span);
         var decoder = new Http2ClientDecoder(maxHeaderSize: 16 * 1024, maxTotalHeaderSize: 1); // Very small limit
 
-        Assert.Throws<HttpProtocolException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
+        // Total header-list size is enforced at the HPACK layer (RFC 9113 §6.5.2 / MAX_HEADER_LIST_SIZE).
+        Assert.Throws<HpackException>(() => decoder.DecodeHeaders(streamId: 1, endStream: true, state));
     }
 
     [Fact(Timeout = 5000)]

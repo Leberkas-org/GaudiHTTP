@@ -2,6 +2,7 @@ using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
+using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Streams.Stages.Client;
 using static Servus.Core.Servus;
 
@@ -328,7 +329,8 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         }
         catch (HttpProtocolException ex)
         {
-            Tracing.For("Protocol").Warning(this, "SETTINGS error absorbed — {0}", ex.Message);
+            // RFC 9114 §7.2.4: a malformed or repeated SETTINGS frame is a connection error (H3_SETTINGS_ERROR).
+            DisconnectOnConnectionError("control SETTINGS", ex);
         }
     }
 
@@ -341,8 +343,8 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         }
         catch (HttpProtocolException ex)
         {
-            Tracing.For("Protocol").Warning(this, "GOAWAY error absorbed — {0}", ex.Message);
-            Connection.GoAwayReceived = true;
+            // RFC 9114 §5.2: a GOAWAY with an invalid or increasing stream ID is a connection error.
+            DisconnectOnConnectionError("control GOAWAY", ex);
         }
     }
 
@@ -383,6 +385,18 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
             pushId);
     }
 
+    /// <summary>
+    /// RFC 9114 §8 / RFC 9204 §2.2: a connection-fatal H3/QPACK error leaves the decoder or dynamic table
+    /// desynchronized. Disconnect the transport rather than swallowing and continuing; the resulting
+    /// TransportDisconnected routes through OnConnectionLost, which replays idempotent in-flight requests.
+    /// </summary>
+    private void DisconnectOnConnectionError(string context, Exception ex)
+    {
+        Tracing.For("Protocol").Info(this,
+            "HTTP/3: connection-fatal error ({0}) — disconnecting: {1}", context, ex.Message);
+        _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
+    }
+
     private void HandleTaggedStreamData(MultiplexedData multiplexed)
     {
         var resolved = _serverStreamResolver.Resolve(multiplexed.StreamId, multiplexed.Buffer);
@@ -396,14 +410,36 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         {
             case CriticalStreamId.QpackDecoderId:
                 {
-                    _clientSession.ProcessQpackDecoderBytes(resolved.Buffer.Memory);
-                    resolved.Buffer.Dispose();
+                    try
+                    {
+                        _clientSession.ProcessQpackDecoderBytes(resolved.Buffer.Memory);
+                    }
+                    catch (Exception ex) when (ex is QpackException or HuffmanException)
+                    {
+                        DisconnectOnConnectionError("QPACK decoder stream", ex);
+                    }
+                    finally
+                    {
+                        resolved.Buffer.Dispose();
+                    }
+
                     return;
                 }
             case CriticalStreamId.QpackEncoderId:
                 {
-                    _clientSession.ProcessQpackEncoderBytes(resolved.Buffer.Memory);
-                    resolved.Buffer.Dispose();
+                    try
+                    {
+                        _clientSession.ProcessQpackEncoderBytes(resolved.Buffer.Memory);
+                    }
+                    catch (Exception ex) when (ex is QpackException or HuffmanException)
+                    {
+                        DisconnectOnConnectionError("QPACK encoder stream", ex);
+                    }
+                    finally
+                    {
+                        resolved.Buffer.Dispose();
+                    }
+
                     return;
                 }
             case CriticalStreamId.ControlId:
@@ -421,16 +457,26 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     private void ProcessFrameData(TransportBuffer buffer, long streamId)
     {
-        var frames = _clientSession.DecodeServerData(buffer, streamId);
-
-        for (var i = 0; i < frames.Count; i++)
+        try
         {
-            var frame = frames[i];
-            var forwarded = ProcessFrame(frame);
-            if (forwarded is not null)
+            var frames = _clientSession.DecodeServerData(buffer, streamId);
+
+            for (var i = 0; i < frames.Count; i++)
             {
-                _clientSession.AssembleResponse(forwarded, streamId);
+                var frame = frames[i];
+                var forwarded = ProcessFrame(frame);
+                if (forwarded is not null)
+                {
+                    _clientSession.AssembleResponse(forwarded, streamId);
+                }
             }
+        }
+        catch (Exception ex) when (ex is HttpProtocolException or QpackException or HuffmanException)
+        {
+            // RFC 9114 §8: a framing or header-decode failure leaves the decoder/dynamic table
+            // desynchronized for the whole connection. Disconnect instead of letting it escape the
+            // decode loop (where the stage would swallow it and continue against corrupt state).
+            DisconnectOnConnectionError("frame decode", ex);
         }
     }
 }
