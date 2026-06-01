@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using Akka;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using TurboHTTP.Internal;
 using TurboHTTP.Streams.Stages.Client;
 using TurboHTTP.Tests.Shared;
 
@@ -269,6 +270,98 @@ public sealed class HandlerBidiStageSpec : StreamTestBase
             Assert.True(results[i].Headers.Contains("X-Count"));
             Assert.Equal($"http://example.com/{i + 1}", results[i].RequestUri!.ToString());
         }
+    }
+
+    private sealed class ThrowOnUriRequestHandler : TurboHandler
+    {
+        private readonly string _marker;
+        private readonly Exception _toThrow;
+
+        public ThrowOnUriRequestHandler(string marker, Exception toThrow)
+        {
+            _marker = marker;
+            _toThrow = toThrow;
+        }
+
+        public override HttpRequestMessage ProcessRequest(HttpRequestMessage request)
+        {
+            if (request.RequestUri!.AbsoluteUri.Contains(_marker))
+            {
+                throw _toThrow;
+            }
+
+            return request;
+        }
+    }
+
+    private sealed class ThrowOnUriResponseHandler : TurboHandler
+    {
+        private readonly string _marker;
+        private readonly Exception _toThrow;
+
+        public ThrowOnUriResponseHandler(string marker, Exception toThrow)
+        {
+            _marker = marker;
+            _toThrow = toThrow;
+        }
+
+        public override HttpResponseMessage ProcessResponse(HttpRequestMessage original, HttpResponseMessage response)
+        {
+            if (original.RequestUri!.AbsoluteUri.Contains(_marker))
+            {
+                throw _toThrow;
+            }
+
+            return response;
+        }
+    }
+
+    private static (HttpRequestMessage Request, ValueTask<HttpResponseMessage> Pending) RequestWithPending(string uri)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        var pending = PendingRequest.Rent();
+        request.Options.Set(OptionsKey.Key, pending);
+        request.Options.Set(OptionsKey.VersionKey, pending.Version);
+        return (request, pending.GetValueTask());
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task HandlerBidiStage_should_fail_only_offending_request_and_keep_pipeline_alive()
+    {
+        var stage = new HandlerBidiStage(
+            new ThrowOnUriRequestHandler("boom", new InvalidOperationException("request boom")), 0);
+
+        var good1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/ok1");
+        var (bad, badPending) = RequestWithPending("http://example.com/boom");
+        var good2 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/ok2");
+
+        var results = await RunRequestAsync(stage, good1, bad, good2);
+
+        Assert.Equal(2, results.Count);
+        Assert.Equal("http://example.com/ok1", results[0].RequestUri!.ToString());
+        Assert.Equal("http://example.com/ok2", results[1].RequestUri!.ToString());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () => await badPending);
+        Assert.Equal("request boom", ex.Message);
+    }
+
+    [Fact(Timeout = 10_000)]
+    public async Task HandlerBidiStage_should_fail_only_offending_response_and_keep_pipeline_alive()
+    {
+        var stage = new HandlerBidiStage(
+            new ThrowOnUriResponseHandler("boom", new InvalidOperationException("response boom")), 0);
+
+        var goodReq1 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/ok1");
+        var (badReq, badPending) = RequestWithPending("http://example.com/boom");
+        var goodReq2 = new HttpRequestMessage(HttpMethod.Get, "http://example.com/ok2");
+
+        var results = await RunResponseAsync(stage,
+            MakeResponse(goodReq1), MakeResponse(badReq), MakeResponse(goodReq2));
+
+        Assert.Equal(2, results.Count);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () => await badPending);
+        Assert.Equal("response boom", ex.Message);
     }
 
     [Fact(Timeout = 10_000)]

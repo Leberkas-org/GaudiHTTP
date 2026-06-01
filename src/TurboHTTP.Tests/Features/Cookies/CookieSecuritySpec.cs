@@ -23,6 +23,15 @@ public sealed class CookieSecuritySpec
             : null;
     }
 
+    private static string? GetCrossSiteCookieHeader(CookieJar jar, string url, string firstParty, bool isSafeMethod)
+    {
+        var req = new HttpRequestMessage(isSafeMethod ? HttpMethod.Get : HttpMethod.Post, url);
+        jar.AddCookiesToRequest(Uri(url), ref req, Uri(firstParty), isSafeMethod);
+        return req.Headers.TryGetValues("Cookie", out var values)
+            ? string.Join("", values)
+            : null;
+    }
+
     [Fact]
     public void CookieJar_should_not_send_secure_cookie_when_request_is_http()
     {
@@ -90,8 +99,8 @@ public sealed class CookieSecuritySpec
     [Fact]
     public void CookieJar_should_store_samesite_strict_when_set_cookie_contains_strict()
     {
-        // SameSite=Strict cookies are stored. The jar stores the attribute; enforcement of
-        // cross-site exclusion is the caller's responsibility (CookieBidiStage).
+        // SameSite=Strict cookies are stored and sent on same-site requests. Cross-site exclusion
+        // is enforced when a first-party context is supplied (see the cross-site tests below).
         var jar = new CookieJar();
         jar.ProcessResponse(
             Uri("https://example.com/"),
@@ -118,6 +127,96 @@ public sealed class CookieSecuritySpec
 
         var cookie = GetCookieHeader(jar, "https://example.com/");
         Assert.Contains("pref=dark", cookie);
+    }
+
+    [Fact]
+    public void CookieJar_should_not_send_strict_cookie_when_request_is_cross_site()
+    {
+        // Attack: a cross-site request (initiated by other.com) must not carry a SameSite=Strict
+        // cookie scoped to example.com — this is the CSRF protection SameSite=Strict provides.
+        var jar = new CookieJar();
+        jar.ProcessResponse(
+            Uri("https://example.com/"),
+            ResponseWithCookie("csrf=token123; SameSite=Strict; Secure"));
+
+        var cookie = GetCrossSiteCookieHeader(jar, "https://example.com/", "https://other.com/", isSafeMethod: true);
+
+        Assert.Null(cookie);
+    }
+
+    [Fact]
+    public void CookieJar_should_send_strict_cookie_when_request_is_same_site()
+    {
+        // Same-site request (initiated by example.com) carries the Strict cookie.
+        var jar = new CookieJar();
+        jar.ProcessResponse(
+            Uri("https://example.com/"),
+            ResponseWithCookie("csrf=token123; SameSite=Strict; Secure"));
+
+        var cookie = GetCrossSiteCookieHeader(jar, "https://example.com/", "https://example.com/", isSafeMethod: true);
+
+        Assert.NotNull(cookie);
+        Assert.Contains("csrf=token123", cookie);
+    }
+
+    [Fact]
+    public void CookieJar_should_not_send_lax_cookie_when_cross_site_unsafe_method()
+    {
+        // SameSite=Lax cookies are withheld on cross-site unsafe (POST) requests.
+        var jar = new CookieJar();
+        jar.ProcessResponse(
+            Uri("https://example.com/"),
+            ResponseWithCookie("pref=dark; SameSite=Lax"));
+
+        var cookie = GetCrossSiteCookieHeader(jar, "https://example.com/", "https://other.com/", isSafeMethod: false);
+
+        Assert.Null(cookie);
+    }
+
+    [Fact]
+    public void CookieJar_should_send_lax_cookie_when_cross_site_safe_method()
+    {
+        // SameSite=Lax cookies ARE sent on cross-site safe top-level navigations (GET).
+        var jar = new CookieJar();
+        jar.ProcessResponse(
+            Uri("https://example.com/"),
+            ResponseWithCookie("pref=dark; SameSite=Lax"));
+
+        var cookie = GetCrossSiteCookieHeader(jar, "https://example.com/", "https://other.com/", isSafeMethod: true);
+
+        Assert.NotNull(cookie);
+        Assert.Contains("pref=dark", cookie);
+    }
+
+    [Fact]
+    public void CookieJar_should_send_none_cookie_when_cross_site()
+    {
+        // SameSite=None (with Secure) is intended for cross-site use and is always sent.
+        var jar = new CookieJar();
+        jar.ProcessResponse(
+            Uri("https://example.com/"),
+            ResponseWithCookie("tracker=abc; SameSite=None; Secure"));
+
+        var cookie = GetCrossSiteCookieHeader(jar, "https://example.com/", "https://other.com/", isSafeMethod: false);
+
+        Assert.NotNull(cookie);
+        Assert.Contains("tracker=abc", cookie);
+    }
+
+    [Fact]
+    public void CookieJar_should_treat_subdomain_as_same_site_for_strict_cookie()
+    {
+        // Same registrable domain (app.example.com vs api.example.com) is same-site:
+        // the Strict cookie must still flow between subdomains of one site.
+        var jar = new CookieJar();
+        jar.ProcessResponse(
+            Uri("https://api.example.com/"),
+            ResponseWithCookie("csrf=token123; SameSite=Strict; Secure; Domain=example.com"));
+
+        var cookie = GetCrossSiteCookieHeader(jar, "https://api.example.com/", "https://app.example.com/", isSafeMethod: false);
+
+        Assert.NotNull(cookie);
+        Assert.Contains("csrf=token123", cookie);
     }
 
     [Fact]

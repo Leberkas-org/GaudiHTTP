@@ -186,6 +186,43 @@ public sealed class TurboHttpClientSpec
     }
 
     [Fact(Timeout = 5000)]
+    public async Task SendAsync_should_honor_per_request_timeout_over_global()
+    {
+        var requests = Channel.CreateUnbounded<HttpRequestMessage>();
+        var responses = Channel.CreateUnbounded<HttpResponseMessage>();
+
+        using var client = CreateTestClient(requests, responses, timeout: TimeSpan.FromSeconds(30));
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
+            .WithTimeout(TimeSpan.FromMilliseconds(100));
+
+        var sendTask = client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        // Read but never complete the request: only the per-request timeout can end it.
+        await requests.Reader.ReadAsync(TestContext.Current.CancellationToken);
+
+        var ex = await Assert.ThrowsAsync<OperationCanceledException>(() => sendTask);
+        Assert.NotNull(ex);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task SendAsync_should_honor_per_request_timeout_when_global_infinite()
+    {
+        var requests = Channel.CreateUnbounded<HttpRequestMessage>();
+        var responses = Channel.CreateUnbounded<HttpResponseMessage>();
+
+        using var client = CreateTestClient(requests, responses, timeout: System.Threading.Timeout.InfiniteTimeSpan);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
+            .WithTimeout(TimeSpan.FromMilliseconds(100));
+
+        var sendTask = client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        await requests.Reader.ReadAsync(TestContext.Current.CancellationToken);
+
+        var ex = await Assert.ThrowsAsync<OperationCanceledException>(() => sendTask);
+        Assert.NotNull(ex);
+    }
+
+    [Fact(Timeout = 5000)]
     public async Task SendAsync_should_honor_cancellation_token()
     {
         var requests = Channel.CreateUnbounded<HttpRequestMessage>();

@@ -8,6 +8,30 @@ namespace TurboHTTP.Client;
 
 public static class Extensions
 {
+    /// <summary>
+    /// Sets a per-request timeout that overrides the client's global <see cref="ITurboHttpClient.Timeout"/>
+    /// for this request only. If no response arrives within <paramref name="timeout"/>, the request is
+    /// cancelled and <c>SendAsync</c> throws an <see cref="OperationCanceledException"/>.
+    /// </summary>
+    public static HttpRequestMessage WithTimeout(this HttpRequestMessage request, TimeSpan timeout)
+    {
+        request.Options.Set(OptionsKey.TimeoutKey, timeout);
+        return request;
+    }
+
+    /// <summary>
+    /// Declares the first-party context (the site initiating this request) so the cookie jar can
+    /// enforce the <c>SameSite</c> attribute (RFC 6265bis §5.8.3). When set and the request target is
+    /// cross-site relative to <paramref name="firstParty"/>, <c>SameSite=Strict</c> cookies are withheld,
+    /// and <c>SameSite=Lax</c> cookies are withheld on unsafe methods. When unset, requests are treated
+    /// as first-party.
+    /// </summary>
+    public static HttpRequestMessage WithFirstPartyContext(this HttpRequestMessage request, Uri firstParty)
+    {
+        request.Options.Set(OptionsKey.FirstPartyContextKey, firstParty);
+        return request;
+    }
+
     public static ValueTask<HttpResponseMessage> GetResponseAsync(this HttpRequestMessage request,
         CancellationToken ct = default)
     {
