@@ -84,16 +84,36 @@ options.PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2);
 options.PooledConnectionLifetime = TimeSpan.FromMinutes(10);
 ```
 
+### Body Buffering
+
+| Property                  | Type    | Default              | Description                                                                                |
+| ------------------------- | ------- | -------------------- | ------------------------------------------------------------------------------------------ |
+| `MaxBufferedBodySize`     | `long`  | `4 * 1024 * 1024` (4 MB) | Responses at or below this size are buffered in memory; larger responses are streamed  |
+| `MaxStreamedBodySize`     | `long?` | `null`               | Cap on a streamed response body; `null` = unlimited                                        |
+| `BodyBufferThreshold`     | `int`   | `64 * 1024` (64 KB)  | Shared HTTP/1.x streaming threshold — bytes buffered before flushing to the caller         |
+| `RequestBodyChunkSize`    | `int`   | `16 * 1024` (16 KB)  | Chunk size used when streaming a request body to the server                                |
+
+```csharp
+// Keep all responses up to 16 MB in memory; stream anything larger without a size cap
+options.MaxBufferedBodySize = 16 * 1024 * 1024;
+options.MaxStreamedBodySize = null; // unlimited (default)
+```
+
 ### HTTP/1.x Options
 
 Per-version connection and protocol settings are configured on nested sub-objects:
 
-| Property                         | Type  | Default       | Description                                        |
-| -------------------------------- | ----- | ------------- | -------------------------------------------------- |
-| `Http1.MaxConnectionsPerServer`  | `int` | `6`           | Maximum concurrent HTTP/1.x connections per host   |
-| `Http1.MaxPipelineDepth`         | `int` | `16`          | Maximum pipelined requests per HTTP/1.1 connection |
-| `Http1.MaxResponseHeadersLength` | `int` | `64` (KB)     | Max response header size in kilobytes              |
-| `Http1.MaxReconnectAttempts`     | `int` | `3`           | Max reconnect attempts on connection drop          |
+| Property                              | Type   | Default              | Description                                        |
+| ------------------------------------- | ------ | -------------------- | -------------------------------------------------- |
+| `Http1.MaxConnectionsPerServer`       | `int`  | `6`                  | Maximum concurrent HTTP/1.x connections per host   |
+| `Http1.MaxPipelineDepth`              | `int`  | `16`                 | Maximum pipelined requests per HTTP/1.1 connection |
+| `Http1.MaxResponseHeadersLength`      | `int`  | `64` (KB)            | Max response header size in kilobytes              |
+| `Http1.AutoHost`                      | `bool` | `true`               | Automatically add the `Host` header                |
+| `Http1.AutoAcceptEncoding`            | `bool` | `true`               | Automatically add `Accept-Encoding` header         |
+| `Http1.MaxReconnectAttempts`          | `int`  | `3`                  | Max reconnect attempts on connection drop          |
+| `Http1.MaxResponseHeaderCount`        | `int`  | `100`                | Maximum number of response header fields accepted  |
+| `Http1.MaxResponseHeaderLineLength`   | `int`  | `8 * 1024` (8 KB)    | Maximum length of a single response header line    |
+| `Http1.MaxChunkExtensionLength`       | `int`  | `int.MaxValue`       | Maximum length of chunk extension data (unbounded by default) |
 
 ```csharp
 options.Http1.MaxConnectionsPerServer = 12;  // raise for parallel HTTP/1.1
@@ -102,13 +122,22 @@ options.Http1.MaxPipelineDepth = 32;
 
 ### HTTP/2 Options
 
-| Property                        | Type  | Default              | Description                                    |
-| ------------------------------- | ----- | -------------------- | ---------------------------------------------- |
-| `Http2.MaxConnectionsPerServer` | `int` | `6`                  | Maximum concurrent HTTP/2 connections per host |
-| `Http2.MaxConcurrentStreams`    | `int` | `100`                | Maximum concurrent streams per connection      |
-| `Http2.MaxFrameSize`            | `int` | `64 * 1024` (64 KiB) | Maximum HTTP/2 frame payload size              |
-| `Http2.HeaderTableSize`         | `int` | `64 * 1024` (64 KiB) | HPACK dynamic table size                       |
-| `Http2.MaxReconnectAttempts`    | `int` | `3`                  | Max reconnect attempts on connection drop      |
+| Property                                   | Type                       | Default                        | Description                                                            |
+| ------------------------------------------ | -------------------------- | ------------------------------ | ---------------------------------------------------------------------- |
+| `Http2.MaxConnectionsPerServer`            | `int`                      | `6`                            | Maximum concurrent HTTP/2 connections per host                         |
+| `Http2.MaxConcurrentStreams`               | `int`                      | `100`                          | Maximum concurrent streams per connection                              |
+| `Http2.InitialConnectionWindowSize`        | `int`                      | `64 * 1024 * 1024` (64 MiB)   | Initial flow-control window for the whole connection                   |
+| `Http2.InitialStreamWindowSize`            | `int`                      | `65535`                        | Initial flow-control window per stream                                 |
+| `Http2.MaxStreamWindowSize`                | `int`                      | `16 * 1024 * 1024` (16 MiB)   | Upper bound for adaptive stream window growth                          |
+| `Http2.WindowScaleThresholdMultiplier`     | `double`                   | `1.0`                          | RTT multiplier that triggers a window-size increase                    |
+| `Http2.EnableAdaptiveWindowScaling`        | `bool`                     | `true`                         | Automatically grow receive windows based on measured RTT               |
+| `Http2.MaxFrameSize`                       | `int`                      | `64 * 1024` (64 KiB)           | Maximum HTTP/2 frame payload size                                      |
+| `Http2.HeaderTableSize`                    | `int`                      | `64 * 1024` (64 KiB)           | HPACK dynamic table size                                               |
+| `Http2.MaxResponseHeaderListSize`          | `int`                      | `64 * 1024` (64 KiB)           | Maximum total size of response header fields accepted                  |
+| `Http2.MaxReconnectAttempts`               | `int`                      | `3`                            | Max reconnect attempts on connection drop                              |
+| `Http2.KeepAlivePingDelay`                 | `TimeSpan`                 | `infinite`                     | Interval between keep-alive PINGs (`infinite` = disabled)              |
+| `Http2.KeepAlivePingTimeout`               | `TimeSpan`                 | `00:00:20`                     | Time to wait for a PING ACK before closing the connection              |
+| `Http2.KeepAlivePingPolicy`                | `HttpKeepAlivePingPolicy`  | `Always`                       | When to send keep-alive PINGs                                          |
 
 Increase frame size for workloads with large response bodies to reduce framing overhead:
 
@@ -121,13 +150,14 @@ options.Http2.MaxFrameSize = 4 * 1024 * 1024; // 4 MiB (default: 64 KiB)
 | Property                         | Type       | Default              | Description                                  |
 | -------------------------------- | ---------- | -------------------- | -------------------------------------------- |
 | `Http3.MaxConnectionsPerServer`  | `int`      | `4`                  | Maximum concurrent QUIC connections per host |
+| `Http3.MaxConcurrentStreams`     | `int`      | `100`                | Maximum concurrent streams per connection    |
 | `Http3.QpackMaxTableCapacity`    | `int`      | `16 * 1024` (16 KiB) | QPACK dynamic table size                     |
 | `Http3.QpackBlockedStreams`      | `int`      | `100`                | Max streams blocked waiting for QPACK        |
 | `Http3.MaxFieldSectionSize`      | `int`      | `64 * 1024` (64 KiB) | Max header block size                        |
 | `Http3.IdleTimeout`              | `TimeSpan` | `00:00:30`           | QUIC idle timeout                            |
 | `Http3.MaxReconnectAttempts`     | `int`      | `3`                  | Max reconnect attempts on connection drop    |
-| `Http3.AllowConnectionMigration` | `bool`     | `true`               | Allow QUIC connection migration              |
 | `Http3.EnableAltSvcDiscovery`    | `bool`     | `false`              | Auto-discover HTTP/3 via Alt-Svc headers     |
+| `Http3.MaxReconnectBufferSize`   | `int`      | `64`                 | Number of in-flight requests buffered for replay on reconnect |
 
 See [HTTP/3 & QUIC guide](./http3) for QUIC-specific configuration and Alt-Svc discovery.
 
