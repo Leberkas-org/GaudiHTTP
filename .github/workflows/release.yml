@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: nuget-packages
-          path: ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/*.nupkg
+          path: ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/TurboHTTP.*.nupkg
 
   nuget-publish:
     runs-on: ubuntu-latest
