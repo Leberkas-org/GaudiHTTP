@@ -97,7 +97,7 @@ jobs:
       - name: Push to NuGet.org
         run: >
           dotnet nuget push
-          ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/*.nupkg
+          ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/TurboHTTP.*.nupkg
           --source https://api.nuget.org/v3/index.json
           --api-key ${{ secrets.NUGET_SECRET }}
           --skip-duplicate
@@ -106,7 +106,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.release-please.outputs.tag_name }}
-          files: ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/*.nupkg
+          files: ${{ env.PACKAGE_OUTPUT_DIRECTORY }}/TurboHTTP.*.nupkg
 
   docs-build:
     runs-on: ubuntu-latest
