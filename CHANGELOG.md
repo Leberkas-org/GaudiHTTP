@@ -1,5 +1,67 @@
 # Changelog
 
+## [3.0.0-alpha.1](https://github.com/Leberkas-org/TurboHTTP/compare/v3.0.0-alpha...v3.0.0-alpha.1) (2026-06-02)
+
+
+### Features
+
+* **client:** Add WithFirstPartyContext and WithTimeout ([4debf0f](https://github.com/Leberkas-org/TurboHTTP/commit/4debf0f06f34348036f7e0c00a1e30ae2ab41002))
+* Consolidate timer names with constants ([2c5623c](https://github.com/Leberkas-org/TurboHTTP/commit/2c5623c2fba2f94f61f775bbac094e1e8e226073))
+* **h3:** connection-error teardown on the server (stop swallow, close, RST) ([32ec3f9](https://github.com/Leberkas-org/TurboHTTP/commit/32ec3f956e084b89edf19db5443de0a5bbb8a911))
+* **http2:** adaptive receive-window growth in FlowController (client-gated) ([028c49e](https://github.com/Leberkas-org/TurboHTTP/commit/028c49e9f2fa41e7e8038f0de6aab93a474cfd81))
+* **http2:** adaptive window-scaling client options + projection ([8537293](https://github.com/Leberkas-org/TurboHTTP/commit/853729352f64d4fcd4326bdd2e655a0ea3f99f81))
+* **http2:** add RttEstimator for PING-based min-RTT measurement ([0995bb1](https://github.com/Leberkas-org/TurboHTTP/commit/0995bb1f51d0678593919a3e3786bd123152e244))
+* **http2:** add WindowScaler BDP growth formula ([6a6413d](https://github.com/Leberkas-org/TurboHTTP/commit/6a6413d0621954eec51220bd51f7878fc19d7dbe))
+* **http2:** enable adaptive window scaling ([fd722ad](https://github.com/Leberkas-org/TurboHTTP/commit/fd722ad04fa915a85086f6d276f7a772e9c4dfc4))
+* **http2:** Improve HTTP/2 protocol robustness and RFC compliance ([b67bc5d](https://github.com/Leberkas-org/TurboHTTP/commit/b67bc5d6fc63b708986caa04d94d715b226d89be))
+* **http2:** Improve interim response and trailer handling ([a64314c](https://github.com/Leberkas-org/TurboHTTP/commit/a64314cb333722b00ce7a66ba3d1a538c46781f8))
+* **http2:** project client http2 options to encoder ([2762854](https://github.com/Leberkas-org/TurboHTTP/commit/2762854d3bcb75bfb98caf37312f89fa90c895b3))
+* **http2:** raise per-stream receive window to 1 MB + E2E flow control tests ([ce844b5](https://github.com/Leberkas-org/TurboHTTP/commit/ce844b5c1b674dc093e6250ee9b93dc0a5a8780d))
+* **http2:** validate client stream IDs per RFC 9113 §5.1.1 ([0ceaad9](https://github.com/Leberkas-org/TurboHTTP/commit/0ceaad9e18d3cd8207e6e9bc212b9d70cacad4b9))
+* **http2:** wire client adaptive window scaling + RTT probes ([5cf1549](https://github.com/Leberkas-org/TurboHTTP/commit/5cf1549e709a04f337dd036f18b32c7dd16eae85))
+* **http3:** improve session manager logic ([d4eb2ac](https://github.com/Leberkas-org/TurboHTTP/commit/d4eb2ac7099d9255f9784a2e5abc33cba8846288))
+* **http3:** process inbound SETTINGS and reject duplicates ([4e73f7c](https://github.com/Leberkas-org/TurboHTTP/commit/4e73f7ce5d885d4cd34b742515a7f86afa85bd96))
+* **options:** Rename body size properties ([9467b52](https://github.com/Leberkas-org/TurboHTTP/commit/9467b527f405e81088a37c2307f4fe2d4c04590a))
+* **options:** Rename maxEndpointSubstreams to maxConcurrentEndpoints ([24b8c5e](https://github.com/Leberkas-org/TurboHTTP/commit/24b8c5ef4d8ecbbdaf42f89602a318736e2d89e6))
+* **security:** extend CVE-class protections to HTTP/3 + close HPACK ([322a53b](https://github.com/Leberkas-org/TurboHTTP/commit/322a53b5847f0477d664f38ba7658c02bb00d28e))
+* **server:** add actor-based FairShareCoordinator ([dc3d6c6](https://github.com/Leberkas-org/TurboHTTP/commit/dc3d6c68b430fff016fa5bf0b92820bd5096c761))
+* **server:** add ConnectionActor for per-connection lifecycle ([9ea7cb2](https://github.com/Leberkas-org/TurboHTTP/commit/9ea7cb26b8666e945a8648650dbe889283022d92))
+* **server:** add generic DynamicHub keyed fan-out stage ([fb9bb12](https://github.com/Leberkas-org/TurboHTTP/commit/fb9bb121188421c2f33f9668502dc679be4dcfea))
+* **server:** extract W3C trace context from inbound requests ([1c0124b](https://github.com/Leberkas-org/TurboHTTP/commit/1c0124baa3a8661acc4da5c64bd7ffc66067df90))
+* **server:** introduce ServerPipeline owning shared + per-connection flow ([cb81c9c](https://github.com/Leberkas-org/TurboHTTP/commit/cb81c9ce3b073f8a599c9bcde7322d37106dfd4f))
+* **server:** validate options on startup ([e532447](https://github.com/Leberkas-org/TurboHTTP/commit/e532447f3544b652efb277c28ff7db0c539e7f84))
+* **streams:** migrate DynamicHub tests and impl ([21c3c4b](https://github.com/Leberkas-org/TurboHTTP/commit/21c3c4b6f156c1c5e80cffb00be8cfe9ba3e79aa))
+
+
+### Bug Fixes
+
+* **client:** propagate handler exceptions, wire per-request timeout, enforce SameSite ([3bd9ddd](https://github.com/Leberkas-org/TurboHTTP/commit/3bd9ddd1609cfd86a50273ebb126800b13717763))
+* **client:** resolve typed clients via ActivatorUtilities instead of cast ([b815e42](https://github.com/Leberkas-org/TurboHTTP/commit/b815e4226ce8da8f4787db4c8eac2660fc1bc8d5))
+* **http2:** reject empty :path pseudo-header for non-CONNECT requests ([56876e3](https://github.com/Leberkas-org/TurboHTTP/commit/56876e35294738ef58204ff2bd3888ab974cb363))
+* **server:** close idle H2/H3 connections on keep-alive timeout ([86fae26](https://github.com/Leberkas-org/TurboHTTP/commit/86fae2685b3e48593720b06be27323f4b72db61c))
+* **server:** pull next pipelined response after an outbound body completes ([a78c352](https://github.com/Leberkas-org/TurboHTTP/commit/a78c352ca5738bf39010c5481c678d45981c0e59))
+
+
+### Documentation
+
+* update config docs ([b7b751f](https://github.com/Leberkas-org/TurboHTTP/commit/b7b751fd2a9ac102fda4e43a755b9a3d5d12bcff))
+
+
+### Refactoring
+
+* **client:** move H1.1 MaxPipelineDepth out of decoder options ([7e47256](https://github.com/Leberkas-org/TurboHTTP/commit/7e47256323f340c68253ded0e692c49005f27718))
+* **http2:** move RttEstimator ownership into FlowController ([db3e376](https://github.com/Leberkas-org/TurboHTTP/commit/db3e3761158789b7914d36919e650ef11fbf9f47))
+* **http2:** Simplify session manager constructor ([5bf8b84](https://github.com/Leberkas-org/TurboHTTP/commit/5bf8b848a26e58fba1fec45b6a675607ca5cce76))
+* rename instrumentation extensions ([28c8c07](https://github.com/Leberkas-org/TurboHTTP/commit/28c8c07f72c1470533c90ab09fce0537190d5d84))
+* replace local Servus.Akka with git submodule ([7bd8566](https://github.com/Leberkas-org/TurboHTTP/commit/7bd856673114389b81e3f70bd2932f5752ca514c))
+* **server:** FairShareAdmissionStage + ServerPipeline use actor-based coordinator ([67f875c](https://github.com/Leberkas-org/TurboHTTP/commit/67f875ce1b8caea96f375747f9f8472152b902ad))
+* **server:** migrate H1.0/H1.1 data-rate clock to TimeProvider ([8a9b5b0](https://github.com/Leberkas-org/TurboHTTP/commit/8a9b5b0a161d8d214f869f1f8823f385824a78d2))
+* **server:** move DynamicHub to shared Streams.Stages namespace ([6f97dc2](https://github.com/Leberkas-org/TurboHTTP/commit/6f97dc2d7e27619b056f19f81b311ad5098c058d))
+* **server:** rewrite ListenerActor to spawn ConnectionActor per connection ([638a946](https://github.com/Leberkas-org/TurboHTTP/commit/638a946a7112b87675bb0aebc31ce1605681ab7d))
+* **server:** wire ServerPipeline, remove ResponseDispatcherHub ([0667861](https://github.com/Leberkas-org/TurboHTTP/commit/0667861e6db11342b1b9bf8c6e91ac46e967dff3))
+* simplify constructor parameter passing ([86363a4](https://github.com/Leberkas-org/TurboHTTP/commit/86363a48a16ad26ce42ce4891f5ef880e2210fd0))
+* **transport:** inject TimeProvider into connection pool leases for deterministic eviction ([d878aa2](https://github.com/Leberkas-org/TurboHTTP/commit/d878aa23b9ed5f7f543e035f88a758b99f74f457))
+
 ## [3.0.0-alpha](https://github.com/Leberkas-org/TurboHTTP/compare/v2.0.0...v3.0.0-alpha) (2026-05-31)
 
 
