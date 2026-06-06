@@ -1,8 +1,9 @@
 namespace TurboHTTP.Client;
 
 /// <summary>
-/// HTTP/3-specific configuration options.
-/// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c>.
+/// HTTP/3-specific client configuration.
+/// Controls QUIC connection pooling, stream concurrency, QPACK compression, and Alt-Svc discovery.
+/// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c> where applicable.
 /// </summary>
 public sealed class Http3ClientOptions
 {
@@ -22,9 +23,8 @@ public sealed class Http3ClientOptions
 
     /// <summary>
     /// Maximum capacity of the QPACK dynamic table in bytes.
-    /// Controls the size of the dynamic table used for header compression.
     /// Larger values improve compression ratio at the cost of memory.
-    /// Default is 4096 bytes. RFC 9204 §3.2.3.
+    /// Default is 16 KiB. RFC 9204 §3.2.3.
     /// </summary>
     public int QpackMaxTableCapacity { get; set; } = 16 * 1024;
 
@@ -47,6 +47,19 @@ public sealed class Http3ClientOptions
     /// Default is 30 seconds. RFC 9000 §10.1.
     /// </summary>
     public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Maximum request body size (in bytes) that is serialized inline (single ArrayPool rent,
+    /// no background encoder). Bodies larger than this are streamed in chunks with backpressure.
+    /// Default is 64 KiB.
+    /// </summary>
+    public long MaxBufferedRequestBodySize { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Maximum bytes of outbound body data buffered per stream before the body encoder is paused.
+    /// Prevents unbounded memory growth during concurrent uploads. Default is 64 KiB.
+    /// </summary>
+    public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;
 
     /// <summary>
     /// Maximum number of reconnect attempts when a QUIC connection drops with in-flight requests.

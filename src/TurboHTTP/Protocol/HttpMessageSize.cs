@@ -8,8 +8,6 @@ namespace TurboHTTP.Protocol;
 
 internal static class HttpMessageSize
 {
-    // Header-only wire-size estimation: AutoHost/AutoAcceptEncoding mirror the public defaults;
-    // ChunkSize is unused by HeaderBuilder.Build and only present to satisfy the required member.
     private static readonly Http11ClientEncoderOptions DefaultOptions = new()
     {
         AutoHost = true,

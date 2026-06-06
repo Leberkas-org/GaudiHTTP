@@ -3,7 +3,7 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Protocol.Semantics;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Features;
 
@@ -161,7 +161,7 @@ internal sealed class RetryBidiStage
                 });
 
             SetHandler(stage._outResponse,
-                onPull: () => TryPullResponse(),
+                onPull: TryPullResponse,
                 onDownstreamFinish: _ => Cancel(stage._inResponse));
         }
 

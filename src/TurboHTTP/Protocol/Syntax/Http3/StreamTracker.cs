@@ -1,7 +1,7 @@
 namespace TurboHTTP.Protocol.Syntax.Http3;
 
 /// <summary>
-/// Tracks HTTP/3 stream lifecycle — ID allocation, active stream count, and concurrency limits.
+/// Tracks HTTP/3 stream lifecycle - ID allocation, active stream count, and concurrency limits.
 /// RFC 9114 §6.1: Client-initiated bidirectional stream IDs are 0, 4, 8, 12, ...
 /// QUIC uses 62-bit variable-length integers, so stream IDs are <see langword="long"/>.
 /// </summary>

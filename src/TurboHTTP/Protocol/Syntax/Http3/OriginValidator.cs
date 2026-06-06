@@ -1,7 +1,7 @@
 namespace TurboHTTP.Protocol.Syntax.Http3;
 
 /// <summary>
-/// RFC 9114 §10.3 — Validates request origins for intermediary encapsulation attack prevention.
+/// RFC 9114 §10.3 - Validates request origins for intermediary encapsulation attack prevention.
 ///
 /// An intermediary that translates an HTTP/1.x request to HTTP/3 MUST reject requests
 /// targeting origins that contain features that cannot be safely represented in HTTP/3.

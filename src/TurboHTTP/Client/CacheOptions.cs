@@ -18,6 +18,12 @@ public sealed class CacheOptions
     public long MaxBodySize { get; set; } = 50 * 1024 * 1024;
 
     /// <summary>
+    /// Maximum total size (in bytes) of all cached response bodies combined.
+    /// When exceeded, the least-recently-used entries are evicted. Default 256 MiB.
+    /// </summary>
+    public long MaxTotalSize { get; set; } = 256 * 1024 * 1024;
+
+    /// <summary>
     /// When true the cache acts as a shared (proxy) cache: s-maxage is honoured,
     /// private responses are not stored.
     /// When false (default) the cache acts as a private (client-side) cache.
@@ -29,6 +35,7 @@ public sealed class CacheOptions
     {
         MaxEntries = MaxEntries,
         MaxBodyBytes = MaxBodySize,
+        MaxTotalBytes = MaxTotalSize,
         SharedCache = SharedCache,
     };
 }

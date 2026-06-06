@@ -9,4 +9,9 @@ internal sealed class TurboHttpRequestIdentifierFeature : IHttpRequestIdentifier
         get => field ??= Guid.NewGuid().ToString("N");
         set;
     }
+
+    internal void Reset()
+    {
+        TraceIdentifier = null!;
+    }
 }

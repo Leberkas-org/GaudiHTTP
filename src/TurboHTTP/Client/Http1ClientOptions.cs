@@ -1,11 +1,18 @@
 namespace TurboHTTP.Client;
 
 /// <summary>
-/// HTTP/1.x-specific configuration options.
-/// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c>.
+/// HTTP/1.x-specific client configuration.
+/// Controls connection pooling, pipelining depth, header limits, and automatic header injection.
+/// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c> where applicable.
 /// </summary>
 public sealed class Http1ClientOptions
 {
+    /// <summary>
+    /// Maximum response body size (in bytes) that is buffered fully in memory.
+    /// Bodies larger than this are exposed as a streaming pipe. Default is 64 KiB.
+    /// </summary>
+    public int MaxBufferedResponseBodySize { get; set; } = 64 * 1024;
+
     /// <summary>
     /// Maximum number of concurrent TCP connections per server for HTTP/1.x.
     /// Each connection is managed as an independent substream.

@@ -5,4 +5,9 @@ namespace TurboHTTP.Server.Context.Features;
 internal sealed class TurboHttpBodyControlFeature : IHttpBodyControlFeature
 {
     public bool AllowSynchronousIO { get; set; }
+
+    internal void Reset()
+    {
+        AllowSynchronousIO = false;
+    }
 }

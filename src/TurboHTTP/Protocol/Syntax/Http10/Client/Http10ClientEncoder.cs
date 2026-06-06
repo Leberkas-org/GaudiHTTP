@@ -1,24 +1,21 @@
 using System.Globalization;
 using System.Net;
-using Akka.Actor;
 using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.LineBased.Body;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Client;
 
 internal sealed class Http10ClientEncoder
 {
-    public int Encode(Span<byte> destination, HttpRequestMessage request, IActorRef stageActor)
+    public int Encode(Span<byte> destination, HttpRequestMessage request, out Stream? bodyStream)
     {
         if (request.Content is null)
         {
+            bodyStream = null;
             return EncodeHeadersOnly(destination, request, contentLength: 0);
         }
 
         // HTTP/1.0 always defers — need body bytes before Content-Length header can be written
-        var bodyEncoder = new ContentLengthBufferedBodyEncoder();
-        var bodyStream = request.Content.ReadAsStream();
-        bodyEncoder.Start(bodyStream, stageActor);
+        bodyStream = request.Content.ReadAsStream();
         return 0;
     }
 

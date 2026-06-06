@@ -1,8 +1,10 @@
 namespace TurboHTTP.Server;
 
 /// <summary>
-/// HTTP/2-specific server configuration. Settings here override the corresponding values
-/// in <see cref="TurboServerLimits"/> for HTTP/2 connections; <c>null</c> means "inherit from limits".
+/// HTTP/2-specific server configuration.
+/// Controls stream concurrency, flow-control windows, HPACK table size, frame size, response buffering,
+/// and keep-alive pings. Nullable properties inherit from <see cref="TurboServerLimits"/>
+/// when left at <c>null</c>.
 /// </summary>
 public sealed class Http2ServerOptions
 {
@@ -18,8 +20,8 @@ public sealed class Http2ServerOptions
     public int HeaderTableSize { get; set; } = 4 * 1024;
     /// <summary>Gets or sets the maximum total size of request headers in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxRequestHeadersTotalSize"/>.</summary>
     public int? MaxHeaderListSize { get; set; }
-    /// <summary>Gets or sets the maximum size of the response write buffer in bytes. Default is 64 KiB.</summary>
-    public long MaxResponseBufferSize { get; set; } = 64 * 1024;
+    /// <summary>Gets or sets the maximum size of the response write buffer in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxResponseBufferSize"/>.</summary>
+    public long? MaxResponseBufferSize { get; set; }
     /// <summary>Gets or sets the maximum allowed request body size in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxRequestBodySize"/>.</summary>
     public long? MaxRequestBodySize { get; set; }
     /// <summary>Gets or sets the keep-alive idle timeout, or <c>null</c> to inherit from <see cref="TurboServerLimits.KeepAliveTimeout"/>.</summary>
@@ -34,4 +36,15 @@ public sealed class Http2ServerOptions
     public double? MinResponseDataRate { get; set; }
     /// <summary>Gets or sets the grace period before enforcing the minimum response data rate, or <c>null</c> to inherit from <see cref="TurboServerLimits.MinResponseDataRateGracePeriod"/>.</summary>
     public TimeSpan? MinResponseDataRateGracePeriod { get; set; }
+
+    /// <summary>
+    /// Idle time after receiving the last frame before the server sends a keep-alive PING to detect dead connections.
+    /// Set to <see cref="Timeout.InfiniteTimeSpan"/> to disable server-initiated keep-alive pings (default).
+    /// </summary>
+    public TimeSpan KeepAlivePingDelay { get; set; } = Timeout.InfiniteTimeSpan;
+
+    /// <summary>
+    /// Maximum time to wait for a PING ACK before closing the connection. Default is 20 seconds.
+    /// </summary>
+    public TimeSpan KeepAlivePingTimeout { get; set; } = TimeSpan.FromSeconds(20);
 }

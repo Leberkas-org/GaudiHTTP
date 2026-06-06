@@ -38,4 +38,18 @@ internal sealed class TurboHttpRequestFeature : IHttpRequestFeature
     }
 
     internal string? ExtractedHost { get; set; }
+
+    internal void Reset()
+    {
+        Protocol = WellKnownHeaders.Http11;
+        Scheme = "http";
+        Method = WellKnownHeaders.Get;
+        PathBase = string.Empty;
+        Path = "/";
+        QueryString = string.Empty;
+        RawTarget = "/";
+        Body = Stream.Null;
+        _headers.Clear();
+        ExtractedHost = null;
+    }
 }

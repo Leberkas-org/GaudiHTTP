@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
 using TurboHTTP.Streams.Stages.Server;
+using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Server;
 
@@ -48,11 +49,13 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
         {
             _activeStreamCount = streamCount;
             _ops.OnCancelTimer(KeepAliveTimeout);
+            Tracing.For("Protocol").Debug(this, "HTTP/3: first stream opened, keep-alive timer cancelled");
         }
         else if (streamCount == 0 && _activeStreamCount > 0)
         {
             _activeStreamCount = 0;
             _ops.OnScheduleTimer(KeepAliveTimeout, _keepAliveTimeout);
+            Tracing.For("Protocol").Debug(this, "HTTP/3: all streams closed, keep-alive timer scheduled");
         }
         else
         {
@@ -74,6 +77,7 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
     {
         if (name == KeepAliveTimeout)
         {
+            Tracing.For("Protocol").Info(this, "HTTP/3: keep-alive timeout - closing connection");
             _sessionManager.SetComplete();
             return;
         }

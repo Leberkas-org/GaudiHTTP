@@ -1,6 +1,6 @@
 using System.Net;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 
@@ -23,29 +23,40 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
     private Version _version = null!;
     private int _statusCode;
     private string _reason = null!;
-    private IBodyDecoder? _bodyDecoder;
+    private IBodyReader? _bodyReader;
+    private IFramingDecoder? _framingDecoder;
+    private IStreamingBodyReader? _streamingReader;
     private HttpResponseMessage? _response;
     private bool _isHttp09;
 
-    public DecodeOutcome Feed(ReadOnlySpan<byte> data, bool requestMethodWasHead, out int consumed)
+    public bool IsBodyStreaming => _phase == Phase.Body && !_isHttp09 && _streamingReader is not null;
+
+    public bool IsQueueFull => _streamingReader?.IsFull ?? false;
+
+    public IStreamingBodyReader? StreamingReader => _streamingReader;
+
+    public DecodeOutcome Feed(ReadOnlyMemory<byte> data, bool requestMethodWasHead, out int consumed)
     {
         consumed = 0;
         var pos = 0;
+        var span = data.Span;
 
         if (_phase == Phase.StatusLine)
         {
-            if (data.Length > 0 && !IsLikelyHttpResponse(data))
+            if (span.Length > 0 && !IsLikelyHttpResponse(span))
             {
                 _isHttp09 = true;
                 _version = HttpVersion.Version10;
                 _statusCode = 200;
                 _reason = "OK";
-                _bodyDecoder = new CloseDelimitedBodyDecoder(options.MaxStreamedBodySize ?? long.MaxValue);
+                var buffered = new BufferedBodyReader();
+                buffered.ResetOpenEnded();
+                _bodyReader = buffered;
                 _phase = Phase.Body;
             }
             else
             {
-                if (!StatusLineParser.TryParse(data, out var ver, out var code, out var reason, out var slConsumed))
+                if (!StatusLineParser.TryParse(span, out var ver, out var code, out var reason, out var slConsumed))
                 {
                     return DecodeOutcome.NeedMore;
                 }
@@ -60,7 +71,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
 
         if (_phase == Phase.Headers)
         {
-            var result = _headerReader.Feed(data[pos..], out var hConsumed);
+            var result = _headerReader.Feed(span[pos..], out var hConsumed);
             pos += hConsumed;
             if (result == HeaderBlockResult.NeedMore)
             {
@@ -73,31 +84,122 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
                 _statusCode, headers, _version, requestMethodWasHead,
                 connectionWillClose: !ConnectionSemantics.IsPersistent(headers, _version));
 
-            _bodyDecoder = BodyDecoderFactory.Create(classification, options.ToBodyDecoderOptions());
+            if (classification.Framing == BodyFraming.Close)
+            {
+                var buffered = new BufferedBodyReader();
+                buffered.ResetOpenEnded();
+                _bodyReader = buffered;
+                _framingDecoder = null;
+            }
+            else
+            {
+                var (reader, decoder) = BodyReaderFactory.Create(classification, options.ToBodyDecoderOptions());
+                _bodyReader = reader;
+                _framingDecoder = decoder;
+                if (reader is IStreamingBodyReader streaming)
+                {
+                    _streamingReader = streaming;
+                }
+            }
 
             _phase = Phase.Body;
         }
 
         if (_phase == Phase.Body)
         {
-            var slice = data[pos..];
-            var done = _bodyDecoder!.Feed(slice, out var bConsumed);
-            pos += bConsumed;
-            consumed = pos;
-            if (done)
+            if (_bodyReader is BufferedBodyReader buffered)
             {
-                _phase = Phase.Done;
-                return DecodeOutcome.Complete;
+                var take = buffered.Feed(span[pos..]);
+                pos += take;
+                consumed = pos;
+                if (buffered.IsCompleted)
+                {
+                    _phase = Phase.Done;
+                    return DecodeOutcome.Complete;
+                }
+
+                return _isHttp09 ? DecodeOutcome.HeadersReady : DecodeOutcome.NeedMore;
             }
 
-            return _isHttp09 ? DecodeOutcome.HeadersReady : DecodeOutcome.NeedMore;
+            if (_streamingReader is not null && _framingDecoder is not null)
+            {
+                var remaining = span[pos..];
+                while (remaining.Length > 0)
+                {
+                    var result = _framingDecoder.Decode(remaining, out var rawConsumed);
+                    pos += rawConsumed;
+
+                    if (!result.Body.IsEmpty)
+                    {
+                        if (!_streamingReader.TryEnqueue(result.Body))
+                        {
+                            if (result.EndOfBody)
+                            {
+                                _streamingReader.Complete();
+                                _phase = Phase.Done;
+                                consumed = pos;
+                                return DecodeOutcome.Complete;
+                            }
+
+                            consumed = pos;
+                            return DecodeOutcome.NeedMore;
+                        }
+                    }
+
+                    if (result.EndOfBody)
+                    {
+                        _streamingReader.Complete();
+                        _phase = Phase.Done;
+                        consumed = pos;
+                        return DecodeOutcome.Complete;
+                    }
+
+                    if (rawConsumed == 0)
+                    {
+                        break;
+                    }
+
+                    remaining = span[pos..];
+                }
+
+                consumed = pos;
+                return _isHttp09 ? DecodeOutcome.HeadersReady : DecodeOutcome.NeedMore;
+            }
+
+            consumed = pos;
+            return DecodeOutcome.Complete;
         }
 
         consumed = pos;
         return DecodeOutcome.Complete;
     }
 
-    public bool SignalEof() => _bodyDecoder?.OnEof() ?? false;
+    public bool SignalEof()
+    {
+        if (_streamingReader is not null && _framingDecoder is not null)
+        {
+            var ok = _framingDecoder.OnEof();
+            if (ok)
+            {
+                _streamingReader.Complete();
+            }
+
+            return ok;
+        }
+
+        if (_framingDecoder is not null)
+        {
+            return _framingDecoder.OnEof();
+        }
+
+        if (_bodyReader is BufferedBodyReader buffered && !buffered.IsCompleted)
+        {
+            buffered.MarkComplete();
+            return true;
+        }
+
+        return false;
+    }
 
     public HttpResponseMessage GetResponse()
     {
@@ -107,7 +209,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
         }
 
         HttpContent content;
-        var bodyStream = _bodyDecoder?.GetBodyStream();
+        var bodyStream = _bodyReader?.AsStream();
         if (bodyStream is not null)
         {
             content = new StreamContent(bodyStream);
@@ -134,7 +236,9 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
         _version = null!;
         _statusCode = 0;
         _reason = null!;
-        _bodyDecoder = null;
+        _bodyReader = null;
+        _framingDecoder = null;
+        _streamingReader = null;
         _response = null;
         _isHttp09 = false;
         _headerReader.Reset();

@@ -81,14 +81,30 @@ internal sealed class FlowController : IFlowController<int>
 
     public void OnSendWindowUpdate(int streamId, int increment)
     {
+        const long maxWindow = int.MaxValue;
+
         if (streamId == 0)
         {
-            _connectionSendWindow += increment;
+            var updated = _connectionSendWindow + increment;
+            if (updated > maxWindow)
+            {
+                throw new HttpProtocolException(
+                    "RFC 9113 §6.9.1: WINDOW_UPDATE would exceed maximum flow-control window size.");
+            }
+
+            _connectionSendWindow = updated;
         }
         else
         {
             var current = _streamSendWindows.GetValueOrDefault(streamId, _initialSendStreamWindow);
-            _streamSendWindows[streamId] = current + increment;
+            var updated = current + increment;
+            if (updated > maxWindow)
+            {
+                throw new HttpProtocolException(
+                    "RFC 9113 §6.9.1: WINDOW_UPDATE would exceed maximum flow-control window size.");
+            }
+
+            _streamSendWindows[streamId] = updated;
         }
     }
 

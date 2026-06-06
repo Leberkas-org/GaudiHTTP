@@ -4,7 +4,7 @@ namespace TurboHTTP.Protocol.Syntax.Http2;
 /// Pure decision function for HTTP/2 adaptive receive-window growth.
 /// Mirrors SocketsHttpHandler's BDP heuristic: grow when the connection's measured
 /// bandwidth-delay product exceeds the current window scaled by a multiplier.
-/// Holds no window state — the caller owns the window.
+/// Holds no window state - the caller owns the window.
 /// </summary>
 internal sealed class WindowScaler(int maxWindow, double multiplier)
 {

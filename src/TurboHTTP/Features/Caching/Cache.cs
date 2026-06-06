@@ -11,6 +11,7 @@ internal sealed class Cache(ICacheStore store, CachePolicy? policy = null)
 
     private readonly LinkedList<string> _lruOrder = [];
     private readonly Dictionary<string, LinkedListNode<string>> _lruIndex = new();
+    private long _totalBytes;
 
     // primaryKey → list of (compoundKey, varyValues) for variant tracking
     private readonly Dictionary<string, List<(string compoundKey, Dictionary<string, string?> varyValues)>>
@@ -101,18 +102,26 @@ internal sealed class Cache(ICacheStore store, CachePolicy? policy = null)
 
         RemoveMatching(primaryKey, storeEntry.VaryRequestValues);
 
-        // LRU eviction
-        while (_lruOrder.Count >= _policy.MaxEntries)
+        // LRU eviction: by count and total memory budget
+        while (_lruOrder.Count >= _policy.MaxEntries
+            || (_totalBytes + bodyLength > _policy.MaxTotalBytes && _lruOrder.Count > 0))
         {
             var lastNode = _lruOrder.Last!;
             var lastKey = lastNode.Value;
             _lruOrder.RemoveLast();
             _lruIndex.Remove(lastKey);
-            store.Remove(lastKey);
+
+            if (store.TryGet(lastKey, out var evicted))
+            {
+                _totalBytes -= evicted.Body.Length;
+                store.Remove(lastKey);
+                evicted.Dispose();
+            }
 
             RemoveFromVariantIndex(lastKey);
         }
 
+        _totalBytes += bodyLength;
         store.Set(compoundKey, storeEntry);
         var lruNode = _lruOrder.AddFirst(compoundKey);
         _lruIndex[compoundKey] = lruNode;
@@ -138,7 +147,12 @@ internal sealed class Cache(ICacheStore store, CachePolicy? policy = null)
 
         foreach (var (compoundKey, _) in variants.ToList())
         {
-            store.Remove(compoundKey);
+            if (store.TryGet(compoundKey, out var evicted))
+            {
+                _totalBytes -= evicted.Body.Length;
+                store.Remove(compoundKey);
+                evicted.Dispose();
+            }
 
             if (_lruIndex.TryGetValue(compoundKey, out var node))
             {
@@ -210,6 +224,7 @@ internal sealed class Cache(ICacheStore store, CachePolicy? policy = null)
         _lruOrder.Clear();
         _lruIndex.Clear();
         _variantIndex.Clear();
+        _totalBytes = 0;
     }
 
     public static (IMemoryOwner<byte> owner, int length) RentBody(ReadOnlySpan<byte> source)
@@ -393,6 +408,7 @@ internal sealed class Cache(ICacheStore store, CachePolicy? policy = null)
             
             if (store.TryGet(compoundKey, out var entry))
             {
+                _totalBytes -= entry.Body.Length;
                 store.Remove(compoundKey);
                 entry.Dispose();
             }

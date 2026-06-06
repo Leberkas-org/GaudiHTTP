@@ -1,17 +1,21 @@
 using System.Buffers;
+using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Multiplexed;
-using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Streams.Stages.Server;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Server;
+
+internal sealed record StreamBodyReadComplete(long StreamId, int BytesRead);
+internal sealed record StreamBodyReadFailed(long StreamId, Exception Reason);
 
 internal sealed class Http3ServerSessionManager
 {
@@ -21,9 +25,6 @@ internal sealed class Http3ServerSessionManager
     // this sliding window; exceeding the configured budget closes the connection (H3_EXCESSIVE_LOAD).
     private const long ResetWindowMs = 30_000;
 
-    private const string BodyConsumptionPrefix = "body-consumption:";
-    private const string HeadersTimeoutPrefix = "headers-timeout:";
-    private const string DrainBodyPrefix = "drain-body:";
     private const string DataRateCheck = "data-rate-check";
 
     private readonly IServerStageOperations _ops;
@@ -34,10 +35,12 @@ internal sealed class Http3ServerSessionManager
     private readonly Http3ServerEncoderOptions _encoderOptions;
     private readonly Http3ServerDecoderOptions _decoderOptions;
     private readonly long _maxRequestBodySize;
-    private readonly BodyEncoderOptions _bodyEncoderOptions;
+    private readonly int _responseBodyChunkSize;
     private readonly TimeSpan _bodyConsumptionTimeout;
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
+    private readonly Dictionary<long, Stream> _activeBodyStreams = new();
+    private readonly Dictionary<long, IMemoryOwner<byte>> _activeBodyBuffers = new();
     private readonly StackStreamStatePool<StreamState> _statePool;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
@@ -66,7 +69,7 @@ internal sealed class Http3ServerSessionManager
         _ops = ops ?? throw new ArgumentNullException(nameof(ops));
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
-        _bodyEncoderOptions = options.ToBodyEncoderOptions();
+        _responseBodyChunkSize = options.ToBodyEncoderOptions().ChunkSize;
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
 
         _tableSync = new QpackTableSync(
@@ -133,8 +136,6 @@ internal sealed class Http3ServerSessionManager
 
             case StreamClosed { Id.Value: >= 0 } streamClosed:
             {
-                // RFC 9114 §8.1 / CVE-2023-44487: an abnormal close (QUIC RESET_STREAM) is a client-initiated
-                // abort — count it toward the Rapid Reset budget. A graceful FIN arrives as StreamReadCompleted.
                 if (streamClosed.Reason == DisconnectReason.Error)
                 {
                     TrackStreamReset();
@@ -147,7 +148,7 @@ internal sealed class Http3ServerSessionManager
             case TransportData rawData:
             {
                 Tracing.For("Protocol").Warning(this,
-                    "Received untagged TransportData — dropping to prevent stream ID misrouting.");
+                    "Received untagged TransportData - dropping to prevent stream ID misrouting.");
                 rawData.Buffer.Dispose();
                 return;
             }
@@ -172,9 +173,9 @@ internal sealed class Http3ServerSessionManager
 
         var (_, state) = streamData;
 
-        if (state.HasBodyDecoder && _bodyConsumptionTimeout > TimeSpan.Zero)
+        if (state.HasBodyReader && _bodyConsumptionTimeout > TimeSpan.Zero)
         {
-            _ops.OnScheduleTimer(string.Concat(BodyConsumptionPrefix, streamId.ToString()), _bodyConsumptionTimeout);
+            _ops.OnScheduleTimer(state.BodyConsumptionTimerKey, _bodyConsumptionTimeout);
         }
 
         var headersFrame = _responseEncoder.EncodeHeaders(features);
@@ -194,16 +195,9 @@ internal sealed class Http3ServerSessionManager
         }
 
         var bodyStream = turboBody.GetResponseStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, _bodyEncoderOptions);
-        if (encoder is null)
-        {
-            _ops.OnOutbound(new CompleteWrites(streamId));
-            return;
-        }
-
-        state.InitBodyEncoder(encoder);
-        state.StartBodyEncoder(bodyStream, streamId, _ops.StageActor);
-        _ops.OnScheduleTimer(string.Concat(DrainBodyPrefix, streamId.ToString()), TimeSpan.FromMilliseconds(0));
+        state.MarkBodyDrainActive();
+        StartStreamBodyDrain(streamId, bodyStream);
+        Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
 
     private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)
@@ -229,21 +223,63 @@ internal sealed class Http3ServerSessionManager
     {
         switch (msg)
         {
-            case StreamBodyChunk<long> chunk:
-                HandleOutboundBodyChunk(chunk);
+            case StreamBodyReadComplete read:
+                HandleStreamBodyRead(read);
                 break;
 
-            case StreamBodyComplete<long> complete:
-                HandleOutboundBodyComplete(complete.StreamId);
-                break;
-
-            case StreamBodyFailed<long> failed:
+            case StreamBodyReadFailed failed:
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/3: Response body encoding failed for stream {0}: {1}", failed.StreamId,
+                    "HTTP/3: Response body drain failed for stream {0}: {1}", failed.StreamId,
                     failed.Reason.Message);
                 EmitRstStream(failed.StreamId, ErrorCode.GeneralProtocolError);
+                CleanupBodyDrain(failed.StreamId);
                 break;
         }
+    }
+
+    private void HandleStreamBodyRead(StreamBodyReadComplete read)
+    {
+        if (!_streams.TryGetValue(read.StreamId, out var streamData))
+        {
+            CleanupBodyDrain(read.StreamId);
+            return;
+        }
+
+        var (_, state) = streamData;
+
+        if (read.BytesRead == 0)
+        {
+            Tracing.For("Protocol").Debug(this, "HTTP/3: response body complete (stream={0})", read.StreamId);
+            state.MarkBodyDrainComplete();
+
+            if (!state.HasPendingOutbound)
+            {
+                _ops.OnOutbound(new CompleteWrites(read.StreamId));
+                CleanupBodyDrain(read.StreamId);
+                CloseStream(read.StreamId);
+            }
+            else
+            {
+                CleanupBodyDrain(read.StreamId);
+            }
+
+            return;
+        }
+
+        Tracing.For("Protocol").Trace(this, "HTTP/3: response body chunk (stream={0}, bytes={1})", read.StreamId, read.BytesRead);
+        var buffer = _activeBodyBuffers[read.StreamId];
+        var data = buffer.Memory[..read.BytesRead];
+
+        var dataFrame = new DataFrame(data);
+        EmitDataFrame(dataFrame, read.StreamId);
+
+        if (read.BytesRead > 0)
+        {
+            _responseRate.Observe(read.StreamId, read.BytesRead, Now());
+            EnsureRateTimer();
+        }
+
+        ReadNextBodyChunk(read.StreamId);
     }
 
     public void DrainOutboundBuffer(long streamId)
@@ -255,29 +291,23 @@ internal sealed class Http3ServerSessionManager
 
         var (_, state) = streamData;
 
-        const int maxFrameSize = 16384;
-
         while (state.PeekBodyChunk() is { } chunk)
         {
-            var chunkSize = Math.Min(maxFrameSize, chunk.Length);
-            var dataFrame = new DataFrame(chunk.Owner.Memory[..chunkSize]);
-
+            var dataFrame = new DataFrame(chunk.Owner.Memory[..chunk.Length]);
             EmitDataFrame(dataFrame, streamId);
 
-            if (chunkSize >= chunk.Length)
-            {
-                state.TryDequeueBodyChunk(out _);
-                chunk.Owner.Dispose();
-            }
-            else
-            {
-                break;
-            }
+            state.TryDequeueBodyChunk(out _);
+            chunk.Owner.Dispose();
         }
 
-        if (state is { HasPendingOutbound: false, IsBodyEncoderComplete: true })
+        if (state is { HasPendingOutbound: false, IsBodyDrainComplete: true })
         {
             _ops.OnOutbound(new CompleteWrites(streamId));
+            CloseStream(streamId);
+        }
+        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete)
+        {
+            ReadNextBodyChunk(streamId);
         }
     }
 
@@ -292,6 +322,11 @@ internal sealed class Http3ServerSessionManager
 
     public void Cleanup()
     {
+        foreach (var streamId in _activeBodyStreams.Keys.ToList())
+        {
+            CleanupBodyDrain(streamId);
+        }
+
         foreach (var (_, (decoder, state)) in _streams)
         {
             decoder.Dispose();
@@ -316,6 +351,7 @@ internal sealed class Http3ServerSessionManager
         var violationSet = new HashSet<long>(violations);
         foreach (var streamId in violationSet)
         {
+            Tracing.For("Protocol").Warning(this, "HTTP/3: data rate violation (stream={0})", streamId);
             EmitRstStream(streamId, ErrorCode.GeneralProtocolError);
         }
 
@@ -328,40 +364,10 @@ internal sealed class Http3ServerSessionManager
 
     public void EmitRstStream(long streamId, ErrorCode errorCode)
     {
+        Tracing.For("Protocol").Debug(this, "HTTP/3: RST_STREAM (stream={0}, error={1})", streamId, errorCode);
         _ops.OnOutbound(new ResetStream(streamId, (long)errorCode));
         CloseStream(streamId);
     }
-
-    private void HandleOutboundBodyChunk(StreamBodyChunk<long> chunk)
-    {
-        if (!_streams.TryGetValue(chunk.StreamId, out var streamData))
-        {
-            chunk.Owner.Dispose();
-            return;
-        }
-
-        var (_, state) = streamData;
-        state.EnqueueBodyChunk(chunk);
-        DrainOutboundBuffer(chunk.StreamId);
-    }
-
-    private void HandleOutboundBodyComplete(long streamId)
-    {
-        if (!_streams.TryGetValue(streamId, out var streamData))
-        {
-            return;
-        }
-
-        var (_, state) = streamData;
-        state.MarkBodyEncoderComplete();
-
-        if (!state.HasPendingOutbound)
-        {
-            _ops.OnOutbound(new CompleteWrites(streamId));
-        }
-    }
-
-    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
 
     private void HandleTaggedStreamData(MultiplexedData multiplexed)
     {
@@ -407,11 +413,9 @@ internal sealed class Http3ServerSessionManager
         }
         catch (Exception ex) when (ex is HttpProtocolException or QpackException or HuffmanException)
         {
-            // RFC 9114 §8: a framing error is connection-fatal and leaves the decoder desynchronized.
-            // Close the connection instead of swallowing and continuing.
             buffer.Dispose();
             Tracing.For("Protocol").Warning(this,
-                "HTTP/3 connection framing error on stream {0} — closing connection: {1}", streamId, ex.Message);
+                "HTTP/3 connection framing error on stream {0} - closing connection: {1}", streamId, ex.Message);
             ShouldComplete = true;
             return;
         }
@@ -441,8 +445,7 @@ internal sealed class Http3ServerSessionManager
                             }
                             else
                             {
-                                _ops.OnScheduleTimer(string.Concat(HeadersTimeoutPrefix, streamId.ToString()),
-                                    TimeSpan.FromSeconds(30));
+                                _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, TimeSpan.FromSeconds(30));
                             }
                         }
 
@@ -469,26 +472,22 @@ internal sealed class Http3ServerSessionManager
             }
             catch (QpackException ex)
             {
-                // RFC 9204 §2.2: a QPACK decode failure desynchronizes the dynamic table for the whole
-                // connection — it cannot continue.
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/3 QPACK error on stream {0} — closing connection: {1}", streamId, ex.Message);
+                    "HTTP/3 QPACK error on stream {0} - closing connection: {1}", streamId, ex.Message);
                 ShouldComplete = true;
                 return;
             }
             catch (HuffmanException ex)
             {
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/3 Huffman error on stream {0} — closing connection: {1}", streamId, ex.Message);
+                    "HTTP/3 Huffman error on stream {0} - closing connection: {1}", streamId, ex.Message);
                 ShouldComplete = true;
                 return;
             }
             catch (HttpProtocolException ex)
             {
-                // RFC 9114 §4.1.2: a malformed message is a stream-scoped error — reset the stream,
-                // the connection survives.
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/3 message error on stream {0} — resetting stream: {1}", streamId, ex.Message);
+                    "HTTP/3 message error on stream {0} - resetting stream: {1}", streamId, ex.Message);
                 EmitRstStream(streamId, ErrorCode.MessageError);
             }
         }
@@ -499,7 +498,7 @@ internal sealed class Http3ServerSessionManager
         if (_settingsReceived)
         {
             Tracing.For("Protocol").Warning(this,
-                "HTTP/3 RFC 9114 §7.2.4: duplicate SETTINGS frame on control stream — closing connection.");
+                "HTTP/3 RFC 9114 §7.2.4: duplicate SETTINGS frame on control stream - closing connection.");
             ShouldComplete = true;
             return;
         }
@@ -510,7 +509,7 @@ internal sealed class Http3ServerSessionManager
     /// <summary>
     /// RFC 9114 §8.1 / CVE-2023-44487: counts client-initiated stream aborts within a sliding window. A
     /// client that opens-and-resets request streams faster than the configured budget is cut off
-    /// (H3_EXCESSIVE_LOAD) — MaxConcurrentStreams alone never saturates under this attack.
+    /// (H3_EXCESSIVE_LOAD) - MaxConcurrentStreams alone never saturates under this attack.
     /// </summary>
     private void TrackStreamReset()
     {
@@ -530,7 +529,7 @@ internal sealed class Http3ServerSessionManager
         if (_resetCount > _maxResetStreamsPerWindow)
         {
             Tracing.For("Protocol").Warning(this,
-                "HTTP/3 RFC 9114 §8.1 / CVE-2023-44487: excessive stream resets — closing connection (ExcessiveLoad).");
+                "HTTP/3 RFC 9114 §8.1 / CVE-2023-44487: excessive stream resets - closing connection (ExcessiveLoad).");
             ShouldComplete = true;
         }
     }
@@ -547,10 +546,10 @@ internal sealed class Http3ServerSessionManager
         var requestFeature = state.GetRequestFeature();
         if (requestFeature is not null)
         {
-            _ops.OnCancelTimer(string.Concat(HeadersTimeoutPrefix, streamId.ToString()));
-            _ops.OnCancelTimer(string.Concat(BodyConsumptionPrefix, streamId.ToString()));
+            _ops.OnCancelTimer(state.HeadersTimeoutTimerKey);
+            _ops.OnCancelTimer(state.BodyConsumptionTimerKey);
 
-            var hasBody = state.HasBodyDecoder;
+            var hasBody = state.HasBodyReader;
             if (hasBody)
             {
                 state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
@@ -571,9 +570,11 @@ internal sealed class Http3ServerSessionManager
 
     private void HandleDataFrame(DataFrame dataFrame, long streamId, StreamState state)
     {
-        if (!state.HasBodyDecoder)
+        if (!state.HasBodyReader)
         {
-            state.InitBodyDecoder(new StreamingBodyDecoder(_maxRequestBodySize));
+            var queued = new QueuedBodyReader(capacity: 64);
+            queued.Reset();
+            state.InitBodyReader(queued, _maxRequestBodySize);
         }
 
         try
@@ -609,18 +610,52 @@ internal sealed class Http3ServerSessionManager
     {
         _requestRate.Remove(streamId);
         _responseRate.Remove(streamId);
-        _ops.OnCancelTimer(string.Concat(BodyConsumptionPrefix, streamId.ToString()));
+        CleanupBodyDrain(streamId);
 
         if (_streams.TryGetValue(streamId, out var streamData))
         {
             var (decoder, state) = streamData;
 
+            _ops.OnCancelTimer(state.BodyConsumptionTimerKey);
+            _ops.OnCancelTimer(state.HeadersTimeoutTimerKey);
             decoder.Dispose();
             state.Reset();
             _statePool.Return(state);
 
             _streams.Remove(streamId);
         }
+    }
+
+    private void StartStreamBodyDrain(long streamId, Stream bodyStream)
+    {
+        _activeBodyStreams[streamId] = bodyStream;
+        var buffer = MemoryPool<byte>.Shared.Rent(_responseBodyChunkSize);
+        _activeBodyBuffers[streamId] = buffer;
+        ReadNextBodyChunk(streamId);
+    }
+
+    private void ReadNextBodyChunk(long streamId)
+    {
+        if (!_activeBodyStreams.TryGetValue(streamId, out var stream) ||
+            !_activeBodyBuffers.TryGetValue(streamId, out var buffer))
+        {
+            return;
+        }
+
+        stream.ReadAsync(buffer.Memory).AsTask().PipeTo(
+            _ops.StageActor,
+            success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
+            failure: ex => new StreamBodyReadFailed(streamId, ex));
+    }
+
+    private void CleanupBodyDrain(long streamId)
+    {
+        if (_activeBodyBuffers.Remove(streamId, out var buffer))
+        {
+            buffer.Dispose();
+        }
+
+        _activeBodyStreams.Remove(streamId);
     }
 
     private void EmitDataFrame(object frame, long streamId)
@@ -642,12 +677,6 @@ internal sealed class Http3ServerSessionManager
                 break;
             case DataFrame df:
                 df.WriteTo(ref span);
-                if (df.Data.Length > 0)
-                {
-                    _responseRate.Observe(streamId, df.Data.Length, Now());
-                    EnsureRateTimer();
-                }
-
                 break;
         }
 
@@ -686,4 +715,6 @@ internal sealed class Http3ServerSessionManager
 
         return new MultiplexedData(buf, CriticalStreamId.Control);
     }
+
+    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
 }

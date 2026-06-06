@@ -1,10 +1,9 @@
-using System.Diagnostics;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Protocol.Semantics;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Features;
 
@@ -170,7 +169,7 @@ internal sealed class RedirectBidiStage
                 });
 
             SetHandler(stage._outResponse,
-                onPull: () => TryPullResponse(),
+                onPull: TryPullResponse,
                 onDownstreamFinish: _ => Cancel(stage._inResponse));
         }
 
@@ -292,12 +291,10 @@ internal sealed class RedirectStateMachine(IFeatureStageOperations ops, Redirect
 
             var newRequest = handler.BuildRedirectRequest(original, response);
 
-            Activity? rootActivity = null;
             if (original.Options.TryGetValue(TurboClientInstrumentationExtensions.RequestActivityKey,
-                    out rootActivity))
+                    out var rootActivity))
             {
-                Tracing.AddRedirectEvent(
-                    rootActivity, newRequest.RequestUri!, (int)response.StatusCode);
+                Tracing.AddRedirectEvent(rootActivity, newRequest.RequestUri!, (int)response.StatusCode);
             }
 
             Metrics.RedirectCount().Add(1,

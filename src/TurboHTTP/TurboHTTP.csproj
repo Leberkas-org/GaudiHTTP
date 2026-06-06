@@ -42,7 +42,7 @@
         <!-- Servus.Core is a published dependency. Servus.Akka is NOT referenced from NuGet:
              for this alpha its transport lives in the local project and is bundled into the
              package below (see the Servus.Akka ProjectReference + IncludeServusAkkaInPackage). -->
-        <PackageReference Include="Servus.Core"/>
+        <PackageReference Include="Servus"/>
     </ItemGroup>
     <ItemGroup>
         <InternalsVisibleTo Include="TurboHTTP.Tests"/>

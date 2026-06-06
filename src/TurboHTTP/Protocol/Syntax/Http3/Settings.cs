@@ -1,11 +1,11 @@
 namespace TurboHTTP.Protocol.Syntax.Http3;
 
-// HTTP/3 Settings  —  RFC 9114 §7.2.4
+// HTTP/3 Settings  -  RFC 9114 §7.2.4
 //
 // SETTINGS parameters are conveyed in a SETTINGS frame on the control stream.
 // Each parameter is an identifier-value pair encoded as QUIC variable-length
 // integers. Unlike HTTP/2, identifiers use the same space but different
-// semantics — HTTP/2 settings MUST NOT appear in HTTP/3 (§7.2.4.1).
+// semantics - HTTP/2 settings MUST NOT appear in HTTP/3 (§7.2.4.1).
 // Unknown settings MUST be ignored (extension tolerance).
 
 /// <summary>

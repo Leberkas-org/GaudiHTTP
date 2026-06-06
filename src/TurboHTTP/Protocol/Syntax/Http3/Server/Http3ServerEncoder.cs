@@ -33,7 +33,7 @@ internal sealed class Http3ServerEncoder
 
     /// <summary>
     /// Encodes a response to HTTP/3 HEADERS frame only.
-    /// Body is handled asynchronously via IBodyEncoder and StreamState outbound buffer.
+    /// Body is handled asynchronously via PipeTo drain and StreamState outbound buffer.
     /// </summary>
     public HeadersFrame EncodeHeaders(IFeatureCollection features)
     {

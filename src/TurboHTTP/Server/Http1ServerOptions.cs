@@ -1,8 +1,10 @@
 namespace TurboHTTP.Server;
 
 /// <summary>
-/// HTTP/1.x-specific server configuration. Settings here override the corresponding values
-/// in <see cref="TurboServerLimits"/> for HTTP/1.x connections; <c>null</c> means "inherit from limits".
+/// HTTP/1.x-specific server configuration.
+/// Controls request line parsing, pipelining, chunked-encoding limits, body read timeouts,
+/// and data-rate enforcement. Nullable properties inherit from <see cref="TurboServerLimits"/>
+/// when left at <c>null</c>.
 /// </summary>
 public sealed class Http1ServerOptions
 {
@@ -14,6 +16,11 @@ public sealed class Http1ServerOptions
     public int MaxPipelinedRequests { get; set; } = 16;
     /// <summary>Gets or sets the maximum length of chunked-encoding extensions per chunk. Default is 4 KiB.</summary>
     public int MaxChunkExtensionLength { get; set; } = 4 * 1024;
+    /// <summary>
+    /// Gets or sets the maximum request body size (in bytes) that is buffered fully in memory.
+    /// Bodies larger than this are exposed as a streaming pipe with back-pressure. Default is 64 KiB.
+    /// </summary>
+    public int MaxBufferedRequestBodySize { get; set; } = 64 * 1024;
     /// <summary>Gets or sets the timeout for reading the complete request body after headers are received. Default is 30 seconds.</summary>
     public TimeSpan BodyReadTimeout { get; set; } = TimeSpan.FromSeconds(30);
     /// <summary>Gets or sets the maximum total size of all request headers in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxRequestHeadersTotalSize"/>.</summary>

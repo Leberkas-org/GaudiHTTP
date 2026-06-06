@@ -24,14 +24,17 @@ public sealed class TurboServerOptions
     /// <summary>Gets or sets additional time granted to handlers after the handler timeout fires to clean up. Default is 5 seconds.</summary>
     public TimeSpan HandlerGracePeriod { get; set; } = TimeSpan.FromSeconds(5);
 
-    /// <summary>Gets or sets the maximum number of request body bytes buffered in memory before back-pressure is applied. Default is 64 KiB.</summary>
-    public int RequestBodyBufferThreshold { get; set; } = 64 * 1024;
-
     /// <summary>Gets or sets the timeout for the application to consume the complete request body. Default is 30 seconds.</summary>
     public TimeSpan BodyConsumptionTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>Gets or sets the size of each chunk written to the response body stream. Default is 16 KiB.</summary>
     public int ResponseBodyChunkSize { get; set; } = 16 * 1024;
+
+    ///<summary>Gets or sets the maximum number of consecutive outbound frames coalesced into a single transport write. Higher values reduce syscalls at the cost of latency. Default is 8.</summary>
+    public int MaxOutboundCoalesceCount { get; set; } = 8;
+
+    /// <summary>Gets or sets whether response headers may use Huffman compression (HPACK/QPACK). Disabling mitigates CRIME/BREACH-style side-channel attacks. Default is true.</summary>
+    public bool AllowResponseHeaderCompression { get; set; } = true;
 
     /// <summary>Gets the HTTP/1.x-specific configuration options.</summary>
     public Http1ServerOptions Http1 { get; } = new();

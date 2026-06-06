@@ -11,11 +11,11 @@ namespace TurboHTTP.Server;
 /// </summary>
 public sealed class TurboHttpsOptions
 {
-    /// <summary>Gets or sets the static server certificate used to authenticate the server.</summary>
+    /// <summary>Gets or sets the in-memory server certificate. Takes precedence over <see cref="CertificatePath"/> when both are set.</summary>
     public X509Certificate2? ServerCertificate { get; set; }
-    /// <summary>Gets or sets the file-system path to a PEM or PKCS#12 certificate file.</summary>
+    /// <summary>Gets or sets the file-system path to a PEM or PKCS#12 certificate file. Ignored when <see cref="ServerCertificate"/> is set.</summary>
     public string? CertificatePath { get; set; }
-    /// <summary>Gets or sets the password used to decrypt the certificate file at <see cref="CertificatePath"/>.</summary>
+    /// <summary>Gets or sets the password used to decrypt the certificate file at <see cref="CertificatePath"/>. Ignored when loading PEM files without encryption.</summary>
     public string? CertificatePassword { get; set; }
     /// <summary>
     /// Gets or sets the TLS protocol versions the server will accept.

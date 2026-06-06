@@ -1,8 +1,9 @@
 namespace TurboHTTP.Client;
 
 /// <summary>
-/// HTTP/2-specific configuration options.
-/// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c>.
+/// HTTP/2-specific client configuration.
+/// Controls multiplexing, flow control windows, HPACK compression, frame sizes, and keep-alive pings.
+/// Defaults are aligned with <c>System.Net.Http.SocketsHttpHandler</c> where applicable.
 /// </summary>
 public sealed class Http2ClientOptions
 {
@@ -25,7 +26,8 @@ public sealed class Http2ClientOptions
     /// <summary>
     /// Connection-level flow control window size in bytes (RFC 9113 §6.9).
     /// Advertised via WINDOW_UPDATE on stream 0 during the connection preface.
-    /// Default is 64 MB.
+    /// Default is 16 MB. Higher values improve throughput on high-bandwidth links
+    /// but increase per-connection memory when consumers read slowly.
     /// </summary>
     public int InitialConnectionWindowSize { get; set; } = 64 * 1024 * 1024;
 
@@ -82,11 +84,30 @@ public sealed class Http2ClientOptions
     public int MaxResponseHeaderListSize { get; set; } = 64 * 1024;
 
     /// <summary>
+    /// Maximum request body size (in bytes) that is serialized inline (single ArrayPool rent,
+    /// no background encoder). Bodies larger than this are streamed in chunks with backpressure.
+    /// Default is 64 KiB.
+    /// </summary>
+    public long MaxBufferedRequestBodySize { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Maximum bytes of outbound body data buffered per stream before the body encoder is paused.
+    /// Prevents unbounded memory growth during concurrent uploads. Default is 64 KiB.
+    /// </summary>
+    public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;
+
+    /// <summary>
     /// Maximum number of reconnect attempts when a TCP connection drops with in-flight requests.
     /// After this many failed reconnects, the connection stage fails with an exception.
     /// Default is 3.
     /// </summary>
     public int MaxReconnectAttempts { get; set; } = 3;
+
+    /// <summary>
+    /// Maximum number of requests buffered during reconnection. When this limit is reached,
+    /// new requests fail instead of being buffered. Default is 64.
+    /// </summary>
+    public int MaxReconnectBufferSize { get; set; } = 64;
 
     /// <summary>
     /// Delay before sending a keep-alive PING frame when no frames have been received.

@@ -12,7 +12,7 @@ internal sealed record Http1ConnectionOptions
     public required int MaxHeaderCount { get; init; }
     public required bool AllowObsFold { get; init; }
     public required TimeSpan BodyReadTimeout { get; init; }
-    public required int BodyBufferThreshold { get; init; }
+    public required int MaxBufferedBodySize { get; init; }
     public required int ResponseBodyChunkSize { get; init; }
     public required TimeSpan BodyConsumptionTimeout { get; init; }
 }

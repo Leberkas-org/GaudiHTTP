@@ -24,7 +24,7 @@ internal sealed class HpackDecoder
     // RFC 7541 §4.2: Maximum table size is negotiated via SETTINGS_HEADER_TABLE_SIZE
     private int _maxAllowedTableSize = 4096;
 
-    // RFC 9113 §6.5.2 / RFC 7541: MAX_HEADER_LIST_SIZE — maximum cumulative decoded header list size.
+    // RFC 9113 §6.5.2 / RFC 7541: MAX_HEADER_LIST_SIZE - maximum cumulative decoded header list size.
     // Size is computed as: sum of (name_bytes + value_bytes + 32) per entry.
     // Default: int.MaxValue (no limit enforced until SETTINGS is received).
     private int _maxHeaderListSize = int.MaxValue;
@@ -56,7 +56,7 @@ internal sealed class HpackDecoder
     /// <summary>
     /// Sets the MAX_HEADER_LIST_SIZE limit (RFC 9113 §6.5.2).
     /// When the cumulative decoded header list size (name + value + 32 per entry) exceeds
-    /// this value, <see cref="HpackException"/> is thrown (COMPRESSION_ERROR — connection error).
+    /// this value, <see cref="HpackException"/> is thrown (COMPRESSION_ERROR - connection error).
     /// </summary>
     public void SetMaxHeaderListSize(int size)
     {
@@ -110,7 +110,7 @@ internal sealed class HpackDecoder
             {
                 tableSizeUpdateAllowed = false;
                 var idx = ReadInteger(data, ref pos, 7);
-                // Use LookupWithSizes to retrieve the cached encoded size —
+                // Use LookupWithSizes to retrieve the cached encoded size -
                 // zero GetByteCount calls for both static (pre-computed) and dynamic (cached) entries.
                 var (header, _, encodedSize) = LookupWithSizes(idx);
                 CheckHeaderListSizeFromEncoded(ref cumulativeHeaderListSize, encodedSize);
@@ -189,7 +189,7 @@ internal sealed class HpackDecoder
         {
             throw new HpackException(
                 $"RFC 9113 §6.5.2 violation: Header list size {cumulative} exceeds " +
-                $"MAX_HEADER_LIST_SIZE ({_maxHeaderListSize}) — COMPRESSION_ERROR.");
+                $"MAX_HEADER_LIST_SIZE ({_maxHeaderListSize}) - COMPRESSION_ERROR.");
         }
     }
 
@@ -211,7 +211,7 @@ internal sealed class HpackDecoder
         {
             throw new HpackException(
                 $"RFC 9113 §6.5.2 violation: Header list size {cumulative} exceeds " +
-                $"MAX_HEADER_LIST_SIZE ({_maxHeaderListSize}) — COMPRESSION_ERROR.");
+                $"MAX_HEADER_LIST_SIZE ({_maxHeaderListSize}) - COMPRESSION_ERROR.");
         }
     }
 
@@ -238,7 +238,7 @@ internal sealed class HpackDecoder
         else
         {
             // Name is referenced from the static or dynamic table.
-            // Use LookupWithSizes to retrieve the cached name byte length —
+            // Use LookupWithSizes to retrieve the cached name byte length -
             // zero GetByteCount calls for both static (pre-computed) and dynamic (cached) entries.
             var (looked, cachedNameByteLength, _) = LookupWithSizes(idx);
             name = looked.Name;
@@ -303,7 +303,7 @@ internal sealed class HpackDecoder
             return value;
         }
 
-        // Multi-byte integer decoding — use long to detect overflow before truncating to int
+        // Multi-byte integer decoding - use long to detect overflow before truncating to int
         var shift = 0;
         long lvalue = value;
         while (true)
@@ -363,7 +363,7 @@ internal sealed class HpackDecoder
         {
             throw new HpackException(
                 $"RFC 7541 §5.2 violation: String literal length {length} exceeds maximum {_maxStringLength} " +
-                $"— COMPRESSION_ERROR.");
+                $"- COMPRESSION_ERROR.");
         }
 
         if (pos + length > data.Length)

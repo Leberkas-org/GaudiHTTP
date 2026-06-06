@@ -12,7 +12,7 @@ internal static class PrefaceBuilder
     /// </summary>
     /// <param name="streamInitialWindowSize">
     /// Per-stream receive window advertised via SETTINGS_INITIAL_WINDOW_SIZE (RFC 9113 §6.5.2).
-    /// This must match the credit the local FlowController grants each stream — advertising the
+    /// This must match the credit the local FlowController grants each stream - advertising the
     /// connection window here lets the peer overrun a stream and trips a false FLOW_CONTROL_ERROR.
     /// </param>
     /// <param name="connectionInitialWindowSize">

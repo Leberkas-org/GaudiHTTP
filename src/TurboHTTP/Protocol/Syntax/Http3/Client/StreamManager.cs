@@ -1,16 +1,16 @@
 using System.Buffers;
 using Servus.Akka.Transport;
 using TurboHTTP.Internal;
-using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Streams.Stages.Client;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 
 /// <summary>
-/// Manages per-stream response assembly, request–response correlation, and
+/// Manages per-stream response assembly, request-response correlation, and
 /// frame-decoder / stream-state pooling for an HTTP/3 connection.
 /// Extracted from <see cref="Http3ClientStateMachine"/> for single-responsibility.
 /// </summary>
@@ -29,9 +29,6 @@ internal sealed class StreamManager(
 
     private readonly Dictionary<long, FrameDecoder> _streamDecoders = new();
     private readonly Stack<FrameDecoder> _decoderPool = new();
-
-    /// <summary>Whether a response was produced during the most recent assembly call.</summary>
-    public bool ResponseProduced { get; private set; }
 
     /// <summary>Whether there are in-flight requests awaiting responses.</summary>
     public bool HasInFlightRequests => _correlationMap.Count > 0 || _streams.Count > 0;
@@ -59,8 +56,6 @@ internal sealed class StreamManager(
     /// </summary>
     public void AssembleResponse(Http3Frame frame, long streamId)
     {
-        ResponseProduced = false;
-
         if (!_streams.TryGetValue(streamId, out var state))
         {
             state = RentStreamState(streamId);
@@ -84,10 +79,10 @@ internal sealed class StreamManager(
     /// </summary>
     public void FlushPendingResponse(long streamId)
     {
-        if (_streams.TryGetValue(streamId, out var state) && state.HasBodyDecoder)
+        if (_streams.TryGetValue(streamId, out var state) && state.HasBodyReader)
         {
             state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
-            state.DetachBodyDecoder();
+            state.DetachBodyReader();
             ReturnStreamState(streamId);
             return;
         }
@@ -142,10 +137,10 @@ internal sealed class StreamManager(
 
         foreach (var (streamId, state) in _streams)
         {
-            if (state.HasBodyDecoder)
+            if (state.HasBodyReader)
             {
                 state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
-                state.DetachBodyDecoder();
+                state.DetachBodyReader();
                 handledStreamIds.Add(streamId);
             }
         }
@@ -188,21 +183,20 @@ internal sealed class StreamManager(
                     responseDecoder.AssembleHeaders(headers, state);
                 }
 
-                if (state is { HasResponse: true, HasBodyDecoder: false })
+                if (state is { HasResponse: true, HasBodyReader: false })
                 {
-                    state.InitBodyDecoder(new StreamingBodyDecoder(maxResponseBodySize));
+                    var queued = new QueuedBodyReader(capacity: 64);
+                    queued.Reset();
+                    state.InitBodyReader(queued, maxResponseBodySize);
                     var response = state.GetResponse();
                     var bodyStream = state.GetBodyStream();
                     response.Content = new StreamContent(bodyStream);
                     state.ApplyContentHeadersTo(response.Content);
 
-                    // Correlate with original request
                     if (_correlationMap.Remove(streamId, out var request))
                     {
                         response.RequestMessage = request;
                     }
-
-                    ResponseProduced = true;
 
                     var partialContentResult = PartialContentValidator.Validate(response);
                     if (!partialContentResult.IsValid)
@@ -210,7 +204,6 @@ internal sealed class StreamManager(
                         Tracing.For("Protocol").Warning(this, "{0}", partialContentResult.ErrorMessage!);
                     }
 
-                    // Emit response immediately on resolved headers
                     ops.OnResponse(response);
                 }
             }
@@ -226,6 +219,14 @@ internal sealed class StreamManager(
         }
 
         return state;
+    }
+
+    /// <summary>
+    /// Returns the stream state for the given stream ID, or null if not found.
+    /// </summary>
+    public StreamState? TryGetStreamState(long streamId)
+    {
+        return _streams.GetValueOrDefault(streamId);
     }
 
     /// <summary>
@@ -297,7 +298,6 @@ internal sealed class StreamManager(
 
         while (_statePool.TryPop(out _))
         {
-            // Pool entries are already reset — just drain
         }
     }
 
@@ -317,19 +317,18 @@ internal sealed class StreamManager(
 
         var streamId = state.StreamId;
 
-        state.InitBodyDecoder(new StreamingBodyDecoder(maxResponseBodySize));
+        var queued = new QueuedBodyReader(capacity: 64);
+        queued.Reset();
+        state.InitBodyReader(queued, maxResponseBodySize);
         var response = state.GetResponse();
         var bodyStream = state.GetBodyStream();
         response.Content = new StreamContent(bodyStream);
         state.ApplyContentHeadersTo(response.Content);
 
-        // Correlate with original request
         if (_correlationMap.Remove(streamId, out var request))
         {
             response.RequestMessage = request;
         }
-
-        ResponseProduced = true;
 
         var partialContentResult = PartialContentValidator.Validate(response);
         if (!partialContentResult.IsValid)
@@ -337,15 +336,14 @@ internal sealed class StreamManager(
             Tracing.For("Protocol").Warning(this, "{0}", partialContentResult.ErrorMessage!);
         }
 
-        // Emit response immediately on headers
         ops.OnResponse(response);
     }
 
     private void HandleResponseData(DataFrame frame, StreamState state)
     {
-        if (!state.HasBodyDecoder)
+        if (!state.HasBodyReader)
         {
-            Tracing.For("Protocol").Warning(this, "RFC 9114 §4.1 — DATA frame received before HEADERS; dropping.");
+            Tracing.For("Protocol").Warning(this, "RFC 9114 §4.1 - DATA frame received before HEADERS; dropping.");
             return;
         }
 
@@ -371,8 +369,6 @@ internal sealed class StreamManager(
         {
             response.RequestMessage = request;
         }
-
-        ResponseProduced = true;
 
         var partialContentResult = PartialContentValidator.Validate(response);
         if (!partialContentResult.IsValid)

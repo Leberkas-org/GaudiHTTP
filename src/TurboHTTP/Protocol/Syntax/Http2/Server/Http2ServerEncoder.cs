@@ -15,7 +15,7 @@ namespace TurboHTTP.Protocol.Syntax.Http2.Server;
 internal sealed class Http2ServerEncoder
 {
     private readonly Http2ServerEncoderOptions _options;
-    private HpackEncoder _hpack = new(useHuffman: true);
+    private HpackEncoder _hpack;
 
     // Reused across Encode() calls to avoid List<HpackHeader> allocation per response
     private readonly List<HpackHeader> _reusableHeaders = new(16);
@@ -32,6 +32,7 @@ internal sealed class Http2ServerEncoder
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
+        _hpack = new HpackEncoder(useHuffman: options.UseHuffman);
         MaxFrameSize = options.MaxFrameSize;
     }
 
@@ -74,7 +75,7 @@ internal sealed class Http2ServerEncoder
         var hpackOwner = MemoryPool<byte>.Shared.Rent(4096);
         _rentedBodyOwners.Add(hpackOwner);
         var hpackWritable = hpackOwner.Memory.Span;
-        var hpackBytesWritten = _hpack.Encode(_reusableHeaders, ref hpackWritable, useHuffman: true);
+        var hpackBytesWritten = _hpack.Encode(_reusableHeaders, ref hpackWritable, _options.UseHuffman);
         var headerBlock = hpackOwner.Memory[..hpackBytesWritten];
 
         _reusableFrames.Clear();
@@ -176,7 +177,7 @@ internal sealed class Http2ServerEncoder
         var hpackOwner = MemoryPool<byte>.Shared.Rent(4096);
         _rentedBodyOwners.Add(hpackOwner);
         var hpackWritable = hpackOwner.Memory.Span;
-        var hpackBytesWritten = _hpack.Encode(_reusableHeaders, ref hpackWritable, useHuffman: true);
+        var hpackBytesWritten = _hpack.Encode(_reusableHeaders, ref hpackWritable, _options.UseHuffman);
         var headerBlock = hpackOwner.Memory[..hpackBytesWritten];
 
         _reusableFrames.Clear();
@@ -190,7 +191,7 @@ internal sealed class Http2ServerEncoder
     /// </summary>
     public void ResetHpack()
     {
-        _hpack = new HpackEncoder(useHuffman: true);
+        _hpack = new HpackEncoder(useHuffman: _options.UseHuffman);
     }
 
     private void ReturnRentedBuffers()

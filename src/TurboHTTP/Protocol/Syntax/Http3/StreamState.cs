@@ -1,5 +1,4 @@
-using Akka.Actor;
-using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.Protocol.Syntax.Http3;
@@ -7,7 +6,7 @@ namespace TurboHTTP.Protocol.Syntax.Http3;
 /// <summary>
 /// Unified per-stream state for HTTP/3 multiplexing (client and server).
 /// Manages response/request assembly, pseudo-headers, content headers, body buffering,
-/// and body encoder/decoder handling. Pooled and reused via <see cref="Reset"/>.
+/// and body reader handling. Pooled and reused via <see cref="Reset"/>.
 /// </summary>
 internal sealed class StreamState
 {
@@ -15,9 +14,10 @@ internal sealed class StreamState
     private TurboHttpRequestFeature? _requestFeature;
     private List<(string Name, string Value)>? _contentHeaders;
     private Dictionary<string, string>? _pseudoHeaders;
-    private IBodyDecoder? _bodyDecoder;
-    private IBodyEncoder? _bodyEncoder;
-    private Queue<StreamBodyChunk<long>>? _outboundBuffer;
+    private IBodyReader? _bodyReader;
+    private long _maxBodySize;
+    private long _totalBodyBytes;
+    private Queue<StreamBodyChunk>? _outboundBuffer;
 
     public long StreamId { get; private set; } = -1;
 
@@ -25,19 +25,29 @@ internal sealed class StreamState
 
     public bool HasContentHeaders => _contentHeaders is not null;
 
-    public bool HasBodyDecoder => _bodyDecoder is not null;
+    public bool HasBodyReader => _bodyReader is not null;
 
-    public bool HasBodyEncoder => _bodyEncoder is not null;
+    public bool HasBodyDrain { get; private set; }
 
     public bool HasPendingOutbound => _outboundBuffer is { Count: > 0 };
 
-    public bool IsBodyEncoderComplete { get; private set; }
+    public bool IsBodyDrainComplete { get; private set; }
+
+    public long PendingOutboundBytes { get; private set; }
 
     public long? ExpectedContentLength { get; set; }
+
+    public string BodyConsumptionTimerKey { get; private set; } = "";
+    public string HeadersTimeoutTimerKey { get; private set; } = "";
+    public string DrainBodyTimerKey { get; private set; } = "";
 
     public void Initialize(long streamId)
     {
         StreamId = streamId;
+        var idStr = streamId.ToString();
+        BodyConsumptionTimerKey = string.Concat("body-consumption:", idStr);
+        HeadersTimeoutTimerKey = string.Concat("headers-timeout:", idStr);
+        DrainBodyTimerKey = string.Concat("drain-body:", idStr);
     }
 
     public HttpResponseMessage InitResponse()
@@ -98,91 +108,113 @@ internal sealed class StreamState
         }
     }
 
-    public void InitBodyDecoder(IBodyDecoder decoder)
+    public void InitBodyReader(IBodyReader reader, long maxBodySize = long.MaxValue)
     {
-        _bodyDecoder = decoder;
+        _bodyReader = reader;
+        _maxBodySize = maxBodySize;
+        _totalBodyBytes = 0;
+    }
+
+    public void DetachBodyReader()
+    {
+        _bodyReader = null;
     }
 
     public void FeedBody(ReadOnlySpan<byte> data, bool endStream)
     {
-        if (HasBodyDecoder)
+        if (!data.IsEmpty)
         {
-            _bodyDecoder?.Feed(data, endStream);
+            _totalBodyBytes += data.Length;
+            if (_totalBodyBytes > _maxBodySize)
+            {
+                throw new HttpProtocolException(
+                    string.Concat("Request body size ", _totalBodyBytes.ToString(), " exceeds limit ", _maxBodySize.ToString(), "."));
+            }
+        }
+
+        if (_bodyReader is IBufferedBodyReader buffered)
+        {
+            if (!data.IsEmpty)
+            {
+                buffered.Feed(data);
+            }
+
+            if (endStream)
+            {
+                buffered.MarkComplete();
+            }
+
+            return;
+        }
+
+        if (_bodyReader is IStreamingBodyReader streaming)
+        {
+            if (!data.IsEmpty)
+            {
+                streaming.TryEnqueue(data);
+            }
+
+            if (endStream)
+            {
+                streaming.Complete();
+            }
         }
     }
 
     public Stream GetBodyStream()
     {
-        if (_bodyDecoder is null)
+        if (_bodyReader is null)
         {
-            throw new InvalidOperationException("No body decoder has been initialized.");
+            throw new InvalidOperationException("No body reader has been initialized.");
         }
 
-        return _bodyDecoder.GetBodyStream();
+        return _bodyReader.AsStream();
     }
 
     public void AbortBody()
     {
-        _bodyDecoder?.Abort();
-    }
-
-    public void DetachBodyDecoder()
-    {
-        _bodyDecoder = null;
-    }
-
-    public void InitBodyEncoder(IBodyEncoder encoder)
-    {
-        _bodyEncoder = encoder;
-    }
-
-    public void StartBodyEncoder(Stream bodyStream, long streamId, IActorRef stageActor)
-    {
-        if (_bodyEncoder is null)
+        if (_bodyReader is IStreamingBodyReader streaming)
         {
-            throw new InvalidOperationException("No body encoder has been initialized.");
+            streaming.Fault(new OperationCanceledException());
         }
 
-        _bodyEncoder.Start(bodyStream, msg =>
-        {
-            var tagged = msg switch
-            {
-                OutboundBodyChunk chunk => new StreamBodyChunk<long>(streamId, chunk.Owner, chunk.Length),
-                OutboundBodyComplete => new StreamBodyComplete<long>(streamId),
-                OutboundBodyFailed failed => new StreamBodyFailed<long>(streamId, failed.Reason),
-                _ => msg
-            };
-
-            stageActor.Tell(tagged);
-        });
+        _bodyReader?.Dispose();
     }
 
-    public void EnqueueBodyChunk(StreamBodyChunk<long> chunk)
+    public void MarkBodyDrainActive()
     {
-        _outboundBuffer ??= new Queue<StreamBodyChunk<long>>();
-        _outboundBuffer.Enqueue(chunk);
+        HasBodyDrain = true;
+        IsBodyDrainComplete = false;
     }
 
-    public StreamBodyChunk<long>? PeekBodyChunk()
+    public void MarkBodyDrainComplete()
+    {
+        IsBodyDrainComplete = true;
+    }
+
+    public void EnqueueBodyChunk(StreamBodyChunk chunk)
+    {
+        _outboundBuffer ??= new Queue<StreamBodyChunk>();
+        _outboundBuffer.Enqueue(chunk);
+        PendingOutboundBytes += chunk.Length;
+    }
+
+    public StreamBodyChunk? PeekBodyChunk()
     {
         return _outboundBuffer is { Count: > 0 } ? _outboundBuffer.Peek() : null;
     }
 
-    public bool TryDequeueBodyChunk(out StreamBodyChunk<long>? chunk)
+    public bool TryDequeueBodyChunk(out StreamBodyChunk? chunk)
     {
         if (_outboundBuffer is { Count: > 0 })
         {
             chunk = _outboundBuffer.Dequeue();
+            PendingOutboundBytes -= chunk.Length;
             return true;
         }
 
         chunk = null;
         return false;
-    }
-
-    public void MarkBodyEncoderComplete()
-    {
-        IsBodyEncoderComplete = true;
     }
 
     public void Reset()
@@ -193,13 +225,18 @@ internal sealed class StreamState
         ExpectedContentLength = null;
         _contentHeaders = null;
         _pseudoHeaders = null;
-        _bodyDecoder?.Dispose();
-        _bodyDecoder = null;
-        _bodyEncoder?.Dispose();
-        _bodyEncoder = null;
+        _bodyReader?.Dispose();
+        _bodyReader = null;
+        _maxBodySize = 0;
+        _totalBodyBytes = 0;
+        HasBodyDrain = false;
+        IsBodyDrainComplete = false;
         DisposeOutboundBuffer();
         _outboundBuffer = null;
-        IsBodyEncoderComplete = false;
+        PendingOutboundBytes = 0;
+        BodyConsumptionTimerKey = "";
+        HeadersTimeoutTimerKey = "";
+        DrainBodyTimerKey = "";
     }
 
     private void DisposeOutboundBuffer()
@@ -213,5 +250,7 @@ internal sealed class StreamState
         {
             _outboundBuffer.Dequeue().Owner.Dispose();
         }
+
+        PendingOutboundBytes = 0;
     }
 }

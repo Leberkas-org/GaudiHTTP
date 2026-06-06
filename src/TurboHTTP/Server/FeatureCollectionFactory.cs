@@ -18,21 +18,53 @@ internal static class FeatureCollectionFactory
         long? maxRequestBodySize = null)
     {
         var features = (_tPool?.Count ?? 0) > 0 ? _tPool!.Pop() : new TurboFeatureCollection();
+        var recycled = features.Get<IHttpResponseFeature>() is not null;
 
         features.Set<IHttpRequestFeature>(requestFeature);
 
-        var responseFeature = new TurboHttpResponseFeature();
-        features.Set<IHttpResponseFeature>(responseFeature);
+        TurboHttpResponseFeature responseFeature;
+        if (recycled && features.Get<IHttpResponseFeature>() is TurboHttpResponseFeature existingResponse)
+        {
+            existingResponse.Reset();
+            responseFeature = existingResponse;
+        }
+        else
+        {
+            responseFeature = new TurboHttpResponseFeature();
+            features.Set<IHttpResponseFeature>(responseFeature);
+        }
 
-        var detectionFeature = new TurboHttpRequestBodyDetectionFeature(hasBody);
-        features.Set<IHttpRequestBodyDetectionFeature>(detectionFeature);
+        if (recycled && features.Get<IHttpRequestBodyDetectionFeature>() is TurboHttpRequestBodyDetectionFeature existingDetection)
+        {
+            existingDetection.Reset(hasBody);
+        }
+        else
+        {
+            features.Set<IHttpRequestBodyDetectionFeature>(new TurboHttpRequestBodyDetectionFeature(hasBody));
+        }
 
-        var responseBodyFeature = new TurboHttpResponseBodyFeature();
+        TurboHttpResponseBodyFeature responseBodyFeature;
+        if (recycled && features.Get<IHttpResponseBodyFeature>() is TurboHttpResponseBodyFeature existingBody)
+        {
+            existingBody.Reset();
+            responseBodyFeature = existingBody;
+        }
+        else
+        {
+            responseBodyFeature = new TurboHttpResponseBodyFeature();
+            features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
+        }
+
         responseBodyFeature.SetOnStarting(() => responseFeature.FireOnStartingAsync());
-        features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
 
-        var trailersFeature = new TurboHttpResponseTrailersFeature();
-        features.Set<IHttpResponseTrailersFeature>(trailersFeature);
+        if (recycled && features.Get<IHttpResponseTrailersFeature>() is TurboHttpResponseTrailersFeature existingTrailers)
+        {
+            existingTrailers.Reset();
+        }
+        else
+        {
+            features.Set<IHttpResponseTrailersFeature>(new TurboHttpResponseTrailersFeature());
+        }
 
         if (connectionFeature is not null)
         {
@@ -44,20 +76,41 @@ internal static class FeatureCollectionFactory
             features.Set<ITlsHandshakeFeature>(tlsFeature);
         }
 
-        var lifetimeFeature = new TurboHttpRequestLifetimeFeature();
-        features.Set<IHttpRequestLifetimeFeature>(lifetimeFeature);
-
-        var identifierFeature = new TurboHttpRequestIdentifierFeature();
-        features.Set<IHttpRequestIdentifierFeature>(identifierFeature);
-
-        var maxBodyFeature = new TurboHttpMaxRequestBodySizeFeature
+        if (recycled && features.Get<IHttpRequestLifetimeFeature>() is TurboHttpRequestLifetimeFeature existingLifetime)
         {
-            MaxRequestBodySize = maxRequestBodySize
-        };
-        features.Set<IHttpMaxRequestBodySizeFeature>(maxBodyFeature);
+            existingLifetime.Reset();
+        }
+        else
+        {
+            features.Set<IHttpRequestLifetimeFeature>(new TurboHttpRequestLifetimeFeature());
+        }
 
-        var bodyControlFeature = new TurboHttpBodyControlFeature();
-        features.Set<IHttpBodyControlFeature>(bodyControlFeature);
+        if (recycled && features.Get<IHttpRequestIdentifierFeature>() is TurboHttpRequestIdentifierFeature existingIdentifier)
+        {
+            existingIdentifier.Reset();
+        }
+        else
+        {
+            features.Set<IHttpRequestIdentifierFeature>(new TurboHttpRequestIdentifierFeature());
+        }
+
+        if (recycled && features.Get<IHttpMaxRequestBodySizeFeature>() is TurboHttpMaxRequestBodySizeFeature existingMaxBody)
+        {
+            existingMaxBody.Reset(maxRequestBodySize);
+        }
+        else
+        {
+            features.Set<IHttpMaxRequestBodySizeFeature>(new TurboHttpMaxRequestBodySizeFeature { MaxRequestBodySize = maxRequestBodySize });
+        }
+
+        if (recycled && features.Get<IHttpBodyControlFeature>() is TurboHttpBodyControlFeature existingBodyControl)
+        {
+            existingBodyControl.Reset();
+        }
+        else
+        {
+            features.Set<IHttpBodyControlFeature>(new TurboHttpBodyControlFeature());
+        }
 
         return features;
     }

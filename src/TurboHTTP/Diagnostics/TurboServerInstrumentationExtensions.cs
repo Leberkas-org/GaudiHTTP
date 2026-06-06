@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Servus.Core.Diagnostics;
+using Servus.Diagnostics;
 using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Diagnostics;
@@ -14,9 +14,9 @@ internal static class TurboServerInstrumentationExtensions
     public static bool IsServerTracingActive(this ServusTrace trace)
     {
         return trace.Source.HasListeners()
-            || Servus.Core.Servus.Metrics.ActiveConnections().Enabled
-            || Servus.Core.Servus.Metrics.ServerActiveRequests().Enabled
-            || Servus.Core.Servus.Metrics.ServerRequestDuration().Enabled;
+            || Servus.Senf.Metrics.ActiveConnections().Enabled
+            || Servus.Senf.Metrics.ServerActiveRequests().Enabled
+            || Servus.Senf.Metrics.ServerRequestDuration().Enabled;
     }
 
     public static Activity? StartConnectionActivity(this ServusTrace trace, string serverAddress, int serverPort, string networkTransport)
@@ -54,7 +54,7 @@ internal static class TurboServerInstrumentationExtensions
     }
 
     public static Activity? StartRequestActivity(this ServusTrace trace, string method, string path, string scheme,
-        string? traceparent = null, string? tracestate = null)
+        string? traceParent = null, string? traceState = null)
     {
         if (!trace.Source.HasListeners())
         {
@@ -62,7 +62,7 @@ internal static class TurboServerInstrumentationExtensions
         }
 
         ActivityContext parentContext = default;
-        if (traceparent is not null && ActivityContext.TryParse(traceparent, tracestate, out var parsed))
+        if (traceParent is not null && ActivityContext.TryParse(traceParent, traceState, out var parsed))
         {
             parentContext = parsed;
         }

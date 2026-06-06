@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.CompilerServices;
 using Akka.Actor;
 using Akka.Event;
@@ -10,7 +11,7 @@ using TurboHTTP.Diagnostics;
 using TurboHTTP.Protocol;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
@@ -31,11 +32,15 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private TurboHttpConnectionFeature? _connectionFeature;
     private TlsHandshakeFeature? _tlsHandshakeFeature;
     private readonly bool _metricsEnabled;
+    private readonly int _maxCoalesce;
+    private Activity? _connectionActivity;
+    private long _connectionTimestamp;
 
     public HttpConnectionServerStageLogic(
         GraphStage<ServerConnectionShape> stage,
         Func<IServerStageOperations, TSM> smFactory,
-        IServiceProvider? services = null) : base(stage.Shape)
+        IServiceProvider? services = null,
+        int maxCoalesce = 8) : base(stage.Shape)
     {
         var shape = stage.Shape;
         _inNetwork = shape.InNetwork;
@@ -45,6 +50,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         _services = services;
 
         _sm = smFactory(this);
+        _maxCoalesce = maxCoalesce;
         _metricsEnabled = Metrics.ServerActiveRequests().Enabled
             || Metrics.ServerRequestDuration().Enabled
             || Tracing.IsServerTracingActive();
@@ -110,6 +116,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                     {
                         OnResponseInstrumented(response);
                     }
+                    Tracing.For("Stage").Debug(this, "completing after response (connection close)");
                     CompleteStage();
                     return;
                 }
@@ -183,11 +190,21 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     private void OnStageActorMessage((IActorRef sender, object message) args)
     {
+        if (args.message is BodyResumed)
+        {
+            Tracing.For("Stage").Trace(this, "body resumed");
+            _sm.ResumeBody();
+            if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
+            {
+                Pull(_inNetwork);
+            }
+
+            return;
+        }
+
+        Tracing.For("Stage").Trace(this, "body message: {0}", args.message.GetType().Name);
         _sm.OnBodyMessage(args.message);
         TryPushOutbound();
-        // Completing an outbound body can clear the state machine's CanAcceptResponse gate
-        // (e.g. _outboundBodyPending). Re-attempt to pull the next pipelined response so the
-        // pipeline doesn't stall waiting for unrelated network demand.
         TryPullResponse();
     }
 
@@ -198,15 +215,15 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         if (item is TransportConnected connected)
         {
             var info = connected.Info;
-            if (info.Remote is System.Net.IPEndPoint remoteEp)
+            if (info.Remote is IPEndPoint remoteEp)
             {
                 var connectionFeature = new TurboHttpConnectionFeature
                 {
                     ConnectionId = Guid.NewGuid().ToString("N"),
                     RemoteIpAddress = remoteEp.Address,
                     RemotePort = remoteEp.Port,
-                    LocalIpAddress = (info.Local as System.Net.IPEndPoint)?.Address,
-                    LocalPort = (info.Local as System.Net.IPEndPoint)?.Port ?? 0,
+                    LocalIpAddress = (info.Local as IPEndPoint)?.Address,
+                    LocalPort = (info.Local as IPEndPoint)?.Port ?? 0,
                 };
 
                 if (info.Security is { } security)
@@ -221,6 +238,11 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                 }
 
                 _connectionFeature = connectionFeature;
+
+                if (_metricsEnabled)
+                {
+                    OnConnectionEstablished(connectionFeature, info.Security is not null ? "tls" : "tcp");
+                }
             }
         }
 
@@ -246,7 +268,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             TryPushRequest();
         }
 
-        if (!HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
+        if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
         {
             Pull(_inNetwork);
         }
@@ -275,6 +297,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             // abort the connection immediately. For H2/H3, ShouldComplete is always false, so this is safe.
             if (_sm.ShouldComplete)
             {
+                Tracing.For("Stage").Info(this, "timer '{0}' triggered connection close", name);
                 CompleteStage();
             }
         }
@@ -299,7 +322,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void OnRequestInstrumented(IFeatureCollection features)
+    private static void OnRequestInstrumented(IFeatureCollection features)
     {
         var requestFeature = features.Get<IHttpRequestFeature>();
         if (requestFeature is null)
@@ -309,29 +332,28 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
         var method = requestFeature.Method;
         var path = requestFeature.Path;
-        var scheme = requestFeature.Scheme ?? "http";
+        var scheme = requestFeature.Scheme;
 
         if (Metrics.ServerActiveRequests().Enabled)
         {
-            Metrics.ServerActiveRequests().Add(1,
-                new KeyValuePair<string, object?>("url.scheme", scheme),
-                new KeyValuePair<string, object?>("http.request.method",
-                    TurboClientInstrumentationExtensions.NormalizeMethod(method)));
+            var tags = new TagList
+            {
+                { "url.scheme", scheme },
+                { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(method) },
+            };
+            Metrics.ServerActiveRequests().Add(1, tags);
         }
 
         if (features is TurboFeatureCollection turbo)
         {
             turbo.RequestTimestamp = Stopwatch.GetTimestamp();
-
             var headers = requestFeature.Headers;
-            string? traceparent = headers?["traceparent"];
-            string? tracestate = headers?["tracestate"];
-            turbo.RequestActivity = Tracing.StartRequestActivity(method, path, scheme, traceparent, tracestate);
+            turbo.RequestActivity = Tracing.StartRequestActivity(method, path, scheme, headers.TraceParent, headers.TraceState);
         }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private void OnResponseInstrumented(IFeatureCollection features)
+    private static void OnResponseInstrumented(IFeatureCollection features)
     {
         var responseFeature = features.Get<IHttpResponseFeature>();
         var requestFeature = features.Get<IHttpRequestFeature>();
@@ -339,11 +361,12 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
         if (requestFeature is not null && Metrics.ServerActiveRequests().Enabled)
         {
-            var scheme = requestFeature.Scheme ?? "http";
-            Metrics.ServerActiveRequests().Add(-1,
-                new KeyValuePair<string, object?>("url.scheme", scheme),
-                new KeyValuePair<string, object?>("http.request.method",
-                    TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method)));
+            var tags = new TagList
+            {
+                { "url.scheme", requestFeature.Scheme },
+                { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) },
+            };
+            Metrics.ServerActiveRequests().Add(-1, tags);
         }
 
         if (features is TurboFeatureCollection turbo)
@@ -357,19 +380,62 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             if (turbo.RequestTimestamp > 0 && Metrics.ServerRequestDuration().Enabled && requestFeature is not null)
             {
                 var elapsed = Stopwatch.GetElapsedTime(turbo.RequestTimestamp);
-                Metrics.ServerRequestDuration().Record(elapsed.TotalSeconds,
-                    new KeyValuePair<string, object?>("http.request.method",
-                        TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method)),
-                    new KeyValuePair<string, object?>("http.response.status_code", statusCode),
-                    new KeyValuePair<string, object?>("url.scheme", requestFeature.Scheme ?? "http"));
+                var durationTags = new TagList
+                {
+                    { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) },
+                    { "http.response.status_code", statusCode },
+                    { "url.scheme", requestFeature.Scheme },
+                };
+                Metrics.ServerRequestDuration().Record(elapsed.TotalSeconds, durationTags);
             }
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void OnConnectionEstablished(TurboHttpConnectionFeature conn, string transport)
+    {
+        _connectionTimestamp = Stopwatch.GetTimestamp();
+        Metrics.ActiveConnections().Add(1);
+
+        var localAddr = conn.LocalIpAddress?.ToString() ?? "unknown";
+        var localPort = conn.LocalPort;
+        _connectionActivity = Tracing.StartConnectionActivity(localAddr, localPort, transport);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private void OnConnectionClosed()
+    {
+        Metrics.ActiveConnections().Add(-1);
+
+        if (_connectionTimestamp > 0)
+        {
+            var elapsed = Stopwatch.GetElapsedTime(_connectionTimestamp);
+            Metrics.ConnectionDuration().Record(elapsed.TotalSeconds);
+        }
+
+        if (_connectionActivity is { } activity)
+        {
+            Tracing.StopConnectionActivity(activity, error: null);
+            _connectionActivity = null;
         }
     }
 
     void IServerStageOperations.OnOutbound(ITransportOutbound item)
     {
+        if (IsAvailable(_outNetwork))
+        {
+            Push(_outNetwork, item);
+            _sm.OnOutboundFlushed();
+
+            if (_completeAfterFlush && _outboundQueue.Count == 0)
+            {
+                CompleteStage();
+            }
+
+            return;
+        }
+
         _outboundQueue.Enqueue(item);
-        TryPushOutbound();
     }
 
     void IServerStageOperations.OnScheduleTimer(string name, TimeSpan delay)
@@ -382,7 +448,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     IActorRef IServerStageOperations.StageActor => _stageActor;
 
-    Akka.Streams.IMaterializer IServerStageOperations.Materializer => Materializer;
+    IMaterializer IServerStageOperations.Materializer => Materializer;
 
     IServiceProvider? IServerStageOperations.Services => _services;
 
@@ -408,13 +474,16 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     private void PushOutbound()
     {
-        if (_outboundQueue.Count == 1)
+        int flushedCount;
+        if (_outboundQueue.Count == 1 || !TryCoalesceOutbound(out flushedCount))
         {
             Push(_outNetwork, _outboundQueue.Dequeue());
+            flushedCount = 1;
         }
-        else if (!TryCoalesceOutbound())
+
+        for (var i = 0; i < flushedCount; i++)
         {
-            Push(_outNetwork, _outboundQueue.Dequeue());
+            _sm.OnOutboundFlushed();
         }
 
         if (_completeAfterFlush && _outboundQueue.Count == 0)
@@ -438,11 +507,10 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         TryPushOutbound();
     }
 
-    private bool TryCoalesceOutbound()
+    private bool TryCoalesceOutbound(out int coalescedCount)
     {
+        coalescedCount = 0;
         var totalSize = 0;
-        var coalesceCount = 0;
-        const int maxCoalesce = 8;
 
         foreach (var item in _outboundQueue)
         {
@@ -452,14 +520,14 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             }
 
             totalSize += buf.Length;
-            coalesceCount++;
-            if (coalesceCount >= maxCoalesce)
+            coalescedCount++;
+            if (coalescedCount >= _maxCoalesce)
             {
                 break;
             }
         }
 
-        if (coalesceCount < 2)
+        if (coalescedCount < 2)
         {
             return false;
         }
@@ -468,7 +536,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         var dest = merged.FullMemory.Span;
         var offset = 0;
 
-        for (var i = 0; i < coalesceCount; i++)
+        for (var i = 0; i < coalescedCount; i++)
         {
             var item = _outboundQueue.Dequeue();
             if (item is TransportData { Buffer: var buf })
@@ -498,6 +566,11 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     {
         Tracing.For("Stage").Debug(this, "PostStop: draining {0} outbound, {1} requests",
             _outboundQueue.Count, _requestQueue.Count);
+
+        if (_metricsEnabled)
+        {
+            OnConnectionClosed();
+        }
 
         while (_outboundQueue.Count > 0)
         {

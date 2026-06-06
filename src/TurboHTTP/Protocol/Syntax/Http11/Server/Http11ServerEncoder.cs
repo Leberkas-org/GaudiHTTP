@@ -1,7 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 
@@ -10,19 +9,6 @@ namespace TurboHTTP.Protocol.Syntax.Http11.Server;
 internal sealed class Http11ServerEncoder(Http11ServerEncoderOptions options)
 {
     private readonly HeaderCollection _reusableHeaders = new();
-    private IBodyEncoder? _activeBodyEncoder;
-
-    public void SetActiveBodyEncoder(IBodyEncoder encoder)
-    {
-        _activeBodyEncoder?.Dispose();
-        _activeBodyEncoder = encoder;
-    }
-
-    public void CancelActiveBody()
-    {
-        _activeBodyEncoder?.Dispose();
-        _activeBodyEncoder = null;
-    }
 
     public int Encode(Span<byte> destination, IFeatureCollection features, bool isChunked = false, bool connectionClose = false)
     {

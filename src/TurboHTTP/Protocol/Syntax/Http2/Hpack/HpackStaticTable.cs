@@ -1,6 +1,5 @@
 using System.Collections.Frozen;
 using System.Text;
-using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
@@ -41,7 +40,7 @@ internal static class HpackStaticTable
 
         for (var i = 1; i <= StaticCount; i++)
         {
-            dict.TryAdd(Entries[i].Name, i); // first occurrence wins — entries are 1-based
+            dict.TryAdd(Entries[i].Name, i); // first occurrence wins - entries are 1-based
 
             // Precompute name and entry sizes so the decoder never calls GetByteCount on static entries.
             var nameBytes = Encoding.UTF8.GetByteCount(Entries[i].Name);

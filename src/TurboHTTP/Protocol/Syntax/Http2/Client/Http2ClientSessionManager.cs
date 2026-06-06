@@ -1,14 +1,19 @@
+using System.Buffers;
+using Akka.Actor;
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Internal;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Multiplexed;
-using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Streams.Stages.Client;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Client;
+
+internal sealed record StreamBodyReadComplete(int StreamId, int BytesRead);
+internal sealed record StreamBodyReadFailed(int StreamId, Exception Reason);
 
 internal sealed class Http2ClientSessionManager
 {
@@ -26,6 +31,8 @@ internal sealed class Http2ClientSessionManager
     private readonly Dictionary<int, HttpRequestMessage> _correlationMap = new();
 
     private readonly Dictionary<int, StreamState> _streams = new();
+    private readonly Dictionary<int, Stream> _activeBodyStreams = new();
+    private readonly Dictionary<int, IMemoryOwner<byte>> _activeBodyBuffers = new();
 
     private bool _prefaceSent;
     private bool _awaitingPingAck;
@@ -113,7 +120,7 @@ internal sealed class Http2ClientSessionManager
         if (GoAwayReceived)
         {
             Tracing.For("Protocol").Warning(this,
-                "HTTP/2: RFC 9113 §6.8 — GOAWAY received; dropping new request (stream {0})", streamId);
+                "HTTP/2: RFC 9113 §6.8 - GOAWAY received; dropping new request (stream {0})", streamId);
             request.Fail(new HttpRequestException("HTTP/2 GOAWAY received."));
             return;
         }
@@ -185,14 +192,107 @@ internal sealed class Http2ClientSessionManager
 
         var contentLength = request.Content?.Headers.ContentLength;
         var bodyStream = request.Content?.ReadAsStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, new BodyEncoderOptions { ChunkSize = _options.RequestBodyChunkSize });
-        if (encoder is null)
+
+        // Fast path A: MemoryStream with an accessible backing buffer - slice directly into DATA
+        // frames without allocating a MemoryPool chunk per read. The backing byte[] is kept alive
+        // by HttpRequestMessage.Content for the duration of the request, so referencing its memory
+        // here is safe. TryGetBuffer succeeds only for streams created with a publicly visible
+        // buffer (e.g. new MemoryStream(), new MemoryStream(capacity)) - non-visible streams
+        // (ByteArrayContent internal, MemoryStream(buf, false)) fall through to the slow path.
+        if (bodyStream is MemoryStream ms && ms.TryGetBuffer(out var segment))
+        {
+            var pos = (int)ms.Position;
+            var available = segment.Count - pos;
+            if (available > 0)
+            {
+                EmitBodyDirect(streamId, state, segment.AsMemory(pos, available));
+                return;
+            }
+        }
+
+        // Fast path B: Content with a known length within the buffer threshold - copy body
+        // directly into an ArrayPool-rented buffer via CopyTo, then emit frames without spinning
+        // up the async encoder pipeline (no background Task, no actor messages, no per-chunk
+        // MemoryPool.Rent). Handles ByteArrayContent, StringContent, ReadOnlyMemoryContent and
+        // any other sync-serializable content. Falls through if the content does not support
+        // synchronous serialization (CopyTo throws NotSupportedException).
+        if (contentLength is > 0 and { } knownLength
+            && knownLength <= _options.Http2.MaxBufferedRequestBodySize
+            && TrySerializeBodyDirect(request.Content!, streamId, state, (int)knownLength))
         {
             return;
         }
 
-        state.InitBodyEncoder(encoder);
-        state.StartBodyEncoder(bodyStream!, streamId, _ops.StageActor);
+        state.MarkBodyDrainActive();
+        StartStreamBodyDrain(streamId, bodyStream!);
+    }
+
+    private void EmitBodyDirect(int streamId, StreamState state, Memory<byte> body)
+    {
+        var maxFrame = _requestEncoder.MaxFrameSize;
+        var window = (int)Math.Min(_flow.GetSendWindow(streamId), int.MaxValue);
+        var sent = 0;
+
+        while (sent < body.Length && window > 0)
+        {
+            var chunkLen = Math.Min(Math.Min(maxFrame, window), body.Length - sent);
+            var endStream = sent + chunkLen >= body.Length;
+            EmitFrame(new DataFrame(streamId, body.Slice(sent, chunkLen), endStream));
+            _flow.OnDataSent(streamId, chunkLen);
+            window -= chunkLen;
+            sent += chunkLen;
+        }
+
+        if (sent >= body.Length)
+        {
+            // All data sent inline - mark complete and release stream state.
+            CloseStream(streamId);
+
+            if (state.IsRemoteClosed)
+            {
+                _streams.Remove(streamId);
+                state.Reset();
+                _statePool.Return(state);
+            }
+
+            return;
+        }
+
+        // Window exhausted before all data sent: buffer the remainder.
+        // A copy into a pooled buffer is required here because the window-drain path
+        // (DrainOutboundBuffer) expects IMemoryOwner<byte>-backed chunks.
+        var remaining = body.Length - sent;
+        var owner = MemoryPool<byte>.Shared.Rent(remaining);
+        body.Slice(sent, remaining).CopyTo(owner.Memory);
+        state.EnqueueBodyChunk(new StreamBodyChunk(owner, remaining));
+        state.MarkBodyDrainComplete();
+    }
+
+    private bool TrySerializeBodyDirect(HttpContent content, int streamId, StreamState state, int bodyLength)
+    {
+        var pool = ArrayPool<byte>.Shared;
+        var bodyArray = pool.Rent(bodyLength);
+        try
+        {
+            using var ms = new MemoryStream(bodyArray, 0, bodyLength, writable: true);
+            content.CopyTo(ms, null, CancellationToken.None);
+        }
+        catch (NotSupportedException)
+        {
+            // Content does not support synchronous serialization (CopyTo delegates to the
+            // protected SerializeToStream which throws NotSupportedException for async-only
+            // content). Fall back to the async encoder pipeline.
+            pool.Return(bodyArray);
+            return false;
+        }
+
+        EmitBodyDirect(streamId, state, new Memory<byte>(bodyArray, 0, bodyLength));
+
+        // The array may be returned now: EmitBodyDirect copies all data into TransportBuffers
+        // (via EmitFrame → DataFrame.WriteTo) or into a MemoryPool-owned copy for the
+        // window-exhausted path before returning, so bodyArray is no longer referenced.
+        pool.Return(bodyArray);
+        return true;
     }
 
     public IReadOnlyList<Http2Frame> DecodeFrames(TransportBuffer buffer)
@@ -304,9 +404,10 @@ internal sealed class Http2ClientSessionManager
 
     public void Cleanup()
     {
-        foreach (var (_, state) in _streams)
+        foreach (var (streamId, state) in _streams)
         {
             state.AbortBody();
+            CleanupBodyDrain(streamId);
         }
 
         ReleaseAllStreamState();
@@ -364,7 +465,7 @@ internal sealed class Http2ClientSessionManager
         if (result.IsConnectionViolation)
         {
             Tracing.For("Protocol").Info(this,
-                "HTTP/2: RFC 9113 §6.9 — connection flow control window exceeded. Triggering reconnect");
+                "HTTP/2: RFC 9113 §6.9 - connection flow control window exceeded. Triggering reconnect");
             _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
@@ -372,7 +473,7 @@ internal sealed class Http2ClientSessionManager
         if (result.IsStreamViolation)
         {
             Tracing.For("Protocol").Info(this,
-                "HTTP/2: RFC 9113 §6.9 — stream {0} flow control window exceeded. Triggering reconnect", data.StreamId);
+                "HTTP/2: RFC 9113 §6.9 - stream {0} flow control window exceeded. Triggering reconnect", data.StreamId);
             _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
@@ -394,7 +495,7 @@ internal sealed class Http2ClientSessionManager
         if (data.EndStream)
         {
             var hasActiveBodyEncoder = _streams.TryGetValue(data.StreamId, out var state)
-                                       && state is { HasBodyEncoder: true, IsBodyEncoderComplete: false };
+                                       && state is { HasBodyDrain: true, IsBodyDrainComplete: false };
             if (!hasActiveBodyEncoder)
             {
                 CloseStream(data.StreamId);
@@ -428,7 +529,7 @@ internal sealed class Http2ClientSessionManager
         _flow.OnGoAway();
         GoAwayLastStreamId = goAway.LastStreamId;
         Tracing.For("Protocol").Info(this,
-            "HTTP/2: GOAWAY received from {0} — LastStreamId={1}, ErrorCode={2}. Reconnecting", Endpoint.Host,
+            "HTTP/2: GOAWAY received from {0} - LastStreamId={1}, ErrorCode={2}. Reconnecting", Endpoint.Host,
             goAway.LastStreamId, goAway.ErrorCode);
     }
 
@@ -446,11 +547,12 @@ internal sealed class Http2ClientSessionManager
 
     private void CloseStream(int streamId)
     {
-        if (_streams.TryGetValue(streamId, out var state) && state.HasBodyDecoder)
+        if (_streams.TryGetValue(streamId, out var state) && state.HasBodyReader)
         {
             state.AbortBody();
         }
 
+        CleanupBodyDrain(streamId);
         _tracker.OnStreamClosed(streamId);
         _flow.RemoveStreamSendWindow(streamId);
 
@@ -483,7 +585,7 @@ internal sealed class Http2ClientSessionManager
     {
         if (!_streams.TryGetValue(frame.StreamId, out var state))
         {
-            Tracing.For("Protocol").Warning(this, "HTTP/2: Received CONTINUATION for unknown stream {0} — dropping",
+            Tracing.For("Protocol").Warning(this, "HTTP/2: Received CONTINUATION for unknown stream {0} - dropping",
                 frame.StreamId);
             return;
         }
@@ -500,14 +602,14 @@ internal sealed class Http2ClientSessionManager
     {
         if (!_streams.TryGetValue(frame.StreamId, out var state))
         {
-            Tracing.For("Protocol").Warning(this, "HTTP/2: Received DATA for unknown stream {0} — dropping",
+            Tracing.For("Protocol").Warning(this, "HTTP/2: Received DATA for unknown stream {0} - dropping",
                 frame.StreamId);
             return;
         }
 
-        if (!state.HasBodyDecoder)
+        if (!state.HasBodyReader)
         {
-            Tracing.For("Protocol").Warning(this, "HTTP/2: Received DATA before HEADERS on stream {0} — dropping",
+            Tracing.For("Protocol").Warning(this, "HTTP/2: Received DATA before HEADERS on stream {0} - dropping",
                 frame.StreamId);
             return;
         }
@@ -516,10 +618,10 @@ internal sealed class Http2ClientSessionManager
 
         if (frame.EndStream)
         {
-            state.DetachBodyDecoder();
+            state.DetachBodyReader();
             state.MarkRemoteClosed();
 
-            if (!state.HasBodyEncoder || state.IsBodyEncoderComplete)
+            if (!state.HasBodyDrain || state.IsBodyDrainComplete)
             {
                 _streams.Remove(frame.StreamId);
                 state.Reset();
@@ -532,7 +634,7 @@ internal sealed class Http2ClientSessionManager
     {
         if (!_streams.TryGetValue(streamId, out var state))
         {
-            Tracing.For("Protocol").Warning(this, "HTTP/2: DecodeHeaders called for unknown stream {0} — dropping",
+            Tracing.For("Protocol").Warning(this, "HTTP/2: DecodeHeaders called for unknown stream {0} - dropping",
                 streamId);
             return;
         }
@@ -544,7 +646,7 @@ internal sealed class Http2ClientSessionManager
             if (endStream)
             {
                 _streams.Remove(streamId);
-                state.DetachBodyDecoder();
+                state.DetachBodyReader();
                 state.Reset();
                 _statePool.Return(state);
             }
@@ -608,7 +710,9 @@ internal sealed class Http2ClientSessionManager
             return;
         }
 
-        state.InitBodyDecoder(BodyDecoderFactory.Create(streaming: true, _options.MaxStreamedResponseBodySize ?? long.MaxValue));
+        var queued = new QueuedBodyReader(capacity: 64);
+        queued.Reset();
+        state.InitBodyReader(queued);
         var bodyStream = state.GetBodyStream();
         streamingResponse.Content = new StreamContent(bodyStream);
         state.ApplyContentHeadersTo(streamingResponse.Content);
@@ -631,73 +735,69 @@ internal sealed class Http2ClientSessionManager
     {
         switch (msg)
         {
-            case StreamBodyChunk<int> chunk:
-                HandleOutboundBodyChunk(chunk);
+            case StreamBodyReadComplete read:
+                HandleStreamBodyRead(read);
                 break;
 
-            case StreamBodyComplete<int> complete:
-                HandleOutboundBodyComplete(complete.StreamId);
-                break;
-
-            case StreamBodyFailed<int>(var failedStreamId, var exception):
+            case StreamBodyReadFailed failed:
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/2: Body encoding failed for stream {0}: {1}", failedStreamId, exception.Message);
-                EmitFrame(new RstStreamFrame(failedStreamId, Http2ErrorCode.InternalError));
-                CloseStream(failedStreamId);
+                    "HTTP/2: Body drain failed for stream {0}: {1}", failed.StreamId, failed.Reason.Message);
+                EmitFrame(new RstStreamFrame(failed.StreamId, Http2ErrorCode.InternalError));
+                CleanupBodyDrain(failed.StreamId);
+                CloseStream(failed.StreamId);
                 break;
         }
     }
 
-    private void HandleOutboundBodyChunk(StreamBodyChunk<int> chunk)
+    private void HandleStreamBodyRead(StreamBodyReadComplete read)
     {
-        var streamId = chunk.StreamId;
-        if (!_streams.TryGetValue(streamId, out var state))
+        if (!_streams.TryGetValue(read.StreamId, out var state))
         {
-            chunk.Owner.Dispose();
+            CleanupBodyDrain(read.StreamId);
             return;
         }
 
-        var window = (int)Math.Min(_flow.GetSendWindow(streamId), int.MaxValue);
-        if (window >= chunk.Length)
+        if (read.BytesRead == 0)
         {
-            EmitDataFrames(streamId, chunk.Data);
-            _flow.OnDataSent(streamId, chunk.Length);
-            chunk.Owner.Dispose();
-            return;
-        }
-
-        if (window > 0)
-        {
-            EmitDataFrames(streamId, chunk.Data[..window]);
-            _flow.OnDataSent(streamId, window);
-            var remainder = chunk with { Offset = chunk.Offset + window, Length = chunk.Length - window };
-            state.EnqueueBodyChunk(remainder);
-            return;
-        }
-
-        state.EnqueueBodyChunk(chunk);
-    }
-
-    private void HandleOutboundBodyComplete(int streamId)
-    {
-        if (!_streams.TryGetValue(streamId, out var state))
-        {
-            return;
-        }
-
-        state.MarkBodyEncoderComplete();
-
-        if (!state.HasPendingOutbound)
-        {
-            EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
-            CloseStream(streamId);
+            EmitFrame(new DataFrame(read.StreamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+            state.MarkBodyDrainComplete();
+            CleanupBodyDrain(read.StreamId);
 
             if (state.IsRemoteClosed)
             {
-                _streams.Remove(streamId);
+                _streams.Remove(read.StreamId);
                 state.Reset();
                 _statePool.Return(state);
             }
+
+            return;
+        }
+
+        var buffer = _activeBodyBuffers[read.StreamId];
+        var data = buffer.Memory[..read.BytesRead];
+        var window = (int)Math.Min(_flow.GetSendWindow(read.StreamId), int.MaxValue);
+
+        if (window >= read.BytesRead)
+        {
+            EmitDataFrames(read.StreamId, data);
+            _flow.OnDataSent(read.StreamId, read.BytesRead);
+            ReadNextBodyChunk(read.StreamId);
+        }
+        else if (window > 0)
+        {
+            EmitDataFrames(read.StreamId, data[..window]);
+            _flow.OnDataSent(read.StreamId, window);
+
+            var remaining = read.BytesRead - window;
+            var owner = MemoryPool<byte>.Shared.Rent(remaining);
+            data[window..].CopyTo(owner.Memory);
+            state.EnqueueBodyChunk(new StreamBodyChunk(owner, remaining));
+        }
+        else
+        {
+            var owner = MemoryPool<byte>.Shared.Rent(read.BytesRead);
+            data[..read.BytesRead].CopyTo(owner.Memory);
+            state.EnqueueBodyChunk(new StreamBodyChunk(owner, read.BytesRead));
         }
     }
 
@@ -733,7 +833,7 @@ internal sealed class Http2ClientSessionManager
             }
         }
 
-        if (state is { HasPendingOutbound: false, IsBodyEncoderComplete: true })
+        if (state is { HasPendingOutbound: false, IsBodyDrainComplete: true })
         {
             EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
             CloseStream(streamId);
@@ -744,6 +844,10 @@ internal sealed class Http2ClientSessionManager
                 state.Reset();
                 _statePool.Return(state);
             }
+        }
+        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete)
+        {
+            ReadNextBodyChunk(streamId);
         }
     }
 
@@ -762,5 +866,38 @@ internal sealed class Http2ClientSessionManager
         {
             DrainOutboundBuffer(frame.StreamId);
         }
+    }
+
+    private void StartStreamBodyDrain(int streamId, Stream bodyStream)
+    {
+        _activeBodyStreams[streamId] = bodyStream;
+        var bufferSize = Math.Min(_options.RequestBodyChunkSize, _requestEncoder.MaxFrameSize);
+        var buffer = MemoryPool<byte>.Shared.Rent(bufferSize);
+        _activeBodyBuffers[streamId] = buffer;
+        ReadNextBodyChunk(streamId);
+    }
+
+    private void ReadNextBodyChunk(int streamId)
+    {
+        if (!_activeBodyStreams.TryGetValue(streamId, out var stream) ||
+            !_activeBodyBuffers.TryGetValue(streamId, out var buffer))
+        {
+            return;
+        }
+
+        stream.ReadAsync(buffer.Memory).AsTask().PipeTo(
+            _ops.StageActor,
+            success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
+            failure: ex => new StreamBodyReadFailed(streamId, ex));
+    }
+
+    private void CleanupBodyDrain(int streamId)
+    {
+        if (_activeBodyBuffers.Remove(streamId, out var buffer))
+        {
+            buffer.Dispose();
+        }
+
+        _activeBodyStreams.Remove(streamId);
     }
 }

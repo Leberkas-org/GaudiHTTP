@@ -7,4 +7,6 @@ namespace TurboHTTP.Protocol.Multiplexed.Body;
 internal sealed record BodyEncoderOptions
 {
     public required int ChunkSize { get; init; }
+    public long BufferedThreshold { get; init; } = 64 * 1024;
+    public int Headroom { get; init; }
 }

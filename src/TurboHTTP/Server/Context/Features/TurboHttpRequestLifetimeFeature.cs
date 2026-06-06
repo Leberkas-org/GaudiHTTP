@@ -4,7 +4,11 @@ namespace TurboHTTP.Server.Context.Features;
 
 internal sealed class TurboHttpRequestLifetimeFeature : IHttpRequestLifetimeFeature
 {
-    private CancellationTokenSource _cts = new();
+    [ThreadStatic] private static Stack<CancellationTokenSource>? _ctsPool;
+
+    private const int MaxPoolSize = 64;
+
+    private CancellationTokenSource _cts = RentCts();
 
     public CancellationToken RequestAborted
     {
@@ -18,7 +22,7 @@ internal sealed class TurboHttpRequestLifetimeFeature : IHttpRequestLifetimeFeat
 
             var old = _cts;
             _cts = CancellationTokenSource.CreateLinkedTokenSource(value);
-            old.Dispose();
+            ReturnCts(old);
         }
     }
 
@@ -26,7 +30,33 @@ internal sealed class TurboHttpRequestLifetimeFeature : IHttpRequestLifetimeFeat
 
     internal void Reset()
     {
-        _cts.Dispose();
-        _cts = new CancellationTokenSource();
+        var old = _cts;
+        _cts = RentCts();
+        ReturnCts(old);
+    }
+
+    private static CancellationTokenSource RentCts()
+    {
+        if (_ctsPool is { Count: > 0 })
+        {
+            return _ctsPool.Pop();
+        }
+
+        return new CancellationTokenSource();
+    }
+
+    private static void ReturnCts(CancellationTokenSource cts)
+    {
+        if (cts.TryReset())
+        {
+            _ctsPool ??= new Stack<CancellationTokenSource>(MaxPoolSize);
+            if (_ctsPool.Count < MaxPoolSize)
+            {
+                _ctsPool.Push(cts);
+                return;
+            }
+        }
+
+        cts.Dispose();
     }
 }

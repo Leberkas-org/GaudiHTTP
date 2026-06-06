@@ -1,6 +1,6 @@
 namespace TurboHTTP.Protocol.Syntax.Http2;
 
-// HTTP/2 Frame Types  —  RFC 9113 §6
+// HTTP/2 Frame Types  -  RFC 9113 §6
 //
 // Frame-Header (9 Bytes, RFC 9113 §4.1):
 //   +-----------------------------------------------+
@@ -122,6 +122,8 @@ internal abstract class Http2Frame(int streamId)
     }
 
     protected const int FrameHeaderSize = 9;
+
+    internal const int HeaderSize = 9;
 }
 
 internal sealed class DataFrame(int streamId, ReadOnlyMemory<byte> data, bool endStream = false)
@@ -140,6 +142,17 @@ internal sealed class DataFrame(int streamId, ReadOnlyMemory<byte> data, bool en
         WriteHeader(ref w, Data.Length, FrameType.Data, flags, StreamId);
         w.WriteBytes(Data.Span);
         span = span[w.BytesWritten..];
+    }
+
+    // Writes the 9-byte DATA frame header in-place at dest[offset..offset+9].
+    // The caller is responsible for ensuring dest is large enough and that the
+    // payload already sits at dest[offset+9..offset+9+payloadLength].
+    public static void WriteHeaderInPlace(Span<byte> dest, int offset, int streamId, int payloadLength, bool endStream)
+    {
+        var slice = dest.Slice(offset, FrameHeaderSize);
+        var w = SpanWriter.Create(slice);
+        var flags = endStream ? (byte)Datas.EndStream : (byte)Datas.None;
+        WriteHeader(ref w, payloadLength, FrameType.Data, flags, streamId);
     }
 }
 
