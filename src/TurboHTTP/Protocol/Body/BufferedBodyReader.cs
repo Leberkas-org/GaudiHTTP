@@ -11,6 +11,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader
 
     public bool IsBuffered => true;
     public bool IsCompleted { get; private set; }
+    public bool IsOpenEnded => _openEnded;
 
     public void Reset(int contentLength)
     {

@@ -136,19 +136,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
 
                     if (!result.Body.IsEmpty)
                     {
-                        if (!StreamingReader.TryEnqueue(result.Body))
-                        {
-                            if (result.EndOfBody)
-                            {
-                                StreamingReader.Complete();
-                                _phase = Phase.Done;
-                                consumed = pos;
-                                return DecodeOutcome.Complete;
-                            }
-
-                            consumed = pos;
-                            return DecodeOutcome.NeedMore;
-                        }
+                        StreamingReader.TryEnqueue(result.Body);
                     }
 
                     if (result.EndOfBody)
