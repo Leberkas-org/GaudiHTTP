@@ -241,6 +241,11 @@ public sealed class Http2ServerBodyStreamingSpec
 
         sm.DecodeClientData(new TransportData(buffer1));
 
+        // Consume first chunk (backpressure contract: AdvanceTo before next Supply)
+        var buf1 = new byte[64];
+        var read1 = await bodyStream.ReadAsync(buf1, TestContext.Current.CancellationToken);
+        Assert.Equal("First ", System.Text.Encoding.UTF8.GetString(buf1, 0, read1));
+
         // Send second DATA frame with endStream=true
         var data2 = "Second"u8.ToArray();
         var dataFrame2 = BuildDataFrame(streamId: 1, data2, endStream: true);
@@ -251,11 +256,10 @@ public sealed class Http2ServerBodyStreamingSpec
 
         sm.DecodeClientData(new TransportData(buffer2));
 
-        // Read aggregated data from body stream
-        using var stream = new MemoryStream();
-        await bodyStream.CopyToAsync(stream, TestContext.Current.CancellationToken);
-        var receivedData = System.Text.Encoding.UTF8.GetString(stream.ToArray());
-        Assert.Equal("First Second", receivedData);
+        // Read second chunk
+        var buf2 = new byte[64];
+        var read2 = await bodyStream.ReadAsync(buf2, TestContext.Current.CancellationToken);
+        Assert.Equal("Second", System.Text.Encoding.UTF8.GetString(buf2, 0, read2));
     }
 
     [Fact(Timeout = 5000)]

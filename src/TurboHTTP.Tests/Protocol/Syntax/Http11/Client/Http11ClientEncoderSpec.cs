@@ -1,8 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using Akka.Actor;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Client;
@@ -17,7 +15,7 @@ public sealed class Http11ClientEncoderSpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, request, ActorRefs.Nobody);
+        var written = _encoder.Encode(buffer, request, out _, out _);
 
         Assert.True(written > 0);
         var result = Encoding.ASCII.GetString(buffer, 0, written);
@@ -30,7 +28,7 @@ public sealed class Http11ClientEncoderSpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com:8080/path");
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, request, ActorRefs.Nobody);
+        var written = _encoder.Encode(buffer, request, out _, out _);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.Contains("Host: example.com:8080", result);
@@ -45,7 +43,7 @@ public sealed class Http11ClientEncoderSpec
         };
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, request, ActorRefs.Nobody);
+        var written = _encoder.Encode(buffer, request, out _, out _);
 
         Assert.True(written > 0);
         var result = Encoding.ASCII.GetString(buffer, 0, written);
@@ -59,7 +57,7 @@ public sealed class Http11ClientEncoderSpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, request, ActorRefs.Nobody);
+        var written = _encoder.Encode(buffer, request, out _, out _);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.Contains("Connection:", result);
@@ -72,7 +70,7 @@ public sealed class Http11ClientEncoderSpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, request, ActorRefs.Nobody);
+        var written = _encoder.Encode(buffer, request, out _, out _);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.True(result.Contains("\r\n"), "Output should use CRLF line endings");
@@ -86,7 +84,7 @@ public sealed class Http11ClientEncoderSpec
         var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, request, ActorRefs.Nobody);
+        var written = _encoder.Encode(buffer, request, out _, out _);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         Assert.True(result.Contains("\r\n\r\n"),
@@ -100,7 +98,7 @@ public sealed class Http11ClientEncoderSpec
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/api/resource");
         var buffer = new byte[4096];
 
-        var written = _encoder.Encode(buffer, request, ActorRefs.Nobody);
+        var written = _encoder.Encode(buffer, request, out _, out _);
 
         var result = Encoding.ASCII.GetString(buffer, 0, written);
         var firstLine = result[..result.IndexOf("\r\n")];

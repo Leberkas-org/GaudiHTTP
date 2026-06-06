@@ -21,7 +21,8 @@ public sealed class ServerResponseEncoderSpec
             WriteDateHeader = false,
             QpackMaxTableCapacity = 4096,
             QpackBlockedStreams = 100,
-            MaxHeaderBytes = 8192
+            MaxHeaderBytes = 8192,
+            UseHuffman = true
         };
         _encoder = new Http3ServerEncoder(_encoderTableSync, options);
     }

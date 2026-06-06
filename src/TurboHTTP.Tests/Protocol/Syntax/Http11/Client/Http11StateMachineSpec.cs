@@ -244,7 +244,7 @@ public sealed class Http11StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.8")]
-    public void DecodeServerData_should_buffer_close_delimited_response()
+    public void DecodeServerData_should_push_streaming_response_immediately_for_close_delimited()
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
@@ -253,12 +253,13 @@ public sealed class Http11StateMachineSpec
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
         sm.DecodeServerData(new TransportData(buffer));
 
-        Assert.Empty(ops.Responses);
+        Assert.Single(ops.Responses);
+        Assert.Equal(200, (int)ops.Responses[0].StatusCode);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.8")]
-    public void DecodeServerData_should_accumulate_body_for_close_delimited_response()
+    public void DecodeServerData_should_push_response_before_body_complete_for_streaming()
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
@@ -267,10 +268,7 @@ public sealed class Http11StateMachineSpec
         var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
         sm.DecodeServerData(new TransportData(buffer1));
 
-        var buffer2 = CreateResponseBuffer("response body");
-        sm.DecodeServerData(new TransportData(buffer2));
-
-        Assert.Empty(ops.Responses);
+        Assert.Single(ops.Responses);
     }
 
     [Fact(Timeout = 5000)]
@@ -356,7 +354,7 @@ public sealed class Http11StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.8")]
-    public void DecodeServerData_should_fail_request_on_abrupt_close_with_pending_close_delimited()
+    public void DecodeServerData_should_push_response_immediately_for_streaming_then_handle_abrupt_close()
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
@@ -366,10 +364,9 @@ public sealed class Http11StateMachineSpec
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
         sm.DecodeServerData(new TransportData(buffer));
 
-        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+        Assert.Single(ops.Responses);
 
-        var task = pending.GetValueTask();
-        Assert.True(task.IsFaulted);
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
     }
 
     [Fact(Timeout = 5000)]
@@ -407,22 +404,18 @@ public sealed class Http11StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-9.8")]
-    public void DecodeServerData_should_fail_request_on_abrupt_close_with_body_owners()
+    public void DecodeServerData_should_push_response_immediately_then_handle_abrupt_close_with_body()
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, MakeConfig());
-        var (request, pending) = MakeTrackedRequest();
-        sm.OnRequest(request);
+        sm.OnRequest(MakeRequest());
 
         var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\n");
         sm.DecodeServerData(new TransportData(buffer1));
-        var buffer2 = CreateResponseBuffer("body");
-        sm.DecodeServerData(new TransportData(buffer2));
+
+        Assert.Single(ops.Responses);
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
-
-        var task = pending.GetValueTask();
-        Assert.True(task.IsFaulted);
     }
 
     [Fact(Timeout = 5000)]
@@ -590,8 +583,7 @@ public sealed class Http11StateMachineSpec
         var buffer1 = CreateResponseBuffer("HTTP/1.1 200 OK\r\n\r\nstart");
         sm.DecodeServerData(new TransportData(buffer1));
 
-        var buffer2 = CreateResponseBuffer("more");
-        sm.DecodeServerData(new TransportData(buffer2));
+        Assert.False(sm.ShouldPauseNetwork);
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
 
@@ -640,7 +632,8 @@ public sealed class Http11StateMachineSpec
         var buffer = CreateResponseBuffer("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n");
         sm.DecodeServerData(new TransportData(buffer));
 
-        Assert.Empty(ops.Responses);
+        Assert.Single(ops.Responses);
+        Assert.Equal(200, (int)ops.Responses[0].StatusCode);
     }
 
     [Fact(Timeout = 5000)]
@@ -678,7 +671,7 @@ public sealed class Http11StateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void CanAcceptRequest_should_become_true_after_OutboundBodyComplete()
+    public void CanAcceptRequest_should_become_true_after_body_drain_completes()
     {
         var ops = new FakeClientOps();
         var sm = new Http11ClientStateMachine(ops, new TurboClientOptions());
@@ -689,7 +682,7 @@ public sealed class Http11StateMachineSpec
             Content = new ByteArrayContent(new byte[1000])
         };
         sm.OnRequest(request);
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(new Http11ClientStateMachine.BodyReadComplete(0));
 
         Assert.True(sm.CanAcceptRequest);
     }

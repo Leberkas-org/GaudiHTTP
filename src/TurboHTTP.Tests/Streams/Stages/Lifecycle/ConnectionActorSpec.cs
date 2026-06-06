@@ -9,7 +9,6 @@ using System.Net;
 using TurboHTTP.Server;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Lifecycle;
-using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
 
@@ -30,13 +29,8 @@ public sealed class ConnectionActorSpec : TestKit
         }
     }
 
-    private ServerPipeline CreatePassthroughPipeline()
-    {
-        var options = new TurboServerOptions { Limits = { MaxConcurrentRequests = 0 } };
-        var killSwitch = KillSwitches.Shared("connactor-test-pipeline");
-        return ServerPipeline.Materialize(
-            Flow.Create<IFeatureCollection>(), options, killSwitch, Sys.Materializer(), Sys);
-    }
+    private static IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> PassthroughBridgeGraph()
+        => Flow.Create<IFeatureCollection>();
 
     private static Flow<ITransportOutbound, ITransportInbound, NotUsed> FakeConnectionFlow()
     {
@@ -60,12 +54,11 @@ public sealed class ConnectionActorSpec : TestKit
     [Fact(Timeout = 10000)]
     public void ConnectionActor_should_materialize_and_complete_on_connection_close()
     {
-        var pipeline = CreatePassthroughPipeline();
         var engine = new PassthroughEngine();
         var options = new TurboServerOptions();
 
         var actor = Sys.ActorOf(ConnectionActor.Props(
-            1, FakeConnectionFlow(), pipeline, engine, options));
+            1, FakeConnectionFlow(), PassthroughBridgeGraph(), engine, options));
 
         Watch(actor);
         ExpectTerminated(actor, TimeSpan.FromSeconds(5), cancellationToken: TestContext.Current.CancellationToken);
@@ -74,12 +67,11 @@ public sealed class ConnectionActorSpec : TestKit
     [Fact(Timeout = 10000)]
     public void ConnectionActor_should_drain_on_drain_message()
     {
-        var pipeline = CreatePassthroughPipeline();
         var engine = new PassthroughEngine();
         var options = new TurboServerOptions();
 
         var actor = Sys.ActorOf(ConnectionActor.Props(
-            1, HangingConnectionFlow(), pipeline, engine, options));
+            1, HangingConnectionFlow(), PassthroughBridgeGraph(), engine, options));
 
         Watch(actor);
         actor.Tell(new ConnectionActor.Drain());

@@ -1,9 +1,7 @@
 using System.Net;
 using System.Text;
-using Akka.Actor;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
@@ -14,7 +12,7 @@ public sealed class Http11RoundTripMethodSpec
 
     private static int EncodeRequest(HttpRequestMessage request, Span<byte> buffer)
     {
-        return Encoder.Encode(buffer, request, ActorRefs.Nobody);
+        return Encoder.Encode(buffer, request, out _, out _);
     }
 
     private static ReadOnlyMemory<byte> BuildResponse(int status, string reason, string body,
@@ -35,7 +33,7 @@ public sealed class Http11RoundTripMethodSpec
     private static HttpResponseMessage Decode(ReadOnlyMemory<byte> data)
     {
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
-        var outcome = decoder.Feed(data.Span, false, out _);
+        var outcome = decoder.Feed(data, false, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
         return decoder.GetResponse();
     }
@@ -154,7 +152,7 @@ public sealed class Http11RoundTripMethodSpec
         var raw = BuildResponse(200, "OK", "",
             ("Content-Length", "0"),
             ("Content-Type", "application/octet-stream"));
-        var outcome = decoder.Feed(raw.Span, true, out _);
+        var outcome = decoder.Feed(raw, true, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
         var response = decoder.GetResponse();
 

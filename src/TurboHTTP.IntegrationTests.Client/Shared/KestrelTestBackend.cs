@@ -27,7 +27,7 @@ internal sealed class KestrelTestBackend : ITestBackend
         var cert = LoadCertificate();
         var quicSupported = QuicListener.IsSupported;
 
-        var httpsPort = quicSupported ? FindAvailablePort() : 0;
+        var httpsPort = quicSupported ? FindAvailableUdpPort() : 0;
 
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
@@ -131,13 +131,14 @@ internal sealed class KestrelTestBackend : ITestBackend
         }
     }
 
-    private static int FindAvailablePort()
+    private static int FindAvailableUdpPort()
     {
-        using var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
+        using var socket = new System.Net.Sockets.Socket(
+            System.Net.Sockets.AddressFamily.InterNetwork,
+            System.Net.Sockets.SocketType.Dgram,
+            System.Net.Sockets.ProtocolType.Udp);
+        socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+        return ((IPEndPoint)socket.LocalEndPoint!).Port;
     }
 
     private static X509Certificate2 LoadCertificate()

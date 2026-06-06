@@ -113,7 +113,7 @@ public sealed class Http2ServerFlowControlSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.1.2")]
-    public void DecodeClientData_with_data_frame_should_emit_window_update_when_threshold_reached()
+    public async Task DecodeClientData_with_data_frame_should_emit_window_update_when_threshold_reached()
     {
         // Create SM with small window so we can easily exceed threshold
         const int initialWindowSize = 16384;
@@ -156,6 +156,12 @@ public sealed class Http2ServerFlowControlSpec
         dataBuf1.Length = dataFrameData1.Length;
 
         sm.DecodeClientData(new TransportData(dataBuf1));
+
+        // Consume body data (backpressure contract: read before next Supply)
+        var bodyStream = context.Get<IHttpRequestFeature>()?.Body;
+        Assert.NotNull(bodyStream);
+        var drain1 = new byte[1024];
+        await bodyStream.ReadAsync(drain1, TestContext.Current.CancellationToken);
 
         // No window update yet (threshold not exceeded)
         ops.Requests.Clear();
@@ -247,7 +253,7 @@ public sealed class Http2ServerFlowControlSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.1.2")]
-    public void DecodeClientData_with_multiple_data_frames_should_track_window_correctly()
+    public async Task DecodeClientData_with_multiple_data_frames_should_track_window_correctly()
     {
         const int initialWindowSize = 20000;
         var ops = new FakeServerOps();
@@ -271,6 +277,9 @@ public sealed class Http2ServerFlowControlSpec
         buffer.Length = headersFrameData.Length;
 
         sm.DecodeClientData(new TransportData(buffer));
+
+        var bodyStream = ops.Requests[0].Get<IHttpRequestFeature>()?.Body;
+        Assert.NotNull(bodyStream);
         ops.Outbound.Clear();
 
         // Send first DATA frame (5000 bytes)
@@ -280,6 +289,10 @@ public sealed class Http2ServerFlowControlSpec
         frame1Data.CopyTo(buf1.FullMemory.Span);
         buf1.Length = frame1Data.Length;
         sm.DecodeClientData(new TransportData(buf1));
+
+        // Consume body data (backpressure contract)
+        var drain1 = new byte[5000];
+        await bodyStream.ReadAsync(drain1, TestContext.Current.CancellationToken);
 
         // Send second DATA frame (6000 bytes) - should exceed half window
         var data2 = new byte[6000];

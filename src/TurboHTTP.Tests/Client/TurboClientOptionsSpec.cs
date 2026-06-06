@@ -291,6 +291,15 @@ public sealed class TurboClientOptionsSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void MaxRequestBodyBufferSize_default_should_be_64_KiB()
+    {
+        var o = new TurboClientOptions();
+
+        Assert.Equal(64 * 1024, o.Http2.MaxRequestBodyBufferSize);
+        Assert.Equal(64 * 1024, o.Http3.MaxRequestBodyBufferSize);
+    }
+
+    [Fact(Timeout = 5000)]
     public void
         EffectiveServerCertificateValidationCallback_WhenDangerousAcceptAnyServerCertificateFalse_ReturnsCustomCallback()
     {

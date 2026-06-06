@@ -1,4 +1,3 @@
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Tests.Protocol.Semantics.Headers;

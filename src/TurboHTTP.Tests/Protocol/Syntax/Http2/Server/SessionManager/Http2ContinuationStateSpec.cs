@@ -186,7 +186,7 @@ public sealed class Http2ContinuationStateSpec
         }
 
         Assert.NotNull(goAway);
-        var s = goAway!.Buffer.Span;
+        var s = goAway.Buffer.Span;
         var code = (s[13] << 24) | (s[14] << 16) | (s[15] << 8) | s[16];
         Assert.Equal((int)Http2ErrorCode.ProtocolError, code);
     }

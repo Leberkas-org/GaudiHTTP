@@ -14,7 +14,8 @@ public sealed class Http2ServerResponseFrameSpec
         MaxFrameSize = 16 * 1024,
         HeaderTableSize = 4096,
         WriteDateHeader = false,
-        MaxHeaderBytes = 32 * 1024
+        MaxHeaderBytes = 32 * 1024,
+        UseHuffman = true
     };
 
     private readonly Http2ServerEncoder _encoder = new(DefaultEncoderOptions());

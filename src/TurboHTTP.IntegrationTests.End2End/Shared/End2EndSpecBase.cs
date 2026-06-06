@@ -190,11 +190,9 @@ public abstract class End2EndSpecBase : IAsyncLifetime
 
     private static ushort GetFreePort()
     {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return (ushort)port;
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+        return (ushort)((IPEndPoint)socket.LocalEndPoint!).Port;
     }
 
     private sealed class FixedOptionsFactory(TurboClientOptions options) : IOptionsFactory<TurboClientOptions>

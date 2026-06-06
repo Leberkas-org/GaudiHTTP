@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Time.Testing;
@@ -62,6 +63,12 @@ public sealed class Http10DataRateSpec
         return defaultOptions with { Limits = newLimits };
     }
 
+    private static ResponseBodyBuffered MakeBodyBuffered(int size)
+    {
+        var owner = MemoryPool<byte>.Shared.Rent(size);
+        return new ResponseBodyBuffered(owner, size);
+    }
+
     [Fact(Timeout = 5000)]
     public void Data_rate_monitoring_disabled_by_default()
     {
@@ -73,10 +80,9 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
+        // Simulate a body read cycle: read complete with 0 bytes (EOF), then buffered
         var context = CreateResponseContext();
-        sm.OnResponse(context);
-
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(new ResponseBodyBuffered(MemoryPool<byte>.Shared.Rent(0), 0));
 
         // Fire timer with monitoring disabled — should not schedule another timer
         sm.OnTimerFired("data-rate-check");
@@ -95,11 +101,8 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
-
-        // Send response body
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        // Simulate buffered response body complete (removes rate tracking)
+        sm.OnBodyMessage(MakeBodyBuffered(0));
 
         sm.OnTimerFired("data-rate-check");
 
@@ -117,10 +120,7 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
-
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(MakeBodyBuffered(0));
 
         sm.OnTimerFired("data-rate-check");
 
@@ -138,10 +138,7 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
-
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(MakeBodyBuffered(0));
 
         sm.OnTimerFired("data-rate-check");
 
@@ -159,10 +156,7 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
-
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(MakeBodyBuffered(0));
 
         System.Threading.Thread.Sleep(150);
 
@@ -183,17 +177,10 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
-
-        // Send small response body chunk at time=0
-        var responseBody = new byte[10];
-        var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(responseBody.Length);
-        responseBody.CopyTo(owner.Memory.Span);
-        sm.OnBodyMessage(new OutboundBodyChunk(owner, responseBody.Length));
+        // Simulate reading 10 bytes of response body via ResponseBodyReadComplete
+        sm.OnBodyMessage(new ResponseBodyReadComplete(10));
 
         // Advance clock to first check point (600ms, triggers first rate calculation but still in grace)
-        // With 10 bytes in 600ms < 1000 bytes/sec, enters grace period
         clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
         Assert.False(sm.ShouldComplete, "Should be in grace period at first check");
@@ -203,9 +190,6 @@ public sealed class Http10DataRateSpec
         clock.Advance(TimeSpan.FromMilliseconds(1100));
         sm.OnTimerFired("data-rate-check");
         Assert.True(sm.ShouldComplete, "Expected data rate violation to set ShouldComplete after grace expires");
-
-        // Complete the response (this removes from tracking, but ShouldComplete is already true)
-        sm.OnBodyMessage(new OutboundBodyComplete());
     }
 
     [Fact(Timeout = 5000)]
@@ -220,10 +204,7 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(new TransportData(headerBuffer));
 
-        var context = CreateResponseContext();
-        sm.OnResponse(context);
-
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(MakeBodyBuffered(0));
 
         // Check at time=600ms (first rate check, enters grace)
         clock.Advance(TimeSpan.FromMilliseconds(600));

@@ -20,7 +20,7 @@ public sealed class TracingActivityLeakSpec : StreamTestBase
         var stoppedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Activity? capturedActivity = null;
 
-        var sourceName = Servus.Core.Servus.Tracing.Source.Name;
+        var sourceName = Servus.Senf.Tracing.Source.Name;
         using var listener = new ActivityListener();
         listener.ShouldListenTo = source => source.Name == sourceName;
         listener.Sample = (ref _) => ActivitySamplingResult.AllData;

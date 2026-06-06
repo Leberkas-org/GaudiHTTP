@@ -1,8 +1,6 @@
 using System.Text;
-using Akka.Actor;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
@@ -13,7 +11,7 @@ public sealed class Http11RoundTripBodySpec
 
     private static int EncodeRequest(HttpRequestMessage request, Span<byte> buffer)
     {
-        return Encoder.Encode(buffer, request, ActorRefs.Nobody);
+        return Encoder.Encode(buffer, request, out _, out _);
     }
 
     private static ReadOnlyMemory<byte> BuildResponse(int status, string reason, string body,
@@ -67,16 +65,16 @@ public sealed class Http11RoundTripBodySpec
     {
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var responses = new List<HttpResponseMessage>();
-        var span = data.Span;
-        while (span.Length > 0)
+        var offset = 0;
+        while (offset < data.Length)
         {
-            var outcome = decoder.Feed(span, false, out var consumed);
+            var outcome = decoder.Feed(data[offset..], false, out var consumed);
             if (outcome == DecodeOutcome.NeedMore)
             {
                 break;
             }
 
-            span = span[consumed..];
+            offset += consumed;
             if (outcome == DecodeOutcome.Complete)
             {
                 responses.Add(decoder.GetResponse());
@@ -239,11 +237,11 @@ public sealed class Http11RoundTripBodySpec
     {
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var r1 = BuildResponse(200, "OK", "first", ("Content-Length", "5"));
-        decoder.Feed(r1.Span, false, out _);
+        decoder.Feed(r1, false, out _);
         decoder.Reset();
 
         var r2 = BuildResponse(200, "OK", "second", ("Content-Length", "6"));
-        var outcome = decoder.Feed(r2.Span, false, out _);
+        var outcome = decoder.Feed(r2, false, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
         var response = decoder.GetResponse();
@@ -261,7 +259,7 @@ public sealed class Http11RoundTripBodySpec
         {
             var body = new string('A', size);
             var raw = BuildResponse(200, "OK", body, ("Content-Length", size.ToString()));
-            var outcome = decoder.Feed(raw.Span, false, out _);
+            var outcome = decoder.Feed(raw, false, out _);
 
             Assert.Equal(DecodeOutcome.Complete, outcome);
             var response = decoder.GetResponse();

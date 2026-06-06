@@ -1,8 +1,6 @@
 using System.Net;
-using Akka.Actor;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Semantics.Redirect;
@@ -14,7 +12,7 @@ public sealed class UriRedirectSpec
     private static string EncodeHttp11(HttpRequestMessage request, int bufferSize = 16384)
     {
         var buffer = new byte[bufferSize];
-        var written = Encoder.Encode(buffer, request, ActorRefs.Nobody);
+        var written = Encoder.Encode(buffer, request, out _, out _);
         return System.Text.Encoding.ASCII.GetString(buffer, 0, written);
     }
 
@@ -46,7 +44,7 @@ public sealed class UriRedirectSpec
         var request = new HttpRequestMessage(HttpMethod.Get, longUri);
 
         const int bufferSize = 32768;
-        var written = Encoder.Encode(new byte[bufferSize], request, ActorRefs.Nobody);
+        var written = Encoder.Encode(new byte[bufferSize], request, out _, out _);
 
         Assert.True(written > 0);
         Assert.True(written < bufferSize);
@@ -61,7 +59,7 @@ public sealed class UriRedirectSpec
         var request = new HttpRequestMessage(HttpMethod.Get, uri);
 
         const int bufferSize = 32768;
-        var written = Encoder.Encode(new byte[bufferSize], request, ActorRefs.Nobody);
+        var written = Encoder.Encode(new byte[bufferSize], request, out _, out _);
 
         Assert.True(written > 0);
         Assert.True(written < bufferSize);

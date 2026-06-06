@@ -1,4 +1,3 @@
-using System.Text;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -44,7 +43,7 @@ public sealed class AkkaStreamResultSpec : TestKit
         await result.ExecuteAsync(ctx);
 
         body.Position = 0;
-        var content = Encoding.UTF8.GetString(body.ToArray());
+        var content = System.Text.Encoding.UTF8.GetString(body.ToArray());
         Assert.Equal("hello world", content);
     }
 

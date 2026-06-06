@@ -22,33 +22,29 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
         }
     }
 
-    private static IFeatureCollection Request(int connectionId = 1, int requestSeq = 0, string protocol = "HTTP/2")
+    private static IFeatureCollection Request(string protocol = "HTTP/2")
     {
         var fc = new FeatureCollection();
         fc.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Protocol = protocol });
         fc.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
         fc.Set<IHttpResponseBodyFeature>(new TurboHttpResponseBodyFeature());
-        fc.Set<IConnectionTagFeature>(new ConnectionTagFeature
-            { ConnectionId = connectionId, RequestSequence = requestSeq });
         return fc;
+    }
+
+    private static ApplicationBridgeStage<IFeatureCollection> CreateStage(
+        IHttpApplication<IFeatureCollection> app,
+        TurboServerOptions? options = null)
+    {
+        options ??= new TurboServerOptions();
+        return new ApplicationBridgeStage<IFeatureCollection>(
+            app, 10, options.HandlerTimeout, options.HandlerGracePeriod);
     }
 
     [Fact(Timeout = 5000)]
     public void ApplicationBridgeStage_should_dispatch_immediate_completions()
     {
         var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions
-        {
-            Limits =
-            {
-                MaxConcurrentRequests = 10
-            }
-        };
-        var stage = new ApplicationBridgeStage<IFeatureCollection>(
-            app,
-            options.Limits.MaxConcurrentRequests,
-            options.HandlerTimeout,
-            options.HandlerGracePeriod);
+        var stage = CreateStage(app);
 
         var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
             .Via(stage)
@@ -62,32 +58,15 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
     }
 
     [Fact(Timeout = 5000)]
-    public void ApplicationBridgeStage_should_emit_unordered_when_handlers_complete_out_of_order()
+    public void ApplicationBridgeStage_should_emit_all_when_handlers_complete_out_of_order()
     {
         var tcs1 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var tcs2 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var tcs3 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var handlers = new[] { tcs1.Task, tcs2.Task, tcs3.Task };
-        var app = new FakeApplication(features =>
-        {
-            var connTag = features.Get<IConnectionTagFeature>();
-            var reqSeq = connTag?.RequestSequence ?? 0;
-            return handlers[reqSeq];
-        });
-
-        var options = new TurboServerOptions
-        {
-            Limits =
-            {
-                MaxConcurrentRequests = 10
-            }
-        };
-        var stage = new ApplicationBridgeStage<IFeatureCollection>(
-            app,
-            options.Limits.MaxConcurrentRequests,
-            options.HandlerTimeout,
-            options.HandlerGracePeriod);
+        var handlerQueue = new Queue<Task>(new[] { tcs1.Task, tcs2.Task, tcs3.Task });
+        var app = new FakeApplication(_ => handlerQueue.Dequeue());
+        var stage = CreateStage(app);
 
         var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
             .Via(stage)
@@ -96,45 +75,23 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
 
         downstream.Request(3);
         upstream.SendNext(Request(), TestContext.Current.CancellationToken);
-        upstream.SendNext(Request(1, 1), TestContext.Current.CancellationToken);
-        upstream.SendNext(Request(1, 2), TestContext.Current.CancellationToken);
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
 
-        // Complete in order: 2, 1, 3 (by requestSeq: 1, 0, 2)
-        tcs1.SetResult();
         tcs2.SetResult();
+        tcs1.SetResult();
         tcs3.SetResult();
 
-        var first = downstream.ExpectNext(TestContext.Current.CancellationToken);
-        var second = downstream.ExpectNext(TestContext.Current.CancellationToken);
-        var third = downstream.ExpectNext(TestContext.Current.CancellationToken);
-
-        var emitOrder = new[]
-        {
-            first.Get<IConnectionTagFeature>()?.RequestSequence ?? -1,
-            second.Get<IConnectionTagFeature>()?.RequestSequence ?? -1,
-            third.Get<IConnectionTagFeature>()?.RequestSequence ?? -1,
-        }.Where(x => x is not -1).ToArray();
-
-        // In unordered mode, all three should be emitted
-        Assert.Equal(3, emitOrder.Length);
+        downstream.ExpectNext(TestContext.Current.CancellationToken);
+        downstream.ExpectNext(TestContext.Current.CancellationToken);
+        downstream.ExpectNext(TestContext.Current.CancellationToken);
     }
 
     [Fact(Timeout = 5000)]
     public void ApplicationBridgeStage_should_handle_handler_exceptions()
     {
         var app = new FakeApplication(_ => throw new InvalidOperationException("Test error"));
-        var options = new TurboServerOptions
-        {
-            Limits =
-            {
-                MaxConcurrentRequests = 10
-            }
-        };
-        var stage = new ApplicationBridgeStage<IFeatureCollection>(
-            app,
-            options.Limits.MaxConcurrentRequests,
-            options.HandlerTimeout,
-            options.HandlerGracePeriod);
+        var stage = CreateStage(app);
 
         var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
             .Via(stage)
@@ -152,18 +109,7 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
     public void ApplicationBridgeStage_should_complete_upstream_finished_no_pending()
     {
         var app = new FakeApplication(_ => Task.CompletedTask);
-        var options = new TurboServerOptions
-        {
-            Limits =
-            {
-                MaxConcurrentRequests = 10
-            }
-        };
-        var stage = new ApplicationBridgeStage<IFeatureCollection>(
-            app,
-            options.Limits.MaxConcurrentRequests,
-            options.HandlerTimeout,
-            options.HandlerGracePeriod);
+        var stage = CreateStage(app);
 
         var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
             .Via(stage)

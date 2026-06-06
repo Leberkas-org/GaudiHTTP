@@ -51,6 +51,7 @@ public sealed class BenchmarkServer : IAsyncDisposable
             options.Limits.Http2.MaxStreamsPerConnection = 512;
             options.Limits.Http2.InitialConnectionWindowSize = 4 * 1024 * 1024;
             options.Limits.Http2.InitialStreamWindowSize = 1024 * 1024;
+            options.Limits.Http2.MaxFrameSize = 256 * 1024;
 
             // Raise general limits for HTTP/3 high-concurrency benchmarks.
             options.Limits.MaxConcurrentConnections = null;

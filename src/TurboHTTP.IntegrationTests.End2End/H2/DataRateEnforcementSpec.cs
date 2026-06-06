@@ -1,10 +1,7 @@
 using System.Net;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
-using TurboHTTP.Client;
 using TurboHTTP.IntegrationTests.End2End.Shared;
-using TurboHTTP.Server;
 
 namespace TurboHTTP.IntegrationTests.End2End.H2;
 
@@ -102,7 +99,6 @@ public sealed class DataRateEnforcementSpec : End2EndSpecBase
         {
             Content = new StreamContent(new ThrottledStream(payload, bytesPerChunk: 32, delayPerChunk: TimeSpan.FromMilliseconds(200)))
         };
-        request.Content.Headers.ContentLength = payload.Length;
 
         var ex = await Assert.ThrowsAnyAsync<Exception>(async () =>
         {
@@ -131,7 +127,6 @@ public sealed class DataRateEnforcementSpec : End2EndSpecBase
                 {
                     Content = new StreamContent(new ThrottledStream(slowPayload, bytesPerChunk: 32, delayPerChunk: TimeSpan.FromMilliseconds(200)))
                 };
-                request.Content.Headers.ContentLength = slowPayload.Length;
 
                 var response = await Client.SendAsync(request, TestContext.Current.CancellationToken);
                 await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
@@ -200,13 +195,15 @@ public sealed class DataRateEnforcementSpec : End2EndSpecBase
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            var toRead = Math.Min(count, data.Length - _position);
-            if (toRead <= 0)
+            if (_position >= data.Length)
             {
                 return 0;
             }
 
-            Array.Copy(data, _position, buffer, offset, toRead);
+            Thread.Sleep(delayPerChunk);
+
+            var toRead = Math.Min(bytesPerChunk, Math.Min(count, data.Length - _position));
+            data.AsSpan(_position, toRead).CopyTo(buffer.AsSpan(offset, toRead));
             _position += toRead;
             return toRead;
         }

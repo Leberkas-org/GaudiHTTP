@@ -1,4 +1,3 @@
-using System.Linq;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
@@ -50,7 +49,7 @@ public sealed class Http2ConnectionErrorTeardownSpec
         Assert.True(sm.ShouldComplete);
         var goAway = FindFrame(ops, FrameType.GoAway);
         Assert.NotNull(goAway);
-        Assert.Equal((int)Http2ErrorCode.ProtocolError, ReadGoAwayErrorCode(goAway!));
+        Assert.Equal((int)Http2ErrorCode.ProtocolError, ReadGoAwayErrorCode(goAway));
     }
 
     [Fact(Timeout = 5000)]
@@ -75,6 +74,6 @@ public sealed class Http2ConnectionErrorTeardownSpec
         Assert.True(sm.ShouldComplete);
         var goAway = FindFrame(ops, FrameType.GoAway);
         Assert.NotNull(goAway);
-        Assert.Equal((int)Http2ErrorCode.CompressionError, ReadGoAwayErrorCode(goAway!));
+        Assert.Equal((int)Http2ErrorCode.CompressionError, ReadGoAwayErrorCode(goAway));
     }
 }

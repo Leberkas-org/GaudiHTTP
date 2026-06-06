@@ -14,6 +14,7 @@ namespace TurboHTTP.Client
         public CacheOptions() { }
         public long MaxBodySize { get; set; }
         public int MaxEntries { get; set; }
+        public long MaxTotalSize { get; set; }
         public bool SharedCache { get; set; }
     }
     public sealed class CompressionOptions
@@ -39,6 +40,7 @@ namespace TurboHTTP.Client
         public Http1ClientOptions() { }
         public bool AutoAcceptEncoding { get; set; }
         public bool AutoHost { get; set; }
+        public int MaxBufferedResponseBodySize { get; set; }
         public int MaxChunkExtensionLength { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxPipelineDepth { get; set; }
@@ -57,10 +59,13 @@ namespace TurboHTTP.Client
         public System.TimeSpan KeepAlivePingDelay { get; set; }
         public System.Net.Http.HttpKeepAlivePingPolicy KeepAlivePingPolicy { get; set; }
         public System.TimeSpan KeepAlivePingTimeout { get; set; }
+        public long MaxBufferedRequestBodySize { get; set; }
         public int MaxConcurrentStreams { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxFrameSize { get; set; }
         public int MaxReconnectAttempts { get; set; }
+        public int MaxReconnectBufferSize { get; set; }
+        public long MaxRequestBodyBufferSize { get; set; }
         public int MaxResponseHeaderListSize { get; set; }
         public int MaxStreamWindowSize { get; set; }
         public double WindowScaleThresholdMultiplier { get; set; }
@@ -70,11 +75,13 @@ namespace TurboHTTP.Client
         public Http3ClientOptions() { }
         public bool EnableAltSvcDiscovery { get; set; }
         public System.TimeSpan IdleTimeout { get; set; }
+        public long MaxBufferedRequestBodySize { get; set; }
         public int MaxConcurrentStreams { get; set; }
         public int MaxConnectionsPerServer { get; set; }
         public int MaxFieldSectionSize { get; set; }
         public int MaxReconnectAttempts { get; set; }
         public int MaxReconnectBufferSize { get; set; }
+        public long MaxRequestBodyBufferSize { get; set; }
         public int QpackBlockedStreams { get; set; }
         public int QpackMaxTableCapacity { get; set; }
     }
@@ -132,7 +139,6 @@ namespace TurboHTTP.Client
         public bool PreAuthenticate { get; set; }
         public System.Net.IWebProxy? Proxy { get; set; }
         public int RequestBodyChunkSize { get; set; }
-        public int ResponseBodyBufferThreshold { get; set; }
         public System.Net.Security.RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; set; }
         public int? SocketReceiveBufferSize { get; set; }
         public int? SocketSendBufferSize { get; set; }
@@ -202,10 +208,10 @@ namespace TurboHTTP.Diagnostics
     {
         public static OpenTelemetry.Metrics.MeterProviderBuilder AddTurboHttpInstrumentation(this OpenTelemetry.Metrics.MeterProviderBuilder builder) { }
         public static OpenTelemetry.Trace.TracerProviderBuilder AddTurboHttpInstrumentation(this OpenTelemetry.Trace.TracerProviderBuilder builder) { }
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTurboLoggerTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Core.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTurboLoggerTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
         public static OpenTelemetry.Metrics.MeterProviderBuilder AddTurboServerInstrumentation(this OpenTelemetry.Metrics.MeterProviderBuilder builder) { }
         public static OpenTelemetry.Trace.TracerProviderBuilder AddTurboServerInstrumentation(this OpenTelemetry.Trace.TracerProviderBuilder builder) { }
-        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTurboTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Core.Diagnostics.IServusTraceListener listener, Servus.Core.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddTurboTracing(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Servus.Diagnostics.IServusTraceListener listener, Servus.Diagnostics.TraceLevel minimumLevel = 1, System.Func<string, bool>? categoryFilter = null) { }
     }
 }
 namespace TurboHTTP.Features.Caching
@@ -351,6 +357,7 @@ namespace TurboHTTP.Server
         public Http1ServerOptions() { }
         public System.TimeSpan BodyReadTimeout { get; set; }
         public System.TimeSpan? KeepAliveTimeout { get; set; }
+        public int MaxBufferedRequestBodySize { get; set; }
         public int MaxChunkExtensionLength { get; set; }
         public int? MaxHeaderListSize { get; set; }
         public int MaxPipelinedRequests { get; set; }
@@ -369,12 +376,14 @@ namespace TurboHTTP.Server
         public int HeaderTableSize { get; set; }
         public int InitialConnectionWindowSize { get; set; }
         public int InitialStreamWindowSize { get; set; }
+        public System.TimeSpan KeepAlivePingDelay { get; set; }
+        public System.TimeSpan KeepAlivePingTimeout { get; set; }
         public System.TimeSpan? KeepAliveTimeout { get; set; }
         public int MaxConcurrentStreams { get; set; }
         public int MaxFrameSize { get; set; }
         public int? MaxHeaderListSize { get; set; }
         public long? MaxRequestBodySize { get; set; }
-        public long MaxResponseBufferSize { get; set; }
+        public long? MaxResponseBufferSize { get; set; }
         public double? MinRequestBodyDataRate { get; set; }
         public System.TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; }
         public double? MinResponseDataRate { get; set; }
@@ -388,6 +397,7 @@ namespace TurboHTTP.Server
         public int MaxConcurrentStreams { get; set; }
         public int? MaxHeaderListSize { get; set; }
         public long? MaxRequestBodySize { get; set; }
+        public long? MaxResponseBufferSize { get; set; }
         public double? MinRequestBodyDataRate { get; set; }
         public System.TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; }
         public double? MinResponseDataRate { get; set; }
@@ -457,14 +467,14 @@ namespace TurboHTTP.Server
         public TurboServerLimits() { }
         public System.TimeSpan KeepAliveTimeout { get; set; }
         public int MaxConcurrentConnections { get; set; }
-        public int MaxConcurrentRequests { get; set; }
         public long MaxRequestBodySize { get; set; }
+        public long? MaxRequestBufferSize { get; set; }
         public int MaxRequestHeaderCount { get; set; }
         public int MaxRequestHeadersTotalSize { get; set; }
         public int MaxResetStreamsPerWindow { get; set; }
+        public long MaxResponseBufferSize { get; set; }
         public double MinRequestBodyDataRate { get; set; }
         public System.TimeSpan MinRequestBodyDataRateGracePeriod { get; set; }
-        public int MinRequestGuarantee { get; set; }
         public double MinResponseDataRate { get; set; }
         public System.TimeSpan MinResponseDataRateGracePeriod { get; set; }
         public System.TimeSpan RequestHeadersTimeout { get; set; }
@@ -472,6 +482,7 @@ namespace TurboHTTP.Server
     public sealed class TurboServerOptions
     {
         public TurboServerOptions() { }
+        public bool AllowResponseHeaderCompression { get; set; }
         public System.TimeSpan BodyConsumptionTimeout { get; set; }
         public System.Collections.Generic.IList<TurboHTTP.Server.ListenerBinding> Endpoints { get; }
         public System.TimeSpan GracefulShutdownTimeout { get; set; }
@@ -481,7 +492,7 @@ namespace TurboHTTP.Server
         public TurboHTTP.Server.Http2ServerOptions Http2 { get; }
         public TurboHTTP.Server.Http3ServerOptions Http3 { get; }
         public TurboHTTP.Server.TurboServerLimits Limits { get; }
-        public int RequestBodyBufferThreshold { get; set; }
+        public int MaxOutboundCoalesceCount { get; set; }
         public int ResponseBodyChunkSize { get; set; }
         public System.Collections.Generic.IList<string> Urls { get; }
         public void Bind(Servus.Akka.Transport.QuicListenerOptions options) { }

@@ -21,7 +21,8 @@ public sealed class Http3ServerEncoderHardeningSpec
             WriteDateHeader = false,
             QpackMaxTableCapacity = 4096,
             QpackBlockedStreams = 100,
-            MaxHeaderBytes = 8192
+            MaxHeaderBytes = 8192,
+            UseHuffman = true
         };
         _encoder = new Http3ServerEncoder(_encoderTableSync, options);
     }
@@ -113,7 +114,8 @@ public sealed class Http3ServerEncoderHardeningSpec
             WriteDateHeader = false,
             QpackMaxTableCapacity = 4096,
             QpackBlockedStreams = 100,
-            MaxHeaderBytes = 8192
+            MaxHeaderBytes = 8192,
+            UseHuffman = true
         };
         var encoder1 = new Http3ServerEncoder(encoder1Sync, options1);
         var frame1 = encoder1.EncodeHeaders(ctx1);
@@ -133,7 +135,8 @@ public sealed class Http3ServerEncoderHardeningSpec
             WriteDateHeader = false,
             QpackMaxTableCapacity = 4096,
             QpackBlockedStreams = 100,
-            MaxHeaderBytes = 8192
+            MaxHeaderBytes = 8192,
+            UseHuffman = true
         };
         var encoder2 = new Http3ServerEncoder(encoder2Sync, options2);
         var frame2 = encoder2.EncodeHeaders(ctx2);

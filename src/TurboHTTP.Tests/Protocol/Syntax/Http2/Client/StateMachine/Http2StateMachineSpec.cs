@@ -562,21 +562,36 @@ public sealed class Http2StateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.2")]
-    public void DecodeServerData_should_accumulate_response_body_across_multiple_frames()
+    public void DecodeServerData_should_stream_response_body_via_bridged_reader()
     {
         var ops = new FakeClientOps();
         var sm = new Http2ClientStateMachine(MakeConfig(), ops);
         sm.PreStart();
         sm.OnRequest(MakeGet());
 
+        // Send HEADERS + first DATA in one batch (QueuedBodyReader has fixed capacity,
+        // so the consumer must read between enqueues — split into separate messages).
         var headers = MakeResponseHeaders(1, endStream: false, endHeaders: true);
         var data1 = MakeData(1, [1, 2, 3], endStream: false);
-        var data2 = MakeData(1, [4, 5, 6], endStream: true);
-        sm.DecodeServerData(new TransportData(SerializeFrames(headers, data1, data2)));
+        sm.DecodeServerData(new TransportData(SerializeFrames(headers, data1)));
 
         var response = Assert.Single(ops.Responses);
         var body = response.Content.ReadAsStream(TestContext.Current.CancellationToken);
         Assert.NotNull(body);
+
+        // Consume the first chunk so the bridged reader is ready for the next Supply
+        var buf = new byte[3];
+        var read = body.Read(buf, 0, buf.Length);
+        Assert.Equal(3, read);
+        Assert.Equal(new byte[] { 1, 2, 3 }, buf);
+
+        // Now send the second DATA frame with END_STREAM
+        var data2 = MakeData(1, [4, 5, 6], endStream: true);
+        sm.DecodeServerData(new TransportData(SerializeFrames(data2)));
+
+        read = body.Read(buf, 0, buf.Length);
+        Assert.Equal(3, read);
+        Assert.Equal(new byte[] { 4, 5, 6 }, buf);
     }
 
     [Fact(Timeout = 5000)]

@@ -1,7 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Security;
@@ -15,7 +14,7 @@ public sealed class Http11SecuritySpec
         // Default MaxHeaderCount = 100; 99 extra + Content-Length = 100 total
         var raw = BuildResponseWithNHeaders(99);
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
-        var outcome = decoder.Feed(raw.Span, false, out _);
+        var outcome = decoder.Feed(raw, false, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
     }
@@ -28,7 +27,7 @@ public sealed class Http11SecuritySpec
         var raw = BuildResponseWithNHeaders(100);
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.Span, false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -40,7 +39,7 @@ public sealed class Http11SecuritySpec
         var opts = ClientOptionDefaults.Http11Decoder() with { MaxHeaderCount = 5 };
         var decoder = new Http11ClientDecoder(opts);
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.Span, false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -50,7 +49,7 @@ public sealed class Http11SecuritySpec
         // Build a response with ~8KB of headers, well below the 32KB MaxHeaderBytes default
         var raw = BuildResponseWithLargeHeader(8191);
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
-        var outcome = decoder.Feed(raw.Span, false, out _);
+        var outcome = decoder.Feed(raw, false, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
     }
@@ -63,7 +62,7 @@ public sealed class Http11SecuritySpec
         var raw = BuildResponseWithLargeHeader(33000);
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.Span, false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -74,7 +73,7 @@ public sealed class Http11SecuritySpec
         var raw = BuildResponseWithLargeHeaderValue(17000);
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.Span, false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -84,7 +83,7 @@ public sealed class Http11SecuritySpec
         var raw = BuildResponseWithTeAndCl();
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.Span, false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -94,7 +93,7 @@ public sealed class Http11SecuritySpec
         var raw = BuildResponseWithBareCrInHeaderValue();
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.Span, false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -104,7 +103,7 @@ public sealed class Http11SecuritySpec
         var raw = BuildResponseWithNulInHeaderValue();
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.Span, false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw, false, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -115,7 +114,7 @@ public sealed class Http11SecuritySpec
 
         // Feed incomplete headers (no CRLFCRLF yet)
         var incomplete = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n"u8.ToArray();
-        var outcome1 = decoder.Feed(incomplete.AsSpan(), false, out _);
+        var outcome1 = decoder.Feed(incomplete.AsMemory(), false, out _);
         Assert.Equal(DecodeOutcome.NeedMore, outcome1);
 
         // Reset clears remainder
@@ -123,7 +122,7 @@ public sealed class Http11SecuritySpec
 
         // Feed a complete valid response — decoder must behave as if fresh
         var complete = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nHello"u8.ToArray();
-        var outcome2 = decoder.Feed(complete.AsSpan(), false, out _);
+        var outcome2 = decoder.Feed(complete.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome2);
     }
@@ -136,7 +135,7 @@ public sealed class Http11SecuritySpec
 
         // Feed headers + partial body (body says 10 bytes but we only send 5)
         var partial = "HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\nHello"u8.ToArray();
-        var outcome1 = decoder.Feed(partial.AsSpan(), false, out _);
+        var outcome1 = decoder.Feed(partial.AsMemory(), false, out _);
         Assert.Equal(DecodeOutcome.NeedMore, outcome1);
 
         // Reset discards the partial state
@@ -144,7 +143,7 @@ public sealed class Http11SecuritySpec
 
         // Feed a complete valid response
         var complete = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nWorld"u8.ToArray();
-        var outcome2 = decoder.Feed(complete.AsSpan(), false, out _);
+        var outcome2 = decoder.Feed(complete.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome2);
     }

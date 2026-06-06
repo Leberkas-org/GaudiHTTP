@@ -88,7 +88,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     }
 
     [Fact(Timeout = 5000)]
-    public async Task Cleanup_should_dispose_deferred_body_owner()
+    public async Task Cleanup_should_not_throw_when_body_read_in_progress()
     {
         var inbox = Inbox.Create(Sys);
         var ops = new FakeServerOps { StageActor = inbox.Receiver };
@@ -98,9 +98,9 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
 
-        var msg = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-        var chunk = Assert.IsType<OutboundBodyChunk>(msg);
-        sm.OnBodyMessage(chunk);
+        // Receive the first ResponseBodyReadComplete message but do NOT dispatch it —
+        // simulates Cleanup arriving while a body read is in-flight.
+        await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
 
         var ex = Record.Exception(() => sm.Cleanup());
 
@@ -119,12 +119,12 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     }
 
     [Fact(Timeout = 5000)]
-    public void OnBodyMessage_OutboundBodyFailed_should_not_crash_without_prior_response()
+    public void OnBodyMessage_ResponseBodyReadFailed_should_not_crash_without_prior_response()
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
-        var failedMsg = new OutboundBodyFailed(new Exception("Body read failed"));
+        var failedMsg = new ResponseBodyReadFailed(new Exception("Body read failed"));
         var ex = Record.Exception(() => sm.OnBodyMessage(failedMsg));
 
         Assert.Null(ex);

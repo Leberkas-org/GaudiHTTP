@@ -165,7 +165,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]
-    public async Task OnRequest_with_body_should_emit_transport_data_after_body_chunk()
+    public async Task OnRequest_with_body_should_emit_transport_data_after_body_buffered()
     {
         var inbox = Inbox.Create(Sys);
         var ops = new FakeClientOps { StageActor = inbox.Receiver };
@@ -180,12 +180,17 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
         Assert.DoesNotContain(ops.Outbound, o => o is TransportData);
 
-        var msg = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-        var chunk = Assert.IsType<OutboundBodyChunk>(msg);
-        sm.OnBodyMessage(chunk);
+        // SM uses BufferedBodyWriter + PipeTo — will send BodyReadComplete(5) then BodyReadComplete(0)
+        // then BodyBufferComplete once fully buffered
+        var msg1 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
+        sm.OnBodyMessage(msg1);
 
         var msg2 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
         sm.OnBodyMessage(msg2);
+
+        // BodyBufferComplete triggers EncodeDeferred → TransportData
+        var msg3 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
+        sm.OnBodyMessage(msg3);
 
         Assert.Contains(ops.Outbound, o => o is TransportData);
         var td = ops.Outbound.OfType<TransportData>().First();

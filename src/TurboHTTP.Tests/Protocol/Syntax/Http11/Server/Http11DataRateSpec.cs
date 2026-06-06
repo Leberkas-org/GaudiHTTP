@@ -2,11 +2,11 @@ using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Tests.Shared;
+using static TurboHTTP.Protocol.Syntax.Http11.Server.Http11ServerStateMachine;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -91,7 +91,7 @@ public sealed class Http11DataRateSpec
         var context = CreateResponseContext();
         sm.OnResponse(context);
 
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
 
         // Fire timer with monitoring disabled — should not schedule another timer
         sm.OnTimerFired("data-rate-check");
@@ -114,10 +114,7 @@ public sealed class Http11DataRateSpec
         sm.OnResponse(context);
 
         // Send large response body quickly (exceeds minimum rate)
-        var largeBody = new byte[5000];
-        var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(largeBody.Length);
-        largeBody.CopyTo(owner.Memory.Span);
-        sm.OnBodyMessage(new OutboundBodyChunk(owner, largeBody.Length));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(5000));
 
         sm.OnTimerFired("data-rate-check");
 
@@ -138,7 +135,7 @@ public sealed class Http11DataRateSpec
         var context = CreateResponseContext();
         sm.OnResponse(context);
 
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
 
         sm.OnTimerFired("data-rate-check");
 
@@ -159,10 +156,7 @@ public sealed class Http11DataRateSpec
         var context = CreateResponseContext();
         sm.OnResponse(context);
 
-        var responseBody = new byte[10];
-        var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(responseBody.Length);
-        responseBody.CopyTo(owner.Memory.Span);
-        sm.OnBodyMessage(new OutboundBodyChunk(owner, responseBody.Length));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(10));
 
         sm.OnTimerFired("data-rate-check");
 
@@ -183,12 +177,9 @@ public sealed class Http11DataRateSpec
         var context = CreateResponseContext();
         sm.OnResponse(context);
 
-        var responseBody = new byte[1];
-        var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(responseBody.Length);
-        responseBody.CopyTo(owner.Memory.Span);
-        sm.OnBodyMessage(new OutboundBodyChunk(owner, responseBody.Length));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(1));
 
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
 
         await Task.Delay(150, TestContext.Current.CancellationToken);
 
@@ -213,10 +204,7 @@ public sealed class Http11DataRateSpec
         sm.OnResponse(context);
 
         // Feed tiny amount of response body (will be observed at time=0)
-        var responseBody = new byte[10];
-        var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(responseBody.Length);
-        responseBody.CopyTo(owner.Memory.Span);
-        sm.OnBodyMessage(new OutboundBodyChunk(owner, responseBody.Length));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(10));
 
         // Advance clock to first check point (600ms, triggers first rate calculation but still in grace)
         // With 10 bytes in 600ms = 16.67 bytes/sec < 1000 bytes/sec, enters grace period
@@ -247,10 +235,7 @@ public sealed class Http11DataRateSpec
         sm.OnResponse(context);
 
         // Feed tiny amount at time=0
-        var responseBody = new byte[10];
-        var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(responseBody.Length);
-        responseBody.CopyTo(owner.Memory.Span);
-        sm.OnBodyMessage(new OutboundBodyChunk(owner, responseBody.Length));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(10));
 
         // Check at time=600ms (first rate check, enters grace)
         clock.Advance(TimeSpan.FromMilliseconds(600));

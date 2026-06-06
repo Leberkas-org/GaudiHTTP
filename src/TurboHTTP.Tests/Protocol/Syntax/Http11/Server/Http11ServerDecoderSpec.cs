@@ -146,7 +146,7 @@ public sealed class Http11ServerDecoderSpec
     public void GetRequestFeature_should_parse_method_and_path()
     {
         var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
-        var data = "POST /api/items?page=2 HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"u8;
+        var data = "POST /api/items?page=2 HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         var outcome = decoder.Feed(data, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
 

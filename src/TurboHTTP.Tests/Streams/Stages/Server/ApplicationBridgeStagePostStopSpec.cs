@@ -52,11 +52,10 @@ public sealed class ApplicationBridgeStagePostStopSpec : StreamTestBase
         {
             HandlerTimeout = TimeSpan.FromSeconds(30),
             HandlerGracePeriod = TimeSpan.FromSeconds(5),
-            Limits = { MaxConcurrentRequests = 10 }
         };
         var stage = new ApplicationBridgeStage<IFeatureCollection>(
             app,
-            options.Limits.MaxConcurrentRequests,
+            10,
             options.HandlerTimeout,
             options.HandlerGracePeriod);
         return (stage, app);

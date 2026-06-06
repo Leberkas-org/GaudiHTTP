@@ -130,7 +130,7 @@ public sealed class Http11ServerDecoderSecuritySpec
 
         Assert.Equal(DecodeOutcome.HeadersReady, outcome);
 
-        var bodyOutcome = decoder.Feed(bytes.AsSpan(consumed), out _);
+        var bodyOutcome = decoder.Feed(bytes.AsMemory(consumed), out _);
 
         Assert.Equal(DecodeOutcome.Complete, bodyOutcome);
     }
@@ -152,7 +152,7 @@ public sealed class Http11ServerDecoderSecuritySpec
 
         Assert.Equal(DecodeOutcome.HeadersReady, outcome);
 
-        var bodyOutcome = decoder.Feed(bytes.AsSpan(consumed), out _);
+        var bodyOutcome = decoder.Feed(bytes.AsMemory(consumed), out _);
 
         Assert.Equal(DecodeOutcome.Complete, bodyOutcome);
     }

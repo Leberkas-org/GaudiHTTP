@@ -32,11 +32,10 @@ public sealed class ApplicationBridgeStageCallbackSpec : StreamTestBase
         {
             HandlerTimeout = TimeSpan.FromSeconds(30),
             HandlerGracePeriod = TimeSpan.FromSeconds(5),
-            Limits = { MaxConcurrentRequests = 10 }
         };
         return new ApplicationBridgeStage<IFeatureCollection>(
             app,
-            options.Limits.MaxConcurrentRequests,
+            10,
             options.HandlerTimeout,
             options.HandlerGracePeriod);
     }

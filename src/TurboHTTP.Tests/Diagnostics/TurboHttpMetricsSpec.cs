@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using TurboHTTP.Diagnostics;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Tests.Diagnostics;
 

@@ -39,6 +39,7 @@ internal sealed class ClientHelper : IAsyncDisposable
         {
             BaseAddress = baseAddress,
             DangerousAcceptAnyServerCertificate = true,
+            RequestBodyChunkSize = 64 * 1024,
             // H1.x: many connections with shallow pipelining to handle CL up to 8192.
             Http1 = new Http1ClientOptions
             {
@@ -49,7 +50,8 @@ internal sealed class ClientHelper : IAsyncDisposable
             Http2 = new Http2ClientOptions
             {
                 MaxConnectionsPerServer = 16,
-                MaxConcurrentStreams = 1000
+                MaxConcurrentStreams = 1000,
+                MaxBufferedRequestBodySize = 2 * 1024 * 1024,
             },
             // H3: 8 connections × 1000 streams = 8000 in-flight capacity.
             // QPACK dynamic table at 32 KiB for better header compression on repeated requests.
@@ -63,6 +65,7 @@ internal sealed class ClientHelper : IAsyncDisposable
                 IdleTimeout = TimeSpan.FromMinutes(5),
                 MaxReconnectAttempts = 10,
                 MaxReconnectBufferSize = 256,
+                MaxBufferedRequestBodySize = 2 * 1024 * 1024,
             },
         };
 

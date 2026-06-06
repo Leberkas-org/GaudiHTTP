@@ -1,7 +1,6 @@
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Protocol.Syntax.Http3.Client;
-using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Tests.Shared;
 using TurboHTTP.Tests.TestSupport;
 

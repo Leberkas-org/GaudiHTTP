@@ -1,7 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Security;
@@ -12,16 +11,16 @@ public sealed class Http11NegativePathSpec
     {
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var responses = new List<HttpResponseMessage>();
-        var span = data.Span;
-        while (span.Length > 0)
+        var offset = 0;
+        while (offset < data.Length)
         {
-            var outcome = decoder.Feed(span, isHead, out var consumed);
+            var outcome = decoder.Feed(data[offset..], isHead, out var consumed);
             if (outcome == DecodeOutcome.NeedMore)
             {
                 break;
             }
 
-            span = span[consumed..];
+            offset += consumed;
             if (outcome == DecodeOutcome.Complete)
             {
                 responses.Add(decoder.GetResponse());
@@ -39,7 +38,7 @@ public sealed class Http11NegativePathSpec
         var raw = "HTTP/2.0 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        var outcome = decoder.Feed(raw.AsSpan(), false, out _);
+        var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
         var resp = decoder.GetResponse();
@@ -54,7 +53,7 @@ public sealed class Http11NegativePathSpec
         var raw = "HTTPS/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        var outcome = decoder.Feed(raw.AsSpan(), false, out _);
+        var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
         Assert.NotEqual(DecodeOutcome.Complete, outcome);
     }
@@ -68,7 +67,7 @@ public sealed class Http11NegativePathSpec
         var raw = "HTTP/1.1  200 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        var outcome = decoder.Feed(raw.AsSpan(), false, out _);
+        var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.NeedMore, outcome);
     }
@@ -82,7 +81,7 @@ public sealed class Http11NegativePathSpec
         var raw = "HTTP/1.1 20 OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        var outcome = decoder.Feed(raw.AsSpan(), false, out _);
+        var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.NeedMore, outcome);
     }
@@ -95,7 +94,7 @@ public sealed class Http11NegativePathSpec
         var raw = "HTTP/1.1 20A OK\r\nContent-Length: 0\r\n\r\n"u8.ToArray();
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        var outcome = decoder.Feed(raw.AsSpan(), false, out _);
+        var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.NeedMore, outcome);
     }
@@ -109,7 +108,7 @@ public sealed class Http11NegativePathSpec
         var raw = "HTTP/1.1 200 OK\nContent-Length: 0\n\n"u8.ToArray();
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        var outcome = decoder.Feed(raw.AsSpan(), false, out _);
+        var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.NeedMore, outcome);
     }
@@ -124,7 +123,7 @@ public sealed class Http11NegativePathSpec
         var raw = Encoding.ASCII.GetBytes($"HTTP/1.1 200 {longReason}\r\nContent-Length: 0\r\n\r\n");
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        var outcome = decoder.Feed(raw.AsSpan(), false, out _);
+        var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.Complete, outcome);
     }
@@ -183,7 +182,7 @@ public sealed class Http11NegativePathSpec
             "\r\n");
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        var outcome = decoder.Feed(raw.AsSpan(), false, out _);
+        var outcome = decoder.Feed(raw.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.NeedMore, outcome);
     }
@@ -273,7 +272,7 @@ public sealed class Http11NegativePathSpec
         var raw = Encoding.ASCII.GetBytes(response);
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.AsSpan(), false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.AsMemory(), false, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -290,7 +289,7 @@ public sealed class Http11NegativePathSpec
         var raw = Encoding.ASCII.GetBytes(response);
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.AsSpan(), false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.AsMemory(), false, out _));
     }
 
     [Fact(Timeout = 5000)]
@@ -307,7 +306,7 @@ public sealed class Http11NegativePathSpec
         var raw = Encoding.ASCII.GetBytes(response);
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
 
-        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.AsSpan(), false, out _));
+        Assert.Throws<HttpProtocolException>(() => decoder.Feed(raw.AsMemory(), false, out _));
     }
 
     [Fact(Timeout = 5000)]

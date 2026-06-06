@@ -129,4 +129,61 @@ public sealed class BodySemanticsClassifierSpec
             HttpVersion.Version11, false, connectionWillClose: true);
         Assert.Equal(BodyFraming.Close, r.Framing);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.2")]
+    public void Classify_should_return_Length_for_http10_response_with_content_length()
+    {
+        var r = BodySemantics.ClassifyResponse(200, Headers(("Content-Length", "256")),
+            HttpVersion.Version10, false, connectionWillClose: true);
+        Assert.Equal(BodyFraming.Length, r.Framing);
+        Assert.Equal(256, r.ContentLength);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.3")]
+    public void Classify_should_return_Close_for_http10_response_without_content_length()
+    {
+        var r = BodySemantics.ClassifyResponse(200, new HeaderCollection(),
+            HttpVersion.Version10, false, connectionWillClose: true);
+        Assert.Equal(BodyFraming.Close, r.Framing);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.2")]
+    public void Classify_should_return_Length_for_http10_request_with_content_length()
+    {
+        var r = BodySemantics.ClassifyRequest(HttpMethod.Post,
+            Headers(("Content-Length", "512")), HttpVersion.Version10);
+        Assert.Equal(BodyFraming.Length, r.Framing);
+        Assert.Equal(512, r.ContentLength);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.4")]
+    public void Classify_should_return_None_for_http10_request_without_content_length()
+    {
+        var r = BodySemantics.ClassifyRequest(HttpMethod.Post,
+            new HeaderCollection(), HttpVersion.Version10);
+        Assert.Equal(BodyFraming.None, r.Framing);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.4")]
+    public void Classify_should_return_None_for_http10_response_to_HEAD()
+    {
+        var r = BodySemantics.ClassifyResponse(200, Headers(("Content-Length", "100")),
+            HttpVersion.Version10, requestMethodWasHead: true, connectionWillClose: true);
+        Assert.Equal(BodyFraming.None, r.Framing);
+    }
+
+    [Theory(Timeout = 5000)]
+    [InlineData(100), InlineData(204), InlineData(304)]
+    [Trait("RFC", "RFC9110-6.4")]
+    public void Classify_should_return_None_for_http10_status_without_body(int code)
+    {
+        var r = BodySemantics.ClassifyResponse(code, Headers(("Content-Length", "100")),
+            HttpVersion.Version10, false, connectionWillClose: true);
+        Assert.Equal(BodyFraming.None, r.Framing);
+    }
 }
