@@ -21,5 +21,6 @@ internal sealed class Http30ServerConnectionStage(TurboServerOptions options, IS
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionServerStageLogic<Http3ServerStateMachine>(this,
             ops => new Http3ServerStateMachine(_options, ops),
-            services);
+            services,
+            options.MaxOutboundCoalesceCount);
 }

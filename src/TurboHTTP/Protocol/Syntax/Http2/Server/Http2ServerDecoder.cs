@@ -170,7 +170,7 @@ internal sealed class Http2ServerDecoder
                 throw new HttpProtocolException(
                     $"RFC 9113 §10.5.1: Single header field size {headerSize} bytes " +
                     $"exceeds MaxHeaderSize limit ({_maxHeaderSize} bytes) " +
-                    $"on stream {streamId} — header '{headers[i].Name}'.");
+                    $"on stream {streamId} - header '{headers[i].Name}'.");
             }
         }
     }

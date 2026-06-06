@@ -4,7 +4,7 @@ using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Streams.Stages.Client;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 
@@ -66,7 +66,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
     {
         if (Connection.GoAwayReceived)
         {
-            Tracing.For("Protocol").Warning(this, "RFC 9114 §5.2 — GOAWAY received; dropping outbound request.");
+            Tracing.For("Protocol").Warning(this, "RFC 9114 §5.2 - GOAWAY received; dropping outbound request.");
             return;
         }
 
@@ -114,7 +114,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
                     return;
                 }
 
-            case StreamOpened { Id: var openedId }:
+            case StreamOpened:
                 {
                     return;
                 }
@@ -125,7 +125,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
                     return;
                 }
 
-            case StreamReadCompleted { Id: var srcId }:
+            case StreamReadCompleted:
                 {
                     return;
                 }
@@ -160,7 +160,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
             case TransportData rawData:
                 {
                     Tracing.For("Protocol").Warning(this,
-                        "Received untagged TransportData — dropping to prevent stream ID misrouting.");
+                        "Received untagged TransportData - dropping to prevent stream ID misrouting.");
                     rawData.Buffer.Dispose();
                     return;
                 }
@@ -174,7 +174,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         if (IsReconnecting)
         {
             Tracing.For("Protocol").Debug(this,
-                "HTTP/3 transport closed during reconnect — discarding in-flight request(s).");
+                "HTTP/3 transport closed during reconnect - discarding in-flight request(s).");
             var correlations = _clientSession.SnapshotAndClearCorrelations();
             if (correlations.Count > 0)
             {
@@ -250,12 +250,13 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
     {
         if (!Connection.IsIdleTimeoutExpired() || Connection.ActiveStreamCount != 0) return null;
         Tracing.For("Protocol").Info(this,
-            "RFC 9114 §5.1 — idle timeout expired with no active streams; sending GOAWAY.");
+            "RFC 9114 §5.1 - idle timeout expired with no active streams; sending GOAWAY.");
         return new GoAwayFrame(0);
     }
 
     private void OnConnectionLost()
     {
+        Tracing.For("Protocol").Info(this, "HTTP/3: connection lost (inFlight={0})", HasInFlightRequests);
         var correlations = _clientSession.GetCorrelationMap().Values.ToList();
         _reconnect.OnConnectionLost(correlations);
 
@@ -271,6 +272,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     private void OnConnectionRestored()
     {
+        Tracing.For("Protocol").Info(this, "HTTP/3: connection restored");
         var preface = _clientSession.TryBuildControlPreface();
         if (preface is not null)
         {
@@ -322,7 +324,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         try
         {
             Connection.OnRemoteSettings(settings);
-            Tracing.For("Protocol").Info(this, "RFC 9114 §7.2.4 — remote SETTINGS received ({0} parameters).",
+            Tracing.For("Protocol").Info(this, "RFC 9114 §7.2.4 - remote SETTINGS received ({0} parameters).",
                 settings.Parameters.Count);
 
             _clientSession.HandleSettings(settings);
@@ -339,7 +341,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         try
         {
             Connection.OnServerGoAway(goAway);
-            Tracing.For("Protocol").Info(this, "RFC 9114 §5.2 — GOAWAY received (streamId={0}).", goAway.StreamId);
+            Tracing.For("Protocol").Info(this, "RFC 9114 §5.2 - GOAWAY received (streamId={0}).", goAway.StreamId);
         }
         catch (HttpProtocolException ex)
         {
@@ -357,7 +359,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         buf.Length = cancelFrame.SerializedSize;
         _ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.Control));
         Tracing.For("Protocol").Info(this,
-            "RFC 9114 §7.2.5 — push promise rejected (pushId={0}); server push not supported", pushPromise.PushId);
+            "RFC 9114 §7.2.5 - push promise rejected (pushId={0}); server push not supported", pushPromise.PushId);
         return null;
     }
 
@@ -381,7 +383,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
         _ops.OnOutbound(new ResetStream(quicStreamId));
         Tracing.For("Protocol").Info(this,
-            "RFC 9114 §4.6 — push stream {0} (pushId={1}) reset (push response delivery not implemented)", quicStreamId,
+            "RFC 9114 §4.6 - push stream {0} (pushId={1}) reset (push response delivery not implemented)", quicStreamId,
             pushId);
     }
 
@@ -393,7 +395,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
     private void DisconnectOnConnectionError(string context, Exception ex)
     {
         Tracing.For("Protocol").Info(this,
-            "HTTP/3: connection-fatal error ({0}) — disconnecting: {1}", context, ex.Message);
+            "HTTP/3: connection-fatal error ({0}) - disconnecting: {1}", context, ex.Message);
         _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
     }
 

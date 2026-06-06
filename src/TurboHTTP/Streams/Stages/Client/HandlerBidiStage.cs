@@ -3,7 +3,7 @@ using TurboHTTP.Protocol;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Client;
 

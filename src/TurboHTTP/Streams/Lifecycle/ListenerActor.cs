@@ -3,9 +3,9 @@ using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
-using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Streams.Lifecycle;
 
@@ -16,7 +16,7 @@ internal sealed class ListenerActor : ReceiveActor
     private readonly IListenerFactory _factory;
     private readonly ListenerOptions _listenerOptions;
     private readonly TurboServerOptions _serverOptions;
-    private readonly ServerPipeline _pipeline;
+    private readonly IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> _bridgeGraph;
     private readonly IServerProtocolEngine _engine;
 
     public sealed record StartListening;
@@ -37,13 +37,13 @@ internal sealed class ListenerActor : ReceiveActor
         IListenerFactory factory,
         ListenerOptions listenerOptions,
         TurboServerOptions serverOptions,
-        ServerPipeline pipeline,
+        IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
         IServerProtocolEngine engine)
     {
         _factory = factory;
         _listenerOptions = listenerOptions;
         _serverOptions = serverOptions;
-        _pipeline = pipeline;
+        _bridgeGraph = bridgeGraph;
         _engine = engine;
 
         Receive<StartListening>(_ => OnStartListening());
@@ -94,7 +94,7 @@ internal sealed class ListenerActor : ReceiveActor
         _activeConnections++;
 
         var child = Context.ActorOf(
-            ConnectionActor.Props(connectionId, msg.Connection, _pipeline, _engine, _serverOptions),
+            ConnectionActor.Props(connectionId, msg.Connection, _bridgeGraph, _engine, _serverOptions),
             string.Concat("conn-", connectionId));
 
         Context.WatchWith(child, new ConnectionStopped());
@@ -167,8 +167,8 @@ internal sealed class ListenerActor : ReceiveActor
         IListenerFactory factory,
         ListenerOptions listenerOptions,
         TurboServerOptions serverOptions,
-        ServerPipeline pipeline,
+        IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
         IServerProtocolEngine engine)
         => Props.Create(() => new ListenerActor(
-            factory, listenerOptions, serverOptions, pipeline, engine));
+            factory, listenerOptions, serverOptions, bridgeGraph, engine));
 }

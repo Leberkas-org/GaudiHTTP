@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Servus.Core.Diagnostics;
+using Servus.Diagnostics;
 using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Diagnostics;
@@ -17,8 +17,8 @@ internal static class TurboClientInstrumentationExtensions
     public static bool IsHttpTracingActive(this ServusTrace trace)
     {
         return trace.Source.HasListeners()
-            || Servus.Core.Servus.Metrics.RequestCount().Enabled
-            || Servus.Core.Servus.Metrics.RequestDuration().Enabled;
+            || Servus.Senf.Metrics.RequestCount().Enabled
+            || Servus.Senf.Metrics.RequestDuration().Enabled;
     }
 
     public static Activity? StartRequest(this ServusTrace trace, HttpRequestMessage request)
@@ -32,7 +32,7 @@ internal static class TurboClientInstrumentationExtensions
         var method = request.Method.Method;
 
         var activity = trace.Source.StartActivity(
-            "TurboHTTP.Request",
+            "TurboHTTP.ClientRequest",
             ActivityKind.Client);
 
         if (activity is null)

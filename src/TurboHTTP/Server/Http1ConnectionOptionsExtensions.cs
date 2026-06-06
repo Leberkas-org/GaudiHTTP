@@ -1,5 +1,5 @@
 using System.Buffers;
-using TurboHTTP.Protocol.LineBased.Body;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 
@@ -20,8 +20,8 @@ internal static class Http1ConnectionOptionsExtensions
 
     public static Http10ServerDecoderOptions ToHttp10DecoderOptions(this Http1ConnectionOptions o) => new()
     {
-        StreamingThreshold = o.BodyBufferThreshold,
-        MaxBufferedBodySize = o.BodyBufferThreshold,
+        StreamingThreshold = o.MaxBufferedBodySize,
+        MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.Limits.MaxRequestBodySize,
         MaxHeaderBytes = o.MaxHeaderListSize,
         MaxHeaderCount = o.MaxHeaderCount,
@@ -44,8 +44,8 @@ internal static class Http1ConnectionOptionsExtensions
     {
         MaxPipelinedRequests = o.MaxPipelinedRequests,
         MaxChunkExtensionLength = o.MaxChunkExtensionLength,
-        StreamingThreshold = o.BodyBufferThreshold,
-        MaxBufferedBodySize = o.BodyBufferThreshold,
+        StreamingThreshold = o.MaxBufferedBodySize,
+        MaxBufferedBodySize = o.MaxBufferedBodySize,
         MaxStreamedBodySize = o.Limits.MaxRequestBodySize,
         MaxHeaderBytes = o.MaxHeaderListSize,
         MaxHeaderCount = o.MaxHeaderCount,

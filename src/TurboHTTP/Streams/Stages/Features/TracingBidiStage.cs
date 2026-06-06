@@ -3,12 +3,12 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Diagnostics;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Features;
 
 /// <summary>
-/// Outermost bidirectional stage that creates and manages the root "TurboHTTP.Request"
+/// Outermost bidirectional stage that creates and manages the root "TurboHTTP.ClientRequest"
 /// <see cref="Activity"/> for each request flowing through the pipeline.
 /// <para>
 /// Request direction (In1→Out1): starts a root activity via
@@ -243,11 +243,14 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
         var port = request.RequestUri?.Port ?? 0;
         var scheme = request.RequestUri?.Scheme ?? "https";
 
-        Metrics.ActiveRequests().Add(1,
-            new KeyValuePair<string, object?>("http.request.method", method),
-            new KeyValuePair<string, object?>("server.address", host),
-            new KeyValuePair<string, object?>("server.port", port),
-            new KeyValuePair<string, object?>("url.scheme", scheme));
+        var tags = new TagList
+        {
+            { "http.request.method", method },
+            { "server.address", host },
+            { "server.port", port },
+            { "url.scheme", scheme },
+        };
+        Metrics.ActiveRequests().Add(1, tags);
     }
 
     private static void RecordActiveRequestEnd(HttpRequestMessage? request)
@@ -262,11 +265,14 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
         var port = request.RequestUri?.Port ?? 0;
         var scheme = request.RequestUri?.Scheme ?? "https";
 
-        Metrics.ActiveRequests().Add(-1,
-            new KeyValuePair<string, object?>("http.request.method", method),
-            new KeyValuePair<string, object?>("server.address", host),
-            new KeyValuePair<string, object?>("server.port", port),
-            new KeyValuePair<string, object?>("url.scheme", scheme));
+        var tags = new TagList
+        {
+            { "http.request.method", method },
+            { "server.address", host },
+            { "server.port", port },
+            { "url.scheme", scheme },
+        };
+        Metrics.ActiveRequests().Add(-1, tags);
     }
 
     private static void RecordRequestMetrics(HttpResponseMessage response, double durationMs)
@@ -289,28 +295,30 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
         var scheme = request.RequestUri?.Scheme ?? "https";
         var protocolVersion = TurboClientInstrumentationExtensions.FormatProtocolVersion(response.Version);
 
-        Metrics.RequestCount().Add(1,
-            new KeyValuePair<string, object?>("http.request.method", method),
-            new KeyValuePair<string, object?>("http.response.status_code", statusCode),
-            new KeyValuePair<string, object?>("server.address", host));
-
-        var durationTags = new List<KeyValuePair<string, object?>>
+        var countTags = new TagList
         {
-            new("http.request.method", method),
-            new("http.response.status_code", statusCode),
-            new("network.protocol.version", protocolVersion),
-            new("server.address", host),
-            new("server.port", port),
-            new("url.scheme", scheme),
+            { "http.request.method", method },
+            { "http.response.status_code", statusCode },
+            { "server.address", host },
+        };
+        Metrics.RequestCount().Add(1, countTags);
+
+        var durationTags = new TagList
+        {
+            { "http.request.method", method },
+            { "http.response.status_code", statusCode },
+            { "network.protocol.version", protocolVersion },
+            { "server.address", host },
+            { "server.port", port },
+            { "url.scheme", scheme },
         };
 
         if (statusCode >= 400)
         {
-            durationTags.Add(new KeyValuePair<string, object?>("error.type", statusCode.ToString()));
+            durationTags.Add("error.type", statusCode.ToString());
         }
 
-        Metrics.RequestDuration().Record(durationMs / 1000.0,
-            durationTags.ToArray().AsSpan());
+        Metrics.RequestDuration().Record(durationMs / 1000.0, durationTags);
     }
 
     private void RecordFailedRequestMetrics(Exception ex)
@@ -332,20 +340,26 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
         var scheme = request.RequestUri?.Scheme ?? "https";
         var errorType = ex.GetType().FullName ?? "unknown";
 
-        Metrics.RequestCount().Add(1,
-            new KeyValuePair<string, object?>("http.request.method", method),
-            new KeyValuePair<string, object?>("error.type", errorType),
-            new KeyValuePair<string, object?>("server.address", host));
+        var countTags = new TagList
+        {
+            { "http.request.method", method },
+            { "error.type", errorType },
+            { "server.address", host },
+        };
+        Metrics.RequestCount().Add(1, countTags);
 
         if (request.Options.TryGetValue(RequestTimestampKey, out var timestamp))
         {
             var durationSeconds = Stopwatch.GetElapsedTime(timestamp).TotalMilliseconds / 1000.0;
-            Metrics.RequestDuration().Record(durationSeconds,
-                new KeyValuePair<string, object?>("http.request.method", method),
-                new KeyValuePair<string, object?>("error.type", errorType),
-                new KeyValuePair<string, object?>("server.address", host),
-                new KeyValuePair<string, object?>("server.port", port),
-                new KeyValuePair<string, object?>("url.scheme", scheme));
+            var durationTags = new TagList
+            {
+                { "http.request.method", method },
+                { "error.type", errorType },
+                { "server.address", host },
+                { "server.port", port },
+                { "url.scheme", scheme },
+            };
+            Metrics.RequestDuration().Record(durationSeconds, durationTags);
         }
 
         _currentRequest = null;

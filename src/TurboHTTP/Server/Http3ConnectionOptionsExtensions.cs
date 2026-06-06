@@ -1,4 +1,4 @@
-using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 
 namespace TurboHTTP.Server;
@@ -16,6 +16,7 @@ internal static class Http3ConnectionOptionsExtensions
         QpackMaxTableCapacity = o.QpackMaxTableCapacity,
         QpackBlockedStreams = o.QpackBlockedStreams,
         MaxHeaderBytes = o.MaxHeaderListSize,
+        UseHuffman = o.UseHuffman,
     };
 
     public static Http3ServerDecoderOptions ToDecoderOptions(this Http3ConnectionOptions o) => new()

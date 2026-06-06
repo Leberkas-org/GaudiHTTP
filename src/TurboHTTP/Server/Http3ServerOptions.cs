@@ -1,8 +1,10 @@
 namespace TurboHTTP.Server;
 
 /// <summary>
-/// HTTP/3-specific server configuration. Settings here override the corresponding values
-/// in <see cref="TurboServerLimits"/> for HTTP/3 connections; <c>null</c> means "inherit from limits".
+/// HTTP/3-specific server configuration.
+/// Controls stream concurrency, QPACK compression, response buffering, and data-rate enforcement.
+/// Nullable properties inherit from <see cref="TurboServerLimits"/>
+/// when left at <c>null</c>.
 /// </summary>
 public sealed class Http3ServerOptions
 {
@@ -14,6 +16,8 @@ public sealed class Http3ServerOptions
     public int QpackMaxTableCapacity { get; set; }
     /// <summary>Gets or sets the maximum number of blocked streams waiting for QPACK decoder instructions. Default is 100.</summary>
     public int QpackBlockedStreams { get; set; } = 100;
+    /// <summary>Gets or sets the maximum size of the per-stream response write buffer in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxResponseBufferSize"/>.</summary>
+    public long? MaxResponseBufferSize { get; set; }
     /// <summary>Gets or sets the maximum allowed request body size in bytes, or <c>null</c> to inherit from <see cref="TurboServerLimits.MaxRequestBodySize"/>.</summary>
     public long? MaxRequestBodySize { get; set; }
     /// <summary>Gets or sets the keep-alive idle timeout, or <c>null</c> to inherit from <see cref="TurboServerLimits.KeepAliveTimeout"/>.</summary>

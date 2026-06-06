@@ -1,8 +1,12 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Akka.Actor;
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Internal;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Streams.Stages.Client;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Client;
 
@@ -21,6 +25,16 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
     private HttpResponseMessage? _pendingBodyResponse;
     private bool _outboundBodyPending;
     private bool _connectionCloseReceived;
+    private readonly ConnectionBodyPool _pool = new();
+    private IBodyWriter? _currentWriter;
+    private Stream? _currentBodyStream;
+    private IStreamingBodyReader? _activeStreamingReader;
+    private TransportBuffer? _heldBuffer;
+    private int _heldBufferOffset;
+
+    internal sealed record BodyReadComplete(int BytesRead);
+    internal sealed record BodyReadFailed(Exception Reason);
+    internal sealed record StreamingSlotFreed;
 
     public bool CanAcceptRequest =>
         _inFlightQueue.Count < _effectivePipelineDepth && !IsReconnecting && !_outboundBodyPending &&
@@ -29,6 +43,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
     public bool HasInFlightRequests => _inFlightQueue.Count > 0;
 
     public bool IsReconnecting { get; private set; }
+
+    public bool ShouldPauseNetwork => _heldBuffer is not null || (_activeStreamingReader?.IsFull ?? false);
 
     internal int PendingRequestCount
     {
@@ -85,12 +101,13 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
             item = TransportBuffer.Rent(HttpMessageSize.Estimate(request, contentLength));
             var span = item.FullMemory.Span;
 
-            item.Length = _encoder.Encode(span, request, _ops.StageActor);
+            item.Length = _encoder.Encode(span, request, out var bodyStream, out var bodyContentLength);
             _ops.OnOutbound(new TransportData(item));
 
-            if (request.Content is not null)
+            if (bodyStream is not null)
             {
                 _outboundBodyPending = true;
+                StartBodyDrain(bodyStream, bodyContentLength, request.Version);
             }
         }
         catch (Exception ex)
@@ -175,27 +192,54 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
     public void OnBodyMessage(object msg)
     {
+        Tracing.For("Protocol").Debug(this, "OnBodyMessage: {0}", msg.GetType().Name);
         switch (msg)
         {
-            case OutboundBodyChunk chunk:
-                // Hand the chunk's pooled buffer straight to the transport — no rent + copy.
-                _ops.OnOutbound(new TransportData(TransportBuffer.Wrap(chunk.Owner, chunk.Length)));
+            case StreamingSlotFreed:
+                if (_heldBuffer is not null)
+                {
+                    var buf = _heldBuffer;
+                    var off = _heldBufferOffset;
+                    _heldBuffer = null;
+                    _heldBufferOffset = 0;
+                    DecodeResponse(buf, off);
+                }
+
                 break;
 
-            case OutboundBodyComplete:
-                _outboundBodyPending = false;
+            case BodyReadComplete { BytesRead: > 0 } read:
+                _currentWriter!.Advance(read.BytesRead);
+                _currentWriter.FlushAsync();
+                Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", read.BytesRead);
+                ReadNextChunk();
                 break;
 
-            case OutboundBodyFailed failed:
+            case BodyReadComplete { BytesRead: 0 }:
+                _currentWriter!.CompleteAsync();
                 _outboundBodyPending = false;
+                _currentWriter = null;
+                _currentBodyStream = null;
+                Tracing.For("Protocol").Debug(this, "request body complete");
+                break;
+
+            case BodyReadFailed failed:
+                Tracing.For("Protocol").Warning(this, "request body failed: {0}", failed.Reason.Message);
+                _outboundBodyPending = false;
+                _currentWriter?.Dispose();
+                _currentWriter = null;
+                _currentBodyStream = null;
                 if (_inFlightQueue.Count > 0)
                 {
-                    var req = _inFlightQueue.Peek();
+                    var req = _inFlightQueue.Dequeue();
                     req.Fail(new HttpRequestException("Failed to encode HTTP/1.1 request body.", failed.Reason));
                 }
 
                 break;
         }
+    }
+
+    public void OnOutboundFlushed()
+    {
     }
 
     public void Cleanup()
@@ -204,26 +248,56 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
         _pendingBodyResponse?.Dispose();
         _pendingBodyResponse = null;
         _outboundBodyPending = false;
+        _activeStreamingReader = null;
+        _heldBuffer?.Dispose();
+        _heldBuffer = null;
+        _heldBufferOffset = 0;
         _connectionCloseReceived = false;
+        _currentWriter?.Dispose();
+        _currentWriter = null;
+        _currentBodyStream = null;
+        _pool.Dispose();
         _decoder.Reset();
     }
 
-    private void DecodeResponse(TransportBuffer buffer)
+    private void DecodeResponse(TransportBuffer buffer, int startOffset = 0)
     {
-        var data = buffer.Memory.Span;
+        var memory = buffer.Memory;
+        var offset = startOffset;
+        var bufferHeld = false;
         try
         {
-            while (data.Length > 0)
+            while (offset < memory.Length)
             {
                 var isHead = _inFlightQueue.Count > 0 && _inFlightQueue.Peek().Method == HttpMethod.Head;
-                var outcome = _decoder.Feed(data, isHead, out var consumed);
-                data = data[consumed..];
+                var outcome = _decoder.Feed(memory[offset..], isHead, out var consumed);
+                offset += consumed;
 
                 if (outcome == DecodeOutcome.NeedMore)
                 {
                     if (_decoder.IsBodyStreaming && _pendingBodyResponse is null)
                     {
                         _pendingBodyResponse = _decoder.GetResponse();
+                        if (_inFlightQueue.Count > 0)
+                        {
+                            _pendingBodyResponse.RequestMessage = _inFlightQueue.Peek();
+                        }
+
+                        _ops.OnResponse(_pendingBodyResponse);
+
+                        if (_activeStreamingReader is null && _decoder.StreamingReader is { } sr)
+                        {
+                            _activeStreamingReader = sr;
+                            sr.SlotFreed += () =>
+                                _ops.StageActor.Tell(new StreamingSlotFreed(), ActorRefs.NoSender);
+                        }
+                    }
+
+                    if (_decoder.IsQueueFull && offset < memory.Length)
+                    {
+                        _heldBuffer = buffer;
+                        _heldBufferOffset = offset;
+                        bufferHeld = true;
                     }
 
                     return;
@@ -231,8 +305,20 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
                 if (outcome == DecodeOutcome.Complete)
                 {
-                    var response = _pendingBodyResponse ?? _decoder.GetResponse();
-                    _pendingBodyResponse = null;
+                    if (_pendingBodyResponse is not null)
+                    {
+                        _pendingBodyResponse = null;
+                        _activeStreamingReader = null;
+                        if (_inFlightQueue.Count > 0)
+                        {
+                            _inFlightQueue.Dequeue();
+                        }
+
+                        _decoder.Reset();
+                        continue;
+                    }
+
+                    var response = _decoder.GetResponse();
 
                     if ((int)response.StatusCode is >= 100 and < 200)
                     {
@@ -255,12 +341,48 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
             }
 
             _pendingBodyResponse = null;
+            _activeStreamingReader = null;
             _decoder.Reset();
         }
         finally
         {
-            buffer.Dispose();
+            if (!bufferHeld)
+            {
+                buffer.Dispose();
+            }
         }
+    }
+
+    private void StartBodyDrain(Stream bodyStream, long? contentLength, Version httpVersion)
+    {
+        var (writer, _) = _pool.RentWriter(
+            hasBody: true, contentLength, httpVersion,
+            new BodyEncoderOptions { ChunkSize = _options.RequestBodyChunkSize },
+            send: (owner, framedData) =>
+            {
+                var ownerSpan = owner.Memory.Span;
+                var framedSpan = framedData.Span;
+                ref var ownerStart = ref MemoryMarshal.GetReference(ownerSpan);
+                ref var framedStart = ref MemoryMarshal.GetReference(framedSpan);
+                var offset = (int)Unsafe.ByteOffset(ref ownerStart, ref framedStart);
+                var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
+                _ops.OnOutbound(new TransportData(buf));
+                return default;
+            });
+
+        _currentWriter = writer;
+        _currentBodyStream = bodyStream;
+        Tracing.For("Protocol").Debug(this, "StartBodyDrain: writer={0}, contentLength={1}", writer?.GetType().Name, contentLength);
+        ReadNextChunk();
+    }
+
+    private void ReadNextChunk()
+    {
+        var mem = _currentWriter!.GetMemory();
+        _currentBodyStream!.ReadAsync(mem).AsTask().PipeTo(
+            _ops.StageActor,
+            success: bytesRead => new BodyReadComplete(bytesRead),
+            failure: ex => new BodyReadFailed(ex));
     }
 
     private void HandleDisconnect(TransportDisconnected disconnect)
@@ -272,18 +394,13 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
             if (_pendingBodyResponse is not null)
             {
                 _decoder.SignalEof();
-                if (_decoder.IsBodyComplete)
+                if (_inFlightQueue.Count > 0)
                 {
-                    CompleteResponse(_pendingBodyResponse);
-                }
-                else if (_inFlightQueue.Count > 0)
-                {
-                    var req = _inFlightQueue.Dequeue();
-                    req.Fail(new HttpRequestException(
-                        "HTTP/1.1 response body truncated: server closed before all bytes were received."));
+                    _inFlightQueue.Dequeue();
                 }
 
                 _pendingBodyResponse = null;
+                _activeStreamingReader = null;
             }
             else if (_decoder.HasActiveBody)
             {
@@ -307,6 +424,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
         if (_pendingBodyResponse is not null)
         {
             _pendingBodyResponse = null;
+            _activeStreamingReader = null;
             _decoder.Reset();
             if (_inFlightQueue.Count > 0)
             {

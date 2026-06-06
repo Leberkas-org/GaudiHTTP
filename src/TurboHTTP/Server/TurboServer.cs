@@ -71,13 +71,9 @@ public sealed class TurboServer : IServer
         var resolver = new EndpointResolver();
         var resolvedEndpoints = resolver.Resolve(_options);
 
-        var parallelism = _options.Limits.MaxConcurrentRequests > 0
-            ? _options.Limits.MaxConcurrentRequests
-            : int.MaxValue;
-
         var bridgeFlow = Flow.FromGraph(new ApplicationBridgeStage<TContext>(
             application,
-            parallelism,
+            int.MaxValue,
             _options.HandlerTimeout,
             _options.HandlerGracePeriod));
 
@@ -115,15 +111,27 @@ public sealed class TurboServer : IServer
                 return Task.FromResult(Done.Instance);
             });
 
+            Task drainTask = Task.CompletedTask;
+
             cs.AddTask(CoordinatedShutdown.PhaseServiceUnbind, "turbo-goaway", () =>
             {
-                _supervisor.Tell(new ServerSupervisorActor.BeginDrain(_options.GracefulShutdownTimeout));
+                drainTask = _supervisor.Ask<ServerSupervisorActor.DrainComplete>(
+                    new ServerSupervisorActor.BeginDrain(_options.GracefulShutdownTimeout),
+                    _options.GracefulShutdownTimeout);
                 return Task.FromResult(Done.Instance);
             });
 
             cs.AddTask(CoordinatedShutdown.PhaseServiceRequestsDone, "turbo-drain", async () =>
             {
-                await Task.Delay(_options.GracefulShutdownTimeout, CancellationToken.None);
+                try
+                {
+                    await drainTask;
+                }
+                catch
+                {
+                    // drain may timeout if connections don't close gracefully
+                }
+
                 return Done.Instance;
             });
         }

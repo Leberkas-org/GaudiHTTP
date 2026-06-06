@@ -4,7 +4,7 @@ using Akka.Streams.Stage;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Semantics;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Features;
 
@@ -55,13 +55,11 @@ internal sealed class ContentEncodingBidiStage
     internal sealed class ContentEncodingBidiLogic : GraphStageLogic, IFeatureStageOperations
     {
         private readonly ContentEncodingBidiStage _stage;
-        private readonly ContentEncodingBidiProcessor _processor;
 
         public ContentEncodingBidiLogic(ContentEncodingBidiStage stage) : base(stage.Shape)
         {
             _stage = stage;
-            _processor =
-                new ContentEncodingBidiProcessor(this, stage._compressionPolicy, stage._automaticDecompression);
+            var processor = new ContentEncodingBidiProcessor(this, stage._compressionPolicy);
 
             if (stage._compressionPolicy is not null)
             {
@@ -71,7 +69,7 @@ internal sealed class ContentEncodingBidiStage
                         var request = Grab(stage._inRequest);
                         try
                         {
-                            _processor.OnRequestPushWithCompression(request);
+                            processor.OnRequestPushWithCompression(request);
                         }
                         catch (Exception ex)
                         {
@@ -110,7 +108,7 @@ internal sealed class ContentEncodingBidiStage
                         var response = Grab(stage._inResponse);
                         try
                         {
-                            _processor.OnResponsePushWithDecompression(response);
+                            processor.OnResponsePushWithDecompression(response);
                         }
                         catch (Exception ex)
                         {
@@ -178,11 +176,8 @@ internal sealed class ContentEncodingBidiStage
 
 internal sealed class ContentEncodingBidiProcessor(
     IFeatureStageOperations ops,
-    CompressionPolicy? compressionPolicy,
-    bool automaticDecompression)
+    CompressionPolicy? compressionPolicy)
 {
-    private readonly bool _automaticDecompression = automaticDecompression;
-
     public void OnRequestPushWithCompression(HttpRequestMessage request)
     {
         ops.OnPushRequest(CompressIfNeeded(request, compressionPolicy!));

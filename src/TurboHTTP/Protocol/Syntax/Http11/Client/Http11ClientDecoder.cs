@@ -1,6 +1,6 @@
 using System.Net;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 
@@ -24,37 +24,53 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
     private Version _version = null!;
     private int _statusCode;
     private string _reason = null!;
-    private IBodyDecoder? _bodyDecoder;
+    private IBodyReader? _bodyReader;
+    private IFramingDecoder? _framingDecoder;
     private HttpResponseMessage? _response;
     private bool _isHttp09;
 
     public bool ConnectionWillClose { get; private set; }
 
-    public bool IsBodyStreaming => _phase == Phase.Body && !_isHttp09 && _bodyDecoder?.IsBuffered != true;
+    public bool IsBodyStreaming => _phase == Phase.Body && !_isHttp09 && StreamingReader is not null;
+
+    public bool IsQueueFull => StreamingReader?.IsFull ?? false;
+
+    public IStreamingBodyReader? StreamingReader { get; private set; }
 
     internal bool HasActiveBody => _phase == Phase.Body;
 
     private static ReadOnlySpan<byte> HttpSlashPrefix => WellKnownHeaders.Http.Bytes.Span;
 
-    public DecodeOutcome Feed(ReadOnlySpan<byte> data, bool requestMethodWasHead, out int consumed)
+    public DecodeOutcome Feed(ReadOnlyMemory<byte> data, bool requestMethodWasHead, out int consumed)
     {
         consumed = 0;
         var pos = 0;
+        var span = data.Span;
 
         if (_phase == Phase.StatusLine)
         {
-            if (data.Length > 0 && !IsLikelyHttpResponse(data))
+            if (span.Length > 0 && !IsLikelyHttpResponse(span))
             {
                 _isHttp09 = true;
                 _version = HttpVersion.Version11;
                 _statusCode = 200;
                 _reason = "OK";
-                _bodyDecoder = new CloseDelimitedBodyDecoder(options.MaxStreamedBodySize ?? long.MaxValue);
+
+                var (reader, decoder) = BodyReaderFactory.Create(
+                    new BodyClassification(BodyFraming.Close, null),
+                    options.ToBodyDecoderOptions());
+                _bodyReader = reader;
+                _framingDecoder = decoder;
+                if (reader is IStreamingBodyReader streaming)
+                {
+                    StreamingReader = streaming;
+                }
+
                 _phase = Phase.Body;
             }
             else
             {
-                if (!StatusLineParser.TryParse(data, out var ver, out var code, out var reason, out var slConsumed))
+                if (!StatusLineParser.TryParse(span, out var ver, out var code, out var reason, out var slConsumed))
                 {
                     return DecodeOutcome.NeedMore;
                 }
@@ -69,7 +85,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
 
         if (_phase == Phase.Headers)
         {
-            var result = _headerReader.Feed(data[pos..], out var hConsumed);
+            var result = _headerReader.Feed(span[pos..], out var hConsumed);
             pos += hConsumed;
             if (result == HeaderBlockResult.NeedMore)
             {
@@ -83,24 +99,80 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
                 _statusCode, headers, _version, requestMethodWasHead,
                 connectionWillClose: ConnectionWillClose);
 
-            _bodyDecoder = BodyDecoderFactory.Create(classification, options.ToBodyDecoderOptions());
+            var (reader, decoder) = BodyReaderFactory.Create(classification, options.ToBodyDecoderOptions());
+            _bodyReader = reader;
+            _framingDecoder = decoder;
+            if (reader is IStreamingBodyReader streaming)
+            {
+                StreamingReader = streaming;
+            }
 
             _phase = Phase.Body;
         }
 
         if (_phase == Phase.Body)
         {
-            var slice = data[pos..];
-            var done = _bodyDecoder!.Feed(slice, out var bConsumed);
-            pos += bConsumed;
-            consumed = pos;
-            if (done)
+            if (_bodyReader is BufferedBodyReader buffered)
             {
-                _phase = Phase.Done;
-                return DecodeOutcome.Complete;
+                var take = buffered.Feed(span[pos..]);
+                pos += take;
+                consumed = pos;
+                if (buffered.IsCompleted)
+                {
+                    _phase = Phase.Done;
+                    return DecodeOutcome.Complete;
+                }
+
+                return _isHttp09 ? DecodeOutcome.HeadersReady : DecodeOutcome.NeedMore;
             }
 
-            return _isHttp09 ? DecodeOutcome.HeadersReady : DecodeOutcome.NeedMore;
+            if (StreamingReader is not null && _framingDecoder is not null)
+            {
+                var remaining = span[pos..];
+                while (remaining.Length > 0)
+                {
+                    var result = _framingDecoder.Decode(remaining, out var rawConsumed);
+                    pos += rawConsumed;
+
+                    if (!result.Body.IsEmpty)
+                    {
+                        if (!StreamingReader.TryEnqueue(result.Body))
+                        {
+                            if (result.EndOfBody)
+                            {
+                                StreamingReader.Complete();
+                                _phase = Phase.Done;
+                                consumed = pos;
+                                return DecodeOutcome.Complete;
+                            }
+
+                            consumed = pos;
+                            return DecodeOutcome.NeedMore;
+                        }
+                    }
+
+                    if (result.EndOfBody)
+                    {
+                        StreamingReader.Complete();
+                        _phase = Phase.Done;
+                        consumed = pos;
+                        return DecodeOutcome.Complete;
+                    }
+
+                    if (rawConsumed == 0)
+                    {
+                        break;
+                    }
+
+                    remaining = span[pos..];
+                }
+
+                consumed = pos;
+                return _isHttp09 ? DecodeOutcome.HeadersReady : DecodeOutcome.NeedMore;
+            }
+
+            consumed = pos;
+            return DecodeOutcome.Complete;
         }
 
         consumed = pos;
@@ -109,13 +181,25 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
 
     public bool SignalEof()
     {
-        if (_bodyDecoder is null)
+        if (StreamingReader is not null && _framingDecoder is not null)
         {
-            return false;
+            var ok = _framingDecoder.OnEof();
+            if (ok)
+            {
+                StreamingReader.Complete();
+            }
+
+            _bodyCompletedByEof = ok;
+            return ok;
         }
 
-        _bodyCompletedByEof = _bodyDecoder.OnEof();
-        return _bodyCompletedByEof;
+        if (_framingDecoder is not null)
+        {
+            _bodyCompletedByEof = _framingDecoder.OnEof();
+            return _bodyCompletedByEof;
+        }
+
+        return false;
     }
 
     internal bool IsBodyComplete => _phase == Phase.Done || _bodyCompletedByEof;
@@ -128,7 +212,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
         }
 
         HttpContent content;
-        var bodyStream = _bodyDecoder?.GetBodyStream();
+        var bodyStream = _bodyReader?.AsStream();
         if (bodyStream is not null)
         {
             content = new StreamContent(bodyStream);
@@ -145,7 +229,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
             Content = content,
         };
         HeaderRouter.ApplyToResponse(msg, _headerReader.GetHeaders());
-        if (_bodyDecoder?.Trailers is { Count: > 0 } trailers)
+        if (_framingDecoder?.Trailers is { Count: > 0 } trailers)
         {
             foreach (var (name, value) in trailers)
             {
@@ -163,7 +247,9 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
         _version = null!;
         _statusCode = 0;
         _reason = null!;
-        _bodyDecoder = null;
+        _bodyReader = null;
+        _framingDecoder = null;
+        StreamingReader = null;
         _response = null;
         _isHttp09 = false;
         ConnectionWillClose = false;

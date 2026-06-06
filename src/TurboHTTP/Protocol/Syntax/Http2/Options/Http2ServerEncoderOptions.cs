@@ -6,4 +6,5 @@ internal sealed record Http2ServerEncoderOptions
     public required int HeaderTableSize { get; init; }
     public required bool WriteDateHeader { get; init; }
     public required int MaxHeaderBytes { get; init; }
+    public required bool UseHuffman { get; init; }
 }

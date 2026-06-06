@@ -1,5 +1,5 @@
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.LineBased;
-using TurboHTTP.Protocol.LineBased.Body;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Server.Context.Features;
@@ -23,18 +23,22 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
     private string _target = null!;
     private Version _version = null!;
 
-    public IBodyDecoder? CurrentBodyDecoder { get; private set; }
+    public IBodyReader? CurrentBodyReader { get; private set; }
+    public IFramingDecoder? CurrentFramingDecoder { get; private set; }
+    public IStreamingBodyReader? StreamingReader { get; private set; }
+    public bool IsQueueFull => StreamingReader?.IsFull ?? false;
 
     public int LastBodyBytesConsumed { get; private set; }
 
-    public DecodeOutcome Feed(ReadOnlySpan<byte> data, out int consumed)
+    public DecodeOutcome Feed(ReadOnlyMemory<byte> data, out int consumed)
     {
         consumed = 0;
         var pos = 0;
+        var span = data.Span;
 
         if (_phase == Phase.RequestLine)
         {
-            if (!RequestLineParser.TryParse(data, options.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
+            if (!RequestLineParser.TryParse(span, options.RequestLineMaxLength, out var method, out var target, out var version, out var rlConsumed))
             {
                 return DecodeOutcome.NeedMore;
             }
@@ -54,7 +58,7 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
 
         if (_phase == Phase.Headers)
         {
-            var result = _headerReader.Feed(data[pos..], out var hConsumed);
+            var result = _headerReader.Feed(span[pos..], out var hConsumed);
             pos += hConsumed;
             if (result == HeaderBlockResult.NeedMore)
             {
@@ -63,23 +67,94 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
             }
 
             var classification = BodySemantics.ClassifyRequest(_method, _headerReader.GetHeaders(), _version);
-            CurrentBodyDecoder = BodyDecoderFactory.Create(classification, options.ToBodyDecoderOptions());
+            var (reader, decoder) = BodyReaderFactory.Create(classification, options.ToBodyDecoderOptions());
+            CurrentBodyReader = reader;
+            CurrentFramingDecoder = decoder;
+            if (reader is IStreamingBodyReader streaming)
+            {
+                StreamingReader = streaming;
+            }
+
+            if (CurrentBodyReader is null || (CurrentBodyReader is BufferedBodyReader { IsCompleted: true }))
+            {
+                _phase = Phase.Done;
+                consumed = pos;
+                return DecodeOutcome.Complete;
+            }
+
             _phase = Phase.Body;
         }
 
         if (_phase == Phase.Body)
         {
-            var done = CurrentBodyDecoder!.Feed(data[pos..], out var bConsumed);
-            LastBodyBytesConsumed = bConsumed;
-            pos += bConsumed;
-            consumed = pos;
-            if (done)
+            if (CurrentBodyReader is BufferedBodyReader bufferedBody)
             {
-                _phase = Phase.Done;
-                return DecodeOutcome.Complete;
+                var take = bufferedBody.Feed(span[pos..]);
+                LastBodyBytesConsumed = take;
+                pos += take;
+                consumed = pos;
+                if (bufferedBody.IsCompleted)
+                {
+                    _phase = Phase.Done;
+                    return DecodeOutcome.Complete;
+                }
+
+                return DecodeOutcome.NeedMore;
             }
 
-            return DecodeOutcome.NeedMore;
+            if (StreamingReader is not null && CurrentFramingDecoder is not null)
+            {
+                var remaining = span[pos..];
+                var bodyConsumed = 0;
+                while (remaining.Length > 0)
+                {
+                    var result = CurrentFramingDecoder.Decode(remaining, out var rawConsumed);
+                    pos += rawConsumed;
+                    bodyConsumed += rawConsumed;
+
+                    if (!result.Body.IsEmpty)
+                    {
+                        if (!StreamingReader.TryEnqueue(result.Body))
+                        {
+                            if (result.EndOfBody)
+                            {
+                                StreamingReader.Complete();
+                                _phase = Phase.Done;
+                                LastBodyBytesConsumed = bodyConsumed;
+                                consumed = pos;
+                                return DecodeOutcome.Complete;
+                            }
+
+                            LastBodyBytesConsumed = bodyConsumed;
+                            consumed = pos;
+                            return DecodeOutcome.NeedMore;
+                        }
+                    }
+
+                    if (result.EndOfBody)
+                    {
+                        StreamingReader.Complete();
+                        _phase = Phase.Done;
+                        LastBodyBytesConsumed = bodyConsumed;
+                        consumed = pos;
+                        return DecodeOutcome.Complete;
+                    }
+
+                    if (rawConsumed == 0)
+                    {
+                        break;
+                    }
+
+                    remaining = span[pos..];
+                }
+
+                LastBodyBytesConsumed = bodyConsumed;
+                consumed = pos;
+                return DecodeOutcome.NeedMore;
+            }
+
+            consumed = pos;
+            return DecodeOutcome.Complete;
         }
 
         consumed = pos;
@@ -88,7 +163,7 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
 
     public TurboHttpRequestFeature GetRequestFeature()
     {
-        var body = CurrentBodyDecoder?.GetBodyStream() ?? Stream.Null;
+        var body = CurrentBodyReader?.AsStream() ?? Stream.Null;
 
         var feature = new TurboHttpRequestFeature
         {
@@ -121,5 +196,18 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
     {
         var queryIdx = target.IndexOf('?');
         return queryIdx >= 0 ? target[queryIdx..] : string.Empty;
+    }
+
+    public void Reset()
+    {
+        _phase = Phase.RequestLine;
+        _method = null!;
+        _target = null!;
+        _version = null!;
+        CurrentBodyReader = null;
+        CurrentFramingDecoder = null;
+        StreamingReader = null;
+        LastBodyBytesConsumed = 0;
+        _headerReader.Reset();
     }
 }

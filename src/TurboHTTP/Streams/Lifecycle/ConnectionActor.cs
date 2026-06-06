@@ -3,9 +3,9 @@ using Akka.Actor;
 using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
-using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Streams.Lifecycle;
 
@@ -20,17 +20,17 @@ internal sealed class ConnectionActor : ReceiveActor
     public static Props Props(
         int connectionId,
         Flow<ITransportOutbound, ITransportInbound, NotUsed> connectionFlow,
-        ServerPipeline pipeline,
+        IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
         IServerProtocolEngine engine,
         TurboServerOptions options,
         IServiceProvider? services = null)
         => Akka.Actor.Props.Create(() => new ConnectionActor(
-            connectionId, connectionFlow, pipeline, engine, options, services));
+            connectionId, connectionFlow, bridgeGraph, engine, options, services));
 
     public ConnectionActor(
         int connectionId,
         Flow<ITransportOutbound, ITransportInbound, NotUsed> connectionFlow,
-        ServerPipeline pipeline,
+        IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> bridgeGraph,
         IServerProtocolEngine engine,
         TurboServerOptions options,
         IServiceProvider? services = null)
@@ -39,9 +39,7 @@ internal sealed class ConnectionActor : ReceiveActor
         _drainSwitch = KillSwitches.Shared(string.Concat("conn-", connectionId));
 
         var protocolBidi = engine.CreateFlow(services);
-        var isH2OrH3 = engine.ProtocolVersion.Major >= 2;
-        var bridgeFlow = pipeline.CreateConnectionFlow(connectionId, unordered: isH2OrH3);
-        var composed = protocolBidi.Join(bridgeFlow);
+        var composed = protocolBidi.Join(Flow.FromGraph(bridgeGraph));
 
         var self = Self;
         connectionFlow

@@ -2,7 +2,6 @@ using System.Buffers;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Streams.Stages.Client;
-using static Servus.Core.Servus;
 
 namespace TurboHTTP.Protocol.Syntax.Http3;
 
@@ -17,7 +16,7 @@ internal sealed class QpackStreamManager(
 
     public QpackTableSync TableSync { get; } = tableSync;
 
-    public void OpenCriticalStreams(Action<ITransportOutbound> emit)
+    public static void OpenCriticalStreams(Action<ITransportOutbound> emit)
     {
         emit(new OpenStream(CriticalStreamId.Control, StreamDirection.Unidirectional));
         emit(new OpenStream(CriticalStreamId.QpackEncoder, StreamDirection.Unidirectional));
@@ -26,7 +25,7 @@ internal sealed class QpackStreamManager(
 
     // RFC 9204 §2.2: a malformed QPACK encoder/decoder instruction is a connection error
     // (QPACK_ENCODER_STREAM_ERROR / QPACK_DECODER_STREAM_ERROR). The dynamic table is desynchronized,
-    // so the connection cannot continue — let QpackException/HuffmanException propagate to the caller,
+    // so the connection cannot continue - let QpackException/HuffmanException propagate to the caller,
     // which tears the connection down instead of decoding subsequent header blocks against a corrupt table.
     public void ProcessEncoderInstructions(ReadOnlySpan<byte> data)
     {

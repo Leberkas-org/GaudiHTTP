@@ -6,4 +6,10 @@ internal sealed class TurboHttpMaxRequestBodySizeFeature : IHttpMaxRequestBodySi
 {
     public bool IsReadOnly { get; set; }
     public long? MaxRequestBodySize { get; set; }
+
+    internal void Reset(long? maxSize)
+    {
+        IsReadOnly = false;
+        MaxRequestBodySize = maxSize;
+    }
 }

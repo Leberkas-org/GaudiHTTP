@@ -7,18 +7,18 @@ namespace TurboHTTP.Server;
 /// </summary>
 public sealed class TurboServerLimits
 {
-    /// <summary>Gets or sets the maximum number of concurrent connections the server accepts. Default is 0 (unlimited).</summary>
+    /// <summary>Gets or sets the maximum number of concurrent connections the server accepts. 0 means unlimited. Default is 0.</summary>
     public int MaxConcurrentConnections { get; set; }
-    /// <summary>Gets or sets the maximum number of requests processed concurrently across all connections. Default is 0 (unlimited).</summary>
-    public int MaxConcurrentRequests { get; set; }
-    /// <summary>Gets or sets the minimum number of concurrent requests guaranteed per connection even under load. Default is 10.</summary>
-    public int MinRequestGuarantee { get; set; } = 10;
-    /// <summary>Gets or sets the default maximum request body size in bytes for all protocols. Default is 30 MiB.</summary>
-    public long MaxRequestBodySize { get; set; } = 30 * 1024 * 1024;
+    ///<summary>Gets or sets the default maximum request body size in bytes for all protocols. Default is 30,000,000 bytes (~28.6 MiB), matching Kestrel.</summary>
+    public long MaxRequestBodySize { get; set; } = 30_000_000;
     /// <summary>Gets or sets the maximum number of headers allowed in a single request. Default is 100.</summary>
     public int MaxRequestHeaderCount { get; set; } = 100;
     /// <summary>Gets or sets the maximum combined size in bytes of all request headers. Default is 32 KiB.</summary>
     public int MaxRequestHeadersTotalSize { get; set; } = 32 * 1024;
+    /// <summary>Gets or sets the maximum size of the per-stream response write buffer in bytes. Default is 64 KiB.</summary>
+    public long MaxResponseBufferSize { get; set; } = 64 * 1024;
+    /// <summary>Gets or sets the maximum size of the transport input buffer in bytes before back-pressure is applied. Default is 1 MiB. Set to <c>null</c> for unlimited.</summary>
+    public long? MaxRequestBufferSize { get; set; } = 1024 * 1024;
 
     /// <summary>
     /// HTTP/2 Rapid Reset (CVE-2023-44487) mitigation: the maximum number of client-initiated stream

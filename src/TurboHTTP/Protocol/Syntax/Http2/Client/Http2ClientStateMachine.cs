@@ -3,7 +3,7 @@ using TurboHTTP.Client;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Streams.Stages.Client;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Client;
 
@@ -33,7 +33,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
         _options = options;
         _ops = ops;
         _clientSession = new Http2ClientSessionManager(options, ops, timeProvider);
-        _reconnect = new ReconnectionManager(options.Http2.MaxReconnectAttempts);
+        _reconnect = new ReconnectionManager(options.Http2.MaxReconnectAttempts, options.Http2.MaxReconnectBufferSize);
     }
 
     public void PreStart()
@@ -86,7 +86,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
             // Drop the connection instead of swallowing and continuing; the resulting TransportDisconnected
             // routes through OnConnectionLost, which replays idempotent in-flight requests and fails the rest.
             Tracing.For("Protocol").Info(this,
-                "HTTP/2: connection protocol error — disconnecting: {0}", ex.Message);
+                "HTTP/2: connection protocol error - disconnecting: {0}", ex.Message);
             _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
             return;
         }
@@ -133,7 +133,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
             {
                 if (_clientSession.IsKeepAliveTimedOut(_options.Http2.KeepAlivePingTimeout))
                 {
-                    Tracing.For("Protocol").Info(this, "HTTP/2: Keep-alive PING timeout — closing connection");
+                    Tracing.For("Protocol").Info(this, "HTTP/2: Keep-alive PING timeout - closing connection");
                     if (_clientSession.HasInFlightRequests)
                     {
                         OnConnectionLost(lastStreamId: 0);
@@ -151,6 +151,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
 
     private void OnConnectionLost(int lastStreamId)
     {
+        Tracing.For("Protocol").Info(this, "HTTP/2: connection lost (lastStreamId={0}, inFlight={1})", lastStreamId, _clientSession.HasInFlightRequests);
         var replayable = ClassifyStreamsForReplay(lastStreamId);
         _reconnect.OnConnectionLost(replayable);
 
@@ -205,6 +206,7 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
 
     private void OnConnectionRestored()
     {
+        Tracing.For("Protocol").Info(this, "HTTP/2: connection restored");
         var preface = _clientSession.TryBuildPreface();
         if (preface is not null)
         {

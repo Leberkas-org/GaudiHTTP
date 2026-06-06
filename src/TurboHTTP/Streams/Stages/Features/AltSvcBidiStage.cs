@@ -4,7 +4,7 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Features.AltSvc;
 using TurboHTTP.Protocol;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Features;
 

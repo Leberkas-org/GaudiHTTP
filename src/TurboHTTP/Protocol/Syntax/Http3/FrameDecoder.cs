@@ -85,7 +85,7 @@ internal sealed class FrameDecoder : IDisposable
                 // All input bytes are accounted for: some went into the decoded frame
                 // (together with the old remainder), the rest is buffered as the new remainder.
                 // Returning input.Length prevents DecodeAll from re-passing bytes that are
-                // already captured in the remainder — avoiding double-counting corruption.
+                // already captured in the remainder - avoiding double-counting corruption.
                 bytesConsumed = input.Length;
 
                 // Buffer any leftover from combined
@@ -203,7 +203,7 @@ internal sealed class FrameDecoder : IDisposable
         // Parse frame by type
         if (!Enum.IsDefined((FrameType)rawType))
         {
-            // Unknown frame type — skip gracefully per RFC 9114 §7.2.8
+            // Unknown frame type - skip gracefully per RFC 9114 §7.2.8
             // Return a success with null frame to indicate skipped unknown frame
             frame = null;
 
@@ -306,4 +306,3 @@ internal sealed class FrameDecoder : IDisposable
         return new MaxPushIdFrame(pushId);
     }
 }
-

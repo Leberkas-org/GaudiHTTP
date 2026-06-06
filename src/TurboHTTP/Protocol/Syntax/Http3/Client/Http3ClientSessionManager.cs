@@ -1,15 +1,18 @@
 using System.Buffers;
+using Akka.Actor;
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Multiplexed;
-using TurboHTTP.Protocol.Multiplexed.Body;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Streams.Stages.Client;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
+
+internal sealed record StreamBodyReadComplete(long StreamId, int BytesRead);
+internal sealed record StreamBodyReadFailed(long StreamId, Exception Reason);
 
 internal sealed class Http3ClientSessionManager
 {
@@ -26,6 +29,8 @@ internal sealed class Http3ClientSessionManager
     private readonly QpackTableSync _tableSync;
 
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
+    private readonly Dictionary<long, Stream> _activeBodyStreams = new();
+    private readonly Dictionary<long, IMemoryOwner<byte>> _activeBodyBuffers = new();
 
     private bool _controlPrefaceSent;
     private bool _transportConnected;
@@ -65,6 +70,7 @@ internal sealed class Http3ClientSessionManager
 
     private void OnStreamClosed(long streamId)
     {
+        _tracker.OnStreamClosed(streamId);
         _correlationMap.Remove(streamId);
     }
 
@@ -118,48 +124,79 @@ internal sealed class Http3ClientSessionManager
 
         var contentLength = request.Content?.Headers.ContentLength;
         var bodyStream = request.Content?.ReadAsStream();
-        var encoder = BodyEncoderFactory.Create(bodyStream, contentLength, new BodyEncoderOptions { ChunkSize = _options.RequestBodyChunkSize });
-        if (encoder is null)
+
+        if (bodyStream is MemoryStream ms && ms.TryGetBuffer(out var segment))
         {
-            EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+            var pos = (int)ms.Position;
+            var available = segment.Count - pos;
+            if (available > 0)
+            {
+                var dataFrame = new DataFrame(segment.AsMemory(pos, available));
+                EmitSerializedFrame(dataFrame, streamId);
+                EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+                return;
+            }
+        }
+
+        if (contentLength is > 0 and { } knownLength
+            && knownLength <= _options.Http3.MaxBufferedRequestBodySize
+            && TrySerializeBodyDirect(request.Content!, streamId, (int)knownLength))
+        {
             return;
         }
 
         var state = _streamManager.GetOrCreateStreamState(streamId);
-        state.InitBodyEncoder(encoder);
-        state.StartBodyEncoder(bodyStream!, streamId, _ops.StageActor);
+        state.MarkBodyDrainActive();
+        StartStreamBodyDrain(streamId, bodyStream!);
     }
 
     public void OnBodyMessage(object msg)
     {
         switch (msg)
         {
-            case StreamBodyChunk<long> chunk:
-                HandleOutboundBodyChunk(chunk);
+            case StreamBodyReadComplete read:
+                HandleStreamBodyRead(read);
                 break;
 
-            case StreamBodyComplete<long> complete:
-                EmitOutbound(new CompleteWrites(StreamTarget.FromId(complete.StreamId)));
-                break;
-
-            case StreamBodyFailed<long> failed:
+            case StreamBodyReadFailed failed:
                 Tracing.For("Protocol").Warning(this,
-                    "HTTP/3: Body encoding failed for stream {0}: {1}", failed.StreamId, failed.Reason.Message);
+                    "HTTP/3: Body drain failed for stream {0}: {1}", failed.StreamId, failed.Reason.Message);
                 EmitOutbound(new ResetStream(failed.StreamId));
+                CleanupBodyDrain(failed.StreamId);
                 break;
         }
     }
 
-    private void HandleOutboundBodyChunk(StreamBodyChunk<long> chunk)
+    private void HandleStreamBodyRead(StreamBodyReadComplete read)
     {
-        var dataFrame = new DataFrame(chunk.Owner.Memory[..chunk.Length]);
-        EmitSerializedFrame(dataFrame, chunk.StreamId);
-        chunk.Owner.Dispose();
+        var state = _streamManager.TryGetStreamState(read.StreamId);
+        if (state is null)
+        {
+            CleanupBodyDrain(read.StreamId);
+            return;
+        }
+
+        if (read.BytesRead == 0)
+        {
+            Tracing.For("Protocol").Debug(this, "HTTP/3: request body complete (stream={0})", read.StreamId);
+            EmitOutbound(new CompleteWrites(StreamTarget.FromId(read.StreamId)));
+            state.MarkBodyDrainComplete();
+            CleanupBodyDrain(read.StreamId);
+            return;
+        }
+
+        Tracing.For("Protocol").Trace(this, "HTTP/3: request body chunk (stream={0}, bytes={1})", read.StreamId, read.BytesRead);
+        var buffer = _activeBodyBuffers[read.StreamId];
+        var data = buffer.Memory[..read.BytesRead];
+
+        var dataFrame = new DataFrame(data);
+        EmitSerializedFrame(dataFrame, read.StreamId);
+        ReadNextBodyChunk(read.StreamId);
     }
 
     public void OpenCriticalStreams()
     {
-        _qpackStreamManager.OpenCriticalStreams(EmitOutbound);
+        QpackStreamManager.OpenCriticalStreams(EmitOutbound);
     }
 
     public MultiplexedData? TryBuildControlPreface()
@@ -272,6 +309,11 @@ internal sealed class Http3ClientSessionManager
 
     public void Cleanup()
     {
+        foreach (var streamId in _activeBodyStreams.Keys.ToList())
+        {
+            CleanupBodyDrain(streamId);
+        }
+
         _streamManager.Dispose();
 
         foreach (var item in _preConnectBuffer)
@@ -309,6 +351,61 @@ internal sealed class Http3ClientSessionManager
         }
 
         _preConnectBuffer.Clear();
+    }
+
+    private bool TrySerializeBodyDirect(HttpContent content, long streamId, int bodyLength)
+    {
+        var pool = ArrayPool<byte>.Shared;
+        var bodyArray = pool.Rent(bodyLength);
+        try
+        {
+            using var ms = new MemoryStream(bodyArray, 0, bodyLength, writable: true);
+            content.CopyTo(ms, null, CancellationToken.None);
+        }
+        catch (NotSupportedException)
+        {
+            pool.Return(bodyArray);
+            return false;
+        }
+
+        var dataFrame = new DataFrame(new ReadOnlyMemory<byte>(bodyArray, 0, bodyLength));
+        EmitSerializedFrame(dataFrame, streamId);
+        pool.Return(bodyArray);
+        EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+        return true;
+    }
+
+    private void StartStreamBodyDrain(long streamId, Stream bodyStream)
+    {
+        _activeBodyStreams[streamId] = bodyStream;
+        var bufferSize = _options.RequestBodyChunkSize;
+        var buffer = MemoryPool<byte>.Shared.Rent(bufferSize);
+        _activeBodyBuffers[streamId] = buffer;
+        ReadNextBodyChunk(streamId);
+    }
+
+    private void ReadNextBodyChunk(long streamId)
+    {
+        if (!_activeBodyStreams.TryGetValue(streamId, out var stream) ||
+            !_activeBodyBuffers.TryGetValue(streamId, out var buffer))
+        {
+            return;
+        }
+
+        stream.ReadAsync(buffer.Memory).AsTask().PipeTo(
+            _ops.StageActor,
+            success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
+            failure: ex => new StreamBodyReadFailed(streamId, ex));
+    }
+
+    private void CleanupBodyDrain(long streamId)
+    {
+        if (_activeBodyBuffers.Remove(streamId, out var buffer))
+        {
+            buffer.Dispose();
+        }
+
+        _activeBodyStreams.Remove(streamId);
     }
 
     private void EmitBatchedFrames(IReadOnlyList<Http3Frame> frames, long streamId)

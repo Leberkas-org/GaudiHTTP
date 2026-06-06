@@ -3,7 +3,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using TurboHTTP.Protocol.Semantics;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Features;
 

@@ -4,7 +4,7 @@ using Akka.Streams.Dsl;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Streams.Stages.Features;
 using TurboHTTP.Streams.Stages.Client;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams;
 
@@ -12,7 +12,7 @@ namespace TurboHTTP.Streams;
 /// Composes the BidiFlow feature stack on top of a protocol engine flow.
 /// <para><b>Stacking order (outermost → innermost):</b></para>
 /// <list type="number">
-///   <item><description>TracingBidiStage — root "TurboHTTP.Request" activity lifecycle</description></item>
+///   <item><description>TracingBidiStage — root "TurboHTTP.ClientRequest" activity lifecycle</description></item>
 ///   <item><description>User Handlers — HandlerBidiStage per TurboHandler (FIFO: [0] outermost)</description></item>
 ///   <item><description>RedirectBidiStage — RFC 9110 §15.4, internal feedback loop</description></item>
 ///   <item><description>CookieBidiStage — RFC 6265 §5.3–§5.4</description></item>

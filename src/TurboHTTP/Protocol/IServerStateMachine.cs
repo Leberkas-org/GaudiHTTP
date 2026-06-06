@@ -7,6 +7,7 @@ internal interface IServerStateMachine
 {
     bool CanAcceptResponse { get; }
     bool ShouldComplete { get; }
+    bool ShouldPauseNetwork => false;
     int MaxQueuedRequests { get; }
 
     void PreStart();
@@ -15,6 +16,8 @@ internal interface IServerStateMachine
     void OnDownstreamFinished();
     void OnTimerFired(string name);
     void OnBodyMessage(object msg);
+    void OnOutboundFlushed() { }
+    void ResumeBody() { }
     void Cleanup();
 }
 

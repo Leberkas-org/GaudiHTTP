@@ -5,7 +5,6 @@ using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Server;
-using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Streams.Lifecycle;
 
@@ -18,7 +17,6 @@ internal sealed class ServerSupervisorActor : ReceiveActor
     private IActorRef _startRequester = ActorRefs.Nobody;
     private int _pendingListenerCount;
     private IActorRef _drainRequester = ActorRefs.Nobody;
-    private SharedKillSwitch? _pipelineKillSwitch;
 
     public sealed record StartServer(
         IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> BridgeFlow,
@@ -42,12 +40,6 @@ internal sealed class ServerSupervisorActor : ReceiveActor
     private void OnStartServer(StartServer msg)
     {
         _startRequester = Sender;
-        var materializer = Context.Materializer();
-
-        _pipelineKillSwitch = KillSwitches.Shared("server-pipeline");
-
-        var pipeline = ServerPipeline.Materialize(
-            msg.BridgeFlow, msg.Options, _pipelineKillSwitch, materializer, Context);
 
         _pendingListenerCount = msg.Bindings.Count;
 
@@ -68,7 +60,7 @@ internal sealed class ServerSupervisorActor : ReceiveActor
                 binding.Factory,
                 binding.Options,
                 msg.Options,
-                pipeline,
+                msg.BridgeFlow,
                 engine);
 
             var name = string.Concat("listener-", i);
@@ -105,8 +97,6 @@ internal sealed class ServerSupervisorActor : ReceiveActor
     {
         _log.Info("Supervisor: initiating graceful drain (timeout: {0})", msg.Timeout);
         _drainRequester = Sender;
-
-        _pipelineKillSwitch?.Shutdown();
 
         if (_handles.Count == 0)
         {

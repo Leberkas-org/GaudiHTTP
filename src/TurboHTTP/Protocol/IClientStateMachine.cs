@@ -7,6 +7,7 @@ internal interface IClientStateMachine
     bool CanAcceptRequest { get; }
     bool HasInFlightRequests { get; }
     bool IsReconnecting { get; }
+    bool ShouldPauseNetwork => false;
 
     void PreStart();
     void OnRequest(HttpRequestMessage request);
@@ -14,5 +15,6 @@ internal interface IClientStateMachine
     void OnUpstreamFinished();
     void OnTimerFired(string name);
     void OnBodyMessage(object msg);
+    void OnOutboundFlushed() { }
     void Cleanup();
 }

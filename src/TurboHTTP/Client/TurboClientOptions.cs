@@ -7,12 +7,8 @@ using System.Security.Cryptography.X509Certificates;
 namespace TurboHTTP.Client;
 
 /// <summary>
-/// Snapshot of <see cref="TurboHttpClient"/> configuration captured at request-submission time.
-/// Passed into the pipeline so that per-request options reflect the values set on the client at the moment of submission.
-/// </summary>
-/// <summary>
 /// Immutable snapshot of <see cref="TurboHttpClient"/> configuration captured at request-submission time.
-/// Passed into the Akka Streams pipeline so per-request options always reflect the client state at the moment of submission.
+/// Passed into the pipeline so per-request options always reflect the client state at the moment of submission.
 /// </summary>
 /// <param name="BaseAddress">The base URI used to resolve relative request URIs.</param>
 /// <param name="DefaultRequestHeaders">Default headers that are added to every outgoing request.</param>
@@ -51,20 +47,14 @@ public sealed class TurboClientOptions
     public Http3ClientOptions Http3 { get; init; } = new();
 
     /// <summary>
-    /// Response bodies whose size (in bytes) is below this threshold are buffered fully in memory;
-    /// at or above it the body is streamed. Shared across all protocol versions. Default is 64 KB.
-    /// </summary>
-    public int ResponseBodyBufferThreshold { get; set; } = 64 * 1024;
-
-    /// <summary>
-    /// Maximum size (in bytes) of a streamed response body.
+    /// Maximum size (in bytes) of a streamed response body. Responses exceeding this limit are aborted.
     /// <see langword="null"/> means unlimited. Default is <see langword="null"/>.
     /// </summary>
     public long? MaxStreamedResponseBodySize { get; set; } = null;
 
     /// <summary>
-    /// Chunk size (in bytes) used when the client streams a request body to the server.
-    /// Shared across all protocol versions (line-based and multiplexed body encoders). Default is 16 KB.
+    /// Chunk size (in bytes) for streaming request body uploads. Larger values reduce allocation
+    /// overhead and syscalls but increase per-stream memory. Default is 16 KiB.
     /// </summary>
     public int RequestBodyChunkSize { get; set; } = 16 * 1024;
 

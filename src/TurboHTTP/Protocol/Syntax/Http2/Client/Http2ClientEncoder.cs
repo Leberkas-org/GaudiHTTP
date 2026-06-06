@@ -17,7 +17,7 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
     /// Maximum payload size for frames this client may send, in bytes. Starts at the RFC 9113
     /// default (16,384) and is raised only when the server advertises a larger
     /// SETTINGS_MAX_FRAME_SIZE via <see cref="ApplyServerSettings"/>. This is the peer's receive
-    /// limit — it is intentionally NOT driven by the client's own MaxFrameSize option.
+    /// limit - it is intentionally NOT driven by the client's own MaxFrameSize option.
     /// </summary>
     public int MaxFrameSize { get; private set; } = 16 * 1024;
 
@@ -83,7 +83,7 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
         using var owner = MemoryPool<byte>.Shared.Rent(4096);
         var hpackWritable = owner.Memory.Span;
         var hpackBytesWritten = _hpack.Encode(_reusableHeaders, ref hpackWritable, useHuffman);
-        return owner.Memory[..hpackBytesWritten].ToArray(); // TEST ONLY: copy intentional — callers own the byte[]
+        return owner.Memory[..hpackBytesWritten].ToArray(); // TEST ONLY: copy intentional - callers own the byte[]
     }
 
     private void EncodeHeaders(List<Http2Frame> frames, int streamId, ReadOnlyMemory<byte> headerBlock, bool hasBody)
@@ -94,7 +94,7 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
             return;
         }
 
-        // Fragmented header block — first chunk goes in HEADERS frame
+        // Fragmented header block - first chunk goes in HEADERS frame
         frames.Add(new HeadersFrame(streamId, headerBlock[..MaxFrameSize], endStream: false,
             endHeaders: false));
 

@@ -4,7 +4,7 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Client;
 
@@ -55,8 +55,9 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
                 return;
             }
 
-            if (!HasBeenPulled(_inServer) && !IsClosed(_inServer))
+            if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inServer) && !IsClosed(_inServer))
             {
+                Tracing.For("Stage").Debug(this, "response outlet pull → pulling _inServer");
                 Pull(_inServer);
             }
         });
@@ -100,13 +101,27 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
 
     private void OnStageActorMessage((IActorRef sender, object message) args)
     {
+        Tracing.For("Stage").Debug(this, "actor msg: {0}, pause={1}", args.message.GetType().Name, _sm.ShouldPauseNetwork);
         _sm.OnBodyMessage(args.message);
+
+        var pauseAfter = _sm.ShouldPauseNetwork;
+        var pulled = HasBeenPulled(_inServer);
+        var closed = IsClosed(_inServer);
+        Tracing.For("Stage").Debug(this, "after msg: pause={0}, pulled={1}, closed={2}", pauseAfter, pulled, closed);
+
+        if (!pauseAfter && !pulled && !closed)
+        {
+            Tracing.For("Stage").Debug(this, "re-pull _inServer after body message");
+            Pull(_inServer);
+        }
+
         TryPullRequest();
         TryCompleteAfterAllResponses();
     }
 
     private void OnServerPush()
     {
+        Tracing.For("Stage").Debug(this, "server push");
         var item = Grab(_inServer);
         try
         {
@@ -122,7 +137,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
             TryPushResponse();
         }
 
-        if (!HasBeenPulled(_inServer) && !IsClosed(_inServer))
+        if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inServer) && !IsClosed(_inServer))
         {
             Pull(_inServer);
         }
@@ -136,6 +151,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
         if (_outboundQueue.Count > 0)
         {
             Push(_outNetwork, _outboundQueue.Dequeue());
+            _sm.OnOutboundFlushed();
             TryCompleteAfterAllResponses();
             return;
         }
@@ -158,12 +174,14 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
                 && _responseQueue.Count == 0
                 && _outboundQueue.Count == 0)
             {
+                Tracing.For("Stage").Debug(this, "drain complete — closing stage");
                 CompleteStage();
             }
 
             return;
         }
 
+        Tracing.For("Stage").Trace(this, "timer fired: {0}", name);
         _sm.OnTimerFired(name);
     }
 
@@ -185,6 +203,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
         if (IsAvailable(_outNetwork))
         {
             Push(_outNetwork, item);
+            _sm.OnOutboundFlushed();
             return;
         }
         _outboundQueue.Enqueue(item);

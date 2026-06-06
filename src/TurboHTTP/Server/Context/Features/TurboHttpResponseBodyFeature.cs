@@ -9,8 +9,10 @@ namespace TurboHTTP.Server.Context.Features;
 
 internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 {
-    private readonly Pipe _pipe = new();
-    private readonly ResponsePipeWriter _writer;
+    private Pipe _pipe = new();
+    private ResponsePipeWriter _writer;
+    private Stream? _stream;
+    private Sink<ReadOnlyMemory<byte>, Task>? _bodySink;
 
     public TurboHttpResponseBodyFeature()
     {
@@ -23,18 +25,28 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
     internal Task WhenHeadersReady => _writer.WhenHeadersReady;
 
-    public Stream Stream => field ??= _writer.AsStream(leaveOpen: true);
+    public Stream Stream => _stream ??= _writer.AsStream(leaveOpen: true);
 
     public PipeWriter Writer => _writer;
+
+    internal void Reset()
+    {
+        _stream = null;
+        _bodySink = null;
+        _writer.Complete();
+        _pipe.Reader.Complete();
+        _pipe = new Pipe();
+        _writer = new ResponsePipeWriter(_pipe.Writer);
+    }
 
     public Sink<ReadOnlyMemory<byte>, Task> BodySink
     {
         get
         {
-            if (field == null)
+            if (_bodySink == null)
             {
                 var pipeSink = PipeSink.To(_pipe.Writer);
-                field = Flow.Create<ReadOnlyMemory<byte>>()
+                _bodySink = Flow.Create<ReadOnlyMemory<byte>>()
                     .SelectAsync(1, chunk =>
                     {
                         _writer.CommitHeaders();
@@ -43,7 +55,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
                     .ToMaterialized(pipeSink, Keep.Right);
             }
 
-            return field;
+            return _bodySink;
         }
     }
 
@@ -93,19 +105,18 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         _writer.Complete();
     }
 
-    public Task CompleteAsync()
+    public async Task CompleteAsync()
     {
-        return _writer.CompleteAsync().AsTask();
+        await _writer.CompleteAsync();
     }
 
     public void DisableBuffering()
     {
     }
 
-    internal Source<ReadOnlyMemory<byte>, NotUsed> GetResponseSource()
-    {
-        return PipeSource.From(_pipe.Reader);
-    }
+    internal Source<ReadOnlyMemory<byte>, NotUsed> GetResponseSource() => PipeSource.From(_pipe.Reader);
+
+    internal PipeReader GetResponsePipeReader() => _pipe.Reader;
 
     internal Stream GetResponseStream() => _pipe.Reader.AsStream();
 

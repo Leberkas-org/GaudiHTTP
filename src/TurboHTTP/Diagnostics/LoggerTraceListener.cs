@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Servus.Core.Diagnostics;
+using Servus.Diagnostics;
 
 namespace TurboHTTP.Diagnostics;
 

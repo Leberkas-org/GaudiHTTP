@@ -17,7 +17,7 @@ internal static class ServerOptionsProjections
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             AllowObsFold = false,
             BodyReadTimeout = o.Http1.BodyReadTimeout,
-            BodyBufferThreshold = o.RequestBodyBufferThreshold,
+            MaxBufferedBodySize = o.Http1.MaxBufferedRequestBodySize,
             ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
         };
@@ -36,10 +36,12 @@ internal static class ServerOptionsProjections
             HeaderTableSize = o.Http2.HeaderTableSize,
             MaxHeaderListSize = o.Http2.MaxHeaderListSize ?? o.Limits.MaxRequestHeadersTotalSize,
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
-            MaxResponseBufferSize = o.Http2.MaxResponseBufferSize,
-            BodyBufferThreshold = o.RequestBodyBufferThreshold,
+            MaxResponseBufferSize = o.Http2.MaxResponseBufferSize ?? o.Limits.MaxResponseBufferSize,
             ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
+            UseHuffman = o.AllowResponseHeaderCompression,
+            KeepAlivePingDelay = o.Http2.KeepAlivePingDelay,
+            KeepAlivePingTimeout = o.Http2.KeepAlivePingTimeout,
         };
 
     public static Http3ConnectionOptions ToHttp3Options(this TurboServerOptions o)
@@ -54,9 +56,10 @@ internal static class ServerOptionsProjections
             MaxHeaderCount = o.Limits.MaxRequestHeaderCount,
             QpackMaxTableCapacity = o.Http3.QpackMaxTableCapacity,
             QpackBlockedStreams = o.Http3.QpackBlockedStreams,
-            BodyBufferThreshold = o.RequestBodyBufferThreshold,
+            MaxResponseBufferSize = o.Http3.MaxResponseBufferSize ?? o.Limits.MaxResponseBufferSize,
             ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
+            UseHuffman = o.AllowResponseHeaderCompression,
         };
 
     public static DataRateOptions ToRateMonitor(this Http1ConnectionOptions o) => RateOf(o.Limits);

@@ -14,8 +14,8 @@ internal static class ClientOptionsProjections
 {
     public static Http10ClientDecoderOptions ToHttp10DecoderOptions(this TurboClientOptions o) => new()
     {
-        StreamingThreshold = o.ResponseBodyBufferThreshold,
-        MaxBufferedBodySize = o.ResponseBodyBufferThreshold,
+        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize,
+        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize,
         MaxStreamedBodySize = o.MaxStreamedResponseBodySize,
         MaxHeaderBytes = o.Http1.MaxResponseHeadersLength * 1024,
         MaxHeaderCount = o.Http1.MaxResponseHeaderCount,
@@ -25,8 +25,8 @@ internal static class ClientOptionsProjections
 
     public static Http11ClientDecoderOptions ToHttp11DecoderOptions(this TurboClientOptions o) => new()
     {
-        StreamingThreshold = o.ResponseBodyBufferThreshold,
-        MaxBufferedBodySize = o.ResponseBodyBufferThreshold,
+        StreamingThreshold = o.Http1.MaxBufferedResponseBodySize,
+        MaxBufferedBodySize = o.Http1.MaxBufferedResponseBodySize,
         MaxStreamedBodySize = o.MaxStreamedResponseBodySize,
         MaxHeaderBytes = o.Http1.MaxResponseHeadersLength * 1024,
         MaxHeaderCount = o.Http1.MaxResponseHeaderCount,

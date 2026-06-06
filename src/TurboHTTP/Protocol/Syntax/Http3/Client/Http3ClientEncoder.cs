@@ -5,7 +5,7 @@ using TurboHTTP.Protocol.Semantics;
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 
 /// <summary>
-/// RFC 9114 §4.1 — Encodes HTTP request messages as HTTP/3 frame sequences.
+/// RFC 9114 §4.1 - Encodes HTTP request messages as HTTP/3 frame sequences.
 /// Uses QPACK (RFC 9204) for header compression instead of HPACK.
 ///
 /// Unlike HTTP/2, HTTP/3 frames have no stream identifier (QUIC provides that)

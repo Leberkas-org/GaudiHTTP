@@ -2,7 +2,7 @@ using System.Buffers;
 
 namespace TurboHTTP.Protocol.Syntax.Http3;
 
-// HTTP/3 Frame Types  —  RFC 9114 §7
+// HTTP/3 Frame Types  -  RFC 9114 §7
 //
 // HTTP/3 Frame Format (RFC 9114 §7.1):
 //   +-----------------------------------------------+
@@ -185,7 +185,7 @@ internal sealed class CancelPushFrame : Http3Frame
 /// SETTINGS frame (RFC 9114 §7.2.4).
 /// Conveys configuration parameters on the control stream.
 /// Each parameter is an identifier-value pair of QUIC variable-length integers.
-/// Unlike HTTP/2, there is no ACK mechanism — the transport provides reliability.
+/// Unlike HTTP/2, there is no ACK mechanism - the transport provides reliability.
 /// </summary>
 internal sealed class SettingsFrame(IReadOnlyList<(long Identifier, long Value)> parameters) : Http3Frame
 {
@@ -356,25 +356,25 @@ internal static class SettingsIdentifier
     public const long QpackMaxTableCapacity = 0x01;
 
     /// <summary>
-    /// Reserved identifier — corresponds to HTTP/2 SETTINGS_ENABLE_PUSH.
+    /// Reserved identifier - corresponds to HTTP/2 SETTINGS_ENABLE_PUSH.
     /// MUST NOT be sent in HTTP/3 (RFC 9114 §7.2.4.1).
     /// </summary>
     public const long ReservedH2EnablePush = 0x02;
 
     /// <summary>
-    /// Reserved identifier — corresponds to HTTP/2 SETTINGS_MAX_CONCURRENT_STREAMS.
+    /// Reserved identifier - corresponds to HTTP/2 SETTINGS_MAX_CONCURRENT_STREAMS.
     /// MUST NOT be sent in HTTP/3 (RFC 9114 §7.2.4.1).
     /// </summary>
     public const long ReservedH2MaxConcurrentStreams = 0x03;
 
     /// <summary>
-    /// Reserved identifier — corresponds to HTTP/2 SETTINGS_INITIAL_WINDOW_SIZE.
+    /// Reserved identifier - corresponds to HTTP/2 SETTINGS_INITIAL_WINDOW_SIZE.
     /// MUST NOT be sent in HTTP/3 (RFC 9114 §7.2.4.1).
     /// </summary>
     public const long ReservedH2InitialWindowSize = 0x04;
 
     /// <summary>
-    /// Reserved identifier — corresponds to HTTP/2 SETTINGS_MAX_FRAME_SIZE.
+    /// Reserved identifier - corresponds to HTTP/2 SETTINGS_MAX_FRAME_SIZE.
     /// MUST NOT be sent in HTTP/3 (RFC 9114 §7.2.4.1).
     /// </summary>
     public const long ReservedH2MaxFrameSize = 0x05;

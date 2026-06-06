@@ -205,7 +205,7 @@ internal sealed class EndpointResolver
             ClientCertificateValidationCallback = httpsOptions?.ClientCertificateValidationCallback,
             HandshakeTimeout = httpsOptions?.HandshakeTimeout ?? TimeSpan.FromSeconds(10),
             ClientCertificateMode = httpsOptions?.ClientCertificateMode ?? ClientCertificateMode.NoCertificate,
-            ServerCertificateSelector = httpsOptions?.ServerCertificateSelector
+            ServerCertificateSelector = httpsOptions?.ServerCertificateSelector,
         };
 
         return new ListenerBinding

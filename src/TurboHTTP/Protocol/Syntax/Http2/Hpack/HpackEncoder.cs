@@ -336,7 +336,7 @@ internal sealed class HpackEncoder
             var utf8Start = output.Length - rawLength;
             if (utf8Start < maxHuffLen + 6)
             {
-                // Span is tight — fall through to non-Huffman path if Huffman can't possibly help
+                // Span is tight - fall through to non-Huffman path if Huffman can't possibly help
                 // (This is a safety check; in practice, the caller provides ample space)
             }
             else
@@ -349,7 +349,7 @@ internal sealed class HpackEncoder
 
                 if (huffLen < rawLength)
                 {
-                    // Huffman wins — write length prefix with H bit, then Huffman data
+                    // Huffman wins - write length prefix with H bit, then Huffman data
                     var written = WriteInteger(huffLen, prefixBits: 7, prefixFlags: 0x80, ref output);
                     var actualHuffLen = HuffmanCodec.Encode(utf8Region[..rawLength], output[..huffLen]);
                     output = output[actualHuffLen..];

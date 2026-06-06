@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Server.Context.Features;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Server;
 
@@ -65,6 +65,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
         private readonly Dictionary<int, IFeatureCollection> _activeFeatures = [];
         private readonly HashSet<int> _gracePhase = [];
         private readonly Dictionary<int, TContext> _appContexts = [];
+        private readonly Dictionary<int, (string Soft, string Hard)> _timerKeys = [];
         private readonly bool _metricsEnabled;
         private readonly int _backpressureThreshold;
         private bool _backpressureSignaled;
@@ -130,7 +131,10 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
             cts.Cancel();
             _gracePhase.Add(seq);
-            ScheduleOnce($"{HardTimerPrefix}{seq}", _stage._handlerGracePeriod);
+            if (_timerKeys.TryGetValue(seq, out var keys))
+            {
+                ScheduleOnce(keys.Hard, _stage._handlerGracePeriod);
+            }
         }
 
         private void OnHardTimeout(int seq)
@@ -256,9 +260,13 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 var cts = lifetime is not null
                     ? CancellationTokenSource.CreateLinkedTokenSource(lifetime.RequestAborted)
                     : new CancellationTokenSource();
+                var seqStr = seq.ToString();
+                var softKey = string.Concat(SoftTimerPrefix, seqStr);
+                var hardKey = string.Concat(HardTimerPrefix, seqStr);
+                _timerKeys[seq] = (softKey, hardKey);
                 _activeTimeouts[seq] = cts;
                 _activeFeatures[seq] = features;
-                ScheduleOnce($"{SoftTimerPrefix}{seq}", _stage._handlerTimeout);
+                ScheduleOnce(softKey, _stage._handlerTimeout);
 
                 var bodyFeature = features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
                 var headersReady = bodyFeature?.WhenHeadersReady;
@@ -426,8 +434,12 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         private void CleanupTimeout(int seq)
         {
-            CancelTimer($"{SoftTimerPrefix}{seq}");
-            CancelTimer($"{HardTimerPrefix}{seq}");
+            if (_timerKeys.Remove(seq, out var timerKeys))
+            {
+                CancelTimer(timerKeys.Soft);
+                CancelTimer(timerKeys.Hard);
+            }
+
             _gracePhase.Remove(seq);
             _activeFeatures.Remove(seq);
             if (_activeTimeouts.Remove(seq, out var cts))
@@ -535,6 +547,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             _activeFeatures.Clear();
             _activeTimeouts.Clear();
             _appContexts.Clear();
+            _timerKeys.Clear();
         }
     }
 }

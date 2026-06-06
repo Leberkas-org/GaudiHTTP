@@ -7,7 +7,7 @@ using Akka.Streams.Stage;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Features.Caching;
 using TurboHTTP.Protocol.Semantics;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Streams.Stages.Features;
 

@@ -1,5 +1,3 @@
-using System.Buffers;
-
 namespace TurboHTTP.Protocol.Syntax.Http11.Options;
 
 internal sealed record Http11ServerDecoderOptions
