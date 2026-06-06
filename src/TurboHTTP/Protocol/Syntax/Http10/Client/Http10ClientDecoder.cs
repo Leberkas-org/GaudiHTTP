@@ -131,19 +131,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
 
                     if (!result.Body.IsEmpty)
                     {
-                        if (!_streamingReader.TryEnqueue(result.Body))
-                        {
-                            if (result.EndOfBody)
-                            {
-                                _streamingReader.Complete();
-                                _phase = Phase.Done;
-                                consumed = pos;
-                                return DecodeOutcome.Complete;
-                            }
-
-                            consumed = pos;
-                            return DecodeOutcome.NeedMore;
-                        }
+                        _streamingReader.TryEnqueue(result.Body);
                     }
 
                     if (result.EndOfBody)
@@ -183,6 +171,11 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
             {
                 _streamingReader.Complete();
             }
+            else
+            {
+                _streamingReader.Fault(new HttpRequestException(
+                    "Connection closed before the complete response body was received."));
+            }
 
             return ok;
         }
@@ -194,8 +187,13 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
 
         if (_bodyReader is BufferedBodyReader buffered && !buffered.IsCompleted)
         {
-            buffered.MarkComplete();
-            return true;
+            if (buffered.IsOpenEnded)
+            {
+                buffered.MarkComplete();
+                return true;
+            }
+
+            return false;
         }
 
         return false;
