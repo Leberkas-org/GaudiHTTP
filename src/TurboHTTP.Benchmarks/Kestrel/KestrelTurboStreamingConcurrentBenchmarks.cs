@@ -13,8 +13,7 @@ namespace TurboHTTP.Benchmarks.Kestrel;
 [IterationCount(10)]
 public class KestrelTurboStreamingConcurrentBenchmarks : KestrelBaseClass
 {
-    [Params(1, 512, 4096)]
-    public int ConcurrencyLevel { get; set; }
+    [Params(1, 512, 4096)] public int ConcurrencyLevel { get; set; }
 
     private ClientHelper _clientHelper = null!;
 
@@ -60,7 +59,7 @@ public class KestrelTurboStreamingConcurrentBenchmarks : KestrelBaseClass
 
         for (var i = 0; i < count; i++)
         {
-            var request = new HttpRequestMessage(method, uri);
+            using var request = new HttpRequestMessage(method, uri);
             if (method == HttpMethod.Post)
             {
                 request.Content = new ByteArrayContent(HeavyPayload);
@@ -79,6 +78,7 @@ public class KestrelTurboStreamingConcurrentBenchmarks : KestrelBaseClass
 
             while (client.Responses.TryRead(out var response))
             {
+                response.Content.Dispose();
                 response.Dispose();
                 received++;
                 if (received >= count)

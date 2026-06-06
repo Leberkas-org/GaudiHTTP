@@ -244,7 +244,7 @@ public sealed class Http3ServerStateMachineSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-6.2")]
-    public void OnResponse_with_body_should_schedule_drain_timer()
+    public void OnResponse_with_body_should_emit_headers_and_start_body_drain()
     {
         var ops = new FakeServerOps();
         var sm = new Http3ServerStateMachine(new TurboServerOptions().ToHttp3Options(), ops);
@@ -279,10 +279,6 @@ public sealed class Http3ServerStateMachineSpec
         var frameItems = ops.Outbound.OfType<MultiplexedData>().ToList();
         Assert.NotEmpty(frameItems);
         Assert.Equal(streamId, frameItems[0].StreamId.Value);
-
-        // Should schedule drain-body timer
-        Assert.True(ops.ScheduledTimers.Any(t => t.Name == $"drain-body:{streamId}"),
-            "Should schedule drain-body timer");
     }
 
     [Fact(Timeout = 5000)]

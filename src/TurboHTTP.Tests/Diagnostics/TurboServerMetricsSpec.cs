@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using TurboHTTP.Diagnostics;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Tests.Diagnostics;
 
@@ -53,7 +53,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var measurements = GetLongMeasurements("kestrel.active_connections");
+        var measurements = GetLongMeasurements("turbo.server.active_connections");
         Assert.Equal(2, measurements.Count);
         Assert.Equal(0, measurements.Sum(m => m.Value));
     }
@@ -70,7 +70,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var m = Assert.Single(GetDoubleMeasurements("kestrel.connection.duration"));
+        var m = Assert.Single(GetDoubleMeasurements("turbo.server.connection.duration"));
         Assert.Equal(1.5, m.Value);
     }
 
@@ -85,7 +85,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var m = Assert.Single(GetLongMeasurements("kestrel.rejected_connections"));
+        var m = Assert.Single(GetLongMeasurements("turbo.server.rejected_connections"));
         Assert.Equal(1, m.Value);
     }
 
@@ -100,7 +100,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var m = Assert.Single(GetDoubleMeasurements("kestrel.tls_handshake.duration"));
+        var m = Assert.Single(GetDoubleMeasurements("turbo.server.tls_handshake.duration"));
         Assert.Equal(0.05, m.Value);
     }
 
@@ -119,7 +119,7 @@ public sealed class TurboServerMetricsSpec : IDisposable
 
         _listener.RecordObservableInstruments();
 
-        var measurements = GetLongMeasurements("kestrel.active_tls_handshakes");
+        var measurements = GetLongMeasurements("turbo.server.active_tls_handshakes");
         Assert.Equal(2, measurements.Count);
         Assert.Equal(0, measurements.Sum(m => m.Value));
     }

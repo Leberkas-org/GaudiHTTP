@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace TurboHTTP.StressBenchmarks.Reporting;
 
 public static class StressReport

@@ -43,6 +43,78 @@ Features        (TurboHTTP/Features/)        - Cookies/, Caching/, AltSvc/
 Diagnostics     (TurboHTTP/Diagnostics/)     - Metrics, tracing, logging
 ```
 
+## Debugging with Senf.Tracing
+
+All state machines and stage logic are permanently instrumented with `Servus.Senf.Tracing`. To debug issues, activate tracing in tests — no ad-hoc `Console.Error.WriteLine` needed.
+
+### Trace levels (lowest → highest)
+
+| Level | What it covers |
+|-------|---------------|
+| **Trace** | Per-packet data flow: body chunks (bytes + pending count), body pause/resume, timer ticks |
+| **Debug** | State transitions: timer scheduled/cancelled, request dispatched, body streaming start/complete, encoder pause/resume, stream opened/closed |
+| **Info** | Connection lifecycle: keep-alive timeout, request headers timeout, reconnect, GOAWAY, connection lost/restored |
+| **Warning** | Data rate violations, flow control violations, decode/encode failures |
+| **Error** | Fatal failures that abort the connection |
+
+### Activating tracing in unit tests
+
+```csharp
+using Servus.Diagnostics;
+using static Servus.Senf;
+
+// In test constructor or setup — write to xUnit output
+Tracing.Configure(new XunitTraceListener(output), TraceLevel.Trace);
+
+// Filter to specific category (Protocol, Stage, Handler, etc.)
+Tracing.Configure(listener, TraceLevel.Debug, category => category == "Protocol");
+```
+
+Minimal `IServusTraceListener` for xUnit:
+
+```csharp
+sealed class XunitTraceListener(ITestOutputHelper output) : IServusTraceListener
+{
+    public bool IsEnabled(TraceLevel level, string category) => true;
+    public void Write(in TraceEvent evt)
+        => output.WriteLine("[{0}][{1}] {2}#{3:X4}: {4}",
+            evt.Level, evt.Category, evt.SourceType, evt.SourceHash, evt.FormatMessage());
+}
+```
+
+### Activating in integration tests / hosting
+
+```csharp
+// Via DI — bridges to Microsoft.Extensions.Logging
+services.AddTurboLoggerTracing(TraceLevel.Trace);
+
+// Or with a custom listener
+services.AddTurboTracing(myListener, TraceLevel.Debug);
+```
+
+### Instrumented categories
+
+| Category | Components |
+|----------|-----------|
+| `Protocol` | All state machines (H10/H11/H2/H3, client + server), session managers, body encoders |
+| `Stage` | `HttpConnectionStageLogic` (client), `HttpConnectionServerStageLogic` (server) |
+| `Handler` | `HandlerBidiStage` (client request/response pipeline) |
+| `Request` | `StreamOwner`, `TracingBidiStage` (client request lifecycle) |
+| `Cache` | `CacheBidiStage` |
+| `Redirect` | `RedirectBidiStage` |
+| `Cookie` | `CookieBidiStage` |
+| `ContentEncoding` | `ContentEncodingBidiStage` |
+| `Expect100` | `ExpectContinueBidiStage` |
+| `Retry` | `RetryBidiStage` |
+| `AltSvc` | `AltSvcBidiStage` |
+
+### Debugging tips
+
+- **Body back-pressure issues**: Set `TraceLevel.Trace` + filter `"Protocol"` — shows every body chunk, pause/resume, and remainder buffer
+- **Timer bugs**: Set `TraceLevel.Debug` — shows all timer schedule/cancel/fire events with state
+- **Connection drops**: Set `TraceLevel.Info` — shows connection lost/restored, GOAWAY, keep-alive timeouts
+- **Never add `Console.Error.WriteLine`** for debugging — use the permanent tracing infrastructure instead
+
 ## Obsidian Vault (`notes/`)
 
 Single source of truth for all non-code knowledge. **Use Obsidian MCP tools** (`search_notes`, `read_note`, `write_note`, `patch_note`) — never `Read`/`Write`/`Edit` on `notes/` files.

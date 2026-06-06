@@ -2,7 +2,6 @@ using System.Net;
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
@@ -42,16 +41,16 @@ public sealed class Http11RoundTripNoBodySpec
     {
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
         var responses = new List<HttpResponseMessage>();
-        var span = data.Span;
-        while (span.Length > 0)
+        var offset = 0;
+        while (offset < data.Length)
         {
-            var outcome = decoder.Feed(span, isHead, out var consumed);
+            var outcome = decoder.Feed(data[offset..], isHead, out var consumed);
             if (outcome == DecodeOutcome.NeedMore)
             {
                 break;
             }
 
-            span = span[consumed..];
+            offset += consumed;
             if (outcome == DecodeOutcome.Complete)
             {
                 responses.Add(decoder.GetResponse());
@@ -192,14 +191,14 @@ public sealed class Http11RoundTripNoBodySpec
 
         const string headRaw = "HTTP/1.1 200 OK\r\nContent-Length: 42\r\n\r\n";
         var headBytes = Encoding.ASCII.GetBytes(headRaw);
-        var outcome1 = decoder.Feed(headBytes.AsSpan(), true, out _);
+        var outcome1 = decoder.Feed(headBytes.AsMemory(), true, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome1);
         var headResp = decoder.GetResponse();
         decoder.Reset();
         Assert.Empty(await headResp.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken));
 
         var getRaw = BuildResponse(200, "OK", "actual body", ("Content-Length", "11"));
-        var outcome2 = decoder.Feed(getRaw.Span, false, out _);
+        var outcome2 = decoder.Feed(getRaw, false, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome2);
         var getResp = decoder.GetResponse();
         Assert.Equal("actual body", await getResp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));

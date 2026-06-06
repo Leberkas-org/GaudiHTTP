@@ -81,4 +81,38 @@ public sealed class FlowControllerSpec
         fc.Reset(65535, 65535);
         Assert.False(fc.GoAwayReceived);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9.1")]
+    public void OnSendWindowUpdate_should_throw_when_connection_window_exceeds_max()
+    {
+        var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
+        fc.OnSendWindowUpdate(0, int.MaxValue - 65535);
+
+        Assert.Throws<HttpProtocolException>(() =>
+            fc.OnSendWindowUpdate(0, 1));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9.1")]
+    public void OnSendWindowUpdate_should_throw_when_stream_window_exceeds_max()
+    {
+        var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
+        fc.OnSendWindowUpdate(1, int.MaxValue - 65535);
+
+        Assert.Throws<HttpProtocolException>(() =>
+            fc.OnSendWindowUpdate(1, 1));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9.1")]
+    public void OnSendWindowUpdate_should_allow_window_up_to_max()
+    {
+        var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
+
+        var ex = Record.Exception(() =>
+            fc.OnSendWindowUpdate(0, int.MaxValue - 65535));
+
+        Assert.Null(ex);
+    }
 }

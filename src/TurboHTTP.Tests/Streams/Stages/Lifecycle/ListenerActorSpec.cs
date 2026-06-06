@@ -1,5 +1,4 @@
 using Akka;
-using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
 using Akka.TestKit.Xunit;
@@ -8,7 +7,6 @@ using Servus.Akka.Transport;
 using TurboHTTP.Server;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Lifecycle;
-using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
 
@@ -32,13 +30,8 @@ public sealed class ListenerActorSpec : TestKit
         }
     }
 
-    private ServerPipeline CreateDummyPipeline()
-    {
-        var options = new TurboServerOptions { Limits = { MaxConcurrentRequests = 0 } };
-        var killSwitch = KillSwitches.Shared("listener-test-pipeline");
-        return ServerPipeline.Materialize(
-            Flow.Create<IFeatureCollection>(), options, killSwitch, Sys.Materializer(), Sys);
-    }
+    private static IGraph<FlowShape<IFeatureCollection, IFeatureCollection>, NotUsed> PassthroughBridgeGraph()
+        => Flow.Create<IFeatureCollection>();
 
     private sealed class DummyProtocolEngine : IServerProtocolEngine
     {
@@ -67,7 +60,7 @@ public sealed class ListenerActorSpec : TestKit
             new DummyListenerFactory(9000),
             new TcpListenerOptions { Host = "localhost", Port = 0 },
             new TurboServerOptions(),
-            CreateDummyPipeline(),
+            PassthroughBridgeGraph(),
             new DummyProtocolEngine()));
 
         listener.Tell(new ListenerActor.StartListening(), TestActor);

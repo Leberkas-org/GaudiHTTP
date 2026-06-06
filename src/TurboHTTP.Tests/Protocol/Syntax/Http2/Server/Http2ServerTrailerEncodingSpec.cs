@@ -15,7 +15,8 @@ public sealed class Http2ServerTrailerEncodingSpec
         MaxFrameSize = 16 * 1024,
         HeaderTableSize = 4096,
         WriteDateHeader = false,
-        MaxHeaderBytes = 32 * 1024
+        MaxHeaderBytes = 32 * 1024,
+        UseHuffman = true
     };
 
     [Fact(Timeout = 5000)]

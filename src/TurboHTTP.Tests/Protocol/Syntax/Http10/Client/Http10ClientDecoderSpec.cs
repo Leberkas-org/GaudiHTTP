@@ -1,7 +1,6 @@
 using System.Net;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http10.Client;
-using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Client;

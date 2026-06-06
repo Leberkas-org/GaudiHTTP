@@ -1,12 +1,11 @@
-using System.Buffers;
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Tests.Shared;
+using static TurboHTTP.Protocol.Syntax.Http11.Server.Http11ServerStateMachine;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -103,7 +102,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-4")]
-    public void OnBodyMessage_OutboundBodyFailed_should_clear_pending_flag()
+    public void OnBodyMessage_ResponseBodyReadFailed_should_clear_pending_flag()
     {
         var ops = new FakeServerOps();
         var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
@@ -122,8 +121,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         Assert.False(sm.CanAcceptResponse);
 
         // Send body failed
-        var failed = new OutboundBodyFailed(new Exception("Test failure"));
-        sm.OnBodyMessage(failed);
+        sm.OnBodyMessage(new ResponseBodyReadFailed(new Exception("Test failure")));
 
         // After body failed, CanAcceptResponse is false because _pendingResponseCount == 0 (response already sent)
         // not because body is pending
@@ -147,26 +145,14 @@ public sealed class Http11ServerStateMachineConnectionSpec
         sm.OnResponse(context);
         var headerCount = ops.Outbound.Count;
 
-        // Send first chunk
-        var owner1 = MemoryPool<byte>.Shared.Rent(5);
-        "hello"u8.CopyTo(owner1.Memory.Span);
-        sm.OnBodyMessage(new OutboundBodyChunk(owner1, 5));
+        // Send two read completions followed by EOF
+        sm.OnBodyMessage(new ResponseBodyReadComplete(5));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(6));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
 
-        // Send second chunk
-        var owner2 = MemoryPool<byte>.Shared.Rent(6);
-        " world"u8.CopyTo(owner2.Memory.Span);
-        sm.OnBodyMessage(new OutboundBodyChunk(owner2, 6));
-
-        // Complete body
-        sm.OnBodyMessage(new OutboundBodyComplete());
-
+        // 2 data chunks + 1 chunked terminator from CompleteAsync
         var bodyChunks = ops.Outbound.Skip(headerCount).OfType<TransportData>().ToList();
-        Assert.Equal(2, bodyChunks.Count);
-
-        var chunk1Text = Encoding.UTF8.GetString(bodyChunks[0].Buffer.Span);
-        var chunk2Text = Encoding.UTF8.GetString(bodyChunks[1].Buffer.Span);
-        Assert.Equal("hello", chunk1Text);
-        Assert.Equal(" world", chunk2Text);
+        Assert.Equal(3, bodyChunks.Count);
     }
 
     [Fact(Timeout = 5000)]

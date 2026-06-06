@@ -3,7 +3,7 @@ namespace TurboHTTP.Benchmarks.Internal;
 public abstract class TurboServerBaseClass : BenchmarkSuiteBase
 {
     private static TurboBenchmarkServer? _sharedServer;
-    private static readonly SemaphoreSlim _serverLock = new(1, 1);
+    private static readonly SemaphoreSlim ServerLock = new(1, 1);
     private static int _serverRefCount;
 
     protected static readonly byte[] HeavyPayload = GeneratePayload(1 * 1024 * 1024);
@@ -41,7 +41,7 @@ public abstract class TurboServerBaseClass : BenchmarkSuiteBase
     {
         await base.GlobalSetup();
 
-        await _serverLock.WaitAsync();
+        await ServerLock.WaitAsync();
         try
         {
             if (_sharedServer is null)
@@ -57,13 +57,13 @@ public abstract class TurboServerBaseClass : BenchmarkSuiteBase
         }
         finally
         {
-            _serverLock.Release();
+            ServerLock.Release();
         }
     }
 
     public override async Task GlobalCleanup()
     {
-        await _serverLock.WaitAsync();
+        await ServerLock.WaitAsync();
         try
         {
             _serverRefCount--;
@@ -75,7 +75,7 @@ public abstract class TurboServerBaseClass : BenchmarkSuiteBase
         }
         finally
         {
-            _serverLock.Release();
+            ServerLock.Release();
         }
     }
 }

@@ -90,25 +90,17 @@ public sealed class Http3StreamRoutingSpec
         var sm = CreateMachine();
         const int bodySize = 60 * 1024; // 60KB per stream
 
-        // Simulate two concurrent request streams
-        // Stream 0: filled with 0xAA
-        // Stream 4: filled with 0xBB
+        // QueuedBodyReader has a fixed slot capacity: once full, TryEnqueue returns false.
+        // Send full body in a single HEADERS+DATA buffer per stream, interleaved across
+        // streams, to verify routing correctness without exceeding the queue capacity.
 
-        // Decode HEADERS + partial DATA for stream 0
-        var buf0 = BuildResponseBuffer(0xAA, bodySize / 2);
+        // Stream 0: HEADERS + 60KB DATA (filled with 0xAA)
+        var buf0 = BuildResponseBuffer(0xAA, bodySize);
         sm.DecodeServerData(new MultiplexedData(buf0, 0));
 
-        // Interleave: decode HEADERS + partial DATA for stream 4
-        var buf4 = BuildResponseBuffer(0xBB, bodySize / 2);
+        // Stream 4: HEADERS + 60KB DATA (filled with 0xBB)
+        var buf4 = BuildResponseBuffer(0xBB, bodySize);
         sm.DecodeServerData(new MultiplexedData(buf4, 4));
-
-        // More DATA for stream 0 (second half)
-        var buf0B = BuildDataBuffer(0xAA, bodySize / 2);
-        sm.DecodeServerData(new MultiplexedData(buf0B, 0));
-
-        // More DATA for stream 4 (second half)
-        var buf4B = BuildDataBuffer(0xBB, bodySize / 2);
-        sm.DecodeServerData(new MultiplexedData(buf4B, 4));
 
         // Signal EOF to flush both responses
         sm.DecodeServerData(new StreamReadCompleted(0));

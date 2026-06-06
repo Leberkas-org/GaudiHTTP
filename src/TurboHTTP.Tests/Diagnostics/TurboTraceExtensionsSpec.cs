@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
-using Servus.Core.Diagnostics;
+using Servus.Diagnostics;
 using TurboHTTP.Diagnostics;
-using static Servus.Core.Servus;
+using static Servus.Senf;
 
 namespace TurboHTTP.Tests.Diagnostics;
 

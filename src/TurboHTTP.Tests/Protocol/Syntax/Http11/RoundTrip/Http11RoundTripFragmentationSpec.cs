@@ -1,7 +1,6 @@
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
-using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Tests.TestSupport;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.RoundTrip;
@@ -21,8 +20,8 @@ public sealed class Http11RoundTripFragmentationSpec
         var part2 = new ReadOnlyMemory<byte>(bytes, splitAt, bytes.Length - splitAt);
 
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
-        var outcome1 = decoder.Feed(part1.Span, false, out _);
-        var outcome2 = decoder.Feed(part2.Span, false, out _);
+        var outcome1 = decoder.Feed(part1, false, out _);
+        var outcome2 = decoder.Feed(part2, false, out _);
 
         Assert.Equal(DecodeOutcome.NeedMore, outcome1);
         Assert.Equal(DecodeOutcome.Complete, outcome2);
@@ -38,8 +37,8 @@ public sealed class Http11RoundTripFragmentationSpec
         var bodyBytes = "hello"u8.ToArray();
 
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
-        var outcome1 = decoder.Feed(headerBytes.AsSpan(), false, out _);
-        var outcome2 = decoder.Feed(bodyBytes.AsSpan(), false, out _);
+        var outcome1 = decoder.Feed(headerBytes.AsMemory(), false, out _);
+        var outcome2 = decoder.Feed(bodyBytes.AsMemory(), false, out _);
 
         Assert.Equal(DecodeOutcome.NeedMore, outcome1);
         Assert.Equal(DecodeOutcome.Complete, outcome2);
@@ -61,8 +60,8 @@ public sealed class Http11RoundTripFragmentationSpec
         var part2 = new ReadOnlyMemory<byte>(bytes, splitAt, bytes.Length - splitAt);
 
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
-        var outcome1 = decoder.Feed(part1.Span, false, out _);
-        var outcome2 = decoder.Feed(part2.Span, false, out _);
+        var outcome1 = decoder.Feed(part1, false, out _);
+        var outcome2 = decoder.Feed(part2, false, out _);
 
         Assert.Equal(DecodeOutcome.NeedMore, outcome1);
         Assert.Equal(DecodeOutcome.Complete, outcome2);
@@ -87,7 +86,7 @@ public sealed class Http11RoundTripFragmentationSpec
         for (var i = 0; i < bytes.Length; i++)
         {
             accum[accumLen++] = bytes[i];
-            var outcome = decoder.Feed(accum.AsSpan(0, accumLen), false, out var consumed);
+            var outcome = decoder.Feed(accum.AsMemory(0, accumLen), false, out var consumed);
             if (consumed > 0)
             {
                 accum.AsSpan(consumed, accumLen - consumed).CopyTo(accum);
@@ -113,12 +112,18 @@ public sealed class Http11RoundTripFragmentationSpec
         var part2 = (ReadOnlyMemory<byte>)"3\r\nbar\r\n0\r\n\r\n"u8.ToArray();
 
         var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
-        var outcome1 = decoder.Feed(part1.Span, false, out _);
-        var outcome2 = decoder.Feed(part2.Span, false, out _);
-
+        var outcome1 = decoder.Feed(part1, false, out _);
         Assert.Equal(DecodeOutcome.NeedMore, outcome1);
-        Assert.Equal(DecodeOutcome.Complete, outcome2);
+
         var response = decoder.GetResponse();
-        Assert.Equal("foobar", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var bodyStream = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
+        var buf = new byte[64];
+        var read1 = await bodyStream.ReadAsync(buf, TestContext.Current.CancellationToken);
+        Assert.Equal("foo", Encoding.ASCII.GetString(buf, 0, read1));
+
+        var outcome2 = decoder.Feed(part2, false, out _);
+        Assert.Equal(DecodeOutcome.Complete, outcome2);
+        var read2 = await bodyStream.ReadAsync(buf, TestContext.Current.CancellationToken);
+        Assert.Equal("bar", Encoding.ASCII.GetString(buf, 0, read2));
     }
 }

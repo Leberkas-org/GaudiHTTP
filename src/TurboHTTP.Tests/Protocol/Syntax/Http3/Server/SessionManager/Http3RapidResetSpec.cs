@@ -23,9 +23,10 @@ public sealed class Http3RapidResetSpec
         MaxHeaderCount = 100,
         QpackMaxTableCapacity = 0,
         QpackBlockedStreams = 0,
-        BodyBufferThreshold = 64 * 1024,
+        MaxResponseBufferSize = 64 * 1024,
         ResponseBodyChunkSize = 16 * 1024,
         BodyConsumptionTimeout = TimeSpan.FromSeconds(30),
+        UseHuffman = true,
     };
 
     [Fact(Timeout = 5000)]

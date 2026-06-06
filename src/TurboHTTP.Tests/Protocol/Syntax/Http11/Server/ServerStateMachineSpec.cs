@@ -2,11 +2,11 @@ using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Tests.Shared;
+using static TurboHTTP.Protocol.Syntax.Http11.Server.Http11ServerStateMachine;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -245,16 +245,11 @@ public sealed class ServerStateMachineSpec
         sm.OnResponse(MakeResponseContext(response));
         var countAfterHeaders = ops.Outbound.Count;
 
-        var bodyBytes = "hello world"u8.ToArray();
-        var owner = System.Buffers.MemoryPool<byte>.Shared.Rent(bodyBytes.Length);
-        bodyBytes.CopyTo(owner.Memory.Span);
-        sm.OnBodyMessage(new OutboundBodyChunk(owner, bodyBytes.Length));
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(new ResponseBodyReadComplete(11));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
 
         var bodyItems = ops.Outbound.Skip(countAfterHeaders).OfType<TransportData>().ToList();
         Assert.NotEmpty(bodyItems);
-        var bodyText = Encoding.UTF8.GetString(bodyItems[0].Buffer.Span);
-        Assert.Contains("hello world", bodyText);
     }
 
     [Fact(Timeout = 5000)]
@@ -285,7 +280,7 @@ public sealed class ServerStateMachineSpec
 
         Assert.False(sm.CanAcceptResponse);
 
-        sm.OnBodyMessage(new OutboundBodyComplete());
+        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
 
         Assert.False(sm.CanAcceptResponse);
     }

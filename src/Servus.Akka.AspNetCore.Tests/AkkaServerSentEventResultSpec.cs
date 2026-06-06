@@ -1,4 +1,4 @@
-using System.Text;
+using static System.Text.Encoding;
 using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
@@ -64,7 +64,7 @@ public sealed class AkkaServerSentEventResultSpec : TestKit
         await result.ExecuteAsync(ctx);
 
         body.Position = 0;
-        var content = Encoding.UTF8.GetString(body.ToArray());
+        var content = UTF8.GetString(body.ToArray());
         Assert.Equal("data: hello\n\n", content);
     }
 
@@ -83,7 +83,7 @@ public sealed class AkkaServerSentEventResultSpec : TestKit
         await result.ExecuteAsync(ctx);
 
         body.Position = 0;
-        var content = Encoding.UTF8.GetString(body.ToArray());
+        var content = UTF8.GetString(body.ToArray());
         Assert.Equal("data: first\n\ndata: second\n\n", content);
     }
 
@@ -99,7 +99,7 @@ public sealed class AkkaServerSentEventResultSpec : TestKit
         await result.ExecuteAsync(ctx);
 
         body.Position = 0;
-        var content = Encoding.UTF8.GetString(body.ToArray());
+        var content = UTF8.GetString(body.ToArray());
         Assert.Contains("event: update\n", content);
         Assert.Contains("data: payload\n", content);
         Assert.Contains("id: 42\n", content);

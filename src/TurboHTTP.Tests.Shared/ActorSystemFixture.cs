@@ -3,7 +3,7 @@ using Akka.Configuration;
 using Akka.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Servus.Core.Diagnostics;
+using Servus.Diagnostics;
 using TurboHTTP.Diagnostics;
 using Xunit;
 
@@ -24,7 +24,7 @@ public sealed class ActorSystemFixture : IAsyncLifetime
         });
 
         var traceListener = new LoggerTraceListener(loggerFactory);
-        Servus.Core.Servus.Tracing.Configure(traceListener, TraceLevel.Info);
+        Servus.Senf.Tracing.Configure(traceListener, TraceLevel.Info);
 
         var services = new ServiceCollection();
         var diSetup = DependencyResolverSetup.Create(services.BuildServiceProvider());

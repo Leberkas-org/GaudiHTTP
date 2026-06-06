@@ -16,7 +16,8 @@ public sealed class Http2ServerResponseBufferSpec
         MaxFrameSize = 16 * 1024,
         HeaderTableSize = 4096,
         WriteDateHeader = false,
-        MaxHeaderBytes = 32 * 1024
+        MaxHeaderBytes = 32 * 1024,
+        UseHuffman = true
     };
 
     private static byte[] BuildHeadersFrame(int streamId, ReadOnlyMemory<byte> headerBlock, bool endStream = false,

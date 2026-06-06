@@ -1,74 +1,62 @@
 using System.Buffers;
-using TurboHTTP.Protocol.Multiplexed.Body;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http2;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http2.Server;
 
 public sealed class Http2StreamStateBackpressureSpec
 {
-    private sealed class FakePausableEncoder : IPausableBodyEncoder
-    {
-        public int PauseCalls { get; private set; }
-        public int ResumeCalls { get; private set; }
-        public void Pause() => PauseCalls++;
-        public void Resume() => ResumeCalls++;
-        public void Start(Stream bodyStream, Action<object> onMessage) { }
-        public void Dispose() { }
-    }
-
-    private static StreamBodyChunk<int> Chunk(int len)
+    private static StreamBodyChunk Chunk(int len)
     {
         var owner = MemoryPool<byte>.Shared.Rent(len);
-        return new StreamBodyChunk<int>(1, owner, len);
+        return new StreamBodyChunk(owner, len);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.2")]
-    public void Enqueue_should_pause_encoder_when_pending_reaches_max_buffer()
+    public void Enqueue_should_track_pending_bytes()
     {
-        var enc = new FakePausableEncoder();
         var state = new StreamState();
-        state.InitBodyEncoder(enc, maxOutboundBuffer: 100);
+        state.MarkBodyDrainActive();
 
         state.EnqueueBodyChunk(Chunk(60));
-        Assert.Equal(0, enc.PauseCalls);
+        Assert.Equal(60, state.PendingOutboundBytes);
+        Assert.True(state.HasPendingOutbound);
 
-        state.EnqueueBodyChunk(Chunk(60));
-
-        Assert.Equal(1, enc.PauseCalls);
+        state.EnqueueBodyChunk(Chunk(40));
+        Assert.Equal(100, state.PendingOutboundBytes);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.2")]
-    public void Dequeue_should_resume_encoder_when_drained_to_low_watermark()
+    public void Dequeue_should_reduce_pending_bytes()
     {
-        var enc = new FakePausableEncoder();
         var state = new StreamState();
-        state.InitBodyEncoder(enc, maxOutboundBuffer: 100);
+        state.MarkBodyDrainActive();
 
         state.EnqueueBodyChunk(Chunk(60));
-        state.EnqueueBodyChunk(Chunk(60));
-        Assert.Equal(1, enc.PauseCalls);
+        state.EnqueueBodyChunk(Chunk(40));
 
         state.TryDequeueBodyChunk(out var c1);
         c1!.Owner.Dispose();
-        Assert.Equal(0, enc.ResumeCalls);
+        Assert.Equal(40, state.PendingOutboundBytes);
 
         state.TryDequeueBodyChunk(out var c2);
         c2!.Owner.Dispose();
-        Assert.Equal(1, enc.ResumeCalls);
+        Assert.Equal(0, state.PendingOutboundBytes);
+        Assert.False(state.HasPendingOutbound);
     }
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.2")]
-    public void Unlimited_buffer_should_never_pause()
+    public void MarkBodyDrainComplete_should_signal_drain_finished()
     {
-        var enc = new FakePausableEncoder();
         var state = new StreamState();
-        state.InitBodyEncoder(enc, maxOutboundBuffer: 0);
+        state.MarkBodyDrainActive();
+        Assert.True(state.HasBodyDrain);
+        Assert.False(state.IsBodyDrainComplete);
 
-        state.EnqueueBodyChunk(Chunk(1_000_000));
-
-        Assert.Equal(0, enc.PauseCalls);
+        state.MarkBodyDrainComplete();
+        Assert.True(state.IsBodyDrainComplete);
     }
 }
