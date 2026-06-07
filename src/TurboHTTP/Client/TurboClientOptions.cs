@@ -121,6 +121,20 @@ public sealed class TurboClientOptions
     public int? SocketReceiveBufferSize { get; set; }
 
     /// <summary>
+    /// Size hint for the internal receive buffer in bytes.
+    /// Larger values reduce the number of read syscalls at the cost of memory.
+    /// Default is 64 KiB.
+    /// </summary>
+    public int ReceiveBufferHint { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Minimum segment size for the internal buffer pool in bytes.
+    /// Segments smaller than this are not returned to the pool.
+    /// Default is 16 KiB.
+    /// </summary>
+    public int MinimumSegmentSize { get; set; } = 16 * 1024;
+
+    /// <summary>
     /// Whether to route requests through a proxy.
     /// When <see langword="true"/> and <see cref="Proxy"/> is set, requests are
     /// tunnelled through the configured proxy. Default is <see langword="true"/>.
