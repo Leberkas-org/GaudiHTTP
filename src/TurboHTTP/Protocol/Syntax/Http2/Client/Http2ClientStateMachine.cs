@@ -145,6 +145,20 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
         }
     }
 
+    public void OnRequestCancelled(HttpRequestMessage request)
+    {
+        if (IsReconnecting)
+        {
+            request.Fail(new OperationCanceledException("Request cancelled by caller."));
+            return;
+        }
+
+        if (_clientSession.TryCancelStream(request))
+        {
+            Tracing.For("Protocol").Debug(this, "HTTP/2: cancelled request, sent RST_STREAM");
+        }
+    }
+
     public void OnBodyMessage(object msg) => _clientSession.OnBodyMessage(msg);
 
     public void Cleanup() => _clientSession.Cleanup();
