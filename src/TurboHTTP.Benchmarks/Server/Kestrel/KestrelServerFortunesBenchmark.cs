@@ -36,6 +36,7 @@ public class KestrelServerFortunesBenchmark : KestrelBaseClass
         {
             DefaultRequestVersion = HttpVersionValue,
             DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
+            Timeout = TimeSpan.FromSeconds(30),
         };
 
         _tasks = new Task[ConcurrencyLevel];
