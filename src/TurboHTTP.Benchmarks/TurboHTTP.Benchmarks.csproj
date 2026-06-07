@@ -3,6 +3,7 @@
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <EnablePreviewFeatures>true</EnablePreviewFeatures>
         <Optimize>true</Optimize>
         <IsPackable>false</IsPackable>
         <ServerGarbageCollection>true</ServerGarbageCollection>

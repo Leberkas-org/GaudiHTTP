@@ -34,14 +34,9 @@ public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
     [IterationCleanup]
     public void DrainResponses()
     {
-        var client = _clientHelper.Client;
-        client.CancelPendingRequests();
-
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         try
         {
-            while (!cts.IsCancellationRequested
-                   && client.Responses.TryRead(out var stale))
+            while (_clientHelper.Client.Responses.TryRead(out var stale))
             {
                 stale.Dispose();
             }
@@ -75,7 +70,7 @@ public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
     {
         var client = _clientHelper.Client;
         var count = ConcurrencyLevel;
-        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var ct = cts.Token;
 
         var writer = Task.Run(async () =>
