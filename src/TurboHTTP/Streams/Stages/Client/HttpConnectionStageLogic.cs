@@ -3,6 +3,7 @@ using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;
+using TurboHTTP.Client;
 using TurboHTTP.Protocol;
 using static Servus.Senf;
 
@@ -21,7 +22,9 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
     private readonly TSM _sm;
     private readonly Queue<ITransportOutbound> _outboundQueue = new(64);
     private readonly Queue<HttpResponseMessage> _responseQueue = new(64);
+    private readonly Dictionary<HttpRequestMessage, CancellationTokenRegistration> _ctRegistrations = new();
     private IActorRef _stageActor = ActorRefs.Nobody;
+    private Action<HttpRequestMessage>? _cancelCallback;
 
     public HttpConnectionStageLogic(
         GraphStage<ClientConnectionShape> stage,
@@ -70,6 +73,19 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
                 try
                 {
                     _sm.OnRequest(request);
+
+                    var ct = request.GetCancellationToken();
+                    if (ct.CanBeCanceled)
+                    {
+                        var reg = ct.UnsafeRegister(
+                            static (state, _) =>
+                            {
+                                var (cb, req) = ((Action<HttpRequestMessage>, HttpRequestMessage))state!;
+                                cb(req);
+                            },
+                            (_cancelCallback!, request));
+                        _ctRegistrations[request] = reg;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -96,6 +112,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
     public override void PreStart()
     {
         _stageActor = GetStageActor(OnStageActorMessage).Ref;
+        _cancelCallback = GetAsyncCallback<HttpRequestMessage>(OnRequestCancelled);
         _sm.PreStart();
     }
 
@@ -189,6 +206,11 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
 
     void IClientStageOperations.OnResponse(HttpResponseMessage response)
     {
+        if (response.RequestMessage is not null && _ctRegistrations.Remove(response.RequestMessage, out var reg))
+        {
+            reg.Dispose();
+        }
+
         if (IsAvailable(_outResponse))
         {
             Push(_outResponse, response);
@@ -215,6 +237,15 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
     void IClientStageOperations.OnCancelTimer(string name) => CancelTimer(name);
 
     IActorRef IClientStageOperations.StageActor => _stageActor;
+
+    private void OnRequestCancelled(HttpRequestMessage request)
+    {
+        if (_ctRegistrations.Remove(request, out var reg))
+        {
+            reg.Dispose();
+        }
+        _sm.OnRequestCancelled(request);
+    }
 
     private void TryPushResponse()
     {
@@ -316,8 +347,14 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
 
     public override void PostStop()
     {
-        Tracing.For(TraceCategory).Debug(this, "PostStop: draining {0} outbound, {1} responses", _outboundQueue.Count,
-            _responseQueue.Count);
+        foreach (var reg in _ctRegistrations.Values)
+        {
+            reg.Dispose();
+        }
+        _ctRegistrations.Clear();
+
+        Tracing.For(TraceCategory).Debug(this, "PostStop: draining {0} outbound, {1} responses",
+            _outboundQueue.Count, _responseQueue.Count);
         while (_outboundQueue.Count > 0)
         {
             if (_outboundQueue.Dequeue() is TransportData { Buffer: var buffer })
