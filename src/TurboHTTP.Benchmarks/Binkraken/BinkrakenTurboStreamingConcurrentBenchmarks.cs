@@ -73,35 +73,41 @@ public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var ct = cts.Token;
 
-        var writer = Task.Run(async () =>
+        try
         {
-            for (var i = 0; i < count; i++)
+            var writer = Task.Run(async () =>
             {
-                var request = new HttpRequestMessage(HttpMethod.Get, uri);
-                await client.Requests.WriteAsync(request, ct);
-            }
-        }, ct);
+                for (var i = 0; i < count; i++)
+                {
+                    var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                    await client.Requests.WriteAsync(request, ct);
+                }
+            }, ct);
 
-        var received = 0;
-        while (received < count)
-        {
-            if (!await client.Responses.WaitToReadAsync(ct))
+            var received = 0;
+            while (received < count)
             {
-                break;
-            }
-
-            while (client.Responses.TryRead(out var response))
-            {
-                await response.Content.ReadAsByteArrayAsync(ct);
-                response.Dispose();
-                received++;
-                if (received >= count)
+                if (!await client.Responses.WaitToReadAsync(ct))
                 {
                     break;
                 }
-            }
-        }
 
-        await writer.WaitAsync(ct);
+                while (client.Responses.TryRead(out var response))
+                {
+                    await response.Content.ReadAsByteArrayAsync(ct);
+                    response.Dispose();
+                    received++;
+                    if (received >= count)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            await writer.WaitAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+        }
     }
 }

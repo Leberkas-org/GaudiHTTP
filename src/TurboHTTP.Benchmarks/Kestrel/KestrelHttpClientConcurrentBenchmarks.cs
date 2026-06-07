@@ -64,25 +64,25 @@ public class KestrelHttpClientConcurrentBenchmarks : KestrelBaseClass
     }
 
     [Benchmark]
-    public Task ConcurrentRequests_Light()
+    public async Task ConcurrentRequests_Light()
     {
         for (var i = 0; i < ConcurrencyLevel; i++)
         {
             _tasks[i] = SendLightRequest();
         }
 
-        return Task.WhenAll(_tasks);
+        await Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
     }
 
     [Benchmark]
-    public Task ConcurrentRequests_Heavy()
+    public async Task ConcurrentRequests_Heavy()
     {
         for (var i = 0; i < ConcurrencyLevel; i++)
         {
             _tasks[i] = SendHeavyRequest();
         }
 
-        return Task.WhenAll(_tasks);
+        await Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
     }
 
     private async Task SendLightRequest()
