@@ -127,7 +127,7 @@ internal sealed class ClientHelper : IAsyncDisposable
         var client = factory.CreateClient(string.Empty);
         client.BaseAddress = baseAddress;
         client.DefaultRequestVersion = version;
-        client.Timeout = TimeSpan.FromMinutes(5);
+        client.Timeout = TimeSpan.FromSeconds(30);
 
         return new ClientHelper(provider, client, system);
     }
