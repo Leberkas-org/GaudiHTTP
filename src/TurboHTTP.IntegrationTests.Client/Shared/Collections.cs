@@ -47,3 +47,6 @@ public sealed class StreamingIntegrationCollection;
 
 [CollectionDefinition("Timing")]
 public sealed class TimingIntegrationCollection;
+
+[CollectionDefinition("Cancellation")]
+public sealed class CancellationIntegrationCollection;
