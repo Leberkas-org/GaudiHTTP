@@ -1,4 +1,3 @@
-using TurboHTTP.Client;
 using BenchmarkDotNet.Attributes;
 using TurboHTTP.Benchmarks.Internal;
 
@@ -9,8 +8,7 @@ namespace TurboHTTP.Benchmarks.Binkraken;
 [IterationCount(10)]
 public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
 {
-    [Params(1, 512, 4096)]
-    public int ConcurrencyLevel { get; set; }
+    [Params(1, 512, 4096)] public int ConcurrencyLevel { get; set; }
 
     private static readonly Uri BaseAddress = new("https://binkraken.com");
 
@@ -43,7 +41,6 @@ public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
         }
         catch
         {
-            // Channel may be in a faulted state — ignore during cleanup.
         }
     }
 
@@ -73,6 +70,11 @@ public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
         var count = ConcurrencyLevel;
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var ct = cts.Token;
+
+        while (client.Responses.TryRead(out var stale))
+        {
+            stale.Dispose();
+        }
 
         try
         {
