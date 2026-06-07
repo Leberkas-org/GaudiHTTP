@@ -44,8 +44,9 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
     /// <inheritdoc />
     public override async Task WarmupRequest()
     {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var request = new HttpRequestMessage(HttpMethod.Get, LightUri);
-        using var response = await _clientHelper.Client.SendAsync(request, CancellationToken.None);
+        using var response = await _clientHelper.Client.SendAsync(request, cts.Token);
         response.EnsureSuccessStatusCode();
     }
 
@@ -76,8 +77,9 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var request = new HttpRequestMessage(HttpMethod.Get, LightUri);
-            using var response = await _clientHelper.Client.SendAsync(request, CancellationToken.None);
+            using var response = await _clientHelper.Client.SendAsync(request, cts.Token);
             response.EnsureSuccessStatusCode();
         }
         finally
@@ -91,9 +93,10 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var request = new HttpRequestMessage(HttpMethod.Post, HeavyUri);
             request.Content = new ByteArrayContent(HeavyPayload);
-            using var response = await _clientHelper.Client.SendAsync(request, CancellationToken.None);
+            using var response = await _clientHelper.Client.SendAsync(request, cts.Token);
             response.EnsureSuccessStatusCode();
         }
         finally

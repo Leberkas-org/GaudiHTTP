@@ -49,8 +49,9 @@ public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
 
     public override async Task WarmupRequest()
     {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         using var request = new HttpRequestMessage(HttpMethod.Get, LightUri);
-        using var response = await _clientHelper.Client.SendAsync(request, CancellationToken.None);
+        using var response = await _clientHelper.Client.SendAsync(request, cts.Token);
         response.EnsureSuccessStatusCode();
     }
 
