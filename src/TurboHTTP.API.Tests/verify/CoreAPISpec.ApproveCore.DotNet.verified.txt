@@ -134,10 +134,12 @@ namespace TurboHTTP.Client
         public TurboHTTP.Client.Http3ClientOptions Http3 { get; init; }
         public uint MaxConcurrentEndpoints { get; set; }
         public long? MaxStreamedResponseBodySize { get; set; }
+        public int MinimumSegmentSize { get; set; }
         public System.TimeSpan PooledConnectionIdleTimeout { get; set; }
         public System.TimeSpan PooledConnectionLifetime { get; set; }
         public bool PreAuthenticate { get; set; }
         public System.Net.IWebProxy? Proxy { get; set; }
+        public int ReceiveBufferHint { get; set; }
         public int RequestBodyChunkSize { get; set; }
         public System.Net.Security.RemoteCertificateValidationCallback? ServerCertificateValidationCallback { get; set; }
         public int? SocketReceiveBufferSize { get; set; }
