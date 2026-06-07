@@ -53,12 +53,13 @@ internal sealed class ClientHelper : IAsyncDisposable
                 MaxConcurrentStreams = 1000,
                 MaxBufferedRequestBodySize = 2 * 1024 * 1024,
             },
-            // H3: 8 connections × 1000 streams = 8000 in-flight capacity.
-            // QPACK dynamic table at 32 KiB for better header compression on repeated requests.
+            // H3: 64 connections × 100 streams = 6400 in-flight capacity.
+            // MaxConcurrentStreams must match Kestrel's default (100) — exceeding it blocks
+            // on QuicConnection.OpenOutboundStreamAsync until a stream is released.
             Http3 = new Http3ClientOptions
             {
-                MaxConnectionsPerServer = 8,
-                MaxConcurrentStreams = 1000,
+                MaxConnectionsPerServer = 64,
+                MaxConcurrentStreams = 100,
                 QpackMaxTableCapacity = 32_768,
                 QpackBlockedStreams = 200,
                 MaxFieldSectionSize = 65_536,
@@ -89,11 +90,11 @@ internal sealed class ClientHelper : IAsyncDisposable
             Http1 = new Http1ClientOptions { MaxConnectionsPerServer = 128, MaxPipelineDepth = 64 },
             // H2: 16 connections × 1000 streams for high-CL streaming.
             Http2 = new Http2ClientOptions { MaxConnectionsPerServer = 16, MaxConcurrentStreams = 1000 },
-            // H3: 8 connections × 1000 streams, larger QPACK table for repeated header patterns.
+            // H3: 64 connections × 100 streams — match Kestrel's MaxInboundBidirectionalStreams default.
             Http3 = new Http3ClientOptions
             {
-                MaxConnectionsPerServer = 8,
-                MaxConcurrentStreams = 1000,
+                MaxConnectionsPerServer = 64,
+                MaxConcurrentStreams = 100,
                 QpackMaxTableCapacity = 32_768,
                 QpackBlockedStreams = 200,
                 MaxFieldSectionSize = 65_536,
