@@ -4,10 +4,6 @@ using TurboHTTP.Benchmarks.Internal;
 
 namespace TurboHTTP.Benchmarks.Binkraken;
 
-/// <summary>
-/// Benchmarks measuring <see cref="ITurboHttpClient"/> throughput using the channel-based
-/// streaming API under concurrent load against Binkraken.com over HTTPS.
-/// </summary>
 [MemoryDiagnoser]
 [WarmupCount(3)]
 [IterationCount(10)]
@@ -35,7 +31,6 @@ public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
         await base.GlobalCleanup();
     }
 
-    /// <inheritdoc />
     public override async Task WarmupRequest()
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, LightUri);
@@ -59,23 +54,29 @@ public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
     {
         var client = _clientHelper.Client;
         var count = ConcurrencyLevel;
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        var ct = cts.Token;
 
-        for (var i = 0; i < count; i++)
+        var writer = Task.Run(async () =>
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, uri);
-            await client.Requests.WriteAsync(request);
-        }
+            for (var i = 0; i < count; i++)
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                await client.Requests.WriteAsync(request, ct);
+            }
+        }, ct);
 
         var received = 0;
         while (received < count)
         {
-            if (!await client.Responses.WaitToReadAsync())
+            if (!await client.Responses.WaitToReadAsync(ct))
             {
                 break;
             }
 
             while (client.Responses.TryRead(out var response))
             {
+                await response.Content.ReadAsByteArrayAsync(ct);
                 response.Dispose();
                 received++;
                 if (received >= count)
@@ -84,5 +85,7 @@ public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
                 }
             }
         }
+
+        await writer.WaitAsync(ct);
     }
 }
