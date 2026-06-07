@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Transport.Quic;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -56,6 +57,12 @@ public sealed class BenchmarkServer : IAsyncDisposable
             // Raise general limits for HTTP/3 high-concurrency benchmarks.
             options.Limits.MaxConcurrentConnections = null;
             options.Limits.MaxConcurrentUpgradedConnections = null;
+        });
+
+        builder.WebHost.UseQuic(quic =>
+        {
+            quic.MaxBidirectionalStreamCount = 512;
+            quic.MaxUnidirectionalStreamCount = 32;
         });
 
         var app = builder.Build();
