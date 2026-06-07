@@ -11,6 +11,7 @@ internal interface IClientStateMachine
 
     void PreStart();
     void OnRequest(HttpRequestMessage request);
+    void OnRequestCancelled(HttpRequestMessage request) { }
     void DecodeServerData(ITransportInbound data);
     void OnUpstreamFinished();
     void OnTimerFired(string name);

@@ -1,3 +1,4 @@
+using System.Threading;
 using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Streams.IO;
@@ -72,5 +73,17 @@ public static class Extensions
     {
         return StreamSource.From(response.Content.ReadAsStream())
             .Via(SseParserFlow.Instance);
+    }
+
+    internal static void SetCancellationToken(this HttpRequestMessage request, CancellationToken ct)
+    {
+        request.Options.Set(OptionsKey.CancellationTokenKey, ct);
+    }
+
+    internal static CancellationToken GetCancellationToken(this HttpRequestMessage request)
+    {
+        return request.Options.TryGetValue(OptionsKey.CancellationTokenKey, out var ct)
+            ? ct
+            : CancellationToken.None;
     }
 }
