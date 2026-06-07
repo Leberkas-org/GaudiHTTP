@@ -31,6 +31,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
     private IStreamingBodyReader? _activeStreamingReader;
     private TransportBuffer? _heldBuffer;
     private int _heldBufferOffset;
+    private bool _draining;
 
     internal sealed record BodyReadComplete(int BytesRead);
     internal sealed record BodyReadFailed(Exception Reason);
@@ -38,7 +39,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
     public bool CanAcceptRequest =>
         _inFlightQueue.Count < _effectivePipelineDepth && !IsReconnecting && !_outboundBodyPending &&
-        !_connectionCloseReceived;
+        !_connectionCloseReceived && !_draining;
 
     public bool HasInFlightRequests => _inFlightQueue.Count > 0;
 
@@ -126,6 +127,45 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
                 }
             }
         }
+    }
+
+    public void OnRequestCancelled(HttpRequestMessage request)
+    {
+        var found = false;
+        var temp = new Queue<HttpRequestMessage>();
+        while (_inFlightQueue.Count > 0)
+        {
+            var queued = _inFlightQueue.Dequeue();
+            if (ReferenceEquals(queued, request))
+            {
+                found = true;
+                request.Fail(new OperationCanceledException("Request cancelled by caller."));
+            }
+            else
+            {
+                temp.Enqueue(queued);
+            }
+        }
+
+        while (temp.Count > 0)
+        {
+            _inFlightQueue.Enqueue(temp.Dequeue());
+        }
+
+        if (!found)
+        {
+            return;
+        }
+
+        if (_inFlightQueue.Count == 0)
+        {
+            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Graceful));
+            return;
+        }
+
+        _draining = true;
+        Tracing.For("Protocol").Debug(this, "HTTP/1.1: cancelled request, draining {0} remaining",
+            _inFlightQueue.Count);
     }
 
     public void DecodeServerData(ITransportInbound data)
@@ -253,6 +293,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
         _heldBuffer = null;
         _heldBufferOffset = 0;
         _connectionCloseReceived = false;
+        _draining = false;
         _currentWriter?.Dispose();
         _currentWriter = null;
         _currentBodyStream = null;
@@ -312,6 +353,11 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
                         if (_inFlightQueue.Count > 0)
                         {
                             _inFlightQueue.Dequeue();
+                        }
+
+                        if (_draining && _inFlightQueue.Count == 0)
+                        {
+                            _draining = false;
                         }
 
                         _decoder.Reset();
@@ -548,6 +594,11 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
         if (_inFlightQueue.Count > 0)
         {
             request = _inFlightQueue.Dequeue();
+        }
+
+        if (_draining && _inFlightQueue.Count == 0)
+        {
+            _draining = false;
         }
 
         if (request is not null)
