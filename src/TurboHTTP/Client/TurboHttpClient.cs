@@ -174,6 +174,8 @@ public sealed class TurboHttpClient : ITurboHttpClient
                 cts = new CancellationTokenSource();
             }
 
+            request.SetCancellationToken(cts.Token);
+
             try
             {
                 cts.CancelAfter(effectiveTimeout);
