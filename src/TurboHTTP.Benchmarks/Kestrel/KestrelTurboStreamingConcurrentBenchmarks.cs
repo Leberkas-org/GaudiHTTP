@@ -71,6 +71,12 @@ public class KestrelTurboStreamingConcurrentBenchmarks : KestrelBaseClass
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var ct = cts.Token;
 
+        // Drain stale responses from prior iterations before starting
+        while (client.Responses.TryRead(out var stale))
+        {
+            stale.Dispose();
+        }
+
         try
         {
             var writer = Task.Run(async () =>
