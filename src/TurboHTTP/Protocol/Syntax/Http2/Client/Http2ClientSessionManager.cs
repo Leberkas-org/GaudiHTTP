@@ -371,6 +371,31 @@ internal sealed class Http2ClientSessionManager
         return elapsed >= (long)timeout.TotalMilliseconds;
     }
 
+    public bool TryCancelStream(HttpRequestMessage request)
+    {
+        var streamId = -1;
+        foreach (var (id, req) in _correlationMap)
+        {
+            if (ReferenceEquals(req, request))
+            {
+                streamId = id;
+                break;
+            }
+        }
+
+        if (streamId < 0)
+        {
+            return false;
+        }
+
+        EmitFrame(new RstStreamFrame(streamId, Http2ErrorCode.Cancel));
+        _correlationMap.Remove(streamId);
+        request.Fail(new OperationCanceledException("Request cancelled by caller."));
+        CloseStream(streamId);
+
+        return true;
+    }
+
     public IReadOnlyDictionary<int, HttpRequestMessage> GetCorrelationMap()
     {
         return _correlationMap;
