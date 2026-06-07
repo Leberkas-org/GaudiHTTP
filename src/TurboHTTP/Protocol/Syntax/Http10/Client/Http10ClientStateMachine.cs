@@ -76,6 +76,17 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
         EncodeRequest(request);
     }
 
+    public void OnRequestCancelled(HttpRequestMessage request)
+    {
+        if (_inFlightRequest is not null && ReferenceEquals(_inFlightRequest, request))
+        {
+            request.Fail(new OperationCanceledException("Request cancelled by caller."));
+            _inFlightRequest = null;
+            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Error));
+            Tracing.For("Protocol").Debug(this, "HTTP/1.0: cancelled request, disconnecting");
+        }
+    }
+
     public void DecodeServerData(ITransportInbound data)
     {
         switch (data)
