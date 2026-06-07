@@ -125,6 +125,10 @@ public class EngineBenchmarkConfig : ManualConfig
 {
     public EngineBenchmarkConfig()
     {
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+        var artifactsPath = Path.Combine("BenchmarkDotNet.Artifacts", timestamp);
+
+        WithArtifactsPath(artifactsPath);
         AddJob(Job.Default.WithGcServer(true));
         AddDiagnoser(MemoryDiagnoser.Default);
         AddExporter(MarkdownExporter.GitHub);

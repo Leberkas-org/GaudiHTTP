@@ -78,13 +78,13 @@ public static class BenchmarkComparisonReport
     /// Writes a markdown report to <c>benchmarks/comparison_report_{timestamp}.md</c>
     /// relative to the current working directory, creating the directory if needed.
     /// </summary>
-    public static string WriteReportToFile(string markdown)
+    public static string WriteReportToFile(string markdown, string reportName = "comparison")
     {
         var outputDir = Path.Combine(Directory.GetCurrentDirectory(), "benchmarks");
         Directory.CreateDirectory(outputDir);
 
         var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
-        var filePath = Path.Combine(outputDir, $"comparison_report_{timestamp}.md");
+        var filePath = Path.Combine(outputDir, $"{reportName}_{timestamp}.md");
 
         File.WriteAllText(filePath, markdown, Encoding.UTF8);
         return filePath;

@@ -25,7 +25,7 @@ if (binkHttp is not null
         Console.Error.WriteLine("WARNING: Binkraken report contains NaN or Inf values — check input data.");
     }
 
-    var path = BenchmarkComparisonReport.WriteReportToFile(markdown);
+    var path = BenchmarkComparisonReport.WriteReportToFile(markdown, "binkraken_client");
     Console.WriteLine($"Binkraken comparison report: {path}");
 }
 else
@@ -55,7 +55,7 @@ if (kestrelHttp is not null
         Console.Error.WriteLine("WARNING: Kestrel report contains NaN or Inf values — check input data.");
     }
 
-    var path = BenchmarkComparisonReport.WriteReportToFile(markdown);
+    var path = BenchmarkComparisonReport.WriteReportToFile(markdown, "kestrel_client");
     Console.WriteLine($"Kestrel comparison report: {path}");
 }
 else
@@ -112,7 +112,7 @@ if (hasAnyServerBenchmarks)
         Console.Error.WriteLine("WARNING: Server report contains NaN or Inf values — check input data.");
     }
 
-    var serverPath = BenchmarkComparisonReport.WriteReportToFile(serverMarkdown);
+    var serverPath = BenchmarkComparisonReport.WriteReportToFile(serverMarkdown, "server");
     Console.WriteLine($"Server comparison report: {serverPath}");
 }
 else
