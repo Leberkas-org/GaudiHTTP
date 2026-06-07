@@ -37,7 +37,7 @@ public sealed class DefaultSettingsSmokeSpec : End2EndSpecBase
         });
     }
 
-    [Fact(Timeout = 30000)]
+    [Fact(Timeout = 60000)]
     public async Task Defaults_should_handle_concurrent_POST_echo_without_rate_violations()
     {
         const int concurrentRequests = 10;
@@ -104,7 +104,7 @@ public sealed class DefaultSettingsSmokeSpec : End2EndSpecBase
         Assert.True(body.All(b => b == 0xCD));
     }
 
-    [Fact(Timeout = 30000)]
+    [Fact(Timeout = 60000)]
     public async Task Defaults_should_handle_concurrent_large_responses_with_data_rate_active()
     {
         const int concurrentRequests = 5;

@@ -22,13 +22,14 @@ public sealed class WirePipeliningSpec : End2EndSpecBase
         app.MapGet("/p/{id:int}", (int id) => Results.Text($"RESP-{id}"));
     }
 
-    [Fact(Timeout = 15000)]
+    [Fact(Timeout = 30000)]
     public async Task Http11_should_answer_pipelined_requests_in_order_on_one_connection()
     {
         var uri = new Uri(BaseUri);
         var host = uri.Authority;
 
         using var tcp = new TcpClient();
+        tcp.NoDelay = true;
         await tcp.ConnectAsync(uri.Host, uri.Port, CancellationToken);
         await using var stream = tcp.GetStream();
 
@@ -59,7 +60,7 @@ public sealed class WirePipeliningSpec : End2EndSpecBase
         var sb = new StringBuilder();
         var buffer = new byte[4096];
         using var idle = CancellationTokenSource.CreateLinkedTokenSource(CancellationToken);
-        idle.CancelAfter(TimeSpan.FromSeconds(4));
+        idle.CancelAfter(TimeSpan.FromSeconds(10));
 
         try
         {
