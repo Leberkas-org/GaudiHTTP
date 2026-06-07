@@ -75,7 +75,7 @@ public class KestrelServerUploadBenchmark : KestrelBaseClass
         {
             _tasks[i] = SendRequest();
         }
-        return Task.WhenAll(_tasks);
+        return Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
     }
 
     private async Task SendRequest()

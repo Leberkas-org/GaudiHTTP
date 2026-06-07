@@ -59,7 +59,7 @@ public class BinkrakenTurboSendAsyncConcurrentBenchmarks : BinkrakenBaseClass
             _tasks[i] = SendLightRequest();
         }
 
-        return Task.WhenAll(_tasks);
+        return Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
     }
 
     [Benchmark]
@@ -70,7 +70,7 @@ public class BinkrakenTurboSendAsyncConcurrentBenchmarks : BinkrakenBaseClass
             _tasks[i] = SendHeavyRequest();
         }
 
-        return Task.WhenAll(_tasks);
+        return Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
     }
 
     private async Task SendLightRequest()
