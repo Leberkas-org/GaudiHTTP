@@ -157,11 +157,11 @@ public sealed class Http2ServerFlowControlSpec
 
         sm.DecodeClientData(new TransportData(dataBuf1));
 
-        // Consume body data (backpressure contract: read before next Supply)
         var bodyStream = context.Get<IHttpRequestFeature>()?.Body;
         Assert.NotNull(bodyStream);
         var drain1 = new byte[1024];
-        await bodyStream.ReadExactlyAsync(drain1, TestContext.Current.CancellationToken);
+        var bytesRead = await bodyStream.ReadAsync(drain1, TestContext.Current.CancellationToken);
+        Assert.Equal(1000, bytesRead);
 
         // No window update yet (threshold not exceeded)
         ops.Requests.Clear();
