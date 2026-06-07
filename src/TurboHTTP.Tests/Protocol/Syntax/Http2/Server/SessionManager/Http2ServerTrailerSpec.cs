@@ -133,7 +133,7 @@ public sealed class Http2ServerTrailerSpec
         Assert.NotNull(body);
 
         var readBuffer = new byte[64];
-        var readTask = body.ReadAsync(readBuffer, 0, readBuffer.Length);
+        var readTask = body.ReadAsync(readBuffer, 0, readBuffer.Length, TestContext.Current.CancellationToken);
 
         var trailerHeaders = new List<HpackHeader>
         {

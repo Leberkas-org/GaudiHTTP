@@ -18,6 +18,7 @@ namespace TurboHTTP.Streams.Stages.Server;
 internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic, IServerStageOperations
     where TSM : IServerStateMachine
 {
+    private const string TraceCategory = "Stage";
     private readonly Inlet<ITransportInbound> _inNetwork;
     private readonly Outlet<IFeatureCollection> _outRequest;
     private readonly Inlet<IFeatureCollection> _inResponse;
@@ -59,13 +60,13 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             onPush: OnNetworkPush,
             onUpstreamFinish: () =>
             {
-                Tracing.For("Stage").Debug(this, "network upstream finished");
+                Tracing.For(TraceCategory).Debug(this, "network upstream finished");
                 _sm.OnDownstreamFinished();
                 CompleteStage();
             },
             onUpstreamFailure: ex =>
             {
-                Tracing.For("Stage").Info(this, "network upstream failure: {0}", ex.Message);
+                Tracing.For(TraceCategory).Info(this, "network upstream failure: {0}", ex.Message);
                 _sm.OnDownstreamFinished();
                 if (!IsClosed(_outRequest))
                 {
@@ -107,7 +108,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                 }
                 catch (Exception ex)
                 {
-                    Tracing.For("Stage").Error(this, "OnResponse threw: {0}", ex.Message);
+                    Tracing.For(TraceCategory).Error(this, "OnResponse threw: {0}", ex.Message);
                 }
 
                 if (_sm.ShouldComplete)
@@ -116,7 +117,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                     {
                         OnResponseInstrumented(response);
                     }
-                    Tracing.For("Stage").Debug(this, "completing after response (connection close)");
+                    Tracing.For(TraceCategory).Debug(this, "completing after response (connection close)");
                     CompleteStage();
                     return;
                 }
@@ -137,7 +138,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             },
             onUpstreamFinish: () =>
             {
-                Tracing.For("Stage").Debug(this, "response upstream finished");
+                Tracing.For(TraceCategory).Debug(this, "response upstream finished");
                 CompleteStage();
             },
             onUpstreamFailure: _ =>
@@ -192,7 +193,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     {
         if (args.message is BodyResumed)
         {
-            Tracing.For("Stage").Trace(this, "body resumed");
+            Tracing.For(TraceCategory).Trace(this, "body resumed");
             _sm.ResumeBody();
             if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inNetwork) && !IsClosed(_inNetwork))
             {
@@ -202,7 +203,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             return;
         }
 
-        Tracing.For("Stage").Trace(this, "body message: {0}", args.message.GetType().Name);
+        Tracing.For(TraceCategory).Trace(this, "body message: {0}", args.message.GetType().Name);
         _sm.OnBodyMessage(args.message);
         TryPushOutbound();
         TryPullResponse();
@@ -252,7 +253,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         }
         catch (Exception ex)
         {
-            Tracing.For("Stage").Warning(this, "DecodeClientData threw: {0}", ex.Message);
+            Tracing.For(TraceCategory).Warning(this, "DecodeClientData threw: {0}", ex.Message);
         }
 
         // The state machine signals a connection-fatal error by enqueuing a GOAWAY and setting
@@ -297,7 +298,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             // abort the connection immediately. For H2/H3, ShouldComplete is always false, so this is safe.
             if (_sm.ShouldComplete)
             {
-                Tracing.For("Stage").Info(this, "timer '{0}' triggered connection close", name);
+                Tracing.For(TraceCategory).Info(this, "timer '{0}' triggered connection close", name);
                 CompleteStage();
             }
         }
@@ -474,8 +475,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     private void PushOutbound()
     {
-        int flushedCount;
-        if (_outboundQueue.Count == 1 || !TryCoalesceOutbound(out flushedCount))
+        if (_outboundQueue.Count == 1 || !TryCoalesceOutbound(out var flushedCount))
         {
             Push(_outNetwork, _outboundQueue.Dequeue());
             flushedCount = 1;
@@ -564,7 +564,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     public override void PostStop()
     {
-        Tracing.For("Stage").Debug(this, "PostStop: draining {0} outbound, {1} requests",
+        Tracing.For(TraceCategory).Debug(this, "PostStop: draining {0} outbound, {1} requests",
             _outboundQueue.Count, _requestQueue.Count);
 
         if (_metricsEnabled)
