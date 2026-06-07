@@ -282,7 +282,6 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         if (_outboundQueue.Count > 0)
         {
             PushOutbound();
-            return;
         }
 
         TryPullResponse();
