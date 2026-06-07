@@ -161,7 +161,7 @@ public sealed class Http2ServerFlowControlSpec
         var bodyStream = context.Get<IHttpRequestFeature>()?.Body;
         Assert.NotNull(bodyStream);
         var drain1 = new byte[1024];
-        await bodyStream.ReadAsync(drain1, TestContext.Current.CancellationToken);
+        await bodyStream.ReadExactlyAsync(drain1, TestContext.Current.CancellationToken);
 
         // No window update yet (threshold not exceeded)
         ops.Requests.Clear();
@@ -292,7 +292,7 @@ public sealed class Http2ServerFlowControlSpec
 
         // Consume body data (backpressure contract)
         var drain1 = new byte[5000];
-        await bodyStream.ReadAsync(drain1, TestContext.Current.CancellationToken);
+        await bodyStream.ReadExactlyAsync(drain1, TestContext.Current.CancellationToken);
 
         // Send second DATA frame (6000 bytes) - should exceed half window
         var data2 = new byte[6000];

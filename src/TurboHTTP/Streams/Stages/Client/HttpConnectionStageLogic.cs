@@ -11,6 +11,8 @@ namespace TurboHTTP.Streams.Stages.Client;
 internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, IClientStageOperations
     where TSM : IClientStateMachine
 {
+    private const string TraceCategory = "Stage";
+
     private readonly Inlet<ITransportInbound> _inServer;
     private readonly Outlet<HttpResponseMessage> _outResponse;
     private readonly Inlet<HttpRequestMessage> _inApp;
@@ -36,13 +38,13 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
         SetHandler(_inServer, onPush: OnServerPush,
             onUpstreamFinish: () =>
             {
-                Tracing.For("Stage").Debug(this, "server upstream finished");
+                Tracing.For(TraceCategory).Debug(this, "server upstream finished");
                 _sm.OnUpstreamFinished();
                 CompleteStage();
             },
             onUpstreamFailure: ex =>
             {
-                Tracing.For("Stage").Info(this, "server upstream failure: {0}", ex.Message);
+                Tracing.For(TraceCategory).Info(this, "server upstream failure: {0}", ex.Message);
                 _sm.OnUpstreamFinished();
                 CompleteStage();
             });
@@ -57,38 +59,36 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
 
             if (!_sm.ShouldPauseNetwork && !HasBeenPulled(_inServer) && !IsClosed(_inServer))
             {
-                Tracing.For("Stage").Debug(this, "response outlet pull → pulling _inServer");
+                Tracing.For(TraceCategory).Debug(this, "response outlet pull → pulling _inServer");
                 Pull(_inServer);
             }
         });
 
         SetHandler(_inApp, onPush: () =>
-        {
-            var request = Grab(_inApp);
-            try
             {
-                _sm.OnRequest(request);
-            }
-            catch (Exception ex)
-            {
-                Tracing.For("Stage").Error(this, "OnRequest threw: {0}", ex.Message);
-                request.Fail(ex);
-            }
+                var request = Grab(_inApp);
+                try
+                {
+                    _sm.OnRequest(request);
+                }
+                catch (Exception ex)
+                {
+                    Tracing.For(TraceCategory).Error(this, "OnRequest threw: {0}", ex.Message);
+                    request.Fail(ex);
+                }
 
-            TryPullRequest();
-        },
-        onUpstreamFinish: () =>
-        {
-            Tracing.For("Stage").Debug(this, "request upstream finished (inFlight={0}, reconnecting={1})", _sm.HasInFlightRequests, _sm.IsReconnecting);
-            if (!_sm.HasInFlightRequests && !_sm.IsReconnecting)
+                TryPullRequest();
+            },
+            onUpstreamFinish: () =>
             {
-                CompleteStage();
-            }
-        },
-        onUpstreamFailure: _ =>
-        {
-            _sm.OnUpstreamFinished();
-        });
+                Tracing.For(TraceCategory).Debug(this, "request upstream finished (inFlight={0}, reconnecting={1})",
+                    _sm.HasInFlightRequests, _sm.IsReconnecting);
+                if (!_sm.HasInFlightRequests && !_sm.IsReconnecting)
+                {
+                    CompleteStage();
+                }
+            },
+            onUpstreamFailure: _ => { _sm.OnUpstreamFinished(); });
 
         SetHandler(_outNetwork, onPull: OnNetworkPull);
     }
@@ -101,17 +101,19 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
 
     private void OnStageActorMessage((IActorRef sender, object message) args)
     {
-        Tracing.For("Stage").Debug(this, "actor msg: {0}, pause={1}", args.message.GetType().Name, _sm.ShouldPauseNetwork);
+        Tracing.For(TraceCategory).Debug(this, "actor msg: {0}, pause={1}", args.message.GetType().Name,
+            _sm.ShouldPauseNetwork);
         _sm.OnBodyMessage(args.message);
 
         var pauseAfter = _sm.ShouldPauseNetwork;
         var pulled = HasBeenPulled(_inServer);
         var closed = IsClosed(_inServer);
-        Tracing.For("Stage").Debug(this, "after msg: pause={0}, pulled={1}, closed={2}", pauseAfter, pulled, closed);
+        Tracing.For(TraceCategory)
+            .Debug(this, "after msg: pause={0}, pulled={1}, closed={2}", pauseAfter, pulled, closed);
 
         if (!pauseAfter && !pulled && !closed)
         {
-            Tracing.For("Stage").Debug(this, "re-pull _inServer after body message");
+            Tracing.For(TraceCategory).Debug(this, "re-pull _inServer after body message");
             Pull(_inServer);
         }
 
@@ -121,7 +123,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
 
     private void OnServerPush()
     {
-        Tracing.For("Stage").Debug(this, "server push");
+        Tracing.For(TraceCategory).Debug(this, "server push");
         var item = Grab(_inServer);
         try
         {
@@ -129,7 +131,7 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
         }
         catch (Exception ex)
         {
-            Tracing.For("Stage").Warning(this, "DecodeServerData threw: {0}", ex.Message);
+            Tracing.For(TraceCategory).Warning(this, "DecodeServerData threw: {0}", ex.Message);
         }
 
         if (_responseQueue.Count > 0)
@@ -174,27 +176,25 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
                 && _responseQueue.Count == 0
                 && _outboundQueue.Count == 0)
             {
-                Tracing.For("Stage").Debug(this, "drain complete — closing stage");
+                Tracing.For(TraceCategory).Debug(this, "drain complete — closing stage");
                 CompleteStage();
             }
 
             return;
         }
 
-        Tracing.For("Stage").Trace(this, "timer fired: {0}", name);
+        Tracing.For(TraceCategory).Trace(this, "timer fired: {0}", name);
         _sm.OnTimerFired(name);
     }
 
-    // --- IClientStageOperations implementation ---
-
     void IClientStageOperations.OnResponse(HttpResponseMessage response)
     {
-        Tracing.For("Protocol").Debug(this, "← {0}", (int)response.StatusCode);
         if (IsAvailable(_outResponse))
         {
             Push(_outResponse, response);
             return;
         }
+
         _responseQueue.Enqueue(response);
     }
 
@@ -206,24 +206,15 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
             _sm.OnOutboundFlushed();
             return;
         }
+
         _outboundQueue.Enqueue(item);
     }
 
-    void IClientStageOperations.OnScheduleTimer(string name, TimeSpan duration)
-    {
-        ScheduleOnce(name, duration);
-    }
+    void IClientStageOperations.OnScheduleTimer(string name, TimeSpan duration) => ScheduleOnce(name, duration);
 
-    void IClientStageOperations.OnCancelTimer(string name)
-    {
-        CancelTimer(name);
-    }
-
-    ILoggingAdapter IClientStageOperations.Log => Log;
+    void IClientStageOperations.OnCancelTimer(string name) => CancelTimer(name);
 
     IActorRef IClientStageOperations.StageActor => _stageActor;
-
-    // --- Mechanical helpers ---
 
     private void TryPushResponse()
     {
@@ -325,7 +316,8 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
 
     public override void PostStop()
     {
-        Tracing.For("Stage").Debug(this, "PostStop: draining {0} outbound, {1} responses", _outboundQueue.Count, _responseQueue.Count);
+        Tracing.For(TraceCategory).Debug(this, "PostStop: draining {0} outbound, {1} responses", _outboundQueue.Count,
+            _responseQueue.Count);
         while (_outboundQueue.Count > 0)
         {
             if (_outboundQueue.Dequeue() is TransportData { Buffer: var buffer })

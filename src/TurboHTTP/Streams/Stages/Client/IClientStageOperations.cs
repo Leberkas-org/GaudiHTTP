@@ -10,6 +10,5 @@ internal interface IClientStageOperations
     void OnOutbound(ITransportOutbound item);
     void OnScheduleTimer(string name, TimeSpan duration);
     void OnCancelTimer(string name);
-    ILoggingAdapter Log { get; }
     IActorRef StageActor { get; }
 }
