@@ -28,6 +28,27 @@ public class KestrelTurboStreamingConcurrentBenchmarks : KestrelBaseClass
         await base.GlobalCleanup();
     }
 
+    [IterationCleanup]
+    public void DrainResponses()
+    {
+        var client = _clientHelper.Client;
+        client.CancelPendingRequests();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        try
+        {
+            while (!cts.IsCancellationRequested
+                   && client.Responses.TryRead(out var stale))
+            {
+                stale.Dispose();
+            }
+        }
+        catch
+        {
+            // Channel may be in a faulted state — ignore during cleanup.
+        }
+    }
+
     public override async Task WarmupRequest()
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, LightUri);
