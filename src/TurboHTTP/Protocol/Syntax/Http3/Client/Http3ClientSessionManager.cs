@@ -298,6 +298,32 @@ internal sealed class Http3ClientSessionManager
         return snapshot;
     }
 
+    public bool TryCancelStream(HttpRequestMessage request)
+    {
+        long streamId = -1;
+        foreach (var (id, req) in _correlationMap)
+        {
+            if (ReferenceEquals(req, request))
+            {
+                streamId = id;
+                break;
+            }
+        }
+
+        if (streamId < 0)
+        {
+            return false;
+        }
+
+        EmitOutbound(new ResetStream(streamId, 0x10C));
+        _correlationMap.Remove(streamId);
+        request.Fail(new OperationCanceledException("Request cancelled by caller."));
+        CleanupBodyDrain(streamId);
+        _tracker.OnStreamClosed(streamId);
+
+        return true;
+    }
+
     public void ResetConnectionState()
     {
         _tracker.Reset();

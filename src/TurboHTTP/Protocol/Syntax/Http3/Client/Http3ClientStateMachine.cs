@@ -205,6 +205,20 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         ScheduleIdleCheck();
     }
 
+    public void OnRequestCancelled(HttpRequestMessage request)
+    {
+        if (IsReconnecting)
+        {
+            request.Fail(new OperationCanceledException("Request cancelled by caller."));
+            return;
+        }
+
+        if (_clientSession.TryCancelStream(request))
+        {
+            Tracing.For("Protocol").Debug(this, "HTTP/3: cancelled request, sent STOP_SENDING");
+        }
+    }
+
     public void OnBodyMessage(object msg)
     {
         _clientSession.OnBodyMessage(msg);
