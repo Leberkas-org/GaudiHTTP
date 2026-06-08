@@ -224,7 +224,7 @@ internal sealed class Http2ClientSessionManager
         }
 
         state.MarkBodyDrainActive();
-        StartStreamBodyDrain(streamId, bodyStream!);
+        StartStreamBodyDrain(streamId, bodyStream!, contentLength);
     }
 
     private void EmitBodyDirect(int streamId, StreamState state, Memory<byte> body)
@@ -893,11 +893,14 @@ internal sealed class Http2ClientSessionManager
         }
     }
 
-    private void StartStreamBodyDrain(int streamId, Stream bodyStream)
+    private void StartStreamBodyDrain(int streamId, Stream bodyStream, long? contentLength = null)
     {
         _activeBodyStreams[streamId] = bodyStream;
-        var bufferSize = Math.Min(_options.RequestBodyChunkSize, _requestEncoder.MaxFrameSize);
-        var buffer = MemoryPool<byte>.Shared.Rent(bufferSize);
+        var maxSize = Math.Min(_options.RequestBodyChunkSize, _requestEncoder.MaxFrameSize);
+        var bufferSize = contentLength is > 0 and <= int.MaxValue
+            ? (int)Math.Min(contentLength.Value, maxSize)
+            : maxSize;
+        var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(bufferSize, 256));
         _activeBodyBuffers[streamId] = buffer;
         ReadNextBodyChunk(streamId);
     }
