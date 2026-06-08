@@ -238,6 +238,11 @@ public sealed class TurboHttpClient : ITurboHttpClient
             pending.TrySetCanceled();
             _pendingTcs.TryRemove(pending, out _);
         }
+
+        while (Responses.TryRead(out var stale))
+        {
+            stale.Dispose();
+        }
     }
 
     private void ThrowIfDisposed()
