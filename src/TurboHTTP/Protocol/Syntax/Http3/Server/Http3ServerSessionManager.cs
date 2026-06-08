@@ -574,7 +574,7 @@ internal sealed class Http3ServerSessionManager
     {
         if (!state.HasBodyReader)
         {
-            var queued = new QueuedBodyReader(capacity: 64);
+            var queued = new QueuedBodyReader(capacity: 8);
             queued.Reset();
             state.InitBodyReader(queued, _maxRequestBodySize);
         }

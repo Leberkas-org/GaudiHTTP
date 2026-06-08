@@ -185,7 +185,7 @@ internal sealed class StreamManager(
 
                 if (state is { HasResponse: true, HasBodyReader: false })
                 {
-                    var queued = new QueuedBodyReader(capacity: 64);
+                    var queued = new QueuedBodyReader(capacity: 8);
                     queued.Reset();
                     state.InitBodyReader(queued, maxResponseBodySize);
                     var response = state.GetResponse();
@@ -317,7 +317,7 @@ internal sealed class StreamManager(
 
         var streamId = state.StreamId;
 
-        var queued = new QueuedBodyReader(capacity: 64);
+        var queued = new QueuedBodyReader(capacity: 8);
         queued.Reset();
         state.InitBodyReader(queued, maxResponseBodySize);
         var response = state.GetResponse();

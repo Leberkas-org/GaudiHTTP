@@ -771,7 +771,7 @@ internal sealed class Http2ServerSessionManager
             var hasBody = !endStream;
             if (hasBody)
             {
-                var queued = new QueuedBodyReader(capacity: 64);
+                var queued = new QueuedBodyReader(capacity: 8);
                 queued.Reset();
                 state.InitBodyReader(queued, _maxRequestBodySize);
                 requestFeature.Body = state.GetBodyStream();
