@@ -19,7 +19,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         _writer = new ResponsePipeWriter(_pipe.Writer);
     }
 
-    internal void SetOnStarting(Func<Task> onStarting) => _writer.SetOnStarting(onStarting);
+    internal void SetResponseFeature(TurboHttpResponseFeature feature) => _writer.SetResponseFeature(feature);
 
     internal bool HasStarted => _writer.HasStarted;
 
@@ -123,7 +123,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
     private sealed class ResponsePipeWriter(PipeWriter inner) : PipeWriter
     {
         private readonly TaskCompletionSource _headerCommit = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private Func<Task>? _onStarting;
+        private TurboHttpResponseFeature? _responseFeature;
         private bool _completed;
 
         public Task WhenHeadersReady => _headerCommit.Task;
@@ -131,7 +131,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
         public long BytesWritten { get; private set; }
 
-        public void SetOnStarting(Func<Task> onStarting) => _onStarting = onStarting;
+        public void SetResponseFeature(TurboHttpResponseFeature feature) => _responseFeature = feature;
 
         public void CommitHeaders()
         {
@@ -149,9 +149,9 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
                 HasStarted = true;
                 try
                 {
-                    if (_onStarting is not null)
+                    if (_responseFeature is not null)
                     {
-                        await _onStarting();
+                        await _responseFeature.FireOnStartingAsync();
                     }
                 }
                 finally
@@ -200,9 +200,9 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             HasStarted = true;
             try
             {
-                if (_onStarting is not null)
+                if (_responseFeature is not null)
                 {
-                    await _onStarting();
+                    await _responseFeature.FireOnStartingAsync();
                 }
             }
             finally
@@ -219,9 +219,9 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             HasStarted = true;
             try
             {
-                if (_onStarting is not null)
+                if (_responseFeature is not null)
                 {
-                    await _onStarting();
+                    await _responseFeature.FireOnStartingAsync();
                 }
             }
             finally
