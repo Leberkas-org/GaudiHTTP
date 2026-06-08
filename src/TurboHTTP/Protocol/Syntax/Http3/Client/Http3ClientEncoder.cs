@@ -17,13 +17,10 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 /// </summary>
 internal sealed class Http3ClientEncoder
 {
-    // Tracks MemoryPool rentals from the previous Encode() call so they can be
-    // disposed once the caller has consumed the frame list (contract: callers consume
-    // frames before the next Encode() call).
-    private readonly List<IMemoryOwner<byte>> _rentedOwners = new(4);
     private readonly List<Http3Frame> _reusableFrames = new(4);
     private readonly List<(string Name, string Value)> _reusableHeaders = new(16);
     private readonly QpackTableSync _tableSync;
+    private IMemoryOwner<byte>? _qpackBuffer;
 
     /// <summary>
     /// Creates a new HTTP/3 request encoder.
@@ -61,10 +58,6 @@ internal sealed class Http3ClientEncoder
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(request.RequestUri);
 
-        // Dispose MemoryPool rentals from the previous Encode() call.
-        // Safe: callers consume the frame list before calling Encode() again.
-        ReturnRentedBuffers();
-
         // RFC 9114 §10.3: Validate origin before encoding
         OriginValidator.Validate(request.RequestUri, isConnect: request.Method == HttpMethod.Connect);
 
@@ -73,12 +66,10 @@ internal sealed class Http3ClientEncoder
         ValidatePseudoHeaders(_reusableHeaders);
         FieldValidator.Validate(_reusableHeaders);
 
-        // QPACK encode directly into a MemoryPool-rented buffer
-        var qpackOwner = MemoryPool<byte>.Shared.Rent(4 * 1024);
-        _rentedOwners.Add(qpackOwner);
-        var qpackWriter = SpanWriter.Create(qpackOwner.Memory.Span);
+        _qpackBuffer ??= MemoryPool<byte>.Shared.Rent(4 * 1024);
+        var qpackWriter = SpanWriter.Create(_qpackBuffer.Memory.Span);
         var qpackBytesWritten = _tableSync.Encoder.Encode(_reusableHeaders, ref qpackWriter);
-        var headerBlock = qpackOwner.Memory[..qpackBytesWritten];
+        var headerBlock = _qpackBuffer.Memory[..qpackBytesWritten];
 
         var peerLimit = _tableSync.RemoteMaxFieldSectionSize;
         if (qpackBytesWritten > peerLimit)
@@ -116,18 +107,10 @@ internal sealed class Http3ClientEncoder
         return (owner, n);
     }
 
-    /// <summary>
-    /// Disposes all MemoryPool rentals from the previous Encode() call.
-    /// Must be called before reusing the frame list.
-    /// </summary>
-    private void ReturnRentedBuffers()
+    public void Dispose()
     {
-        foreach (var owner in _rentedOwners)
-        {
-            owner.Dispose();
-        }
-
-        _rentedOwners.Clear();
+        _qpackBuffer?.Dispose();
+        _qpackBuffer = null;
     }
 
     /// <summary>
