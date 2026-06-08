@@ -94,7 +94,7 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            using var request = new HttpRequestMessage(HttpMethod.Post, HeavyUri);
+            using var request = new HttpRequestMessage(HttpMethod.Post, UploadUri);
             request.Content = new ByteArrayContent(HeavyPayload);
             using var response = await _clientHelper.Client.SendAsync(request, cts.Token);
             response.EnsureSuccessStatusCode();

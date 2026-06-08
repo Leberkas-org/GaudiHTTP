@@ -61,7 +61,7 @@ public class KestrelTurboStreamingConcurrentBenchmarks : KestrelBaseClass
     [Benchmark]
     public async Task ConcurrentRequests_Heavy()
     {
-        await StreamRequests(HeavyUri, HttpMethod.Post);
+        await StreamRequests(UploadUri, HttpMethod.Post);
     }
 
     private async Task StreamRequests(Uri uri, HttpMethod method)
@@ -77,12 +77,17 @@ public class KestrelTurboStreamingConcurrentBenchmarks : KestrelBaseClass
             stale.Dispose();
         }
 
+        // Cap in-flight requests to avoid unbounded memory growth at high CL.
+        // 512 matches Kestrel's MaxStreamsPerConnection — more just queues.
+        using var throttle = new SemaphoreSlim(Math.Min(count, 512));
+
         try
         {
             var writer = Task.Run(async () =>
             {
                 for (var i = 0; i < count; i++)
                 {
+                    await throttle.WaitAsync(ct);
                     var request = new HttpRequestMessage(method, uri);
                     if (method == HttpMethod.Post)
                     {
@@ -105,6 +110,7 @@ public class KestrelTurboStreamingConcurrentBenchmarks : KestrelBaseClass
                 {
                     await response.Content.ReadAsByteArrayAsync(ct);
                     response.Dispose();
+                    throttle.Release();
                     received++;
                     if (received >= count)
                     {
