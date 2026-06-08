@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using TurboHTTP.Client;
+using TurboHTTP.Internal;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Semantics;
 
@@ -9,7 +10,8 @@ namespace TurboHTTP.Streams.Stages.Client;
 /// <summary>
 /// Stateless request enrichment logic extracted from the former <see cref="RequestEnricher"/>.
 /// Applied as a <c>Select()</c> transform in the pipeline — no separate GraphStage needed.
-/// Handles: URI resolution, version defaults, header merging, Referer sanitization, If-Range validation.
+/// Handles: URI resolution, version defaults, header merging, Referer sanitization,
+/// If-Range validation, and default timeout injection for the channel path.
 /// </summary>
 internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
 {
@@ -65,6 +67,30 @@ internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
 
         // Rule 7: If-Range validation (RFC 9110 §13.1.5)
         IfRangeValidator.Validate(request);
+
+        // Rule 8: Default timeout — inject CancellationToken when none is set.
+        // SendAsync sets the token itself; this covers the channel path.
+        if (!request.Options.TryGetValue(OptionsKey.CancellationTokenKey, out _))
+        {
+            var timeout = request.Options.TryGetValue(OptionsKey.TimeoutKey, out var perRequest)
+                ? perRequest
+                : options.Timeout;
+
+            if (timeout != System.Threading.Timeout.InfiniteTimeSpan
+                && timeout > TimeSpan.Zero
+                && timeout < TimeSpan.FromDays(1))
+            {
+                var cts = new CancellationTokenSource(timeout);
+                request.SetCancellationToken(cts.Token);
+
+                if (request.Options.TryGetValue(OptionsKey.Key, out var pending))
+                {
+                    cts.Token.UnsafeRegister(
+                        static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
+                        pending);
+                }
+            }
+        }
 
         return request;
     }
