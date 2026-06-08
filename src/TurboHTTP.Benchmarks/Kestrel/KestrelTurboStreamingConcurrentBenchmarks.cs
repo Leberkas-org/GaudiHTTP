@@ -108,7 +108,14 @@ public class KestrelTurboStreamingConcurrentBenchmarks : KestrelBaseClass
 
                 while (client.Responses.TryRead(out var response))
                 {
-                    await response.Content.ReadAsByteArrayAsync(ct);
+                    try
+                    {
+                        await response.Content.ReadAsByteArrayAsync(ct).WaitAsync(ct);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+
                     response.Dispose();
                     throttle.Release();
                     received++;
