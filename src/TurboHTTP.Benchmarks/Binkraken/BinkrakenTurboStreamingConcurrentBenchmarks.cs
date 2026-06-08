@@ -8,7 +8,7 @@ namespace TurboHTTP.Benchmarks.Binkraken;
 [IterationCount(10)]
 public class BinkrakenTurboStreamingConcurrentBenchmarks : BinkrakenBaseClass
 {
-    [Params(1, 512)] public int ConcurrencyLevel { get; set; }
+    [Params(1, 512, 4096)] public int ConcurrencyLevel { get; set; }
 
     private static readonly Uri BaseAddress = new("https://binkraken.com");
 
