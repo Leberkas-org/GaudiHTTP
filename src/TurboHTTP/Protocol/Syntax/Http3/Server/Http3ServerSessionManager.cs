@@ -42,6 +42,8 @@ internal sealed class Http3ServerSessionManager
     private readonly Dictionary<long, Stream> _activeBodyStreams = new();
     private readonly Dictionary<long, IMemoryOwner<byte>> _activeBodyBuffers = new();
     private readonly StackStreamStatePool<StreamState> _statePool;
+    private readonly Stack<FrameDecoder> _decoderPool = new();
+    private const int MaxDecoderPoolSize = 256;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
     private readonly TimeProvider _clock;
@@ -329,7 +331,7 @@ internal sealed class Http3ServerSessionManager
 
         foreach (var (_, (decoder, state)) in _streams)
         {
-            decoder.Dispose();
+            ReturnDecoder(decoder);
             state.AbortBody();
             state.Reset();
             _statePool.Return(state);
@@ -397,8 +399,8 @@ internal sealed class Http3ServerSessionManager
     {
         if (!_streams.TryGetValue(streamId, out var streamData))
         {
-            var frameDecoder = new FrameDecoder();
-            var streamState = new StreamState();
+            var frameDecoder = RentDecoder();
+            var streamState = _statePool.Rent();
             streamState.Initialize(streamId);
             streamData = (frameDecoder, streamState);
             _streams[streamId] = streamData;
@@ -618,11 +620,35 @@ internal sealed class Http3ServerSessionManager
 
             _ops.OnCancelTimer(state.BodyConsumptionTimerKey);
             _ops.OnCancelTimer(state.HeadersTimeoutTimerKey);
-            decoder.Dispose();
+            ReturnDecoder(decoder);
             state.Reset();
             _statePool.Return(state);
 
             _streams.Remove(streamId);
+        }
+    }
+
+    private FrameDecoder RentDecoder()
+    {
+        if (_decoderPool.TryPop(out var decoder))
+        {
+            decoder.Reset();
+            return decoder;
+        }
+
+        return new FrameDecoder();
+    }
+
+    private void ReturnDecoder(FrameDecoder decoder)
+    {
+        decoder.Reset();
+        if (_decoderPool.Count < MaxDecoderPoolSize)
+        {
+            _decoderPool.Push(decoder);
+        }
+        else
+        {
+            decoder.Dispose();
         }
     }
 
