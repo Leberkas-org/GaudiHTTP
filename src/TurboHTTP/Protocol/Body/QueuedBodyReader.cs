@@ -151,6 +151,12 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
 
     public void Reset()
     {
+        if (_readPending)
+        {
+            _readPending = false;
+            _core.SetResult(new BodyReadResult(default, isCompleted: true));
+        }
+
         while (_count > 0)
         {
             var chunk = _slots[_head];
