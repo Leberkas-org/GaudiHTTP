@@ -735,7 +735,7 @@ internal sealed class Http2ClientSessionManager
             return;
         }
 
-        var queued = new QueuedBodyReader(capacity: 64);
+        var queued = new QueuedBodyReader(capacity: 8);
         queued.Reset();
         state.InitBodyReader(queued);
         var bodyStream = state.GetBodyStream();
