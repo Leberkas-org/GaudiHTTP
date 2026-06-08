@@ -105,7 +105,7 @@ public class KestrelHttpClientConcurrentBenchmarks : KestrelBaseClass
         try
         {
             using var content = new ByteArrayContent(HeavyPayload);
-            using var response = await _httpClient.PostAsync(HeavyUri, content);
+            using var response = await _httpClient.PostAsync(UploadUri, content);
             response.EnsureSuccessStatusCode();
         }
         finally
