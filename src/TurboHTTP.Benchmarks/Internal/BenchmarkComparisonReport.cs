@@ -37,9 +37,9 @@ public static class BenchmarkComparisonReport
         IReadOnlyList<BenchmarkResult> turboStreamingResults)
     {
         var sb = new StringBuilder();
-        AppendBinkrakenHeader(sb, DateTime.UtcNow);
+        AppendKestrelClientHeader(sb, DateTime.UtcNow);
         AppendVersionSections(sb, httpClientResults, turboSendAsyncResults, turboStreamingResults);
-        AppendBinkrakenNotes(sb);
+        AppendKestrelClientNotes(sb);
         return sb.ToString();
     }
 
@@ -132,17 +132,17 @@ public static class BenchmarkComparisonReport
         }
     }
 
-    private static void AppendBinkrakenHeader(StringBuilder sb, DateTime reportDate)
+    private static void AppendKestrelClientHeader(StringBuilder sb, DateTime reportDate)
     {
-        sb.AppendLine("# TurboHttp vs HttpClient — Binkraken.com (Remote HTTPS)");
+        sb.AppendLine("# TurboHttp vs HttpClient — Kestrel Localhost");
         sb.AppendLine();
         sb.AppendLine("| | |");
         sb.AppendLine("|---|---|");
         sb.AppendLine($"| **Report date** | {reportDate:yyyy-MM-dd HH:mm} UTC |");
-        sb.AppendLine("| **Server** | binkraken.com (GitHub Pages CDN) |");
-        sb.AppendLine("| **Protocol** | HTTPS — HTTP/1.1, HTTP/2 (ALPN), HTTP/3 (QUIC) |");
-        sb.AppendLine("| **Light endpoint** | `GET /` (~3 KB HTML) |");
-        sb.AppendLine("| **Heavy endpoint** | `GET /assets/…plugin-vue_export-helper….js` (~159 KB) |");
+        sb.AppendLine("| **Server** | Kestrel (localhost) |");
+        sb.AppendLine("| **Protocol** | HTTP/1.1 cleartext, HTTP/2 (h2c), HTTP/3 (QUIC+TLS) |");
+        sb.AppendLine("| **Light endpoint** | `GET /plaintext` (~13 bytes) |");
+        sb.AppendLine("| **Heavy endpoint** | `POST /upload` (1 MB payload) |");
         sb.AppendLine();
         sb.AppendLine("> **Legend:**");
         sb.AppendLine("> - ✓  faster than HttpClient by >5%");
@@ -152,15 +152,12 @@ public static class BenchmarkComparisonReport
         sb.AppendLine();
     }
 
-    private static void AppendBinkrakenNotes(StringBuilder sb)
+    private static void AppendKestrelClientNotes(StringBuilder sb)
     {
         sb.AppendLine("## Notes");
         sb.AppendLine();
-        sb.AppendLine("- All requests target binkraken.com over real internet (HTTPS/TLS).");
-        sb.AppendLine("- Results include DNS resolution, TLS handshake (first request), and network latency.");
-        sb.AppendLine("- Light: `GET /` returns the SPA index (~3 KB). Heavy: `GET /assets/…` returns a JS bundle (~159 KB).");
-        sb.AppendLine("- HTTP/2 is negotiated via ALPN over TLS — no cleartext h2c. HTTP/3 uses QUIC when server supports Alt-Svc.");
-        sb.AppendLine("- Variance may be higher than loopback benchmarks due to network jitter and CDN caching.");
+        sb.AppendLine("- All requests target localhost Kestrel — results reflect pure client overhead.");
+        sb.AppendLine("- HTTP/1.1 and HTTP/2 use cleartext (no TLS). HTTP/3 uses QUIC+TLS with a self-signed certificate.");
         sb.AppendLine("- Memory figures reflect managed allocations only; native/pooled buffers are not included.");
         sb.AppendLine("- **Streaming** uses the channel API (`Requests` writer / `Responses` reader).");
         sb.AppendLine("- **SendAsync** uses `Task.WhenAll` fan-out; each concurrent slot gets its own `Task<HttpResponseMessage>`.");
