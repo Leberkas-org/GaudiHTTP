@@ -671,7 +671,14 @@ internal sealed class Http3ServerSessionManager
             return;
         }
 
-        stream.ReadAsync(buffer.Memory).AsTask().PipeTo(
+        var vt = stream.ReadAsync(buffer.Memory);
+        if (vt.IsCompletedSuccessfully)
+        {
+            HandleStreamBodyRead(new StreamBodyReadComplete(streamId, vt.Result));
+            return;
+        }
+
+        vt.AsTask().PipeTo(
             _ops.StageActor,
             success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
             failure: ex => new StreamBodyReadFailed(streamId, ex));

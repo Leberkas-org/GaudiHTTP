@@ -366,10 +366,41 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     private void ReadNextResponseChunk()
     {
         var mem = _activeResponseBodyWriter!.GetMemory();
-        _activeResponseBodyStream!.ReadAsync(mem).PipeTo(
+        var vt = _activeResponseBodyStream!.ReadAsync(mem);
+        if (vt.IsCompletedSuccessfully)
+        {
+            HandleResponseBodyRead(vt.Result);
+            return;
+        }
+
+        vt.PipeTo(
             _ops.StageActor,
             success: bytesRead => new ResponseBodyReadComplete(bytesRead),
             failure: ex => new ResponseBodyReadFailed(ex));
+    }
+
+    private void HandleResponseBodyRead(int bytesRead)
+    {
+        if (bytesRead > 0)
+        {
+            _activeResponseBodyWriter!.Advance(bytesRead);
+            _activeResponseBodyWriter.FlushAsync();
+            Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", bytesRead);
+            ReadNextResponseChunk();
+        }
+        else
+        {
+            _activeResponseBodyWriter!.CompleteAsync();
+            _outboundBodyPending = false;
+            _activeResponseBodyWriter = null;
+            _activeResponseBodyStream = null;
+            _responseRate.Remove(0);
+            Tracing.For("Protocol").Debug(this, "response body complete");
+            if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
+            {
+                _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
+            }
+        }
     }
 
     public void OnDownstreamFinished()
@@ -429,25 +460,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     {
         switch (msg)
         {
-            case ResponseBodyReadComplete { BytesRead: > 0 } read:
-                _activeResponseBodyWriter!.Advance(read.BytesRead);
-                _activeResponseBodyWriter.FlushAsync();
-                Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", read.BytesRead);
-                ReadNextResponseChunk();
-                break;
-
-            case ResponseBodyReadComplete { BytesRead: 0 }:
-                _activeResponseBodyWriter!.CompleteAsync();
-                _outboundBodyPending = false;
-                _activeResponseBodyWriter = null;
-                _activeResponseBodyStream = null;
-                _responseRate.Remove(0);
-                Tracing.For("Protocol").Debug(this, "response body complete");
-                if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
-                {
-                    _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
-                }
-
+            case ResponseBodyReadComplete read:
+                HandleResponseBodyRead(read.BytesRead);
                 break;
 
             case ResponseBodyReadFailed failed:
