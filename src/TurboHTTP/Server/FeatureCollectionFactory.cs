@@ -55,7 +55,7 @@ internal static class FeatureCollectionFactory
             features.Set<IHttpResponseBodyFeature>(responseBodyFeature);
         }
 
-        responseBodyFeature.SetOnStarting(() => responseFeature.FireOnStartingAsync());
+        responseBodyFeature.SetResponseFeature(responseFeature);
 
         if (recycled && features.Get<IHttpResponseTrailersFeature>() is TurboHttpResponseTrailersFeature existingTrailers)
         {
