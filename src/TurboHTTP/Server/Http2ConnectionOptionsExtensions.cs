@@ -26,5 +26,10 @@ internal static class Http2ConnectionOptionsExtensions
         MaxFieldSectionSize = o.MaxHeaderListSize,
         MaxHeaderBytes = o.MaxHeaderListSize,
         MaxHeaderCount = o.MaxHeaderCount,
+        InitialConnectionWindowSize = o.InitialConnectionWindowSize,
+        InitialStreamWindowSize = o.InitialStreamWindowSize,
+        MaxStreamWindowSize = o.MaxStreamWindowSize,
+        WindowScaleThresholdMultiplier = o.WindowScaleThresholdMultiplier,
+        EnableAdaptiveWindowScaling = o.EnableAdaptiveWindowScaling,
     };
 }

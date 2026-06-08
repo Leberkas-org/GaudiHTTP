@@ -88,7 +88,7 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
     public async Task
         Http2ConnectionFlowControlBatching_should_send_both_window_updates_when_threshold_crossed_in_single_frame()
     {
-        // 40000 bytes crosses both connection and stream threshold (32767) at once.
+        // 40000 bytes crosses both connection and stream threshold (65535/4 = 16383) at once.
         var data = new DataFrame(streamId: 1, data: new byte[40000], endStream: true);
 
         var (_, serverBound) = await RunAsync(65535, data);
@@ -105,9 +105,9 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
     public async Task
         Http2ConnectionFlowControlBatching_should_send_single_batched_window_update_when_multiple_frames_accumulate_to_threshold()
     {
-        // Two 20000-byte frames accumulate to 40000 → threshold (32767) crossed on second frame.
-        var frame1 = new DataFrame(streamId: 1, data: new byte[20000], endStream: false);
-        var frame2 = new DataFrame(streamId: 1, data: new byte[20000], endStream: true);
+        // Two 10000-byte frames accumulate to 20000 → threshold (65535/4 = 16383) crossed on second frame.
+        var frame1 = new DataFrame(streamId: 1, data: new byte[10000], endStream: false);
+        var frame2 = new DataFrame(streamId: 1, data: new byte[10000], endStream: true);
 
         var (_, serverBound) = await RunAsync(65535, frame1, frame2);
 
@@ -120,11 +120,11 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
 
         // Exactly one connection-level WINDOW_UPDATE with the full batched increment
         var connUpdate = Assert.Single(connectionUpdates);
-        Assert.Equal(40000, connUpdate.Increment);
+        Assert.Equal(20000, connUpdate.Increment);
 
         // Exactly one stream-level WINDOW_UPDATE (threshold flush; stream close pending = 0)
         var streamUpdate = Assert.Single(streamUpdates);
-        Assert.Equal(40000, streamUpdate.Increment);
+        Assert.Equal(20000, streamUpdate.Increment);
     }
 
     [Fact(Timeout = 5_000)]
@@ -132,7 +132,7 @@ public sealed class Http2ConnectionFlowControlBatchingSpec : StreamTestBase
     public async Task
         Http2ConnectionFlowControlBatching_should_batch_streams_independently_when_two_streams_send_data_below_threshold()
     {
-        // Stream 1: 40000 bytes → hits threshold (32767) → stream WU(1) sent.
+        // Stream 1: 40000 bytes → hits threshold (65535/4 = 16383) → stream WU(1) sent.
         // Stream 3: 8192 bytes → below threshold → stream WU(3) flushed only at close.
         var s1 = new DataFrame(streamId: 1, data: new byte[40000], endStream: true);
         var s3 = new DataFrame(streamId: 3, data: new byte[8192], endStream: true);
