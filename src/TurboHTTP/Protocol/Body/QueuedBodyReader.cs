@@ -98,8 +98,28 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
             return ValueTask.FromException<BodyReadResult>(_fault);
         }
 
+        if (ct.IsCancellationRequested)
+        {
+            return ValueTask.FromCanceled<BodyReadResult>(ct);
+        }
+
         _readPending = true;
         _core.Reset();
+
+        if (ct.CanBeCanceled)
+        {
+            var version = _core.Version;
+            ct.UnsafeRegister(static (state, token) =>
+            {
+                var self = (QueuedBodyReader)state!;
+                if (self._readPending)
+                {
+                    self._readPending = false;
+                    self._core.SetException(new OperationCanceledException(token));
+                }
+            }, this);
+        }
+
         return new ValueTask<BodyReadResult>(this, _core.Version);
     }
 

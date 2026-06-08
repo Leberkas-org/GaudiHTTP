@@ -161,4 +161,49 @@ public sealed class QueuedBodyReaderSpec
         Assert.Equal("three"u8.ToArray(), r3.Memory.ToArray());
         reader.AdvanceTo();
     }
+
+    [Fact(Timeout = 5000)]
+    public async Task ReadAsync_should_throw_when_cancellation_token_fires()
+    {
+        var reader = new QueuedBodyReader(4);
+        reader.Reset();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await reader.ReadAsync(cts.Token);
+        });
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ReadAsync_should_throw_immediately_when_already_cancelled()
+    {
+        var reader = new QueuedBodyReader(4);
+        reader.Reset();
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await reader.ReadAsync(cts.Token);
+        });
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task ReadAsync_should_succeed_when_data_arrives_before_cancellation()
+    {
+        var reader = new QueuedBodyReader(4);
+        reader.Reset();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        var readTask = reader.ReadAsync(cts.Token);
+        reader.TryEnqueue("hello"u8);
+
+        var result = await readTask;
+        Assert.Equal("hello"u8.ToArray(), result.Memory.ToArray());
+        Assert.False(result.IsCompleted);
+    }
 }
