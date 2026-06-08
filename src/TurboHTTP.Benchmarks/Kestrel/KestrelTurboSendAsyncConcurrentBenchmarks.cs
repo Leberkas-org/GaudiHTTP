@@ -14,14 +14,26 @@ namespace TurboHTTP.Benchmarks.Kestrel;
 [IterationCount(10)]
 public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
 {
-    private const int MaxFanOut = 1024;
-
     [Params(1, 512, 4096)]
     public int ConcurrencyLevel { get; set; }
 
     private ClientHelper _clientHelper = null!;
     private Task[] _tasks = null!;
     private SemaphoreSlim _fanOutGate = null!;
+
+    private int MaxFanOut => HttpVersion switch
+    {
+        "2.0" => 256,
+        "3.0" => 256,
+        _ => 512,
+    };
+
+    private TimeSpan BenchmarkTimeout => ConcurrencyLevel switch
+    {
+        >= 4096 => TimeSpan.FromSeconds(120),
+        >= 512 => TimeSpan.FromSeconds(60),
+        _ => TimeSpan.FromSeconds(30),
+    };
 
     [GlobalSetup]
     public override async Task GlobalSetup()
@@ -58,7 +70,7 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
             _tasks[i] = SendLightRequest();
         }
 
-        return Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
+        return Task.WhenAll(_tasks).WaitAsync(BenchmarkTimeout);
     }
 
     [Benchmark]
@@ -69,7 +81,7 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
             _tasks[i] = SendHeavyRequest();
         }
 
-        return Task.WhenAll(_tasks).WaitAsync(TimeSpan.FromSeconds(30));
+        return Task.WhenAll(_tasks).WaitAsync(BenchmarkTimeout);
     }
 
     private async Task SendLightRequest()
@@ -77,7 +89,7 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cts = new CancellationTokenSource(BenchmarkTimeout);
             using var request = new HttpRequestMessage(HttpMethod.Get, LightUri);
             using var response = await _clientHelper.Client.SendAsync(request, cts.Token);
             response.EnsureSuccessStatusCode();
@@ -93,7 +105,7 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
         await _fanOutGate.WaitAsync();
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var cts = new CancellationTokenSource(BenchmarkTimeout);
             using var request = new HttpRequestMessage(HttpMethod.Post, UploadUri);
             request.Content = new ByteArrayContent(HeavyPayload);
             using var response = await _clientHelper.Client.SendAsync(request, cts.Token);
