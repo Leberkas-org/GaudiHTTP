@@ -3,7 +3,7 @@ using BenchmarkDotNet.Attributes;
 namespace TurboHTTP.Benchmarks.Internal;
 
 /// <summary>
-/// Common base class shared by all benchmark suites (Binkraken remote and Kestrel localhost).
+/// Common base class shared by all benchmark suites (Kestrel and TurboServer localhost).
 /// Provides BenchmarkDotNet parameter sets (concurrency level, HTTP version), ThreadPool
 /// tuning, and the warm-up hook. Subclasses add environment-specific setup (server lifecycle,
 /// URI construction, payload helpers).

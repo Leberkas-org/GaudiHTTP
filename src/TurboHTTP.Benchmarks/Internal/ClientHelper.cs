@@ -29,7 +29,7 @@ internal sealed class ClientHelper : IAsyncDisposable
 
     /// <summary>
     /// Creates a new <see cref="ClientHelper"/> with a fully configured TurboHttp client
-    /// targeting a remote URI (e.g. <c>https://binkraken.com</c>) for SendAsync benchmarks.
+    /// targeting the benchmark server for SendAsync benchmarks.
     /// </summary>
     /// <param name="baseAddress">The remote base URI (scheme + host).</param>
     /// <param name="version">The HTTP version to use.</param>
