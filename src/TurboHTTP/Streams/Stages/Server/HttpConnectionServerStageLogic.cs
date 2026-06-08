@@ -510,6 +510,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     {
         coalescedCount = 0;
         var totalSize = 0;
+        var maxBytes = _maxCoalesce * 16 * 1024;
 
         foreach (var item in _outboundQueue)
         {
@@ -520,7 +521,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
             totalSize += buf.Length;
             coalescedCount++;
-            if (coalescedCount >= _maxCoalesce)
+            if (totalSize >= maxBytes)
             {
                 break;
             }

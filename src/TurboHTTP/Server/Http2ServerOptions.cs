@@ -14,6 +14,12 @@ public sealed class Http2ServerOptions
     public int InitialConnectionWindowSize { get; set; } = 1 * 1024 * 1024;
     /// <summary>Gets or sets the initial HTTP/2 stream-level flow-control window size in bytes. Default is 768 KiB.</summary>
     public int InitialStreamWindowSize { get; set; } = 768 * 1024;
+    /// <summary>Upper bound the per-stream receive window may grow to under adaptive scaling, in bytes. Default is 8 MiB.</summary>
+    public int MaxStreamWindowSize { get; set; } = 8 * 1024 * 1024;
+    /// <summary>Threshold multiplier for adaptive window growth. Higher values grow the window less eagerly. Default is 1.0.</summary>
+    public double WindowScaleThresholdMultiplier { get; set; } = 1.0;
+    /// <summary>Enables server-side adaptive (BDP-based) receive-window scaling. When true, the per-stream receive window grows from <see cref="InitialStreamWindowSize"/> up to <see cref="MaxStreamWindowSize"/> based on measured throughput and RTT. Default is true.</summary>
+    public bool EnableAdaptiveWindowScaling { get; set; } = true;
     /// <summary>Gets or sets the maximum HTTP/2 frame size in bytes. Default is 16 KiB.</summary>
     public int MaxFrameSize { get; set; } = 16 * 1024;
     /// <summary>Gets or sets the HPACK dynamic header table size in bytes. Default is 4 KiB.</summary>

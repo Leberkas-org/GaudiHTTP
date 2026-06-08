@@ -205,11 +205,11 @@ public sealed class ServerOptionsProjectionsSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void MaxOutboundCoalesceCount_default_should_be_8()
+    public void MaxOutboundCoalesceCount_default_should_be_32()
     {
         var o = new TurboServerOptions();
 
-        Assert.Equal(8, o.MaxOutboundCoalesceCount);
+        Assert.Equal(32, o.MaxOutboundCoalesceCount);
     }
 
     [Fact(Timeout = 5000)]

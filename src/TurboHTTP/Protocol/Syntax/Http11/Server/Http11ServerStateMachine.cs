@@ -286,7 +286,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             && h.Value.Any(v => v.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))) ?? false;
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
-        var responseBuffer = TransportBuffer.Rent(8192);
+        var estimatedSize = EstimateResponseHeaderSize(responseFeature);
+        var responseBuffer = TransportBuffer.Rent(estimatedSize);
         var span = responseBuffer.FullMemory.Span;
         var written = _encoder.Encode(span, features, isChunked, connectionClose: ShouldComplete);
         responseBuffer.Length = written;
@@ -459,6 +460,32 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
     public void OnOutboundFlushed()
     {
+    }
+
+    private static int EstimateResponseHeaderSize(IHttpResponseFeature? responseFeature)
+    {
+        const int statusLineOverhead = 32;
+        const int perHeaderOverhead = 4;
+        const int trailingCrlf = 2;
+        const int minimumSize = 256;
+
+        if (responseFeature?.Headers is null)
+        {
+            return minimumSize;
+        }
+
+        var estimate = statusLineOverhead + trailingCrlf;
+        foreach (var header in responseFeature.Headers)
+        {
+            estimate += header.Key.Length + perHeaderOverhead;
+            foreach (var v in header.Value)
+            {
+                estimate += v?.Length ?? 0;
+            }
+        }
+
+        estimate += 128;
+        return Math.Max(minimumSize, estimate);
     }
 
     private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)

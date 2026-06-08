@@ -260,9 +260,16 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 var cts = lifetime is not null
                     ? CancellationTokenSource.CreateLinkedTokenSource(lifetime.RequestAborted)
                     : new CancellationTokenSource();
-                var seqStr = seq.ToString();
-                var softKey = string.Concat(SoftTimerPrefix, seqStr);
-                var hardKey = string.Concat(HardTimerPrefix, seqStr);
+                var softKey = string.Create(SoftTimerPrefix.Length + 10, seq, static (span, s) =>
+                {
+                    SoftTimerPrefix.AsSpan().CopyTo(span);
+                    s.TryFormat(span[SoftTimerPrefix.Length..], out _);
+                });
+                var hardKey = string.Create(HardTimerPrefix.Length + 10, seq, static (span, s) =>
+                {
+                    HardTimerPrefix.AsSpan().CopyTo(span);
+                    s.TryFormat(span[HardTimerPrefix.Length..], out _);
+                });
                 _timerKeys[seq] = (softKey, hardKey);
                 _activeTimeouts[seq] = cts;
                 _activeFeatures[seq] = features;

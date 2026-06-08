@@ -83,7 +83,19 @@ internal sealed class Http2ServerSessionManager
         _requestDecoder = new Http2ServerDecoder(_decoderOptions);
         // RFC 9113 §4.2: enforce the MAX_FRAME_SIZE we advertise in SETTINGS on inbound frames.
         _frameDecoder = new FrameDecoder(_encoderOptions.MaxFrameSize);
-        _flow = new FlowController(options.InitialConnectionWindowSize, options.InitialStreamWindowSize);
+        WindowScaler? scaler = null;
+        if (_decoderOptions.EnableAdaptiveWindowScaling)
+        {
+            scaler = new WindowScaler(
+                _decoderOptions.MaxStreamWindowSize,
+                _decoderOptions.WindowScaleThresholdMultiplier);
+        }
+
+        _flow = new FlowController(
+            options.InitialConnectionWindowSize,
+            options.InitialStreamWindowSize,
+            scaler,
+            _clock);
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
@@ -613,6 +625,8 @@ internal sealed class Http2ServerSessionManager
         {
             EmitFrame(new WindowUpdateFrame(connWin.StreamId, connWin.Increment));
         }
+
+        TrySendMeasurementPing();
     }
 
     private void HandleSettingsFrame(SettingsFrame settings)
@@ -659,11 +673,26 @@ internal sealed class Http2ServerSessionManager
         if (ping.IsAck)
         {
             _awaitingPingAck = false;
+            _flow.OnMeasurementPingAck();
             return;
         }
 
         var ackPing = new PingFrame(ping.Data, isAck: true);
         EmitFrame(ackPing);
+    }
+
+    private void TrySendMeasurementPing()
+    {
+        if (!_flow.ShouldSendMeasurementPing() || _awaitingPingAck)
+        {
+            return;
+        }
+
+        _awaitingPingAck = true;
+        _pingSentTimestamp = Environment.TickCount64;
+        var data = BitConverter.GetBytes(_pingSentTimestamp);
+        _flow.OnMeasurementPingSent();
+        EmitFrame(new PingFrame(data, isAck: false));
     }
 
     private void HandleGoAwayFrame()

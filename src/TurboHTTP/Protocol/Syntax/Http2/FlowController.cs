@@ -48,8 +48,8 @@ internal sealed class FlowController : IFlowController<int>
             _rtt = new RttEstimator(_clock, MeasurementPingInterval);
         }
 
-        const int minWindowUpdateThreshold = 8_192;
-        _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 2);
+        const int minWindowUpdateThreshold = 8 * 1024;
+        _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 4);
     }
 
     public bool GoAwayReceived { get; private set; }
@@ -169,7 +169,7 @@ internal sealed class FlowController : IFlowController<int>
                         {
                             increment += newWindow - _initialRecvStreamWindow;
                             _initialRecvStreamWindow = newWindow;
-                            _windowUpdateThreshold = Math.Max(8_192, newWindow / 2);
+                            _windowUpdateThreshold = Math.Max(8 * 1024, newWindow / 4);
                         }
                     }
 
@@ -248,8 +248,8 @@ internal sealed class FlowController : IFlowController<int>
         _lastSampleTimestamp.Clear();
         _rtt?.Reset();
 
-        const int minWindowUpdateThreshold = 8_192;
-        _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 2);
+        const int minWindowUpdateThreshold = 8 * 1024;
+        _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 4);
     }
 
     public SettingsResult OnRemoteSettings(SettingsFrame frame)
