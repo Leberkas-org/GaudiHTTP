@@ -46,11 +46,12 @@ internal sealed class ClientHelper : IAsyncDisposable
                 MaxConnectionsPerServer = 512,
                 MaxPipelineDepth = 64
             },
-            // H2: 16 connections × 1000 streams = 16 000 in-flight capacity.
+            // H2: 16 connections × 512 streams = 8192 in-flight capacity.
+            // MaxConcurrentStreams must not exceed Kestrel's MaxStreamsPerConnection (512).
             Http2 = new Http2ClientOptions
             {
                 MaxConnectionsPerServer = 16,
-                MaxConcurrentStreams = 1000,
+                MaxConcurrentStreams = 512,
                 MaxBufferedRequestBodySize = 2 * 1024 * 1024,
             },
             // H3: 64 connections × 100 streams = 6400 in-flight capacity.
@@ -128,7 +129,7 @@ internal sealed class ClientHelper : IAsyncDisposable
         var client = factory.CreateClient(string.Empty);
         client.BaseAddress = baseAddress;
         client.DefaultRequestVersion = version;
-        client.Timeout = TimeSpan.FromSeconds(30);
+        client.Timeout = TimeSpan.FromMinutes(5);
 
         return new ClientHelper(provider, client, system);
     }
