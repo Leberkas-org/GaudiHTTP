@@ -147,7 +147,7 @@ internal sealed class Http3ClientSessionManager
 
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
-        StartStreamBodyDrain(streamId, bodyStream!);
+        StartStreamBodyDrain(streamId, bodyStream!, contentLength);
     }
 
     public void OnBodyMessage(object msg)
@@ -401,11 +401,13 @@ internal sealed class Http3ClientSessionManager
         return true;
     }
 
-    private void StartStreamBodyDrain(long streamId, Stream bodyStream)
+    private void StartStreamBodyDrain(long streamId, Stream bodyStream, long? contentLength = null)
     {
         _activeBodyStreams[streamId] = bodyStream;
-        var bufferSize = _options.RequestBodyChunkSize;
-        var buffer = MemoryPool<byte>.Shared.Rent(bufferSize);
+        var bufferSize = contentLength is > 0 and <= int.MaxValue
+            ? (int)Math.Min(contentLength.Value, _options.RequestBodyChunkSize)
+            : _options.RequestBodyChunkSize;
+        var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(bufferSize, 256));
         _activeBodyBuffers[streamId] = buffer;
         ReadNextBodyChunk(streamId);
     }

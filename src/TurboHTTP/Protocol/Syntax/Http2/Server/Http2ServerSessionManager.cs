@@ -287,7 +287,7 @@ internal sealed class Http2ServerSessionManager
 
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        StartStreamBodyDrain(streamId, bodyStream);
+        StartStreamBodyDrain(streamId, bodyStream, contentLength);
         Tracing.For("Protocol").Debug(this, "HTTP/2: response body drain started (stream={0})", streamId);
     }
 
@@ -848,11 +848,14 @@ internal sealed class Http2ServerSessionManager
         }
     }
 
-    private void StartStreamBodyDrain(int streamId, Stream bodyStream)
+    private void StartStreamBodyDrain(int streamId, Stream bodyStream, long? contentLength = null)
     {
         _activeBodyStreams[streamId] = bodyStream;
-        var bufferSize = Math.Min(_bodyEncoderOptions.ChunkSize, _encoderOptions.MaxFrameSize);
-        var buffer = MemoryPool<byte>.Shared.Rent(bufferSize);
+        var maxSize = Math.Min(_bodyEncoderOptions.ChunkSize, _encoderOptions.MaxFrameSize);
+        var bufferSize = contentLength is > 0 and <= int.MaxValue
+            ? (int)Math.Min(contentLength.Value, maxSize)
+            : maxSize;
+        var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(bufferSize, 256));
         _activeBodyBuffers[streamId] = buffer;
         ReadNextBodyChunk(streamId);
     }
