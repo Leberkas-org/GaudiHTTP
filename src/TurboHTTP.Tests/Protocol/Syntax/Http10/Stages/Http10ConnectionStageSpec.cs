@@ -123,7 +123,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
 
         // Send response from server
         const string responseRaw = "HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello";
-        serverSubscription.SendNext(new TransportData(MakeResponseBuffer(responseRaw)));
+        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer(responseRaw)));
 
         // Should get correlated response
         var response = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
@@ -175,7 +175,7 @@ public sealed class Http10ConnectionStageSpec : StreamTestBase
         await networkSub.ExpectNextAsync(TestContext.Current.CancellationToken);
 
         serverSubscription.SendNext(
-            new TransportData(MakeResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\nOK")));
+            TransportData.Rent(MakeResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 2\r\n\r\nOK")));
 
         // Response
         await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);

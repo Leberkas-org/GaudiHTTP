@@ -54,7 +54,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
 
         var requestBuffer = CreateRequestBuffer("GET /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(new TransportData(requestBuffer));
+        sm.DecodeClientData(TransportData.Rent(requestBuffer));
 
         Assert.Single(ops.Requests);
         var req = ops.Requests[0].Get<IHttpRequestFeature>()!;
@@ -71,7 +71,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
 
         var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(new TransportData(requestBuffer));
+        sm.DecodeClientData(TransportData.Rent(requestBuffer));
 
         Assert.False(sm.ShouldComplete);
         Assert.Single(ops.Requests);
@@ -169,7 +169,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         sm.PreStart();
 
         var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeClientData(new TransportData(requestBuffer));
+        sm.DecodeClientData(TransportData.Rent(requestBuffer));
 
         var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
@@ -197,7 +197,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("PATCH /path HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
-        sm.DecodeClientData(new TransportData(requestBuffer));
+        sm.DecodeClientData(TransportData.Rent(requestBuffer));
 
         Assert.Single(ops.Requests);
         var req = ops.Requests[0].Get<IHttpRequestFeature>()!;
@@ -212,7 +212,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("GET /path\r\n");
-        sm.DecodeClientData(new TransportData(requestBuffer));
+        sm.DecodeClientData(TransportData.Rent(requestBuffer));
 
         Assert.True(ops.Requests.Count <= 1);
     }
@@ -225,7 +225,7 @@ public sealed class Http10ServerStateMachineSpec : TestKit
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var requestBuffer = CreateRequestBuffer("POST /path HTTP/1.0\r\nHost: example.com\r\n\r\n");
-        sm.DecodeClientData(new TransportData(requestBuffer));
+        sm.DecodeClientData(TransportData.Rent(requestBuffer));
 
         if (ops.Requests.Count > 0)
         {

@@ -12,8 +12,8 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Client;
 
-internal sealed record StreamBodyReadComplete(int StreamId, int BytesRead);
-internal sealed record StreamBodyReadFailed(int StreamId, Exception Reason);
+internal readonly record struct StreamBodyReadComplete(int StreamId, int BytesRead);
+internal readonly record struct StreamBodyReadFailed(int StreamId, Exception Reason);
 
 internal sealed class Http2ClientSessionManager
 {
@@ -110,7 +110,7 @@ internal sealed class Http2ClientSessionManager
         prefaceOwner.Memory.Span[..prefaceLength].CopyTo(prefaceBuf.FullMemory.Span);
         prefaceOwner.Dispose();
         prefaceBuf.Length = prefaceLength;
-        return new TransportData(prefaceBuf);
+        return TransportData.Rent(prefaceBuf);
     }
 
     public void EncodeRequest(HttpRequestMessage request)
@@ -177,7 +177,7 @@ internal sealed class Http2ClientSessionManager
         }
 
         buf.Length = totalSize;
-        _ops.OnOutbound(new TransportData(buf));
+        _ops.OnOutbound(TransportData.Rent(buf));
 
         if (request.Content is null)
         {
@@ -462,7 +462,7 @@ internal sealed class Http2ClientSessionManager
         var span = buf.FullMemory.Span;
         frame.WriteTo(ref span);
         buf.Length = frame.SerializedSize;
-        _ops.OnOutbound(new TransportData(buf));
+        _ops.OnOutbound(TransportData.Rent(buf));
     }
 
     private void HandleSettings(SettingsFrame frame)

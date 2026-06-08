@@ -40,7 +40,7 @@ public sealed class ResponseRetentionSpec
         headersFrame.WriteTo(ref span);
         buffer.Length = headersFrame.SerializedSize;
 
-        sm.DecodeServerData(new TransportData(buffer));
+        sm.DecodeServerData(TransportData.Rent(buffer));
 
         // After headers without END_STREAM, response should be available
         Assert.Single(ops.Responses);
@@ -52,7 +52,7 @@ public sealed class ResponseRetentionSpec
         rstFrame.WriteTo(ref rstSpan);
         rstBuffer.Length = rstFrame.SerializedSize;
 
-        sm.DecodeServerData(new TransportData(rstBuffer));
+        sm.DecodeServerData(TransportData.Rent(rstBuffer));
 
         // Response should still be retained (still single response)
         Assert.Single(ops.Responses);

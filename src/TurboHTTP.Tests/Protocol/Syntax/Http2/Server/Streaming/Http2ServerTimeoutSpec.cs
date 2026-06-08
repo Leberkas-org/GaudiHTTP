@@ -141,7 +141,7 @@ public sealed class Http2ServerTimeoutSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Keep-alive should be cancelled
         Assert.Contains("keep-alive-timeout", ops.CancelledTimers);
@@ -176,7 +176,7 @@ public sealed class Http2ServerTimeoutSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Headers timeout should be scheduled
         var headersTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name.StartsWith("headers-timeout:"));
@@ -226,7 +226,7 @@ public sealed class Http2ServerTimeoutSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         ops.CancelledTimers.Clear();
 
@@ -236,7 +236,7 @@ public sealed class Http2ServerTimeoutSpec
         continuationData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = continuationData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Headers timeout should be cancelled
         Assert.Contains("headers-timeout:1", ops.CancelledTimers);
@@ -282,7 +282,7 @@ public sealed class Http2ServerTimeoutSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         ops.ScheduledTimers.Clear();
 
@@ -294,7 +294,7 @@ public sealed class Http2ServerTimeoutSpec
         dataFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = dataFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Data rate check timer should be scheduled
         var rateTimer = ops.ScheduledTimers.FirstOrDefault(t => t.Name == "data-rate-check");

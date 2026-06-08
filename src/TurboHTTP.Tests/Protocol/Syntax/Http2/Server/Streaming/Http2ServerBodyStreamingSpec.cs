@@ -97,7 +97,7 @@ public sealed class Http2ServerBodyStreamingSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Request should be emitted immediately
         Assert.Single(ops.Requests);
@@ -116,7 +116,7 @@ public sealed class Http2ServerBodyStreamingSpec
         dataFrameData.CopyTo(buffer2.FullMemory.Span);
         buffer2.Length = dataFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer2));
+        sm.DecodeClientData(TransportData.Rent(buffer2));
 
         // Read from body stream
         using var stream = new MemoryStream();
@@ -140,7 +140,7 @@ public sealed class Http2ServerBodyStreamingSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Request should be emitted
         Assert.Single(ops.Requests);
@@ -177,7 +177,7 @@ public sealed class Http2ServerBodyStreamingSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Request should be emitted
         Assert.Single(ops.Requests);
@@ -192,7 +192,7 @@ public sealed class Http2ServerBodyStreamingSpec
         dataFrameData.CopyTo(buffer2.FullMemory.Span);
         buffer2.Length = dataFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer2));
+        sm.DecodeClientData(TransportData.Rent(buffer2));
 
         // RST_STREAM should have been emitted (or possibly other control frames too)
         var newOutbound = ops.Outbound.Skip(initialOutboundCount).ToList();
@@ -224,7 +224,7 @@ public sealed class Http2ServerBodyStreamingSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Single(ops.Requests);
         var context = ops.Requests[0];
@@ -239,7 +239,7 @@ public sealed class Http2ServerBodyStreamingSpec
         dataFrame1.CopyTo(buffer1.FullMemory.Span);
         buffer1.Length = dataFrame1.Length;
 
-        sm.DecodeClientData(new TransportData(buffer1));
+        sm.DecodeClientData(TransportData.Rent(buffer1));
 
         // Consume first chunk (backpressure contract: AdvanceTo before next Supply)
         var buf1 = new byte[64];
@@ -254,7 +254,7 @@ public sealed class Http2ServerBodyStreamingSpec
         dataFrame2.CopyTo(buffer2.FullMemory.Span);
         buffer2.Length = dataFrame2.Length;
 
-        sm.DecodeClientData(new TransportData(buffer2));
+        sm.DecodeClientData(TransportData.Rent(buffer2));
 
         // Read second chunk
         var buf2 = new byte[64];
@@ -277,7 +277,7 @@ public sealed class Http2ServerBodyStreamingSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Single(ops.Requests);
         var context = ops.Requests[0];
@@ -292,7 +292,7 @@ public sealed class Http2ServerBodyStreamingSpec
         dataFrame.CopyTo(buffer1.FullMemory.Span);
         buffer1.Length = dataFrame.Length;
 
-        sm.DecodeClientData(new TransportData(buffer1));
+        sm.DecodeClientData(TransportData.Rent(buffer1));
 
         // Now send RST_STREAM
         const int frameHeaderSize = 9;
@@ -320,6 +320,6 @@ public sealed class Http2ServerBodyStreamingSpec
         rstData.CopyTo(buffer2.FullMemory.Span);
         buffer2.Length = rstData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer2));
+        sm.DecodeClientData(TransportData.Rent(buffer2));
     }
 }

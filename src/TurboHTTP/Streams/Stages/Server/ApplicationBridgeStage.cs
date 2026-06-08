@@ -39,15 +39,15 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes) => new Logic(this);
 
-    private sealed record DispatchCompleted(int Sequence, IFeatureCollection Features);
+    private readonly record struct DispatchCompleted(int Sequence, IFeatureCollection Features);
 
-    private sealed record DispatchFailed(int Sequence, IFeatureCollection Features, Exception Error);
+    private readonly record struct DispatchFailed(int Sequence, IFeatureCollection Features, Exception Error);
 
-    private sealed record ResponseReady(int Sequence, IFeatureCollection Features, Task HandlerTask);
+    private readonly record struct ResponseReady(int Sequence, IFeatureCollection Features, Task HandlerTask);
 
-    private sealed record HandlerFinished(int Sequence, IFeatureCollection Features);
+    private readonly record struct HandlerFinished(int Sequence, IFeatureCollection Features);
 
-    private sealed record HandlerFaulted(int Sequence, IFeatureCollection Features, Exception Error);
+    private readonly record struct HandlerFaulted(int Sequence, IFeatureCollection Features, Exception Error);
 
     private sealed class Logic : TimerGraphStageLogic
     {

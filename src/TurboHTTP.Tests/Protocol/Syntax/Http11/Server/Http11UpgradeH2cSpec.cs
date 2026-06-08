@@ -54,7 +54,7 @@ public sealed class Http11UpgradeH2CSpec
         var buffer = TransportBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
-        return new TransportData(buffer);
+        return TransportData.Rent(buffer);
     }
 
     [Fact(Timeout = 5000)]

@@ -48,7 +48,7 @@ public sealed class ListenerActorSpec : TestKit
                     {
                         var buffer = TransportBuffer.Rent(1);
                         buffer.Dispose();
-                        return new TransportData(buffer) as ITransportOutbound;
+                        return TransportData.Rent(buffer) as ITransportOutbound;
                     }));
         }
     }

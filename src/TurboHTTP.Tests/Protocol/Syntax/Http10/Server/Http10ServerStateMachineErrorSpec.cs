@@ -53,7 +53,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
 
         var requestBuffer = CreateRequestBuffer("POST / HTTP/1.0\r\nContent-Length: abc\r\n\r\n");
 
-        sm.DecodeClientData(new TransportData(requestBuffer));
+        sm.DecodeClientData(TransportData.Rent(requestBuffer));
 
         Assert.True(sm.ShouldComplete);
         Assert.Empty(ops.Requests);
@@ -66,10 +66,10 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var invalidBuffer = CreateRequestBuffer("POST / HTTP/1.0\r\nContent-Length: abc\r\n\r\n");
-        sm.DecodeClientData(new TransportData(invalidBuffer));
+        sm.DecodeClientData(TransportData.Rent(invalidBuffer));
 
         var validBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
-        var ex = Record.Exception(() => sm.DecodeClientData(new TransportData(validBuffer)));
+        var ex = Record.Exception(() => sm.DecodeClientData(TransportData.Rent(validBuffer)));
 
         Assert.Null(ex);
     }

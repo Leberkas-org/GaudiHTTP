@@ -78,7 +78,7 @@ public sealed class Http2StateMachineReconnectSpec
         ops.Outbound.Clear();
 
         var goaway = new GoAwayFrame(3, Http2ErrorCode.NoError);
-        sm.DecodeServerData(new TransportData(SerializeFrame(goaway)));
+        sm.DecodeServerData(TransportData.Rent(SerializeFrame(goaway)));
 
         Assert.True(sm.IsReconnecting);
         Assert.Equal(1, sm.ReconnectBufferCount);

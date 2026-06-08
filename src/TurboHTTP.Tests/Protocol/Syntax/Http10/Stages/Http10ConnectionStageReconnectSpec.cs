@@ -86,7 +86,7 @@ public sealed class Http10ConnectionStageReconnectSpec : StreamTestBase
 
         // Now respond normally
         var responseBuffer = MakeResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
-        serverSub.SendNext(new TransportData(responseBuffer));
+        serverSub.SendNext(TransportData.Rent(responseBuffer));
 
         var response = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

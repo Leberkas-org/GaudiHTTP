@@ -84,7 +84,7 @@ public sealed class Http2ServerStreamCorrelationSpec
         headersFrameData1.CopyTo(buffer1.FullMemory.Span);
         buffer1.Length = headersFrameData1.Length;
 
-        sm.DecodeClientData(new TransportData(buffer1));
+        sm.DecodeClientData(TransportData.Rent(buffer1));
 
         // Send HEADERS on stream 3
         var headerBlock3 = EncodeHeaders("GET", "/path3", "example.com");
@@ -94,7 +94,7 @@ public sealed class Http2ServerStreamCorrelationSpec
         headersFrameData3.CopyTo(buffer3.FullMemory.Span);
         buffer3.Length = headersFrameData3.Length;
 
-        sm.DecodeClientData(new TransportData(buffer3));
+        sm.DecodeClientData(TransportData.Rent(buffer3));
 
         // Verify both requests were emitted
         Assert.Equal(2, ops.Requests.Count);
@@ -188,7 +188,7 @@ public sealed class Http2ServerStreamCorrelationSpec
             headersFrameData.CopyTo(buffer.FullMemory.Span);
             buffer.Length = headersFrameData.Length;
 
-            sm.DecodeClientData(new TransportData(buffer));
+            sm.DecodeClientData(TransportData.Rent(buffer));
         }
 
         Assert.Equal(3, ops.Requests.Count);
@@ -264,17 +264,17 @@ public sealed class Http2ServerStreamCorrelationSpec
         var buf1 = TransportBuffer.Rent(headersData1.Length);
         headersData1.CopyTo(buf1.FullMemory.Span);
         buf1.Length = headersData1.Length;
-        sm.DecodeClientData(new TransportData(buf1));
+        sm.DecodeClientData(TransportData.Rent(buf1));
 
         var buf2 = TransportBuffer.Rent(headersData2.Length);
         headersData2.CopyTo(buf2.FullMemory.Span);
         buf2.Length = headersData2.Length;
-        sm.DecodeClientData(new TransportData(buf2));
+        sm.DecodeClientData(TransportData.Rent(buf2));
 
         var buf3 = TransportBuffer.Rent(headersData3.Length);
         headersData3.CopyTo(buf3.FullMemory.Span);
         buf3.Length = headersData3.Length;
-        sm.DecodeClientData(new TransportData(buf3));
+        sm.DecodeClientData(TransportData.Rent(buf3));
 
         // All three requests should have been emitted
         Assert.Equal(3, ops.Requests.Count);

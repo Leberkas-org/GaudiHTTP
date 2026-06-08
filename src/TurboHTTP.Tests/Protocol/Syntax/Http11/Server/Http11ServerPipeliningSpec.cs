@@ -38,7 +38,7 @@ public sealed class Http11ServerPipeliningSpec
             "\r\n");
         var buffer = MakeBuffer(request);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Equal(2, ops.Requests.Count);
         Assert.Equal("/", ops.Requests[0].Get<IHttpRequestFeature>()?.Path);
@@ -62,7 +62,7 @@ public sealed class Http11ServerPipeliningSpec
             "\r\n");
         var buffer = MakeBuffer(request);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var context1 = CreateResponseContext();
         sm.OnResponse(context1);
@@ -106,7 +106,7 @@ public sealed class Http11ServerPipeliningSpec
             "\r\n");
         var buffer = MakeBuffer(request);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Equal(3, ops.Requests.Count);
         Assert.Equal("/page1", ops.Requests[0].Get<IHttpRequestFeature>()?.Path);

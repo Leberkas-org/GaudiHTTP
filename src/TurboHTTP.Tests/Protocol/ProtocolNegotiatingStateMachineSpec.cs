@@ -32,7 +32,7 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         var buffer = TransportBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
-        return new TransportData(buffer);
+        return TransportData.Rent(buffer);
     }
 
     // Task 2: ALPN Detection Tests

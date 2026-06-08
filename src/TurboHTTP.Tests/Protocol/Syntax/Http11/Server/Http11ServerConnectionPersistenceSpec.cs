@@ -29,7 +29,7 @@ public sealed class Http11ServerConnectionPersistenceSpec
         var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
         var buffer = MakeBuffer("GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.False(sm.ShouldComplete);
     }
@@ -42,7 +42,7 @@ public sealed class Http11ServerConnectionPersistenceSpec
         var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
         var buffer = MakeBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.ShouldComplete);
     }
@@ -56,7 +56,7 @@ public sealed class Http11ServerConnectionPersistenceSpec
         var buffer =
             MakeBuffer("GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.ShouldComplete);
     }
@@ -69,7 +69,7 @@ public sealed class Http11ServerConnectionPersistenceSpec
         var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
         var buffer = MakeBuffer("GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.CanAcceptResponse);
     }
@@ -82,7 +82,7 @@ public sealed class Http11ServerConnectionPersistenceSpec
         var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
         var buffer = MakeBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var context = CreateResponseContext();
         sm.OnResponse(context);
@@ -100,7 +100,7 @@ public sealed class Http11ServerConnectionPersistenceSpec
         var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
         var buffer = MakeBuffer("GET / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
         Assert.True(sm.CanAcceptResponse);
 
         sm.Cleanup();

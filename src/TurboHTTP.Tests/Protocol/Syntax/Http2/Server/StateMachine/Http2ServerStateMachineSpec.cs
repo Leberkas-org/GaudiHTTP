@@ -130,7 +130,7 @@ public sealed class Http2ServerStateMachineSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Single(ops.Requests);
         var context = ops.Requests[0];
@@ -165,7 +165,7 @@ public sealed class Http2ServerStateMachineSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // No request emitted yet, waiting for CONTINUATION
         Assert.Empty(ops.Requests);
@@ -186,7 +186,7 @@ public sealed class Http2ServerStateMachineSpec
         pingFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = pingFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Single(ops.Outbound);
         var outbound = ops.Outbound[0];
@@ -215,7 +215,7 @@ public sealed class Http2ServerStateMachineSpec
         settingsFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = settingsFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Single(ops.Outbound);
         var outbound = ops.Outbound[0];
@@ -244,7 +244,7 @@ public sealed class Http2ServerStateMachineSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Single(ops.Requests);
 
@@ -278,7 +278,7 @@ public sealed class Http2ServerStateMachineSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.CanAcceptResponse);
     }

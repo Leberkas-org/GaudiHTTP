@@ -41,7 +41,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.ShouldComplete);
         Assert.Single(ops.Requests);
@@ -57,7 +57,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         const string requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.ShouldComplete);
         Assert.Single(ops.Requests);
@@ -73,7 +73,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
         Assert.True(sm.ShouldComplete);
 
         var context = CreateResponseContext();
@@ -95,7 +95,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         const string invalidRequest = "INVALID REQUEST DATA\r\n\r\n";
         var buffer = MakeBuffer(invalidRequest);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.ShouldComplete);
     }
@@ -110,7 +110,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
         Assert.True(sm.CanAcceptResponse);
 
         var context = CreateResponseContext();
@@ -138,7 +138,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var context = CreateResponseContext();
 
@@ -165,7 +165,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var context = CreateResponseContext();
         sm.OnResponse(context);
@@ -200,7 +200,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var context = CreateResponseContext();
         context.Get<IHttpResponseFeature>()?.StatusCode = 200;
@@ -225,7 +225,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var context = CreateResponseContext();
         context.Get<IHttpResponseFeature>()?.StatusCode = 200;

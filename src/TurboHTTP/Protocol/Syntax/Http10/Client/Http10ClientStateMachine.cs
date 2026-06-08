@@ -178,7 +178,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
                     item = TransportBuffer.Rent(HttpMessageSize.Estimate(_deferredRequest!, bufferDone.Written));
                     var written = _encoder.EncodeDeferred(item.FullMemory.Span, _deferredRequest!, body);
                     item.Length = written;
-                    _ops.OnOutbound(new TransportData(item));
+                    _ops.OnOutbound(TransportData.Rent(item));
                 }
                 catch (Exception ex)
                 {
@@ -241,7 +241,7 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
             if (written > 0)
             {
                 item.Length = written;
-                _ops.OnOutbound(new TransportData(item));
+                _ops.OnOutbound(TransportData.Rent(item));
             }
             else if (bodyStream is not null)
             {

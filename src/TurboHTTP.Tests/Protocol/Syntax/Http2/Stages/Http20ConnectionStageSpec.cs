@@ -218,7 +218,7 @@ public sealed class Http20ConnectionStageSpec : StreamTestBase
         resSubscription.Request(10);
 
         // Server sends SETTINGS frame before any client request
-        serverSubscription.SendNext(new TransportData(MakeResponseBuffer("\x00\x00\x00\x04\x00\x00\x00\x00\x00")));
+        serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer("\x00\x00\x00\x04\x00\x00\x00\x00\x00")));
 
         Assert.True(true);
     }

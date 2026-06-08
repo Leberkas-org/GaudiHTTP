@@ -42,7 +42,7 @@ public sealed class Http2GoAwayComplianceSpec
         sm.PreStart();
 
         var goaway = new GoAwayFrame(5, Http2ErrorCode.NoError);
-        sm.DecodeServerData(new TransportData(SerializeFrame(goaway)));
+        sm.DecodeServerData(TransportData.Rent(SerializeFrame(goaway)));
 
         Assert.False(sm.CanAcceptRequest);
     }

@@ -82,7 +82,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
         var responseBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
 
-        sm.DecodeServerData(new TransportData(responseBuffer));
+        sm.DecodeServerData(TransportData.Rent(responseBuffer));
 
         Assert.Single(ops.Responses);
         Assert.Equal(HttpStatusCode.OK, ops.Responses[0].StatusCode);
@@ -99,7 +99,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
         var responseBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 0\r\n\r\n");
 
-        sm.DecodeServerData(new TransportData(responseBuffer));
+        sm.DecodeServerData(TransportData.Rent(responseBuffer));
 
         Assert.Single(ops.Responses);
         Assert.NotNull(ops.Responses[0].RequestMessage);
@@ -122,7 +122,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
         ops.Outbound.Clear();
 
         var responseBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\nContent-Length: 5\r\n\r\nhello");
-        sm.DecodeServerData(new TransportData(responseBuffer));
+        sm.DecodeServerData(TransportData.Rent(responseBuffer));
 
         Assert.False(sm.HasInFlightRequests);
         Assert.Single(ops.Responses);
@@ -224,7 +224,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
         sm.OnRequest(MakeRequest());
 
         var headerBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\n\r\nhello");
-        sm.DecodeServerData(new TransportData(headerBuffer));
+        sm.DecodeServerData(TransportData.Rent(headerBuffer));
 
         Assert.Empty(ops.Responses);
 
@@ -243,7 +243,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
         sm.OnRequest(MakeRequest());
 
         var headerBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\n\r\nhello");
-        sm.DecodeServerData(new TransportData(headerBuffer));
+        sm.DecodeServerData(TransportData.Rent(headerBuffer));
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
 
         Assert.Single(ops.Responses);
