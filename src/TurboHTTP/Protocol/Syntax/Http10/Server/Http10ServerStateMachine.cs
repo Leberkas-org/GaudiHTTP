@@ -10,11 +10,11 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Server;
 
-internal sealed record ResponseBodyReadComplete(int BytesRead);
+internal readonly record struct ResponseBodyReadComplete(int BytesRead);
 
-internal sealed record ResponseBodyReadFailed(Exception Reason);
+internal readonly record struct ResponseBodyReadFailed(Exception Reason);
 
-internal sealed record ResponseBodyBuffered(IMemoryOwner<byte> Owner, int Written);
+internal readonly record struct ResponseBodyBuffered(IMemoryOwner<byte> Owner, int Written);
 
 internal sealed class Http10ServerStateMachine : IServerStateMachine
 {
@@ -218,7 +218,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
             var written = _encoder.EncodeDeferred(item.FullMemory.Span, _deferredFeatures, body);
             item.Length = written;
 
-            _ops.OnOutbound(new TransportData(item));
+            _ops.OnOutbound(TransportData.Rent(item));
         }
         catch (Exception ex)
         {

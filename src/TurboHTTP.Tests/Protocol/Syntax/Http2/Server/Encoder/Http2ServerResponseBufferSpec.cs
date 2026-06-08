@@ -99,7 +99,7 @@ public sealed class Http2ServerResponseBufferSpec
         var buffer = TransportBuffer.Rent(frameData.Length);
         frameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = frameData.Length;
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
     }
 
     private static List<Http2Frame> ExtractFrames(List<ITransportOutbound> outbound, int startIndex = 0)

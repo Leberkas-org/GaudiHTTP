@@ -137,7 +137,7 @@ public sealed class Http2ServerFlowControlSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Request should be emitted immediately when headers arrive (with endStream=false)
         Assert.Single(ops.Requests);
@@ -155,7 +155,7 @@ public sealed class Http2ServerFlowControlSpec
         dataFrameData1.CopyTo(dataBuf1.FullMemory.Span);
         dataBuf1.Length = dataFrameData1.Length;
 
-        sm.DecodeClientData(new TransportData(dataBuf1));
+        sm.DecodeClientData(TransportData.Rent(dataBuf1));
 
         var bodyStream = context.Get<IHttpRequestFeature>()?.Body;
         Assert.NotNull(bodyStream);
@@ -186,7 +186,7 @@ public sealed class Http2ServerFlowControlSpec
         dataFrameData2.CopyTo(dataBuf2.FullMemory.Span);
         dataBuf2.Length = dataFrameData2.Length;
 
-        sm.DecodeClientData(new TransportData(dataBuf2));
+        sm.DecodeClientData(TransportData.Rent(dataBuf2));
 
         // Now verify WINDOW_UPDATE was emitted for stream 1
         Assert.NotEmpty(ops.Outbound);
@@ -231,7 +231,7 @@ public sealed class Http2ServerFlowControlSpec
         buffer.Length = windowUpdateData.Length;
 
         // This should not throw or emit GOAWAY
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Verify no GOAWAY was emitted
         var hasGoAway = false;
@@ -276,7 +276,7 @@ public sealed class Http2ServerFlowControlSpec
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var bodyStream = ops.Requests[0].Get<IHttpRequestFeature>()?.Body;
         Assert.NotNull(bodyStream);
@@ -288,7 +288,7 @@ public sealed class Http2ServerFlowControlSpec
         var buf1 = TransportBuffer.Rent(frame1Data.Length);
         frame1Data.CopyTo(buf1.FullMemory.Span);
         buf1.Length = frame1Data.Length;
-        sm.DecodeClientData(new TransportData(buf1));
+        sm.DecodeClientData(TransportData.Rent(buf1));
 
         // Consume body data (backpressure contract)
         var drain1 = new byte[5000];
@@ -300,7 +300,7 @@ public sealed class Http2ServerFlowControlSpec
         var buf2 = TransportBuffer.Rent(frame2Data.Length);
         frame2Data.CopyTo(buf2.FullMemory.Span);
         buf2.Length = frame2Data.Length;
-        sm.DecodeClientData(new TransportData(buf2));
+        sm.DecodeClientData(TransportData.Rent(buf2));
 
         // Should have emitted at least one WINDOW_UPDATE
         var windowUpdateCount = ops.Outbound.Count(item =>

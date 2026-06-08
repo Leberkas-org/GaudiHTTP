@@ -52,8 +52,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     private IBodyWriter? _activeResponseBodyWriter;
     private Stream? _activeResponseBodyStream;
 
-    internal sealed record ResponseBodyReadComplete(int BytesRead);
-    internal sealed record ResponseBodyReadFailed(Exception Reason);
+    internal readonly record struct ResponseBodyReadComplete(int BytesRead);
+    internal readonly record struct ResponseBodyReadFailed(Exception Reason);
 
     public bool CanAcceptResponse => !_outboundBodyPending && _pendingResponseCount > 0;
     public bool ShouldComplete { get; private set; }
@@ -291,7 +291,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         var span = responseBuffer.FullMemory.Span;
         var written = _encoder.Encode(span, features, isChunked, connectionClose: ShouldComplete);
         responseBuffer.Length = written;
-        _ops.OnOutbound(new TransportData(responseBuffer));
+        _ops.OnOutbound(TransportData.Rent(responseBuffer));
 
         if (suppressBody)
         {
@@ -343,12 +343,14 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                     _responseRate.Observe(0, framedData.Length, Now());
                     EnsureRateTimer();
                     var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
-                    _ops.OnOutbound(new TransportData(buf));
+                    _ops.OnOutbound(TransportData.Rent(buf));
                     return default;
                 });
 
             _activeResponseBodyWriter = writer;
             _activeResponseBodyStream = bodyStream;
+
+
             ReadNextResponseChunk();
         }
         else
@@ -359,6 +361,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             }
         }
     }
+
 
     private void ReadNextResponseChunk()
     {
@@ -540,7 +543,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         var responseBuffer = TransportBuffer.Rent(responseBytes.Length);
         responseBytes.CopyTo(responseBuffer.FullMemory.Span);
         responseBuffer.Length = responseBytes.Length;
-        _ops.OnOutbound(new TransportData(responseBuffer));
+        _ops.OnOutbound(TransportData.Rent(responseBuffer));
 
         switchable.RequestProtocolSwitch(ops => new Http2ServerStateMachine(_h2UpgradeOptions, ops));
 

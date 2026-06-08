@@ -62,7 +62,7 @@ public sealed class Http2ServerTimerErrorSpec
         var buffer = TransportBuffer.Rent(frameData.Length);
         frameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = frameData.Length;
-        return new TransportData(buffer);
+        return TransportData.Rent(buffer);
     }
 
     [Fact(Timeout = 5000)]

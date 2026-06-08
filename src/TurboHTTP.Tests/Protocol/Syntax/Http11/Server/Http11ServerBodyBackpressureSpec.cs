@@ -46,7 +46,7 @@ public sealed class Http11ServerBodyBackpressureSpec
     private static void SendRequest(Http11ServerStateMachine sm)
     {
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
-        sm.DecodeClientData(new TransportData(MakeBuffer(requestData)));
+        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
     }
 
     [Fact(Timeout = 5000)]

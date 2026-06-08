@@ -65,7 +65,7 @@ public sealed class Http11DataRateSpec
         // Chunked request body forces streaming (small Content-Length bodies are buffered, not observed).
         // One small chunk arrives, then the upload stalls without the terminating chunk.
         var headersAndPartialChunk = "POST / HTTP/1.1\r\nHost: localhost\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nAAAAA\r\n";
-        sm.DecodeClientData(new TransportData(MakeBuffer(headersAndPartialChunk)));
+        sm.DecodeClientData(TransportData.Rent(MakeBuffer(headersAndPartialChunk)));
 
         clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
@@ -86,7 +86,7 @@ public sealed class Http11DataRateSpec
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         var context = CreateResponseContext();
         sm.OnResponse(context);
@@ -108,7 +108,7 @@ public sealed class Http11DataRateSpec
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         var context = CreateResponseContext();
         sm.OnResponse(context);
@@ -130,7 +130,7 @@ public sealed class Http11DataRateSpec
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         var context = CreateResponseContext();
         sm.OnResponse(context);
@@ -151,7 +151,7 @@ public sealed class Http11DataRateSpec
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         var context = CreateResponseContext();
         sm.OnResponse(context);
@@ -172,7 +172,7 @@ public sealed class Http11DataRateSpec
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         var context = CreateResponseContext();
         sm.OnResponse(context);
@@ -198,7 +198,7 @@ public sealed class Http11DataRateSpec
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         var context = CreateResponseContext();
         sm.OnResponse(context);
@@ -229,7 +229,7 @@ public sealed class Http11DataRateSpec
 
         const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         var context = CreateResponseContext();
         sm.OnResponse(context);

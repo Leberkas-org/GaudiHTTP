@@ -57,7 +57,7 @@ public sealed class Http11StateMachineDisconnectSpec
         sm.OnRequest(MakeRequest());
 
         const string response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nHello";
-        sm.DecodeServerData(new TransportData(CreateResponseBuffer(response)));
+        sm.DecodeServerData(TransportData.Rent(CreateResponseBuffer(response)));
 
         sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
 

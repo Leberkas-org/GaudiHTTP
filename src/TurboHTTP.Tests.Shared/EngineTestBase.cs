@@ -19,7 +19,7 @@ public abstract class EngineTestBase : StreamTestBase
             .Build();
 
         stage.PushResponse(outbound => outbound is TransportData
-            ? new TransportData(responseFactory())
+            ? TransportData.Rent(responseFactory())
             : null);
 
         return stage;
@@ -44,7 +44,7 @@ public abstract class EngineTestBase : StreamTestBase
                     return;
                 }
 
-                ctx.Push(new TransportData(response));
+                ctx.Push(TransportData.Rent(response));
             })
             .Build();
         return stage;
@@ -83,7 +83,7 @@ public abstract class EngineTestBase : StreamTestBase
                     return;
                 }
 
-                ctx.Push(new TransportData(response));
+                ctx.Push(TransportData.Rent(response));
             })
             .Build();
         return stage;
@@ -127,7 +127,7 @@ public abstract class EngineTestBase : StreamTestBase
                     return;
                 }
 
-                ctx.Push(new TransportData(response));
+                ctx.Push(TransportData.Rent(response));
                 ctx.Push(new TransportDisconnected(DisconnectReason.Graceful));
             })
             .Build();
@@ -143,7 +143,7 @@ public abstract class EngineTestBase : StreamTestBase
             .OnOutbound<ConnectTransport>((_, ctx) =>
             {
                 tunnelEstablished = true;
-                ctx.Push(new TransportData(connectEstablishedBytes));
+                ctx.Push(TransportData.Rent(connectEstablishedBytes));
             })
             .OnOutbound<TransportData>((data, ctx) =>
             {
@@ -160,7 +160,7 @@ public abstract class EngineTestBase : StreamTestBase
                     return;
                 }
 
-                ctx.Push(new TransportData(response));
+                ctx.Push(TransportData.Rent(response));
             })
             .Build();
         return stage;
@@ -192,7 +192,7 @@ public abstract class EngineTestBase : StreamTestBase
         {
             if (frameIndex < serverFrames.Length)
             {
-                ctx.Push(new TransportData(serverFrames[frameIndex++]));
+                ctx.Push(TransportData.Rent(serverFrames[frameIndex++]));
             }
         }
     }

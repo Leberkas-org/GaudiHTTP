@@ -37,7 +37,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         var request = BuildPipelinedRequests(3);
         var buffer = MakeBuffer(request);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Equal(3, ops.Requests.Count);
         Assert.False(sm.ShouldComplete);
@@ -59,7 +59,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         var request = BuildPipelinedRequests(4); // Try to send 4 requests
         var buffer = MakeBuffer(request);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Should only accept 2 requests (the limit)
         Assert.Equal(2, ops.Requests.Count);
@@ -83,7 +83,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         var request = BuildPipelinedRequests(2); // Try to send 2 requests with limit 1
         var buffer = MakeBuffer(request);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Single(ops.Requests);
         Assert.True(sm.ShouldComplete);
@@ -105,7 +105,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         var request = BuildPipelinedRequests(16);
         var buffer = MakeBuffer(request);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Equal(16, ops.Requests.Count);
         Assert.False(sm.ShouldComplete);
@@ -120,7 +120,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         var request = BuildPipelinedRequests(17);
         var buffer = MakeBuffer(request);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Equal(16, ops.Requests.Count);
         Assert.True(sm.ShouldComplete);
@@ -142,7 +142,7 @@ public sealed class Http11ServerPipeliningLimitSpec
         var request = BuildPipelinedRequests(100);
         var buffer = MakeBuffer(request);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Equal(100, ops.Requests.Count);
         Assert.False(sm.ShouldComplete);
@@ -189,12 +189,12 @@ public sealed class Http11ServerPipeliningLimitSpec
 
         // First buffer with 2 requests
         var buffer1 = MakeBuffer(BuildPipelinedRequests(2));
-        sm.DecodeClientData(new TransportData(buffer1));
+        sm.DecodeClientData(TransportData.Rent(buffer1));
         Assert.Equal(2, ops.Requests.Count);
 
         // Second buffer with 2 more requests - should also be limited (total would be 4)
         var buffer2 = MakeBuffer(BuildPipelinedRequests(2));
-        sm.DecodeClientData(new TransportData(buffer2));
+        sm.DecodeClientData(TransportData.Rent(buffer2));
 
         // After hitting limit in first buffer and closing, second buffer should not add more
         // (behavior depends on whether ShouldCloseAfterResponse prevents further decoding)

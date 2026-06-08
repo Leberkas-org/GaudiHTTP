@@ -103,7 +103,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
             var span = item.FullMemory.Span;
 
             item.Length = _encoder.Encode(span, request, out var bodyStream, out var bodyContentLength);
-            _ops.OnOutbound(new TransportData(item));
+            _ops.OnOutbound(TransportData.Rent(item));
 
             if (bodyStream is not null)
             {
@@ -412,7 +412,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
                 ref var framedStart = ref MemoryMarshal.GetReference(framedSpan);
                 var offset = (int)Unsafe.ByteOffset(ref ownerStart, ref framedStart);
                 var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
-                _ops.OnOutbound(new TransportData(buf));
+                _ops.OnOutbound(TransportData.Rent(buf));
                 return default;
             });
 

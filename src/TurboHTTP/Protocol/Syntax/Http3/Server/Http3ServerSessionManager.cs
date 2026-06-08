@@ -14,8 +14,8 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Server;
 
-internal sealed record StreamBodyReadComplete(long StreamId, int BytesRead);
-internal sealed record StreamBodyReadFailed(long StreamId, Exception Reason);
+internal readonly record struct StreamBodyReadComplete(long StreamId, int BytesRead);
+internal readonly record struct StreamBodyReadFailed(long StreamId, Exception Reason);
 
 internal sealed class Http3ServerSessionManager
 {

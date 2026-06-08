@@ -29,7 +29,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Single(ops.Requests);
         var ctx = ops.Requests[0];
@@ -54,7 +54,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var responseBody = "Hello"u8.ToArray();
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
@@ -102,7 +102,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.CanAcceptResponse);
     }
@@ -125,7 +125,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.ShouldComplete);
     }
@@ -147,7 +147,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(sm.ShouldComplete);
     }
@@ -170,7 +170,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
         {
@@ -202,7 +202,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
         {
@@ -235,7 +235,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
         {
@@ -269,7 +269,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
         {
@@ -303,7 +303,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.True(ops.Requests.Count is 0 or 1);
     }
@@ -325,7 +325,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         var response = new HttpResponseMessage(System.Net.HttpStatusCode.NoContent);
         sm.OnResponse(MakeResponseContext(response));
@@ -355,7 +355,7 @@ public sealed class ServerStateMachineSpec
         requestData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = requestData.Length;
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // RFC 9112 §6.1: a request whose final transfer coding is not chunked has no reliable body
         // length and MUST NOT be forwarded — doing so enables request smuggling. The SM rejects it

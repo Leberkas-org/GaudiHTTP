@@ -21,7 +21,7 @@ internal static class Http2ConnectionTestHelper
         }
 
         buf.Length = totalSize;
-        return new TransportData(buf);
+        return TransportData.Rent(buf);
     }
 
     public static IEnumerable<ITransportInbound> FramesToInputs(IEnumerable<Http2Frame> frames)

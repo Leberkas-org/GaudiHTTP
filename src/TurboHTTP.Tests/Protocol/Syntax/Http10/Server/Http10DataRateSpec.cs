@@ -78,7 +78,7 @@ public sealed class Http10DataRateSpec
 
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         // Simulate a body read cycle: read complete with 0 bytes (EOF), then buffered
         var context = CreateResponseContext();
@@ -99,7 +99,7 @@ public sealed class Http10DataRateSpec
 
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         // Simulate buffered response body complete (removes rate tracking)
         sm.OnBodyMessage(MakeBodyBuffered(0));
@@ -118,7 +118,7 @@ public sealed class Http10DataRateSpec
 
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         sm.OnBodyMessage(MakeBodyBuffered(0));
 
@@ -136,7 +136,7 @@ public sealed class Http10DataRateSpec
 
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         sm.OnBodyMessage(MakeBodyBuffered(0));
 
@@ -154,7 +154,7 @@ public sealed class Http10DataRateSpec
 
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         sm.OnBodyMessage(MakeBodyBuffered(0));
 
@@ -175,7 +175,7 @@ public sealed class Http10DataRateSpec
 
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         // Simulate reading 10 bytes of response body via ResponseBodyReadComplete
         sm.OnBodyMessage(new ResponseBodyReadComplete(10));
@@ -202,7 +202,7 @@ public sealed class Http10DataRateSpec
 
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(headerBuffer));
+        sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
         sm.OnBodyMessage(MakeBodyBuffered(0));
 
@@ -229,12 +229,12 @@ public sealed class Http10DataRateSpec
         var requestData = "POST / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 10\r\n\r\n";
         var headerBytes = Encoding.ASCII.GetBytes(requestData);
         var buffer = MakeBuffer(headerBytes);
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // At time=0, send first chunk of body (5 bytes)
         var bodyChunk1 = new byte[5];
         var buffer2 = MakeBuffer(bodyChunk1);
-        sm.DecodeClientData(new TransportData(buffer2));
+        sm.DecodeClientData(TransportData.Rent(buffer2));
 
         // Advance clock to first check point (600ms)
         clock.Advance(TimeSpan.FromMilliseconds(600));

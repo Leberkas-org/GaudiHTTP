@@ -43,8 +43,8 @@ internal sealed class Http2ServerSessionManager
 
     private readonly Dictionary<int, StreamState> _streams = new();
 
-    internal sealed record StreamBodyReadComplete(int StreamId, int BytesRead);
-    internal sealed record StreamBodyReadFailed(int StreamId, Exception Reason);
+    internal readonly record struct StreamBodyReadComplete(int StreamId, int BytesRead);
+    internal readonly record struct StreamBodyReadFailed(int StreamId, Exception Reason);
 
     private readonly Dictionary<int, Stream> _activeBodyStreams = new();
     private readonly Dictionary<int, IMemoryOwner<byte>> _activeBodyBuffers = new();
@@ -894,7 +894,7 @@ internal sealed class Http2ServerSessionManager
         var span = buf.FullMemory.Span;
         frame.WriteTo(ref span);
         buf.Length = totalSize;
-        _ops.OnOutbound(new TransportData(buf));
+        _ops.OnOutbound(TransportData.Rent(buf));
     }
 
     public void EmitRstStream(int streamId, Http2ErrorCode errorCode)

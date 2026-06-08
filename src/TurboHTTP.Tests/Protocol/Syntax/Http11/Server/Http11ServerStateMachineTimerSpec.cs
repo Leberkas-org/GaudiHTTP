@@ -67,7 +67,7 @@ public sealed class Http11ServerStateMachineTimerSpec
         var partialRequest = "GET / HTTP/1.1\r\nHost: localhost\r\n";
         var buffer = MakeBuffer(partialRequest);
 
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "request-headers");
     }
@@ -82,12 +82,12 @@ public sealed class Http11ServerStateMachineTimerSpec
         // First, feed partial request to schedule timer
         var partialRequest = "GET / HTTP/1.1\r\nHost: localhost\r\n";
         var buffer1 = MakeBuffer(partialRequest);
-        sm.DecodeClientData(new TransportData(buffer1));
+        sm.DecodeClientData(TransportData.Rent(buffer1));
 
         // Then feed completion to cancel timer
         var completion = "\r\n";
         var buffer2 = MakeBuffer(completion);
-        sm.DecodeClientData(new TransportData(buffer2));
+        sm.DecodeClientData(TransportData.Rent(buffer2));
 
         Assert.Contains(ops.CancelledTimers, t => t == "request-headers");
     }
@@ -103,7 +103,7 @@ public sealed class Http11ServerStateMachineTimerSpec
         // Decode a complete request first
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Verify we have a pending request
         Assert.Single(ops.Requests);
@@ -135,7 +135,7 @@ public sealed class Http11ServerStateMachineTimerSpec
         // Decode a request
         var requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var buffer = MakeBuffer(requestData);
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         // Send response with body
         var context = CreateResponseContext();
@@ -166,7 +166,7 @@ public sealed class Http11ServerStateMachineTimerSpec
         var sm = new Http11ServerStateMachine(opts.ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var req = "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n";
-        sm.DecodeClientData(new TransportData(MakeBuffer(req)));
+        sm.DecodeClientData(TransportData.Rent(MakeBuffer(req)));
 
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "body-read" && t.Delay == TimeSpan.FromSeconds(5));
     }
@@ -191,11 +191,11 @@ public sealed class Http11ServerStateMachineTimerSpec
         var sm = new Http11ServerStateMachine(new TurboServerOptions().ToHttp1Options(), new TurboServerOptions().ToHttp2Options(), ops);
 
         var head = "POST / HTTP/1.1\r\nHost: x\r\nTransfer-Encoding: chunked\r\n\r\n";
-        sm.DecodeClientData(new TransportData(MakeBuffer(head)));
+        sm.DecodeClientData(TransportData.Rent(MakeBuffer(head)));
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "body-read");
 
         var body = "5\r\nhello\r\n0\r\n\r\n";
-        sm.DecodeClientData(new TransportData(MakeBuffer(body)));
+        sm.DecodeClientData(TransportData.Rent(MakeBuffer(body)));
 
         Assert.Contains(ops.CancelledTimers, t => t == "body-read");
     }
@@ -210,7 +210,7 @@ public sealed class Http11ServerStateMachineTimerSpec
         // Decode a partial request to activate request-headers timer
         var partialRequest = "GET / HTTP/1.1\r\nHost: localhost\r\n";
         var buffer = MakeBuffer(partialRequest);
-        sm.DecodeClientData(new TransportData(buffer));
+        sm.DecodeClientData(TransportData.Rent(buffer));
 
         Assert.Contains(ops.ScheduledTimers, t => t.Name == "request-headers");
 

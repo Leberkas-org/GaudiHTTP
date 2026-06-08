@@ -307,16 +307,17 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
         for (var i = 0; i < coalesceCount; i++)
         {
             var item = _outboundQueue.Dequeue();
-            if (item is TransportData { Buffer: var buf })
+            if (item is TransportData td)
             {
-                buf.Span.CopyTo(dest[offset..]);
-                offset += buf.Length;
-                buf.Dispose();
+                td.Buffer.Span.CopyTo(dest[offset..]);
+                offset += td.Buffer.Length;
+                td.Buffer.Dispose();
+                td.Return();
             }
         }
 
         merged.Length = offset;
-        Push(_outNetwork, new TransportData(merged));
+        Push(_outNetwork, TransportData.Rent(merged));
         return true;
     }
 
@@ -357,9 +358,10 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
             _outboundQueue.Count, _responseQueue.Count);
         while (_outboundQueue.Count > 0)
         {
-            if (_outboundQueue.Dequeue() is TransportData { Buffer: var buffer })
+            if (_outboundQueue.Dequeue() is TransportData td)
             {
-                buffer.Dispose();
+                td.Buffer.Dispose();
+                td.Return();
             }
         }
 
