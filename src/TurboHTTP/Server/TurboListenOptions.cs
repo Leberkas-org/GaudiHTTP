@@ -67,6 +67,15 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
         configure(HttpsOptions);
     }
 
+    /// <summary>
+    /// Gets the transport-level buffer options for this endpoint. Controls backpressure
+    /// thresholds on the read/write pipes between the OS socket and the HTTP pipeline.
+    /// Defaults are protocol-optimized: TCP uses larger buffers (one pipe per connection),
+    /// QUIC uses smaller buffers (one pipe per stream).
+    /// Set to <c>null</c> to use the protocol-specific defaults.
+    /// </summary>
+    public TransportBufferOptions? Transport { get; set; }
+
     internal string? ConnectionLoggingCategory { get; private set; }
 
     /// <summary>Enables per-connection logging under the default category <c>TurboHTTP.Server.ConnectionLogging</c>.</summary>
