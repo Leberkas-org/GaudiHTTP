@@ -443,15 +443,30 @@ internal sealed class Http2ServerSessionManager
         while (state.PeekBodyChunk() is { } next)
         {
             var window = _flow.GetSendWindow(streamId);
-            if (window < next.Length)
+            if (window <= 0)
             {
                 break;
             }
 
             state.TryDequeueBodyChunk(out var chunk);
-            EmitFrame(new DataFrame(streamId, chunk!.Owner.Memory[..chunk.Length], endStream: false));
-            _flow.OnDataSent(streamId, chunk.Length);
-            chunk.Owner.Dispose();
+            if (window >= chunk!.Length)
+            {
+                EmitFrame(new DataFrame(streamId, chunk.Owner.Memory[..chunk.Length], endStream: false));
+                _flow.OnDataSent(streamId, chunk.Length);
+                chunk.Owner.Dispose();
+            }
+            else
+            {
+                var sendable = (int)window;
+                EmitFrame(new DataFrame(streamId, chunk.Owner.Memory[..sendable], endStream: false));
+                _flow.OnDataSent(streamId, sendable);
+                var remaining = chunk.Length - sendable;
+                var owner = MemoryPool<byte>.Shared.Rent(remaining);
+                chunk.Owner.Memory.Slice(sendable, remaining).CopyTo(owner.Memory);
+                chunk.Owner.Dispose();
+                state.PrependBodyChunk(new StreamBodyChunk(owner, remaining));
+                break;
+            }
         }
 
         if (state is { HasPendingOutbound: false, IsBodyDrainComplete: true })
@@ -880,7 +895,7 @@ internal sealed class Http2ServerSessionManager
     private void StartStreamBodyDrain(int streamId, Stream bodyStream, long? contentLength = null)
     {
         _activeBodyStreams[streamId] = bodyStream;
-        var maxSize = Math.Min(_bodyEncoderOptions.ChunkSize, _encoderOptions.MaxFrameSize);
+        var maxSize = Math.Min(_bodyEncoderOptions.ChunkSize, _responseEncoder.MaxFrameSize);
         var bufferSize = contentLength is > 0 and <= int.MaxValue
             ? (int)Math.Min(contentLength.Value, maxSize)
             : maxSize;
