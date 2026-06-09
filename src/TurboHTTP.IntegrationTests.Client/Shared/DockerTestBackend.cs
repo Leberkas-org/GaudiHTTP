@@ -59,10 +59,25 @@ internal sealed class DockerTestBackend : ITestBackend
 
     public async ValueTask DisposeAsync()
     {
-        if (_nginxH3 is not null) await _nginxH3.DisposeAsync();
-        if (_nginxH2 is not null) await _nginxH2.DisposeAsync();
-        if (_httpbin is not null) await _httpbin.DisposeAsync();
-        if (_network is not null) await _network.DisposeAsync();
+        if (_nginxH3 is not null)
+        {
+            await _nginxH3.DisposeAsync();
+        }
+
+        if (_nginxH2 is not null)
+        {
+            await _nginxH2.DisposeAsync();
+        }
+
+        if (_httpbin is not null)
+        {
+            await _httpbin.DisposeAsync();
+        }
+
+        if (_network is not null)
+        {
+            await _network.DisposeAsync();
+        }
     }
 
     private static async Task RemoveStaleResourcesAsync()
