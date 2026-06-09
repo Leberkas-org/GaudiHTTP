@@ -18,7 +18,7 @@ internal static class IfRangeValidator
         "r", // RFC 1123
         "dddd, dd-MMM-yy HH:mm:ss 'GMT'", // RFC 850
         "ddd MMM  d HH:mm:ss yyyy", // asctime
-        "ddd MMM dd HH:mm:ss yyyy", // asctime (two-digit day)
+        "ddd MMM dd HH:mm:ss yyyy" // asctime (two-digit day)
     ];
 
     /// <summary>

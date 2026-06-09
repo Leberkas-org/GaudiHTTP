@@ -75,7 +75,7 @@ internal static class OptionsFactory
                 UseProxy = clientOptions.UseProxy,
                 Proxy = clientOptions.Proxy,
                 DefaultProxyCredentials = clientOptions.DefaultProxyCredentials,
-                ApplicationProtocols = alpn,
+                ApplicationProtocols = alpn
             };
         }
 
@@ -91,7 +91,7 @@ internal static class OptionsFactory
             MinimumSegmentSize = clientOptions.MinimumSegmentSize,
             UseProxy = clientOptions.UseProxy,
             Proxy = clientOptions.Proxy,
-            DefaultProxyCredentials = clientOptions.DefaultProxyCredentials,
+            DefaultProxyCredentials = clientOptions.DefaultProxyCredentials
         };
     }
 }

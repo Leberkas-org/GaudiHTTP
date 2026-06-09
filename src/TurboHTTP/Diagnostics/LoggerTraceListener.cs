@@ -54,7 +54,7 @@ internal sealed class LoggerTraceListener : IServusTraceListener
             TraceLevel.Info => LogLevel.Information,
             TraceLevel.Warning => LogLevel.Warning,
             TraceLevel.Error => LogLevel.Error,
-            _ => LogLevel.None,
+            _ => LogLevel.None
         };
     }
 }

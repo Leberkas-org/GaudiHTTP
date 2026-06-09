@@ -123,7 +123,7 @@ internal sealed class Http2ServerSessionManager
             (SettingsParameter.MaxConcurrentStreams, (uint)_decoderOptions.MaxConcurrentStreams),
             (SettingsParameter.InitialWindowSize, (uint)_initialStreamWindowSize),
             (SettingsParameter.MaxFrameSize, (uint)_encoderOptions.MaxFrameSize),
-            (SettingsParameter.HeaderTableSize, (uint)_encoderOptions.HeaderTableSize),
+            (SettingsParameter.HeaderTableSize, (uint)_encoderOptions.HeaderTableSize)
         };
 
         var settingsFrame = new SettingsFrame(settingsParams, isAck: false);

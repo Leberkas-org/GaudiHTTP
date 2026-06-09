@@ -211,7 +211,7 @@ internal sealed class EndpointResolver
             InputResumeThreshold = transport.InputResumeThreshold,
             OutputPauseThreshold = transport.OutputPauseThreshold,
             OutputResumeThreshold = transport.OutputResumeThreshold,
-            MinimumSegmentSize = transport.MinimumSegmentSize,
+            MinimumSegmentSize = transport.MinimumSegmentSize
         };
 
         return new ListenerBinding
@@ -238,7 +238,7 @@ internal sealed class EndpointResolver
             InputResumeThreshold = transport.InputResumeThreshold,
             OutputPauseThreshold = transport.OutputPauseThreshold,
             OutputResumeThreshold = transport.OutputResumeThreshold,
-            MinimumSegmentSize = transport.MinimumSegmentSize,
+            MinimumSegmentSize = transport.MinimumSegmentSize
         };
 
         return new ListenerBinding

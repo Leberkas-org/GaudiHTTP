@@ -33,7 +33,7 @@ internal static class PrefaceBuilder
             (SettingsParameter.HeaderTableSize, (uint)headerTableSize),
             (SettingsParameter.EnablePush, 0),
             (SettingsParameter.InitialWindowSize, (uint)streamInitialWindowSize),
-            (SettingsParameter.MaxFrameSize, (uint)maxFrameSize),
+            (SettingsParameter.MaxFrameSize, (uint)maxFrameSize)
         };
 
         var settingsPayloadSize = settingsParams.Length * 6;

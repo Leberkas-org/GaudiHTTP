@@ -48,7 +48,7 @@ internal static class UriSanitizer
     {
         "https" => 443,
         "http" => 80,
-        _ => throw new ArgumentException($"Unknown scheme '{scheme}' — cannot determine default port.", nameof(scheme)),
+        _ => throw new ArgumentException($"Unknown scheme '{scheme}' — cannot determine default port.", nameof(scheme))
     };
 
     /// <summary>
@@ -60,7 +60,7 @@ internal static class UriSanitizer
         var builder = new UriBuilder(uri)
         {
             UserName = string.Empty,
-            Password = string.Empty,
+            Password = string.Empty
         };
 
         return builder.Uri.ToString();
@@ -76,7 +76,7 @@ internal static class UriSanitizer
         {
             UserName = string.Empty,
             Password = string.Empty,
-            Fragment = string.Empty,
+            Fragment = string.Empty
         };
 
         return builder.Uri.GetLeftPart(UriPartial.Query);

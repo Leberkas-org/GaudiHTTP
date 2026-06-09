@@ -224,7 +224,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                     RemoteIpAddress = remoteEp.Address,
                     RemotePort = remoteEp.Port,
                     LocalIpAddress = (info.Local as IPEndPoint)?.Address,
-                    LocalPort = (info.Local as IPEndPoint)?.Port ?? 0,
+                    LocalPort = (info.Local as IPEndPoint)?.Port ?? 0
                 };
 
                 if (info.Security is { } security)
@@ -234,7 +234,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                         Protocol = security.Protocol,
                         NegotiatedCipherSuite = security.NegotiatedCipherSuite,
                         HostName = security.HostName,
-                        NegotiatedApplicationProtocol = security.ApplicationProtocol,
+                        NegotiatedApplicationProtocol = security.ApplicationProtocol
                     };
                 }
 
@@ -339,7 +339,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             var tags = new TagList
             {
                 { "url.scheme", scheme },
-                { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(method) },
+                { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(method) }
             };
             Metrics.ServerActiveRequests().Add(1, tags);
         }
@@ -364,7 +364,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             var tags = new TagList
             {
                 { "url.scheme", requestFeature.Scheme },
-                { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) },
+                { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) }
             };
             Metrics.ServerActiveRequests().Add(-1, tags);
         }
@@ -384,7 +384,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                 {
                     { "http.request.method", TurboClientInstrumentationExtensions.NormalizeMethod(requestFeature.Method) },
                     { "http.response.status_code", statusCode },
-                    { "url.scheme", requestFeature.Scheme },
+                    { "url.scheme", requestFeature.Scheme }
                 };
                 Metrics.ServerRequestDuration().Record(elapsed.TotalSeconds, durationTags);
             }

@@ -23,7 +23,7 @@ internal enum FrameType : byte
     Ping = 0x6,
     GoAway = 0x7,
     WindowUpdate = 0x8,
-    Continuation = 0x9,
+    Continuation = 0x9
 }
 
 [Flags]
@@ -31,7 +31,7 @@ internal enum Datas : byte
 {
     None = 0x0,
     EndStream = 0x1,
-    Padded = 0x8,
+    Padded = 0x8
 }
 
 [Flags]
@@ -41,28 +41,28 @@ internal enum Headers : byte
     EndStream = 0x1,
     EndHeaders = 0x4,
     Padded = 0x8,
-    Priority = 0x20,
+    Priority = 0x20
 }
 
 [Flags]
 internal enum Settings : byte
 {
     None = 0x0,
-    Ack = 0x1,
+    Ack = 0x1
 }
 
 [Flags]
 internal enum Pings : byte
 {
     None = 0x0,
-    Ack = 0x1,
+    Ack = 0x1
 }
 
 [Flags]
 internal enum Continuations : byte
 {
     None = 0x0,
-    EndHeaders = 0x4,
+    EndHeaders = 0x4
 }
 
 internal enum SettingsParameter : ushort
@@ -72,7 +72,7 @@ internal enum SettingsParameter : ushort
     MaxConcurrentStreams = 0x3,
     InitialWindowSize = 0x4,
     MaxFrameSize = 0x5,
-    MaxHeaderListSize = 0x6,
+    MaxHeaderListSize = 0x6
 }
 
 internal enum Http2ErrorCode : uint
@@ -90,7 +90,7 @@ internal enum Http2ErrorCode : uint
     ConnectError = 0xa,
     EnhanceYourCalm = 0xb,
     InadequateSecurity = 0xc,
-    Http11Required = 0xd,
+    Http11Required = 0xd
 }
 
 internal abstract class Http2Frame(int streamId)

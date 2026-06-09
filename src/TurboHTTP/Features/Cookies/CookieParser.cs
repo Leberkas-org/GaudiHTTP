@@ -112,7 +112,7 @@ internal static class CookieParser
                             "strict" => SameSitePolicy.Strict,
                             "lax" => SameSitePolicy.Lax,
                             "none" => SameSitePolicy.None,
-                            _ => SameSitePolicy.Unspecified,
+                            _ => SameSitePolicy.Unspecified
                         };
                     }
                 }
@@ -195,7 +195,7 @@ internal static class CookieParser
         "ddd, dd-MMM-yy HH:mm:ss 'GMT'",
         "ddd, dd MMM yy HH:mm:ss 'GMT'",
         "ddd, dd MMM yyyy HH:mm:ss",
-        "dddd, dd-MMM-yy HH:mm:ss 'GMT'",
+        "dddd, dd-MMM-yy HH:mm:ss 'GMT'"
     ];
 
     private static bool TryParseExpires(string value, out DateTimeOffset result)

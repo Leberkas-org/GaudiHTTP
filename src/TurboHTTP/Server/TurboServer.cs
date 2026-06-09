@@ -111,7 +111,7 @@ public sealed class TurboServer : IServer
                 return Task.FromResult(Done.Instance);
             });
 
-            Task drainTask = Task.CompletedTask;
+            var drainTask = Task.CompletedTask;
 
             cs.AddTask(CoordinatedShutdown.PhaseServiceUnbind, "turbo-goaway", () =>
             {

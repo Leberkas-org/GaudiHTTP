@@ -3,7 +3,6 @@ using Akka.Actor;
 using Akka.TestKit.Xunit;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http10.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
@@ -15,7 +14,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
 {
     private static FakeServerOps MakeOps() => new();
 
-    private static IFeatureCollection CreateResponseContext()
+    private static TurboFeatureCollection CreateResponseContext()
     {
         var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
@@ -24,16 +23,6 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;
-    }
-
-    private static async Task<IFeatureCollection> CreateResponseContextWithBody(string body)
-    {
-        var context = CreateResponseContext();
-        var bodyFeature = context.Get<IHttpResponseBodyFeature>()!;
-        var bytes = Encoding.ASCII.GetBytes(body);
-        await bodyFeature.Writer.WriteAsync(bytes);
-        await bodyFeature.Writer.CompleteAsync();
-        return context;
     }
 
     private static TransportBuffer CreateRequestBuffer(string requestText)
@@ -98,8 +87,8 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         var context = CreateResponseContext();
         var bodyFeature = (TurboHttpResponseBodyFeature)context.Get<IHttpResponseBodyFeature>()!;
         bodyFeature.UpgradeToPipe();
-        var bytes = Encoding.ASCII.GetBytes("hello");
-        await bodyFeature.Writer.WriteAsync(bytes);
+        var bytes = "hello"u8.ToArray();
+        await bodyFeature.Writer.WriteAsync(bytes, TestContext.Current.CancellationToken);
         await bodyFeature.Writer.CompleteAsync();
 
         sm.OnResponse(context);

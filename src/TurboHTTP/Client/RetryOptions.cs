@@ -25,6 +25,6 @@ public sealed class RetryOptions
     internal RetryPolicy To() => new()
     {
         MaxRetries = MaxRetries,
-        RespectRetryAfter = RespectRetryAfter,
+        RespectRetryAfter = RespectRetryAfter
     };
 }

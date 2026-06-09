@@ -16,7 +16,7 @@ internal static class Http2ConnectionOptionsExtensions
         HeaderTableSize = o.HeaderTableSize,
         WriteDateHeader = true,
         MaxHeaderBytes = o.MaxHeaderListSize,
-        UseHuffman = o.UseHuffman,
+        UseHuffman = o.UseHuffman
     };
 
     public static Http2ServerDecoderOptions ToDecoderOptions(this Http2ConnectionOptions o) => new()
@@ -30,6 +30,6 @@ internal static class Http2ConnectionOptionsExtensions
         InitialStreamWindowSize = o.InitialStreamWindowSize,
         MaxStreamWindowSize = o.MaxStreamWindowSize,
         WindowScaleThresholdMultiplier = o.WindowScaleThresholdMultiplier,
-        EnableAdaptiveWindowScaling = o.EnableAdaptiveWindowScaling,
+        EnableAdaptiveWindowScaling = o.EnableAdaptiveWindowScaling
     };
 }

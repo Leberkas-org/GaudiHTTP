@@ -16,6 +16,6 @@ internal static class RecyclableStreams
         LargeBufferMultiple = 1024 * 1024,
         MaximumBufferSize = 8 * 1024 * 1024,
         MaximumSmallPoolFreeBytes = 16 * 1024 * 1024,
-        MaximumLargePoolFreeBytes = 32 * 1024 * 1024,
+        MaximumLargePoolFreeBytes = 32 * 1024 * 1024
     });
 }

@@ -19,7 +19,7 @@ internal static class ServerOptionsProjections
             BodyReadTimeout = o.Http1.BodyReadTimeout,
             MaxBufferedBodySize = o.Http1.MaxBufferedRequestBodySize,
             ResponseBodyChunkSize = o.ResponseBodyChunkSize,
-            BodyConsumptionTimeout = o.BodyConsumptionTimeout,
+            BodyConsumptionTimeout = o.BodyConsumptionTimeout
         };
 
     public static Http2ConnectionOptions ToHttp2Options(this TurboServerOptions o)
@@ -44,7 +44,7 @@ internal static class ServerOptionsProjections
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
             UseHuffman = o.AllowResponseHeaderCompression,
             KeepAlivePingDelay = o.Http2.KeepAlivePingDelay,
-            KeepAlivePingTimeout = o.Http2.KeepAlivePingTimeout,
+            KeepAlivePingTimeout = o.Http2.KeepAlivePingTimeout
         };
 
     public static Http3ConnectionOptions ToHttp3Options(this TurboServerOptions o)
@@ -62,7 +62,7 @@ internal static class ServerOptionsProjections
             MaxResponseBufferSize = o.Http3.MaxResponseBufferSize ?? o.Limits.MaxResponseBufferSize,
             ResponseBodyChunkSize = o.ResponseBodyChunkSize,
             BodyConsumptionTimeout = o.BodyConsumptionTimeout,
-            UseHuffman = o.AllowResponseHeaderCompression,
+            UseHuffman = o.AllowResponseHeaderCompression
         };
 
     public static DataRateOptions ToRateMonitor(this Http1ConnectionOptions o) => RateOf(o.Limits);

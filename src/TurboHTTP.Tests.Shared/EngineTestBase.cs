@@ -408,11 +408,9 @@ public abstract class EngineTestBase : StreamTestBase
         var preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8;
         var bytes = new List<byte>();
         var prefaceStripped = false;
-        var messageCount = 0;
 
         while (stage.TryGetOutbound(out var outbound))
         {
-            messageCount++;
             if (outbound is not TransportData { Buffer: var buf })
             {
                 continue;

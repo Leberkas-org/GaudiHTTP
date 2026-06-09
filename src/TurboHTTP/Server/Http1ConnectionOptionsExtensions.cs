@@ -9,13 +9,13 @@ internal static class Http1ConnectionOptionsExtensions
 {
     public static BodyEncoderOptions ToBodyEncoderOptions(this Http1ConnectionOptions o) => new()
     {
-        ChunkSize = o.ResponseBodyChunkSize,
+        ChunkSize = o.ResponseBodyChunkSize
     };
 
     public static Http10ServerEncoderOptions ToHttp10EncoderOptions(this Http1ConnectionOptions o) => new()
     {
         WriteDateHeader = true,
-        MaxHeaderBytes = o.MaxHeaderListSize,
+        MaxHeaderBytes = o.MaxHeaderListSize
     };
 
     public static Http10ServerDecoderOptions ToHttp10DecoderOptions(this Http1ConnectionOptions o) => new()
@@ -28,8 +28,7 @@ internal static class Http1ConnectionOptionsExtensions
         HeaderLineMaxLength = o.MaxRequestLineLength,
         RequestLineMaxLength = o.MaxRequestLineLength,
         MaxRequestTargetLength = o.MaxRequestTargetLength,
-        AllowObsFold = o.AllowObsFold,
-        BufferPool = MemoryPool<byte>.Shared,
+        AllowObsFold = o.AllowObsFold
     };
 
     public static Http11ServerEncoderOptions ToHttp11EncoderOptions(this Http1ConnectionOptions o) => new()
@@ -37,7 +36,7 @@ internal static class Http1ConnectionOptionsExtensions
         KeepAliveTimeout = o.Limits.KeepAliveTimeout,
         RequestHeadersTimeout = o.Limits.RequestHeadersTimeout,
         WriteDateHeader = true,
-        MaxHeaderBytes = o.MaxHeaderListSize,
+        MaxHeaderBytes = o.MaxHeaderListSize
     };
 
     public static Http11ServerDecoderOptions ToHttp11DecoderOptions(this Http1ConnectionOptions o) => new()

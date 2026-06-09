@@ -224,7 +224,7 @@ internal sealed class FrameDecoder : IDisposable
             FrameType.PushPromise => DecodePushPromiseFrame(payload),
             FrameType.GoAway => DecodeGoAwayFrame(payload),
             FrameType.MaxPushId => DecodeMaxPushIdFrame(payload),
-            _ => null, // Should not happen given IsDefined check above
+            _ => null // Should not happen given IsDefined check above
         };
 
         return DecodeStatus.Success;

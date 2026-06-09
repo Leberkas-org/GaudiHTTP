@@ -80,7 +80,7 @@ internal static class RequestLineParser
             6 when span.SequenceEqual(WellKnownHeaders.Delete) => HttpMethod.Delete,
             7 when span.SequenceEqual(WellKnownHeaders.Options) => HttpMethod.Options,
             7 when span.SequenceEqual(WellKnownHeaders.Connect) => HttpMethod.Connect,
-            _ => new HttpMethod(Encoding.ASCII.GetString(span)),
+            _ => new HttpMethod(Encoding.ASCII.GetString(span))
         };
     }
 }

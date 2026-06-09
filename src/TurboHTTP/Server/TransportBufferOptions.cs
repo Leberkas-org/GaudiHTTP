@@ -46,7 +46,7 @@ public sealed class TransportBufferOptions
         InputResumeThreshold = 512 * 1024,
         OutputPauseThreshold = 64 * 1024,
         OutputResumeThreshold = 32 * 1024,
-        MinimumSegmentSize = 16 * 1024,
+        MinimumSegmentSize = 16 * 1024
     };
 
     internal static TransportBufferOptions QuicDefaults => new()
@@ -55,6 +55,6 @@ public sealed class TransportBufferOptions
         InputResumeThreshold = 32 * 1024,
         OutputPauseThreshold = 64 * 1024,
         OutputResumeThreshold = 32 * 1024,
-        MinimumSegmentSize = 4 * 1024,
+        MinimumSegmentSize = 4 * 1024
     };
 }

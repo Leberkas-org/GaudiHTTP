@@ -99,7 +99,7 @@ internal static class ContentHeaderClassifier
         ["X-Requested-With"] = "x-requested-with",
         [WellKnownHeaders.Forwarded] = "forwarded",
         [WellKnownHeaders.From] = "from",
-        [WellKnownHeaders.MaxForwards] = "max-forwards",
+        [WellKnownHeaders.MaxForwards] = "max-forwards"
     };
 
     public static string ToLowerAscii(string name)

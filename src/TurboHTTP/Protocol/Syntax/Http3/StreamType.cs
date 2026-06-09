@@ -29,6 +29,6 @@ internal enum StreamType : long
     /// QPACK decoder stream (RFC 9204 §4.2). Carries QPACK decoder
     /// instructions (acknowledgements, cancellations).
     /// </summary>
-    QpackDecoder = 0x03,
+    QpackDecoder = 0x03
 }
 

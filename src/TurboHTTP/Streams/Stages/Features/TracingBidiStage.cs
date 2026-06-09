@@ -248,7 +248,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
             { "http.request.method", method },
             { "server.address", host },
             { "server.port", port },
-            { "url.scheme", scheme },
+            { "url.scheme", scheme }
         };
         Metrics.ActiveRequests().Add(1, tags);
     }
@@ -270,7 +270,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
             { "http.request.method", method },
             { "server.address", host },
             { "server.port", port },
-            { "url.scheme", scheme },
+            { "url.scheme", scheme }
         };
         Metrics.ActiveRequests().Add(-1, tags);
     }
@@ -299,7 +299,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
         {
             { "http.request.method", method },
             { "http.response.status_code", statusCode },
-            { "server.address", host },
+            { "server.address", host }
         };
         Metrics.RequestCount().Add(1, countTags);
 
@@ -310,7 +310,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
             { "network.protocol.version", protocolVersion },
             { "server.address", host },
             { "server.port", port },
-            { "url.scheme", scheme },
+            { "url.scheme", scheme }
         };
 
         if (statusCode >= 400)
@@ -344,7 +344,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
         {
             { "http.request.method", method },
             { "error.type", errorType },
-            { "server.address", host },
+            { "server.address", host }
         };
         Metrics.RequestCount().Add(1, countTags);
 
@@ -357,7 +357,7 @@ internal sealed class TracingBidiProcessor(IFeatureStageOperations ops)
                 { "error.type", errorType },
                 { "server.address", host },
                 { "server.port", port },
-                { "url.scheme", scheme },
+                { "url.scheme", scheme }
             };
             Metrics.RequestDuration().Record(durationSeconds, durationTags);
         }

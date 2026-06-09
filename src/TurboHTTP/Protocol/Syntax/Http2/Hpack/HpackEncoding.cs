@@ -25,5 +25,5 @@ internal enum HpackEncoding
     /// The header MUST NOT be indexed by any intermediary.
     /// Mandatory for security-sensitive fields: Authorization, Cookie, Set-Cookie.
     /// </summary>
-    NeverIndexed,
+    NeverIndexed
 }

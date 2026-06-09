@@ -7,7 +7,7 @@ internal enum StreamAcceptResult
     Accepted,
     InvalidId,
     NonMonotonic,
-    RefusedStream,
+    RefusedStream
 }
 
 internal sealed class StreamTracker(int initialNextStreamId, int maxConcurrentStreams) : IStreamTracker<int>

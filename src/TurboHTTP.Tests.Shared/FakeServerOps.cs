@@ -14,7 +14,6 @@ internal sealed class FakeServerOps : IServerStageOperations
     public List<ITransportOutbound> Outbound { get; } = [];
     public List<(string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
     public List<string> CancelledTimers { get; } = [];
-    public int CompleteStageCalls { get; set; }
 
     public void OnRequest(IFeatureCollection features) => Requests.Add(features);
     public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);

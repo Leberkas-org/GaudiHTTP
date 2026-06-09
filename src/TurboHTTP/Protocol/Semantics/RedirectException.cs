@@ -20,7 +20,7 @@ internal enum RedirectError
     InvalidLocationHeader,
 
     /// <summary>The redirect would downgrade from HTTPS to HTTP and the policy forbids it.</summary>
-    ProtocolDowngrade,
+    ProtocolDowngrade
 }
 
 /// <summary>

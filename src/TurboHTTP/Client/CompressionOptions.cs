@@ -25,6 +25,6 @@ public sealed class CompressionOptions
     internal CompressionPolicy To() => new()
     {
         Encoding = Encoding,
-        MinBodySizeBytes = MinBodySize,
+        MinBodySizeBytes = MinBodySize
     };
 }

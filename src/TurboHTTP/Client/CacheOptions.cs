@@ -36,6 +36,6 @@ public sealed class CacheOptions
         MaxEntries = MaxEntries,
         MaxBodyBytes = MaxBodySize,
         MaxTotalBytes = MaxTotalSize,
-        SharedCache = SharedCache,
+        SharedCache = SharedCache
     };
 }

@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Text;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
@@ -18,8 +17,7 @@ public sealed class Http10ServerDecoderSpec
         HeaderLineMaxLength = 8 * 1024,
         RequestLineMaxLength = 8 * 1024,
         MaxRequestTargetLength = 8 * 1024,
-        AllowObsFold = false,
-        BufferPool = MemoryPool<byte>.Shared,
+        AllowObsFold = false
     };
 
     private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions());

@@ -36,7 +36,7 @@ internal static class ReasonPhrases
         [502] = "Bad Gateway",
         [503] = "Service Unavailable",
         [504] = "Gateway Timeout",
-        [505] = "HTTP Version Not Supported",
+        [505] = "HTTP Version Not Supported"
     };
 
     public static string For(int code) => Table.GetValueOrDefault(code, "");
