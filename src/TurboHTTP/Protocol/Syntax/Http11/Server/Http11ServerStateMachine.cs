@@ -328,6 +328,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         if (responseBody is TurboHttpResponseBodyFeature turboBody)
         {
+            if (turboBody.TryGetBufferedBody(out var bufferedBody))
+            {
+                EmitBufferedBody(features, bufferedBody, contentLength, isChunked);
+                return;
+            }
+
             _outboundBodyPending = true;
             _activeResponseFeatures = features;
             Tracing.For("Protocol").Debug(this, "response body writer starting (chunked={0})", isChunked);
@@ -364,6 +370,42 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         }
     }
 
+
+    private void EmitBufferedBody(IFeatureCollection features, ReadOnlyMemory<byte> body, long? contentLength, bool isChunked)
+    {
+        var (writer, _) = _pool.RentWriter(
+            hasBody: true, contentLength, HttpVersion.Version11, _bodyEncoderOptions,
+            send: (owner, framedData) =>
+            {
+                var ownerSpan = owner.Memory.Span;
+                var framedSpan = framedData.Span;
+                ref var ownerStart = ref MemoryMarshal.GetReference(ownerSpan);
+                ref var framedStart = ref MemoryMarshal.GetReference(framedSpan);
+                var offset = (int)Unsafe.ByteOffset(ref ownerStart, ref framedStart);
+                _responseRate.Observe(0, framedData.Length, Now());
+                EnsureRateTimer();
+                var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
+                _ops.OnOutbound(TransportData.Rent(buf));
+                return default;
+            });
+
+        if (body.Length > 0)
+        {
+            var dest = writer.GetMemory(body.Length);
+            body.Span.CopyTo(dest.Span);
+            writer.Advance(body.Length);
+            writer.FlushAsync();
+        }
+
+        writer.CompleteAsync();
+        _ops.OnResponseBodyComplete(features);
+
+        Tracing.For("Protocol").Debug(this, "response body complete (buffered, bytes={0})", body.Length);
+        if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
+        {
+            _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
+        }
+    }
 
     private void ReadNextResponseChunk()
     {

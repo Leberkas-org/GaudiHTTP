@@ -95,26 +95,11 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945")]
     public async Task OnResponse_with_body_should_emit_transport_data_after_body_buffered()
     {
-        var inbox = Inbox.Create(Sys);
-        var ops = new FakeServerOps { StageActor = inbox.Receiver };
+        var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
-        sm.PreStart();
 
         var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
-
-        Assert.DoesNotContain(ops.Outbound, o => o is TransportData);
-
-        // Drain ReadAsync PipeTo messages until ResponseBodyBuffered arrives
-        while (true)
-        {
-            var msg = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-            sm.OnBodyMessage(msg);
-            if (msg is ResponseBodyBuffered)
-            {
-                break;
-            }
-        }
 
         Assert.Contains(ops.Outbound, o => o is TransportData);
         var td = ops.Outbound.OfType<TransportData>().First();
@@ -163,26 +148,14 @@ public sealed class Http10ServerStateMachineSpec : TestKit
     [Trait("RFC", "RFC1945-3.1")]
     public async Task OnResponse_should_use_http10_version_in_status_line()
     {
-        var inbox = Inbox.Create(Sys);
-        var ops = new FakeServerOps { StageActor = inbox.Receiver };
+        var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
-        sm.PreStart();
 
         var requestBuffer = CreateRequestBuffer("GET / HTTP/1.0\r\nHost: example.com\r\nContent-Length: 0\r\n\r\n");
         sm.DecodeClientData(TransportData.Rent(requestBuffer));
 
         var context = await CreateResponseContextWithBody("hello");
         sm.OnResponse(context);
-
-        while (true)
-        {
-            var msg = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-            sm.OnBodyMessage(msg);
-            if (msg is ResponseBodyBuffered)
-            {
-                break;
-            }
-        }
 
         var td = ops.Outbound.OfType<TransportData>().First();
         var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
