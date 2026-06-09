@@ -1,4 +1,3 @@
-using System.Text;
 using TurboHTTP.Protocol.Body;
 
 namespace TurboHTTP.Tests.Protocol.Body;
@@ -36,7 +35,7 @@ public sealed class FramingDecoderQueuedReaderSpec
         var reader = new QueuedBodyReader(capacity: 4);
         reader.Reset();
 
-        var chunk = Encoding.ASCII.GetBytes("5\r\nhello\r\n").AsSpan();
+        var chunk = "5\r\nhello\r\n"u8.ToArray().AsSpan();
         var result = framing.Decode(chunk, out _);
         Assert.False(result.EndOfBody);
         Assert.True(reader.TryEnqueue(result.Body));
@@ -45,7 +44,7 @@ public sealed class FramingDecoderQueuedReaderSpec
         Assert.Equal("hello"u8.ToArray(), readResult.Memory.ToArray());
         reader.AdvanceTo();
 
-        var terminator = Encoding.ASCII.GetBytes("0\r\n\r\n").AsSpan();
+        var terminator = "0\r\n\r\n"u8.ToArray().AsSpan();
         var result2 = framing.Decode(terminator, out _);
         Assert.True(result2.EndOfBody);
         reader.Complete();

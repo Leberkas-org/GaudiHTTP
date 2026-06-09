@@ -17,6 +17,6 @@ public sealed class Expect100Options
 
     internal Expect100Policy To() => new()
     {
-        MinBodySizeBytes = MinBodySize,
+        MinBodySizeBytes = MinBodySize
     };
 }

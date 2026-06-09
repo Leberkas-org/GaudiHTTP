@@ -1,9 +1,7 @@
 using System.Text;
-using Akka.Actor;
 using Akka.TestKit.Xunit;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
-using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http10.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;

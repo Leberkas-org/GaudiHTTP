@@ -4,5 +4,5 @@ internal enum DecodeOutcome
 {
     NeedMore,
     HeadersReady,
-    Complete,
+    Complete
 }

@@ -137,7 +137,7 @@ internal sealed class CookieJar(ICookieStore store)
     {
         SameSitePolicy.Strict => false,
         SameSitePolicy.Lax => isSafeMethod,
-        _ => true,
+        _ => true
     };
 
     /// <summary>

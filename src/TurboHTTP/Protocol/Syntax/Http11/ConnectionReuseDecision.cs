@@ -46,7 +46,7 @@ internal sealed class ConnectionReuseDecision
             return KeepAliveCache.GetOrAdd(reason, static r => new ConnectionReuseDecision
             {
                 CanReuse = true,
-                Reason = r,
+                Reason = r
             });
         }
 
@@ -55,7 +55,7 @@ internal sealed class ConnectionReuseDecision
             CanReuse = true,
             Reason = reason,
             KeepAliveTimeout = keepAliveTimeout,
-            MaxRequests = maxRequests,
+            MaxRequests = maxRequests
         };
     }
 

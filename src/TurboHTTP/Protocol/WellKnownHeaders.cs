@@ -811,7 +811,7 @@ internal static class WellKnownHeaders
             25 => EqualsIgnoreCase(name, StrictTransportSecurity)
                 ? StrictTransportSecurity
                 : new WellKnownHeader(name),
-            _ => new WellKnownHeader(name),
+            _ => new WellKnownHeader(name)
         };
 
     internal static bool EqualsIgnoreCase(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)

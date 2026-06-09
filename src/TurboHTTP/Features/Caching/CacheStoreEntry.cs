@@ -118,7 +118,7 @@ public sealed record CacheControlStoreEntry
         Immutable = Immutable,
         MustUnderstand = MustUnderstand,
         NoCacheFields = NoCacheFields,
-        PrivateFields = PrivateFields,
+        PrivateFields = PrivateFields
     };
 
     internal static CacheControlStoreEntry FromCacheControl(CacheControl cc) => new()
@@ -138,6 +138,6 @@ public sealed record CacheControlStoreEntry
         Immutable = cc.Immutable,
         MustUnderstand = cc.MustUnderstand,
         NoCacheFields = cc.NoCacheFields?.ToArray() ?? [],
-        PrivateFields = cc.PrivateFields?.ToArray() ?? [],
+        PrivateFields = cc.PrivateFields?.ToArray() ?? []
     };
 }

@@ -114,7 +114,7 @@ internal static class QpackStaticTable
         ("user-agent", string.Empty), // [95]
         ("x-forwarded-for", string.Empty), // [96]
         ("x-frame-options", "deny"), // [97]
-        ("x-frame-options", "sameorigin"), // [98]
+        ("x-frame-options", "sameorigin") // [98]
     ];
 
     /// <summary>

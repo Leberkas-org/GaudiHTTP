@@ -7,7 +7,7 @@ internal enum BodyFraming
     None,
     Length,
     Chunked,
-    Close,
+    Close
 }
 
 internal readonly struct BodyClassification(BodyFraming framing, long? contentLength)

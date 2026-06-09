@@ -176,7 +176,7 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
             Path = ParsePath(_target),
             QueryString = ParseQueryString(_target),
             RawTarget = _target,
-            Body = body,
+            Body = body
         };
 
         // Populate directly into the feature's header dictionary, avoiding a throwaway

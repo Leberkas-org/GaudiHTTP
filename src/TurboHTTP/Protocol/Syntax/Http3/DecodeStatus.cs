@@ -9,5 +9,5 @@ internal enum DecodeStatus
     Success,
 
     /// <summary>Not enough data to decode a complete frame; feed more bytes.</summary>
-    NeedMoreData,
+    NeedMoreData
 }

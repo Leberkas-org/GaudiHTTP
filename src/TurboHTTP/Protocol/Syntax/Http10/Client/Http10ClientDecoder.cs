@@ -221,7 +221,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
         {
             Version = _version,
             ReasonPhrase = _reason,
-            Content = content,
+            Content = content
         };
         HeaderRouter.ApplyToResponse(msg, _headerReader.GetHeaders());
         _response = msg;

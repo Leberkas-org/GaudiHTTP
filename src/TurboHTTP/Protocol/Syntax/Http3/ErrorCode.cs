@@ -22,6 +22,6 @@ internal enum ErrorCode : uint
     RequestIncomplete = 0x10d,
     MessageError = 0x10e,
     ConnectError = 0x10f,
-    VersionFallback = 0x110,
+    VersionFallback = 0x110
 }
 

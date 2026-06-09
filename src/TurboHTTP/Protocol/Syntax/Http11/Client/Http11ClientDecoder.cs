@@ -214,7 +214,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
         {
             Version = _version,
             ReasonPhrase = _reason,
-            Content = content,
+            Content = content
         };
         HeaderRouter.ApplyToResponse(msg, _headerReader.GetHeaders());
         if (_framingDecoder?.Trailers is { Count: > 0 } trailers)

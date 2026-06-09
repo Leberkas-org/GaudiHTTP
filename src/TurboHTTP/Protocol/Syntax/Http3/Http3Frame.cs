@@ -24,7 +24,7 @@ internal enum FrameType : long
     Settings = 0x04,
     PushPromise = 0x05,
     GoAway = 0x06,
-    MaxPushId = 0x0d,
+    MaxPushId = 0x0d
 }
 
 internal abstract class Http3Frame

@@ -12,7 +12,7 @@ internal static class HttpMessageSize
     {
         AutoHost = true,
         AutoAcceptEncoding = true,
-        ChunkSize = 16 * 1024,
+        ChunkSize = 16 * 1024
     };
 
     public static int Estimate(HttpRequestMessage request, int bodyLength)

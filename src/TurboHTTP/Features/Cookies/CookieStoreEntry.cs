@@ -15,7 +15,7 @@ public enum SameSitePolicy
     Lax,
 
     /// <summary>The cookie is sent in all contexts, including cross-site. Requires the Secure attribute.</summary>
-    None,
+    None
 }
 
 /// <summary>

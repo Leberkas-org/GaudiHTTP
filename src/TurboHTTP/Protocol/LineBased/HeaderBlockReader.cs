@@ -5,7 +5,7 @@ namespace TurboHTTP.Protocol.LineBased;
 internal enum HeaderBlockResult
 {
     NeedMore,
-    Complete,
+    Complete
 }
 
 internal sealed class HeaderBlockReader(int maxHeaderBytes, int maxHeaderCount, int maxLineLength, bool allowObsFold)

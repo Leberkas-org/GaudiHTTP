@@ -483,7 +483,7 @@ internal sealed class QpackEncoder
         LiteralWithDynamicName,
         LiteralWithStaticNameNeverIndex,
         LiteralNeverIndex,
-        Literal,
+        Literal
     }
 
     private struct HeaderEncodingEntry
