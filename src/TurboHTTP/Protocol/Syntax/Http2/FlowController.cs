@@ -73,10 +73,8 @@ internal sealed class FlowController : IFlowController<int>
     public void OnDataSent(int streamId, int length)
     {
         _connectionSendWindow -= length;
-        if (_streamSendWindows.TryGetValue(streamId, out var current))
-        {
-            _streamSendWindows[streamId] = current - length;
-        }
+        _streamSendWindows.TryAdd(streamId, _initialSendStreamWindow);
+        _streamSendWindows[streamId] -= length;
     }
 
     public void OnSendWindowUpdate(int streamId, int increment)
