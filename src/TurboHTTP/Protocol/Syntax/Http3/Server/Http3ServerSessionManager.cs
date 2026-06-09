@@ -196,6 +196,18 @@ internal sealed class Http3ServerSessionManager
             return;
         }
 
+        if (turboBody.TryGetBufferedBody(out var bufferedBody))
+        {
+            if (bufferedBody.Length > 0)
+            {
+                EmitDataFrame(new DataFrame(bufferedBody), streamId);
+            }
+
+            _ops.OnOutbound(new CompleteWrites(streamId));
+            CloseStream(streamId);
+            return;
+        }
+
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
         StartStreamBodyDrain(streamId, bodyStream, contentLength);

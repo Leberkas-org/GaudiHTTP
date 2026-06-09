@@ -285,6 +285,27 @@ internal sealed class Http2ServerSessionManager
             return;
         }
 
+        if (turboBody.TryGetBufferedBody(out var bufferedBody))
+        {
+            if (bufferedBody.Length > 0)
+            {
+                var window = _flow.GetSendWindow(streamId);
+                if (window >= (int)bufferedBody.Length)
+                {
+                    EmitFrame(new DataFrame(streamId, bufferedBody, endStream: true));
+                    _flow.OnDataSent(streamId, (int)bufferedBody.Length);
+                    CloseStream(streamId);
+                    return;
+                }
+            }
+            else
+            {
+                EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+                CloseStream(streamId);
+                return;
+            }
+        }
+
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
         StartStreamBodyDrain(streamId, bodyStream, contentLength);

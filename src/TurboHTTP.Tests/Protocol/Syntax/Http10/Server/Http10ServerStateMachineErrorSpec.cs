@@ -95,7 +95,13 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
         sm.PreStart();
 
-        var context = await CreateResponseContextWithBody("hello");
+        var context = CreateResponseContext();
+        var bodyFeature = (TurboHttpResponseBodyFeature)context.Get<IHttpResponseBodyFeature>()!;
+        bodyFeature.UpgradeToPipe();
+        var bytes = Encoding.ASCII.GetBytes("hello");
+        await bodyFeature.Writer.WriteAsync(bytes);
+        await bodyFeature.Writer.CompleteAsync();
+
         sm.OnResponse(context);
 
         // Receive the first ResponseBodyReadComplete message but do NOT dispatch it —

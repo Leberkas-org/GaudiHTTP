@@ -109,6 +109,16 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         var responseBody = features.Get<IHttpResponseBodyFeature>();
         if (responseBody is TurboHttpResponseBodyFeature turboBody)
         {
+            if (turboBody.TryGetBufferedBody(out var bufferedBody))
+            {
+                if (bufferedBody.Length > 0)
+                {
+                    EncodeDeferredResponse(bufferedBody.Span);
+                }
+
+                return;
+            }
+
             var bodyStream = turboBody.GetResponseStream();
             if (bodyStream is not null)
             {
