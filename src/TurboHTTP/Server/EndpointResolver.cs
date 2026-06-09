@@ -195,6 +195,7 @@ internal sealed class EndpointResolver
         var alpn = protocols.ToAlpnProtocols();
         var httpsOptions = listen.HttpsOptions;
 
+        var transport = listen.Transport ?? TransportBufferOptions.TcpDefaults;
         var tcpOptions = new TcpListenerOptions
         {
             Host = listen.Address.ToString(),
@@ -206,6 +207,10 @@ internal sealed class EndpointResolver
             HandshakeTimeout = httpsOptions?.HandshakeTimeout ?? TimeSpan.FromSeconds(10),
             ClientCertificateMode = httpsOptions?.ClientCertificateMode ?? ClientCertificateMode.NoCertificate,
             ServerCertificateSelector = httpsOptions?.ServerCertificateSelector,
+            InputPauseThreshold = transport.InputPauseThreshold,
+            InputResumeThreshold = transport.InputResumeThreshold,
+            OutputPauseThreshold = transport.OutputPauseThreshold,
+            OutputResumeThreshold = transport.OutputResumeThreshold,
         };
 
         return new ListenerBinding
@@ -218,6 +223,7 @@ internal sealed class EndpointResolver
 
     private static ListenerBinding CreateQuicBinding(TurboListenOptions listen, X509Certificate2 certificate)
     {
+        var transport = listen.Transport ?? TransportBufferOptions.QuicDefaults;
         var quicOptions = new QuicListenerOptions
         {
             Host = listen.Address.ToString(),
@@ -226,7 +232,11 @@ internal sealed class EndpointResolver
             ApplicationProtocols = [SslApplicationProtocol.Http3],
             EnabledSslProtocols = listen.HttpsOptions?.EnabledSslProtocols ??
                                   SslProtocols.None,
-            ClientCertificateValidationCallback = listen.HttpsOptions?.ClientCertificateValidationCallback
+            ClientCertificateValidationCallback = listen.HttpsOptions?.ClientCertificateValidationCallback,
+            InputPauseThreshold = transport.InputPauseThreshold,
+            InputResumeThreshold = transport.InputResumeThreshold,
+            OutputPauseThreshold = transport.OutputPauseThreshold,
+            OutputResumeThreshold = transport.OutputResumeThreshold,
         };
 
         return new ListenerBinding
