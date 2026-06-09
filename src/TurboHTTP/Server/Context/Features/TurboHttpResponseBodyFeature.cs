@@ -10,7 +10,7 @@ namespace TurboHTTP.Server.Context.Features;
 internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 {
     private Pipe? _pipe;
-    private ArrayBufferWriter<byte> _bufferWriter = new();
+    private ArrayBufferWriter<byte> _bufferWriter = FeatureCollectionFactory.RentBuffer();
     private ResponsePipeWriter _writer;
     private Stream? _stream;
     private Sink<ReadOnlyMemory<byte>, Task>? _bodySink;
