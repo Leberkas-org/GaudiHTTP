@@ -365,7 +365,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
     private void ReadNextResponseChunk()
     {
-        var mem = _activeResponseBodyWriter!.GetMemory();
+        var mem = _activeResponseBodyWriter!.GetMemory(_bodyEncoderOptions.ChunkSize);
         var vt = _activeResponseBodyStream!.ReadAsync(mem);
         if (vt.IsCompletedSuccessfully)
         {

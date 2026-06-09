@@ -145,14 +145,8 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
             case StreamingSlotFreed:
                 break;
 
-            case BodyReadComplete { BytesRead: > 0 } read:
-                _currentBodyWriter!.Advance(read.BytesRead);
-                _currentBodyWriter.FlushAsync();
-                ReadNextChunk();
-                break;
-
-            case BodyReadComplete { BytesRead: 0 }:
-                _currentBodyWriter!.CompleteAsync();
+            case BodyReadComplete read:
+                HandleBodyRead(read.BytesRead);
                 break;
 
             case BodyReadFailed failed:
@@ -280,11 +274,25 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
 
     private void ReadNextChunk()
     {
-        var mem = _currentBodyWriter!.GetMemory();
-        _currentBodyStream!.ReadAsync(mem).AsTask().PipeTo(
+        var mem = _currentBodyWriter!.GetMemory(_options.RequestBodyChunkSize);
+        _currentBodyStream!.ReadAsync(mem).PipeTo(
             _ops.StageActor,
             success: bytesRead => new BodyReadComplete(bytesRead),
             failure: ex => new BodyReadFailed(ex));
+    }
+
+    private void HandleBodyRead(int bytesRead)
+    {
+        if (bytesRead > 0)
+        {
+            _currentBodyWriter!.Advance(bytesRead);
+            _currentBodyWriter.FlushAsync();
+            ReadNextChunk();
+        }
+        else
+        {
+            _currentBodyWriter!.CompleteAsync();
+        }
     }
 
     private void DecodeResponse(TransportBuffer buffer)
