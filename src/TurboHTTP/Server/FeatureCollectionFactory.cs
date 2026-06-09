@@ -1,3 +1,4 @@
+using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Server.Context.Features;
 
@@ -6,6 +7,7 @@ namespace TurboHTTP.Server;
 internal static class FeatureCollectionFactory
 {
     [ThreadStatic] private static Stack<TurboFeatureCollection>? _tPool;
+    [ThreadStatic] private static Stack<ArrayBufferWriter<byte>>? _bufferPool;
 
     private const int MaxPoolSize = 32;
 
@@ -135,6 +137,28 @@ internal static class FeatureCollectionFactory
         if (_tPool.Count < MaxPoolSize)
         {
             _tPool.Push(turboFeatures);
+        }
+    }
+
+    internal static ArrayBufferWriter<byte> RentBuffer()
+    {
+        if ((_bufferPool?.Count ?? 0) > 0)
+        {
+            var buf = _bufferPool!.Pop();
+            buf.ResetWrittenCount();
+            return buf;
+        }
+
+        return new ArrayBufferWriter<byte>();
+    }
+
+    internal static void ReturnBuffer(ArrayBufferWriter<byte> buffer)
+    {
+        buffer.ResetWrittenCount();
+        _bufferPool ??= new Stack<ArrayBufferWriter<byte>>(MaxPoolSize);
+        if (_bufferPool.Count < MaxPoolSize)
+        {
+            _bufferPool.Push(buffer);
         }
     }
 }
