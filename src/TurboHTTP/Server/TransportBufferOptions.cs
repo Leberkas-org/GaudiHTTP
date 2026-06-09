@@ -33,12 +33,20 @@ public sealed class TransportBufferOptions
     /// </summary>
     public long OutputResumeThreshold { get; set; } = 32 * 1024;
 
+    /// <summary>
+    /// The minimum size of each buffer segment allocated by the pipe's memory pool.
+    /// Larger values reduce segment count but increase per-pipe memory.
+    /// Default: TCP = 16 KiB, QUIC = 4 KiB (one pipe per stream).
+    /// </summary>
+    public int MinimumSegmentSize { get; set; } = 16 * 1024;
+
     internal static TransportBufferOptions TcpDefaults => new()
     {
         InputPauseThreshold = 1024 * 1024,
         InputResumeThreshold = 512 * 1024,
         OutputPauseThreshold = 64 * 1024,
         OutputResumeThreshold = 32 * 1024,
+        MinimumSegmentSize = 16 * 1024,
     };
 
     internal static TransportBufferOptions QuicDefaults => new()
@@ -47,5 +55,6 @@ public sealed class TransportBufferOptions
         InputResumeThreshold = 32 * 1024,
         OutputPauseThreshold = 64 * 1024,
         OutputResumeThreshold = 32 * 1024,
+        MinimumSegmentSize = 4 * 1024,
     };
 }
