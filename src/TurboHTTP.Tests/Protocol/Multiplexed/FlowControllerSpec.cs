@@ -115,4 +115,56 @@ public sealed class FlowControllerSpec
 
         Assert.Null(ex);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9")]
+    public void OnDataSent_should_decrement_stream_send_window()
+    {
+        var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
+
+        fc.OnDataSent(1, 10000);
+
+        var window = fc.GetSendWindow(1);
+        Assert.Equal(65535 - 10000, window);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9")]
+    public void OnDataSent_should_decrement_connection_window_across_all_streams()
+    {
+        var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
+
+        fc.OnDataSent(1, 30000);
+        fc.OnDataSent(3, 20000);
+
+        var freshStreamWindow = fc.GetSendWindow(99);
+        Assert.Equal(65535 - 50000, freshStreamWindow);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9")]
+    public void GetSendWindow_should_return_min_of_connection_and_stream_window()
+    {
+        var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
+
+        fc.OnDataSent(1, 60000);
+
+        var window = fc.GetSendWindow(1);
+        Assert.Equal(65535 - 60000, window);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9")]
+    public void OnDataSent_followed_by_window_update_should_restore_send_capacity()
+    {
+        var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
+
+        fc.OnDataSent(1, 65535);
+        Assert.Equal(0, fc.GetSendWindow(1));
+
+        fc.OnSendWindowUpdate(0, 32768);
+        fc.OnSendWindowUpdate(1, 32768);
+
+        Assert.Equal(32768, fc.GetSendWindow(1));
+    }
 }
