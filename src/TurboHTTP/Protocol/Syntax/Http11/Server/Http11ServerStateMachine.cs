@@ -391,10 +391,16 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         if (body.Length > 0)
         {
-            var dest = writer.GetMemory(body.Length);
-            body.Span.CopyTo(dest.Span);
-            writer.Advance(body.Length);
-            writer.FlushAsync();
+            var remaining = body;
+            while (remaining.Length > 0)
+            {
+                var take = Math.Min(remaining.Length, _bodyEncoderOptions.ChunkSize);
+                var dest = writer.GetMemory(take);
+                remaining.Span[..take].CopyTo(dest.Span);
+                writer.Advance(take);
+                writer.FlushAsync();
+                remaining = remaining[take..];
+            }
         }
 
         writer.CompleteAsync();
