@@ -38,7 +38,7 @@ public sealed class AdaptiveWindowScalingSpec : End2EndSpecBase
             while (remaining > 0)
             {
                 var toWrite = Math.Min(buffer.Length, remaining);
-                await ctx.Response.Body.WriteAsync(buffer.AsMemory(0, toWrite), CancellationToken);
+                await ctx.Response.Body.WriteAsync(buffer.AsMemory(0, toWrite), ctx.RequestAborted);
                 remaining -= toWrite;
             }
         });

@@ -15,9 +15,9 @@ public sealed class MultiplexingSpec : End2EndSpecBase
     {
         app.MapGet("/id/{id}", (int id) => Results.Ok(id));
 
-        app.MapGet("/delay/{ms}", async (int ms) =>
+        app.MapGet("/delay/{ms}", async (int ms, HttpContext ctx) =>
         {
-            await Task.Delay(ms, CancellationToken);
+            await Task.Delay(ms, ctx.RequestAborted);
             return Results.Ok(ms);
         });
     }
