@@ -33,9 +33,12 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
     private IFeatureCollection? _deferredFeatures;
     private BufferedBodyWriter? _activeBodyWriter;
     private Stream? _activeBodyStream;
+    private bool _bodyStreaming;
+    private IStreamingBodyReader? _activeStreamingReader;
 
     public bool CanAcceptResponse => true;
     public bool ShouldComplete { get; private set; }
+    public bool ShouldPauseNetwork => _activeStreamingReader?.IsFull ?? false;
 
     public int MaxQueuedRequests => 1;
 
@@ -73,7 +76,30 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
                 return;
             }
 
-            var outcome = _decoder.Feed(buffer.Memory, out _);
+            var pos = 0;
+
+            if (_bodyStreaming && _decoder.StreamingReader is not null)
+            {
+                var outcome = _decoder.Feed(buffer.Memory[pos..], out var bodyConsumed);
+                pos += bodyConsumed;
+                if (_decoder.LastBodyBytesConsumed > 0)
+                {
+                    _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());
+                    EnsureRateTimer();
+                }
+
+                if (outcome == DecodeOutcome.Complete)
+                {
+                    _bodyStreaming = false;
+                    _activeStreamingReader = null;
+                    _requestRate.Remove(0);
+                }
+
+                return;
+            }
+
+            var result = _decoder.Feed(buffer.Memory[pos..], out var consumed);
+            pos += consumed;
 
             if (_decoder.LastBodyBytesConsumed > 0)
             {
@@ -81,14 +107,49 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
                 EnsureRateTimer();
             }
 
-            if (outcome == DecodeOutcome.Complete)
+            if (result == DecodeOutcome.Complete || result == DecodeOutcome.HeadersReady)
             {
                 var feature = _decoder.GetRequestFeature();
-                var hasBody = feature.Body != Stream.Null;
+                var hasBody = result == DecodeOutcome.HeadersReady || feature.Body != Stream.Null;
                 var features = FeatureCollectionFactory.Create(feature, hasBody, _ops.Services, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
-                _requestRate.Remove(0);
+
+                if (result != DecodeOutcome.HeadersReady)
+                {
+                    _requestRate.Remove(0);
+                }
+
                 _ops.OnRequest(features);
+
+                if (result == DecodeOutcome.HeadersReady)
+                {
+                    _bodyStreaming = true;
+
+                    if (_decoder.StreamingReader is { } sr && _activeStreamingReader is null)
+                    {
+                        _activeStreamingReader = sr;
+                        sr.SlotFreed += () =>
+                            _ops.StageActor.Tell(new BodyResumed(), ActorRefs.NoSender);
+                    }
+
+                    if (pos < buffer.Memory.Length)
+                    {
+                        var bodyOutcome = _decoder.Feed(buffer.Memory[pos..], out var bodyConsumed);
+                        pos += bodyConsumed;
+                        if (_decoder.LastBodyBytesConsumed > 0)
+                        {
+                            _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());
+                            EnsureRateTimer();
+                        }
+
+                        if (bodyOutcome == DecodeOutcome.Complete)
+                        {
+                            _bodyStreaming = false;
+                            _activeStreamingReader = null;
+                            _requestRate.Remove(0);
+                        }
+                    }
+                }
             }
         }
         catch (Exception ex)
@@ -256,11 +317,16 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         }
     }
 
+    public void ResumeBody()
+    {
+    }
+
     public void Cleanup()
     {
         _activeBodyWriter?.Dispose();
         _activeBodyWriter = null;
         _activeBodyStream = null;
+        _activeStreamingReader = null;
         _deferredFeatures = null;
         _ops.OnCancelTimer(DataRateCheck);
     }
