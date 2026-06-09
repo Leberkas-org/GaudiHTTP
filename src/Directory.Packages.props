@@ -30,6 +30,4 @@
     <PackageVersion Include="OpenTelemetry.Api.ProviderBuilderExtensions" Version="1.15.3" />
     <PackageVersion Include="OpenTelemetry" Version="1.15.3" />
   </ItemGroup>
-  <ItemGroup Label="ASP.NET Core Server">
-  </ItemGroup>
 </Project>
