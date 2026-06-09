@@ -16,9 +16,9 @@ public sealed class ResilienceSpec : End2EndSpecBase
     {
         app.MapGet("/fast", () => Results.Text("ok"));
 
-        app.MapGet("/slow", async () =>
+        app.MapGet("/slow", async (HttpContext ctx) =>
         {
-            await Task.Delay(30000, CancellationToken);
+            await Task.Delay(30000, ctx.RequestAborted);
             return Results.Ok("done");
         });
 

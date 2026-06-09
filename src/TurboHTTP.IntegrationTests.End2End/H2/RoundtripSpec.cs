@@ -18,14 +18,14 @@ public sealed class RoundtripSpec : End2EndSpecBase
         app.MapPost("/echo", async (HttpContext ctx) =>
         {
             using var reader = new StreamReader(ctx.Request.Body);
-            var body = await reader.ReadToEndAsync(CancellationToken);
+            var body = await reader.ReadToEndAsync(ctx.RequestAborted);
             return Results.Ok(body);
         });
 
         app.MapPut("/put-echo", async (HttpContext ctx) =>
         {
             using var reader = new StreamReader(ctx.Request.Body);
-            var body = await reader.ReadToEndAsync(CancellationToken);
+            var body = await reader.ReadToEndAsync(ctx.RequestAborted);
             return Results.Ok(body);
         });
 

@@ -15,10 +15,10 @@ public sealed class DataRateEnforcementSpec : End2EndSpecBase
         app.MapPost("/echo-bytes", async ctx =>
         {
             using var stream = new MemoryStream();
-            await ctx.Request.Body.CopyToAsync(stream, CancellationToken);
+            await ctx.Request.Body.CopyToAsync(stream, ctx.RequestAborted);
             var data = stream.ToArray();
             ctx.Response.ContentType = "application/octet-stream";
-            await ctx.Response.Body.WriteAsync(data, CancellationToken);
+            await ctx.Response.Body.WriteAsync(data, ctx.RequestAborted);
         });
 
         app.MapGet("/generate", async ctx =>
@@ -31,7 +31,7 @@ public sealed class DataRateEnforcementSpec : End2EndSpecBase
             while (remaining > 0)
             {
                 var toWrite = Math.Min(buffer.Length, remaining);
-                await ctx.Response.Body.WriteAsync(buffer.AsMemory(0, toWrite), CancellationToken);
+                await ctx.Response.Body.WriteAsync(buffer.AsMemory(0, toWrite), ctx.RequestAborted);
                 remaining -= toWrite;
             }
         });

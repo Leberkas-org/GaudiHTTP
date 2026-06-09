@@ -16,8 +16,8 @@ public sealed class StreamingSpec : End2EndSpecBase
         {
             for (var i = 0; i < 5; i++)
             {
-                await ctx.Response.WriteAsync($"chunk-{i}\n", CancellationToken);
-                await ctx.Response.Body.FlushAsync(CancellationToken);
+                await ctx.Response.WriteAsync($"chunk-{i}\n", ctx.RequestAborted);
+                await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
             }
         });
 
@@ -26,8 +26,8 @@ public sealed class StreamingSpec : End2EndSpecBase
             ctx.Response.ContentType = "text/event-stream";
             for (var i = 0; i < 3; i++)
             {
-                await ctx.Response.WriteAsync($"data: event-{i}\n\n", CancellationToken);
-                await ctx.Response.Body.FlushAsync(CancellationToken);
+                await ctx.Response.WriteAsync($"data: event-{i}\n\n", ctx.RequestAborted);
+                await ctx.Response.Body.FlushAsync(ctx.RequestAborted);
             }
         });
     }

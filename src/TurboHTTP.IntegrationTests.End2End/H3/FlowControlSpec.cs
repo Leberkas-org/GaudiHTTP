@@ -15,10 +15,10 @@ public sealed class FlowControlSpec : End2EndSpecBase
         app.MapPost("/echo-bytes", async ctx =>
         {
             using var stream = new MemoryStream();
-            await ctx.Request.Body.CopyToAsync(stream, CancellationToken);
+            await ctx.Request.Body.CopyToAsync(stream, ctx.RequestAborted);
             var data = stream.ToArray();
             ctx.Response.ContentType = "application/octet-stream";
-            await ctx.Response.Body.WriteAsync(data, CancellationToken);
+            await ctx.Response.Body.WriteAsync(data, ctx.RequestAborted);
         });
 
         app.MapGet("/generate-large", async ctx =>
@@ -28,7 +28,7 @@ public sealed class FlowControlSpec : End2EndSpecBase
             Array.Fill(buffer, (byte)0xCD);
             for (var i = 0; i < 64; i++)
             {
-                await ctx.Response.Body.WriteAsync(buffer, CancellationToken);
+                await ctx.Response.Body.WriteAsync(buffer, ctx.RequestAborted);
             }
         });
     }
