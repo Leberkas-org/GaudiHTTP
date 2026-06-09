@@ -186,7 +186,12 @@ internal sealed class Http3ClientSessionManager
         }
 
         Tracing.For("Protocol").Trace(this, "HTTP/3: request body chunk (stream={0}, bytes={1})", read.StreamId, read.BytesRead);
-        var buffer = _activeBodyBuffers[read.StreamId];
+        if (!_activeBodyBuffers.TryGetValue(read.StreamId, out var buffer))
+        {
+            CleanupBodyDrain(read.StreamId);
+            return;
+        }
+
         var data = buffer.Memory[..read.BytesRead];
 
         var dataFrame = new DataFrame(data);
