@@ -444,6 +444,11 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
 
+    void IServerStageOperations.OnResponseBodyComplete(IFeatureCollection features)
+    {
+        FeatureCollectionFactory.Return(features);
+    }
+
     private void TryPushRequest()
     {
         if (_requestQueue.Count > 0 && IsAvailable(_outRequest))
