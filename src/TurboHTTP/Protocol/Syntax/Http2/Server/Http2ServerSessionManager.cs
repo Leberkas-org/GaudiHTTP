@@ -292,7 +292,15 @@ internal sealed class Http2ServerSessionManager
                 var window = _flow.GetSendWindow(streamId);
                 if (window >= (int)bufferedBody.Length)
                 {
-                    EmitFrame(new DataFrame(streamId, bufferedBody, endStream: true));
+                    var maxFrame = _responseEncoder.MaxFrameSize;
+                    var remaining = bufferedBody;
+                    while (remaining.Length > maxFrame)
+                    {
+                        EmitFrame(new DataFrame(streamId, remaining[..maxFrame], endStream: false));
+                        remaining = remaining[maxFrame..];
+                    }
+
+                    EmitFrame(new DataFrame(streamId, remaining, endStream: true));
                     _flow.OnDataSent(streamId, (int)bufferedBody.Length);
                     CloseStream(streamId);
                     return;
