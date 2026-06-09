@@ -128,11 +128,37 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
     private void ReadNextResponseChunk()
     {
-        var mem = _activeBodyWriter!.GetMemory();
-        _activeBodyStream!.ReadAsync(mem).PipeTo(
+        var mem = _activeBodyWriter!.GetMemory(16 * 1024);
+        var vt = _activeBodyStream!.ReadAsync(mem);
+        if (vt.IsCompletedSuccessfully)
+        {
+            HandleResponseBodyRead(vt.Result);
+            return;
+        }
+
+        vt.PipeTo(
             _ops.StageActor,
             success: bytesRead => new ResponseBodyReadComplete(bytesRead),
             failure: ex => new ResponseBodyReadFailed(ex));
+    }
+
+    private void HandleResponseBodyRead(int bytesRead)
+    {
+        if (bytesRead > 0)
+        {
+            _responseRate.Observe(0, bytesRead, Now());
+            EnsureRateTimer();
+            if (_activeBodyWriter is not null)
+            {
+                _activeBodyWriter.Advance(bytesRead);
+                _activeBodyWriter.FlushAsync();
+                ReadNextResponseChunk();
+            }
+        }
+        else
+        {
+            _activeBodyWriter?.CompleteAsync();
+        }
     }
 
     public void OnDownstreamFinished()
@@ -167,20 +193,8 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
     {
         switch (msg)
         {
-            case ResponseBodyReadComplete { BytesRead: > 0 } read:
-                _responseRate.Observe(0, read.BytesRead, Now());
-                EnsureRateTimer();
-                if (_activeBodyWriter is not null)
-                {
-                    _activeBodyWriter.Advance(read.BytesRead);
-                    _activeBodyWriter.FlushAsync();
-                    ReadNextResponseChunk();
-                }
-
-                break;
-
-            case ResponseBodyReadComplete { BytesRead: 0 }:
-                _activeBodyWriter?.CompleteAsync();
+            case ResponseBodyReadComplete read:
+                HandleResponseBodyRead(read.BytesRead);
                 break;
 
             case ResponseBodyBuffered bufferDone:

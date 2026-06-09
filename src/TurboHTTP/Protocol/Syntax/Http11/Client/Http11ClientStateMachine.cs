@@ -247,19 +247,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
                 break;
 
-            case BodyReadComplete { BytesRead: > 0 } read:
-                _currentWriter!.Advance(read.BytesRead);
-                _currentWriter.FlushAsync();
-                Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", read.BytesRead);
-                ReadNextChunk();
-                break;
-
-            case BodyReadComplete { BytesRead: 0 }:
-                _currentWriter!.CompleteAsync();
-                _outboundBodyPending = false;
-                _currentWriter = null;
-                _currentBodyStream = null;
-                Tracing.For("Protocol").Debug(this, "request body complete");
+            case BodyReadComplete read:
+                HandleBodyRead(read.BytesRead);
                 break;
 
             case BodyReadFailed failed:
@@ -424,11 +413,30 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
     private void ReadNextChunk()
     {
-        var mem = _currentWriter!.GetMemory();
-        _currentBodyStream!.ReadAsync(mem).AsTask().PipeTo(
+        var mem = _currentWriter!.GetMemory(_options.RequestBodyChunkSize);
+        _currentBodyStream!.ReadAsync(mem).PipeTo(
             _ops.StageActor,
             success: bytesRead => new BodyReadComplete(bytesRead),
             failure: ex => new BodyReadFailed(ex));
+    }
+
+    private void HandleBodyRead(int bytesRead)
+    {
+        if (bytesRead > 0)
+        {
+            _currentWriter!.Advance(bytesRead);
+            _currentWriter.FlushAsync();
+            Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", bytesRead);
+            ReadNextChunk();
+        }
+        else
+        {
+            _currentWriter!.CompleteAsync();
+            _outboundBodyPending = false;
+            _currentWriter = null;
+            _currentBodyStream = null;
+            Tracing.For("Protocol").Debug(this, "request body complete");
+        }
     }
 
     private void HandleDisconnect(TransportDisconnected disconnect)
