@@ -51,6 +51,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     private readonly ConnectionBodyPool _pool = new();
     private IBodyWriter? _activeResponseBodyWriter;
     private Stream? _activeResponseBodyStream;
+    private IFeatureCollection? _activeResponseFeatures;
 
     internal readonly record struct ResponseBodyReadComplete(int BytesRead);
     internal readonly record struct ResponseBodyReadFailed(Exception Reason);
@@ -328,6 +329,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         if (responseBody is TurboHttpResponseBodyFeature turboBody)
         {
             _outboundBodyPending = true;
+            _activeResponseFeatures = features;
             Tracing.For("Protocol").Debug(this, "response body writer starting (chunked={0})", isChunked);
 
             var bodyStream = turboBody.GetResponseStream();
@@ -395,6 +397,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             _activeResponseBodyWriter = null;
             _activeResponseBodyStream = null;
             _responseRate.Remove(0);
+            if (_activeResponseFeatures is not null)
+            {
+                _ops.OnResponseBodyComplete(_activeResponseFeatures);
+                _activeResponseFeatures = null;
+            }
+
             Tracing.For("Protocol").Debug(this, "response body complete");
             if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
             {

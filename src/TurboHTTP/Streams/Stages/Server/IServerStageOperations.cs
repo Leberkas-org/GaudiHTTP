@@ -19,4 +19,5 @@ internal interface IServerStageOperations
     IServiceProvider? Services => null;
     TurboHttpConnectionFeature? ConnectionFeature => null;
     TlsHandshakeFeature? TlsHandshakeFeature => null;
+    void OnResponseBodyComplete(IFeatureCollection features) { }
 }
