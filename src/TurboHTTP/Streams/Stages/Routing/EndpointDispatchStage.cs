@@ -171,7 +171,7 @@ internal sealed class EndpointDispatchStage
 
             // Wire SubSource → inner flow → SubSink
             Source.FromGraph(_innerSource.Source)
-                .Via(flow.Async())
+                .Via(flow)
                 .RunWith(Sink.FromGraph(_innerSink.Sink), SubFusingMaterializer);
 
             // SubSource: when inner flow pulls, we pull upstream (or push buffered first element)
