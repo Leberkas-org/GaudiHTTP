@@ -798,7 +798,12 @@ internal sealed class Http2ClientSessionManager
             return;
         }
 
-        var buffer = _activeBodyBuffers[read.StreamId];
+        if (!_activeBodyBuffers.TryGetValue(read.StreamId, out var buffer))
+        {
+            CleanupBodyDrain(read.StreamId);
+            return;
+        }
+
         var data = buffer.Memory[..read.BytesRead];
         var window = (int)Math.Min(_flow.GetSendWindow(read.StreamId), int.MaxValue);
 
