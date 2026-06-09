@@ -240,4 +240,36 @@ public sealed class Http2ServerOutboundFrameSplittingSpec
         var totalDataBytes = dataFrames.Sum(df => df.Data.Length);
         Assert.Equal(bodySize, totalDataBytes);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9")]
+    public void DrainOutboundBuffer_should_partial_send_when_window_is_smaller_than_chunk()
+    {
+        var ops = new FakeServerOps();
+        const uint clientMaxFrameSize = 16 * 1024;
+        const int bodySize = 48 * 1024;
+        var sm = CreateSmWithClientMaxFrameSize(ops, clientMaxFrameSize, connectionWindow: bodySize + 65535);
+
+        var features = SendGetAndWriteBufferedBody(sm, ops, streamId: 1, bodySize);
+
+        ops.Outbound.Clear();
+        sm.OnResponse(features);
+
+        var framesBeforeWindowUpdate = ExtractFrames(ops.Outbound);
+        var dataBeforeWindowUpdate = framesBeforeWindowUpdate.OfType<DataFrame>().ToList();
+
+        var totalSentBefore = dataBeforeWindowUpdate.Sum(df => df.Data.Length);
+        Assert.True(totalSentBefore <= 65535, "Should not exceed initial send window of 65535");
+        Assert.True(totalSentBefore > 0, "Should send at least some data within the initial window");
+
+        ops.Outbound.Clear();
+        var windowUpdate = BuildWindowUpdateFrame(1, (uint)bodySize);
+        DecodeFramesAsStream(sm, windowUpdate);
+
+        var framesAfterWindowUpdate = ExtractFrames(ops.Outbound);
+        var dataAfterWindowUpdate = framesAfterWindowUpdate.OfType<DataFrame>().ToList();
+        var totalSentAfter = dataAfterWindowUpdate.Sum(df => df.Data.Length);
+
+        Assert.Equal(bodySize, totalSentBefore + totalSentAfter);
+    }
 }
