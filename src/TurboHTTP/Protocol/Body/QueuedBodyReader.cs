@@ -108,7 +108,6 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
 
         if (ct.CanBeCanceled)
         {
-            var version = _core.Version;
             ct.UnsafeRegister(static (state, token) =>
             {
                 var self = (QueuedBodyReader)state!;
