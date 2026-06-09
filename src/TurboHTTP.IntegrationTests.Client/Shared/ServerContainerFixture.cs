@@ -65,7 +65,11 @@ public sealed class ServerContainerFixture : Xunit.IAsyncLifetime
                 UseShellExecute = false,
                 CreateNoWindow = true
             });
-            if (process is null) return false;
+            if (process is null)
+            {
+                return false;
+            }
+
             await process.WaitForExitAsync(cts.Token);
             return process.ExitCode == 0;
         }

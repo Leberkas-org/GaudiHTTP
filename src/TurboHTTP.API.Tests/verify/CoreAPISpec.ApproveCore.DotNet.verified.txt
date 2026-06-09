@@ -375,6 +375,7 @@ namespace TurboHTTP.Server
     public sealed class Http2ServerOptions
     {
         public Http2ServerOptions() { }
+        public bool EnableAdaptiveWindowScaling { get; set; }
         public int HeaderTableSize { get; set; }
         public int InitialConnectionWindowSize { get; set; }
         public int InitialStreamWindowSize { get; set; }
@@ -386,11 +387,13 @@ namespace TurboHTTP.Server
         public int? MaxHeaderListSize { get; set; }
         public long? MaxRequestBodySize { get; set; }
         public long? MaxResponseBufferSize { get; set; }
+        public int MaxStreamWindowSize { get; set; }
         public double? MinRequestBodyDataRate { get; set; }
         public System.TimeSpan? MinRequestBodyDataRateGracePeriod { get; set; }
         public double? MinResponseDataRate { get; set; }
         public System.TimeSpan? MinResponseDataRateGracePeriod { get; set; }
         public System.TimeSpan? RequestHeadersTimeout { get; set; }
+        public double WindowScaleThresholdMultiplier { get; set; }
     }
     public sealed class Http3ServerOptions
     {
@@ -428,6 +431,15 @@ namespace TurboHTTP.Server
         public required Servus.Akka.Transport.IListenerFactory Factory { get; init; }
         public required Servus.Akka.Transport.ListenerOptions Options { get; init; }
     }
+    public sealed class TransportBufferOptions
+    {
+        public TransportBufferOptions() { }
+        public long InputPauseThreshold { get; set; }
+        public long InputResumeThreshold { get; set; }
+        public int MinimumSegmentSize { get; set; }
+        public long OutputPauseThreshold { get; set; }
+        public long OutputResumeThreshold { get; set; }
+    }
     public sealed class TurboHttpsOptions
     {
         public TurboHttpsOptions() { }
@@ -446,6 +458,7 @@ namespace TurboHTTP.Server
         public System.Net.IPAddress Address { get; }
         public ushort Port { get; }
         public TurboHTTP.Server.HttpProtocols Protocols { get; set; }
+        public TurboHTTP.Server.TransportBufferOptions? Transport { get; set; }
         public void UseConnectionLogging() { }
         public void UseConnectionLogging(string loggerName) { }
         public void UseHttps() { }

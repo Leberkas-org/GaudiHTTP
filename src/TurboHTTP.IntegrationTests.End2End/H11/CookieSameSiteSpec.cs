@@ -22,7 +22,7 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
 
     private string BaseUri { get; set; } = string.Empty;
 
-    private CancellationToken CancellationToken => TestContext.Current.CancellationToken;
+    private static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
     private ITurboHttpClient Client => _client!;
 
@@ -53,7 +53,7 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
 
         _app.MapGet("/cookie/echo", (HttpContext ctx) =>
         {
-            var cookieHeader = ctx.Request.Headers["Cookie"].ToString();
+            var cookieHeader = ctx.Request.Headers.Cookie.ToString();
             var cookies = new Dictionary<string, string>();
 
             if (!string.IsNullOrEmpty(cookieHeader))
@@ -71,7 +71,7 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
             return Results.Json(cookies);
         });
 
-        await _app.StartAsync();
+        await _app.StartAsync(CancellationToken);
 
         var services = new ServiceCollection();
 
@@ -102,7 +102,7 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
 
         if (_app is not null)
         {
-            await _app.StopAsync();
+            await _app.StopAsync(CancellationToken);
             await _app.DisposeAsync();
         }
 
@@ -111,8 +111,8 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
             var system = _clientProvider.GetService<ActorSystem>();
             if (system is not null)
             {
-                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10));
-                await system.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(5));
+                await system.Terminate().WaitAsync(TimeSpan.FromSeconds(10), CancellationToken);
+                await system.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(5), CancellationToken);
             }
 
             await _clientProvider.DisposeAsync();
@@ -125,7 +125,7 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
         var setCookieRequest = new HttpRequestMessage(HttpMethod.Get, $"{BaseUri}/cookie/set-strict");
         var setCookieResponse = await Client.SendAsync(setCookieRequest, CancellationToken);
         Assert.Equal(HttpStatusCode.OK, setCookieResponse.StatusCode);
-
+        await Task.Delay(150, CancellationToken);
         var echoRequest = new HttpRequestMessage(HttpMethod.Get, $"{BaseUri}/cookie/echo");
         var echoResponse = await Client.SendAsync(echoRequest, CancellationToken);
         Assert.Equal(HttpStatusCode.OK, echoResponse.StatusCode);

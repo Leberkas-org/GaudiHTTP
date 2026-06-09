@@ -83,7 +83,11 @@ public sealed class SseFeatureSpec : FeatureSpecBase
     [MemberData(nameof(KestrelOnly))]
     public async Task Sse_should_concatenate_multiline_data(ProtocolVariant variant)
     {
-        if (!Server.HasCustomEndpoints) Assert.Skip("Custom SSE endpoints not available on this backend.");
+        if (!Server.HasCustomEndpoints)
+        {
+            Assert.Skip("Custom SSE endpoints not available on this backend.");
+        }
+
         await using var helper = CreateClient(variant);
         var materializer = ActorSystem.Materializer();
 
@@ -101,7 +105,11 @@ public sealed class SseFeatureSpec : FeatureSpecBase
     [MemberData(nameof(KestrelOnly))]
     public async Task Sse_should_skip_comment_lines(ProtocolVariant variant)
     {
-        if (!Server.HasCustomEndpoints) Assert.Skip("Custom SSE endpoints not available on this backend.");
+        if (!Server.HasCustomEndpoints)
+        {
+            Assert.Skip("Custom SSE endpoints not available on this backend.");
+        }
+
         await using var helper = CreateClient(variant);
         var materializer = ActorSystem.Materializer();
 
@@ -119,7 +127,11 @@ public sealed class SseFeatureSpec : FeatureSpecBase
     [MemberData(nameof(KestrelOnly))]
     public async Task Sse_should_parse_id_and_retry_fields(ProtocolVariant variant)
     {
-        if (!Server.HasCustomEndpoints) Assert.Skip("Custom SSE endpoints not available on this backend.");
+        if (!Server.HasCustomEndpoints)
+        {
+            Assert.Skip("Custom SSE endpoints not available on this backend.");
+        }
+
         await using var helper = CreateClient(variant);
         var materializer = ActorSystem.Materializer();
 
