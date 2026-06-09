@@ -83,6 +83,12 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
             }
 
             _phase = Phase.Body;
+
+            if (CurrentBodyReader is not BufferedBodyReader)
+            {
+                consumed = pos;
+                return DecodeOutcome.HeadersReady;
+            }
         }
 
         if (_phase == Phase.Body)
