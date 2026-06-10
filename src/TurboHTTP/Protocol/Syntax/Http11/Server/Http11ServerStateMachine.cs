@@ -284,7 +284,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         var contentLength = ExtractContentLength(responseFeature);
         var hasExplicitChunked = responseFeature?.Headers.Any(h =>
             h.Key.Equals(WellKnownHeaders.TransferEncoding, StringComparison.OrdinalIgnoreCase)
-            && h.Value.Any(v => v.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))) ?? false;
+            && h.Value.Any(v => v!.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))) ?? false;
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
         var estimatedSize = EstimateResponseHeaderSize(responseFeature);
@@ -330,7 +330,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         {
             if (turboBody.TryGetBufferedBody(out var bufferedBody))
             {
-                EmitBufferedBody(features, bufferedBody, contentLength, isChunked);
+                EmitBufferedBody(features, bufferedBody, contentLength);
                 return;
             }
 
@@ -371,7 +371,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     }
 
 
-    private void EmitBufferedBody(IFeatureCollection features, ReadOnlyMemory<byte> body, long? contentLength, bool isChunked)
+    private void EmitBufferedBody(IFeatureCollection features, ReadOnlyMemory<byte> body, long? contentLength)
     {
         var (writer, _) = _pool.RentWriter(
             hasBody: true, contentLength, HttpVersion.Version11, _bodyEncoderOptions,

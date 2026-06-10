@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Net;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.Body;
@@ -77,17 +78,15 @@ internal sealed class ConnectionBodyPool : IDisposable
             return (_streamingWriter, encoder);
         }
 
-        if (httpVersion == System.Net.HttpVersion.Version10)
+        if (httpVersion == HttpVersion.Version10)
         {
             _bufferedWriter.Reset(onBufferedComplete!);
             return (_bufferedWriter, null);
         }
 
-        {
-            var encoder = new ChunkedFramingEncoder(options.ChunkSize);
-            _streamingWriter.Reset(encoder, send);
-            return (_streamingWriter, encoder);
-        }
+        var framingEncoder = new ChunkedFramingEncoder(options.ChunkSize);
+        _streamingWriter.Reset(framingEncoder, send);
+        return (_streamingWriter, framingEncoder);
     }
 
     public void Dispose()
