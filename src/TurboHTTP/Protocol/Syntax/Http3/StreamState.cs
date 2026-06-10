@@ -33,6 +33,8 @@ internal sealed class StreamState
 
     public bool IsBodyDrainComplete { get; private set; }
 
+    public bool IsBodyReadPending { get; set; }
+
     public long PendingOutboundBytes { get; private set; }
 
     public long? ExpectedContentLength { get; set; }
@@ -231,6 +233,7 @@ internal sealed class StreamState
         _totalBodyBytes = 0;
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
+        IsBodyReadPending = false;
         DisposeOutboundBuffer();
         _outboundBuffer = null;
         PendingOutboundBytes = 0;

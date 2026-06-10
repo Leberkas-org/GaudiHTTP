@@ -782,6 +782,8 @@ internal sealed class Http2ClientSessionManager
             return;
         }
 
+        state.IsBodyReadPending = false;
+
         if (read.BytesRead == 0)
         {
             EmitFrame(new DataFrame(read.StreamId, ReadOnlyMemory<byte>.Empty, endStream: true));
@@ -875,7 +877,7 @@ internal sealed class Http2ClientSessionManager
                 _statePool.Return(state);
             }
         }
-        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete)
+        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete && !state.IsBodyReadPending)
         {
             ReadNextBodyChunk(streamId);
         }
@@ -916,6 +918,11 @@ internal sealed class Http2ClientSessionManager
             !_activeBodyBuffers.TryGetValue(streamId, out var buffer))
         {
             return;
+        }
+
+        if (_streams.TryGetValue(streamId, out var state))
+        {
+            state.IsBodyReadPending = true;
         }
 
         stream.ReadAsync(buffer.Memory).AsTask().PipeTo(

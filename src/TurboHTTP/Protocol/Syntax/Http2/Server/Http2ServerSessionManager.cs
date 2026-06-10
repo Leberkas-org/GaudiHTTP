@@ -36,15 +36,15 @@ internal sealed class Http2ServerSessionManager
     private readonly FlowController _flow;
     private readonly StreamTracker _tracker;
     private readonly long _maxRequestBodySize;
-    private readonly long _maxResponseBufferSize;
     private readonly BodyEncoderOptions _bodyEncoderOptions;
     private readonly TimeSpan _bodyConsumptionTimeout;
     private readonly int _initialStreamWindowSize;
 
     private readonly Dictionary<int, StreamState> _streams = new();
 
-    internal readonly record struct StreamBodyReadComplete(int StreamId, int BytesRead);
-    internal readonly record struct StreamBodyReadFailed(int StreamId, Exception Reason);
+    private readonly record struct StreamBodyReadComplete(int StreamId, int BytesRead);
+
+    private readonly record struct StreamBodyReadFailed(int StreamId, Exception Reason);
 
     private readonly Dictionary<int, Stream> _activeBodyStreams = new();
     private readonly Dictionary<int, IMemoryOwner<byte>> _activeBodyBuffers = new();
@@ -99,7 +99,6 @@ internal sealed class Http2ServerSessionManager
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
-        _maxResponseBufferSize = options.MaxResponseBufferSize;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
         _bodyConsumptionTimeout = options.BodyConsumptionTimeout;
         _initialStreamWindowSize = options.InitialStreamWindowSize;
@@ -273,13 +272,7 @@ internal sealed class Http2ServerSessionManager
             EmitFrame(frames[i]);
         }
 
-        if (!hasBody)
-        {
-            CloseStream(streamId);
-            return;
-        }
-
-        if (responseBody is not TurboHttpResponseBodyFeature turboBody)
+        if (!hasBody || responseBody is not TurboHttpResponseBodyFeature turboBody)
         {
             CloseStream(streamId);
             return;
@@ -290,7 +283,7 @@ internal sealed class Http2ServerSessionManager
             if (bufferedBody.Length > 0)
             {
                 var window = _flow.GetSendWindow(streamId);
-                if (window >= (int)bufferedBody.Length)
+                if (window >= bufferedBody.Length)
                 {
                     var maxFrame = _responseEncoder.MaxFrameSize;
                     var remaining = bufferedBody;
@@ -301,7 +294,7 @@ internal sealed class Http2ServerSessionManager
                     }
 
                     EmitFrame(new DataFrame(streamId, remaining, endStream: true));
-                    _flow.OnDataSent(streamId, (int)bufferedBody.Length);
+                    _flow.OnDataSent(streamId, bufferedBody.Length);
                     CloseStream(streamId);
                     return;
                 }
@@ -364,6 +357,8 @@ internal sealed class Http2ServerSessionManager
             CleanupBodyDrain(read.StreamId);
             return;
         }
+
+        state.IsBodyReadPending = false;
 
         if (read.BytesRead == 0)
         {
@@ -479,7 +474,7 @@ internal sealed class Http2ServerSessionManager
             EmitEndOfBody(streamId, state);
             CloseStream(streamId);
         }
-        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete)
+        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete && !state.IsBodyReadPending)
         {
             ReadNextBodyChunk(streamId);
         }
@@ -915,6 +910,11 @@ internal sealed class Http2ServerSessionManager
             !_activeBodyBuffers.TryGetValue(streamId, out var buffer))
         {
             return;
+        }
+
+        if (_streams.TryGetValue(streamId, out var state))
+        {
+            state.IsBodyReadPending = true;
         }
 
         var vt = stream.ReadAsync(buffer.Memory);
