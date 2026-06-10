@@ -298,6 +298,9 @@ internal sealed class Http2ServerSessionManager
                     CloseStream(streamId);
                     return;
                 }
+
+                SendBufferedBodyWithFlowControl(streamId, state, bufferedBody, window);
+                return;
             }
             else
             {
@@ -435,8 +438,18 @@ internal sealed class Http2ServerSessionManager
 
     public void DrainOutboundBuffer(int streamId)
     {
-        if (!_streams.TryGetValue(streamId, out var state) || !state.HasPendingOutbound)
+        if (!_streams.TryGetValue(streamId, out var state))
         {
+            return;
+        }
+
+        if (!state.HasPendingOutbound)
+        {
+            if (state.HasBodyDrain && !state.IsBodyDrainComplete && !state.IsBodyReadPending)
+            {
+                ReadNextBodyChunk(streamId);
+            }
+
             return;
         }
 
@@ -693,6 +706,14 @@ internal sealed class Http2ServerSessionManager
         }
 
         _responseEncoder.ApplyClientSettings(settings.Parameters);
+
+        if (result.InitialWindowSizeChange.HasValue)
+        {
+            foreach (var streamId in _streams.Keys.ToList())
+            {
+                DrainOutboundBuffer(streamId);
+            }
+        }
     }
 
     private void HandleWindowUpdateFrame(WindowUpdateFrame windowUpdate)
@@ -890,6 +911,50 @@ internal sealed class Http2ServerSessionManager
 
             _streams.Remove(streamId);
         }
+    }
+
+    private void SendBufferedBodyWithFlowControl(int streamId, StreamState state, ReadOnlyMemory<byte> body, long window)
+    {
+        var maxFrame = _responseEncoder.MaxFrameSize;
+        var sent = 0;
+
+        if (window > 0)
+        {
+            var sendable = body[..(int)Math.Min(window, body.Length)];
+            while (sendable.Length > maxFrame)
+            {
+                EmitFrame(new DataFrame(streamId, sendable[..maxFrame], endStream: false));
+                sendable = sendable[maxFrame..];
+            }
+
+            EmitFrame(new DataFrame(streamId, sendable, endStream: false));
+            sent = (int)Math.Min(window, body.Length);
+            _flow.OnDataSent(streamId, sent);
+        }
+
+        var remainder = body[sent..];
+        if (remainder.Length == 0)
+        {
+            EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+            CloseStream(streamId);
+            return;
+        }
+
+        state.MarkBodyDrainActive();
+        state.MarkBodyDrainComplete();
+
+        while (remainder.Length > 0)
+        {
+            var chunkSize = Math.Min(remainder.Length, maxFrame);
+            var owner = MemoryPool<byte>.Shared.Rent(chunkSize);
+            remainder[..chunkSize].CopyTo(owner.Memory);
+            state.EnqueueBodyChunk(new StreamBodyChunk(owner, chunkSize));
+            remainder = remainder[chunkSize..];
+        }
+
+        Tracing.For("Protocol").Debug(this,
+            "HTTP/2: buffered body flow-controlled (stream={0}, sent={1}, queued={2})",
+            streamId, sent, body.Length - sent);
     }
 
     private void StartStreamBodyDrain(int streamId, Stream bodyStream, long? contentLength = null)
