@@ -54,6 +54,18 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             return true;
         }
 
+        if (_pipe is not null && _writer.IsCompleted && _pipe.Reader.TryRead(out var result))
+        {
+            if (result.IsCompleted && !result.Buffer.IsEmpty)
+            {
+                body = result.Buffer.ToArray();
+                _pipe.Reader.AdvanceTo(result.Buffer.End);
+                return true;
+            }
+
+            _pipe.Reader.AdvanceTo(result.Buffer.Start);
+        }
+
         body = default;
         return false;
     }
@@ -211,6 +223,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             if (!HasStarted)
             {
                 HasStarted = true;
+                _owner.UpgradeToPipe();
                 _headerCommit.TrySetResult();
             }
         }
@@ -229,6 +242,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
                 }
                 finally
                 {
+                    _owner.UpgradeToPipe();
                     _headerCommit.TrySetResult();
                 }
             }
@@ -324,15 +338,11 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             }
             finally
             {
+                _owner.UpgradeToPipe();
                 _headerCommit.TrySetResult();
             }
 
-            if (_owner._pipe is not null)
-            {
-                return await _owner._pipe.Writer.FlushAsync(cancellationToken);
-            }
-
-            return new FlushResult(false, false);
+            return await _owner._pipe!.Writer.FlushAsync(cancellationToken);
         }
 
         private async ValueTask<FlushResult> CommitAndWriteAsync(ReadOnlyMemory<byte> source,
@@ -348,19 +358,12 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             }
             finally
             {
+                _owner.UpgradeToPipe();
                 _headerCommit.TrySetResult();
             }
 
-            if (_owner._pipe is not null)
-            {
-                return await _owner._pipe.Writer.WriteAsync(source, cancellationToken);
-            }
-
-            var dest = _owner._bufferWriter.GetSpan(source.Length);
-            source.Span.CopyTo(dest);
-            _owner._bufferWriter.Advance(source.Length);
             BytesWritten += source.Length;
-            return new FlushResult(false, false);
+            return await _owner._pipe!.Writer.WriteAsync(source, cancellationToken);
         }
 
         public override void Complete(Exception? exception = null)

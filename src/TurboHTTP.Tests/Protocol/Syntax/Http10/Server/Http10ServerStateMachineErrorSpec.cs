@@ -89,11 +89,12 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         bodyFeature.UpgradeToPipe();
         var bytes = "hello"u8.ToArray();
         await bodyFeature.Writer.WriteAsync(bytes, TestContext.Current.CancellationToken);
-        await bodyFeature.Writer.CompleteAsync();
 
         sm.OnResponse(context);
 
-        // Receive the first ResponseBodyReadComplete message but do NOT dispatch it —
+        await bodyFeature.Writer.CompleteAsync();
+
+        // Receive the body message but do NOT dispatch it —
         // simulates Cleanup arriving while a body read is in-flight.
         await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
 
