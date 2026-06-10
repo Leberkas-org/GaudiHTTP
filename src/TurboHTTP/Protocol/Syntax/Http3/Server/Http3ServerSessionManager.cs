@@ -260,6 +260,7 @@ internal sealed class Http3ServerSessionManager
         }
 
         var (_, state) = streamData;
+        state.IsBodyReadPending = false;
 
         if (read.BytesRead == 0)
         {
@@ -324,7 +325,7 @@ internal sealed class Http3ServerSessionManager
             _ops.OnOutbound(new CompleteWrites(streamId));
             CloseStream(streamId);
         }
-        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete)
+        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete && !state.IsBodyReadPending)
         {
             ReadNextBodyChunk(streamId);
         }
@@ -686,6 +687,11 @@ internal sealed class Http3ServerSessionManager
             !_activeBodyBuffers.TryGetValue(streamId, out var buffer))
         {
             return;
+        }
+
+        if (_streams.TryGetValue(streamId, out var streamData))
+        {
+            streamData.State.IsBodyReadPending = true;
         }
 
         var vt = stream.ReadAsync(buffer.Memory);

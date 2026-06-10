@@ -46,6 +46,8 @@ internal sealed class StreamState
 
     public bool IsBodyDrainComplete { get; private set; }
 
+    public bool IsBodyReadPending { get; set; }
+
     public bool IsRemoteClosed { get; private set; }
 
     public ReadOnlySpan<byte> GetHeaderSpan()
@@ -93,23 +95,11 @@ internal sealed class StreamState
         _pseudoHeaders[name] = value;
     }
 
-    public string GetPseudoHeader(string name)
-    {
-        if (_pseudoHeaders?.TryGetValue(name, out var value) == true)
-        {
-            return value;
-        }
-
-        throw new InvalidOperationException($"Pseudo-header '{name}' not found.");
-    }
-
     public void AddContentHeader(string name, string value)
     {
         _contentHeaders ??= [];
         _contentHeaders.Add((name, value));
     }
-
-    public IReadOnlyList<(string Name, string Value)>? ContentHeaders => _contentHeaders;
 
     public void ApplyContentHeadersTo(HttpContent content)
     {
@@ -144,7 +134,8 @@ internal sealed class StreamState
             if (_totalBodyBytes > _maxBodySize)
             {
                 throw new HttpProtocolException(
-                    string.Concat("Request body size ", _totalBodyBytes.ToString(), " exceeds limit ", _maxBodySize.ToString(), "."));
+                    string.Concat("Request body size ", _totalBodyBytes.ToString(), " exceeds limit ",
+                        _maxBodySize.ToString(), "."));
             }
         }
 
@@ -269,6 +260,7 @@ internal sealed class StreamState
         _bodyReader = null;
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
+        IsBodyReadPending = false;
         DisposeOutboundBuffer();
         _outboundBuffer = null;
         PendingOutboundBytes = 0;
