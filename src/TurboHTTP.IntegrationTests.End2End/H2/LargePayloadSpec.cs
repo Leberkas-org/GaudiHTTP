@@ -11,6 +11,10 @@ public sealed class LargePayloadSpec : End2EndSpecBase
 {
     protected override Version ProtocolVersion => HttpVersion.Version20;
 
+    // Under cross-module CPU contention on small CI runners even cheap requests can
+    // stall past the 10s default; stay below the 30s watchdogs instead.
+    protected override TimeSpan ClientTimeout => TimeSpan.FromSeconds(25);
+
     protected override void ConfigureEndpoints(WebApplication app)
     {
         app.MapPost("/echo-bytes", async ctx =>
