@@ -48,6 +48,13 @@ internal sealed class StreamState
 
     public bool IsBodyReadPending { get; set; }
 
+    /// <summary>
+    /// Declared Content-Length of the body being fed, when known. When set, an END_STREAM
+    /// arriving before (or after) exactly this many bytes faults the body reader instead of
+    /// completing it, so a truncated body surfaces as an error rather than silent success.
+    /// </summary>
+    public long? ExpectedBodyLength { get; set; }
+
     public bool IsRemoteClosed { get; private set; }
 
     public ReadOnlySpan<byte> GetHeaderSpan()
@@ -163,7 +170,15 @@ internal sealed class StreamState
 
             if (endStream)
             {
-                streaming.Complete();
+                if (ExpectedBodyLength is { } expected && _totalBodyBytes != expected)
+                {
+                    streaming.Fault(new HttpRequestException(
+                        $"Response body ended after {_totalBodyBytes} bytes but Content-Length declared {expected}."));
+                }
+                else
+                {
+                    streaming.Complete();
+                }
             }
         }
     }
@@ -261,6 +276,7 @@ internal sealed class StreamState
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
         IsBodyReadPending = false;
+        ExpectedBodyLength = null;
         DisposeOutboundBuffer();
         _outboundBuffer = null;
         PendingOutboundBytes = 0;

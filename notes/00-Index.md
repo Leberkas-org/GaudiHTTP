@@ -57,4 +57,4 @@ RFC 6265 (Cookies) ───────────── extends HTTP semantic
 
 | Note | Status | Description |
 |------|--------|-------------|
-| [[Bugs/H2-response-truncation-race\|H2 Response Truncation Race]] | open | Concurrent multiplexed H2 streams intermittently lose whole response DATA frames (truncation by multiples of 16384) or corrupt payloads; surfaced as HTTP 200 |
+| [[Bugs/H2-response-truncation-race\|H2 Body Truncation Race]] | fixed | QueuedBodyReader cross-thread race lost/reordered body chunks under concurrent streams; fixed 2026-06-11 (lock + async continuations), plus client Content-Length truncation guard |

@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Net;
 using Akka.Actor;
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
@@ -458,6 +459,12 @@ internal sealed class Http2ClientSessionManager
 
     private void EmitFrame(Http2Frame frame)
     {
+        if (frame is DataFrame d)
+        {
+            Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
+                d.StreamId, d.Data.Length, d.EndStream);
+        }
+
         var buf = TransportBuffer.Rent(frame.SerializedSize);
         var span = buf.FullMemory.Span;
         frame.WriteTo(ref span);
@@ -485,6 +492,9 @@ internal sealed class Http2ClientSessionManager
 
     private void ProcessDataFrame(DataFrame data)
     {
+        Tracing.For("Protocol").Trace(this, "HTTP/2: DATA in (stream={0}, len={1}, endStream={2})",
+            data.StreamId, data.Data.Length, data.EndStream);
+
         var result = _flow.OnInboundData(data.StreamId, data.Data.Length);
 
         if (result.IsConnectionViolation)
@@ -745,6 +755,16 @@ internal sealed class Http2ClientSessionManager
         if (_correlationMap.Remove(streamId, out var request))
         {
             streamingResponse.RequestMessage = request;
+        }
+
+        // RFC 9113 §8.1.1: a stream ending before the declared Content-Length is malformed.
+        // Record the expectation so END_STREAM faults the body instead of completing it.
+        // HEAD/204/304 legitimately carry Content-Length without a body.
+        var noBodyExpected = request?.Method == HttpMethod.Head
+            || streamingResponse.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotModified;
+        if (!noBodyExpected)
+        {
+            state.ExpectedBodyLength = streamingResponse.Content.Headers.ContentLength;
         }
 
         var partialResult = PartialContentValidator.Validate(streamingResponse);
