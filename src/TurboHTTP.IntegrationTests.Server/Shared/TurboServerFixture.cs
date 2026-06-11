@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
@@ -24,17 +22,19 @@ public sealed class TurboServerFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        Port = GetFreePort();
+        // Bind port 0 and read the real port back after start — probing for a free
+        // port and rebinding it races with parallel tests (and parallel test modules).
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.Host.UseTurboHttp(options =>
         {
-            options.Bind(new TcpListenerOptions { Host = "127.0.0.1", Port = Port });
+            options.Bind(new TcpListenerOptions { Host = "127.0.0.1", Port = 0 });
         });
 
         _app = builder.Build();
         RegisterEndpoints(_app);
         await _app.StartAsync();
+        Port = ServerSpecBase.ResolveBoundPort(_app);
     }
 
     public async ValueTask DisposeAsync()
@@ -247,14 +247,5 @@ public sealed class TurboServerFixture : IAsyncLifetime
                 await ctx.Response.Body.WriteAsync(data);
             }
         });
-    }
-
-    private static ushort GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return (ushort)port;
     }
 }

@@ -1,12 +1,13 @@
 using System.Net;
 using System.Net.Quic;
 using System.Net.Security;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Akka.Actor;
 using Akka.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,11 @@ namespace TurboHTTP.IntegrationTests.End2End.Shared;
 
 public abstract class End2EndSpecBase : IAsyncLifetime
 {
+    // One RSA keygen per process instead of one per TLS test — keygen is CPU-heavy
+    // and amplifies starvation when collections run in parallel on small CI runners.
+    private static readonly Lazy<X509Certificate2> SharedCertificate =
+        new(() => CreateSelfSignedCertificate("127.0.0.1"), LazyThreadSafetyMode.ExecutionAndPublication);
+
     private WebApplication? _app;
     private ITurboHttpClient? _client;
     private Microsoft.Extensions.DependencyInjection.ServiceProvider? _clientProvider;
@@ -72,6 +78,13 @@ public abstract class End2EndSpecBase : IAsyncLifetime
     {
     }
 
+    /// <summary>
+    /// Global client timeout. Keep the default low — several specs rely on it as a backstop
+    /// well below their watchdogs. Bulk-transfer stress specs override this with a higher
+    /// value so legitimate slow transfers under CI contention don't trip it.
+    /// </summary>
+    protected virtual TimeSpan ClientTimeout => TimeSpan.FromSeconds(10);
+
     protected ITurboHttpClient Client => _client!;
 
     protected string BaseUri { get; private set; } = string.Empty;
@@ -85,28 +98,29 @@ public abstract class End2EndSpecBase : IAsyncLifetime
             Assert.Skip("QUIC not available on this platform");
         }
 
-        var port = GetFreePort();
         var needsTls = UseTls;
 
         if (needsTls)
         {
-            _cert = CreateSelfSignedCertificate("127.0.0.1");
+            _cert = SharedCertificate.Value;
         }
-
-        var scheme = needsTls ? "https" : "http";
-        BaseUri = $"{scheme}://127.0.0.1:{port}";
 
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
 
+        // Bind port 0 and read the real port back after start — probing for a free
+        // port and rebinding it races with parallel tests (and parallel test modules).
         builder.Host.UseTurboHttp(options =>
         {
-            ConfigureServer(options, port, _cert);
+            ConfigureServer(options, 0, _cert);
         });
 
         _app = builder.Build();
         ConfigureEndpoints(_app);
         await _app.StartAsync();
+
+        var scheme = needsTls ? "https" : "http";
+        BaseUri = $"{scheme}://127.0.0.1:{ResolveBoundPort(_app)}";
 
         var services = new ServiceCollection();
 
@@ -133,7 +147,7 @@ public abstract class End2EndSpecBase : IAsyncLifetime
         _client = factory.CreateClient(string.Empty);
         _client.DefaultRequestVersion = ProtocolVersion;
         _client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
-        _client.Timeout = TimeSpan.FromSeconds(10);
+        _client.Timeout = ClientTimeout;
     }
 
     public virtual async ValueTask DisposeAsync()
@@ -157,8 +171,6 @@ public abstract class End2EndSpecBase : IAsyncLifetime
 
             await _clientProvider.DisposeAsync();
         }
-
-        _cert?.Dispose();
     }
 
     protected static X509Certificate2 CreateSelfSignedCertificate(string cn)
@@ -188,11 +200,12 @@ public abstract class End2EndSpecBase : IAsyncLifetime
             X509KeyStorageFlags.Exportable);
     }
 
-    private static ushort GetFreePort()
+    private static int ResolveBoundPort(WebApplication app)
     {
-        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        socket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-        return (ushort)((IPEndPoint)socket.LocalEndPoint!).Port;
+        var addresses = app.Services.GetRequiredService<IServer>()
+            .Features.Get<IServerAddressesFeature>()!
+            .Addresses;
+        return new Uri(addresses.First()).Port;
     }
 
     private sealed class FixedOptionsFactory(TurboClientOptions options) : IOptionsFactory<TurboClientOptions>

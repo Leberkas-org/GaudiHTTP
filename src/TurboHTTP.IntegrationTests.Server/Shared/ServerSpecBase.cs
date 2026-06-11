@@ -1,8 +1,10 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace TurboHTTP.IntegrationTests.Server.Shared;
@@ -28,13 +30,15 @@ public abstract class ServerSpecBase : IAsyncLifetime
 
     public virtual async ValueTask InitializeAsync()
     {
-        Port = GetFreePort();
+        // Bind port 0 and read the real port back after start — probing for a free
+        // port and rebinding it races with parallel tests (and parallel test modules).
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
-        ConfigureServer(builder, Port);
+        ConfigureServer(builder, 0);
         _app = builder.Build();
         ConfigureEndpoints(_app);
         await _app.StartAsync();
+        Port = ResolveBoundPort(_app);
         _client = CreateHttpClient();
     }
 
@@ -92,12 +96,11 @@ public abstract class ServerSpecBase : IAsyncLifetime
             X509KeyStorageFlags.Exportable);
     }
 
-    private static ushort GetFreePort()
+    internal static ushort ResolveBoundPort(WebApplication app)
     {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return (ushort)port;
+        var addresses = app.Services.GetRequiredService<IServer>()
+            .Features.Get<IServerAddressesFeature>()!
+            .Addresses;
+        return (ushort)new Uri(addresses.First()).Port;
     }
 }

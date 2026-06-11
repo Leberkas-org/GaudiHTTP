@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Sockets;
 using System.Text.Json;
 using Akka.Actor;
 using Akka.DependencyInjection;
@@ -28,18 +27,17 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        var port = GetFreePort();
-        BaseUri = $"http://127.0.0.1:{port}";
-
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
 
+        // Bind port 0 and read the real port back after start — probing for a free
+        // port and rebinding it races with parallel tests (and parallel test modules).
         builder.Host.UseTurboHttp(options =>
         {
             options.Bind(new TcpListenerOptions
             {
                 Host = "127.0.0.1",
-                Port = port
+                Port = 0
             });
         });
 
@@ -72,6 +70,11 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
         });
 
         await _app.StartAsync(CancellationToken);
+
+        var address = _app.Services.GetRequiredService<Microsoft.AspNetCore.Hosting.Server.IServer>()
+            .Features.Get<Microsoft.AspNetCore.Hosting.Server.Features.IServerAddressesFeature>()!
+            .Addresses.First();
+        BaseUri = $"http://127.0.0.1:{new Uri(address).Port}";
 
         var services = new ServiceCollection();
 
@@ -158,14 +161,5 @@ public sealed class CookieSameSiteSpec : IAsyncLifetime
         Assert.NotNull(cookies);
         Assert.False(cookies.ContainsKey("stricttoken"),
             "SameSite=Strict cookie should NOT be sent on cross-site request");
-    }
-
-    private static ushort GetFreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return (ushort)port;
     }
 }
