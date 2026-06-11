@@ -45,7 +45,7 @@ internal static class FeaturePipelineBuilder
         // and captures Alt-Svc headers from responses before other features process them.
         if (descriptor.AltSvcCache is not null)
         {
-            layers.Add(new AltSvcBidiStage(descriptor.AltSvcCache));
+            layers.Add(new AltSvcBidiStage(descriptor.AltSvcCache, descriptor.UseProxy, descriptor.Proxy));
         }
 
         if (descriptor.AutomaticDecompression || descriptor.CompressionPolicy is not null)

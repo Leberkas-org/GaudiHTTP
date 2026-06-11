@@ -17,6 +17,8 @@ namespace TurboHTTP.Client;
 /// <param name="Timeout">The per-request timeout applied by <see cref="ITurboHttpClient.SendAsync"/>.</param>
 /// <param name="Credentials">Optional credentials for server authentication.</param>
 /// <param name="PreAuthenticate">When <see langword="true"/>, the Authorization header is sent proactively without waiting for a 401.</param>
+/// <param name="UseProxy">Whether requests are routed through <paramref name="Proxy"/> when one is configured.</param>
+/// <param name="Proxy">The forward proxy requests are routed through. HTTP/3 requests are downgraded to HTTP/2 when the proxy applies, since QUIC cannot traverse an HTTP proxy.</param>
 public record TurboRequestOptions(
     Uri? BaseAddress,
     HttpRequestHeaders DefaultRequestHeaders,
@@ -24,7 +26,9 @@ public record TurboRequestOptions(
     HttpVersionPolicy DefaultVersionPolicy,
     TimeSpan Timeout,
     ICredentials? Credentials = null,
-    bool PreAuthenticate = false);
+    bool PreAuthenticate = false,
+    bool UseProxy = true,
+    IWebProxy? Proxy = null);
 
 /// <summary>
 /// Top-level configuration for a named TurboHTTP client.

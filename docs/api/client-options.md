@@ -216,6 +216,12 @@ options.ClientCertificates = new X509CertificateCollection
 | `Proxy` | `null` | Custom proxy URI |
 | `DefaultProxyCredentials` | `null` | Credentials for proxy authentication |
 
+Plain HTTP requests are relayed through the proxy directly; HTTPS requests are tunneled via `CONNECT` (with `Proxy-Authorization: Basic` when credentials are configured), and TLS is negotiated with the target through the tunnel.
+
+::: info HTTP/3 and proxies
+QUIC cannot traverse an HTTP proxy. When a proxy applies to a request, HTTP/3 requests are downgraded to HTTP/2 (when the `VersionPolicy` is `RequestVersionOrLower`) or fail with `HttpRequestException` (`RequestVersionExact` / `RequestVersionOrHigher`). Alt-Svc HTTP/3 upgrades are also skipped for proxied hosts. Hosts matched by the proxy's bypass list are unaffected.
+:::
+
 ## Authentication Options
 
 | Property | Default | Description |

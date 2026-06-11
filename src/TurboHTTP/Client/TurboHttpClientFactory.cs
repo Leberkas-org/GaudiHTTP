@@ -97,7 +97,9 @@ internal sealed class TurboHttpClientFactory(
             CachePolicy: descriptor.CachePolicy,
             Handlers: middlewares,
             AutomaticDecompression: descriptor.AutomaticDecompression,
-            AltSvcCache: altSvcCache);
+            AltSvcCache: altSvcCache,
+            UseProxy: clientOptions.UseProxy,
+            Proxy: clientOptions.Proxy);
     }
 
     private static TurboRequestOptions CreateRequestOptions(TurboClientOptions clientOptions)
@@ -109,7 +111,9 @@ internal sealed class TurboHttpClientFactory(
             DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
             Timeout: TimeSpan.FromSeconds(60),
             Credentials: clientOptions.Credentials,
-            PreAuthenticate: clientOptions.PreAuthenticate);
+            PreAuthenticate: clientOptions.PreAuthenticate,
+            UseProxy: clientOptions.UseProxy,
+            Proxy: clientOptions.Proxy);
     }
 
     private void ThrowIfDisposed()

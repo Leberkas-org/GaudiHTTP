@@ -139,20 +139,20 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
 
 ## Transport Buffer Options
 
-Controls backpressure thresholds on the read/write pipes between the OS socket and the HTTP pipeline. Applied per-connection for TCP and per-stream for QUIC. Set via `TurboListenOptions.Transport`; leaving it `null` uses protocol-optimized defaults. Assigning an instance replaces the protocol defaults entirely (no per-property fallback), so set `InputPauseThreshold` and `InputResumeThreshold` explicitly — they have no initializer.
+Controls backpressure thresholds on the read/write pipes between the OS socket and the HTTP pipeline. Applied per-connection for TCP and per-stream for QUIC. Set via `TurboListenOptions.Transport`. Every property is nullable — properties left at `null` fall back to the protocol-optimized default individually, so you only need to set the thresholds you want to change. A resume threshold above its pause threshold fails endpoint resolution with `InvalidOperationException`.
 
 ```csharp
 public sealed class TransportBufferOptions
 {
-    long InputPauseThreshold { get; set; }    // bytes buffered on the read pipe before the OS socket is paused
-    long InputResumeThreshold { get; set; }   // buffered byte count at which reading resumes (must be < pause threshold)
-    long OutputPauseThreshold { get; set; }   // default: 64 * 1024 — bytes buffered on the write pipe before the HTTP pipeline is paused
-    long OutputResumeThreshold { get; set; }  // default: 32 * 1024
-    int MinimumSegmentSize { get; set; }      // minimum pipe buffer segment size
+    long? InputPauseThreshold { get; set; }    // bytes buffered on the read pipe before the OS socket is paused
+    long? InputResumeThreshold { get; set; }   // buffered byte count at which reading resumes (must be <= pause threshold)
+    long? OutputPauseThreshold { get; set; }   // bytes buffered on the write pipe before the HTTP pipeline is paused
+    long? OutputResumeThreshold { get; set; }  // must be <= OutputPauseThreshold
+    int? MinimumSegmentSize { get; set; }      // minimum pipe buffer segment size
 }
 ```
 
-Protocol-specific defaults when `Transport` is `null`:
+Protocol-specific defaults applied for `null` properties (and when `Transport` itself is `null`):
 
 | Property | TCP (one pipe per connection) | QUIC (one pipe per stream) |
 |----------|------------------------------|----------------------------|
@@ -165,13 +165,11 @@ Protocol-specific defaults when `Transport` is `null`:
 ```csharp
 options.Listen(IPAddress.Any, 8080, listen =>
 {
+    // Only the input thresholds are overridden; everything else keeps the TCP defaults
     listen.Transport = new TransportBufferOptions
     {
         InputPauseThreshold = 2 * 1024 * 1024,
-        InputResumeThreshold = 1024 * 1024,
-        OutputPauseThreshold = 64 * 1024,
-        OutputResumeThreshold = 32 * 1024,
-        MinimumSegmentSize = 16 * 1024
+        InputResumeThreshold = 1024 * 1024
     };
 });
 ```

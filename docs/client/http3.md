@@ -74,6 +74,16 @@ options.Http3.EnableAltSvcDiscovery = true;  // default: false
 
 This is opt-in because not all environments support QUIC (firewalls may block UDP). Enable it when you know your network path supports QUIC and want automatic protocol upgrade.
 
+## HTTP/3 and Forward Proxies
+
+QUIC cannot traverse an HTTP forward proxy (`CONNECT` tunnels carry TCP, not UDP). When a proxy is configured and applies to a request:
+
+- HTTP/3 requests with `HttpVersionPolicy.RequestVersionOrLower` (the default) are transparently downgraded to HTTP/2 and tunneled via `CONNECT`.
+- HTTP/3 requests with `RequestVersionExact` or `RequestVersionOrHigher` fail with `HttpRequestException`.
+- Alt-Svc HTTP/3 upgrades are skipped for proxied hosts.
+
+Hosts matched by the proxy's bypass list keep using HTTP/3 directly.
+
 ## QPACK Header Compression
 
 HTTP/3 uses QPACK for header compression (the QUIC equivalent of HPACK in HTTP/2). TurboHTTP manages QPACK encoding and decoding automatically. Tune the dynamic table size if needed:

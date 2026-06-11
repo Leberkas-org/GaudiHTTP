@@ -14,11 +14,15 @@ namespace TurboHTTP.Streams.Stages.Features;
 /// entry and upgrades the request version to 3.0 if found.</para>
 /// <para><b>Response direction:</b> parses Alt-Svc headers from HTTP/1.1 and HTTP/2 responses
 /// and stores them in the cache for future requests.</para>
+/// <para>When a forward proxy applies to the request, the HTTP/3 upgrade is skipped —
+/// QUIC cannot traverse an HTTP proxy and would silently bypass it.</para>
 /// </summary>
 internal sealed class AltSvcBidiStage
     : GraphStage<BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>>
 {
     private readonly AltSvcCache _cache;
+    private readonly bool _useProxy;
+    private readonly IWebProxy? _proxy;
 
     private readonly Inlet<HttpRequestMessage> _inRequest = new("AltSvc.In.Request");
     private readonly Outlet<HttpRequestMessage> _outRequest = new("AltSvc.Out.Request");
@@ -27,9 +31,11 @@ internal sealed class AltSvcBidiStage
 
     public override BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage> Shape { get; }
 
-    public AltSvcBidiStage(AltSvcCache cache)
+    public AltSvcBidiStage(AltSvcCache cache, bool useProxy = false, IWebProxy? proxy = null)
     {
         _cache = cache;
+        _useProxy = useProxy;
+        _proxy = proxy;
         Shape = new BidiShape<HttpRequestMessage, HttpRequestMessage, HttpResponseMessage, HttpResponseMessage>(
             _inRequest, _outRequest, _inResponse, _outResponse);
     }
@@ -50,6 +56,7 @@ internal sealed class AltSvcBidiStage
                     {
                         if (request.RequestUri is not null
                             && request.Version.Major < 3
+                            && !ProxyApplies(stage, request.RequestUri)
                             && stage._cache.TryGetHttp3(request.RequestUri.Host, out var entry))
                         {
                             // Upgrade to HTTP/3. Use the advertised port if different from origin.
@@ -92,6 +99,9 @@ internal sealed class AltSvcBidiStage
             SetHandler(stage._outRequest,
                 onPull: () => Pull(stage._inRequest),
                 onDownstreamFinish: _ => Cancel(stage._inRequest));
+
+            static bool ProxyApplies(AltSvcBidiStage stage, Uri requestUri)
+                => stage is { _useProxy: true, _proxy: not null } && !stage._proxy.IsBypassed(requestUri);
 
             // Response direction: parse Alt-Svc headers and update cache.
             SetHandler(stage._inResponse,

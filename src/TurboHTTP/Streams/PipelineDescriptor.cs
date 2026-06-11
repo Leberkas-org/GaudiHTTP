@@ -16,7 +16,9 @@ internal sealed record PipelineDescriptor(
     CachePolicy? CachePolicy,
     IReadOnlyList<TurboHandler> Handlers,
     bool AutomaticDecompression = true,
-    AltSvcCache? AltSvcCache = null)
+    AltSvcCache? AltSvcCache = null,
+    bool UseProxy = true,
+    System.Net.IWebProxy? Proxy = null)
 {
     public static readonly PipelineDescriptor Empty = new(
         RedirectPolicy: null,

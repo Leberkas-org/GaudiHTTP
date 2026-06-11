@@ -3,58 +3,95 @@ namespace TurboHTTP.Server;
 /// <summary>
 /// Controls backpressure thresholds on the read/write pipes between the OS socket
 /// and the HTTP pipeline. These are applied per-connection for TCP and per-stream
-/// for QUIC.
+/// for QUIC. Properties left at <c>null</c> fall back to the protocol-specific
+/// default (TCP buffers one pipe per connection, QUIC one pipe per stream).
 /// </summary>
 public sealed class TransportBufferOptions
 {
     /// <summary>
     /// The number of bytes buffered on the inbound (read) pipe before the writer
-    /// pauses and signals backpressure to the OS. Default depends on the transport:
-    /// TCP = 1 MiB (one pipe per connection), QUIC = 64 KiB (one pipe per stream).
+    /// pauses and signals backpressure to the OS. <c>null</c> uses the transport
+    /// default: TCP = 1 MiB (one pipe per connection), QUIC = 64 KiB (one pipe per stream).
     /// </summary>
-    public long InputPauseThreshold { get; set; }
+    public long? InputPauseThreshold { get; set; }
 
     /// <summary>
     /// The buffered byte count at which the inbound pipe resumes accepting data
-    /// after a pause. Should be less than <see cref="InputPauseThreshold"/>.
-    /// Default: TCP = 512 KiB, QUIC = 32 KiB.
+    /// after a pause. Must be less than or equal to <see cref="InputPauseThreshold"/>.
+    /// <c>null</c> uses the transport default: TCP = 512 KiB, QUIC = 32 KiB.
     /// </summary>
-    public long InputResumeThreshold { get; set; }
+    public long? InputResumeThreshold { get; set; }
 
     /// <summary>
     /// The number of bytes buffered on the outbound (write) pipe before the writer
-    /// pauses and signals backpressure to the HTTP pipeline. Default: 64 KiB.
+    /// pauses and signals backpressure to the HTTP pipeline.
+    /// <c>null</c> uses the transport default of 64 KiB.
     /// </summary>
-    public long OutputPauseThreshold { get; set; } = 64 * 1024;
+    public long? OutputPauseThreshold { get; set; }
 
     /// <summary>
     /// The buffered byte count at which the outbound pipe resumes after a pause.
-    /// Default: 32 KiB.
+    /// Must be less than or equal to <see cref="OutputPauseThreshold"/>.
+    /// <c>null</c> uses the transport default of 32 KiB.
     /// </summary>
-    public long OutputResumeThreshold { get; set; } = 32 * 1024;
+    public long? OutputResumeThreshold { get; set; }
 
     /// <summary>
     /// The minimum size of each buffer segment allocated by the pipe's memory pool.
     /// Larger values reduce segment count but increase per-pipe memory.
-    /// Default: TCP = 16 KiB, QUIC = 4 KiB (one pipe per stream).
+    /// <c>null</c> uses the transport default: TCP = 16 KiB, QUIC = 4 KiB (one pipe per stream).
     /// </summary>
-    public int MinimumSegmentSize { get; set; } = 16 * 1024;
+    public int? MinimumSegmentSize { get; set; }
 
-    internal static TransportBufferOptions TcpDefaults => new()
-    {
-        InputPauseThreshold = 1024 * 1024,
-        InputResumeThreshold = 512 * 1024,
-        OutputPauseThreshold = 64 * 1024,
-        OutputResumeThreshold = 32 * 1024,
-        MinimumSegmentSize = 16 * 1024
-    };
+    internal ResolvedTransportBuffers ResolveTcp() => Resolve(
+        defaultInputPause: 1024 * 1024,
+        defaultInputResume: 512 * 1024,
+        defaultMinimumSegmentSize: 16 * 1024);
 
-    internal static TransportBufferOptions QuicDefaults => new()
+    internal ResolvedTransportBuffers ResolveQuic() => Resolve(
+        defaultInputPause: 64 * 1024,
+        defaultInputResume: 32 * 1024,
+        defaultMinimumSegmentSize: 4 * 1024);
+
+    internal static ResolvedTransportBuffers TcpDefaults { get; } = new TransportBufferOptions().ResolveTcp();
+
+    internal static ResolvedTransportBuffers QuicDefaults { get; } = new TransportBufferOptions().ResolveQuic();
+
+    private ResolvedTransportBuffers Resolve(long defaultInputPause, long defaultInputResume, int defaultMinimumSegmentSize)
     {
-        InputPauseThreshold = 64 * 1024,
-        InputResumeThreshold = 32 * 1024,
-        OutputPauseThreshold = 64 * 1024,
-        OutputResumeThreshold = 32 * 1024,
-        MinimumSegmentSize = 4 * 1024
-    };
+        var resolved = new ResolvedTransportBuffers(
+            InputPauseThreshold: InputPauseThreshold ?? defaultInputPause,
+            InputResumeThreshold: InputResumeThreshold ?? defaultInputResume,
+            OutputPauseThreshold: OutputPauseThreshold ?? 64 * 1024,
+            OutputResumeThreshold: OutputResumeThreshold ?? 32 * 1024,
+            MinimumSegmentSize: MinimumSegmentSize ?? defaultMinimumSegmentSize);
+
+        if (resolved.InputResumeThreshold > resolved.InputPauseThreshold)
+        {
+            throw new InvalidOperationException(
+                string.Concat(
+                    "TransportBufferOptions: InputResumeThreshold (", resolved.InputResumeThreshold.ToString(),
+                    ") must not exceed InputPauseThreshold (", resolved.InputPauseThreshold.ToString(), ")."));
+        }
+
+        if (resolved.OutputResumeThreshold > resolved.OutputPauseThreshold)
+        {
+            throw new InvalidOperationException(
+                string.Concat(
+                    "TransportBufferOptions: OutputResumeThreshold (", resolved.OutputResumeThreshold.ToString(),
+                    ") must not exceed OutputPauseThreshold (", resolved.OutputPauseThreshold.ToString(), ")."));
+        }
+
+        return resolved;
+    }
 }
+
+/// <summary>
+/// Transport buffer thresholds with all defaults applied, ready to project onto listener options.
+/// </summary>
+internal readonly record struct ResolvedTransportBuffers(
+    long InputPauseThreshold,
+    long InputResumeThreshold,
+    long OutputPauseThreshold,
+    long OutputResumeThreshold,
+    int MinimumSegmentSize);
