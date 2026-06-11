@@ -85,7 +85,7 @@ See [HTTP/2 & Multiplexing guide](/client/http2) for multiplexing details.
 
 ### Timeout
 
-Per-request timeout applied by `SendAsync`. Defaults to 60 seconds. Does not affect the channel-based API:
+Per-request timeout. Defaults to 60 seconds. `SendAsync` enforces it directly; requests submitted via the channel-based API get the same timeout injected as a default when no cancellation token is set on the request:
 
 ```csharp
 client.Timeout = TimeSpan.FromSeconds(30);
@@ -114,7 +114,7 @@ Requests are matched to responses in submission order (HTTP/1.x) or by stream ID
 
 ### CancelPendingRequests
 
-Cancels all in-flight `SendAsync` calls and clears the pending request map. Does not affect the channel-based API:
+Cancels all in-flight `SendAsync` calls, clears the pending request map, and drains (disposes) any responses already buffered in the `Responses` channel:
 
 ```csharp
 // Cancel everything in-flight (e.g., on application shutdown)

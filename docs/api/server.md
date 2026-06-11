@@ -60,9 +60,10 @@ public sealed class TurboServerOptions
     TimeSpan HandlerTimeout { get; set; }            // default: 30s
     TimeSpan HandlerGracePeriod { get; set; }        // default: 5s
 
-    int RequestBodyBufferThreshold { get; set; }     // default: 64 * 1024
     TimeSpan BodyConsumptionTimeout { get; set; }    // default: 30s
     int ResponseBodyChunkSize { get; set; }          // default: 16 * 1024
+    int MaxOutboundCoalesceCount { get; set; }       // default: 32 (frames merged up to factor × 16 KiB per transport write)
+    bool AllowResponseHeaderCompression { get; set; } // default: true (disable to mitigate CRIME/BREACH-style attacks)
 
     Http1ServerOptions Http1 { get; }
     Http2ServerOptions Http2 { get; }
@@ -96,11 +97,11 @@ public sealed class TurboServerOptions
 public sealed class TurboServerLimits
 {
     int MaxConcurrentConnections { get; set; }              // default: 0 (unlimited)
-    int MaxConcurrentRequests { get; set; }                 // default: 0 (unlimited)
-    int MinRequestGuarantee { get; set; }                   // default: 10
-    long MaxRequestBodySize { get; set; }                   // default: 30 * 1024 * 1024
+    long MaxRequestBodySize { get; set; }                   // default: 30,000,000 (~28.6 MiB, matching Kestrel)
     int MaxRequestHeaderCount { get; set; }                 // default: 100
     int MaxRequestHeadersTotalSize { get; set; }            // default: 32 * 1024
+    long MaxResponseBufferSize { get; set; }                // default: 64 * 1024 (per-stream response write buffer)
+    long? MaxRequestBufferSize { get; set; }                // default: 1 MiB (transport input buffer before backpressure; null = unlimited)
     int MaxResetStreamsPerWindow { get; set; }               // default: 200 (HTTP/2 Rapid Reset / CVE-2023-44487 mitigation; 0 = disabled)
     TimeSpan KeepAliveTimeout { get; set; }                 // default: 130s
     TimeSpan RequestHeadersTimeout { get; set; }            // default: 30s
@@ -121,6 +122,7 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
     IPAddress Address { get; }
     ushort Port { get; }
     HttpProtocols Protocols { get; set; }  // default: Http1AndHttp2
+    TransportBufferOptions? Transport { get; set; }  // default: null (protocol-optimized defaults)
 
     void UseHttps();
     void UseHttps(X509Certificate2 certificate);
@@ -131,6 +133,47 @@ public sealed class TurboListenOptions(IPAddress address, ushort port)
     void UseConnectionLogging();
     void UseConnectionLogging(string loggerName);
 }
+```
+
+---
+
+## Transport Buffer Options
+
+Controls backpressure thresholds on the read/write pipes between the OS socket and the HTTP pipeline. Applied per-connection for TCP and per-stream for QUIC. Set via `TurboListenOptions.Transport`; leaving it `null` uses protocol-optimized defaults. Assigning an instance replaces the protocol defaults entirely (no per-property fallback), so set `InputPauseThreshold` and `InputResumeThreshold` explicitly — they have no initializer.
+
+```csharp
+public sealed class TransportBufferOptions
+{
+    long InputPauseThreshold { get; set; }    // bytes buffered on the read pipe before the OS socket is paused
+    long InputResumeThreshold { get; set; }   // buffered byte count at which reading resumes (must be < pause threshold)
+    long OutputPauseThreshold { get; set; }   // default: 64 * 1024 — bytes buffered on the write pipe before the HTTP pipeline is paused
+    long OutputResumeThreshold { get; set; }  // default: 32 * 1024
+    int MinimumSegmentSize { get; set; }      // minimum pipe buffer segment size
+}
+```
+
+Protocol-specific defaults when `Transport` is `null`:
+
+| Property | TCP (one pipe per connection) | QUIC (one pipe per stream) |
+|----------|------------------------------|----------------------------|
+| `InputPauseThreshold` | 1 MiB | 64 KiB |
+| `InputResumeThreshold` | 512 KiB | 32 KiB |
+| `OutputPauseThreshold` | 64 KiB | 64 KiB |
+| `OutputResumeThreshold` | 32 KiB | 32 KiB |
+| `MinimumSegmentSize` | 16 KiB | 4 KiB |
+
+```csharp
+options.Listen(IPAddress.Any, 8080, listen =>
+{
+    listen.Transport = new TransportBufferOptions
+    {
+        InputPauseThreshold = 2 * 1024 * 1024,
+        InputResumeThreshold = 1024 * 1024,
+        OutputPauseThreshold = 64 * 1024,
+        OutputResumeThreshold = 32 * 1024,
+        MinimumSegmentSize = 16 * 1024
+    };
+});
 ```
 
 ---
@@ -178,6 +221,7 @@ public sealed class Http1ServerOptions
     int MaxRequestTargetLength { get; set; }  // default: 8 * 1024
     int MaxPipelinedRequests { get; set; }    // default: 16
     int MaxChunkExtensionLength { get; set; } // default: 4 * 1024
+    int MaxBufferedRequestBodySize { get; set; } // default: 64 * 1024 (bodies up to this size buffered in memory, larger streamed)
     TimeSpan BodyReadTimeout { get; set; }    // default: 30s
     int? MaxHeaderListSize { get; set; }                      // default: null (uses Limits.MaxRequestHeadersTotalSize)
     long? MaxRequestBodySize { get; set; }                    // default: null (uses Limits)
@@ -200,10 +244,15 @@ public sealed class Http2ServerOptions
     int MaxConcurrentStreams { get; set; }            // default: 100
     int InitialConnectionWindowSize { get; set; }    // default: 1 * 1024 * 1024
     int InitialStreamWindowSize { get; set; }        // default: 768 * 1024
+    int MaxStreamWindowSize { get; set; }            // default: 8 * 1024 * 1024 (adaptive scaling upper bound)
+    double WindowScaleThresholdMultiplier { get; set; } // default: 1.0
+    bool EnableAdaptiveWindowScaling { get; set; }   // default: true (BDP-based receive-window growth)
     int MaxFrameSize { get; set; }                   // default: 16 * 1024
     int HeaderTableSize { get; set; }                // default: 4 * 1024
     int? MaxHeaderListSize { get; set; }             // default: null (uses Limits.MaxRequestHeadersTotalSize)
-    long MaxResponseBufferSize { get; set; }         // default: 64 * 1024
+    long? MaxResponseBufferSize { get; set; }        // default: null (uses Limits.MaxResponseBufferSize)
+    TimeSpan KeepAlivePingDelay { get; set; }        // default: infinite (server-initiated keep-alive PINGs disabled)
+    TimeSpan KeepAlivePingTimeout { get; set; }      // default: 20s (max wait for PING ACK before closing)
     long? MaxRequestBodySize { get; set; }                    // default: null (uses Limits)
     TimeSpan? KeepAliveTimeout { get; set; }                  // default: null (uses Limits)
     TimeSpan? RequestHeadersTimeout { get; set; }             // default: null (uses Limits)
@@ -225,6 +274,7 @@ public sealed class Http3ServerOptions
     int? MaxHeaderListSize { get; set; }      // default: null (uses Limits.MaxRequestHeadersTotalSize)
     int QpackMaxTableCapacity { get; set; }   // default: 0
     int QpackBlockedStreams { get; set; }     // default: 100
+    long? MaxResponseBufferSize { get; set; } // default: null (uses Limits.MaxResponseBufferSize)
     long? MaxRequestBodySize { get; set; }                    // default: null (uses Limits)
     TimeSpan? KeepAliveTimeout { get; set; }                  // default: null (uses Limits)
     TimeSpan? RequestHeadersTimeout { get; set; }             // default: null (uses Limits)

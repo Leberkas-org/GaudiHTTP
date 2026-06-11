@@ -31,10 +31,10 @@ Higher values improve throughput for clients sending many parallel requests. Low
 ### Request Body Buffer
 
 ```csharp
-options.RequestBodyBufferThreshold = 128 * 1024;  // 128 KB
+options.Http1.MaxBufferedRequestBodySize = 128 * 1024;  // 128 KB
 ```
 
-Default is 64 KB. Request bodies smaller than this threshold are buffered in memory. Larger bodies stream directly to the application.
+Default is 64 KB. HTTP/1.x request bodies up to this size are buffered fully in memory. Larger bodies are exposed to the application as a streaming pipe with backpressure.
 
 - **Increase** for APIs that commonly receive medium-sized payloads (64-256 KB)
 - **Decrease** for memory-constrained environments or very large upload workloads

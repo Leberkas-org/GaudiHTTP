@@ -178,9 +178,9 @@ builder.Host.UseTurboHttp(options =>
 ```csharp
 builder.Host.UseTurboHttp(options =>
 {
-    // Buffer size before reading request body into memory
-    // Larger uploads are streamed
-    options.RequestBodyBufferThreshold = 64 * 1024;  // 64 KB
+    // Max request body size buffered fully in memory (HTTP/1.x)
+    // Larger bodies are exposed as a streaming pipe with backpressure
+    options.Http1.MaxBufferedRequestBodySize = 64 * 1024;  // 64 KB
     
     // Chunk size when writing response body
     options.ResponseBodyChunkSize = 16 * 1024;  // 16 KB

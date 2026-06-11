@@ -36,7 +36,8 @@ See [Automatic Retries guide](/client/retries) for which methods and status code
 public sealed class CacheOptions
 {
     public int MaxEntries { get; set; } = 1000;
-    public long MaxBodySize { get; set; } = 50 * 1024 * 1024;  // 50 MiB
+    public long MaxBodySize { get; set; } = 50 * 1024 * 1024;     // 50 MiB
+    public long MaxTotalSize { get; set; } = 256 * 1024 * 1024;   // 256 MiB
     public bool SharedCache { get; set; }
 }
 ```
@@ -44,7 +45,8 @@ public sealed class CacheOptions
 | Property | Default | Description |
 |----------|---------|-------------|
 | `MaxEntries` | `1000` | Max number of responses in the cache |
-| `MaxBodySize` | `50 * 1024 * 1024` (50 MiB) | Max total size of cached response bodies |
+| `MaxBodySize` | `50 * 1024 * 1024` (50 MiB) | Max body size of a single stored response; larger responses are not cached |
+| `MaxTotalSize` | `256 * 1024 * 1024` (256 MiB) | Max total size of all cached response bodies combined; least-recently-used entries are evicted when exceeded |
 | `SharedCache` | `false` | Whether this is a shared cache (affecting `Cache-Control` directives) |
 
 ```csharp

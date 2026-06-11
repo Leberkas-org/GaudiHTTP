@@ -11,9 +11,8 @@ public sealed class TurboClientOptions
     public Http2ClientOptions Http2 { get; init; } = new();    // HTTP/2 settings
     public Http3ClientOptions Http3 { get; init; } = new();    // HTTP/3 settings
 
-    // Body buffering
-    public long? MaxStreamedResponseBodySize { get; set; }              // null = unlimited; cap on a streamed response body
-    public int ResponseBodyBufferThreshold { get; set; } = 64 * 1024;  // 64 KB; bodies below this are buffered in memory, at/above streamed
+    // Body buffering (response buffering threshold lives on Http1.MaxBufferedResponseBodySize)
+    public long? MaxStreamedResponseBodySize { get; set; }             // null = unlimited; cap on a streamed response body
     public int RequestBodyChunkSize { get; set; } = 16 * 1024;         // 16 KB; chunk size when streaming a request body
 
     // Connection pool
@@ -28,9 +27,11 @@ public sealed class TurboClientOptions
     public X509CertificateCollection? ClientCertificates { get; set; }
     public SslProtocols EnabledSslProtocols { get; set; } = SslProtocols.None;
 
-    // Socket options
+    // Socket and buffer options
     public int? SocketSendBufferSize { get; set; }
     public int? SocketReceiveBufferSize { get; set; }
+    public int ReceiveBufferHint { get; set; } = 64 * 1024;     // 64 KB; internal receive buffer size hint
+    public int MinimumSegmentSize { get; set; } = 16 * 1024;    // 16 KB; minimum segment size of the internal buffer pool
 
     // Proxy
     public bool UseProxy { get; set; } = true;
@@ -70,6 +71,7 @@ See [Connection Pooling guide](/client/connection-pooling) for pool lifecycle de
 ```csharp
 public sealed class Http1ClientOptions
 {
+    public int MaxBufferedResponseBodySize { get; set; } = 64 * 1024;   // 64 KB; bodies up to this size are buffered in memory, larger are streamed
     public int MaxConnectionsPerServer { get; set; } = 6;
     public int MaxPipelineDepth { get; set; } = 16;
     public int MaxResponseHeadersLength { get; set; } = 64;             // KB
@@ -84,6 +86,7 @@ public sealed class Http1ClientOptions
 
 | Property | Default | Description |
 |----------|---------|-------------|
+| `MaxBufferedResponseBodySize` | `64 * 1024` (64 KB) | Response bodies up to this size are buffered fully in memory; larger bodies are exposed as a streaming pipe |
 | `MaxConnectionsPerServer` | `6` | Max concurrent TCP connections per host |
 | `MaxPipelineDepth` | `16` | Max pipelined requests per connection |
 | `MaxResponseHeadersLength` | `64` (KB) | Max total response header block size |
@@ -102,14 +105,17 @@ public sealed class Http2ClientOptions
     public int MaxConnectionsPerServer { get; set; } = 6;
     public int MaxConcurrentStreams { get; set; } = 100;
     public int InitialConnectionWindowSize { get; set; } = 64 * 1024 * 1024;  // 64 MB
-    public int InitialStreamWindowSize { get; set; } = 65535;
+    public int InitialStreamWindowSize { get; set; } = 1 * 1024 * 1024;       // 1 MB
     public int MaxStreamWindowSize { get; set; } = 16 * 1024 * 1024;          // 16 MB
     public double WindowScaleThresholdMultiplier { get; set; } = 1.0;
     public bool EnableAdaptiveWindowScaling { get; set; } = true;
     public int MaxFrameSize { get; set; } = 64 * 1024;                        // 64 KB
     public int HeaderTableSize { get; set; } = 64 * 1024;                     // 64 KB
     public int MaxResponseHeaderListSize { get; set; } = 64 * 1024;           // 64 KB; max total size of response header list
+    public long MaxBufferedRequestBodySize { get; set; } = 64 * 1024;         // 64 KB; bodies up to this size are serialized inline, larger are streamed
+    public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;           // 64 KB; outbound body bytes buffered per stream before the encoder pauses
     public int MaxReconnectAttempts { get; set; } = 3;
+    public int MaxReconnectBufferSize { get; set; } = 64;                     // max requests buffered during reconnection
     public TimeSpan KeepAlivePingDelay { get; set; } = Timeout.InfiniteTimeSpan;
     public TimeSpan KeepAlivePingTimeout { get; set; } = TimeSpan.FromSeconds(20);
     public HttpKeepAlivePingPolicy KeepAlivePingPolicy { get; set; } = HttpKeepAlivePingPolicy.Always;
@@ -121,14 +127,17 @@ public sealed class Http2ClientOptions
 | `MaxConnectionsPerServer` | `6` | Max concurrent TCP connections per host |
 | `MaxConcurrentStreams` | `100` | Max concurrent streams per connection |
 | `InitialConnectionWindowSize` | `64 * 1024 * 1024` (64 MB) | Connection-level flow control window |
-| `InitialStreamWindowSize` | `65535` | Initial per-stream flow control window |
+| `InitialStreamWindowSize` | `1 * 1024 * 1024` (1 MB) | Initial per-stream flow control window; grows up to `MaxStreamWindowSize` under adaptive scaling |
 | `MaxStreamWindowSize` | `16 * 1024 * 1024` (16 MB) | Maximum per-stream flow control window |
 | `WindowScaleThresholdMultiplier` | `1.0` | RTT multiplier controlling when to scale the stream window |
 | `EnableAdaptiveWindowScaling` | `true` | Grow the stream receive window based on observed throughput |
 | `MaxFrameSize` | `64 * 1024` (64 KB) | Max frame payload size |
 | `HeaderTableSize` | `64 * 1024` (64 KB) | HPACK dynamic table size |
 | `MaxResponseHeaderListSize` | `64 * 1024` (64 KB) | Max total size of the response header list |
+| `MaxBufferedRequestBodySize` | `64 * 1024` (64 KB) | Request bodies up to this size are serialized inline; larger bodies are streamed in chunks with backpressure |
+| `MaxRequestBodyBufferSize` | `64 * 1024` (64 KB) | Max outbound body bytes buffered per stream before the body encoder pauses |
 | `MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
+| `MaxReconnectBufferSize` | `64` | Max requests buffered during reconnection |
 | `KeepAlivePingDelay` | `infinite` | Delay before sending keep-alive PING |
 | `KeepAlivePingTimeout` | `20 s` | Timeout for PING acknowledgment |
 | `KeepAlivePingPolicy` | `Always` | When to send keep-alive PINGs |
@@ -196,6 +205,8 @@ options.ClientCertificates = new X509CertificateCollection
 |----------|---------|-------------|
 | `SocketSendBufferSize` | `null` (system default) | OS socket send buffer size in bytes |
 | `SocketReceiveBufferSize` | `null` (system default) | OS socket receive buffer size in bytes |
+| `ReceiveBufferHint` | `64 * 1024` (64 KB) | Size hint for the internal receive buffer; larger values reduce read syscalls at the cost of memory |
+| `MinimumSegmentSize` | `16 * 1024` (16 KB) | Minimum segment size of the internal buffer pool |
 
 ## Proxy Options
 
@@ -216,7 +227,7 @@ options.ClientCertificates = new X509CertificateCollection
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `ResponseBodyBufferThreshold` | `64 * 1024` (64 KB) | Response bodies below this threshold are buffered fully in memory; at or above it the body is streamed. Shared across all protocol versions. |
+| `Http1.MaxBufferedResponseBodySize` | `64 * 1024` (64 KB) | HTTP/1.x response bodies up to this size are buffered fully in memory; larger bodies are exposed as a streaming pipe |
 | `MaxStreamedResponseBodySize` | `null` (unlimited) | Cap on a streamed response body; `null` means no limit |
 | `RequestBodyChunkSize` | `16 * 1024` (16 KB) | Chunk size used when streaming a request body |
 

@@ -16,9 +16,10 @@ builder.Host.UseTurboHttp(options =>
 | `HandlerTimeout` | `TimeSpan` | 30s | Maximum time for a request handler to complete |
 | `HandlerGracePeriod` | `TimeSpan` | 5s | Extra time after handler timeout before force-closing |
 | `GracefulShutdownTimeout` | `TimeSpan` | 30s | Time to drain connections during shutdown |
-| `RequestBodyBufferThreshold` | `int` | 64 * 1024 | Request body buffer size before streaming |
 | `BodyConsumptionTimeout` | `TimeSpan` | 30s | Time for the app to consume the request body |
 | `ResponseBodyChunkSize` | `int` | 16 * 1024 | Chunk size for response body writes |
+| `MaxOutboundCoalesceCount` | `int` | 32 | Coalesce factor for outbound writes — frames are merged up to factor × 16 KiB per transport write |
+| `AllowResponseHeaderCompression` | `bool` | true | Whether response headers may use Huffman compression (HPACK/QPACK); disable to mitigate CRIME/BREACH-style attacks |
 
 ## Connection Limits
 
@@ -27,9 +28,9 @@ Access via `options.Limits`.
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `MaxConcurrentConnections` | `int` | 0 (unlimited) | Maximum concurrent connections |
-| `MaxConcurrentRequests` | `int` | 0 (unlimited) | Maximum concurrent in-flight requests across all connections |
-| `MinRequestGuarantee` | `int` | 10 | Minimum requests admitted even when the concurrency cap is reached |
-| `MaxRequestBodySize` | `long` | 30 * 1024 * 1024 | Global max request body size |
+| `MaxRequestBodySize` | `long` | 30,000,000 (~28.6 MiB) | Global max request body size (matches Kestrel) |
+| `MaxResponseBufferSize` | `long` | 64 * 1024 | Maximum per-stream response write buffer |
+| `MaxRequestBufferSize` | `long?` | 1 MiB | Transport input buffer before backpressure is applied (`null` = unlimited) |
 | `MaxRequestHeaderCount` | `int` | 100 | Maximum request headers |
 | `MaxRequestHeadersTotalSize` | `int` | 32 * 1024 | Maximum total header bytes |
 | `MaxResetStreamsPerWindow` | `int` | 200 | Maximum HTTP/2 stream resets tolerated in a sliding window before the connection is closed (Rapid Reset / CVE-2023-44487 mitigation). Set to 0 to disable. |
@@ -50,6 +51,7 @@ Access via `options.Http1`.
 | `MaxRequestTargetLength` | `int` | 8192 | Maximum bytes for the request target (URL) |
 | `MaxPipelinedRequests` | `int` | 16 | Maximum queued pipelined requests |
 | `MaxChunkExtensionLength` | `int` | 4096 | Maximum bytes for chunk extensions |
+| `MaxBufferedRequestBodySize` | `int` | 64 * 1024 | Request bodies up to this size are buffered fully in memory; larger bodies are exposed as a streaming pipe |
 | `BodyReadTimeout` | `TimeSpan` | 30s | Timeout for reading request body |
 | `MaxHeaderListSize` | `int?` | null (uses global) | Max total header bytes (null = uses `Limits.MaxRequestHeadersTotalSize`) |
 | `MaxRequestBodySize` | `long?` | null (uses global) | HTTP/1.x-specific body size limit |
@@ -68,13 +70,18 @@ Access via `options.Http2`.
 |----------|------|---------|-------------|
 | `MaxConcurrentStreams` | `int` | 100 | Maximum concurrent streams per connection |
 | `InitialConnectionWindowSize` | `int` | 1 * 1024 * 1024 | Connection-level flow control window |
-| `InitialStreamWindowSize` | `int` | 768 * 1024 | Per-stream flow control window |
+| `InitialStreamWindowSize` | `int` | 768 * 1024 | Per-stream flow control window (starting point for adaptive scaling) |
+| `MaxStreamWindowSize` | `int` | 8 * 1024 * 1024 | Upper bound for adaptive per-stream window growth |
+| `WindowScaleThresholdMultiplier` | `double` | 1.0 | Threshold multiplier for adaptive window growth; higher values grow less eagerly |
+| `EnableAdaptiveWindowScaling` | `bool` | true | Grow the per-stream receive window based on measured throughput and RTT |
 | `MaxFrameSize` | `int` | 16 * 1024 | Maximum HTTP/2 frame payload size |
 | `MaxHeaderListSize` | `int?` | null (uses global) | Max total header bytes (null = uses `Limits.MaxRequestHeadersTotalSize`) |
 | `HeaderTableSize` | `int` | 4 * 1024 | HPACK dynamic table size |
-| `MaxResponseBufferSize` | `long` | 64 * 1024 | Response buffering before backpressure |
+| `MaxResponseBufferSize` | `long?` | null (uses global) | Response buffering before backpressure (null = uses `Limits.MaxResponseBufferSize`) |
 | `MaxRequestBodySize` | `long?` | null (uses global) | HTTP/2-specific body size limit |
 | `KeepAliveTimeout` | `TimeSpan?` | null (uses global) | Connection idle timeout |
+| `KeepAlivePingDelay` | `TimeSpan` | infinite (disabled) | Idle time after the last received frame before the server sends a keep-alive PING |
+| `KeepAlivePingTimeout` | `TimeSpan` | 20s | Max wait for a PING ACK before the connection is closed |
 | `RequestHeadersTimeout` | `TimeSpan?` | null (uses global) | Time to receive request headers |
 | `MinRequestBodyDataRate` | `double?` | null (uses global) | Minimum body bytes/sec |
 | `MinRequestBodyDataRateGracePeriod` | `TimeSpan?` | null (uses global) | Grace period before enforcing body rate |
@@ -91,6 +98,7 @@ Access via `options.Http3`.
 | `MaxHeaderListSize` | `int?` | null (uses global) | Max total header bytes (null = uses `Limits.MaxRequestHeadersTotalSize`) |
 | `QpackMaxTableCapacity` | `int` | 0 | QPACK dynamic table capacity (0 = static only) |
 | `QpackBlockedStreams` | `int` | 100 | Maximum concurrent QPACK-blocked streams |
+| `MaxResponseBufferSize` | `long?` | null (uses global) | Per-stream response write buffer (null = uses `Limits.MaxResponseBufferSize`) |
 | `MaxRequestBodySize` | `long?` | null (uses global) | HTTP/3-specific body size limit |
 | `KeepAliveTimeout` | `TimeSpan?` | null (uses global) | Connection idle timeout |
 | `RequestHeadersTimeout` | `TimeSpan?` | null (uses global) | Time to receive request headers |
@@ -98,6 +106,35 @@ Access via `options.Http3`.
 | `MinRequestBodyDataRateGracePeriod` | `TimeSpan?` | null (uses global) | Grace period before enforcing body rate |
 | `MinResponseDataRate` | `double?` | null (uses global) | Minimum response bytes/sec |
 | `MinResponseDataRateGracePeriod` | `TimeSpan?` | null (uses global) | Grace period before enforcing response rate |
+
+## Transport Buffers
+
+Per-endpoint backpressure thresholds for the pipes between the OS socket and the HTTP pipeline. Set via `TurboListenOptions.Transport`; when left `null`, protocol-optimized defaults apply (TCP buffers one pipe per connection, QUIC one pipe per stream).
+
+| Property | Type | TCP Default | QUIC Default | Description |
+|----------|------|-------------|--------------|-------------|
+| `InputPauseThreshold` | `long` | 1 MiB | 64 KiB | Bytes buffered on the read pipe before the OS socket is paused |
+| `InputResumeThreshold` | `long` | 512 KiB | 32 KiB | Buffered byte count at which reading resumes |
+| `OutputPauseThreshold` | `long` | 64 KiB | 64 KiB | Bytes buffered on the write pipe before the HTTP pipeline is paused |
+| `OutputResumeThreshold` | `long` | 32 KiB | 32 KiB | Buffered byte count at which writing resumes |
+| `MinimumSegmentSize` | `int` | 16 KiB | 4 KiB | Minimum pipe buffer segment size |
+
+```csharp
+options.Listen(IPAddress.Any, 8080, listen =>
+{
+    listen.Transport = new TransportBufferOptions
+    {
+        InputPauseThreshold = 2 * 1024 * 1024,
+        InputResumeThreshold = 1024 * 1024
+    };
+});
+```
+
+::: warning
+Assigning `Transport` replaces the protocol defaults entirely — there is no per-property fallback. `InputPauseThreshold` and `InputResumeThreshold` have no initializer, so always set both explicitly; the output thresholds and `MinimumSegmentSize` fall back to the class initializers (64 KiB / 32 KiB / 16 KiB) if omitted.
+:::
+
+See the [Server API reference](/api/server#transport-buffer-options) for details.
 
 ## Example: Full Configuration
 
