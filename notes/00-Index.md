@@ -50,3 +50,11 @@ RFC 9110 (Semantics)
 RFC 1945 (HTTP/1.0) ──────────── superseded by RFC 9112
 RFC 6265 (Cookies) ───────────── extends HTTP semantics
 ```
+
+---
+
+## Known Bugs
+
+| Note | Status | Description |
+|------|--------|-------------|
+| [[Bugs/H2-response-truncation-race\|H2 Response Truncation Race]] | open | Concurrent multiplexed H2 streams intermittently lose whole response DATA frames (truncation by multiples of 16384) or corrupt payloads; surfaced as HTTP 200 |
