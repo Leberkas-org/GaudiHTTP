@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.0.0-alpha.3](https://github.com/Leberkas-org/TurboHTTP/compare/v3.0.0-alpha.2...v3.0.0-alpha.3) (2026-06-11)
+
+
+### Features
+
+* **client:** add CONNECT support ([99448da](https://github.com/Leberkas-org/TurboHTTP/commit/99448dabaa6198c11f644c4e64dd3717bc3afd68))
+
+
+### Documentation
+
+* align option references and client API docs with current code ([4c3f186](https://github.com/Leberkas-org/TurboHTTP/commit/4c3f186ff907e970b03d5f4601da6b889e0e0768))
+
 ## [3.0.0-alpha.2](https://github.com/Leberkas-org/TurboHTTP/compare/v3.0.0-alpha.1...v3.0.0-alpha.2) (2026-06-11)
 
 
