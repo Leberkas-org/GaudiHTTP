@@ -1,5 +1,97 @@
 # Changelog
 
+## [3.0.0-alpha.2](https://github.com/Leberkas-org/TurboHTTP/compare/v3.0.0-alpha.1...v3.0.0-alpha.2) (2026-06-11)
+
+
+### Features
+
+* **client:** default timeout for channel path + CancelPendingRequests drain ([fd4bf5e](https://github.com/Leberkas-org/TurboHTTP/commit/fd4bf5e4b1b57029e6907bc8537c61fc0cf4a505))
+* **client:** expose pipe buffer tuning via TurboClientOptions ([9773bab](https://github.com/Leberkas-org/TurboHTTP/commit/9773bab0a19d58905d3ef209ef3b9045c9c9641d))
+* **client:** propagate effective CancellationToken onto request options ([9602238](https://github.com/Leberkas-org/TurboHTTP/commit/9602238d85911e8a846e4f1cf4d5092a7dfd1d2e))
+* **h10:** per-request cancellation with disconnect ([6b51616](https://github.com/Leberkas-org/TurboHTTP/commit/6b516168f3403b7eaf8a506b895065cad1a81e93))
+* **h11:** per-request cancellation with pipelining awareness ([3b01383](https://github.com/Leberkas-org/TurboHTTP/commit/3b01383d2ef45ec000054a66ee72e35c8dd97aed))
+* **h2:** emit RST_STREAM on per-request cancellation ([323097d](https://github.com/Leberkas-org/TurboHTTP/commit/323097d26ec2c21fd40c53ad6c9beb08793d2e3a))
+* **h3:** emit STOP_SENDING on per-request cancellation ([0cbe4d9](https://github.com/Leberkas-org/TurboHTTP/commit/0cbe4d9a19476c4daf461c7a0988aa66df0b45d2))
+* pipe transport, body redesign, server simplification ([5281774](https://github.com/Leberkas-org/TurboHTTP/commit/528177468b6dc7d9cf0dcbe514af70641f37190b))
+* **protocol:** add CancellationToken infrastructure for per-request cancel ([e74d9d2](https://github.com/Leberkas-org/TurboHTTP/commit/e74d9d2bea936d953c929ddcea761e5967302036))
+* **server:** Add transport buffer options ([d2cc47f](https://github.com/Leberkas-org/TurboHTTP/commit/d2cc47f3b5a2eb2a3b7e008ed5cfc5314f0d2baa))
+* **server:** expose TransportBufferOptions with protocol-optimized defaults ([3857fc9](https://github.com/Leberkas-org/TurboHTTP/commit/3857fc9cc3883e7be455979d29c7a694923451cf))
+* **stage:** register per-request CancellationToken callbacks in connection stage ([bcb808e](https://github.com/Leberkas-org/TurboHTTP/commit/bcb808e6d807a88be870adcdadc390a29349849c))
+
+
+### Bug Fixes
+
+* **bench:** add 30s timeout guard to all benchmark iterations ([82b1cb7](https://github.com/Leberkas-org/TurboHTTP/commit/82b1cb71ee96daf4937d9f916bb2860283772123))
+* **bench:** add 30s timeout to all benchmark clients ([48fe358](https://github.com/Leberkas-org/TurboHTTP/commit/48fe358330a8d3761c4686c07b7231fb82af95a5))
+* **bench:** add CancellationToken timeout to all warmup and SendAsync calls ([b9cd7e0](https://github.com/Leberkas-org/TurboHTTP/commit/b9cd7e034aaecaa125bc96865f07bb0874995770))
+* **bench:** add IterationCleanup drain for streaming benchmarks ([a7be4f4](https://github.com/Leberkas-org/TurboHTTP/commit/a7be4f4ec3e9f225f524da05d4e439badf462991))
+* **bench:** align H3 client MaxConcurrentStreams with Kestrel default ([564e753](https://github.com/Leberkas-org/TurboHTTP/commit/564e753ac04e3366723406a07728849468239b95))
+* **bench:** drain stale responses at start of each streaming iteration ([be01236](https://github.com/Leberkas-org/TurboHTTP/commit/be012368484f05b7be77a32e099cc43fff5dcfd7))
+* **bench:** drop CL=4096 from streaming benchmarks ([564968a](https://github.com/Leberkas-org/TurboHTTP/commit/564968a16dae2ded49a253ff99c43dc448409f6d))
+* **benchmarks:** protocol-aware fan-out limits and scaled timeouts ([575375e](https://github.com/Leberkas-org/TurboHTTP/commit/575375ee8b08f863ed46e5290dc5beb2ce05c5cc))
+* **bench:** prevent benchmark reports from overwriting previous runs ([fa5d3bd](https://github.com/Leberkas-org/TurboHTTP/commit/fa5d3bdaf01c0a57db9811f873359a7430f6b41f))
+* **bench:** prevent streaming benchmark deadlocks ([a249088](https://github.com/Leberkas-org/TurboHTTP/commit/a249088e8a601f72e6900abdccf74ea83a612c6b))
+* **bench:** raise QUIC stream limit and harden streaming benchmarks ([9a54267](https://github.com/Leberkas-org/TurboHTTP/commit/9a54267077668f468a03ad24ea69c7d4bb6cefe9))
+* **bench:** restore CL=4096 for streaming benchmarks ([a02761a](https://github.com/Leberkas-org/TurboHTTP/commit/a02761ad6d235ccf369b86c5b4aa70fe42b53363))
+* **bench:** switch heavy benchmarks to /upload route + throttle streaming writer ([daab86a](https://github.com/Leberkas-org/TurboHTTP/commit/daab86a41a5cb62d4f810e4424546c9657dfdef8))
+* **body:** H10 truncated body error propagation, H11 chunked boundary deadlock ([561ff28](https://github.com/Leberkas-org/TurboHTTP/commit/561ff286be80a54637977d7419483f70967fc83e))
+* **body:** QueuedBodyReader.ReadAsync now respects CancellationToken ([fb5c55a](https://github.com/Leberkas-org/TurboHTTP/commit/fb5c55a48e2d1583f4d3328ee48b010fa100c740))
+* **body:** resolve pending ReadAsync on Reset to prevent InvalidOperationException ([bc21107](https://github.com/Leberkas-org/TurboHTTP/commit/bc21107a5c2be2e00cd293dbba99faf10eb7616b))
+* **ci:** Disable parallel test modules ([a1d783f](https://github.com/Leberkas-org/TurboHTTP/commit/a1d783ff137bbef145dde2d2dbbef7245e374bf4))
+* **ci:** run two test modules in parallel ([0ed7e7f](https://github.com/Leberkas-org/TurboHTTP/commit/0ed7e7f2b11ea3e17a6ffe97108138c23f12451a))
+* client flush backpressure, QUIC pipe options, test fixes ([bf3effd](https://github.com/Leberkas-org/TurboHTTP/commit/bf3effd10f1f7b5e6d4986ebb0cf7ec49d3c4fd2))
+* **e2e:** stabilize E2E integration tests ([cbc2252](https://github.com/Leberkas-org/TurboHTTP/commit/cbc22522d97a8f4a3089acb41b9be412571be0f4))
+* **e2e:** use ctx.RequestAborted instead of TestContext CancellationToken ([e6c6f56](https://github.com/Leberkas-org/TurboHTTP/commit/e6c6f560be57920460f372dae9f5aec15bf0acc5))
+* **h10/server:** dispatch streaming request bodies before full receipt ([4ed9c42](https://github.com/Leberkas-org/TurboHTTP/commit/4ed9c424126d91b38d5045919452984dd590388d))
+* **h2/server:** partial send in DrainOutboundBuffer when flow control window &lt; chunk ([2f57852](https://github.com/Leberkas-org/TurboHTTP/commit/2f57852b8dadfd16202ce3a724aa6635e712e671))
+* **h2:** track stream-level send window in FlowController.OnDataSent ([f31784e](https://github.com/Leberkas-org/TurboHTTP/commit/f31784ed7de48eb515b2eb838bca1495629aba34))
+* **http2/3:** correct body read pending state ([f8d2485](https://github.com/Leberkas-org/TurboHTTP/commit/f8d248538f839ed6246e8e7904017ba2e341199c))
+* **http2:** make QueuedBodyReader thread-safe and fail truncated response bodies ([ba89a9c](https://github.com/Leberkas-org/TurboHTTP/commit/ba89a9c508bc72b6ff6ce5a2754c37a932e03492))
+* **http:** fix http version comparison and null checks ([91fdab1](https://github.com/Leberkas-org/TurboHTTP/commit/91fdab1787a5793bc2c1cd7d9c2f2144c65c8ee2))
+* **http:** Improve flow control and stream draining ([6ec29cb](https://github.com/Leberkas-org/TurboHTTP/commit/6ec29cb5d5bffed046d2c021990c84e819f5cfe4))
+* **quic:** update submodule — drain pending acquires on release/establish ([1defdbb](https://github.com/Leberkas-org/TurboHTTP/commit/1defdbbfb2a732402513a4faef14d7da2fd34ea2))
+* **quic:** update submodule — server stream accept loop exception handling ([63a1319](https://github.com/Leberkas-org/TurboHTTP/commit/63a1319b38f1a45449f5a364b70fff5362d0d866))
+* **quic:** update submodule with QUIC accept loop resilience ([7cee693](https://github.com/Leberkas-org/TurboHTTP/commit/7cee6937709ab21b9068e51953a99a0dcbb040a5))
+* Remove unused OpenTelemetry package ([93a9f26](https://github.com/Leberkas-org/TurboHTTP/commit/93a9f26af3f75dafbcb194d2d93e8eebdb2f51ef))
+* **server:** always call TryPullResponse from OnNetworkPull ([e18b2e3](https://github.com/Leberkas-org/TurboHTTP/commit/e18b2e312793d36be962e85ebdccbe3a6237ed18))
+* **server:** split buffered body into MAX_FRAME_SIZE-compliant DATA frames ([a64f68b](https://github.com/Leberkas-org/TurboHTTP/commit/a64f68bf788f59b89457bf4399fc057d7802f5f6))
+* **tcp:** update submodule with concurrent PipeWriter access fix ([ef32fea](https://github.com/Leberkas-org/TurboHTTP/commit/ef32fea181f593dfd1f901ef352b5fba5e0e9e59))
+* **test:** Disable parallel test collections ([0dae2a3](https://github.com/Leberkas-org/TurboHTTP/commit/0dae2a3e7837e005a2384c6fe19bca53a90362fa))
+* **test:** make integration test infrastructure parallel-safe ([9dce6a6](https://github.com/Leberkas-org/TurboHTTP/commit/9dce6a6be975cb850b4e056194757785f0208d3d))
+* **test:** raise client timeout in LargePayloadSpec for CI contention ([65dd73f](https://github.com/Leberkas-org/TurboHTTP/commit/65dd73f853c9a23cde702cf545a3a0b6698331c7))
+
+
+### Performance
+
+* **client:** remove .Async() boundary from EndpointDispatchStage ([f4a1bb4](https://github.com/Leberkas-org/TurboHTTP/commit/f4a1bb4d9e2e5792b4dee441784fe442fa61daa4))
+* **h3:** cache QPACK encode buffer across Encode() calls ([1ff7130](https://github.com/Leberkas-org/TurboHTTP/commit/1ff7130818e824abe8230e56e1ccbc20c04afacb))
+* **h3:** pool FrameDecoder and rent StreamState from pool in server ([49b3032](https://github.com/Leberkas-org/TurboHTTP/commit/49b303219df20dee3155ab3880a1b183f8b96b1e))
+* **h3:** reduce QUIC pipe MinimumSegmentSize from 16KB to 4KB ([35e45fa](https://github.com/Leberkas-org/TurboHTTP/commit/35e45fa134839650083576e10c36a8a78ca892fb))
+* pass sizeHint to GetMemory() + sync body read bypass for H10 server ([4b65fb3](https://github.com/Leberkas-org/TurboHTTP/commit/4b65fb3c864eaae98885b49d709ee33d7198400a))
+* pool TransportData wrappers + convert PipeTo messages to readonly record structs ([f27b895](https://github.com/Leberkas-org/TurboHTTP/commit/f27b895b00839e3a8064f6fe9b9b803491540f82))
+* reduce QueuedBodyReader default capacity from 64 to 8 ([1988ddb](https://github.com/Leberkas-org/TurboHTTP/commit/1988ddb89b1b7f7ec583a0d404664bd21832d501))
+* right-size body drain buffers using content-length ([5e54fe3](https://github.com/Leberkas-org/TurboHTTP/commit/5e54fe3c6ff1d648790cba7e221c97e999820049))
+* **server:** buffered body fast path for all protocol SMs ([8823dec](https://github.com/Leberkas-org/TurboHTTP/commit/8823dec035f3174ad2fdb264ba431c6565d3cace))
+* **server:** dual-mode ResponsePipeWriter with lazy Pipe upgrade ([721c992](https://github.com/Leberkas-org/TurboHTTP/commit/721c9928ae9935cc24c321d4d11028aa0bb20e39))
+* **server:** eliminate SetOnStarting closure allocation ([0ea3214](https://github.com/Leberkas-org/TurboHTTP/commit/0ea3214607db8a258a4497ac94d29c1975c3154b))
+* **server:** fix QUIC stream leak, reduce allocations, improve H2 throughput ([03a6d9c](https://github.com/Leberkas-org/TurboHTTP/commit/03a6d9c9b8f5e0481c787c832ffe4c4a3f3df402))
+* **server:** pool ArrayBufferWriter&lt;byte&gt; for response body buffering ([3db8272](https://github.com/Leberkas-org/TurboHTTP/commit/3db8272f2b3192579edfa53faacbe3aef979022e))
+* **server:** recycle FeatureCollection after response body consumption ([6a06a89](https://github.com/Leberkas-org/TurboHTTP/commit/6a06a89e6fec7f3a527cf0cac3c3c54edd50b69b))
+* **server:** synchronous body read bypass for pre-buffered responses ([ea52a12](https://github.com/Leberkas-org/TurboHTTP/commit/ea52a129638688772fe0991a5ea8c0fed1021c8c))
+* **tcp:** update submodule with server transport alignment ([a16fd7f](https://github.com/Leberkas-org/TurboHTTP/commit/a16fd7f777737c1561ac1f676297e67290efc1ed))
+* **tcp:** update submodule with write coalescing ([e1b512f](https://github.com/Leberkas-org/TurboHTTP/commit/e1b512fe79d069c97e70014c73dabfa35cac5adc))
+
+
+### Documentation
+
+* **notes:** document H2 response truncation race with repro steps ([0db412f](https://github.com/Leberkas-org/TurboHTTP/commit/0db412f39a1003004cda8f642eb6e196bed7d1c1))
+
+
+### Refactoring
+
+* **bench:** remove Binkraken benchmarks entirely ([fe255b2](https://github.com/Leberkas-org/TurboHTTP/commit/fe255b2c2a7f71998e66a4efa3cb6632124555ff))
+* Remove unused MemoryPool reference ([e56b38d](https://github.com/Leberkas-org/TurboHTTP/commit/e56b38df69493f202352508a3bbe7ecf3bb0acc5))
+
 ## [3.0.0-alpha.1](https://github.com/Leberkas-org/TurboHTTP/compare/v3.0.0-alpha...v3.0.0-alpha.1) (2026-06-02)
 
 
