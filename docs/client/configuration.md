@@ -88,7 +88,7 @@ options.PooledConnectionLifetime = TimeSpan.FromMinutes(10);
 
 | Property                        | Type    | Default             | Description                                                                                                                           |
 | ------------------------------- | ------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `ResponseBodyBufferThreshold`   | `int`   | `64 * 1024` (64 KB) | Response bodies below this size are buffered fully in memory; at or above it the body is streamed (shared across all protocol versions) |
+| `Http1.MaxBufferedResponseBodySize` | `int` | `64 * 1024` (64 KB) | HTTP/1.x response bodies up to this size are buffered fully in memory; larger bodies are exposed as a streaming pipe |
 | `MaxStreamedResponseBodySize`   | `long?` | `null`              | Cap on a streamed response body; `null` = unlimited                                                                                   |
 | `RequestBodyChunkSize`          | `int`   | `16 * 1024` (16 KB) | Chunk size used when streaming a request body to the server                                                                           |
 
@@ -120,7 +120,7 @@ options.Http1.MaxPipelineDepth = 32;
 | `Http2.MaxConnectionsPerServer`            | `int`                      | `6`                            | Maximum concurrent HTTP/2 connections per host                         |
 | `Http2.MaxConcurrentStreams`               | `int`                      | `100`                          | Maximum concurrent streams per connection                              |
 | `Http2.InitialConnectionWindowSize`        | `int`                      | `64 * 1024 * 1024` (64 MiB)   | Initial flow-control window for the whole connection                   |
-| `Http2.InitialStreamWindowSize`            | `int`                      | `65535`                        | Initial flow-control window per stream                                 |
+| `Http2.InitialStreamWindowSize`            | `int`                      | `1 * 1024 * 1024` (1 MiB)      | Initial flow-control window per stream (grows up to `MaxStreamWindowSize`) |
 | `Http2.MaxStreamWindowSize`                | `int`                      | `16 * 1024 * 1024` (16 MiB)   | Upper bound for adaptive stream window growth                          |
 | `Http2.WindowScaleThresholdMultiplier`     | `double`                   | `1.0`                          | RTT multiplier that triggers a window-size increase                    |
 | `Http2.EnableAdaptiveWindowScaling`        | `bool`                     | `true`                         | Automatically grow receive windows based on measured RTT               |
