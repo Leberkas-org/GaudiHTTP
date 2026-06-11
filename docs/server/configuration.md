@@ -109,19 +109,20 @@ Access via `options.Http3`.
 
 ## Transport Buffers
 
-Per-endpoint backpressure thresholds for the pipes between the OS socket and the HTTP pipeline. Set via `TurboListenOptions.Transport`; when left `null`, protocol-optimized defaults apply (TCP buffers one pipe per connection, QUIC one pipe per stream).
+Per-endpoint backpressure thresholds for the pipes between the OS socket and the HTTP pipeline. Set via `TurboListenOptions.Transport`. All properties are nullable; each `null` property falls back to its protocol-optimized default individually (TCP buffers one pipe per connection, QUIC one pipe per stream), so you only set what you want to change. A resume threshold above its pause threshold fails endpoint resolution with `InvalidOperationException`.
 
 | Property | Type | TCP Default | QUIC Default | Description |
 |----------|------|-------------|--------------|-------------|
-| `InputPauseThreshold` | `long` | 1 MiB | 64 KiB | Bytes buffered on the read pipe before the OS socket is paused |
-| `InputResumeThreshold` | `long` | 512 KiB | 32 KiB | Buffered byte count at which reading resumes |
-| `OutputPauseThreshold` | `long` | 64 KiB | 64 KiB | Bytes buffered on the write pipe before the HTTP pipeline is paused |
-| `OutputResumeThreshold` | `long` | 32 KiB | 32 KiB | Buffered byte count at which writing resumes |
-| `MinimumSegmentSize` | `int` | 16 KiB | 4 KiB | Minimum pipe buffer segment size |
+| `InputPauseThreshold` | `long?` | 1 MiB | 64 KiB | Bytes buffered on the read pipe before the OS socket is paused |
+| `InputResumeThreshold` | `long?` | 512 KiB | 32 KiB | Buffered byte count at which reading resumes |
+| `OutputPauseThreshold` | `long?` | 64 KiB | 64 KiB | Bytes buffered on the write pipe before the HTTP pipeline is paused |
+| `OutputResumeThreshold` | `long?` | 32 KiB | 32 KiB | Buffered byte count at which writing resumes |
+| `MinimumSegmentSize` | `int?` | 16 KiB | 4 KiB | Minimum pipe buffer segment size |
 
 ```csharp
 options.Listen(IPAddress.Any, 8080, listen =>
 {
+    // Only the input thresholds are overridden; everything else keeps the TCP defaults
     listen.Transport = new TransportBufferOptions
     {
         InputPauseThreshold = 2 * 1024 * 1024,
@@ -129,10 +130,6 @@ options.Listen(IPAddress.Any, 8080, listen =>
     };
 });
 ```
-
-::: warning
-Assigning `Transport` replaces the protocol defaults entirely — there is no per-property fallback. `InputPauseThreshold` and `InputResumeThreshold` have no initializer, so always set both explicitly; the output thresholds and `MinimumSegmentSize` fall back to the class initializers (64 KiB / 32 KiB / 16 KiB) if omitted.
-:::
 
 See the [Server API reference](/api/server#transport-buffer-options) for details.
 

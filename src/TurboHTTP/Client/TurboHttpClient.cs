@@ -32,6 +32,8 @@ public sealed class TurboHttpClient : ITurboHttpClient
 
     private readonly ICredentials? _credentials;
     private readonly bool _preAuthenticate;
+    private readonly bool _useProxy;
+    private readonly IWebProxy? _proxy;
 
     /// <inheritdoc />
     public Uri? BaseAddress
@@ -99,7 +101,9 @@ public sealed class TurboHttpClient : ITurboHttpClient
             _defaultVersionPolicy,
             _timeout,
             _credentials,
-            _preAuthenticate);
+            _preAuthenticate,
+            _useProxy,
+            _proxy);
     }
 
     internal TurboHttpClient(
@@ -114,6 +118,8 @@ public sealed class TurboHttpClient : ITurboHttpClient
         _timeout = options.Timeout;
         _credentials = options.Credentials;
         _preAuthenticate = options.PreAuthenticate;
+        _useProxy = options.UseProxy;
+        _proxy = options.Proxy;
         foreach (var header in options.DefaultRequestHeaders)
         {
             _defaultHeadersHolder.Headers.TryAddWithoutValidation(header.Key, header.Value);

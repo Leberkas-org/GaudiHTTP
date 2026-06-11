@@ -195,7 +195,7 @@ internal sealed class EndpointResolver
         var alpn = protocols.ToAlpnProtocols();
         var httpsOptions = listen.HttpsOptions;
 
-        var transport = listen.Transport ?? TransportBufferOptions.TcpDefaults;
+        var transport = listen.Transport?.ResolveTcp() ?? TransportBufferOptions.TcpDefaults;
         var tcpOptions = new TcpListenerOptions
         {
             Host = listen.Address.ToString(),
@@ -224,7 +224,7 @@ internal sealed class EndpointResolver
 
     private static ListenerBinding CreateQuicBinding(TurboListenOptions listen, X509Certificate2 certificate)
     {
-        var transport = listen.Transport ?? TransportBufferOptions.QuicDefaults;
+        var transport = listen.Transport?.ResolveQuic() ?? TransportBufferOptions.QuicDefaults;
         var quicOptions = new QuicListenerOptions
         {
             Host = listen.Address.ToString(),

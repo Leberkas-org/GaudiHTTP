@@ -222,6 +222,48 @@ public sealed class AltSvcBidiStageSpec : StreamTestBase
 
     [Trait("RFC", "RFC7838")]
     [Fact(Timeout = 5000)]
+    public async Task AltSvcBidiStage_should_not_upgrade_when_proxy_applies()
+    {
+        var cache = new AltSvcCache();
+        cache.Store("example.com", [new AltSvcEntry("h3", "", 443, 86400, false, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var stage = new AltSvcBidiStage(cache, useProxy: true, proxy: new WebProxy("http://proxy.local:8080"));
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
+        {
+            Version = HttpVersion.Version11
+        };
+
+        var results = await RunRequestAsync(stage, request);
+
+        var result = Assert.Single(results);
+        Assert.Equal(HttpVersion.Version11, result.Version);
+    }
+
+    [Trait("RFC", "RFC7838")]
+    [Fact(Timeout = 5000)]
+    public async Task AltSvcBidiStage_should_upgrade_when_proxy_bypasses_host()
+    {
+        var cache = new AltSvcCache();
+        cache.Store("example.com", [new AltSvcEntry("h3", "", 443, 86400, false, DateTimeOffset.UtcNow.AddHours(1))]);
+
+        var proxy = new WebProxy("http://proxy.local:8080")
+        {
+            BypassList = [@"example\.com"]
+        };
+        var stage = new AltSvcBidiStage(cache, useProxy: true, proxy: proxy);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/")
+        {
+            Version = HttpVersion.Version11
+        };
+
+        var results = await RunRequestAsync(stage, request);
+
+        var result = Assert.Single(results);
+        Assert.Equal(HttpVersion.Version30, result.Version);
+    }
+
+    [Trait("RFC", "RFC7838")]
+    [Fact(Timeout = 5000)]
     public async Task AltSvcBidiStage_should_handle_multiple_alt_svc_values()
     {
         var cache = new AltSvcCache();

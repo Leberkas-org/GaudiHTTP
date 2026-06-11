@@ -194,14 +194,16 @@ namespace TurboHTTP.Client
     }
     public class TurboRequestOptions : System.IEquatable<TurboHTTP.Client.TurboRequestOptions>
     {
-        public TurboRequestOptions(System.Uri? BaseAddress, System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders, System.Version DefaultRequestVersion, System.Net.Http.HttpVersionPolicy DefaultVersionPolicy, System.TimeSpan Timeout, System.Net.ICredentials? Credentials = null, bool PreAuthenticate = false) { }
+        public TurboRequestOptions(System.Uri? BaseAddress, System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders, System.Version DefaultRequestVersion, System.Net.Http.HttpVersionPolicy DefaultVersionPolicy, System.TimeSpan Timeout, System.Net.ICredentials? Credentials = null, bool PreAuthenticate = false, bool UseProxy = true, System.Net.IWebProxy? Proxy = null) { }
         public System.Uri? BaseAddress { get; init; }
         public System.Net.ICredentials? Credentials { get; init; }
         public System.Net.Http.Headers.HttpRequestHeaders DefaultRequestHeaders { get; init; }
         public System.Version DefaultRequestVersion { get; init; }
         public System.Net.Http.HttpVersionPolicy DefaultVersionPolicy { get; init; }
         public bool PreAuthenticate { get; init; }
+        public System.Net.IWebProxy? Proxy { get; init; }
         public System.TimeSpan Timeout { get; init; }
+        public bool UseProxy { get; init; }
     }
 }
 namespace TurboHTTP.Diagnostics
@@ -434,11 +436,11 @@ namespace TurboHTTP.Server
     public sealed class TransportBufferOptions
     {
         public TransportBufferOptions() { }
-        public long InputPauseThreshold { get; set; }
-        public long InputResumeThreshold { get; set; }
-        public int MinimumSegmentSize { get; set; }
-        public long OutputPauseThreshold { get; set; }
-        public long OutputResumeThreshold { get; set; }
+        public long? InputPauseThreshold { get; set; }
+        public long? InputResumeThreshold { get; set; }
+        public int? MinimumSegmentSize { get; set; }
+        public long? OutputPauseThreshold { get; set; }
+        public long? OutputResumeThreshold { get; set; }
     }
     public sealed class TurboHttpsOptions
     {

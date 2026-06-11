@@ -47,6 +47,21 @@ internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
             request.VersionPolicy = options.DefaultVersionPolicy;
         }
 
+        // Rule 2c: HTTP/3 cannot traverse an HTTP forward proxy — QUIC would silently bypass it.
+        // Downgrade to HTTP/2 (TLS + CONNECT tunnel) when the policy allows, otherwise fail.
+        if (request.Version.Major >= 3 && ProxyApplies(options, request.RequestUri))
+        {
+            if (request.VersionPolicy == HttpVersionPolicy.RequestVersionOrLower)
+            {
+                request.Version = HttpVersion.Version20;
+            }
+            else
+            {
+                throw new HttpRequestException(
+                    "HTTP/3 cannot be used through an HTTP proxy. Use HttpVersionPolicy.RequestVersionOrLower to allow a downgrade, or bypass the proxy for this host.");
+            }
+        }
+
         // Rule 3: Default headers — add those absent from the request
         foreach (var header in options.DefaultRequestHeaders)
         {
@@ -93,6 +108,13 @@ internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
         }
 
         return request;
+    }
+
+    internal static bool ProxyApplies(TurboRequestOptions options, Uri? requestUri)
+    {
+        return options is { UseProxy: true, Proxy: not null }
+               && requestUri is not null
+               && !options.Proxy.IsBypassed(requestUri);
     }
 
     /// <summary>
