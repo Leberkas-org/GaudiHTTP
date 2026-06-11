@@ -622,6 +622,9 @@ internal sealed class Http2ServerSessionManager
     {
         var streamId = data.StreamId;
 
+        Tracing.For("Protocol").Trace(this, "HTTP/2: DATA in (stream={0}, len={1}, endStream={2})",
+            streamId, data.Data.Length, data.EndStream);
+
         if (!_streams.TryGetValue(streamId, out var state))
         {
             EmitRstStream(streamId, Http2ErrorCode.StreamClosed);
@@ -1007,6 +1010,12 @@ internal sealed class Http2ServerSessionManager
 
     private void EmitFrame(Http2Frame frame)
     {
+        if (frame is DataFrame d)
+        {
+            Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
+                d.StreamId, d.Data.Length, d.EndStream);
+        }
+
         if (frame is DataFrame { Data.Length: > 0 } df)
         {
             _responseRate.Observe(df.StreamId, df.Data.Length, Now());
