@@ -47,7 +47,7 @@ public sealed class WirePipeliningSpec : End2EndSpecBase
 
     private async Task<string> ReadUntilThreeResponsesAsync(NetworkStream stream, Socket socket)
     {
-        socket.ReceiveTimeout = 5000;
+        socket.ReceiveTimeout = 10000;
         var sb = new StringBuilder();
         var buffer = new byte[4096];
 

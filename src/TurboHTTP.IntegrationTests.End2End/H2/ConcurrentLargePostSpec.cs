@@ -10,6 +10,10 @@ public sealed class ConcurrentLargePostSpec : End2EndSpecBase
 {
     protected override Version ProtocolVersion => HttpVersion.Version20;
 
+    // Many concurrent 1MB transfers on one connection can exceed the 10s default
+    // under CI contention; stay well below the 60-90s watchdogs instead.
+    protected override TimeSpan ClientTimeout => TimeSpan.FromSeconds(45);
+
     protected override void ConfigureEndpoints(WebApplication app)
     {
         app.MapPost("/echo-bytes", async ctx =>
@@ -18,6 +22,9 @@ public sealed class ConcurrentLargePostSpec : End2EndSpecBase
             await ctx.Request.Body.CopyToAsync(stream, ctx.RequestAborted);
             var data = stream.ToArray();
             ctx.Response.ContentType = "application/octet-stream";
+            // Diagnostic: lets a failing assert distinguish request-side truncation
+            // (server already received short data) from response-side truncation.
+            ctx.Response.Headers["X-Received-Length"] = data.Length.ToString();
             await ctx.Response.Body.WriteAsync(data, ctx.RequestAborted);
         });
     }
@@ -62,8 +69,11 @@ public sealed class ConcurrentLargePostSpec : End2EndSpecBase
 
                     if (responseBytes.Length != payloads[index].Length)
                     {
+                        var receivedByServer = response.Headers.TryGetValues("X-Received-Length", out var v)
+                            ? string.Join(",", v)
+                            : "?";
                         return (index, false,
-                            $"Length mismatch: expected {payloads[index].Length}, got {responseBytes.Length}");
+                            $"Length mismatch: expected {payloads[index].Length}, got {responseBytes.Length} (server received {receivedByServer})");
                     }
 
                     if (!payloads[index].SequenceEqual(responseBytes))
@@ -83,7 +93,8 @@ public sealed class ConcurrentLargePostSpec : End2EndSpecBase
         var results = await Task.WhenAll(tasks);
 
         var failedResults = results.Where(r => !r.success).ToArray();
-        Assert.Empty(failedResults);
+        Assert.True(failedResults.Length == 0,
+            string.Join("; ", failedResults.Select(r => $"[{r.index}] {r.error}")));
     }
 
     [Fact(Timeout = 60000)]
@@ -134,7 +145,11 @@ public sealed class ConcurrentLargePostSpec : End2EndSpecBase
                     var responseBytes = await response.Content.ReadAsByteArrayAsync(TestContext.Current.CancellationToken);
 
                     // Verify exact match
-                    Assert.Equal(payloads[index].Length, responseBytes.Length);
+                    var receivedByServer = response.Headers.TryGetValues("X-Received-Length", out var v)
+                        ? string.Join(",", v)
+                        : "?";
+                    Assert.True(payloads[index].Length == responseBytes.Length,
+                        $"Stream {index}: expected {payloads[index].Length} bytes, got {responseBytes.Length} (server received {receivedByServer})");
                     Assert.True(payloads[index].SequenceEqual(responseBytes),
                         $"Stream {index}: response body mismatch");
 

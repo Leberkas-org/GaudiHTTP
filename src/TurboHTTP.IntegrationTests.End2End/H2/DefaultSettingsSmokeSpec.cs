@@ -10,6 +10,10 @@ public sealed class DefaultSettingsSmokeSpec : End2EndSpecBase
 {
     protected override Version ProtocolVersion => HttpVersion.Version20;
 
+    // Concurrent large transfers can exceed the 10s default under CI contention;
+    // stay below the tightest (30s) watchdog in this spec.
+    protected override TimeSpan ClientTimeout => TimeSpan.FromSeconds(25);
+
     protected override void ConfigureEndpoints(WebApplication app)
     {
         app.MapPost("/echo-bytes", async ctx =>

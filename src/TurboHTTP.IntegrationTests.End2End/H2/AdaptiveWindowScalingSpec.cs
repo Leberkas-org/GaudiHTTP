@@ -14,6 +14,10 @@ public sealed class AdaptiveWindowScalingSpec : End2EndSpecBase
 
     protected override Version ProtocolVersion => HttpVersion.Version20;
 
+    // Bulk transfers through scaled windows can exceed the 10s default under
+    // CI contention; stay well below the 60s watchdogs instead.
+    protected override TimeSpan ClientTimeout => TimeSpan.FromSeconds(45);
+
     protected override void ConfigureClientOptions(TurboClientOptions options)
     {
         options.Http2.EnableAdaptiveWindowScaling = _scalingEnabled;

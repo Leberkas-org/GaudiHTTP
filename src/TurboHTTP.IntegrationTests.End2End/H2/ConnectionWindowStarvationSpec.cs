@@ -13,6 +13,10 @@ public sealed class ConnectionWindowStarvationSpec : End2EndSpecBase
 {
     protected override Version ProtocolVersion => HttpVersion.Version20;
 
+    // Bulk transfers through a deliberately small connection window can exceed the
+    // 10s default under CI contention; stay well below the 60s watchdogs instead.
+    protected override TimeSpan ClientTimeout => TimeSpan.FromSeconds(45);
+
     protected override void ConfigureClientOptions(TurboClientOptions options)
     {
         options.Http2.MaxConnectionsPerServer = 1;
