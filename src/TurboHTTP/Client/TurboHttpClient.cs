@@ -148,24 +148,13 @@ public sealed class TurboHttpClient : ITurboHttpClient
             ? perRequestTimeout
             : Timeout;
 
-        try
+        // Everything that mutates request.Options must happen BEFORE the channel write:
+        // once enqueued, the pipeline's RequestEnricher reads and mutates the options
+        // dictionary on a stream thread, and HttpRequestOptions is not thread-safe.
+        var linkedCt = cancellationToken.CanBeCanceled;
+        CancellationTokenSource? cts = null;
+        if (effectiveTimeout != System.Threading.Timeout.InfiniteTimeSpan || linkedCt)
         {
-            try
-            {
-                await Requests.WriteAsync(request, cancellationToken);
-            }
-            catch (ChannelClosedException)
-            {
-                throw CreateClientDisposedException();
-            }
-
-            if (effectiveTimeout == System.Threading.Timeout.InfiniteTimeSpan && !cancellationToken.CanBeCanceled)
-            {
-                return await pending.GetValueTask();
-            }
-
-            var linkedCt = cancellationToken.CanBeCanceled;
-            CancellationTokenSource cts;
             if (linkedCt)
             {
                 cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -181,18 +170,35 @@ public sealed class TurboHttpClient : ITurboHttpClient
             }
 
             request.SetCancellationToken(cts.Token);
+        }
 
+        try
+        {
             try
             {
-                cts.CancelAfter(effectiveTimeout);
-                await using (cts.Token.UnsafeRegister(
-                                 static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
-                                 pending))
-                {
-                    return await pending.GetValueTask();
-                }
+                await Requests.WriteAsync(request, cancellationToken);
             }
-            finally
+            catch (ChannelClosedException)
+            {
+                throw CreateClientDisposedException();
+            }
+
+            if (cts is null)
+            {
+                return await pending.GetValueTask();
+            }
+
+            cts.CancelAfter(effectiveTimeout);
+            await using (cts.Token.UnsafeRegister(
+                             static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
+                             pending))
+            {
+                return await pending.GetValueTask();
+            }
+        }
+        finally
+        {
+            if (cts is not null)
             {
                 if (linkedCt || !cts.TryReset())
                 {
@@ -208,9 +214,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
                     cts.Dispose();
                 }
             }
-        }
-        finally
-        {
+
             _pendingTcs.TryRemove(pending, out _);
             PendingRequest.Return(pending);
         }
