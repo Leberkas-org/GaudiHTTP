@@ -15,11 +15,15 @@ internal sealed class FakeServerOps : IServerStageOperations
     public List<(string Name, TimeSpan Delay)> ScheduledTimers { get; } = [];
     public List<string> CancelledTimers { get; } = [];
 
+    /// <summary>Every OnScheduleTimer call in order, without the de-duplication applied to <see cref="ScheduledTimers"/>.</summary>
+    public List<(string Name, TimeSpan Delay)> ScheduleTimerCalls { get; } = [];
+
     public void OnRequest(IFeatureCollection features) => Requests.Add(features);
     public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
 
     public void OnScheduleTimer(string name, TimeSpan delay)
     {
+        ScheduleTimerCalls.Add((name, delay));
         ScheduledTimers.RemoveAll(t => t.Name == name);
         ScheduledTimers.Add((name, delay));
     }

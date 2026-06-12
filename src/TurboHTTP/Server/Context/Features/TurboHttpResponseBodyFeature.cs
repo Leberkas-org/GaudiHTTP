@@ -43,7 +43,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         }
 
         _bufferWriter.ResetWrittenCount();
-        _writer = new ResponsePipeWriter(this);
+        _writer.Reset();
     }
 
     internal bool TryGetBufferedBody(out ReadOnlyMemory<byte> body)
@@ -195,7 +195,8 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
     private sealed class ResponsePipeWriter : PipeWriter
     {
         private readonly TurboHttpResponseBodyFeature _owner;
-        private readonly TaskCompletionSource _headerCommit = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private TaskCompletionSource? _headerCommit;
+        private bool _headersCommitted;
         private TurboHttpResponseFeature? _responseFeature;
 
         public ResponsePipeWriter(TurboHttpResponseBodyFeature owner)
@@ -203,7 +204,34 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             _owner = owner;
         }
 
-        public Task WhenHeadersReady => _headerCommit.Task;
+        // Awaited from the stage-actor thread while the app thread commits — a true
+        // cross-thread boundary, hence the explicit barriers. The TCS is lazy: handlers
+        // that complete synchronously never touch it.
+        public Task WhenHeadersReady
+        {
+            get
+            {
+                if (Volatile.Read(ref _headersCommitted))
+                {
+                    return Task.CompletedTask;
+                }
+
+                var tcs = _headerCommit;
+                if (tcs is null)
+                {
+                    var fresh = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    tcs = Interlocked.CompareExchange(ref _headerCommit, fresh, null) ?? fresh;
+                }
+
+                if (Volatile.Read(ref _headersCommitted))
+                {
+                    tcs.TrySetResult();
+                }
+
+                return tcs.Task;
+            }
+        }
+
         public bool HasStarted { get; private set; }
         public bool IsCompleted { get; private set; }
         public long BytesWritten { get; private set; }
@@ -216,6 +244,14 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             HasStarted = false;
             IsCompleted = false;
             BytesWritten = 0;
+            _headerCommit = null;
+            _headersCommitted = false;
+        }
+
+        private void SignalHeadersReady()
+        {
+            Volatile.Write(ref _headersCommitted, true);
+            _headerCommit?.TrySetResult();
         }
 
         public void CommitHeaders()
@@ -224,7 +260,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             {
                 HasStarted = true;
                 _owner.UpgradeToPipe();
-                _headerCommit.TrySetResult();
+                SignalHeadersReady();
             }
         }
 
@@ -243,7 +279,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
                 finally
                 {
                     _owner.UpgradeToPipe();
-                    _headerCommit.TrySetResult();
+                    SignalHeadersReady();
                 }
             }
         }
@@ -339,7 +375,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             finally
             {
                 _owner.UpgradeToPipe();
-                _headerCommit.TrySetResult();
+                SignalHeadersReady();
             }
 
             return await _owner._pipe!.Writer.FlushAsync(cancellationToken);
@@ -359,7 +395,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             finally
             {
                 _owner.UpgradeToPipe();
-                _headerCommit.TrySetResult();
+                SignalHeadersReady();
             }
 
             BytesWritten += source.Length;

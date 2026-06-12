@@ -36,6 +36,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
+    private readonly List<long> _rateViolations = [];
+    private bool _rateTimerActive;
     private readonly TimeProvider _clock;
 
     private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
@@ -495,11 +497,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         }
         else if (name == DataRateCheck)
         {
-            var violations = new List<long>();
-            _requestRate.Check(Now(), violations);
-            _responseRate.Check(Now(), violations);
+            _rateTimerActive = false;
+            _rateViolations.Clear();
+            _requestRate.Check(Now(), _rateViolations);
+            _responseRate.Check(Now(), _rateViolations);
 
-            if (violations.Count > 0)
+            if (_rateViolations.Count > 0)
             {
                 Tracing.For("Protocol").Warning(this,
                     "data rate violation (reqRate={0}, respRate={1}, paused={2})",
@@ -510,7 +513,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
             if (_requestRate.Count > 0 || _responseRate.Count > 0)
             {
-                _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
+                EnsureRateTimer();
             }
         }
     }
@@ -651,7 +654,17 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         _ops.OnCancelTimer(KeepAliveTimer);
         _ops.OnCancelTimer(BodyConsumptionTimer);
         _ops.OnCancelTimer(DataRateCheck);
+        _rateTimerActive = false;
     }
 
-    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
+    private void EnsureRateTimer()
+    {
+        if (_rateTimerActive)
+        {
+            return;
+        }
+
+        _rateTimerActive = true;
+        _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
+    }
 }

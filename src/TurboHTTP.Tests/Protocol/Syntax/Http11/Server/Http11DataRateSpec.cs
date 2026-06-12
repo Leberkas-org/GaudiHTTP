@@ -189,6 +189,37 @@ public sealed class Http11DataRateSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Rate_timer_should_be_scheduled_once_until_it_fires()
+    {
+        // EnsureRateTimer used to re-schedule the Akka timer on every observed chunk —
+        // one redundant scheduler call per response chunk on the hot path.
+        var options = CreateOptionsWithResponseRate(240, TimeSpan.FromSeconds(5));
+        var ops = new FakeServerOps();
+        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops);
+
+        const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
+
+        var context = CreateResponseContext();
+        sm.OnResponse(context);
+
+        // Stream several response chunks; each one observes bytes in the rate monitor.
+        for (var i = 0; i < 5; i++)
+        {
+            sm.OnBodyMessage(new ResponseBodyReadComplete(1024));
+        }
+
+        Assert.Equal(1, ops.ScheduleTimerCalls.Count(t => t.Name == "data-rate-check"));
+
+        // Once the timer fires it may be re-armed (entries still active) — exactly once.
+        sm.OnTimerFired("data-rate-check");
+        sm.OnBodyMessage(new ResponseBodyReadComplete(1024));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(1024));
+
+        Assert.Equal(2, ops.ScheduleTimerCalls.Count(t => t.Name == "data-rate-check"));
+    }
+
+    [Fact(Timeout = 5000)]
     public void Buffered_response_completion_should_not_flag_idle_keepalive_connection()
     {
         // Regression: EmitBufferedBody observed response bytes in the rate monitor but never
