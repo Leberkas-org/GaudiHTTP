@@ -229,6 +229,9 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         else
         {
             _activeBodyWriter?.CompleteAsync();
+            // Response fully handed to the transport: drop the rate entry so a keep-alive
+            // connection is not flagged as a violation once the grace period elapses.
+            _responseRate.Remove(0);
         }
     }
 

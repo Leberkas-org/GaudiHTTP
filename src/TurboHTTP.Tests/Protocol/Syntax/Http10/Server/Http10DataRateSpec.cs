@@ -165,6 +165,32 @@ public sealed class Http10DataRateSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Completed_streaming_response_should_not_flag_idle_connection()
+    {
+        // Regression: streaming completion (bytesRead == 0) left the response-rate entry in
+        // place; the stale entry decayed to 0 B/s and the next data-rate-check after the
+        // grace period flagged the healthy idle connection as a violation.
+        var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(1));
+        var clock = new FakeTimeProvider();
+        var ops = new FakeServerOps();
+        var sm = new Http10ServerStateMachine(options, ops, clock);
+
+        var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nConnection: keep-alive\r\nContent-Length: 0\r\n\r\n";
+        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
+
+        sm.OnBodyMessage(new ResponseBodyReadComplete(10));
+        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
+
+        clock.Advance(TimeSpan.FromMilliseconds(600));
+        sm.OnTimerFired("data-rate-check");
+        clock.Advance(TimeSpan.FromSeconds(10));
+        sm.OnTimerFired("data-rate-check");
+
+        Assert.False(sm.ShouldComplete,
+            "Idle connection was flagged as a data-rate violation after the response completed.");
+    }
+
+    [Fact(Timeout = 5000)]
     public void Slow_response_body_violation_sets_should_complete_with_injected_clock()
     {
         var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(1));

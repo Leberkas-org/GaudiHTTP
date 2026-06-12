@@ -189,6 +189,41 @@ public sealed class Http11DataRateSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Buffered_response_completion_should_not_flag_idle_keepalive_connection()
+    {
+        // Regression: EmitBufferedBody observed response bytes in the rate monitor but never
+        // removed the entry on completion. The stale entry decayed to 0 B/s and the next
+        // data-rate-check after the grace period killed the healthy idle keep-alive connection
+        // (benchmark: HttpClient got "connection forcibly closed" on concurrent H1.1 uploads).
+        var options = CreateOptionsWithResponseRate(240, TimeSpan.FromSeconds(1));
+        var clock = new FakeTimeProvider();
+        var ops = new FakeServerOps();
+        var sm = new Http11ServerStateMachine(options, new TurboServerOptions().ToHttp2Options(), ops, clock);
+
+        const string requestData = "GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
+        sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
+
+        // Buffered response body: written into the feature before OnResponse, emitted
+        // synchronously via EmitBufferedBody (the standard path for normal responses).
+        var context = CreateResponseContext();
+        var bodyFeature = (TurboHttpResponseBodyFeature)context.Get<IHttpResponseBodyFeature>()!;
+        var span = bodyFeature.Writer.GetSpan(64);
+        span[..64].Fill(0x41);
+        bodyFeature.Writer.Advance(64);
+        sm.OnResponse(context);
+
+        // Connection sits idle on keep-alive well past the grace period; the periodic
+        // check fires repeatedly (first below-rate check starts the grace window).
+        clock.Advance(TimeSpan.FromMilliseconds(600));
+        sm.OnTimerFired("data-rate-check");
+        clock.Advance(TimeSpan.FromSeconds(10));
+        sm.OnTimerFired("data-rate-check");
+
+        Assert.False(sm.ShouldComplete,
+            "Idle keep-alive connection was flagged as a data-rate violation after a buffered response completed.");
+    }
+
+    [Fact(Timeout = 5000)]
     public void Slow_response_body_violation_sets_should_complete_with_injected_clock()
     {
         var options = CreateOptionsWithResponseRate(1000, TimeSpan.FromSeconds(1));
