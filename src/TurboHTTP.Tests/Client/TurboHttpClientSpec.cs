@@ -102,6 +102,63 @@ public sealed class TurboHttpClientSpec
         Assert.NotNull(result);
     }
 
+    /// <summary>
+    /// Once the request is written to the channel, the pipeline's enricher reads and
+    /// mutates <c>request.Options</c> on a stream thread. SendAsync must therefore not
+    /// touch the (non-thread-safe) options dictionary after the write — the cancellation
+    /// token has to be set before enqueueing. Regression for a Dictionary corruption
+    /// observed at CL=4096 ("Operations that change non-concurrent collections must have
+    /// exclusive access" in RequestEnricher.Enrich).
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public async Task SendAsync_should_set_cancellation_token_before_enqueueing()
+    {
+        var inner = Channel.CreateUnbounded<HttpRequestMessage>();
+        var capturing = new TokenCapturingWriter(inner.Writer);
+        var responses = Channel.CreateUnbounded<HttpResponseMessage>();
+
+        var registration = new NamedClientConsumerRegistration(ActorRefs.Nobody, "test", Guid.NewGuid());
+        var options = new TurboRequestOptions(
+            BaseAddress: null,
+            DefaultRequestHeaders: new HttpRequestMessage().Headers,
+            DefaultRequestVersion: HttpVersion.Version11,
+            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
+            Timeout: TimeSpan.FromSeconds(30),
+            Credentials: null,
+            PreAuthenticate: false);
+
+        using var client = (TurboHttpClient)TurboHttpClientCtor.Invoke(
+            [capturing, responses.Reader, options, registration]);
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/");
+        var sendTask = client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        var observed = await inner.Reader.ReadAsync(TestContext.Current.CancellationToken);
+        Assert.True(capturing.TokenPresentAtWrite,
+            "SendAsync mutated request.Options after writing the request to the channel — " +
+            "this races with the pipeline's RequestEnricher on the stream thread.");
+
+        Assert.True(observed.Options.TryGetValue(OptionsKey.Key, out var pending));
+        Assert.True(observed.Options.TryGetValue(OptionsKey.VersionKey, out var ver));
+        pending.TrySetResult(new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = observed }, ver);
+        await sendTask;
+    }
+
+    private sealed class TokenCapturingWriter(ChannelWriter<HttpRequestMessage> inner)
+        : ChannelWriter<HttpRequestMessage>
+    {
+        public bool TokenPresentAtWrite { get; private set; }
+
+        public override bool TryWrite(HttpRequestMessage item)
+        {
+            TokenPresentAtWrite = item.Options.TryGetValue(OptionsKey.CancellationTokenKey, out _);
+            return inner.TryWrite(item);
+        }
+
+        public override ValueTask<bool> WaitToWriteAsync(CancellationToken cancellationToken = default)
+            => inner.WaitToWriteAsync(cancellationToken);
+    }
+
     [Fact(Timeout = 5000)]
     public async Task SendAsync_should_return_response_when_tcs_is_completed()
     {
