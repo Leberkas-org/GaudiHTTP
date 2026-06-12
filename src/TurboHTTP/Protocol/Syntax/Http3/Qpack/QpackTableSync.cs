@@ -168,7 +168,9 @@ internal sealed class QpackTableSync
                     $"RFC 9204 §2.1.2 violation: Maximum blocked streams ({_maxBlockedStreams}) exceeded.");
             }
 
-            _blockedStreams.Add(new BlockedStream(streamId, result.RequiredInsertCount, data));
+            // Copy the header block: the caller's buffer is a pooled frame rental that is
+            // disposed (and reused) right after frame handling, long before resolution.
+            _blockedStreams.Add(new BlockedStream(streamId, result.RequiredInsertCount, data.ToArray()));
         }
 
         return result;

@@ -480,10 +480,20 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
             for (var i = 0; i < frames.Count; i++)
             {
                 var frame = frames[i];
-                var forwarded = ProcessFrame(frame);
-                if (forwarded is not null)
+                try
                 {
-                    _clientSession.AssembleResponse(forwarded, streamId);
+                    var forwarded = ProcessFrame(frame);
+                    if (forwarded is not null)
+                    {
+                        _clientSession.AssembleResponse(forwarded, streamId);
+                    }
+                }
+                finally
+                {
+                    // DATA/HEADERS frames own a pooled rental; response assembly copies what
+                    // it keeps (body bytes into the body reader, header strings via QPACK),
+                    // so the rental must go back to the pool here.
+                    (frame as IDisposable)?.Dispose();
                 }
             }
         }
