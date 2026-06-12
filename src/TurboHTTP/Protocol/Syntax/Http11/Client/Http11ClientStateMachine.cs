@@ -32,6 +32,14 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
     private TransportBuffer? _heldBuffer;
     private int _heldBufferOffset;
     private bool _draining;
+    private int _unflushedBodyChunks;
+    private bool _bodyPumpPaused;
+
+    // High-water mark for body chunks emitted but not yet flushed to the network. Without
+    // this bound the pump copies the entire request body into pooled chunks ahead of the
+    // socket; under concurrent uploads the aggregate working set exceeds the array pool
+    // and every body byte becomes a fresh allocation.
+    private const int MaxUnflushedBodyChunks = 2;
 
     internal sealed record BodyReadComplete(int BytesRead);
     internal sealed record BodyReadFailed(Exception Reason);
@@ -257,6 +265,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
                 _currentWriter?.Dispose();
                 _currentWriter = null;
                 _currentBodyStream = null;
+                _unflushedBodyChunks = 0;
+                _bodyPumpPaused = false;
                 if (_inFlightQueue.Count > 0)
                 {
                     var req = _inFlightQueue.Dequeue();
@@ -269,6 +279,19 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
     public void OnOutboundFlushed()
     {
+        if (_unflushedBodyChunks > 0)
+        {
+            _unflushedBodyChunks--;
+        }
+
+        if (_bodyPumpPaused && _currentWriter is not null && _currentBodyStream is not null
+            && _unflushedBodyChunks < MaxUnflushedBodyChunks)
+        {
+            _bodyPumpPaused = false;
+            Tracing.For("Protocol").Debug(this, "request body pump resumed ({0} unflushed chunks)",
+                _unflushedBodyChunks);
+            ReadNextChunk();
+        }
     }
 
     public void Cleanup()
@@ -286,6 +309,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
         _currentWriter?.Dispose();
         _currentWriter = null;
         _currentBodyStream = null;
+        _unflushedBodyChunks = 0;
+        _bodyPumpPaused = false;
         _pool.Dispose();
         _decoder.Reset();
     }
@@ -390,6 +415,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
     private void StartBodyDrain(Stream bodyStream, long? contentLength, Version httpVersion)
     {
+        _unflushedBodyChunks = 0;
+        _bodyPumpPaused = false;
         var (writer, _) = _pool.RentWriter(
             hasBody: true, contentLength, httpVersion,
             new BodyEncoderOptions { ChunkSize = _options.RequestBodyChunkSize },
@@ -424,10 +451,22 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
     {
         if (bytesRead > 0)
         {
+            // Count before flushing: a free network port flushes synchronously, re-entering
+            // OnOutboundFlushed and decrementing back to zero before this method continues.
+            _unflushedBodyChunks++;
             _currentWriter!.Advance(bytesRead);
             _currentWriter.FlushAsync();
             Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", bytesRead);
-            ReadNextChunk();
+            if (_unflushedBodyChunks >= MaxUnflushedBodyChunks)
+            {
+                _bodyPumpPaused = true;
+                Tracing.For("Protocol").Debug(this, "request body pump paused ({0} unflushed chunks)",
+                    _unflushedBodyChunks);
+            }
+            else
+            {
+                ReadNextChunk();
+            }
         }
         else
         {
