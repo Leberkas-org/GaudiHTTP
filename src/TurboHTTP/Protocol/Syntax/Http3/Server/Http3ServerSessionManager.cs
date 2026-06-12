@@ -46,6 +46,9 @@ internal sealed class Http3ServerSessionManager
     private const int MaxDecoderPoolSize = 256;
     private readonly DataRateMonitor _requestRate;
     private readonly DataRateMonitor _responseRate;
+    private readonly List<long> _rateViolations = [];
+    private readonly HashSet<long> _rateViolationSet = [];
+    private bool _rateTimerActive;
     private readonly TimeProvider _clock;
 
     private bool _controlPrefaceSent;
@@ -362,14 +365,20 @@ internal sealed class Http3ServerSessionManager
 
     public void CheckDataRates()
     {
+        _rateTimerActive = false;
         var now = Now();
-        var violations = new List<long>();
+        _rateViolations.Clear();
 
-        _requestRate.Check(now, violations);
-        _responseRate.Check(now, violations);
+        _requestRate.Check(now, _rateViolations);
+        _responseRate.Check(now, _rateViolations);
 
-        var violationSet = new HashSet<long>(violations);
-        foreach (var streamId in violationSet)
+        _rateViolationSet.Clear();
+        foreach (var violation in _rateViolations)
+        {
+            _rateViolationSet.Add(violation);
+        }
+
+        foreach (var streamId in _rateViolationSet)
         {
             Tracing.For("Protocol").Warning(this, "HTTP/3: data rate violation (stream={0})", streamId);
             EmitRstStream(streamId, ErrorCode.GeneralProtocolError);
@@ -377,7 +386,7 @@ internal sealed class Http3ServerSessionManager
 
         if (_requestRate.Count > 0 || _responseRate.Count > 0)
         {
-            _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
+            EnsureRateTimer();
         }
     }
 
@@ -426,21 +435,22 @@ internal sealed class Http3ServerSessionManager
 
         var (decoder, state) = streamData;
 
+        // Decoded DATA/HEADERS frames slice the input buffer (zero-copy), so the buffer
+        // must stay alive until the frame loop below has handled (and copied) everything.
+        using var inputBuffer = buffer;
+
         IReadOnlyList<Http3Frame> frames;
         try
         {
-            frames = decoder.DecodeAll(buffer.Span, out _);
+            frames = decoder.DecodeAll(inputBuffer.Memory, out _);
         }
         catch (Exception ex) when (ex is HttpProtocolException or QpackException or HuffmanException)
         {
-            buffer.Dispose();
             Tracing.For("Protocol").Warning(this,
                 "HTTP/3 connection framing error on stream {0} - closing connection: {1}", streamId, ex.Message);
             ShouldComplete = true;
             return;
         }
-
-        buffer.Dispose();
 
         foreach (var frame in frames)
         {
@@ -782,5 +792,14 @@ internal sealed class Http3ServerSessionManager
         return new MultiplexedData(buf, CriticalStreamId.Control);
     }
 
-    private void EnsureRateTimer() => _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
+    private void EnsureRateTimer()
+    {
+        if (_rateTimerActive)
+        {
+            return;
+        }
+
+        _rateTimerActive = true;
+        _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
+    }
 }

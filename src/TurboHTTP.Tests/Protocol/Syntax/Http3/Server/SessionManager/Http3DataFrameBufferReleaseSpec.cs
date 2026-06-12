@@ -175,7 +175,7 @@ public sealed class Http3DataFrameBufferReleaseSpec
 
         // With pooled DATA frame buffers correctly returned, steady-state allocations are a
         // small fraction of the body. Pre-fix the leak forced ~1x the body size in fresh arrays.
-        Assert.True(allocated < totalBodyBytes / 4,
+        Assert.True(allocated < totalBodyBytes / 16,
             $"Allocated {allocated:N0} bytes for {totalBodyBytes:N0} bytes of upload body — " +
             "DATA frame pool rentals are not being returned.");
     }

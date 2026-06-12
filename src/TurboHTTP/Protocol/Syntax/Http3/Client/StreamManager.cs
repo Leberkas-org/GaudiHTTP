@@ -37,6 +37,8 @@ internal sealed class StreamManager(
     /// Decodes a TransportBuffer into HTTP/3 frames using a per-stream decoder.
     /// Each QUIC stream has independent framing, so decoders must not share
     /// partial-frame remainder state across streams.
+    /// Decoded frames may slice <paramref name="buffer"/> (zero-copy) — the caller owns
+    /// the buffer and must dispose it only after all returned frames have been handled.
     /// </summary>
     public IReadOnlyList<Http3Frame> DecodeServerData(TransportBuffer buffer, long streamId)
     {
@@ -46,9 +48,7 @@ internal sealed class StreamManager(
             _streamDecoders[streamId] = decoder;
         }
 
-        var frames = decoder.DecodeAll(buffer.Memory.Span, out _);
-        buffer.Dispose();
-        return frames;
+        return decoder.DecodeAll(buffer.Memory, out _);
     }
 
     /// <summary>
