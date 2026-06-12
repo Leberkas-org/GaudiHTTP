@@ -510,6 +510,13 @@ internal sealed class Http3ServerSessionManager
                     "HTTP/3 message error on stream {0} - resetting stream: {1}", streamId, ex.Message);
                 EmitRstStream(streamId, ErrorCode.MessageError);
             }
+            finally
+            {
+                // DATA/HEADERS frames own a pooled rental; handling copies what it keeps
+                // (body bytes into the body reader, header strings via QPACK decode), so the
+                // rental must go back to the pool here or every upload allocates fresh arrays.
+                (frame as IDisposable)?.Dispose();
+            }
         }
     }
 
