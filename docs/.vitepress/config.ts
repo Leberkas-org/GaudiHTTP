@@ -22,6 +22,7 @@ export default defineConfig({
 
         nav: [
             { text: 'Getting Started', link: '/getting-started/' },
+            { text: 'When to Use', link: '/when-to-use' },
             { text: 'Scenarios', link: '/scenarios' },
             { text: 'Client', link: '/client/' },
             { text: 'Server', link: '/server/' },
@@ -47,6 +48,16 @@ export default defineConfig({
                     text: 'Scenarios',
                     items: [
                         { text: 'Overview', link: '/scenarios' },
+                        { text: 'When to Use TurboHTTP', link: '/when-to-use' },
+                    ],
+                },
+            ],
+            '/when-to-use': [
+                {
+                    text: 'Scenarios',
+                    items: [
+                        { text: 'Overview', link: '/scenarios' },
+                        { text: 'When to Use TurboHTTP', link: '/when-to-use' },
                     ],
                 },
             ],
