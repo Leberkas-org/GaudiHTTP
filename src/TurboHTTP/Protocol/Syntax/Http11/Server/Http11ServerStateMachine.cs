@@ -404,6 +404,9 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         }
 
         writer.CompleteAsync();
+        // The response is fully handed to the transport: drop the rate entry, or the idle
+        // keep-alive connection is flagged as a violation once the grace period elapses.
+        _responseRate.Remove(0);
         _ops.OnResponseBodyComplete(features);
 
         Tracing.For("Protocol").Debug(this, "response body complete (buffered, bytes={0})", body.Length);
