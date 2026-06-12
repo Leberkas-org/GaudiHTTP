@@ -241,6 +241,7 @@ public sealed class Http11DataRateSpec
         var span = bodyFeature.Writer.GetSpan(64);
         span[..64].Fill(0x41);
         bodyFeature.Writer.Advance(64);
+        bodyFeature.Writer.Complete();
         sm.OnResponse(context);
 
         // Connection sits idle on keep-alive well past the grace period; the periodic

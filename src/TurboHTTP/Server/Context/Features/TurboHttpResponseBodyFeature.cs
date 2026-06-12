@@ -4,6 +4,7 @@ using Akka;
 using Akka.Streams.Dsl;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Streams.IO;
+using static Servus.Senf;
 
 namespace TurboHTTP.Server.Context.Features;
 
@@ -46,9 +47,11 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         _writer.Reset();
     }
 
+    internal bool HasPipe => _pipe is not null;
+
     internal bool TryGetBufferedBody(out ReadOnlyMemory<byte> body)
     {
-        if (_pipe is null && _bufferWriter.WrittenCount > 0)
+        if (_pipe is null && _writer.IsCompleted && _bufferWriter.WrittenCount > 0)
         {
             body = _bufferWriter.WrittenMemory;
             return true;
@@ -58,6 +61,16 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
         {
             if (result.IsCompleted && !result.Buffer.IsEmpty)
             {
+                if (result.Buffer.IsSingleSegment)
+                {
+                    // Hand out the pipe's own segment: the caller copies it into the wire
+                    // buffer synchronously, and the segment stays valid until the reader
+                    // completes on feature reset. Examined-to-end keeps the data readable.
+                    body = result.Buffer.First;
+                    _pipe.Reader.AdvanceTo(result.Buffer.Start, result.Buffer.End);
+                    return true;
+                }
+
                 body = result.Buffer.ToArray();
                 _pipe.Reader.AdvanceTo(result.Buffer.End);
                 return true;
@@ -77,9 +90,19 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             return;
         }
 
-        _pipe = new Pipe();
+        Tracing.For("Stage").Debug(this, "response upgraded to pipe (buffered={0}, completed={1})",
+            _bufferWriter.WrittenCount, _writer.IsCompleted);
 
-        if (_bufferWriter.WrittenCount > 0)
+        // The initial flush below is not awaited, so the pause threshold must exceed the
+        // already-buffered content or the pending FlushAsync would be silently discarded.
+        var buffered = _bufferWriter.WrittenCount;
+        _pipe = buffered < 64 * 1024
+            ? new Pipe()
+            : new Pipe(new PipeOptions(
+                pauseWriterThreshold: buffered + 64 * 1024,
+                resumeWriterThreshold: buffered / 2));
+
+        if (buffered > 0)
         {
             var src = _bufferWriter.WrittenSpan;
             var dest = _pipe.Writer.GetMemory(src.Length);

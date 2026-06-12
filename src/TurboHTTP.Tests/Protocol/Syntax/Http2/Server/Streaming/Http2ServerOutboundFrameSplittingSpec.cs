@@ -171,6 +171,9 @@ public sealed class Http2ServerOutboundFrameSplittingSpec
         var mem = writer.GetMemory(bodySize);
         body.CopyTo(mem);
         writer.Advance(bodySize);
+        // The bridge always completes the body before emitting the response; the buffered
+        // fast path only serves completed bodies.
+        writer.Complete();
 
         return features;
     }
