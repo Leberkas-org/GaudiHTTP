@@ -176,6 +176,33 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
         Assert.False(feature.HasStarted);
     }
 
+    [Fact(Timeout = 5000)]
+    public async Task Completed_single_segment_body_should_be_served_without_copy()
+    {
+        // The buffered-body fast path hands out the pipe's own segment instead of a
+        // ToArray copy; the segment stays valid until the feature is reset.
+        var ct = TestContext.Current.CancellationToken;
+        var feature = new TurboHttpResponseBodyFeature();
+
+        await feature.Writer.WriteAsync("Hello, World!"u8.ToArray(), ct);
+        await feature.CompleteAsync();
+
+        Assert.True(feature.TryGetBufferedBody(out var body));
+        Assert.Equal("Hello, World!", Encoding.UTF8.GetString(body.Span));
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task TryGetBufferedBody_should_not_expose_incomplete_body()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var feature = new TurboHttpResponseBodyFeature();
+
+        await feature.Writer.WriteAsync("partial"u8.ToArray(), ct);
+
+        Assert.False(feature.TryGetBufferedBody(out _),
+            "An incomplete buffered body must not be emitted as a finished response.");
+    }
+
     public void Dispose()
     {
         _system.Dispose();
