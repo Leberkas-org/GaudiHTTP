@@ -473,9 +473,12 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     private void ProcessFrameData(TransportBuffer buffer, long streamId)
     {
+        // Decoded frames may slice the input buffer (zero-copy), so it must stay alive
+        // until the frame loop below has handled (and copied) everything.
+        using var inputBuffer = buffer;
         try
         {
-            var frames = _clientSession.DecodeServerData(buffer, streamId);
+            var frames = _clientSession.DecodeServerData(inputBuffer, streamId);
 
             for (var i = 0; i < frames.Count; i++)
             {

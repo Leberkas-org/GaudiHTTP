@@ -96,7 +96,7 @@ public sealed class Http3ResponseFrameBufferReleaseSpec
         }
         var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
 
-        Assert.True(allocated < totalBodyBytes / 4,
+        Assert.True(allocated < totalBodyBytes / 16,
             $"Allocated {allocated:N0} bytes for {totalBodyBytes:N0} bytes of response body — " +
             "frame pool rentals are not being returned.");
     }
