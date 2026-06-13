@@ -274,8 +274,14 @@ internal sealed class Http2ServerSessionManager
         var responseFeature = features.Get<IHttpResponseFeature>();
         var responseBody = features.Get<IHttpResponseBodyFeature>();
         var contentLength = ExtractContentLength(responseFeature);
-        var hasBody = contentLength is not null and not 0
-                      || (contentLength is null && responseBody is TurboHttpResponseBodyFeature { HasStarted: true });
+        // A response to HEAD keeps its headers (incl. content-length) but carries no DATA — the
+        // HEADERS frame ends the stream (RFC 9113 §8.1). Treating it as body-less routes it through
+        // the tested END_STREAM-on-HEADERS / CloseStream path and suppresses every DATA frame.
+        var isHead = string.Equals(
+            features.Get<IHttpRequestFeature>()?.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
+        var hasBody = !isHead
+                      && (contentLength is not null and not 0
+                          || (contentLength is null && responseBody is TurboHttpResponseBodyFeature { HasStarted: true }));
 
         var frames = _responseEncoder.EncodeHeaders(features, streamId, hasBody);
         for (var i = 0; i < frames.Count; i++)
