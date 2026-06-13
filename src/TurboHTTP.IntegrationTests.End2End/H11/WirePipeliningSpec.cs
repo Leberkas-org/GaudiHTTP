@@ -53,7 +53,12 @@ public sealed class WirePipeliningSpec : End2EndSpecBase
 
         try
         {
-            while (CountOccurrences(sb.ToString(), "HTTP/1.1 200") < 3)
+            // Read until all three response bodies have arrived, not just their status lines: the
+            // final response's header and body routinely land in separate TCP segments, so counting
+            // "HTTP/1.1 200" alone would stop before the last body and race the wire. A genuinely
+            // dropped or reordered body is still caught — its marker never arrives, the read blocks
+            // to the receive timeout, and the in-order assertion below then fails.
+            while (!HasAllThreeBodies(sb.ToString()))
             {
                 var read = await Task.Run(() => stream.Read(buffer, 0, buffer.Length));
                 if (read == 0)
@@ -69,6 +74,11 @@ public sealed class WirePipeliningSpec : End2EndSpecBase
 
         return sb.ToString();
     }
+
+    private static bool HasAllThreeBodies(string raw)
+        => raw.Contains("RESP-1", StringComparison.Ordinal)
+           && raw.Contains("RESP-2", StringComparison.Ordinal)
+           && raw.Contains("RESP-3", StringComparison.Ordinal);
 
     private static int CountOccurrences(string haystack, string needle)
     {

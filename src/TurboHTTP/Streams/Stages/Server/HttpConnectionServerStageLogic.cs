@@ -28,6 +28,13 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private readonly Queue<IFeatureCollection> _requestQueue = new();
     private readonly Queue<ITransportOutbound> _outboundQueue = new();
     private bool _completeAfterFlush;
+
+    // Requests pushed to the handler (_outRequest) minus responses received on _inResponse. The
+    // stage refuses to dispatch more than the state machine's MaxConcurrentRequests concurrently;
+    // HTTP/1.x reports 1, which serializes pipelined dispatch so the shared, completion-ordered
+    // ApplicationBridgeStage can never reorder responses (RFC 9112 §9.3.2). Multiplexed protocols
+    // leave the limit unbounded, so this counter never gates them.
+    private int _handlerInFlight;
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
     private TurboHttpConnectionFeature? _connectionFeature;
@@ -88,7 +95,15 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         {
             if (_requestQueue.Count > 0)
             {
-                Push(_outRequest, _requestQueue.Dequeue());
+                if (CanDispatch)
+                {
+                    Push(_outRequest, _requestQueue.Dequeue());
+                    _handlerInFlight++;
+                }
+
+                // Otherwise the handler is busy: leave the demand outstanding so a completing
+                // response releases the next queued request via TryPushRequest. OnNetworkPush keeps
+                // reading the wire ahead independently, so requests still drain off the socket.
                 return;
             }
 
@@ -102,6 +117,11 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
             onPush: () =>
             {
                 var response = Grab(_inResponse);
+                if (_handlerInFlight > 0)
+                {
+                    _handlerInFlight--;
+                }
+
                 try
                 {
                     _sm.OnResponse(response);
@@ -134,6 +154,10 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                     FeatureCollectionFactory.Return(response);
                 }
 
+                // A handler slot just freed: release the next pipelined request (a no-op for
+                // multiplexed protocols, whose queue is already drained) before pulling the
+                // following response.
+                TryPushRequest();
                 TryPullResponse();
             },
             onUpstreamFinish: () =>
@@ -449,11 +473,14 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         FeatureCollectionFactory.Return(features);
     }
 
+    private bool CanDispatch => _handlerInFlight < _sm.MaxConcurrentRequests;
+
     private void TryPushRequest()
     {
-        if (_requestQueue.Count > 0 && IsAvailable(_outRequest))
+        if (_requestQueue.Count > 0 && IsAvailable(_outRequest) && CanDispatch)
         {
             Push(_outRequest, _requestQueue.Dequeue());
+            _handlerInFlight++;
         }
     }
 

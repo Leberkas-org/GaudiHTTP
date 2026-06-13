@@ -143,6 +143,34 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-9.3.2")]
+    public void MaxConcurrentRequests_should_serialize_dispatch_for_negotiated_http11()
+    {
+        var ops = new FakeServerOps();
+        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+
+        sm.DecodeClientData(MakeConnected());
+        sm.DecodeClientData(MakeData("GET / HTTP/1.1\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n"u8.ToArray()));
+
+        // HTTP/1.1 responses are positional on the wire, so the negotiator must forward the inner
+        // machine's one-at-a-time dispatch limit — otherwise the shared, completion-ordered bridge
+        // can reorder pipelined responses (RFC 9112 §9.3.2).
+        Assert.Equal(1, sm.MaxConcurrentRequests);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void MaxConcurrentRequests_should_stay_unbounded_for_negotiated_http2()
+    {
+        var ops = new FakeServerOps();
+        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+
+        sm.DecodeClientData(MakeConnected(SslApplicationProtocol.Http2));
+
+        // HTTP/2 routes responses to streams by id, so concurrent dispatch must remain unbounded.
+        Assert.Equal(int.MaxValue, sm.MaxConcurrentRequests);
+    }
+
+    [Fact(Timeout = 5000)]
     public void Cleanup_should_dispose_buffered_data()
     {
         var ops = new FakeServerOps();
