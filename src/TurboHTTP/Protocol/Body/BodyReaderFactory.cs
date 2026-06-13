@@ -14,6 +14,19 @@ internal static class BodyReaderFactory
             case BodyFraming.Length:
             {
                 var n = classification.ContentLength ?? 0;
+
+                // A Content-Length body announces its full size up front, so a value over the
+                // configured limit is rejected immediately — without reading a single byte. The
+                // chunked/close paths below pass MaxStreamedBodySize into their decoders; the
+                // fixed-length path previously decoded `n` bytes with no limit, letting a client
+                // declare an arbitrarily large body and bypass MaxRequestBodySize entirely.
+                var maxBody = options.MaxStreamedBodySize ?? long.MaxValue;
+                if (n > maxBody)
+                {
+                    throw new HttpProtocolException(
+                        $"Declared body length {n} exceeds the configured limit {maxBody}.");
+                }
+
                 if (n <= options.StreamingThreshold && n <= options.MaxBufferedBodySize)
                 {
                     var reader = new BufferedBodyReader();

@@ -1,3 +1,4 @@
+using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Semantics;
 
@@ -46,6 +47,17 @@ public sealed class BodyReaderFactorySpec
         Assert.NotNull(decoder);
         Assert.IsType<ContentLengthFramingDecoder>(decoder);
         reader.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Create_should_reject_content_length_above_max_streamed_body_size()
+    {
+        var classification = new BodyClassification(BodyFraming.Length, (8 * 1024 * 1024) + 1);
+
+        // A declared Content-Length over the configured limit is known up front, so the request is
+        // rejected without reading any body — the chunked path already enforces this; the
+        // Content-Length path must not bypass it.
+        Assert.Throws<HttpProtocolException>(() => BodyReaderFactory.Create(classification, DefaultOptions));
     }
 
     [Fact(Timeout = 5000)]
