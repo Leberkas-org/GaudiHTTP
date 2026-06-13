@@ -34,6 +34,14 @@ internal sealed class Http2ClientSessionManager
     private readonly Dictionary<int, StreamState> _streams = new();
     private readonly Dictionary<int, Stream> _activeBodyStreams = new();
     private readonly Dictionary<int, IMemoryOwner<byte>> _activeBodyBuffers = new();
+    private readonly Dictionary<int, CancellationTokenSource> _activeBodyReadCts = new();
+    // Streams whose reusable drain buffer currently has a ReadAsync in flight. The buffer
+    // must not be returned to the pool until that read completes, or a concurrent stream
+    // could re-rent and overwrite it mid-read.
+    private readonly HashSet<int> _drainReadInFlight = new();
+    // Streams torn down while a drain read was in flight: buffer/cts disposal is deferred to
+    // the read-completion handler.
+    private readonly HashSet<int> _drainBufferOrphaned = new();
 
     private bool _prefaceSent;
     private bool _awaitingPingAck;
@@ -436,6 +444,22 @@ internal sealed class Http2ClientSessionManager
             CleanupBodyDrain(streamId);
         }
 
+        // The actor is being torn down; deferred read completions may never arrive (or this
+        // session manager may be reused across a reconnect with reused stream IDs). Drop all
+        // drain tracking so a stale completion cannot dispose a future stream's buffer.
+        // Buffers with a still-in-flight read are abandoned to the GC rather than returned to
+        // the pool — returning a buffer a read is still writing into is the corruption we fix.
+        foreach (var (_, cts) in _activeBodyReadCts)
+        {
+            cts.Dispose();
+        }
+
+        _activeBodyReadCts.Clear();
+        _activeBodyBuffers.Clear();
+        _activeBodyStreams.Clear();
+        _drainReadInFlight.Clear();
+        _drainBufferOrphaned.Clear();
+
         ReleaseAllStreamState();
     }
 
@@ -785,6 +809,16 @@ internal sealed class Http2ClientSessionManager
                 break;
 
             case StreamBodyReadFailed failed:
+                _drainReadInFlight.Remove(failed.StreamId);
+                if (_drainBufferOrphaned.Remove(failed.StreamId))
+                {
+                    // The stream was already torn down while this read was in flight (the read
+                    // failed because CleanupBodyDrain cancelled it). The buffer was kept alive
+                    // for the read; release it now. The stream is gone — no RST/close needed.
+                    DisposeDrainResources(failed.StreamId);
+                    break;
+                }
+
                 Tracing.For("Protocol").Warning(this,
                     "HTTP/2: Body drain failed for stream {0}: {1}", failed.StreamId, failed.Reason.Message);
                 EmitFrame(new RstStreamFrame(failed.StreamId, Http2ErrorCode.InternalError));
@@ -796,6 +830,15 @@ internal sealed class Http2ClientSessionManager
 
     private void HandleStreamBodyRead(StreamBodyReadComplete read)
     {
+        _drainReadInFlight.Remove(read.StreamId);
+        if (_drainBufferOrphaned.Remove(read.StreamId))
+        {
+            // The stream was torn down while this read was in flight; the buffer was kept
+            // alive for the read. Release it now and drop the result — the stream is gone.
+            DisposeDrainResources(read.StreamId);
+            return;
+        }
+
         if (!_streams.TryGetValue(read.StreamId, out var state))
         {
             CleanupBodyDrain(read.StreamId);
@@ -929,6 +972,7 @@ internal sealed class Http2ClientSessionManager
             : maxSize;
         var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(bufferSize, 256));
         _activeBodyBuffers[streamId] = buffer;
+        _activeBodyReadCts[streamId] = new CancellationTokenSource();
         ReadNextBodyChunk(streamId);
     }
 
@@ -945,7 +989,12 @@ internal sealed class Http2ClientSessionManager
             state.IsBodyReadPending = true;
         }
 
-        stream.ReadAsync(buffer.Memory).AsTask().PipeTo(
+        // Mark the reusable buffer as having a read in flight so CleanupBodyDrain defers its
+        // disposal until the read completes (see Fix B comment in CleanupBodyDrain).
+        _drainReadInFlight.Add(streamId);
+        var token = _activeBodyReadCts.TryGetValue(streamId, out var cts) ? cts.Token : CancellationToken.None;
+
+        stream.ReadAsync(buffer.Memory, token).AsTask().PipeTo(
             _ops.StageActor,
             success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
             failure: ex => new StreamBodyReadFailed(streamId, ex));
@@ -953,11 +1002,38 @@ internal sealed class Http2ClientSessionManager
 
     private void CleanupBodyDrain(int streamId)
     {
+        _activeBodyStreams.Remove(streamId);
+
+        if (_drainReadInFlight.Contains(streamId))
+        {
+            // A ReadAsync into the reusable drain buffer is still in flight. Returning the
+            // buffer to the pool now would let a concurrent stream re-rent and overwrite it
+            // mid-read (cross-stream, correct-length/wrong-content corruption). Cancel the
+            // read and defer buffer/cts disposal to the read-completion handler.
+            _drainBufferOrphaned.Add(streamId);
+            if (_activeBodyReadCts.TryGetValue(streamId, out var pendingCts))
+            {
+                pendingCts.Cancel();
+            }
+
+            return;
+        }
+
+        DisposeDrainResources(streamId);
+    }
+
+    private void DisposeDrainResources(int streamId)
+    {
         if (_activeBodyBuffers.Remove(streamId, out var buffer))
         {
             buffer.Dispose();
         }
 
-        _activeBodyStreams.Remove(streamId);
+        if (_activeBodyReadCts.Remove(streamId, out var cts))
+        {
+            cts.Dispose();
+        }
+
+        _drainBufferOrphaned.Remove(streamId);
     }
 }
