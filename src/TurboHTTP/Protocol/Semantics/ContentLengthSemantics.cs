@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace TurboHTTP.Protocol.Semantics;
 
 /// <summary>
@@ -20,7 +22,10 @@ internal static class ContentLengthSemantics
             return false;
         }
 
-        if (!long.TryParse(value, out var parsedValue))
+        // RFC 9112 §6.3: Content-Length = 1*DIGIT. NumberStyles.None forbids a leading sign and any
+        // surrounding whitespace, so "+5"/"-5"/" 5" are rejected (default NumberStyles.Integer
+        // accepted them, a request-smuggling differential against strict peers).
+        if (!long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsedValue))
         {
             return false;
         }

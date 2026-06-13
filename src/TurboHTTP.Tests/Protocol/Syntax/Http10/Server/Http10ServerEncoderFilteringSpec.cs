@@ -66,6 +66,28 @@ public sealed class Http10ServerEncoderFilteringSpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-8.6")]
+    public void EncodeDeferred_should_not_duplicate_handler_set_content_length()
+    {
+        var ctx = ServerTestContext.CreateResponse();
+        ctx.Get<IHttpResponseFeature>()!.Headers["Content-Length"] = "5";
+
+        var buf = new byte[512];
+        var written = MakeEncoder(withDate: false).EncodeDeferred(buf, ctx, "hello"u8);
+        var wireOutput = Encoding.ASCII.GetString(buf, 0, written);
+
+        var count = 0;
+        var pos = 0;
+        while ((pos = wireOutput.IndexOf("Content-Length:", pos, StringComparison.OrdinalIgnoreCase)) >= 0)
+        {
+            count++;
+            pos += "Content-Length:".Length;
+        }
+
+        Assert.Equal(1, count);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-8.6")]
     public void EncodeDeferred_should_emit_content_length_zero_for_empty_body()
     {
         var ctx = ServerTestContext.CreateResponse();
