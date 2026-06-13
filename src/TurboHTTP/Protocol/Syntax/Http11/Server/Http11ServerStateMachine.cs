@@ -63,6 +63,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     public bool ShouldPauseNetwork => _activeStreamingReader?.IsFull ?? false;
     public int MaxQueuedRequests { get; }
 
+    // HTTP/1.1 responses are matched to requests by position on the wire, so a pipelined request
+    // must not be dispatched to the handler until the previous response has been emitted
+    // (RFC 9112 §9.3.2). One-at-a-time dispatch keeps the shared bridge from reordering responses.
+    public int MaxConcurrentRequests => 1;
+
     public Http11ServerStateMachine(Http1ConnectionOptions options, Http2ConnectionOptions h2UpgradeOptions,
         IServerStageOperations ops, TimeProvider? timeProvider = null)
     {

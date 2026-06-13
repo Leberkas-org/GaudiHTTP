@@ -44,6 +44,9 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
     public int MaxQueuedRequests => 1;
 
+    // HTTP/1.0 dispatches one request per connection; mirror H1.1 so handler dispatch stays serial.
+    public int MaxConcurrentRequests => 1;
+
     public Http10ServerStateMachine(Http1ConnectionOptions options, IServerStageOperations ops,
         TimeProvider? timeProvider = null)
     {

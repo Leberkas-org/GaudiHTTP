@@ -27,6 +27,11 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
     public bool ShouldComplete => _phase == Phase.Running && _inner!.ShouldComplete;
     public int MaxQueuedRequests => _phase == Phase.Running ? _inner!.MaxQueuedRequests : 1;
 
+    // Forward the concurrency limit so a negotiated/sniffed HTTP/1.x connection still serializes
+    // handler dispatch (RFC 9112 §9.3.2). Until a protocol is chosen no request is dispatched, so
+    // the conservative default of 1 is safe.
+    public int MaxConcurrentRequests => _phase == Phase.Running ? _inner!.MaxConcurrentRequests : 1;
+
     public ProtocolNegotiatingStateMachine(TurboServerOptions options, IServerStageOperations ops)
     {
         _options = options;
