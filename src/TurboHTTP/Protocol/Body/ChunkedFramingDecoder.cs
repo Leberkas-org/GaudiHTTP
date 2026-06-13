@@ -209,12 +209,18 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder
             EnsureStash(remaining);
             work[pos..].CopyTo(_stash);
             _stashLen = remaining;
-        }
-        else
-        {
-            _stashLen = 0;
+
+            // The unconsumed tail of `raw` was absorbed into the stash and is now owned by the
+            // decoder, so the entire `raw` is consumed from the caller's perspective. Reporting
+            // only `pos - stashOffset` would omit the just-stashed tail; the streaming caller would
+            // then re-feed those bytes (span[pos..]) on its next Decode, and they'd be prepended to
+            // the stash a second time — duplicating the partial control line and corrupting the
+            // stream (RFC 9112 §7.1 chunked framing). See ChunkedFramingDecoderSpec split-feed tests.
+            rawConsumed = raw.Length;
+            return new FramingDecodeResult(bodyOutput, false);
         }
 
+        _stashLen = 0;
         rawConsumed = Math.Max(0, pos - stashOffset);
 
         return new FramingDecodeResult(bodyOutput, false);
