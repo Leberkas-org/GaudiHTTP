@@ -12,6 +12,7 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
     // never executes on the producing stage thread.
     private readonly object _sync = new();
 
+    private readonly ArrayPool<byte> _pool;
     private OwnedChunk[] _slots;
     private readonly int _backpressureThreshold;
     private int _head;
@@ -25,8 +26,9 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
 
     private readonly int _initialSlotCount;
 
-    public QueuedBodyReader(int capacity)
+    public QueuedBodyReader(int capacity, ArrayPool<byte>? pool = null)
     {
+        _pool = pool ?? ArrayPool<byte>.Shared;
         _backpressureThreshold = capacity;
         _initialSlotCount = capacity * 2;
         _slots = new OwnedChunk[_initialSlotCount];
@@ -61,7 +63,7 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
 
     public bool TryEnqueue(ReadOnlySpan<byte> data)
     {
-        var rental = ArrayPool<byte>.Shared.Rent(data.Length);
+        var rental = _pool.Rent(data.Length);
         data.CopyTo(rental);
         var chunk = new OwnedChunk(rental, data.Length);
 
@@ -208,7 +210,7 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
         {
             if (_current.Rental is not null)
             {
-                ArrayPool<byte>.Shared.Return(_current.Rental);
+                _pool.Return(_current.Rental);
             }
 
             _current = default;
@@ -248,18 +250,22 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
                 _head = (_head + 1) % _slots.Length;
                 _count--;
 
+                // Queued chunks were never handed to the consumer, so their rentals are
+                // safe to return here.
                 if (chunk.Rental is not null)
                 {
-                    ArrayPool<byte>.Shared.Return(chunk.Rental);
+                    _pool.Return(chunk.Rental);
                 }
             }
 
-            if (_current.Rental is not null)
-            {
-                ArrayPool<byte>.Shared.Return(_current.Rental);
-            }
-
-            _current = default;
+            // Do NOT return _current's rental here. Once _current is non-default its Memory
+            // has been published to the consumer (via the last ReadAsync result) and may
+            // still be read on another thread. On teardown/abort this lock can run while
+            // that read is in flight; returning the rental would recycle a buffer still in
+            // use and let a concurrent stream overwrite it (cross-stream, correct-length
+            // wrong-content corruption). Ownership stays with the consumer: its AdvanceTo
+            // returns the rental exactly once. If the consumer abandons it, the array is
+            // simply GC-reclaimed rather than returned to the pool — a rare, bounded miss.
             _head = 0;
             _tail = 0;
             _count = 0;

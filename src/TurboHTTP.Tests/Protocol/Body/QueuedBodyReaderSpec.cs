@@ -206,4 +206,63 @@ public sealed class QueuedBodyReaderSpec
         Assert.Equal("hello"u8.ToArray(), result.Memory.ToArray());
         Assert.False(result.IsCompleted);
     }
+
+    [Fact(Timeout = 5000)]
+    public async Task Reset_should_not_return_a_checked_out_rental_to_the_pool()
+    {
+        // Regression: on connection teardown/abort, Reset/Dispose ran while a consumer was
+        // still reading the current chunk and returned its rental to the shared ArrayPool.
+        // A concurrent stream then re-rented and overwrote it — correct-length, wrong-content
+        // corruption. The checked-out rental must be returned only by the consumer's AdvanceTo.
+        var pool = new TrackingArrayPool();
+        var reader = new QueuedBodyReader(4, pool);
+
+        reader.TryEnqueue("payload"u8);
+        var result = await reader.ReadAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("payload"u8.ToArray(), result.Memory.ToArray());
+
+        // Teardown while the consumer still holds result.Memory.
+        reader.Dispose();
+        Assert.Equal(0, pool.ReturnedCount);
+
+        // The consumer finishes reading and advances: the rental is returned exactly once.
+        reader.AdvanceTo();
+        Assert.Equal(1, pool.ReturnedCount);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Reset_should_return_queued_but_unread_rentals()
+    {
+        // Queued chunks were never handed to the consumer, so Reset must reclaim them
+        // (no leak) — only the published _current chunk is left for the consumer.
+        var pool = new TrackingArrayPool();
+        var reader = new QueuedBodyReader(4, pool);
+
+        reader.TryEnqueue("a"u8);
+        reader.TryEnqueue("b"u8);
+        Assert.Equal(2, pool.RentedCount);
+
+        reader.Dispose();
+        Assert.Equal(2, pool.ReturnedCount);
+    }
+
+    private sealed class TrackingArrayPool : System.Buffers.ArrayPool<byte>
+    {
+        private readonly System.Buffers.ArrayPool<byte> _inner = System.Buffers.ArrayPool<byte>.Shared;
+
+        public int RentedCount { get; private set; }
+        public int ReturnedCount { get; private set; }
+
+        public override byte[] Rent(int minimumLength)
+        {
+            RentedCount++;
+            return _inner.Rent(minimumLength);
+        }
+
+        public override void Return(byte[] array, bool clearArray = false)
+        {
+            ReturnedCount++;
+            _inner.Return(array, clearArray);
+        }
+    }
 }

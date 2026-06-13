@@ -11,6 +11,10 @@ namespace TurboHTTP.Server.Context.Features;
 internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 {
     private Pipe? _pipe;
+    // UpgradeToPipe can be invoked from both the stage-actor thread (ApplicationBridgeStage)
+    // and the application/handler thread (first response write). Guard pipe creation so at
+    // most one Pipe is ever constructed — a true cross-thread boundary, hence the lock.
+    private readonly object _pipeLock = new();
     private ArrayBufferWriter<byte> _bufferWriter = FeatureCollectionFactory.RentBuffer();
     private ResponsePipeWriter _writer;
     private Stream? _stream;
@@ -90,31 +94,45 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             return;
         }
 
-        Tracing.For("Stage").Debug(this, "response upgraded to pipe (buffered={0}, completed={1})",
-            _bufferWriter.WrittenCount, _writer.IsCompleted);
-
-        // The initial flush below is not awaited, so the pause threshold must exceed the
-        // already-buffered content or the pending FlushAsync would be silently discarded.
-        var buffered = _bufferWriter.WrittenCount;
-        _pipe = buffered < 64 * 1024
-            ? new Pipe()
-            : new Pipe(new PipeOptions(
-                pauseWriterThreshold: buffered + 64 * 1024,
-                resumeWriterThreshold: buffered / 2));
-
-        if (buffered > 0)
+        lock (_pipeLock)
         {
-            var src = _bufferWriter.WrittenSpan;
-            var dest = _pipe.Writer.GetMemory(src.Length);
-            src.CopyTo(dest.Span);
-            _pipe.Writer.Advance(src.Length);
-            _pipe.Writer.FlushAsync();
-            _bufferWriter.ResetWrittenCount();
-        }
+            // Double-checked: another thread may have created the pipe between the fast-path
+            // read above and acquiring the lock.
+            if (_pipe is not null)
+            {
+                return;
+            }
 
-        if (_writer.IsCompleted)
-        {
-            _pipe.Writer.Complete();
+            Tracing.For("Stage").Debug(this, "response upgraded to pipe (buffered={0}, completed={1})",
+                _bufferWriter.WrittenCount, _writer.IsCompleted);
+
+            // The initial flush below is not awaited, so the pause threshold must exceed the
+            // already-buffered content or the pending FlushAsync would be silently discarded.
+            var buffered = _bufferWriter.WrittenCount;
+            var pipe = buffered < 64 * 1024
+                ? new Pipe()
+                : new Pipe(new PipeOptions(
+                    pauseWriterThreshold: buffered + 64 * 1024,
+                    resumeWriterThreshold: buffered / 2));
+
+            if (buffered > 0)
+            {
+                var src = _bufferWriter.WrittenSpan;
+                var dest = pipe.Writer.GetMemory(src.Length);
+                src.CopyTo(dest.Span);
+                pipe.Writer.Advance(src.Length);
+                pipe.Writer.FlushAsync();
+                _bufferWriter.ResetWrittenCount();
+            }
+
+            if (_writer.IsCompleted)
+            {
+                pipe.Writer.Complete();
+            }
+
+            // Publish the fully-initialized pipe last so concurrent readers never observe a
+            // partially-set-up instance.
+            _pipe = pipe;
         }
     }
 
