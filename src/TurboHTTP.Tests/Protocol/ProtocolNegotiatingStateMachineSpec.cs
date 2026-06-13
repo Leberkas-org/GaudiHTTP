@@ -139,7 +139,39 @@ public sealed class ProtocolNegotiatingStateMachineSpec
         Assert.False(sm.CanAcceptResponse);
         Assert.False(sm.ShouldComplete);
         Assert.Empty(ops.Requests);
-        Assert.Empty(ops.ScheduledTimers);
+        // The negotiation idle-timeout is armed while sniffing.
+        Assert.Single(ops.ScheduledTimers);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Sniffing_should_abort_when_buffered_bytes_exceed_cap()
+    {
+        var ops = new FakeServerOps();
+        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+
+        sm.DecodeClientData(MakeConnected());
+
+        var garbage = new byte[128 * 1024];
+        Array.Fill(garbage, (byte)'A');
+        sm.DecodeClientData(MakeData(garbage));
+
+        Assert.True(sm.ShouldComplete);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Sniffing_should_arm_idle_timeout_and_abort_when_it_fires()
+    {
+        var ops = new FakeServerOps();
+        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+
+        sm.DecodeClientData(MakeConnected());
+
+        var timer = Assert.Single(ops.ScheduledTimers);
+        Assert.False(sm.ShouldComplete);
+
+        sm.OnTimerFired(timer.Name);
+
+        Assert.True(sm.ShouldComplete);
     }
 
     [Fact(Timeout = 5000)]
