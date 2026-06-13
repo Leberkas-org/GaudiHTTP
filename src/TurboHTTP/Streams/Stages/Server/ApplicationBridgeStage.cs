@@ -160,10 +160,12 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
             DisposeAppContext(seq, null);
 
-            if (features.Get<IHttpResponseBodyFeature>() is not TurboHttpResponseBodyFeature
-                {
-                    HasStarted: true
-                })
+            var alreadyStarted = features.Get<IHttpResponseBodyFeature>() is TurboHttpResponseBodyFeature
+            {
+                HasStarted: true
+            };
+
+            if (!alreadyStarted)
             {
                 var responseFeature = features.Get<IHttpResponseFeature>();
                 responseFeature?.StatusCode = 503;
@@ -171,7 +173,16 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
             CompleteResponseBody(features);
             FireOnCompleted(features);
-            Emit(features);
+
+            // Only emit when the response has not already gone out. A streaming handler whose headers
+            // were emitted (ResponseReady's still-running branch) already pushed these features once;
+            // re-emitting here would deliver the same response twice (double OnResponse / wire
+            // corruption / double in-flight accounting). Completing the body above ends the stalled
+            // stream; the late HandlerFinished is swallowed because the timeout entry is gone.
+            if (!alreadyStarted)
+            {
+                Emit(features);
+            }
 
             if (_upstreamFinished && _inFlight == 0)
             {

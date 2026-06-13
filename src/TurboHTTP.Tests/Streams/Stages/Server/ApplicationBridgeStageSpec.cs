@@ -88,6 +88,36 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
     }
 
     [Fact(Timeout = 5000)]
+    public void ApplicationBridgeStage_should_not_double_emit_when_handler_times_out_after_headers()
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var app = new FakeApplication(async features =>
+        {
+            features.Get<IHttpResponseFeature>()!.StatusCode = 200;
+            // Commit headers so WhenHeadersReady completes and the response is emitted, then hang
+            // past the handler timeout. The hard timeout must NOT re-emit the already-sent response.
+            await features.Get<IHttpResponseBodyFeature>()!.StartAsync();
+            await release.Task;
+        });
+
+        var stage = new ApplicationBridgeStage<IFeatureCollection>(
+            app, 1, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
+
+        var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
+            .Via(stage)
+            .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
+            .Run(Materializer);
+
+        downstream.Request(10);
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
+
+        downstream.ExpectNext(TestContext.Current.CancellationToken);
+        downstream.ExpectNoMsg(TimeSpan.FromMilliseconds(600));
+
+        release.SetResult();
+    }
+
+    [Fact(Timeout = 5000)]
     public void ApplicationBridgeStage_should_handle_handler_exceptions()
     {
         var app = new FakeApplication(_ => throw new InvalidOperationException("Test error"));
