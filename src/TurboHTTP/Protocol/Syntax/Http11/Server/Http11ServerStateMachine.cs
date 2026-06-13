@@ -286,7 +286,13 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         var responseBody = features.Get<IHttpResponseBodyFeature>();
 
         var statusCode = responseFeature?.StatusCode ?? 200;
-        var suppressBody = statusCode is >= 100 and < 200 or 204 or 304;
+        // A response to HEAD carries the same headers a GET would (Content-Length/Transfer-Encoding
+        // are still emitted) but MUST NOT include a body — emitting one desynchronizes the keep-alive
+        // connection (RFC 9110 §9.3.2, RFC 9112 §6.3). The request method rides on the same feature
+        // collection the bridge echoes back, so it's available here.
+        var isHeadRequest = string.Equals(
+            features.Get<IHttpRequestFeature>()?.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
+        var suppressBody = isHeadRequest || statusCode is >= 100 and < 200 or 204 or 304;
 
         var contentLength = ExtractContentLength(responseFeature);
         var hasExplicitChunked = responseFeature?.Headers.Any(h =>
