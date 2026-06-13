@@ -43,6 +43,20 @@ public sealed class Http2RequestEncoderFrameSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4.3")]
+    public void Http2RequestEncoder_should_handle_header_block_larger_than_4096_bytes()
+    {
+        var encoder = new Http2ClientEncoder(useHuffman: false);
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://example.com/path");
+        request.Headers.Add("X-Large", new string('x', 6000));
+
+        // A header block exceeding the fixed 4096-byte encode buffer must not overflow/throw.
+        var frames = encoder.Encode(request, 1);
+
+        Assert.NotEmpty(frames);
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-8.3.1")]
     public void Http2RequestEncoder_should_contain_pseudo_headers_when_encoding_get_request_header_block()
     {

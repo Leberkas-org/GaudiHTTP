@@ -55,7 +55,7 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
         BuildHeaderList(request, _reusableHeaders);
         ValidatePseudoHeaders(_reusableHeaders);
 
-        var hpackOwner = MemoryPool<byte>.Shared.Rent(4096);
+        var hpackOwner = MemoryPool<byte>.Shared.Rent(EstimateHpackBufferSize(_reusableHeaders));
         _rentedBodyOwners.Add(hpackOwner);
         var hpackWritable = hpackOwner.Memory.Span;
         var hpackBytesWritten = _hpack.Encode(_reusableHeaders, ref hpackWritable, useHuffman);
@@ -66,6 +66,21 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
         EncodeHeaders(_reusableFrames, streamId, headerBlock, hasBody);
 
         return _reusableFrames;
+    }
+
+    // The HPACK encoder writes into a single rented span, so it must hold the whole header block.
+    // A fixed 4096-byte buffer overflowed (IndexOutOfRange) on large header sets, failing the
+    // request. Size to a literal-encoding upper bound (Huffman only shrinks); ×2 guards octet
+    // expansion. CONTINUATION fragmentation still applies downstream.
+    private static int EstimateHpackBufferSize(List<HpackHeader> headers)
+    {
+        var size = 128;
+        for (var i = 0; i < headers.Count; i++)
+        {
+            size += (headers[i].Name.Length + headers[i].Value.Length) * 2 + 16;
+        }
+
+        return Math.Max(4096, size);
     }
 
     /// <summary>
