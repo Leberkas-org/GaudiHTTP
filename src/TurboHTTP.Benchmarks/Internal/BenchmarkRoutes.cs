@@ -5,6 +5,9 @@ namespace TurboHTTP.Benchmarks.Internal;
 
 public static class BenchmarkRoutes
 {
+    /// <summary>Reusable 64 KB chunk for the streaming /download endpoint (server-side, not measured).</summary>
+    private static readonly byte[] DownloadChunk = new byte[64 * 1024];
+
     public static void Register(WebApplication app)
     {
         app.MapGet("/benchmark/simple", () =>
@@ -67,6 +70,27 @@ public static class BenchmarkRoutes
             var response = string.Concat("received:", count.ToString());
             ctx.Response.ContentType = "text/plain";
             await ctx.Response.WriteAsync(response);
+        });
+
+        app.MapGet("/download", async ctx =>
+        {
+            var size = 1 * 1024 * 1024;
+            if (ctx.Request.Query.TryGetValue("size", out var raw)
+                && int.TryParse(raw.ToString(), out var parsed) && parsed > 0)
+            {
+                size = parsed;
+            }
+
+            ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = size;
+
+            var remaining = size;
+            while (remaining > 0)
+            {
+                var n = Math.Min(remaining, DownloadChunk.Length);
+                await ctx.Response.Body.WriteAsync(DownloadChunk.AsMemory(0, n));
+                remaining -= n;
+            }
         });
     }
 }

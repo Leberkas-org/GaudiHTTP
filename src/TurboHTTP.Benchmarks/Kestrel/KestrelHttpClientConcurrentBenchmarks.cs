@@ -12,8 +12,6 @@ namespace TurboHTTP.Benchmarks.Kestrel;
 [IterationCount(10)]
 public class KestrelHttpClientConcurrentBenchmarks : KestrelBaseClass
 {
-    private const int MaxFanOut = 1024;
-
     [Params(1, 512, 4096)]
     public int ConcurrencyLevel { get; set; }
 
@@ -44,7 +42,7 @@ public class KestrelHttpClientConcurrentBenchmarks : KestrelBaseClass
         };
 
         _tasks = new Task[ConcurrencyLevel];
-        _fanOutGate = new SemaphoreSlim(MaxFanOut, MaxFanOut);
+        _fanOutGate = new SemaphoreSlim(MaxInFlight, MaxInFlight);
         await WarmupRequest();
     }
 

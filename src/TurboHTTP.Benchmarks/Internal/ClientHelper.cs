@@ -33,7 +33,7 @@ internal sealed class ClientHelper : IAsyncDisposable
     /// </summary>
     /// <param name="baseAddress">The remote base URI (scheme + host).</param>
     /// <param name="version">The HTTP version to use.</param>
-    public static ClientHelper CreateClient(Uri baseAddress, Version version)
+    public static ClientHelper CreateClient(Uri baseAddress, Version version, int? maxConnectionsOverride = null)
     {
         var options = new TurboClientOptions
         {
@@ -43,14 +43,14 @@ internal sealed class ClientHelper : IAsyncDisposable
             // H1.x: many connections with shallow pipelining to handle CL up to 8192.
             Http1 = new Http1ClientOptions
             {
-                MaxConnectionsPerServer = 512,
+                MaxConnectionsPerServer = maxConnectionsOverride ?? 512,
                 MaxPipelineDepth = 64
             },
             // H2: 16 connections × 512 streams = 8192 in-flight capacity.
             // MaxConcurrentStreams must not exceed Kestrel's MaxStreamsPerConnection (512).
             Http2 = new Http2ClientOptions
             {
-                MaxConnectionsPerServer = 16,
+                MaxConnectionsPerServer = maxConnectionsOverride ?? 16,
                 MaxConcurrentStreams = 512,
                 MaxBufferedRequestBodySize = 2 * 1024 * 1024,
             },
@@ -59,7 +59,7 @@ internal sealed class ClientHelper : IAsyncDisposable
             // on QuicConnection.OpenOutboundStreamAsync until a stream is released.
             Http3 = new Http3ClientOptions
             {
-                MaxConnectionsPerServer = 64,
+                MaxConnectionsPerServer = maxConnectionsOverride ?? 64,
                 MaxConcurrentStreams = 100,
                 QpackMaxTableCapacity = 32_768,
                 QpackBlockedStreams = 200,

@@ -21,13 +21,6 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
     private Task[] _tasks = null!;
     private SemaphoreSlim _fanOutGate = null!;
 
-    private int MaxFanOut => HttpVersion switch
-    {
-        "2.0" => 256,
-        "3.0" => 256,
-        _ => 512,
-    };
-
     private TimeSpan BenchmarkTimeout => ConcurrencyLevel switch
     {
         >= 4096 => TimeSpan.FromSeconds(120),
@@ -41,7 +34,7 @@ public class KestrelTurboSendAsyncConcurrentBenchmarks : KestrelBaseClass
         await base.GlobalSetup();
         _clientHelper = ClientHelper.CreateClient(BaseAddress, HttpVersionValue);
         _tasks = new Task[ConcurrencyLevel];
-        _fanOutGate = new SemaphoreSlim(MaxFanOut, MaxFanOut);
+        _fanOutGate = new SemaphoreSlim(MaxInFlight, MaxInFlight);
         await WarmupRequest();
     }
 
