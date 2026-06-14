@@ -18,8 +18,11 @@ internal sealed class FakeServerOps : IServerStageOperations
     /// <summary>Every OnScheduleTimer call in order, without the de-duplication applied to <see cref="ScheduledTimers"/>.</summary>
     public List<(string Name, TimeSpan Delay)> ScheduleTimerCalls { get; } = [];
 
+    public List<IFeatureCollection> ResponseBodyCompletions { get; } = [];
+
     public void OnRequest(IFeatureCollection features) => Requests.Add(features);
     public void OnOutbound(ITransportOutbound item) => Outbound.Add(item);
+    public void OnResponseBodyComplete(IFeatureCollection features) => ResponseBodyCompletions.Add(features);
 
     public void OnScheduleTimer(string name, TimeSpan delay)
     {

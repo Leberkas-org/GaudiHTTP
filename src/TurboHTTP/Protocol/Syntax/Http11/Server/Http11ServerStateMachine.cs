@@ -309,6 +309,10 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         if (suppressBody)
         {
+            // Headers-only response (1xx/204/304 or HEAD): no body drain will run, so recycle the
+            // feature collection now. Safe — the SM keeps no reference to `features` on this path.
+            _ops.OnResponseBodyComplete(features);
+
             if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
             {
                 _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
@@ -371,11 +375,13 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             _activeResponseBodyWriter = writer;
             _activeResponseBodyStream = bodyStream;
 
-
             ReadNextResponseChunk();
         }
         else
         {
+            // No streamed body feature to drain: recycle the feature collection now.
+            _ops.OnResponseBodyComplete(features);
+
             if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
             {
                 _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
