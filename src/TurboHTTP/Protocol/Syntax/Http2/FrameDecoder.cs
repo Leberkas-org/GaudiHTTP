@@ -244,6 +244,10 @@ internal sealed class FrameDecoder : IDisposable
         var endStream = (flags & (byte)Datas.EndStream) != 0;
         var data = payload;
 
+        // RFC 9113 §6.1: the entire payload — including the Pad Length octet and padding — is
+        // counted against flow control, even though only the application data is delivered.
+        var flowControlledLength = payload.Length;
+
         if ((flags & (byte)Datas.Padded) != 0)
         {
             if (data.IsEmpty)
@@ -260,7 +264,7 @@ internal sealed class FrameDecoder : IDisposable
             data = data.Slice(PadLengthFieldSize, data.Length - PadLengthFieldSize - padLen);
         }
 
-        return new DataFrame(streamId, data, endStream);
+        return new DataFrame(streamId, data, endStream, flowControlledLength);
     }
 
     private static HeadersFrame ParseHeadersFrame(byte flags, int streamId, ReadOnlyMemory<byte> payload)
@@ -337,6 +341,13 @@ internal sealed class FrameDecoder : IDisposable
                 ArrayPool<(SettingsParameter, uint)>.Shared.Return(array);
                 throw new HttpProtocolException(
                     $"RFC 9113 §6.5.2: SETTINGS_MAX_FRAME_SIZE {value} is outside the valid range [{MinMaxFrameSize}, {MaxMaxFrameSize}].");
+            }
+
+            if (key == SettingsParameter.InitialWindowSize && value > int.MaxValue)
+            {
+                ArrayPool<(SettingsParameter, uint)>.Shared.Return(array);
+                throw new HttpProtocolException(
+                    $"RFC 9113 §6.5.2: SETTINGS_INITIAL_WINDOW_SIZE {value} exceeds the maximum 2^31-1 (FLOW_CONTROL_ERROR).");
             }
 
             array[count++] = (key, value);

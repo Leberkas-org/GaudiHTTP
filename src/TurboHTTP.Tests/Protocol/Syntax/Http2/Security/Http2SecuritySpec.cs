@@ -44,18 +44,6 @@ public sealed class Http2SecuritySpec
         }
     }
 
-    private static void EnforceInitialWindowSize(IReadOnlyList<(SettingsParameter, uint)> parameters)
-    {
-        foreach (var (key, value) in parameters)
-        {
-            if (key == SettingsParameter.InitialWindowSize && value > 0x7FFFFFFFu)
-            {
-                throw new HttpProtocolException(
-                    $"RFC 9113 §6.5.2: SETTINGS_INITIAL_WINDOW_SIZE {value} exceeds the maximum 2^31−1.");
-            }
-        }
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-5.1")]
     public void Http2FrameDecoder_should_detect_continuation_flood_when_explicit_enforcement_applied()
@@ -190,13 +178,8 @@ public sealed class Http2SecuritySpec
             (SettingsParameter.InitialWindowSize, 0x80000000u),
         }).Serialize();
 
-        var framesDecoded = decoder.Decode(settingsFrame);
-        var settings = Assert.Single(framesDecoded);
-        var settingsF = Assert.IsType<SettingsFrame>(settings);
-
-        // Enforcement helper should reject the overflow.
-        Assert.Throws<HttpProtocolException>(() =>
-            EnforceInitialWindowSize(settingsF.Parameters));
+        // RFC 9113 §6.5.2: the decoder rejects the overflow as a connection FLOW_CONTROL_ERROR.
+        Assert.Throws<HttpProtocolException>(() => decoder.Decode(settingsFrame));
     }
 
     [Fact(Timeout = 5000)]

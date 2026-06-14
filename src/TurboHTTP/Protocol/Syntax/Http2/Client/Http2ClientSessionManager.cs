@@ -519,7 +519,7 @@ internal sealed class Http2ClientSessionManager
         Tracing.For("Protocol").Trace(this, "HTTP/2: DATA in (stream={0}, len={1}, endStream={2})",
             data.StreamId, data.Data.Length, data.EndStream);
 
-        var result = _flow.OnInboundData(data.StreamId, data.Data.Length);
+        var result = _flow.OnInboundData(data.StreamId, data.FlowControlledLength);
 
         if (result.IsConnectionViolation)
         {

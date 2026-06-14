@@ -690,7 +690,15 @@ internal sealed class Http2ServerSessionManager
             return;
         }
 
-        var flowResult = _flow.OnInboundData(streamId, data.Data.Length);
+        if (state.IsRemoteClosed)
+        {
+            // RFC 9113 §5.1: a stream in half-closed(remote) MUST treat any DATA as a
+            // STREAM_CLOSED stream error — the client already sent END_STREAM.
+            EmitRstStream(streamId, Http2ErrorCode.StreamClosed);
+            return;
+        }
+
+        var flowResult = _flow.OnInboundData(streamId, data.FlowControlledLength);
 
         if (flowResult.IsConnectionViolation || flowResult.IsStreamViolation)
         {
@@ -733,6 +741,12 @@ internal sealed class Http2ServerSessionManager
                 _requestRate.Observe(streamId, data.Data.Length, Now());
                 EnsureRateTimer();
             }
+        }
+
+        if (data.EndStream)
+        {
+            // RFC 9113 §5.1: the client has finished sending; further DATA must be rejected.
+            state.MarkRemoteClosed();
         }
 
         if (flowResult.StreamWindowUpdate is { } streamWin)
@@ -879,6 +893,8 @@ internal sealed class Http2ServerSessionManager
 
         state.ClearHeaderBuffer();
         state.FeedBody([], endStream: true);
+        // RFC 9113 §5.1: trailers carry END_STREAM — the stream is now half-closed(remote).
+        state.MarkRemoteClosed();
     }
 
     private void DecodeAndEmitRequest(int streamId, StreamState state, bool endStream)
@@ -894,6 +910,13 @@ internal sealed class Http2ServerSessionManager
             state.InitRequestFeature(requestFeature);
 
             _flow.InitStreamSendWindow(streamId);
+
+            if (endStream)
+            {
+                // RFC 9113 §5.1: HEADERS with END_STREAM leaves the stream half-closed(remote);
+                // any later DATA on it must be rejected with STREAM_CLOSED.
+                state.MarkRemoteClosed();
+            }
 
             var hasBody = !endStream;
             if (hasBody)
