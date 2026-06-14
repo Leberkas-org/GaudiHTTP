@@ -106,11 +106,14 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
         TransportBuffer? item = null;
         try
         {
-            var contentLength = Convert.ToInt32(request.Content?.Headers.ContentLength ?? 0);
-            item = TransportBuffer.Rent(HttpMessageSize.Estimate(request, contentLength));
-            var span = item.FullMemory.Span;
+            // Build the request headers once and rent a buffer sized to exactly the request line +
+            // header block. The body is streamed separately via StartBodyDrain, so it is NOT part of
+            // this buffer — this avoids both the throwaway header build HttpMessageSize.Estimate did
+            // purely for sizing and the body-sized over-rent it added on top.
+            var headerSize = _encoder.Prepare(request, out var bodyStream, out var bodyContentLength);
+            item = TransportBuffer.Rent(headerSize);
 
-            item.Length = _encoder.Encode(span, request, out var bodyStream, out var bodyContentLength);
+            item.Length = _encoder.WriteTo(item.FullMemory.Span, request);
             _ops.OnOutbound(TransportData.Rent(item));
 
             if (bodyStream is not null)
