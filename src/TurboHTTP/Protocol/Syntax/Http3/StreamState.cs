@@ -18,6 +18,7 @@ internal sealed class StreamState
     private long _maxBodySize;
     private long _totalBodyBytes;
     private Queue<StreamBodyChunk>? _outboundBuffer;
+    private List<byte[]>? _pendingInboundData;
 
     public long StreamId { get; private set; } = -1;
 
@@ -34,6 +35,16 @@ internal sealed class StreamState
     public bool IsBodyDrainComplete { get; private set; }
 
     public bool IsBodyReadPending { get; set; }
+
+    /// <summary>
+    /// RFC 9204 §2.1.2 — true while inbound HEADERS are QPACK-blocked awaiting dynamic-table
+    /// updates. DATA frames received in this window are buffered (not dropped) and replayed
+    /// once the stream resolves; a QUIC FIN is remembered via <see cref="PendingEndStream"/>.
+    /// </summary>
+    public bool IsHeadersBlocked { get; set; }
+
+    /// <summary>A QUIC FIN arrived while the stream was still QPACK-blocked.</summary>
+    public bool PendingEndStream { get; set; }
 
     public long PendingOutboundBytes { get; private set; }
 
@@ -163,6 +174,38 @@ internal sealed class StreamState
         }
     }
 
+    /// <summary>
+    /// Buffers a copy of inbound DATA received while the stream is QPACK-blocked. The frame
+    /// aliases a pooled transport buffer that the caller reuses after handling, so the bytes
+    /// must be copied to survive until <see cref="ReplayPendingInboundData"/> runs.
+    /// </summary>
+    public void BufferInboundData(ReadOnlySpan<byte> data)
+    {
+        if (data.IsEmpty)
+        {
+            return;
+        }
+
+        _pendingInboundData ??= [];
+        _pendingInboundData.Add(data.ToArray());
+    }
+
+    /// <summary>Feeds all DATA buffered while QPACK-blocked into the now-initialized body reader.</summary>
+    public void ReplayPendingInboundData()
+    {
+        if (_pendingInboundData is null)
+        {
+            return;
+        }
+
+        foreach (var chunk in _pendingInboundData)
+        {
+            FeedBody(chunk, endStream: false);
+        }
+
+        _pendingInboundData = null;
+    }
+
     public Stream GetBodyStream()
     {
         if (_bodyReader is null)
@@ -234,6 +277,9 @@ internal sealed class StreamState
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
         IsBodyReadPending = false;
+        IsHeadersBlocked = false;
+        PendingEndStream = false;
+        _pendingInboundData = null;
         DisposeOutboundBuffer();
         _outboundBuffer = null;
         PendingOutboundBytes = 0;

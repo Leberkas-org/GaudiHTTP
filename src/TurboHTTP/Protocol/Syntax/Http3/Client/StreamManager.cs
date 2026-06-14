@@ -87,6 +87,14 @@ internal sealed class StreamManager(
             return;
         }
 
+        if (state is { IsHeadersBlocked: true })
+        {
+            // FIN arrived while still QPACK-blocked; remember it so ResolveBlockedStreams can
+            // complete the body after the headers (and any buffered DATA) are delivered.
+            state.PendingEndStream = true;
+            return;
+        }
+
         if (state is { HasResponse: true })
         {
             EmitResponse(streamId);
@@ -205,6 +213,18 @@ internal sealed class StreamManager(
                     }
 
                     ops.OnResponse(response);
+
+                    // Replay DATA buffered while the stream was blocked, then honor a FIN that
+                    // arrived during the block so the body completes.
+                    state.IsHeadersBlocked = false;
+                    state.ReplayPendingInboundData();
+
+                    if (state.PendingEndStream)
+                    {
+                        state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
+                        state.DetachBodyReader();
+                        ReturnStreamState(streamId);
+                    }
                 }
             }
         }
@@ -307,6 +327,9 @@ internal sealed class StreamManager(
 
         if (result.IsBlocked)
         {
+            // Mark blocked so DATA frames that arrive before the QPACK encoder instructions
+            // resolve this stream are buffered (HandleResponseData) instead of dropped.
+            state.IsHeadersBlocked = true;
             return;
         }
 
@@ -343,6 +366,15 @@ internal sealed class StreamManager(
     {
         if (!state.HasBodyReader)
         {
+            if (state.IsHeadersBlocked)
+            {
+                // HEADERS are QPACK-blocked; buffer the DATA (copied — it aliases the pooled
+                // transport buffer) and replay it once ResolveBlockedStreams initializes the
+                // body reader. Dropping here would silently truncate the response body.
+                state.BufferInboundData(frame.Data.Span);
+                return;
+            }
+
             Tracing.For("Protocol").Warning(this, "RFC 9114 §4.1 - DATA frame received before HEADERS; dropping.");
             return;
         }
