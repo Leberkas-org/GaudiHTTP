@@ -40,7 +40,7 @@ internal sealed class EndpointResolver
                 var tcpProtocols = listen.Protocols & ~HttpProtocols.Http3;
                 if (tcpProtocols != HttpProtocols.None)
                 {
-                    bindings.Add(CreateTcpBinding(listen, cert, tcpProtocols));
+                    bindings.Add(CreateTcpBinding(listen, cert, tcpProtocols, options.Limits.MaxRequestBufferSize));
                 }
 
                 if ((listen.Protocols & HttpProtocols.Http3) != 0)
@@ -51,7 +51,7 @@ internal sealed class EndpointResolver
                             "HTTP/3 requires a static certificate. ServerCertificateSelector is not supported for QUIC.");
                     }
 
-                    bindings.Add(CreateQuicBinding(listen, cert));
+                    bindings.Add(CreateQuicBinding(listen, cert, options.Http3.MaxConcurrentStreams));
                 }
             }
             else
@@ -64,7 +64,8 @@ internal sealed class EndpointResolver
                             listen.Address, ":", listen.Port.ToString(), "'."));
                 }
 
-                bindings.Add(CreateTcpBinding(listen, certificate: null, listen.Protocols));
+                bindings.Add(CreateTcpBinding(listen, certificate: null, listen.Protocols,
+                    options.Limits.MaxRequestBufferSize));
             }
         }
 
@@ -190,12 +191,13 @@ internal sealed class EndpointResolver
     }
 
     private static ListenerBinding CreateTcpBinding(TurboListenOptions listen, X509Certificate2? certificate,
-        HttpProtocols protocols)
+        HttpProtocols protocols, long? maxRequestBufferSize)
     {
         var alpn = protocols.ToAlpnProtocols();
         var httpsOptions = listen.HttpsOptions;
 
         var transport = listen.Transport?.ResolveTcp() ?? TransportBufferOptions.TcpDefaults;
+        var (inputPause, inputResume) = ResolveTcpInputThresholds(listen, transport, maxRequestBufferSize);
         var tcpOptions = new TcpListenerOptions
         {
             Host = listen.Address.ToString(),
@@ -207,8 +209,8 @@ internal sealed class EndpointResolver
             HandshakeTimeout = httpsOptions?.HandshakeTimeout ?? TimeSpan.FromSeconds(10),
             ClientCertificateMode = httpsOptions?.ClientCertificateMode ?? ClientCertificateMode.NoCertificate,
             ServerCertificateSelector = httpsOptions?.ServerCertificateSelector,
-            InputPauseThreshold = transport.InputPauseThreshold,
-            InputResumeThreshold = transport.InputResumeThreshold,
+            InputPauseThreshold = inputPause,
+            InputResumeThreshold = inputResume,
             OutputPauseThreshold = transport.OutputPauseThreshold,
             OutputResumeThreshold = transport.OutputResumeThreshold,
             MinimumSegmentSize = transport.MinimumSegmentSize
@@ -222,7 +224,28 @@ internal sealed class EndpointResolver
         };
     }
 
-    private static ListenerBinding CreateQuicBinding(TurboListenOptions listen, X509Certificate2 certificate)
+    /// <summary>
+    /// Resolves the TCP read-pipe pause/resume thresholds, applying the server-wide
+    /// <see cref="TurboServerLimits.MaxRequestBufferSize"/> as the input-pause default. A
+    /// per-listener <see cref="TransportBufferOptions.InputPauseThreshold"/> takes precedence;
+    /// a null limit falls through to the transport default. (QUIC is per-stream and is not driven
+    /// by this connection-scoped limit.)
+    /// </summary>
+    private static (long InputPause, long InputResume) ResolveTcpInputThresholds(
+        TurboListenOptions listen, ResolvedTransportBuffers transport, long? maxRequestBufferSize)
+    {
+        if (listen.Transport?.InputPauseThreshold is not null || maxRequestBufferSize is not { } cap)
+        {
+            return (transport.InputPauseThreshold, transport.InputResumeThreshold);
+        }
+
+        // Keep the resume threshold below the (possibly smaller) pause to preserve hysteresis.
+        var inputResume = Math.Min(transport.InputResumeThreshold, cap / 2);
+        return (cap, inputResume);
+    }
+
+    private static ListenerBinding CreateQuicBinding(TurboListenOptions listen, X509Certificate2 certificate,
+        int maxConcurrentStreams)
     {
         var transport = listen.Transport?.ResolveQuic() ?? TransportBufferOptions.QuicDefaults;
         var quicOptions = new QuicListenerOptions
@@ -234,6 +257,9 @@ internal sealed class EndpointResolver
             EnabledSslProtocols = listen.HttpsOptions?.EnabledSslProtocols ??
                                   SslProtocols.None,
             ClientCertificateValidationCallback = listen.HttpsOptions?.ClientCertificateValidationCallback,
+            // RFC 9114 §6.1 / §7.2.4.2: bound concurrent request streams at the QUIC transport so
+            // the listener stops accepting new bidirectional streams past the configured limit.
+            MaxInboundBidirectionalStreams = maxConcurrentStreams,
             InputPauseThreshold = transport.InputPauseThreshold,
             InputResumeThreshold = transport.InputResumeThreshold,
             OutputPauseThreshold = transport.OutputPauseThreshold,
