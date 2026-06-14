@@ -12,10 +12,11 @@ internal sealed class Http2ServerDecoder
     private const string TokenSection = "RFC 9113 §10.3";
     private const string ConnectionSection = "RFC 9113 §8.2.2";
 
-    private HpackDecoder _hpack = new();
+    private HpackDecoder _hpack;
     private readonly int _maxHeaderSize;
     private readonly int _maxTotalHeaderSize;
     private readonly int _maxHeaderCount;
+    private readonly int _headerTableSize;
 
     public Http2ServerDecoder(Http2ServerDecoderOptions options)
     {
@@ -23,15 +24,25 @@ internal sealed class Http2ServerDecoder
         _maxHeaderSize = options.MaxHeaderBytes;
         _maxTotalHeaderSize = options.MaxFieldSectionSize;
         _maxHeaderCount = options.MaxHeaderCount;
+        _headerTableSize = options.HeaderTableSize;
+        _hpack = CreateHpack();
+    }
+
+    private HpackDecoder CreateHpack()
+    {
+        var hpack = new HpackDecoder();
         // RFC 9113 §6.5.2: enforce the cumulative decoded header-list size (MAX_HEADER_LIST_SIZE) inside
         // the HPACK decoder so a decompression bomb is rejected mid-decode, before the full list is built.
-        _hpack.SetMaxHeaderListSize(_maxTotalHeaderSize);
+        hpack.SetMaxHeaderListSize(_maxTotalHeaderSize);
+        // RFC 7541 §4.2: the decoder must enforce the SETTINGS_HEADER_TABLE_SIZE the server advertised,
+        // so a Dynamic Table Size Update is accepted up to (and only up to) the configured value.
+        hpack.SetMaxAllowedTableSize(_headerTableSize);
+        return hpack;
     }
 
     public void ResetHpack()
     {
-        _hpack = new HpackDecoder();
-        _hpack.SetMaxHeaderListSize(_maxTotalHeaderSize);
+        _hpack = CreateHpack();
     }
 
     public TurboHttpRequestFeature? DecodeHeadersToFeature(int streamId, bool endStream, StreamState state)
