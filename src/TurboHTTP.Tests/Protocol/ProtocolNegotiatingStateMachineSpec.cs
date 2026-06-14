@@ -159,6 +159,27 @@ public sealed class ProtocolNegotiatingStateMachineSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Sniffing_should_identify_http2_when_first_segment_exceeds_sniff_cap()
+    {
+        var ops = new FakeServerOps();
+        var sm = new ProtocolNegotiatingStateMachine(new TurboServerOptions(), ops);
+
+        sm.DecodeClientData(MakeConnected());
+
+        // A large first TCP segment: the HTTP/2 preface coalesced with SETTINGS + request frames,
+        // exceeding the 64 KiB sniff cap (common for concurrent / large HTTP/2). The preface MUST be
+        // recognized (HTTP/2 activated, keep-alive scheduled) rather than aborted by the cap before
+        // identification — the regression that broke concurrent HTTP/2 large-payload round-trips.
+        var preface = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"u8.ToArray();
+        var segment = new byte[96 * 1024];
+        preface.CopyTo(segment.AsSpan());
+        sm.DecodeClientData(MakeData(segment));
+
+        Assert.True(ops.ScheduledTimers.Any(t => t.Name == "keep-alive-timeout"),
+            "HTTP/2 should have been activated despite the oversized first segment, not aborted by the sniff cap.");
+    }
+
+    [Fact(Timeout = 5000)]
     public void Sniffing_should_arm_idle_timeout_and_abort_when_it_fires()
     {
         var ops = new FakeServerOps();

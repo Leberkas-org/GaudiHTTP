@@ -160,46 +160,47 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         }
 
         _bufferedBytes += buffer.Length;
-        if (_bufferedBytes > MaxSniffBytes)
-        {
-            // 64 KiB arrived without an identifiable protocol — treat as garbage/abuse and abort
-            // rather than buffering unboundedly (memory-exhaustion DoS).
-            _sniffAborted = true;
-            CancelNegotiationTimer();
-            return;
-        }
 
         var span = buffer.Memory.Span;
-        if (span.Length < 4)
+        if (span.Length >= 4)
         {
-            return;
+            if (span.StartsWith(Http2PrefixMagic))
+            {
+                var h2Options = _options.ToHttp2Options();
+                Activate(ops => new Http2ServerStateMachine(h2Options, ops));
+                ReplayBuffered();
+                return;
+            }
+
+            if (DetectHttp10())
+            {
+                var h1Options = _options.ToHttp1Options();
+                Activate(ops => new Http10ServerStateMachine(h1Options, ops));
+                ReplayBuffered();
+                return;
+            }
+
+            if (ContainsRequestLineCrlf())
+            {
+                var h1Options = _options.ToHttp1Options();
+                var h2UpgradeOptions = _options.ToHttp2Options();
+                Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
+                ReplayBuffered();
+                return;
+            }
         }
 
-        if (span.StartsWith(Http2PrefixMagic))
+        // No protocol identified from the buffered bytes yet. Bound how much we buffer while
+        // waiting so an unidentifiable cleartext peer can't grow the sniff buffer without bound
+        // (memory-exhaustion DoS). A real request line / HTTP/2 preface is tiny, so exceeding the
+        // cap without identification means garbage/abuse — abort before any state machine exists.
+        // The cap is checked AFTER identification so a large first segment carrying a valid preface
+        // plus request data (common for concurrent / large HTTP/2) is recognized rather than aborted.
+        if (_bufferedBytes > MaxSniffBytes)
         {
-            var h2Options = _options.ToHttp2Options();
-            Activate(ops => new Http2ServerStateMachine(h2Options, ops));
-            ReplayBuffered();
-            return;
+            _sniffAborted = true;
+            CancelNegotiationTimer();
         }
-
-        if (DetectHttp10())
-        {
-            var h1Options = _options.ToHttp1Options();
-            Activate(ops => new Http10ServerStateMachine(h1Options, ops));
-        }
-        else if (ContainsRequestLineCrlf())
-        {
-            var h1Options = _options.ToHttp1Options();
-            var h2UpgradeOptions = _options.ToHttp2Options();
-            Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
-        }
-        else
-        {
-            return;
-        }
-
-        ReplayBuffered();
     }
 
     private bool DetectHttp10()
