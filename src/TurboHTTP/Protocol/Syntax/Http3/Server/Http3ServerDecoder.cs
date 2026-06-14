@@ -37,7 +37,20 @@ internal sealed class Http3ServerDecoder
             return null;
         }
 
-        var headers = result.Headers!;
+        return AssembleHeadersToFeature(result.Headers!, state, endStream);
+    }
+
+    /// <summary>
+    /// Builds a request feature from an already-decoded header list. Used both by
+    /// <see cref="DecodeHeadersToFeature"/> and by the QPACK blocked-stream resolution path,
+    /// which decodes the header block out-of-band once the dynamic table catches up.
+    /// </summary>
+    public TurboHttpRequestFeature? AssembleHeadersToFeature(
+        IReadOnlyList<(string Name, string Value)> headers, StreamState state, bool endStream)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+        ArgumentNullException.ThrowIfNull(state);
+
         ValidateRequestHeaders(headers);
         ValidateFieldSectionSize(headers, state.StreamId);
 

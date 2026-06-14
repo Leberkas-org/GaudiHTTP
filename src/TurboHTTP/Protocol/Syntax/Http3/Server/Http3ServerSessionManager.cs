@@ -41,6 +41,9 @@ internal sealed class Http3ServerSessionManager
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
     private readonly Dictionary<long, Stream> _activeBodyStreams = new();
     private readonly Dictionary<long, IMemoryOwner<byte>> _activeBodyBuffers = new();
+    private readonly Dictionary<long, CancellationTokenSource> _activeBodyReadCts = new();
+    private readonly HashSet<long> _drainReadInFlight = new();
+    private readonly HashSet<long> _drainBufferOrphaned = new();
     private readonly StackStreamStatePool<StreamState> _statePool;
     private readonly Stack<FrameDecoder> _decoderPool = new();
     private const int MaxDecoderPoolSize = 256;
@@ -53,6 +56,7 @@ internal sealed class Http3ServerSessionManager
 
     private bool _controlPrefaceSent;
     private bool _settingsReceived;
+    private bool _qpackDecoderPrefaceSent;
 
     private readonly int _maxResetStreamsPerWindow;
     private int _resetCount;
@@ -245,6 +249,16 @@ internal sealed class Http3ServerSessionManager
                 break;
 
             case StreamBodyReadFailed failed:
+                _drainReadInFlight.Remove(failed.StreamId);
+                if (_drainBufferOrphaned.Remove(failed.StreamId))
+                {
+                    // Stream already torn down while this read was in flight (the read failed
+                    // because CleanupBodyDrain cancelled it). Release the deferred buffer; the
+                    // stream is gone, so no RST is needed.
+                    DisposeDrainResources(failed.StreamId);
+                    break;
+                }
+
                 Tracing.For("Protocol").Warning(this,
                     "HTTP/3: Response body drain failed for stream {0}: {1}", failed.StreamId,
                     failed.Reason.Message);
@@ -256,6 +270,15 @@ internal sealed class Http3ServerSessionManager
 
     private void HandleStreamBodyRead(StreamBodyReadComplete read)
     {
+        _drainReadInFlight.Remove(read.StreamId);
+        if (_drainBufferOrphaned.Remove(read.StreamId))
+        {
+            // The stream was torn down while this read was in flight; the buffer was kept
+            // alive for the read. Release it now and drop the result — the stream is gone.
+            DisposeDrainResources(read.StreamId);
+            return;
+        }
+
         if (!_streams.TryGetValue(read.StreamId, out var streamData))
         {
             CleanupBodyDrain(read.StreamId);
@@ -345,10 +368,28 @@ internal sealed class Http3ServerSessionManager
 
     public void Cleanup()
     {
-        foreach (var streamId in _activeBodyStreams.Keys.ToList())
+        // Release response-drain resources. A buffer with a still-in-flight read is abandoned
+        // to the GC rather than returned to the pool — returning a buffer a read is still
+        // writing into is exactly the cross-stream corruption we guard against elsewhere.
+        foreach (var (streamId, buffer) in _activeBodyBuffers)
         {
-            CleanupBodyDrain(streamId);
+            if (!_drainReadInFlight.Contains(streamId))
+            {
+                buffer.Dispose();
+            }
         }
+
+        foreach (var (_, cts) in _activeBodyReadCts)
+        {
+            cts.Cancel();
+            cts.Dispose();
+        }
+
+        _activeBodyBuffers.Clear();
+        _activeBodyStreams.Clear();
+        _activeBodyReadCts.Clear();
+        _drainReadInFlight.Clear();
+        _drainBufferOrphaned.Clear();
 
         foreach (var (_, (decoder, state)) in _streams)
         {
@@ -413,13 +454,124 @@ internal sealed class Http3ServerSessionManager
                 ProcessFrameData(transportBuffer, CriticalStreamId.ControlId);
                 return;
             case CriticalStreamId.QpackEncoderId:
+                ProcessQpackEncoderStream(transportBuffer);
+                return;
             case CriticalStreamId.QpackDecoderId:
-                transportBuffer.Dispose();
+                ProcessQpackDecoderStream(transportBuffer);
                 return;
             default:
                 ProcessFrameData(transportBuffer, logicalStreamId);
                 break;
         }
+    }
+
+    private void ProcessQpackEncoderStream(TransportBuffer buffer)
+    {
+        using var input = buffer;
+
+        try
+        {
+            // RFC 9204 §4.3: apply the peer's dynamic-table insert instructions to our decoder.
+            _tableSync.ProcessEncoderInstructions(input.Memory.Span);
+        }
+        catch (Exception ex) when (ex is QpackException or HuffmanException)
+        {
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/3 QPACK encoder-stream error - closing connection: {0}", ex.Message);
+            ShouldComplete = true;
+            return;
+        }
+
+        // The inserts may have unblocked request streams whose HEADERS were waiting on the
+        // dynamic table. Redrive each so the request finally dispatches.
+        foreach (var (streamId, headers) in _tableSync.ResolveBlockedStreams())
+        {
+            RedriveBlockedRequest(streamId, headers);
+        }
+
+        // RFC 9204 §4.4.3: tell the peer's encoder how far our dynamic table advanced.
+        FlushInsertCountIncrement();
+    }
+
+    private void ProcessQpackDecoderStream(TransportBuffer buffer)
+    {
+        using var input = buffer;
+
+        try
+        {
+            // RFC 9204 §4.4: the peer's decoder acks our (currently empty) encoder stream.
+            _tableSync.ProcessDecoderInstructions(input.Memory.Span);
+        }
+        catch (Exception ex) when (ex is QpackException or HuffmanException)
+        {
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/3 QPACK decoder-stream error - closing connection: {0}", ex.Message);
+            ShouldComplete = true;
+        }
+    }
+
+    private void RedriveBlockedRequest(long streamId, IReadOnlyList<(string Name, string Value)> headers)
+    {
+        if (!_streams.TryGetValue(streamId, out var streamData))
+        {
+            return;
+        }
+
+        var (_, state) = streamData;
+        state.IsHeadersBlocked = false;
+
+        try
+        {
+            _requestDecoder.AssembleHeadersToFeature(headers, state, endStream: false);
+        }
+        catch (Exception ex) when (ex is QpackException or HuffmanException)
+        {
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/3 QPACK error resolving blocked stream {0} - closing connection: {1}", streamId, ex.Message);
+            ShouldComplete = true;
+            return;
+        }
+        catch (HttpProtocolException ex)
+        {
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/3 message error resolving blocked stream {0} - resetting stream: {1}", streamId, ex.Message);
+            EmitRstStream(streamId, ErrorCode.MessageError);
+            return;
+        }
+
+        // If the request's FIN already arrived while blocked, dispatch it now.
+        if (state.PendingEndStream)
+        {
+            state.PendingEndStream = false;
+            FlushPendingRequest(streamId);
+        }
+    }
+
+    private void FlushInsertCountIncrement()
+    {
+        var buf = TransportBuffer.Rent(1 + 8);
+        var dest = buf.FullMemory.Span;
+        var offset = 0;
+
+        if (!_qpackDecoderPrefaceSent)
+        {
+            dest[offset++] = (byte)StreamType.QpackDecoder;
+        }
+
+        var writer = SpanWriter.Create(dest[offset..]);
+        _tableSync.WriteInsertCountIncrement(ref writer);
+        offset += writer.BytesWritten;
+
+        if (offset == 0 || (offset == 1 && !_qpackDecoderPrefaceSent))
+        {
+            // Nothing to acknowledge yet (no inserts applied); don't send a lone stream-type byte.
+            buf.Dispose();
+            return;
+        }
+
+        _qpackDecoderPrefaceSent = true;
+        buf.Length = offset;
+        _ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.QpackDecoder));
     }
 
     private void ProcessFrameData(TransportBuffer buffer, long streamId)
@@ -475,6 +627,14 @@ internal sealed class Http3ServerSessionManager
                             }
                             else
                             {
+                                if (state.GetRequestFeature() is null)
+                                {
+                                    // QPACK-blocked: the header block is queued in the table sync
+                                    // awaiting encoder-stream instructions. Mark it so the FIN is
+                                    // deferred and ProcessQpackEncoderStream redrives dispatch.
+                                    state.IsHeadersBlocked = true;
+                                }
+
                                 _ops.OnScheduleTimer(state.HeadersTimeoutTimerKey, TimeSpan.FromSeconds(30));
                             }
                         }
@@ -579,6 +739,14 @@ internal sealed class Http3ServerSessionManager
         }
 
         var (_, state) = streamData;
+
+        if (state.IsHeadersBlocked)
+        {
+            // FIN arrived while still QPACK-blocked; defer dispatch until the encoder stream
+            // resolves the headers (ProcessQpackEncoderStream -> RedriveBlockedRequest).
+            state.PendingEndStream = true;
+            return;
+        }
 
         var requestFeature = state.GetRequestFeature();
         if (requestFeature is not null)
@@ -695,6 +863,7 @@ internal sealed class Http3ServerSessionManager
             : _responseBodyChunkSize;
         var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(bufferSize, 256));
         _activeBodyBuffers[streamId] = buffer;
+        _activeBodyReadCts[streamId] = new CancellationTokenSource();
         ReadNextBodyChunk(streamId);
     }
 
@@ -711,13 +880,19 @@ internal sealed class Http3ServerSessionManager
             streamData.State.IsBodyReadPending = true;
         }
 
-        var vt = stream.ReadAsync(buffer.Memory);
+        var token = _activeBodyReadCts.TryGetValue(streamId, out var cts) ? cts.Token : CancellationToken.None;
+        var vt = stream.ReadAsync(buffer.Memory, token);
         if (vt.IsCompletedSuccessfully)
         {
+            // Completed inline on the actor thread: the buffer was never exposed across a
+            // message boundary, so no in-flight tracking is needed.
             HandleStreamBodyRead(new StreamBodyReadComplete(streamId, vt.Result));
             return;
         }
 
+        // The read is now genuinely in flight on another thread writing into the reusable
+        // buffer. Mark it so CleanupBodyDrain defers buffer disposal until it completes.
+        _drainReadInFlight.Add(streamId);
         vt.AsTask().PipeTo(
             _ops.StageActor,
             success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
@@ -726,12 +901,38 @@ internal sealed class Http3ServerSessionManager
 
     private void CleanupBodyDrain(long streamId)
     {
+        _activeBodyStreams.Remove(streamId);
+
+        if (_drainReadInFlight.Contains(streamId))
+        {
+            // A ReadAsync into the reusable drain buffer is still in flight. Returning the
+            // buffer to the pool now would let a concurrent stream re-rent and overwrite it
+            // mid-read. Cancel the read and defer buffer/cts disposal to its completion.
+            _drainBufferOrphaned.Add(streamId);
+            if (_activeBodyReadCts.TryGetValue(streamId, out var pendingCts))
+            {
+                pendingCts.Cancel();
+            }
+
+            return;
+        }
+
+        DisposeDrainResources(streamId);
+    }
+
+    private void DisposeDrainResources(long streamId)
+    {
         if (_activeBodyBuffers.Remove(streamId, out var buffer))
         {
             buffer.Dispose();
         }
 
-        _activeBodyStreams.Remove(streamId);
+        if (_activeBodyReadCts.Remove(streamId, out var cts))
+        {
+            cts.Dispose();
+        }
+
+        _drainBufferOrphaned.Remove(streamId);
     }
 
     private void EmitDataFrame(object frame, long streamId)
