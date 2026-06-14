@@ -56,8 +56,9 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private Sink<HttpRequestMessage, NotUsed>? _requestIngress;
     private SharedKillSwitch? _killSwitch;
     private bool _streamRunning;
-    private readonly Dictionary<Guid, int> _consumerPartitions = [];
-    private int _nextPartitionIndex = 1;
+    // Attached consumers in registration order. A consumer's PartitionHub slot is its 0-based
+    // index here; the list compacts on unregister so indices track the hub's live partition set.
+    private readonly List<Guid> _attachedConsumers = [];
     private bool IsSystemTerminating =>
         Context.System.WhenTerminated.IsCompleted ||
         CoordinatedShutdown.Get(Context.System).ShutdownReason is not null;
@@ -228,12 +229,12 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
             _responseFanoutSource!,
             _materializer!), childName);
 
-        _consumerPartitions[message.ConsumerId] = _nextPartitionIndex++;
+        _attachedConsumers.Add(message.ConsumerId);
     }
 
     private void HandleUnregisterConsumer(UnregisterConsumer message)
     {
-        _consumerPartitions.Remove(message.ConsumerId);
+        _attachedConsumers.Remove(message.ConsumerId);
         var childName = $"consumer-{message.ConsumerId:N}";
         var child = Context.Child(childName);
         if (!child.IsNobody())
@@ -245,12 +246,29 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private int ResolveResponsePartition(int consumerCount, HttpResponseMessage response)
     {
         if (response.RequestMessage is { } request &&
-            request.Options.TryGetValue(OptionsKey.ConsumerIdKey, out var consumerId) &&
-            _consumerPartitions.TryGetValue(consumerId, out var partition) &&
-            partition > 0 &&
-            partition < consumerCount)
+            request.Options.TryGetValue(OptionsKey.ConsumerIdKey, out var consumerId))
         {
-            return partition;
+            return ResolvePartitionIndex(_attachedConsumers, consumerId, consumerCount);
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Maps a consumer to its PartitionHub slot: the 0-based position of the consumer in the
+    /// current attached-consumer order. Because the list compacts on unregister, the index stays
+    /// aligned with the hub's live partition set (the partitioner contract requires a value in
+    /// [0, consumerCount)). An unknown consumer or out-of-range index falls back to partition 0.
+    /// </summary>
+    internal static int ResolvePartitionIndex(IReadOnlyList<Guid> attachedConsumers, Guid consumerId,
+        int consumerCount)
+    {
+        for (var i = 0; i < attachedConsumers.Count; i++)
+        {
+            if (attachedConsumers[i] == consumerId)
+            {
+                return i < consumerCount ? i : 0;
+            }
         }
 
         return 0;
@@ -430,8 +448,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
         _killSwitch = null;
         _responseFanoutSource = null;
         _requestIngress = null;
-        _consumerPartitions.Clear();
-        _nextPartitionIndex = 1;
+        _attachedConsumers.Clear();
         _streamRunning = false;
     }
 
