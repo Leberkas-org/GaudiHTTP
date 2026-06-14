@@ -291,9 +291,26 @@ internal sealed class FrameDecoder : IDisposable
         return new HeadersFrame(owner, payload.Length);
     }
 
+    /// <summary>
+    /// Decodes a QUIC varint from a frame body, translating a too-short payload into a clean
+    /// <see cref="HttpProtocolException"/> (RFC 9114 §7.1 frame error) instead of the raw
+    /// <see cref="ArgumentException"/> that <see cref="QuicVarInt.Decode"/> throws — the latter
+    /// escapes the protocol-error catch filters and is silently swallowed by the stage.
+    /// </summary>
+    private static long DecodeVarIntOrThrow(ReadOnlySpan<byte> span, out int bytesRead, string frameName)
+    {
+        if (!QuicVarInt.TryDecode(span, out var value, out bytesRead))
+        {
+            throw new HttpProtocolException(
+                string.Concat("HTTP/3 ", frameName, " frame payload truncated (RFC 9114 §7.1)."));
+        }
+
+        return value;
+    }
+
     private static CancelPushFrame DecodeCancelPushFrame(ReadOnlySpan<byte> payload)
     {
-        var pushId = QuicVarInt.Decode(payload, out _);
+        var pushId = DecodeVarIntOrThrow(payload, out _, "CANCEL_PUSH");
         return new CancelPushFrame(pushId);
     }
 
@@ -304,10 +321,10 @@ internal sealed class FrameDecoder : IDisposable
 
         while (offset < payload.Length)
         {
-            var id = QuicVarInt.Decode(payload[offset..], out var idBytes);
+            var id = DecodeVarIntOrThrow(payload[offset..], out var idBytes, "SETTINGS");
             offset += idBytes;
 
-            var value = QuicVarInt.Decode(payload[offset..], out var valBytes);
+            var value = DecodeVarIntOrThrow(payload[offset..], out var valBytes, "SETTINGS");
             offset += valBytes;
 
             parameters.Add((id, value));
@@ -319,7 +336,7 @@ internal sealed class FrameDecoder : IDisposable
     private static PushPromiseFrame DecodePushPromiseFrame(ReadOnlySpan<byte> payload,
         ReadOnlyMemory<byte> payloadMemory, bool sliceInput)
     {
-        var pushId = QuicVarInt.Decode(payload, out var pushIdBytes);
+        var pushId = DecodeVarIntOrThrow(payload, out var pushIdBytes, "PUSH_PROMISE");
         var headerBlockSpan = payload[pushIdBytes..];
 
         if (headerBlockSpan.Length == 0)
@@ -339,13 +356,13 @@ internal sealed class FrameDecoder : IDisposable
 
     private static GoAwayFrame DecodeGoAwayFrame(ReadOnlySpan<byte> payload)
     {
-        var streamId = QuicVarInt.Decode(payload, out _);
+        var streamId = DecodeVarIntOrThrow(payload, out _, "GOAWAY");
         return new GoAwayFrame(streamId);
     }
 
     private static MaxPushIdFrame DecodeMaxPushIdFrame(ReadOnlySpan<byte> payload)
     {
-        var pushId = QuicVarInt.Decode(payload, out _);
+        var pushId = DecodeVarIntOrThrow(payload, out _, "MAX_PUSH_ID");
         return new MaxPushIdFrame(pushId);
     }
 }

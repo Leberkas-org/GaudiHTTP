@@ -19,10 +19,9 @@ public sealed class Http3FrameFuzzSpec
         {
             // QPACK errors are acceptable at frame level
         }
-        catch (ArgumentException)
-        {
-            // QuicVarInt can throw ArgumentException on malformed input
-        }
+        // NOTE: ArgumentException is intentionally NOT caught — malformed frames must surface as
+        // HttpProtocolException (a classified protocol error), never a raw ArgumentException that
+        // escapes the connection's protocol-error catch filters.
     }
 
     private static byte[] BuildRawFrame(long frameType, byte[] payload)
