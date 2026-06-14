@@ -660,9 +660,12 @@ public sealed class Http11StateMachineSpec
         var sm = new Http11ClientStateMachine(ops, new TurboClientOptions());
         sm.PreStart();
 
+        // A body larger than the pump's unflushed high-water mark: with no flush signalled the inline
+        // pump drains a bounded prefix and then pauses, leaving the request mid-body so the connection
+        // cannot accept another request.
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
         {
-            Content = new ByteArrayContent(new byte[1000])
+            Content = new ByteArrayContent(new byte[1024 * 1024])
         };
         sm.OnRequest(request);
 
@@ -681,8 +684,9 @@ public sealed class Http11StateMachineSpec
             Content = new ByteArrayContent(new byte[1000])
         };
         sm.OnRequest(request);
-        sm.OnBodyMessage(new Http11ClientStateMachine.BodyReadComplete(0));
 
+        // The 1000-byte in-memory body completes synchronously, so the inline pump drains it fully
+        // within OnRequest (no mailbox round-trip) and the connection is dispatchable again.
         Assert.True(sm.CanAcceptRequest);
     }
 }

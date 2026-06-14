@@ -440,14 +440,51 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
     private void ReadNextChunk()
     {
-        var mem = _currentWriter!.GetMemory(_options.RequestBodyChunkSize);
-        _currentBodyStream!.ReadAsync(mem).PipeTo(
-            _ops.StageActor,
-            success: bytesRead => new BodyReadComplete(bytesRead),
-            failure: ex => new BodyReadFailed(ex));
+        // Drain the request body. When the body stream completes a read synchronously — the common
+        // case for in-memory content (ByteArrayContent / MemoryStream / StringContent) — process the
+        // chunk inline and loop, avoiding one stage-actor mailbox round-trip + Task allocation per
+        // chunk. Only a genuinely-asynchronous read (file/network-backed body) falls back to PipeTo.
+        // The synchronous loop is self-bounding: the MaxUnflushedBodyChunks throttle pauses it
+        // (ProcessBodyChunk returns false) as soon as the network can't absorb the flushes, and the
+        // pump runs on this connection's own stage island so a synchronous drain never blocks the
+        // shared router. _currentWriter/_currentBodyStream stay non-null until the body completes.
+        while (true)
+        {
+            var mem = _currentWriter!.GetMemory(_options.RequestBodyChunkSize);
+            var readTask = _currentBodyStream!.ReadAsync(mem);
+
+            if (!readTask.IsCompletedSuccessfully)
+            {
+                readTask.PipeTo(
+                    _ops.StageActor,
+                    success: bytesRead => new BodyReadComplete(bytesRead),
+                    failure: ex => new BodyReadFailed(ex));
+                return;
+            }
+
+            // Guarded, non-blocking: .Result is read only when the read already completed
+            // successfully, so it never blocks (the SocketsHttpHandler IsCompletedSuccessfully
+            // fast-path idiom — not sync-over-async).
+            if (!ProcessBodyChunk(readTask.Result))
+            {
+                return;
+            }
+        }
     }
 
     private void HandleBodyRead(int bytesRead)
+    {
+        if (ProcessBodyChunk(bytesRead))
+        {
+            ReadNextChunk();
+        }
+    }
+
+    /// <summary>
+    /// Handles one completed request-body read. Returns true if the pump should immediately read the
+    /// next chunk, false if the body is complete or the pump paused awaiting a flush.
+    /// </summary>
+    private bool ProcessBodyChunk(int bytesRead)
     {
         if (bytesRead > 0)
         {
@@ -462,20 +499,18 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
                 _bodyPumpPaused = true;
                 Tracing.For("Protocol").Debug(this, "request body pump paused ({0} unflushed chunks)",
                     _unflushedBodyChunks);
+                return false;
             }
-            else
-            {
-                ReadNextChunk();
-            }
+
+            return true;
         }
-        else
-        {
-            _currentWriter!.CompleteAsync();
-            _outboundBodyPending = false;
-            _currentWriter = null;
-            _currentBodyStream = null;
-            Tracing.For("Protocol").Debug(this, "request body complete");
-        }
+
+        _currentWriter!.CompleteAsync();
+        _outboundBodyPending = false;
+        _currentWriter = null;
+        _currentBodyStream = null;
+        Tracing.For("Protocol").Debug(this, "request body complete");
+        return false;
     }
 
     private void HandleDisconnect(TransportDisconnected disconnect)
