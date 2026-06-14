@@ -257,9 +257,10 @@ internal sealed class RetryStateMachine(IFeatureStageOperations ops, RetryPolicy
     private long _retryIdCounter;
     private int _inFlightCount;
 
-    public bool CanAcceptRequest =>
-        _readyRetries.Count == 0
-        && _readyRetries.Count + _waitingRetries.Count < RetryBidiStage.MaxPendingRetries;
+    // New-request intake is gated only by ready retries (which take Out1 priority). Parked
+    // Retry-After retries do NOT backpressure new requests — counting them here head-of-line
+    // blocked unrelated requests sharing the pipeline. The waiting set is bounded in OnResponse.
+    public bool CanAcceptRequest => _readyRetries.Count == 0;
 
     public bool HasReadyRetries => _readyRetries.Count > 0;
 
@@ -272,6 +273,24 @@ internal sealed class RetryStateMachine(IFeatureStageOperations ops, RetryPolicy
     {
         _inFlightCount++;
         ops.OnPushRequest(request);
+    }
+
+    /// <summary>
+    /// RFC 9110 §9.2.2: a request whose body cannot be replayed must not be retried. The protocol
+    /// encoders consume the request body once (HttpContent.ReadAsStream), so any content that does
+    /// not re-materialize its stream — anything other than buffered ByteArrayContent (and its
+    /// subclasses like StringContent/FormUrlEncodedContent) or ReadOnlyMemoryContent — is treated
+    /// as already-consumed and is not eligible for automatic retry.
+    /// </summary>
+    private static bool IsBodyNonRewindable(HttpRequestMessage request)
+    {
+        var content = request.Content;
+        if (content is null)
+        {
+            return false;
+        }
+
+        return content is not (ByteArrayContent or ReadOnlyMemoryContent);
     }
 
     public void OnResponse(HttpResponseMessage response)
@@ -291,11 +310,17 @@ internal sealed class RetryStateMachine(IFeatureStageOperations ops, RetryPolicy
             original,
             response,
             networkFailure: false,
-            bodyPartiallyConsumed: false,
+            bodyPartiallyConsumed: IsBodyNonRewindable(original),
             attemptCount: attemptCount,
             policy: policy);
 
-        if (!decision.ShouldRetry)
+        var isDelayedRetry = decision.RetryAfterDelay is { } delay && delay > TimeSpan.Zero;
+
+        // Bound parked (Retry-After) retries independently of new-request intake: when the waiting
+        // set is full, forward this response instead of queuing another timer. Because new requests
+        // are not gated by waiting retries, this caps memory without head-of-line blocking.
+        if (!decision.ShouldRetry ||
+            (isDelayedRetry && _waitingRetries.Count >= RetryBidiStage.MaxPendingRetries))
         {
             _inFlightCount--;
             ops.OnPushResponse(response);
@@ -309,11 +334,11 @@ internal sealed class RetryStateMachine(IFeatureStageOperations ops, RetryPolicy
 
         _inFlightCount--;
 
-        if (decision.RetryAfterDelay.HasValue && decision.RetryAfterDelay.Value > TimeSpan.Zero)
+        if (isDelayedRetry)
         {
             var timerId = $"retry-{_retryIdCounter++}";
             _waitingRetries[timerId] = original;
-            ops.OnScheduleTimer(timerId, decision.RetryAfterDelay.Value);
+            ops.OnScheduleTimer(timerId, decision.RetryAfterDelay!.Value);
         }
         else
         {
