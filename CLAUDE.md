@@ -11,11 +11,15 @@ dotnet restore TurboHTTP.slnx
 dotnet build --configuration Release TurboHTTP.slnx
 
 # Tests (xUnit v3 — use dotnet run, not dotnet test)
-dotnet run --project TurboHTTP.Tests/TurboHTTP.Tests.csproj                          # all unit + stage
-dotnet run --project TurboHTTP.IntegrationTests/TurboHTTP.IntegrationTests.csproj    # integration (network)
+dotnet run --project TurboHTTP.Tests/TurboHTTP.Tests.csproj                                        # all unit + stage (~5660)
+
+# Integration (network) — three runnable suites (TurboHTTP.IntegrationTests.Shared is a support lib, not runnable):
+dotnet run --project TurboHTTP.IntegrationTests.Client/TurboHTTP.IntegrationTests.Client.csproj    # client vs real server (Docker/Kestrel)
+dotnet run --project TurboHTTP.IntegrationTests.End2End/TurboHTTP.IntegrationTests.End2End.csproj  # TurboHTTP client <-> TurboServer
+dotnet run --project TurboHTTP.IntegrationTests.Server/TurboHTTP.IntegrationTests.Server.csproj    # server vs real client
 
 # Single class (preferred for integration — full suite is slow)
-dotnet run --project TurboHTTP.IntegrationTests/TurboHTTP.IntegrationTests.csproj -- -class "TurboHTTP.IntegrationTests.H2.ConnectionSpec"
+dotnet run --project TurboHTTP.IntegrationTests.End2End/TurboHTTP.IntegrationTests.End2End.csproj -- -class "TurboHTTP.IntegrationTests.End2End.H2.ConcurrentLargePostSpec"
 
 # Single class / filter
 dotnet run --project TurboHTTP.Tests/TurboHTTP.Tests.csproj -- -class "TurboHTTP.Tests.Protocol.Syntax.Http2.Frames.Http2DecoderErrorCodeSpec"
