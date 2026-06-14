@@ -377,6 +377,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             var item = Grab(_stage._in);
             var key = _stage._keyFor(item);
 
+            SubflowState? routedSlot;
             if (!_subflows.TryGetValue(key, out var group))
             {
                 // No group exists — check total limit then create fresh group.
@@ -388,20 +389,26 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                 group = new SubflowGroup();
                 _subflows[key] = group;
                 CreateSubstreamInGroup(key, group, item);
+                routedSlot = group.LastAdded;
             }
             else
             {
-                RouteToSlot(key, group, item);
+                routedSlot = RouteToSlot(key, group, item);
             }
 
+            // Only pull more input when the routed item was actually written to its slot's channel.
+            // If it was left in the slot's Pending queue (channel full), the slot has registered a
+            // write-ready callback that re-pulls when space opens — pulling here regardless would
+            // let Pending grow unbounded under a slow/blocked downstream.
             if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in)
-                                           && _pendingSources.Count == 0)
+                                           && _pendingSources.Count == 0
+                                           && (routedSlot is null || routedSlot.Pending.Count == 0))
             {
                 Pull(_stage._in);
             }
         }
 
-        private void RouteToSlot(RequestEndpoint key, SubflowGroup group, T item)
+        private SubflowState? RouteToSlot(RequestEndpoint key, SubflowGroup group, T item)
         {
             // 1. Connection affinity
             var affinitySlot = TryGetAffinitySlot(item, group);
@@ -410,7 +417,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                 Log.Debug("GroupByHostKeyStage: affinity hit, routed to slot key={0}:{1}", key.Host, key.Port);
                 affinitySlot.Pending.Enqueue(item);
                 DrainPending(key, affinitySlot);
-                return;
+                return affinitySlot;
             }
 
             // 2. Open new connection if under limit
@@ -426,7 +433,7 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                 Log.Debug("GroupByHostKeyStage: creating slot for key={0}:{1}, slot={2}", key.Host,
                     key.Port, group.Count + 1);
                 CreateSubstreamInGroup(key, group, item);
-                return;
+                return group.LastAdded;
             }
 
             // 3. Round-robin across existing connections
@@ -437,11 +444,12 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                 TagAffinitySlot(item, slot);
                 slot.Pending.Enqueue(item);
                 DrainPending(key, slot);
-                return;
+                return slot;
             }
 
             // 4. All slots dead — create replacement
             CreateSubstreamInGroup(key, group, item);
+            return group.LastAdded;
         }
 
         /// <summary>
