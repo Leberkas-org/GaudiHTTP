@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace TurboHTTP.Protocol.Semantics;
 
 internal static class ReasonPhrases
@@ -40,4 +42,43 @@ internal static class ReasonPhrases
     };
 
     public static string For(int code) => Table.GetValueOrDefault(code, "");
+
+    /// <summary>
+    /// Returns the canonical cached phrase for <paramref name="code"/> when the on-wire phrase
+    /// byte-matches it exactly (no allocation); otherwise allocates the server's exact phrase. This
+    /// avoids a per-response string allocation for the overwhelmingly common standard responses while
+    /// still surfacing any non-standard phrase verbatim.
+    /// </summary>
+    public static string ResolveCached(int code, ReadOnlySpan<byte> wirePhrase)
+    {
+        if (wirePhrase.IsEmpty)
+        {
+            return string.Empty;
+        }
+
+        if (Table.TryGetValue(code, out var canonical) && AsciiEquals(wirePhrase, canonical))
+        {
+            return canonical;
+        }
+
+        return Encoding.ASCII.GetString(wirePhrase);
+    }
+
+    private static bool AsciiEquals(ReadOnlySpan<byte> bytes, string text)
+    {
+        if (bytes.Length != text.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < bytes.Length; i++)
+        {
+            if (bytes[i] != (byte)text[i])
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

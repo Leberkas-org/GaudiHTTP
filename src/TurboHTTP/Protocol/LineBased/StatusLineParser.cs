@@ -67,7 +67,7 @@ internal static class StatusLineParser
         }
 
         reasonPhrase = secondSpace + 1 < line.Length
-            ? Encoding.ASCII.GetString(line[(secondSpace + 1)..])
+            ? ReasonPhrases.ResolveCached(statusCode, line[(secondSpace + 1)..])
             : string.Empty;
 
         consumed = crlf + 2;

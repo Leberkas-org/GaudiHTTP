@@ -54,7 +54,7 @@ internal static class HeaderFieldParser
         }
 
         name = WellKnownHeaders.GetOrCreateHeaderNameIgnoreCase(nameSpan).Name;
-        value = valueSpan.IsEmpty ? string.Empty : WellKnownHeaders.GetOrCreateHeaderValue(valueSpan).Name;
+        value = valueSpan.IsEmpty ? string.Empty : WellKnownHeaders.GetOrCreateHeaderValueString(valueSpan);
         return true;
     }
 }
