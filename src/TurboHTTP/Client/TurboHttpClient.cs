@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Threading.Channels;
+using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Lifecycle;
 
@@ -21,8 +22,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
     private readonly NamedClientConsumerRegistration _consumerRegistration;
     private readonly CancellationTokenSource _disposeCts = new();
 
-    private readonly ConcurrentStack<CancellationTokenSource> _ctsPool = new();
-    private int _ctsPoolCount;
+    private readonly ObjectPool<CancellationTokenSource> _ctsPool = new(MaxPooledCts);
     private int _disposed;
 
     private Uri? _baseAddress;
@@ -159,9 +159,8 @@ public sealed class TurboHttpClient : ITurboHttpClient
             {
                 cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             }
-            else if (_ctsPool.TryPop(out var pooled))
+            else if (_ctsPool.TryRent(out var pooled))
             {
-                Interlocked.Decrement(ref _ctsPoolCount);
                 cts = pooled;
             }
             else
@@ -204,13 +203,8 @@ public sealed class TurboHttpClient : ITurboHttpClient
                 {
                     cts.Dispose();
                 }
-                else if (Interlocked.Increment(ref _ctsPoolCount) <= MaxPooledCts)
+                else if (!_ctsPool.TryReturn(cts))
                 {
-                    _ctsPool.Push(cts);
-                }
-                else
-                {
-                    Interlocked.Decrement(ref _ctsPoolCount);
                     cts.Dispose();
                 }
             }
