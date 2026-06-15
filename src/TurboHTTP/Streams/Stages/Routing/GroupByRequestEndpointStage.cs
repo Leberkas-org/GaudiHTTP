@@ -407,8 +407,12 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             // A small pending depth (≤ 2) is tolerable — it lets round-robin distribute across
             // slots even when one is momentarily full, preventing the pipeline stall that occurs
             // when ALL upstream pulls are gated on a single slot's write-ready callback.
+            //
+            // _pendingSources (queued Source objects for downstream) must NOT gate upstream pulls.
+            // Upstream produces requests routed into channel-backed slots; the outlet produces
+            // Source objects — independent concerns. Blocking upstream while sources queue forces
+            // sequential connection establishment: O(N × connect_time) instead of O(connect_time).
             if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in)
-                                           && _pendingSources.Count == 0
                                            && (routedSlot is null || routedSlot.Pending.Count <= 2))
             {
                 Pull(_stage._in);
