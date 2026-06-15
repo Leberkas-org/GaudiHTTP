@@ -114,10 +114,11 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
             if (result == DecodeOutcome.Complete || result == DecodeOutcome.HeadersReady)
             {
-                var feature = _decoder.GetRequestFeature();
-                var hasBody = result == DecodeOutcome.HeadersReady || feature.Body != Stream.Null;
-                var features = FeatureCollectionFactory.Create(_ops.PoolContext!, feature, hasBody, _ops.Services, _ops.ConnectionFeature,
+                var hasBody = result == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
+                var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
+                    out var feature, _ops.Services, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
+                _decoder.PopulateRequestFeature(feature);
 
                 if (result != DecodeOutcome.HeadersReady)
                 {

@@ -189,10 +189,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                     ShouldComplete = true;
                 }
 
-                var feature = _decoder.GetRequestFeature();
-                var hasBody = outcome == DecodeOutcome.HeadersReady || feature.Body != Stream.Null;
-                var features = FeatureCollectionFactory.Create(_ops.PoolContext!, feature, hasBody, _ops.Services, _ops.ConnectionFeature,
+                var hasBody = outcome == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
+                var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
+                    out var feature, _ops.Services, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
+                _decoder.PopulateRequestFeature(feature);
 
                 if (!ShouldComplete && feature.Protocol == WellKnownHeaders.Http10)
                 {

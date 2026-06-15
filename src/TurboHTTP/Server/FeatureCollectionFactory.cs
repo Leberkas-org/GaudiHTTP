@@ -23,8 +23,48 @@ internal static class FeatureCollectionFactory
         var features = pool.Rent(static () => new TurboFeatureCollection());
         var recycled = features.Get<IHttpResponseFeature>() is not null;
 
-        features.Set<IHttpRequestFeature>(requestFeature);
+        if (!recycled || !ReferenceEquals(features.Get<IHttpRequestFeature>(), requestFeature))
+        {
+            features.Set<IHttpRequestFeature>(requestFeature);
+        }
 
+        return CreateCore(features, recycled, hasBody, connectionFeature, tlsFeature, maxRequestBodySize);
+    }
+
+    public static IFeatureCollection Create(
+        ConnectionPoolContext pool,
+        bool hasBody,
+        out TurboHttpRequestFeature requestFeature,
+        IServiceProvider? services = null,
+        IHttpConnectionFeature? connectionFeature = null,
+        TlsHandshakeFeature? tlsFeature = null,
+        long? maxRequestBodySize = null)
+    {
+        var features = pool.Rent(static () => new TurboFeatureCollection());
+        var recycled = features.Get<IHttpResponseFeature>() is not null;
+
+        if (recycled && features.Get<IHttpRequestFeature>() is TurboHttpRequestFeature existingRequest)
+        {
+            existingRequest.Reset();
+            requestFeature = existingRequest;
+        }
+        else
+        {
+            requestFeature = new TurboHttpRequestFeature();
+            features.Set<IHttpRequestFeature>(requestFeature);
+        }
+
+        return CreateCore(features, recycled, hasBody, connectionFeature, tlsFeature, maxRequestBodySize);
+    }
+
+    private static IFeatureCollection CreateCore(
+        TurboFeatureCollection features,
+        bool recycled,
+        bool hasBody,
+        IHttpConnectionFeature? connectionFeature,
+        TlsHandshakeFeature? tlsFeature,
+        long? maxRequestBodySize)
+    {
         TurboHttpResponseFeature responseFeature;
         if (recycled && features.Get<IHttpResponseFeature>() is TurboHttpResponseFeature existingResponse)
         {

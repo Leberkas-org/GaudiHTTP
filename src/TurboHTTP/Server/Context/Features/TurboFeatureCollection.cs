@@ -388,7 +388,6 @@ internal sealed class TurboFeatureCollection : IFeatureCollection, IResettable
         // Clear ONLY per-request transient state. Do NOT null the IHttp*Feature backing fields —
         // the factory's `recycled` branch detects reuse via the response-feature slot and resets
         // each sub-feature in place. Nulling them here would force a full re-allocation every request.
-        _request = null;
         _extras?.Clear();
         RequestTimestamp = 0;
         RequestActivity = null;

@@ -180,27 +180,26 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
 
     public TurboHttpRequestFeature GetRequestFeature()
     {
-        var body = CurrentBodyReader?.AsStream() ?? Stream.Null;
-
-        var feature = new TurboHttpRequestFeature
-        {
-            Protocol = _version switch
-            {
-                { Major: 1, Minor: 0 } => WellKnownHeaders.Http10,
-                { Major: 1, Minor: 1 } => WellKnownHeaders.Http11,
-                _ => WellKnownHeaders.Http11
-            },
-            Method = _method.Method,
-            Path = ParsePath(_target),
-            QueryString = ParseQueryString(_target),
-            RawTarget = _target,
-            Body = body
-        };
-
-        // Populate directly into the feature's header dictionary, avoiding a throwaway
-        // HeaderDictionary allocation plus the copy loop in the Headers setter.
-        HeaderRouter.ApplyToHeaderDictionary(feature.Headers, _headerReader.GetHeaders());
+        var feature = new TurboHttpRequestFeature();
+        PopulateRequestFeature(feature);
         return feature;
+    }
+
+    public void PopulateRequestFeature(TurboHttpRequestFeature feature)
+    {
+        feature.Protocol = _version switch
+        {
+            { Major: 1, Minor: 0 } => WellKnownHeaders.Http10,
+            { Major: 1, Minor: 1 } => WellKnownHeaders.Http11,
+            _ => WellKnownHeaders.Http11
+        };
+        feature.Method = _method.Method;
+        feature.Path = ParsePath(_target);
+        feature.QueryString = ParseQueryString(_target);
+        feature.RawTarget = _target;
+        feature.Body = CurrentBodyReader?.AsStream() ?? Stream.Null;
+
+        HeaderRouter.ApplyToHeaderDictionary(feature.Headers, _headerReader.GetHeaders());
     }
 
     private static string ParsePath(string target)
