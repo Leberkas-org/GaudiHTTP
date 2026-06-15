@@ -298,23 +298,25 @@ internal static class OpenLoopLoadTest
         string route,
         CancellationToken ct)
     {
-        var handler = new SocketsHttpHandler
-        {
-            MaxConnectionsPerServer = 1,
-            EnableMultipleHttp2Connections = false,
-            SslOptions =
-            {
-                RemoteCertificateValidationCallback = (_, _, _, _) => true,
-            },
-        };
-
         long totalRequests = 0;
         var allLatencies = new List<double>();
         var workers = new Task[connections * concurrencyPerConnection];
         var perWorkerLatencies = new List<double>[workers.Length];
+        var handlers = new List<SocketsHttpHandler>(connections);
 
         for (var c = 0; c < connections; c++)
         {
+            var handler = new SocketsHttpHandler
+            {
+                MaxConnectionsPerServer = 1,
+                EnableMultipleHttp2Connections = false,
+                SslOptions =
+                {
+                    RemoteCertificateValidationCallback = (_, _, _, _) => true,
+                },
+            };
+            handlers.Add(handler);
+
             var client = new HttpClient(handler, disposeHandler: false)
             {
                 BaseAddress = new Uri(baseUrl),
