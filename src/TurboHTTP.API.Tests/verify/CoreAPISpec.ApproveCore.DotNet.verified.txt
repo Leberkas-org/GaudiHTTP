@@ -441,6 +441,7 @@ namespace TurboHTTP.Server
         public int? MinimumSegmentSize { get; set; }
         public long? OutputPauseThreshold { get; set; }
         public long? OutputResumeThreshold { get; set; }
+        public int? ReceiveBufferHint { get; set; }
     }
     public sealed class TurboHttpsOptions
     {
