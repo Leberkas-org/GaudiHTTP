@@ -26,6 +26,13 @@ internal sealed class Http2ServerEncoder
     // Tracks MemoryPool rentals from the previous EncodeHeaders() call
     private readonly List<IMemoryOwner<byte>> _rentedBodyOwners = new(4);
 
+    private int _cachedStatusCode;
+    private int _cachedHeaderCount;
+    private string? _cachedContentType;
+    private string? _cachedContentLength;
+    private IMemoryOwner<byte>? _cachedHeaderBlockOwner;
+    private int _cachedHeaderBlockLength;
+
     public int MaxFrameSize { get; private set; }
 
     public Http2ServerEncoder(Http2ServerEncoderOptions options)
@@ -69,8 +76,19 @@ internal sealed class Http2ServerEncoder
 
         ReturnRentedBuffers();
 
+        var responseFeature = features.Get<IHttpResponseFeature>();
+        var statusCode = responseFeature?.StatusCode ?? 500;
+        var responseHeaders = responseFeature?.Headers;
+
+        if (TryUseCachedHeaderBlock(statusCode, responseHeaders, out var cachedBlock))
+        {
+            _reusableFrames.Clear();
+            EncodeHeaderFrames(_reusableFrames, streamId, cachedBlock, endStream: !hasBody);
+            return _reusableFrames;
+        }
+
         _reusableHeaders.Clear();
-        BuildHeaderList(features, _reusableHeaders);
+        BuildHeaderList(statusCode, responseHeaders, _reusableHeaders);
 
         var hpackOwner = MemoryPool<byte>.Shared.Rent(EstimateHpackBufferSize(_reusableHeaders));
         _rentedBodyOwners.Add(hpackOwner);
@@ -78,22 +96,87 @@ internal sealed class Http2ServerEncoder
         var hpackBytesWritten = _hpack.Encode(_reusableHeaders, ref hpackWritable, _options.UseHuffman);
         var headerBlock = hpackOwner.Memory[..hpackBytesWritten];
 
+        UpdateHeaderCache(statusCode, responseHeaders, hpackOwner, hpackBytesWritten);
+
         _reusableFrames.Clear();
         EncodeHeaderFrames(_reusableFrames, streamId, headerBlock, endStream: !hasBody);
 
         return _reusableFrames;
     }
 
-    private void BuildHeaderList(IFeatureCollection features, List<HpackHeader> headers)
+    private bool TryUseCachedHeaderBlock(int statusCode, IHeaderDictionary? headers,
+        out ReadOnlyMemory<byte> headerBlock)
     {
-        // RFC 9113 §7.2: :status pseudo-header (required)
-        var responseFeature = features.Get<IHttpResponseFeature>();
-        var statusCode = responseFeature?.StatusCode ?? 500;
+        if (_cachedHeaderBlockOwner is null || statusCode != _cachedStatusCode)
+        {
+            headerBlock = default;
+            return false;
+        }
+
+        var count = headers?.Count ?? 0;
+        if (count != _cachedHeaderCount)
+        {
+            headerBlock = default;
+            return false;
+        }
+
+        string? ct = null;
+        string? cl = null;
+        if (headers is not null)
+        {
+            if (headers.TryGetValue(WellKnownHeaders.ContentType, out var ctv))
+            {
+                ct = ctv.ToString();
+            }
+
+            if (headers.TryGetValue(WellKnownHeaders.ContentLength, out var clv))
+            {
+                cl = clv.ToString();
+            }
+        }
+
+        if (!string.Equals(ct, _cachedContentType, StringComparison.Ordinal)
+            || !string.Equals(cl, _cachedContentLength, StringComparison.Ordinal))
+        {
+            headerBlock = default;
+            return false;
+        }
+
+        headerBlock = _cachedHeaderBlockOwner.Memory[.._cachedHeaderBlockLength];
+        return true;
+    }
+
+    private void UpdateHeaderCache(int statusCode, IHeaderDictionary? headers,
+        IMemoryOwner<byte> owner, int length)
+    {
+        _cachedStatusCode = statusCode;
+        _cachedHeaderCount = headers?.Count ?? 0;
+
+        if (headers is not null)
+        {
+            _cachedContentType = headers.TryGetValue(WellKnownHeaders.ContentType, out var ctv)
+                ? ctv.ToString() : null;
+            _cachedContentLength = headers.TryGetValue(WellKnownHeaders.ContentLength, out var clv)
+                ? clv.ToString() : null;
+        }
+        else
+        {
+            _cachedContentType = null;
+            _cachedContentLength = null;
+        }
+
+        _cachedHeaderBlockOwner?.Dispose();
+        var cached = MemoryPool<byte>.Shared.Rent(length);
+        owner.Memory[..length].CopyTo(cached.Memory);
+        _cachedHeaderBlockOwner = cached;
+        _cachedHeaderBlockLength = length;
+    }
+
+    private void BuildHeaderList(int statusCode, IHeaderDictionary? responseHeaders, List<HpackHeader> headers)
+    {
         headers.Add(new HpackHeader(WellKnownHeaders.Status,
             WellKnownHeaders.GetStatusCodeString(statusCode)));
 
-        // Add regular headers
-        var responseHeaders = responseFeature?.Headers;
         if (responseHeaders is not null)
         {
             foreach (var h in responseHeaders)
@@ -139,9 +222,11 @@ internal sealed class Http2ServerEncoder
             {
                 case SettingsParameter.MaxFrameSize:
                     MaxFrameSize = (int)val;
+                    InvalidateHeaderCache();
                     break;
                 case SettingsParameter.HeaderTableSize:
                     _hpack.AcknowledgeTableSizeChange((int)val);
+                    InvalidateHeaderCache();
                     break;
             }
         }
@@ -192,6 +277,14 @@ internal sealed class Http2ServerEncoder
     public void ResetHpack()
     {
         _hpack = new HpackEncoder(useHuffman: _options.UseHuffman);
+        InvalidateHeaderCache();
+    }
+
+    private void InvalidateHeaderCache()
+    {
+        _cachedHeaderBlockOwner?.Dispose();
+        _cachedHeaderBlockOwner = null;
+        _cachedHeaderBlockLength = 0;
     }
 
     // The HPACK encoder writes into a single rented span, so it must be large enough for the whole
