@@ -19,11 +19,11 @@
       },
       "Akka.Streams": {
         "type": "Direct",
-        "requested": "[1.5.68, )",
-        "resolved": "1.5.68",
-        "contentHash": "oEjZ68IiDFakfembDptkBdYHS5d8BSwfl4Ab39cd7v9ye1toZhcWaJ+E6TKkF4kY3anYOqvwFTq1HLsik2UWRA==",
+        "requested": "[1.5.69, )",
+        "resolved": "1.5.69",
+        "contentHash": "AeWIMglgOyxc/BvBmiv5aZUOB4xysBm5mmQJor9kRvszSwwvJum4MLB+aMThK4+Jw1I86OixsErmAQ9ccns0ag==",
         "dependencies": {
-          "Akka": "1.5.68",
+          "Akka": "1.5.69",
           "Google.Protobuf": "3.26.1",
           "Reactive.Streams": "1.0.4"
         }
@@ -45,8 +45,8 @@
       },
       "Akka": {
         "type": "Transitive",
-        "resolved": "1.5.68",
-        "contentHash": "N/bBk9MnlIPfhqxPQVggoCdW2n0EUZAbvyxDHOk5zg5acTOffFqTSIpCcfH4e257LlyUPrDuE2EaikbUmG/01w==",
+        "resolved": "1.5.69",
+        "contentHash": "dbLN/+koxxiS2yKx+yt3pBmPrmC/N2nkjMasc+g/P1R+A2aV9iMPLNYTwFD+ekQBHiDWPanVFHHCldBnTEd0+A==",
         "dependencies": {
           "Akka.Analyzers": "0.3.3",
           "Microsoft.Extensions.ObjectPool": "6.0.36",
