@@ -251,7 +251,14 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
 
                 if (!_subflows.TryGetValue(state.Key, out var group) || !group.ContainsSlot(state))
                 {
-                    return; // stale callback from evicted slot
+                    // Stale callback from evicted slot — still re-pull upstream so the
+                    // pipeline doesn't stall when all live slots' callbacks were stale.
+                    if (!_upstreamFinished && !HasBeenPulled(_stage._in) && !IsClosed(_stage._in))
+                    {
+                        Pull(_stage._in);
+                    }
+
+                    return;
                 }
 
                 if (state.IsDead)
@@ -396,13 +403,13 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
                 routedSlot = RouteToSlot(key, group, item);
             }
 
-            // Only pull more input when the routed item was actually written to its slot's channel.
-            // If it was left in the slot's Pending queue (channel full), the slot has registered a
-            // write-ready callback that re-pulls when space opens — pulling here regardless would
-            // let Pending grow unbounded under a slow/blocked downstream.
+            // Pull more input unless the routed slot's pending queue is deeply backed up.
+            // A small pending depth (≤ 2) is tolerable — it lets round-robin distribute across
+            // slots even when one is momentarily full, preventing the pipeline stall that occurs
+            // when ALL upstream pulls are gated on a single slot's write-ready callback.
             if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in)
                                            && _pendingSources.Count == 0
-                                           && (routedSlot is null || routedSlot.Pending.Count == 0))
+                                           && (routedSlot is null || routedSlot.Pending.Count <= 2))
             {
                 Pull(_stage._in);
             }
