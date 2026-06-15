@@ -2,6 +2,7 @@ using Akka.Streams.Dsl;
 using Akka.Streams.TestKit;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
+using TurboHTTP.Pooling;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Streams.Stages.Server;
@@ -11,6 +12,8 @@ namespace TurboHTTP.Tests.Streams.Stages.Server;
 
 public sealed class ApplicationBridgeStageCallbackSpec : StreamTestBase
 {
+    private readonly ConnectionPoolContext _pool = new();
+
     private sealed class CallbackTrackingApplication(Func<IFeatureCollection, Task> handler)
         : IHttpApplication<IFeatureCollection>
     {
@@ -19,10 +22,10 @@ public sealed class ApplicationBridgeStageCallbackSpec : StreamTestBase
         public void DisposeContext(IFeatureCollection context, Exception? exception) { }
     }
 
-    private static IFeatureCollection RequestWithCallbacks()
+    private IFeatureCollection RequestWithCallbacks()
     {
         var requestFeature = new TurboHttpRequestFeature { Protocol = "HTTP/2" };
-        return FeatureCollectionFactory.Create(requestFeature, hasBody: false);
+        return FeatureCollectionFactory.Create(_pool, requestFeature, hasBody: false);
     }
 
     private static ApplicationBridgeStage<IFeatureCollection> CreateStage(

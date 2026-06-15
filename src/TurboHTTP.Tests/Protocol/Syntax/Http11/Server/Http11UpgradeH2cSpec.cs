@@ -4,6 +4,7 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
@@ -36,6 +37,8 @@ public sealed class Http11UpgradeH2CSpec
             get => _inner.Materializer;
             set => _inner.Materializer = value;
         }
+
+        public ConnectionPoolContext? PoolContext => _inner.PoolContext;
 
         public void OnRequest(IFeatureCollection features) => _inner.OnRequest(features);
         public void OnOutbound(ITransportOutbound item) => _inner.OnOutbound(item);

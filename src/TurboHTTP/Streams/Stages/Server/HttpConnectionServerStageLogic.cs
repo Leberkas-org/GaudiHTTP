@@ -153,7 +153,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                 var hasBody = bodyFeature is not null;
                 if (!hasBody)
                 {
-                    FeatureCollectionFactory.Return(response);
+                    FeatureCollectionFactory.Return(_poolContext, response);
                 }
 
                 // A handler slot just freed: release the next pipelined request (a no-op for
@@ -474,7 +474,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     void IServerStageOperations.OnResponseBodyComplete(IFeatureCollection features)
     {
-        FeatureCollectionFactory.Return(features);
+        FeatureCollectionFactory.Return(_poolContext, features);
     }
 
     private bool CanDispatch => _handlerInFlight < _sm.MaxConcurrentRequests;

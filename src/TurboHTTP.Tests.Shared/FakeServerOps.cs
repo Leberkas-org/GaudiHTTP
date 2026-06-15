@@ -3,6 +3,7 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Pooling;
 using TurboHTTP.Streams.Stages.Server;
 
 namespace TurboHTTP.Tests.Shared;
@@ -40,4 +41,5 @@ internal sealed class FakeServerOps : IServerStageOperations
     public ILoggingAdapter Log => NoLogger.Instance;
     public IActorRef StageActor { get; set; } = ActorRefs.Nobody;
     public IMaterializer Materializer { get; set; } = null!;
+    public ConnectionPoolContext? PoolContext { get; } = new();
 }

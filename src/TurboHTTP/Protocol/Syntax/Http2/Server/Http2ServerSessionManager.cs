@@ -927,7 +927,7 @@ internal sealed class Http2ServerSessionManager
                 requestFeature.Body = state.GetBodyStream();
             }
 
-            var features = FeatureCollectionFactory.Create(requestFeature, hasBody, _ops.Services,
+            var features = FeatureCollectionFactory.Create(_ops.PoolContext!, requestFeature, hasBody, _ops.Services,
                 _ops.ConnectionFeature, _ops.TlsHandshakeFeature, _maxRequestBodySize);
             features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
 

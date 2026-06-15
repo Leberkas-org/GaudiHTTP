@@ -281,6 +281,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         public IServiceProvider? Services => real.Services;
         public TurboHttpConnectionFeature? ConnectionFeature => real.ConnectionFeature;
         public TlsHandshakeFeature? TlsHandshakeFeature => real.TlsHandshakeFeature;
+        public TurboHTTP.Pooling.ConnectionPoolContext? PoolContext => real.PoolContext;
 
         public void RequestProtocolSwitch(Func<IServerStageOperations, IServerStateMachine> newSmFactory)
         {

@@ -2,10 +2,11 @@ using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Http.Features;
+using TurboHTTP.Pooling;
 
 namespace TurboHTTP.Server.Context.Features;
 
-internal sealed class TurboFeatureCollection : IFeatureCollection
+internal sealed class TurboFeatureCollection : IFeatureCollection, IResettable
 {
     private IHttpRequestFeature? _request;
     private IHttpResponseFeature? _response;
@@ -368,6 +369,17 @@ internal sealed class TurboFeatureCollection : IFeatureCollection
         }
 
         _revision++;
+    }
+
+    public void Reset()
+    {
+        // Clear ONLY per-request transient state. Do NOT null the IHttp*Feature backing fields —
+        // the factory's `recycled` branch detects reuse via the response-feature slot and resets
+        // each sub-feature in place. Nulling them here would force a full re-allocation every request.
+        _request = null;
+        _extras?.Clear();
+        RequestTimestamp = 0;
+        RequestActivity = null;
     }
 
     IEnumerator<KeyValuePair<Type, object>> IEnumerable<KeyValuePair<Type, object>>.GetEnumerator()

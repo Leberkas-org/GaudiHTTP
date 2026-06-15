@@ -1,17 +1,18 @@
 using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
+using TurboHTTP.Pooling;
 using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.Server;
 
 internal static class FeatureCollectionFactory
 {
-    [ThreadStatic] private static Stack<TurboFeatureCollection>? _tPool;
     [ThreadStatic] private static Stack<ArrayBufferWriter<byte>>? _bufferPool;
 
     private const int MaxPoolSize = 32;
 
     public static IFeatureCollection Create(
+        ConnectionPoolContext pool,
         TurboHttpRequestFeature requestFeature,
         bool hasBody,
         IServiceProvider? services = null,
@@ -19,7 +20,7 @@ internal static class FeatureCollectionFactory
         TlsHandshakeFeature? tlsFeature = null,
         long? maxRequestBodySize = null)
     {
-        var features = (_tPool?.Count ?? 0) > 0 ? _tPool!.Pop() : new TurboFeatureCollection();
+        var features = pool.Rent(static () => new TurboFeatureCollection());
         var recycled = features.Get<IHttpResponseFeature>() is not null;
 
         features.Set<IHttpRequestFeature>(requestFeature);
@@ -117,27 +118,19 @@ internal static class FeatureCollectionFactory
         return features;
     }
 
-    internal static void Return(IFeatureCollection features)
+    internal static void Return(ConnectionPoolContext pool, IFeatureCollection features)
     {
         if (features is not TurboFeatureCollection turboFeatures)
         {
             return;
         }
 
-        turboFeatures.RequestTimestamp = 0;
-        turboFeatures.RequestActivity = null;
-
         if (features.Get<IHttpRequestLifetimeFeature>() is TurboHttpRequestLifetimeFeature lifetime)
         {
             lifetime.Reset();
         }
 
-        _tPool ??= new Stack<TurboFeatureCollection>(MaxPoolSize);
-
-        if (_tPool.Count < MaxPoolSize)
-        {
-            _tPool.Push(turboFeatures);
-        }
+        pool.Return(turboFeatures);
     }
 
     internal static ArrayBufferWriter<byte> RentBuffer()
