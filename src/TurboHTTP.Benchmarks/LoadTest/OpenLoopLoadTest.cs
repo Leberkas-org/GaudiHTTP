@@ -1,8 +1,9 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
-using TurboHTTP.Benchmarks.Internal;
 
 namespace TurboHTTP.Benchmarks.LoadTest;
 
@@ -15,57 +16,130 @@ namespace TurboHTTP.Benchmarks.LoadTest;
 //   - pipeline depth > 1 accumulates multiple responses in the output pipe -> vectored writev,
 //   - high connection count -> batched IOQueue scheduler.
 //
-// Caveat: client and server share this process (loopback), so the generator competes for cores with
-// the server. Treat the numbers as relative Turbo-vs-Kestrel comparisons, not absolute throughput.
+// Each server runs in its OWN child process (spawned as `loadtest --serve <kind>`). The driver reads
+// the child's SERVER-ONLY GC counters via the /__allocstats endpoint before and after the measured
+// window, so the reported alloc/req excludes all client/generator allocations — unlike the old
+// in-process design where GC.GetTotalAllocatedBytes mixed both heaps.
 internal static class OpenLoopLoadTest
 {
     public static async Task RunAsync(LoadTestOptions options)
     {
         Console.WriteLine($"Open-loop load test | duration={options.DurationSeconds}s warmup={options.WarmupSeconds}s "
             + $"connections={options.Connections} pipeline={options.PipelineDepth} route={options.Route}");
+        Console.WriteLine("Mode: out-of-process server measurement (server alloc/req excludes the client).");
+        if (options.Profile)
+        {
+            Console.WriteLine("Note: --profile is ignored in out-of-process mode (it only measures the in-process heap).");
+        }
+
         Console.WriteLine(new string('-', 88));
 
         var results = new List<LoadResult>();
 
         if (options.RunTurbo)
         {
-            results.Add(await MeasureTurboAsync(options));
+            results.Add(await MeasureAsync("TurboServer", "turbo", options));
         }
 
         if (options.RunKestrel)
         {
-            results.Add(await MeasureKestrelAsync(options));
+            results.Add(await MeasureAsync("Kestrel", "kestrel", options));
         }
 
         PrintComparison(results);
     }
 
-    private static async Task<LoadResult> MeasureTurboAsync(LoadTestOptions options)
+    private static async Task<LoadResult> MeasureAsync(string name, string kind, LoadTestOptions options)
     {
-        var server = new TurboBenchmarkServer();
-        await server.InitializeAsync();
+        var child = StartServerProcess(kind);
         try
         {
-            return await DriveAsync("TurboServer", server.Http11Port, options);
+            var port = await ReadPortAsync(child);
+            return await DriveAsync(name, port, options);
         }
         finally
         {
-            await server.DisposeAsync();
+            KillChild(child);
         }
     }
 
-    private static async Task<LoadResult> MeasureKestrelAsync(LoadTestOptions options)
+    private static Process StartServerProcess(string kind)
     {
-        var server = new BenchmarkServer();
-        await server.InitializeAsync();
+        // Robust under `dotnet run`: invoke `dotnet exec <benchmarks.dll> loadtest --serve <kind>`.
+        var dll = Assembly.GetExecutingAssembly().Location;
+        var dotnet = Environment.ProcessPath ?? "dotnet";
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = dotnet,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+        };
+
+        // If the host is the dotnet muxer, run via `exec <dll>`; otherwise the host IS the apphost exe.
+        if (Path.GetFileNameWithoutExtension(dotnet).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
+        {
+            psi.ArgumentList.Add("exec");
+            psi.ArgumentList.Add(dll);
+        }
+
+        psi.ArgumentList.Add("loadtest");
+        psi.ArgumentList.Add("--serve");
+        psi.ArgumentList.Add(kind);
+
+        var process = Process.Start(psi)
+            ?? throw new InvalidOperationException($"Failed to start child server process for '{kind}'.");
+
+        return process;
+    }
+
+    private static async Task<int> ReadPortAsync(Process child)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        while (!timeout.IsCancellationRequested)
+        {
+            var line = await child.StandardOutput.ReadLineAsync(timeout.Token);
+            if (line is null)
+            {
+                throw new InvalidOperationException("Child server exited before reporting its port.");
+            }
+
+            if (line.StartsWith("PORT=", StringComparison.Ordinal))
+            {
+                return int.Parse(line["PORT=".Length..]);
+            }
+        }
+
+        throw new TimeoutException("Timed out waiting for child server to report its port.");
+    }
+
+    private static void KillChild(Process child)
+    {
         try
         {
-            return await DriveAsync("Kestrel", server.Http11Port, options);
+            if (!child.HasExited)
+            {
+                child.Kill(entireProcessTree: true);
+                child.WaitForExit(TimeSpan.FromSeconds(10));
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // Already exited.
         }
         finally
         {
-            await server.DisposeAsync();
+            child.Dispose();
         }
+    }
+
+    private static async Task<(long Alloc, int Gen0, int Gen1, int Gen2)> FetchAllocStatsAsync(int port)
+    {
+        // Driver-side HttpClient; its allocations land on the DRIVER heap, never the child server's.
+        using var http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+        var text = await http.GetStringAsync("/__allocstats");
+        var parts = text.Split(';');
+        return (long.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[2]), int.Parse(parts[3]));
     }
 
     private static async Task<LoadResult> DriveAsync(string name, int port, LoadTestOptions options)
@@ -82,25 +156,16 @@ internal static class OpenLoopLoadTest
             await RunPhaseAsync(endpoint, requestBlob, batchBytes, options, collectLatencies: false, warmupCts.Token);
         }
 
-        var profiler = options.Profile ? new AllocationProfiler() : null;
-
-        var gcBefore = (
-            Alloc: GC.GetTotalAllocatedBytes(precise: true),
-            Gen0: GC.CollectionCount(0),
-            Gen1: GC.CollectionCount(1),
-            Gen2: GC.CollectionCount(2));
+        var gcBefore = await FetchAllocStatsAsync(port);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(options.DurationSeconds));
-        profiler?.Arm();
         var sw = Stopwatch.StartNew();
         var (requests, latencies) = await RunPhaseAsync(
             endpoint, requestBlob, batchBytes, options, collectLatencies: true, cts.Token);
         sw.Stop();
-        profiler?.Disarm();
 
-        var allocDelta = GC.GetTotalAllocatedBytes(precise: true) - gcBefore.Alloc;
-
-        profiler?.Report(requests);
+        var gcAfter = await FetchAllocStatsAsync(port);
+        var allocDelta = gcAfter.Alloc - gcBefore.Alloc;
 
         latencies.Sort();
         return new LoadResult(
@@ -111,9 +176,9 @@ internal static class OpenLoopLoadTest
             Percentile(latencies, 0.50),
             Percentile(latencies, 0.99),
             requests == 0 ? 0 : (double)allocDelta / requests,
-            GC.CollectionCount(0) - gcBefore.Gen0,
-            GC.CollectionCount(1) - gcBefore.Gen1,
-            GC.CollectionCount(2) - gcBefore.Gen2);
+            gcAfter.Gen0 - gcBefore.Gen0,
+            gcAfter.Gen1 - gcBefore.Gen1,
+            gcAfter.Gen2 - gcBefore.Gen2);
     }
 
     private static async Task<(long Requests, List<double> Latencies)> RunPhaseAsync(
@@ -301,7 +366,7 @@ internal static class OpenLoopLoadTest
     private static void PrintComparison(List<LoadResult> results)
     {
         Console.WriteLine();
-        Console.WriteLine($"{"Server",-14}{"Requests",12}{"RPS",14}{"P50 us",12}{"P99 us",12}{"Alloc B/req",14}{"GC 0/1/2",14}");
+        Console.WriteLine($"{"Server",-14}{"Requests",12}{"RPS",14}{"P50 us",12}{"P99 us",12}{"Srv B/req",14}{"GC 0/1/2",14}");
         Console.WriteLine(new string('-', 92));
         foreach (var r in results)
         {
@@ -310,14 +375,25 @@ internal static class OpenLoopLoadTest
                 + $"{r.AllocBytesPerRequest,14:N1}{$"{r.Gen0}/{r.Gen1}/{r.Gen2}",14}");
         }
 
-        if (results.Count == 2)
+        var turbo = results.FirstOrDefault(r => r.Name == "TurboServer");
+        var kestrel = results.FirstOrDefault(r => r.Name == "Kestrel");
+
+        if (turbo.Name is not null && kestrel.Name is not null)
         {
-            var ratio = results[0].RequestsPerSecond / results[1].RequestsPerSecond;
+            var ratio = turbo.RequestsPerSecond / kestrel.RequestsPerSecond;
+            var allocDiff = turbo.AllocBytesPerRequest - kestrel.AllocBytesPerRequest;
+            var allocPct = kestrel.AllocBytesPerRequest == 0
+                ? 0
+                : allocDiff / kestrel.AllocBytesPerRequest;
+
             Console.WriteLine();
-            Console.WriteLine($"{results[0].Name} RPS / {results[1].Name} RPS = {ratio:P1}");
+            Console.WriteLine($"TurboServer RPS / Kestrel RPS = {ratio:P1}");
+            Console.WriteLine(
+                $"Server alloc/req diff (Turbo - Kestrel) = {allocDiff:N1} B ({allocPct:+0.0%;-0.0%;0.0%})");
         }
 
         Console.WriteLine();
-        Console.WriteLine("Note: client+server share this process; alloc B/req includes client allocations.");
+        Console.WriteLine("Note: 'Srv B/req' is the SERVER process's own alloc/req (measured out-of-process; "
+            + "excludes the client).");
     }
 }

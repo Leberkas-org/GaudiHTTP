@@ -10,6 +10,16 @@ public static class BenchmarkRoutes
 
     public static void Register(WebApplication app)
     {
+        // Server-process GC counters for out-of-process allocation measurement.
+        // Format: "{allocatedBytes};{gen0};{gen1};{gen2}". Hit only twice per run (negligible).
+        app.MapGet("/__allocstats", () =>
+            Results.Text(string.Join(
+                ';',
+                GC.GetTotalAllocatedBytes(precise: true),
+                GC.CollectionCount(0),
+                GC.CollectionCount(1),
+                GC.CollectionCount(2))));
+
         app.MapGet("/benchmark/simple", () =>
             Results.Content("OK\n", "text/plain"));
 

@@ -11,8 +11,12 @@ internal sealed record LoadTestOptions
     public bool RunKestrel { get; init; } = true;
     public bool Profile { get; init; }
 
+    // When set, this process acts as the isolated child server host ("turbo" | "kestrel")
+    // rather than the driver. See OpenLoopLoadTest for the parent/child protocol.
+    public string? Serve { get; init; }
+
     // Parses "loadtest"-mode flags: --duration N --warmup N --connections N --pipeline N
-    // --route /x --server turbo|kestrel|both
+    // --route /x --server turbo|kestrel|both --serve turbo|kestrel
     public static LoadTestOptions Parse(string[] args)
     {
         var options = new LoadTestOptions();
@@ -54,6 +58,9 @@ internal sealed record LoadTestOptions
                         RunTurbo = s is "turbo" or "both",
                         RunKestrel = s is "kestrel" or "both",
                     };
+                    break;
+                case "--serve":
+                    options = options with { Serve = args[++i].ToLowerInvariant() };
                     break;
             }
         }
