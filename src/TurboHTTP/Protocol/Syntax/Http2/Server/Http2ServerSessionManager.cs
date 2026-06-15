@@ -901,24 +901,20 @@ internal sealed class Http2ServerSessionManager
     {
         try
         {
-            var requestFeature = _requestDecoder.DecodeHeadersToFeature(streamId, endStream: true, state);
-            if (requestFeature is null)
-            {
-                return;
-            }
+            var hasBody = !endStream;
+            var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
+                out var requestFeature, _ops.Services, _ops.ConnectionFeature,
+                _ops.TlsHandshakeFeature, _maxRequestBodySize);
 
-            state.InitRequestFeature(requestFeature);
+            _requestDecoder.PopulateRequestFeature(streamId, state, requestFeature);
 
             _flow.InitStreamSendWindow(streamId);
 
             if (endStream)
             {
-                // RFC 9113 §5.1: HEADERS with END_STREAM leaves the stream half-closed(remote);
-                // any later DATA on it must be rejected with STREAM_CLOSED.
                 state.MarkRemoteClosed();
             }
 
-            var hasBody = !endStream;
             if (hasBody)
             {
                 var queued = new QueuedBodyReader(capacity: 8);
@@ -926,9 +922,6 @@ internal sealed class Http2ServerSessionManager
                 state.InitBodyReader(queued, _maxRequestBodySize);
                 requestFeature.Body = state.GetBodyStream();
             }
-
-            var features = FeatureCollectionFactory.Create(_ops.PoolContext!, requestFeature, hasBody, _ops.Services,
-                _ops.ConnectionFeature, _ops.TlsHandshakeFeature, _maxRequestBodySize);
             features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
 
             var capturedStreamId = streamId;

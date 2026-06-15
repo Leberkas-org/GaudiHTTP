@@ -47,13 +47,24 @@ internal sealed class Http2ServerDecoder
 
     public TurboHttpRequestFeature? DecodeHeadersToFeature(int streamId, bool endStream, StreamState state)
     {
+        var feature = new TurboHttpRequestFeature();
+        PopulateRequestFeature(streamId, state, feature);
+
+        if (!endStream)
+        {
+            return null;
+        }
+
+        return feature;
+    }
+
+    public void PopulateRequestFeature(int streamId, StreamState state, TurboHttpRequestFeature feature)
+    {
         var headers = _hpack.Decode(state.GetHeaderSpan());
         ValidateHeaderSize(headers, streamId);
         ValidateRequestHeaders(headers);
 
-        var feature = new TurboHttpRequestFeature { Protocol = WellKnownHeaders.Http20 };
-        // Write directly into the feature's header dictionary, avoiding a throwaway
-        // HeaderDictionary allocation plus the copy loop in the Headers setter.
+        feature.Protocol = WellKnownHeaders.Http20;
         var headerDict = feature.Headers;
 
         string? path = null;
@@ -113,13 +124,6 @@ internal sealed class Http2ServerDecoder
         }
 
         state.InitRequestFeature(feature);
-
-        if (!endStream)
-        {
-            return null;
-        }
-
-        return feature;
     }
 
     public List<(string Name, string Value)> DecodeTrailers(StreamState state)

@@ -43,28 +43,39 @@ public sealed class TransportBufferOptions
     /// </summary>
     public int? MinimumSegmentSize { get; set; }
 
+    /// <summary>
+    /// Size hint passed to PipeWriter.GetMemory on the receive path. Controls the
+    /// minimum buffer segment actually allocated per read. <c>null</c> uses the transport
+    /// default: TCP = 64 KiB (long-lived connection), QUIC = 4 KiB (short-lived stream).
+    /// </summary>
+    public int? ReceiveBufferHint { get; set; }
+
     internal ResolvedTransportBuffers ResolveTcp() => Resolve(
         defaultInputPause: 1024 * 1024,
         defaultInputResume: 512 * 1024,
-        defaultMinimumSegmentSize: 16 * 1024);
+        defaultMinimumSegmentSize: 16 * 1024,
+        defaultReceiveBufferHint: 64 * 1024);
 
     internal ResolvedTransportBuffers ResolveQuic() => Resolve(
         defaultInputPause: 64 * 1024,
         defaultInputResume: 32 * 1024,
-        defaultMinimumSegmentSize: 4 * 1024);
+        defaultMinimumSegmentSize: 4 * 1024,
+        defaultReceiveBufferHint: 4 * 1024);
 
     internal static ResolvedTransportBuffers TcpDefaults { get; } = new TransportBufferOptions().ResolveTcp();
 
     internal static ResolvedTransportBuffers QuicDefaults { get; } = new TransportBufferOptions().ResolveQuic();
 
-    private ResolvedTransportBuffers Resolve(long defaultInputPause, long defaultInputResume, int defaultMinimumSegmentSize)
+    private ResolvedTransportBuffers Resolve(long defaultInputPause, long defaultInputResume,
+        int defaultMinimumSegmentSize, int defaultReceiveBufferHint)
     {
         var resolved = new ResolvedTransportBuffers(
             InputPauseThreshold: InputPauseThreshold ?? defaultInputPause,
             InputResumeThreshold: InputResumeThreshold ?? defaultInputResume,
             OutputPauseThreshold: OutputPauseThreshold ?? 64 * 1024,
             OutputResumeThreshold: OutputResumeThreshold ?? 32 * 1024,
-            MinimumSegmentSize: MinimumSegmentSize ?? defaultMinimumSegmentSize);
+            MinimumSegmentSize: MinimumSegmentSize ?? defaultMinimumSegmentSize,
+            ReceiveBufferHint: ReceiveBufferHint ?? defaultReceiveBufferHint);
 
         if (resolved.InputResumeThreshold > resolved.InputPauseThreshold)
         {
@@ -94,4 +105,5 @@ internal readonly record struct ResolvedTransportBuffers(
     long InputResumeThreshold,
     long OutputPauseThreshold,
     long OutputResumeThreshold,
-    int MinimumSegmentSize);
+    int MinimumSegmentSize,
+    int ReceiveBufferHint);
