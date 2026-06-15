@@ -1,4 +1,5 @@
 using System.Diagnostics.Tracing;
+using System.Text;
 
 namespace TurboHTTP.Benchmarks.LoadTest;
 
@@ -26,6 +27,35 @@ internal sealed class AllocationProfiler : EventListener
     public void Arm() => _armed = true;
 
     public void Disarm() => _armed = false;
+
+    // Clears accumulated per-type counts so a subsequent capture window excludes prior allocations
+    // (e.g. warmup). The listener stays armed and keeps aggregating after the reset.
+    public void Reset()
+    {
+        lock (_lock)
+        {
+            _byType.Clear();
+        }
+    }
+
+    // Top-N types BY HITS (descending) as plain text, one per line: "{hits}\t{sampledBytes}\t{typeName}".
+    // Hits is the reliable ranking signal; sampled bytes are a coarse ~100KB/tick estimate.
+    public string ReportText(int top = 25)
+    {
+        List<KeyValuePair<string, (long Bytes, long Hits)>> snapshot;
+        lock (_lock)
+        {
+            snapshot = _byType.OrderByDescending(kv => kv.Value.Hits).Take(top).ToList();
+        }
+
+        var sb = new StringBuilder();
+        foreach (var (type, (bytes, hits)) in snapshot)
+        {
+            sb.Append(hits).Append('\t').Append(bytes).Append('\t').Append(type).Append('\n');
+        }
+
+        return sb.ToString();
+    }
 
     protected override void OnEventWritten(EventWrittenEventArgs e)
     {

@@ -142,6 +142,53 @@ internal static class OpenLoopLoadTest
         return (long.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[2]), int.Parse(parts[3]));
     }
 
+    private static async Task ResetAllocTypesAsync(int port)
+    {
+        using var http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+        await http.GetStringAsync("/__allocreset");
+    }
+
+    private static async Task<List<(long Hits, long Bytes, string Type)>> FetchAllocTypesAsync(int port)
+    {
+        using var http = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{port}") };
+        var text = await http.GetStringAsync("/__alloctypes");
+
+        var rows = new List<(long, long, string)>();
+        foreach (var line in text.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = line.Split('\t');
+            if (parts.Length == 3
+                && long.TryParse(parts[0], out var hits)
+                && long.TryParse(parts[1], out var bytes))
+            {
+                rows.Add((hits, bytes, parts[2]));
+            }
+        }
+
+        return rows;
+    }
+
+    private static void PrintAllocTypes(string name, List<(long Hits, long Bytes, string Type)> rows, long requests)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"{name} server-only allocations by type (top {Math.Min(20, rows.Count)}, "
+            + "GCAllocationTick sample — ranked by HITS; B/req approximate):");
+        if (rows.Count == 0)
+        {
+            Console.WriteLine("  (no GCAllocationTick samples captured)");
+            return;
+        }
+
+        Console.WriteLine($"{"Type",-62}{"Hits",10}{"~B/req",12}");
+        Console.WriteLine(new string('-', 84));
+        foreach (var (hits, bytes, type) in rows.Take(20))
+        {
+            var shortType = type.Length > 60 ? "…" + type[^59..] : type;
+            var perReq = requests == 0 ? 0 : (double)bytes / requests;
+            Console.WriteLine($"{shortType,-62}{hits,10:N0}{perReq,12:N1}");
+        }
+    }
+
     private static async Task<LoadResult> DriveAsync(string name, int port, LoadTestOptions options)
     {
         var endpoint = new IPEndPoint(IPAddress.Loopback, port);
@@ -158,6 +205,9 @@ internal static class OpenLoopLoadTest
 
         var gcBefore = await FetchAllocStatsAsync(port);
 
+        // Clear the child's per-type capture so it excludes warmup allocations.
+        await ResetAllocTypesAsync(port);
+
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(options.DurationSeconds));
         var sw = Stopwatch.StartNew();
         var (requests, latencies) = await RunPhaseAsync(
@@ -166,6 +216,10 @@ internal static class OpenLoopLoadTest
 
         var gcAfter = await FetchAllocStatsAsync(port);
         var allocDelta = gcAfter.Alloc - gcBefore.Alloc;
+
+        // Server-only per-type breakdown for the measured window (ranked by HITS in the child).
+        var allocTypes = await FetchAllocTypesAsync(port);
+        PrintAllocTypes(name, allocTypes, requests);
 
         latencies.Sort();
         return new LoadResult(

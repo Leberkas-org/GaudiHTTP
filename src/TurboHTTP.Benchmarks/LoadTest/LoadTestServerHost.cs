@@ -8,8 +8,16 @@ namespace TurboHTTP.Benchmarks.LoadTest;
 // allocations — the load generator lives in the parent and never touches this process's heap.
 internal static class LoadTestServerHost
 {
+    // Set only in the serve child. BenchmarkRoutes reads it for /__allocreset and /__alloctypes;
+    // on the normal BenchmarkDotNet path it stays null and those endpoints no-op.
+    internal static AllocationProfiler? ActiveProfiler;
+
     public static async Task RunAsync(string kind)
     {
+        // Arm before the host starts so we capture allocations from the very first request.
+        ActiveProfiler = new AllocationProfiler();
+        ActiveProfiler.Arm();
+
         await using var server = await StartAsync(kind);
 
         Console.Out.WriteLine($"PORT={server.Http11Port}");
