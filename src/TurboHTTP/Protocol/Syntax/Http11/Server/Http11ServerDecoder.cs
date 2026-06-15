@@ -18,6 +18,11 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
 
     private readonly HeaderBlockReader _headerReader = new(options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
 
+    // Projected once: the source options are immutable, so the per-request projection produced a
+    // fresh identical BodyDecoderOptions record every request (allocated even for no-body GETs,
+    // where BodyReaderFactory.Create never reads it).
+    private readonly BodyDecoderOptions _bodyDecoderOptions = options.ToBodyDecoderOptions();
+
     private Phase _phase = Phase.RequestLine;
     private HttpMethod _method = null!;
     private string _target = null!;
@@ -65,7 +70,7 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
             }
 
             var classification = BodySemantics.ClassifyRequest(_method, _headerReader.GetHeaders(), _version);
-            var (reader, decoder) = BodyReaderFactory.Create(classification, options.ToBodyDecoderOptions());
+            var (reader, decoder) = BodyReaderFactory.Create(classification, _bodyDecoderOptions);
             CurrentBodyReader = reader;
             CurrentFramingDecoder = decoder;
             if (reader is IStreamingBodyReader streaming)

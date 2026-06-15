@@ -415,11 +415,18 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             }
             finally
             {
-                _owner.UpgradeToPipe();
                 SignalHeadersReady();
             }
 
-            return await _owner._pipe!.Writer.FlushAsync(cancellationToken);
+            // Stay buffered unless a streaming consumer already upgraded us to a pipe. A flush on a
+            // buffered response is a no-op (the body is emitted on completion), matching the
+            // post-HasStarted buffered FlushAsync path.
+            if (_owner._pipe is not null)
+            {
+                return await _owner._pipe.Writer.FlushAsync(cancellationToken);
+            }
+
+            return new FlushResult(false, false);
         }
 
         private async ValueTask<FlushResult> CommitAndWriteAsync(ReadOnlyMemory<byte> source,
@@ -435,12 +442,24 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             }
             finally
             {
-                _owner.UpgradeToPipe();
                 SignalHeadersReady();
             }
 
             BytesWritten += source.Length;
-            return await _owner._pipe!.Writer.WriteAsync(source, cancellationToken);
+
+            // A response that commits and completes without a streaming consumer never needs a Pipe
+            // (the dominant Plaintext/Json case) — keep it buffered, mirroring the GetSpan/Advance
+            // path. Genuine streaming handlers are upgraded to a pipe by the bridge before they
+            // write; UpgradeToPipe migrates any already-buffered content.
+            if (_owner._pipe is not null)
+            {
+                return await _owner._pipe.Writer.WriteAsync(source, cancellationToken);
+            }
+
+            var dest = _owner._bufferWriter.GetSpan(source.Length);
+            source.Span.CopyTo(dest);
+            _owner._bufferWriter.Advance(source.Length);
+            return new FlushResult(false, false);
         }
 
         public override void Complete(Exception? exception = null)

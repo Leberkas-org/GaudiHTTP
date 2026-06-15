@@ -17,6 +17,10 @@ internal sealed class TurboHttpResponseFeature : IHttpResponseFeature
 
     public bool HasStarted { get; private set; }
 
+    // Lets the dispatch path skip allocating a fault-observing ContinueWith when no app callback
+    // is registered — the common case on the hot path (Plaintext/Json).
+    internal bool HasOnCompletedCallbacks => _onCompletedCallbacks is { Count: > 0 };
+
     public IHeaderDictionary Headers
     {
         get => _headers;

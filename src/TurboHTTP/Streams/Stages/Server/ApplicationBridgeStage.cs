@@ -513,7 +513,8 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         private static void FireOnCompleted(IFeatureCollection features)
         {
-            if (features.Get<IHttpResponseFeature>() is TurboHttpResponseFeature responseFeature)
+            if (features.Get<IHttpResponseFeature>() is TurboHttpResponseFeature responseFeature
+                && responseFeature.HasOnCompletedCallbacks)
             {
                 responseFeature.FireOnCompletedAsync().ContinueWith(static _ => { }, TaskContinuationOptions.OnlyOnFaulted);
             }
