@@ -16,7 +16,15 @@ if (args.Length > 0 && args[0].Equals("loadtest", StringComparison.OrdinalIgnore
         return;
     }
 
-    await OpenLoopLoadTest.RunAsync(loadOptions);
+    if (loadOptions.Protocol.StartsWith("mem-", StringComparison.Ordinal))
+    {
+        InMemoryBenchmark.Run(loadOptions);
+    }
+    else
+    {
+        await OpenLoopLoadTest.RunAsync(loadOptions);
+    }
+
     return;
 }
 
