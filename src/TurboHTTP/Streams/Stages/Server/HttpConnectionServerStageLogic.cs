@@ -8,6 +8,7 @@ using Akka.Streams.Stage;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Diagnostics;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
@@ -37,6 +38,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private int _handlerInFlight;
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
+    private readonly ConnectionPoolContext _poolContext = new();
     private TurboHttpConnectionFeature? _connectionFeature;
     private TlsHandshakeFeature? _tlsHandshakeFeature;
     private readonly bool _metricsEnabled;
@@ -467,6 +469,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     TurboHttpConnectionFeature? IServerStageOperations.ConnectionFeature => _connectionFeature;
 
     TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
+
+    ConnectionPoolContext? IServerStageOperations.PoolContext => _poolContext;
 
     void IServerStageOperations.OnResponseBodyComplete(IFeatureCollection features)
     {

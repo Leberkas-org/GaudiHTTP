@@ -3,6 +3,7 @@ using Akka.Event;
 using Akka.Streams;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Pooling;
 using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.Streams.Stages.Server;
@@ -19,5 +20,6 @@ internal interface IServerStageOperations
     IServiceProvider? Services => null;
     TurboHttpConnectionFeature? ConnectionFeature => null;
     TlsHandshakeFeature? TlsHandshakeFeature => null;
+    ConnectionPoolContext? PoolContext => null;
     void OnResponseBodyComplete(IFeatureCollection features) { }
 }
