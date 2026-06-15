@@ -38,14 +38,14 @@ internal sealed class AllocationProfiler : EventListener
         }
     }
 
-    // Top-N types BY HITS (descending) as plain text, one per line: "{hits}\t{sampledBytes}\t{typeName}".
-    // Hits is the reliable ranking signal; sampled bytes are a coarse ~100KB/tick estimate.
+    // Top-N types BY SAMPLED BYTES (descending) as plain text, one per line: "{hits}\t{sampledBytes}\t{typeName}".
+    // Bytes is the correct ranking signal for targeting real allocation cost; hits is emitted for context.
     public string ReportText(int top = 25)
     {
         List<KeyValuePair<string, (long Bytes, long Hits)>> snapshot;
         lock (_lock)
         {
-            snapshot = _byType.OrderByDescending(kv => kv.Value.Hits).Take(top).ToList();
+            snapshot = _byType.OrderByDescending(kv => kv.Value.Bytes).Take(top).ToList();
         }
 
         var sb = new StringBuilder();

@@ -172,20 +172,20 @@ internal static class OpenLoopLoadTest
     {
         Console.WriteLine();
         Console.WriteLine($"{name} server-only allocations by type (top {Math.Min(20, rows.Count)}, "
-            + "GCAllocationTick sample — ranked by HITS; B/req approximate):");
+            + "GCAllocationTick sample — ranked by ~B/req; Hits shown for context):");
         if (rows.Count == 0)
         {
             Console.WriteLine("  (no GCAllocationTick samples captured)");
             return;
         }
 
-        Console.WriteLine($"{"Type",-62}{"Hits",10}{"~B/req",12}");
+        Console.WriteLine($"{"Type",-62}{"~B/req",12}{"Hits",10}");
         Console.WriteLine(new string('-', 84));
         foreach (var (hits, bytes, type) in rows.Take(20))
         {
             var shortType = type.Length > 60 ? "…" + type[^59..] : type;
             var perReq = requests == 0 ? 0 : (double)bytes / requests;
-            Console.WriteLine($"{shortType,-62}{hits,10:N0}{perReq,12:N1}");
+            Console.WriteLine($"{shortType,-62}{perReq,12:N1}{hits,10:N0}");
         }
     }
 
