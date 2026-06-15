@@ -300,7 +300,11 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
             if (!HasStarted)
             {
                 HasStarted = true;
-                _owner.UpgradeToPipe();
+                // Committing headers does not require a Pipe: a response that never reaches a
+                // streaming consumer stays buffered (the dominant Plaintext/Json case). The Pipe is
+                // created lazily by the genuine streaming entry points (BodySink, GetResponse*,
+                // SendFile, DisableBuffering) and by the bridge for not-synchronously-completing
+                // handlers — never per response just to flush headers.
                 SignalHeadersReady();
             }
         }
@@ -319,7 +323,9 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
                 }
                 finally
                 {
-                    _owner.UpgradeToPipe();
+                    // No UpgradeToPipe here — see CommitHeaders. StartAsync (ASP.NET calls it before
+                    // the first WriteAsync) must not force a per-response Pipe + cross-thread lock on
+                    // the buffered fast path.
                     SignalHeadersReady();
                 }
             }
