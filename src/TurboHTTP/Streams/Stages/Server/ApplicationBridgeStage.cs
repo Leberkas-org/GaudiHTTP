@@ -229,7 +229,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             TContext appContext;
             try
             {
-                appContext = _stage._application.CreateContext(features);
+                appContext = _stage._application.CreateContext(ContainerFor(features));
                 _appContexts[seq] = appContext;
             }
             catch (Exception)
@@ -440,6 +440,28 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             {
                 CompleteStage();
             }
+        }
+
+        // ASP.NET's HostingApplication.CreateContext reuses its cached host context (and the
+        // DefaultHttpContext graph) only when the collection it is handed implements
+        // IHostContextContainer<TContext>. The pooled TurboFeatureCollection is non-generic, so we wrap
+        // it in a per-collection HostContextContainer<TContext> (cached on the collection) and hand the
+        // wrapper to CreateContext. Non-Turbo collections (tests, custom transports) fall back to no reuse.
+        private IFeatureCollection ContainerFor(IFeatureCollection features)
+        {
+            if (features is not TurboFeatureCollection turbo)
+            {
+                return features;
+            }
+
+            if (turbo.HostContextWrapper is HostContextContainer<TContext> existing)
+            {
+                return existing;
+            }
+
+            var container = new HostContextContainer<TContext>(turbo);
+            turbo.HostContextWrapper = container;
+            return container;
         }
 
         private void DisposeAppContext(int seq, Exception? exception)
