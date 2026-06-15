@@ -13,6 +13,7 @@ internal sealed class ConnectionBodyPool : IDisposable
     private readonly CloseDelimitedFramingDecoder _closeDelimitedDecoder = new();
     private readonly BufferedBodyWriter _bufferedWriter = new();
     private readonly StreamingBodyWriter _streamingWriter = new();
+    private readonly PassthroughFramingEncoder _passthroughEncoder = new();
 
     public (IBodyReader? Reader, IFramingDecoder? Decoder) RentReader(
         BodyClassification classification, BodyDecoderOptions options)
@@ -73,9 +74,8 @@ internal sealed class ConnectionBodyPool : IDisposable
 
         if (contentLength is not null)
         {
-            var encoder = new PassthroughFramingEncoder();
-            _streamingWriter.Reset(encoder, send);
-            return (_streamingWriter, encoder);
+            _streamingWriter.Reset(_passthroughEncoder, send);
+            return (_streamingWriter, _passthroughEncoder);
         }
 
         if (httpVersion == HttpVersion.Version10)

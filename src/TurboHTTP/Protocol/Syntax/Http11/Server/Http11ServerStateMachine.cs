@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -51,6 +52,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     private IStreamingBodyReader? _activeStreamingReader;
 
     private readonly ConnectionBodyPool _pool = new();
+    private Func<IMemoryOwner<byte>, ReadOnlyMemory<byte>, ValueTask>? _cachedSendDelegate;
     private IBodyWriter? _activeResponseBodyWriter;
     private Stream? _activeResponseBodyStream;
     private IFeatureCollection? _activeResponseFeatures;
@@ -359,19 +361,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             var bodyStream = turboBody.GetResponseStream();
             var (writer, _) = _pool.RentWriter(
                 hasBody: true, contentLength, HttpVersion.Version11, _bodyEncoderOptions,
-                send: (owner, framedData) =>
-                {
-                    var ownerSpan = owner.Memory.Span;
-                    var framedSpan = framedData.Span;
-                    ref var ownerStart = ref MemoryMarshal.GetReference(ownerSpan);
-                    ref var framedStart = ref MemoryMarshal.GetReference(framedSpan);
-                    var offset = (int)Unsafe.ByteOffset(ref ownerStart, ref framedStart);
-                    _responseRate.Observe(0, framedData.Length, Now());
-                    EnsureRateTimer();
-                    var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
-                    _ops.OnOutbound(TransportData.Rent(buf));
-                    return default;
-                });
+                send: GetSendDelegate());
 
             _activeResponseBodyWriter = writer;
             _activeResponseBodyStream = bodyStream;
@@ -395,19 +385,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     {
         var (writer, _) = _pool.RentWriter(
             hasBody: true, contentLength, HttpVersion.Version11, _bodyEncoderOptions,
-            send: (owner, framedData) =>
-            {
-                var ownerSpan = owner.Memory.Span;
-                var framedSpan = framedData.Span;
-                ref var ownerStart = ref MemoryMarshal.GetReference(ownerSpan);
-                ref var framedStart = ref MemoryMarshal.GetReference(framedSpan);
-                var offset = (int)Unsafe.ByteOffset(ref ownerStart, ref framedStart);
-                _responseRate.Observe(0, framedData.Length, Now());
-                EnsureRateTimer();
-                var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
-                _ops.OnOutbound(TransportData.Rent(buf));
-                return default;
-            });
+            send: GetSendDelegate());
 
         if (body.Length > 0)
         {
@@ -673,6 +651,23 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         _ops.OnCancelTimer(BodyConsumptionTimer);
         _ops.OnCancelTimer(DataRateCheck);
         _rateTimerActive = false;
+    }
+
+    private Func<IMemoryOwner<byte>, ReadOnlyMemory<byte>, ValueTask> GetSendDelegate()
+    {
+        return _cachedSendDelegate ??= (owner, framedData) =>
+        {
+            var ownerSpan = owner.Memory.Span;
+            var framedSpan = framedData.Span;
+            ref var ownerStart = ref MemoryMarshal.GetReference(ownerSpan);
+            ref var framedStart = ref MemoryMarshal.GetReference(framedSpan);
+            var offset = (int)Unsafe.ByteOffset(ref ownerStart, ref framedStart);
+            _responseRate.Observe(0, framedData.Length, Now());
+            EnsureRateTimer();
+            var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
+            _ops.OnOutbound(TransportData.Rent(buf));
+            return default;
+        };
     }
 
     private void EnsureRateTimer()
