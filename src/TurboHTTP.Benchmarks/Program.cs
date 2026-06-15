@@ -20,6 +20,10 @@ if (args.Length > 0 && args[0].Equals("loadtest", StringComparison.OrdinalIgnore
     {
         InMemoryBenchmark.Run(loadOptions);
     }
+    else if (loadOptions.Protocol.StartsWith("client-", StringComparison.Ordinal))
+    {
+        await ClientBenchmark.RunAsync(loadOptions);
+    }
     else
     {
         await OpenLoopLoadTest.RunAsync(loadOptions);

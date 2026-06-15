@@ -207,9 +207,14 @@ internal static class OpenLoopLoadTest
     {
         Func<CancellationToken, Task<(long, List<double>)>> runPhase;
 
-        if (options.Protocol is "h2" or "h3")
+        if (options.Protocol is "h1-client" or "h2" or "h3")
         {
-            var version = options.Protocol == "h2" ? HttpVersion.Version20 : HttpVersion.Version30;
+            var version = options.Protocol switch
+            {
+                "h3" => HttpVersion.Version30,
+                "h2" => HttpVersion.Version20,
+                _ => HttpVersion.Version11,
+            };
             var scheme = options.Protocol == "h3" ? "https" : "http";
             var baseUrl = string.Concat(scheme, "://127.0.0.1:", port.ToString());
             runPhase = ct => RunHttpClientPhaseAsync(
