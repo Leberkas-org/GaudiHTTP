@@ -7,16 +7,13 @@ internal sealed record LoadTestOptions
     public int Connections { get; init; } = 64;
     public int PipelineDepth { get; init; } = 16;
     public string Route { get; init; } = "/plaintext";
+    public string Protocol { get; init; } = "h1";
     public bool RunTurbo { get; init; } = true;
     public bool RunKestrel { get; init; } = true;
     public bool Profile { get; init; }
-
-    // When set, this process acts as the isolated child server host ("turbo" | "kestrel")
-    // rather than the driver. See OpenLoopLoadTest for the parent/child protocol.
     public string? Serve { get; init; }
+    public int ServerPort { get; init; }
 
-    // Parses "loadtest"-mode flags: --duration N --warmup N --connections N --pipeline N
-    // --route /x --server turbo|kestrel|both --serve turbo|kestrel
     public static LoadTestOptions Parse(string[] args)
     {
         var options = new LoadTestOptions();
@@ -51,6 +48,9 @@ internal sealed record LoadTestOptions
                 case "--route":
                     options = options with { Route = args[++i] };
                     break;
+                case "--protocol":
+                    options = options with { Protocol = args[++i].ToLowerInvariant() };
+                    break;
                 case "--server":
                     var s = args[++i].ToLowerInvariant();
                     options = options with
@@ -61,6 +61,9 @@ internal sealed record LoadTestOptions
                     break;
                 case "--serve":
                     options = options with { Serve = args[++i].ToLowerInvariant() };
+                    break;
+                case "--server-port":
+                    options = options with { ServerPort = int.Parse(args[++i]) };
                     break;
             }
         }

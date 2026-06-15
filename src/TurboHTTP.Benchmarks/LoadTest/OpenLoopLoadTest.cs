@@ -24,7 +24,7 @@ internal static class OpenLoopLoadTest
 {
     public static async Task RunAsync(LoadTestOptions options)
     {
-        Console.WriteLine($"Open-loop load test | duration={options.DurationSeconds}s warmup={options.WarmupSeconds}s "
+        Console.WriteLine($"Open-loop load test | protocol={options.Protocol} duration={options.DurationSeconds}s warmup={options.WarmupSeconds}s "
             + $"connections={options.Connections} pipeline={options.PipelineDepth} route={options.Route}");
         Console.WriteLine("Mode: out-of-process server measurement (server alloc/req excludes the client).");
         if (options.Profile)
@@ -54,8 +54,14 @@ internal static class OpenLoopLoadTest
         var child = StartServerProcess(kind);
         try
         {
-            var port = await ReadPortAsync(child);
-            return await DriveAsync(name, port, options);
+            var ports = await ReadPortsAsync(child);
+            var port = options.Protocol switch
+            {
+                "h2" => ports.H2,
+                "h3" => ports.H3,
+                _ => ports.H1,
+            };
+            return await DriveAsync(name, port, ports.H1, options);
         }
         finally
         {
@@ -93,7 +99,7 @@ internal static class OpenLoopLoadTest
         return process;
     }
 
-    private static async Task<int> ReadPortAsync(Process child)
+    private static async Task<(int H1, int H2, int H3)> ReadPortsAsync(Process child)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         while (!timeout.IsCancellationRequested)
@@ -106,7 +112,15 @@ internal static class OpenLoopLoadTest
 
             if (line.StartsWith("PORT=", StringComparison.Ordinal))
             {
-                return int.Parse(line["PORT=".Length..]);
+                var parts = line["PORT=".Length..].Split(';');
+                var h1 = int.Parse(parts[0]);
+                var h2 = parts.Length > 1 && parts[1].StartsWith("H2=", StringComparison.Ordinal)
+                    ? int.Parse(parts[1]["H2=".Length..])
+                    : h1;
+                var h3 = parts.Length > 2 && parts[2].StartsWith("H3=", StringComparison.Ordinal)
+                    ? int.Parse(parts[2]["H3=".Length..])
+                    : h1;
+                return (h1, h2, h3);
             }
         }
 
@@ -189,36 +203,47 @@ internal static class OpenLoopLoadTest
         }
     }
 
-    private static async Task<LoadResult> DriveAsync(string name, int port, LoadTestOptions options)
+    private static async Task<LoadResult> DriveAsync(string name, int port, int statsPort, LoadTestOptions options)
     {
-        var endpoint = new IPEndPoint(IPAddress.Loopback, port);
-        var requestBlob = BuildPipelinedRequest(options.Route, options.PipelineDepth);
-        var responseLength = await ProbeResponseLengthAsync(endpoint, options.Route);
-        var batchBytes = responseLength * options.PipelineDepth;
+        Func<CancellationToken, Task<(long, List<double>)>> runPhase;
 
-        // Warmup (uncounted) lets the server JIT, fill pools, and reach steady state.
+        if (options.Protocol is "h2" or "h3")
+        {
+            var version = options.Protocol == "h2" ? HttpVersion.Version20 : HttpVersion.Version30;
+            var scheme = options.Protocol == "h3" ? "https" : "http";
+            var baseUrl = string.Concat(scheme, "://127.0.0.1:", port.ToString());
+            runPhase = ct => RunHttpClientPhaseAsync(
+                baseUrl, version, options.Connections, options.PipelineDepth,
+                options.Route, ct);
+        }
+        else
+        {
+            var endpoint = new IPEndPoint(IPAddress.Loopback, port);
+            var requestBlob = BuildPipelinedRequest(options.Route, options.PipelineDepth);
+            var responseLength = await ProbeResponseLengthAsync(endpoint, options.Route);
+            var batchBytes = responseLength * options.PipelineDepth;
+            runPhase = ct => RunPhaseAsync(endpoint, requestBlob, batchBytes, options, collectLatencies: true, ct);
+        }
+
         if (options.WarmupSeconds > 0)
         {
             using var warmupCts = new CancellationTokenSource(TimeSpan.FromSeconds(options.WarmupSeconds));
-            await RunPhaseAsync(endpoint, requestBlob, batchBytes, options, collectLatencies: false, warmupCts.Token);
+            await runPhase(warmupCts.Token);
         }
 
-        var gcBefore = await FetchAllocStatsAsync(port);
-
-        // Clear the child's per-type capture so it excludes warmup allocations.
-        await ResetAllocTypesAsync(port);
+        var gcBefore = await FetchAllocStatsAsync(statsPort);
+        await ResetAllocTypesAsync(statsPort);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(options.DurationSeconds));
         var sw = Stopwatch.StartNew();
-        var (requests, latencies) = await RunPhaseAsync(
-            endpoint, requestBlob, batchBytes, options, collectLatencies: true, cts.Token);
+        var (requests, latencies) = await runPhase(cts.Token);
         sw.Stop();
 
-        var gcAfter = await FetchAllocStatsAsync(port);
+        var gcAfter = await FetchAllocStatsAsync(statsPort);
         var allocDelta = gcAfter.Alloc - gcBefore.Alloc;
 
         // Server-only per-type breakdown for the measured window (ranked by HITS in the child).
-        var allocTypes = await FetchAllocTypesAsync(port);
+        var allocTypes = await FetchAllocTypesAsync(statsPort);
         PrintAllocTypes(name, allocTypes, requests);
 
         latencies.Sort();
@@ -263,6 +288,79 @@ internal static class OpenLoopLoadTest
         }
 
         return (total, latencies);
+    }
+
+    private static async Task<(long Requests, List<double> Latencies)> RunHttpClientPhaseAsync(
+        string baseUrl,
+        Version httpVersion,
+        int connections,
+        int concurrencyPerConnection,
+        string route,
+        CancellationToken ct)
+    {
+        var handler = new SocketsHttpHandler
+        {
+            MaxConnectionsPerServer = 1,
+            EnableMultipleHttp2Connections = false,
+            SslOptions =
+            {
+                RemoteCertificateValidationCallback = (_, _, _, _) => true,
+            },
+        };
+
+        long totalRequests = 0;
+        var allLatencies = new List<double>();
+        var workers = new Task[connections * concurrencyPerConnection];
+        var perWorkerLatencies = new List<double>[workers.Length];
+
+        for (var c = 0; c < connections; c++)
+        {
+            var client = new HttpClient(handler, disposeHandler: false)
+            {
+                BaseAddress = new Uri(baseUrl),
+                DefaultRequestVersion = httpVersion,
+                DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
+            };
+
+            for (var s = 0; s < concurrencyPerConnection; s++)
+            {
+                var idx = c * concurrencyPerConnection + s;
+                var lats = new List<double>(4096);
+                perWorkerLatencies[idx] = lats;
+                workers[idx] = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (!ct.IsCancellationRequested)
+                        {
+                            var start = Stopwatch.GetTimestamp();
+                            using var response = await client.GetAsync(route, ct);
+                            await response.Content.ReadAsByteArrayAsync(ct);
+                            Interlocked.Increment(ref totalRequests);
+                            lats.Add(Stopwatch.GetElapsedTime(start).TotalMicroseconds);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                    catch (HttpRequestException)
+                    {
+                    }
+                });
+            }
+        }
+
+        await Task.WhenAll(workers);
+
+        foreach (var lats in perWorkerLatencies)
+        {
+            if (lats is not null)
+            {
+                allLatencies.AddRange(lats);
+            }
+        }
+
+        return (totalRequests, allLatencies);
     }
 
     private static async Task<(long, List<double>)> RunConnectionAsync(

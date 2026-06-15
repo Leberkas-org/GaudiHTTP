@@ -14,13 +14,14 @@ internal static class LoadTestServerHost
 
     public static async Task RunAsync(string kind)
     {
-        // Arm before the host starts so we capture allocations from the very first request.
         ActiveProfiler = new AllocationProfiler();
         ActiveProfiler.Arm();
 
         await using var server = await StartAsync(kind);
 
-        Console.Out.WriteLine($"PORT={server.Http11Port}");
+        Console.Out.WriteLine(string.Concat("PORT=", server.Http11Port.ToString(),
+            ";H2=", server.Http20Port.ToString(),
+            ";H3=", server.Http30Port.ToString()));
         Console.Out.Flush();
 
         var done = new TaskCompletionSource();
@@ -58,11 +59,15 @@ internal static class LoadTestServerHost
     private interface IBenchmarkServerHost : IAsyncDisposable
     {
         int Http11Port { get; }
+        int Http20Port { get; }
+        int Http30Port { get; }
     }
 
     private sealed class TurboHost(TurboBenchmarkServer server) : IBenchmarkServerHost
     {
         public int Http11Port => server.Http11Port;
+        public int Http20Port => server.Http20Port;
+        public int Http30Port => server.Http30Port;
 
         public ValueTask DisposeAsync() => server.DisposeAsync();
     }
@@ -70,6 +75,8 @@ internal static class LoadTestServerHost
     private sealed class KestrelHost(BenchmarkServer server) : IBenchmarkServerHost
     {
         public int Http11Port => server.Http11Port;
+        public int Http20Port => server.Http20Port;
+        public int Http30Port => server.Http30Port;
 
         public ValueTask DisposeAsync() => server.DisposeAsync();
     }
