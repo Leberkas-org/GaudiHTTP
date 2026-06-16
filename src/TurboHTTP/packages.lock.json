@@ -51,9 +51,9 @@
       },
       "Servus": {
         "type": "Direct",
-        "requested": "[0.34.0, )",
-        "resolved": "0.34.0",
-        "contentHash": "SMClC9l0Ze+3ZZoy+zdQKwIG/qqkvSXYuFhvibLqc0cjfTTUw+EKKh4ZLgGesqHnfYnmV8L2MXyzTNPk5WopKA==",
+        "requested": "[0.34.1, )",
+        "resolved": "0.34.1",
+        "contentHash": "7/gqY/qnss+Cn9FMq/WTH7mwfIUMmzjjxfji7lfHOeKrthG4A0+FSSdLwjut7ddbgTYN96XQtFxDcw2St234mA==",
         "dependencies": {
           "Microsoft.Extensions.DependencyInjection.Abstractions": "9.0.0",
           "Microsoft.Extensions.Hosting.Abstractions": "9.0.0"

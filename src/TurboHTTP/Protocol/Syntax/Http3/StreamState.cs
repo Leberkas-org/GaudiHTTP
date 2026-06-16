@@ -27,7 +27,7 @@ internal sealed class StreamState
 
     public bool HasResponse => _response is not null;
 
-    public bool HasContentHeaders => _contentHeaders is not null;
+    public bool HasContentHeaders => _contentHeaders is { Count: > 0 };
 
     public bool HasBodyReader => _bodyReader is not null;
 
@@ -260,7 +260,7 @@ internal sealed class StreamState
         _response = null;
         _requestFeature = null;
         ExpectedContentLength = null;
-        _contentHeaders = null;
+        _contentHeaders?.Clear();
         _pseudoMethod = null;
         _pseudoPath = null;
         _pseudoScheme = null;
