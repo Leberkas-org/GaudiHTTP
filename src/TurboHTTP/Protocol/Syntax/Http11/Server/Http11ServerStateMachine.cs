@@ -298,9 +298,31 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         var suppressBody = isHeadRequest || statusCode is >= 100 and < 200 or 204 or 304;
 
         var contentLength = ExtractContentLength(responseFeature);
-        var hasExplicitChunked = responseFeature?.Headers.Any(h =>
-            h.Key.Equals(WellKnownHeaders.TransferEncoding, StringComparison.OrdinalIgnoreCase)
-            && h.Value.Any(v => v!.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))) ?? false;
+        var hasExplicitChunked = false;
+        if (responseFeature?.Headers is { } responseHeaders)
+        {
+            foreach (var h in responseHeaders)
+            {
+                if (!h.Key.Equals(WellKnownHeaders.TransferEncoding, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                foreach (var v in h.Value)
+                {
+                    if (v != null && v.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasExplicitChunked = true;
+                        break;
+                    }
+                }
+
+                if (hasExplicitChunked)
+                {
+                    break;
+                }
+            }
+        }
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
         var estimatedSize = EstimateResponseHeaderSize(responseFeature);

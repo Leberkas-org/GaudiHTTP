@@ -41,6 +41,7 @@ internal sealed class Http2ServerSessionManager
     private readonly int _initialStreamWindowSize;
 
     private readonly Dictionary<int, StreamState> _streams = new();
+    private readonly List<int> _scratchKeys = new();
 
     private readonly record struct StreamBodyReadComplete(int StreamId, int BytesRead);
 
@@ -785,7 +786,9 @@ internal sealed class Http2ServerSessionManager
 
         if (result.InitialWindowSizeChange.HasValue)
         {
-            foreach (var streamId in _streams.Keys.ToList())
+            _scratchKeys.Clear();
+            _scratchKeys.AddRange(_streams.Keys);
+            foreach (var streamId in _scratchKeys)
             {
                 DrainOutboundBuffer(streamId);
             }
@@ -798,7 +801,9 @@ internal sealed class Http2ServerSessionManager
 
         if (windowUpdate.StreamId == 0)
         {
-            foreach (var streamId in _streams.Keys.ToList())
+            _scratchKeys.Clear();
+            _scratchKeys.AddRange(_streams.Keys);
+            foreach (var streamId in _scratchKeys)
             {
                 DrainOutboundBuffer(streamId);
             }

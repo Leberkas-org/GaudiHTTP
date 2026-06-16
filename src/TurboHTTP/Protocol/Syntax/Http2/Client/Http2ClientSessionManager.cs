@@ -35,6 +35,7 @@ internal sealed class Http2ClientSessionManager
     private readonly Dictionary<int, Stream> _activeBodyStreams = new();
     private readonly Dictionary<int, IMemoryOwner<byte>> _activeBodyBuffers = new();
     private readonly Dictionary<int, CancellationTokenSource> _activeBodyReadCts = new();
+    private readonly List<int> _scratchKeys = new();
     // Streams whose reusable drain buffer currently has a ReadAsync in flight. The buffer
     // must not be returned to the pool until that read completes, or a concurrent stream
     // could re-rent and overwrite it mid-read.
@@ -952,7 +953,9 @@ internal sealed class Http2ClientSessionManager
 
         if (frame.StreamId == 0)
         {
-            foreach (var streamId in _streams.Keys.ToList())
+            _scratchKeys.Clear();
+            _scratchKeys.AddRange(_streams.Keys);
+            foreach (var streamId in _scratchKeys)
             {
                 DrainOutboundBuffer(streamId);
             }

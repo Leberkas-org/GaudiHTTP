@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Text;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Hpack;
@@ -38,6 +37,11 @@ internal sealed class HpackDecoder
     // Safe to reuse: HTTP/2 processes one header block at a time per connection; Akka back-pressure
     // guarantees the list is consumed before the next Decode() call.
     private readonly List<HpackHeader> _headers = [];
+
+    // Per-decoder scratch buffer for Huffman decoding. Grown on demand (grow-and-replace).
+    // Actor-thread-confined: no synchronization needed.
+    // Initial size covers the vast majority of header values without reallocation.
+    private byte[] _huffmanScratch = new byte[256];
 
     /// <summary>
     /// Sets the maximum table size allowed by the peer via SETTINGS_HEADER_TABLE_SIZE.
@@ -378,10 +382,13 @@ internal sealed class HpackDecoder
         if (huffman)
         {
             var maxDecoded = HuffmanCodec.GetMaxDecodedLength(strBytes.Length);
-            using var owner = MemoryPool<byte>.Shared.Rent(maxDecoded);
-            var decodedLen = HuffmanCodec.Decode(strBytes, owner.Memory.Span[..maxDecoded]);
-            var decoded = owner.Memory.Span[..decodedLen];
-            return (ResolveString(decoded), decodedLen);
+            if (maxDecoded > _huffmanScratch.Length)
+            {
+                _huffmanScratch = new byte[maxDecoded];
+            }
+
+            var decodedLen = HuffmanCodec.Decode(strBytes, _huffmanScratch.AsSpan(0, maxDecoded));
+            return (ResolveString(_huffmanScratch.AsSpan(0, decodedLen)), decodedLen);
         }
 
         return (ResolveString(strBytes), length);
