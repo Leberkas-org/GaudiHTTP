@@ -21,6 +21,9 @@ public class KestrelTurboColdStartBenchmarks : KestrelBaseClass
 {
     private readonly List<ClientHelper> _created = new();
 
+    [GlobalSetup]
+    public override Task GlobalSetup() => base.GlobalSetup();
+
     [GlobalCleanup]
     public override async Task GlobalCleanup()
     {

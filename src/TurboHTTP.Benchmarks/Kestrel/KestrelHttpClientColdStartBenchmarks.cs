@@ -18,6 +18,9 @@ public class KestrelHttpClientColdStartBenchmarks : KestrelBaseClass
 {
     private readonly List<HttpClient> _created = new();
 
+    [GlobalSetup]
+    public override Task GlobalSetup() => base.GlobalSetup();
+
     [GlobalCleanup]
     public override Task GlobalCleanup()
     {
