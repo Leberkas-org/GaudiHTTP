@@ -136,4 +136,31 @@ internal static class MessageVersionCodec
 
         throw new ArgumentOutOfRangeException(nameof(version), version, "Unsupported HTTP version.");
     }
+
+    public static ReadOnlySpan<byte> ToWireBytes(Version version)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+
+        if (version.Equals(HttpVersion.Version10))
+        {
+            return "HTTP/1.0"u8;
+        }
+
+        if (version.Equals(HttpVersion.Version11))
+        {
+            return "HTTP/1.1"u8;
+        }
+
+        if (version.Equals(HttpVersion.Version20))
+        {
+            return "HTTP/2"u8;
+        }
+
+        if (version.Equals(HttpVersion.Version30))
+        {
+            return "HTTP/3"u8;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(version), version, "Unsupported HTTP version.");
+    }
 }

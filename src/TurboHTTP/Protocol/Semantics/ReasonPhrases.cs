@@ -41,7 +41,47 @@ internal static class ReasonPhrases
         [505] = "HTTP Version Not Supported"
     };
 
+    private static readonly Dictionary<int, byte[]> BytesTable = new()
+    {
+        [100] = "Continue"u8.ToArray(),
+        [101] = "Switching Protocols"u8.ToArray(),
+        [200] = "OK"u8.ToArray(),
+        [201] = "Created"u8.ToArray(),
+        [202] = "Accepted"u8.ToArray(),
+        [204] = "No Content"u8.ToArray(),
+        [206] = "Partial Content"u8.ToArray(),
+        [301] = "Moved Permanently"u8.ToArray(),
+        [302] = "Found"u8.ToArray(),
+        [303] = "See Other"u8.ToArray(),
+        [304] = "Not Modified"u8.ToArray(),
+        [307] = "Temporary Redirect"u8.ToArray(),
+        [308] = "Permanent Redirect"u8.ToArray(),
+        [400] = "Bad Request"u8.ToArray(),
+        [401] = "Unauthorized"u8.ToArray(),
+        [403] = "Forbidden"u8.ToArray(),
+        [404] = "Not Found"u8.ToArray(),
+        [405] = "Method Not Allowed"u8.ToArray(),
+        [408] = "Request Timeout"u8.ToArray(),
+        [409] = "Conflict"u8.ToArray(),
+        [411] = "Length Required"u8.ToArray(),
+        [413] = "Content Too Large"u8.ToArray(),
+        [414] = "URI Too Long"u8.ToArray(),
+        [415] = "Unsupported Media Type"u8.ToArray(),
+        [416] = "Range Not Satisfiable"u8.ToArray(),
+        [417] = "Expectation Failed"u8.ToArray(),
+        [426] = "Upgrade Required"u8.ToArray(),
+        [500] = "Internal Server Error"u8.ToArray(),
+        [501] = "Not Implemented"u8.ToArray(),
+        [502] = "Bad Gateway"u8.ToArray(),
+        [503] = "Service Unavailable"u8.ToArray(),
+        [504] = "Gateway Timeout"u8.ToArray(),
+        [505] = "HTTP Version Not Supported"u8.ToArray()
+    };
+
     public static string For(int code) => Table.GetValueOrDefault(code, "");
+
+    public static ReadOnlySpan<byte> ForBytes(int code)
+        => BytesTable.TryGetValue(code, out var bytes) ? bytes : [];
 
     /// <summary>
     /// Returns the canonical cached phrase for <paramref name="code"/> when the on-wire phrase

@@ -286,8 +286,9 @@ internal sealed class StreamState
         _outboundBuffer = null;
         PendingOutboundBytes = 0;
         IsRemoteClosed = false;
-        BodyConsumptionTimerKey = "";
-        HeadersTimeoutTimerKey = "";
+        // Timer keys intentionally NOT cleared — they are stream-ID-derived strings that survive
+        // pool reuse. SetTimerKeys() overwrites them for the next stream ID, avoiding a redundant
+        // allocation + re-allocation cycle on every pool return/checkout.
     }
 
     public void AppendHeader(ReadOnlySpan<byte> data)

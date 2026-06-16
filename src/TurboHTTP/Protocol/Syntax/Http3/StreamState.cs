@@ -278,9 +278,9 @@ internal sealed class StreamState
         DisposeOutboundBuffer();
         _outboundBuffer = null;
         PendingOutboundBytes = 0;
-        BodyConsumptionTimerKey = "";
-        HeadersTimeoutTimerKey = "";
-        DrainBodyTimerKey = "";
+        // Timer keys intentionally NOT cleared — they are stream-ID-derived strings that survive
+        // pool reuse. Initialize() overwrites them for the next stream ID, avoiding a redundant
+        // allocation + re-allocation cycle on every pool return/checkout.
     }
 
     private void DisposeOutboundBuffer()

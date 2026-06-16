@@ -6,14 +6,20 @@ internal static class StatusLineWriter
 {
     public static void Write(ref SpanWriter writer, Version version, int statusCode, string? reason = null)
     {
-        var versionStr = MessageVersionCodec.ToWireFormat(version);
-        reason ??= ReasonPhrases.For(statusCode);
-
-        writer.WriteAscii(versionStr);
+        writer.WriteBytes(MessageVersionCodec.ToWireBytes(version));
         writer.WriteSpace();
         writer.WriteStatusCode(statusCode);
         writer.WriteSpace();
-        writer.WriteAscii(reason);
+
+        if (reason is null)
+        {
+            writer.WriteBytes(ReasonPhrases.ForBytes(statusCode));
+        }
+        else
+        {
+            writer.WriteAscii(reason);
+        }
+
         writer.WriteCrlf();
     }
 }

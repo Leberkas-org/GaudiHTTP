@@ -8,6 +8,13 @@ internal static class HeaderBlockWriter
     {
         foreach (var entry in headers)
         {
+            if (string.Equals(entry.Name, WellKnownHeaders.Date, StringComparison.OrdinalIgnoreCase))
+            {
+                // Write the pre-encoded "date: <value>\r\n" bytes directly — no ASCII encoding per response.
+                writer.WriteBytes(DateHeaderCache.GetDateHeaderLine());
+                continue;
+            }
+
             writer.WriteAscii(entry.Name);
             writer.WriteColonSpace();
             writer.WriteAscii(SanitizeHeaderValue(entry.Value));
