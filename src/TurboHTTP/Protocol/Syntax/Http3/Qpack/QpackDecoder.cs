@@ -33,6 +33,10 @@ internal sealed class QpackDecoder
     // guarantees the list is consumed before the next Decode/TryDecode call.
     private readonly List<(string Name, string Value)> _headers = [];
 
+    // Per-decoder scratch buffer for Huffman decoding. Grown on demand (grow-and-replace).
+    // Actor-thread-confined: no synchronization needed.
+    private byte[] _huffmanScratch = new byte[4 * 1024];
+
     /// <summary>
     /// Creates a new QPACK decoder.
     /// </summary>
@@ -472,7 +476,7 @@ internal sealed class QpackDecoder
             name = entry.Value.Name;
         }
 
-        var value = QpackStringCodec.DecodeToString(data, ref pos, 7);
+        var value = QpackStringCodec.DecodeToString(data, ref pos, 7, ref _huffmanScratch);
 
         return (name, value);
     }
@@ -506,7 +510,7 @@ internal sealed class QpackDecoder
         }
 
         var name = entry.Value.Name;
-        var value = QpackStringCodec.DecodeToString(data, ref pos, 7);
+        var value = QpackStringCodec.DecodeToString(data, ref pos, 7, ref _huffmanScratch);
 
         return (name, value);
     }
@@ -525,12 +529,12 @@ internal sealed class QpackDecoder
     /// |  Value String (Length bytes)   |
     /// +-------------------------------+
     /// </summary>
-    private static (string Name, string Value) DecodeLiteralWithoutNameReference(ReadOnlySpan<byte> data, ref int pos)
+    private (string Name, string Value) DecodeLiteralWithoutNameReference(ReadOnlySpan<byte> data, ref int pos)
     {
         // N bit at 0x10 — read but not needed for decoding
         // H bit and name length are decoded by QpackStringCodec (3-bit prefix)
-        var name = QpackStringCodec.DecodeToString(data, ref pos, 3);
-        var value = QpackStringCodec.DecodeToString(data, ref pos, 7);
+        var name = QpackStringCodec.DecodeToString(data, ref pos, 3, ref _huffmanScratch);
+        var value = QpackStringCodec.DecodeToString(data, ref pos, 7, ref _huffmanScratch);
 
         return (name, value);
     }

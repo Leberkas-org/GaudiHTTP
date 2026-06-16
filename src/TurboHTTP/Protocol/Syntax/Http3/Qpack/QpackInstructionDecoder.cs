@@ -25,6 +25,10 @@ internal sealed class QpackInstructionDecoder : IDisposable
     private IMemoryOwner<byte>? _remainderOwner;
     private int _remainderLength;
 
+    // Per-decoder scratch buffer for Huffman decoding. Grown on demand (grow-and-replace).
+    // Actor-thread-confined: no synchronization needed.
+    private byte[] _huffmanScratch = new byte[4 * 1024];
+
     /// <summary>True if there is unconsumed data from a previous call.</summary>
     public bool HasRemainder => _remainderLength > 0;
 
@@ -95,7 +99,7 @@ internal sealed class QpackInstructionDecoder : IDisposable
                 // §4.3.2 — Insert With Name Reference: 1Txxxxxx
                 var isStatic = (firstByte & 0x40) != 0;
                 var nameIndex = QpackIntegerCodec.Decode(span, ref pos, 6);
-                var value = QpackStringCodec.DecodeToString(span, ref pos, 7);
+                var value = QpackStringCodec.DecodeToString(span, ref pos, 7, ref _huffmanScratch);
 
                 instruction = new EncoderInstruction
                 {
@@ -108,8 +112,8 @@ internal sealed class QpackInstructionDecoder : IDisposable
             else if ((firstByte & 0x40) != 0)
             {
                 // §4.3.3 — Insert With Literal Name: 01Hxxxxx
-                var name = QpackStringCodec.DecodeToString(span, ref pos, 5);
-                var value = QpackStringCodec.DecodeToString(span, ref pos, 7);
+                var name = QpackStringCodec.DecodeToString(span, ref pos, 5, ref _huffmanScratch);
+                var value = QpackStringCodec.DecodeToString(span, ref pos, 7, ref _huffmanScratch);
 
                 instruction = new EncoderInstruction
                 {

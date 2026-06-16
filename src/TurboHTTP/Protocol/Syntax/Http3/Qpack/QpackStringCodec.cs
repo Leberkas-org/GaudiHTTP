@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Text;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
@@ -82,15 +81,21 @@ internal static class QpackStringCodec
         if (isHuffman)
         {
             var maxDecoded = HuffmanCodec.GetMaxDecodedLength(raw.Length);
-            using var owner = MemoryPool<byte>.Shared.Rent(maxDecoded);
-            var decodedLen = HuffmanCodec.Decode(raw, owner.Memory.Span[..maxDecoded]);
-            return owner.Memory.Span[..decodedLen].ToArray();
+            var scratch = new byte[maxDecoded];
+            var decodedLen = HuffmanCodec.Decode(raw, scratch.AsSpan(0, maxDecoded));
+            return scratch[..decodedLen];
         }
 
         return raw.ToArray();
     }
 
     public static string DecodeToString(ReadOnlySpan<byte> data, ref int pos, int prefixBits)
+    {
+        byte[] scratch = [];
+        return DecodeToString(data, ref pos, prefixBits, ref scratch);
+    }
+
+    public static string DecodeToString(ReadOnlySpan<byte> data, ref int pos, int prefixBits, ref byte[] scratch)
     {
         if (pos >= data.Length)
         {
@@ -119,10 +124,13 @@ internal static class QpackStringCodec
         if (isHuffman)
         {
             var maxDecoded = HuffmanCodec.GetMaxDecodedLength(raw.Length);
-            using var owner = MemoryPool<byte>.Shared.Rent(maxDecoded);
-            var decoded = owner.Memory.Span[..maxDecoded];
-            var decodedLen = HuffmanCodec.Decode(raw, decoded);
-            var result = decoded[..decodedLen];
+            if (maxDecoded > scratch.Length)
+            {
+                scratch = new byte[maxDecoded];
+            }
+
+            var decodedLen = HuffmanCodec.Decode(raw, scratch.AsSpan(0, maxDecoded));
+            var result = scratch.AsSpan(0, decodedLen);
             return WellKnownHeaders.TryResolve(result, out var cached)
                 ? cached
                 : Encoding.UTF8.GetString(result);
