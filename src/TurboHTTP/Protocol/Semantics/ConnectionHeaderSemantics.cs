@@ -57,6 +57,30 @@ internal static class ConnectionHeaderSemantics
     }
 
     /// <summary>
+    /// Checks if the given token is present in a comma-separated header field value
+    /// (case-insensitive). Used for Upgrade header scanning without allocating a list.
+    /// </summary>
+    public static bool HasToken(string? headerValue, string token)
+    {
+        if (string.IsNullOrWhiteSpace(headerValue))
+        {
+            return false;
+        }
+
+        var parts = headerValue.Split(',');
+        foreach (var part in parts)
+        {
+            var trimmed = part.Trim();
+            if (string.Equals(trimmed, token, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Checks if the "upgrade" option is present in the Connection header field.
     /// </summary>
     public static bool HasUpgradeOption(string? headerValue)

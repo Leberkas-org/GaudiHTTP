@@ -594,8 +594,10 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         foreach (var header in responseFeature.Headers)
         {
-            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase) &&
-                header.Value.FirstOrDefault() is { } value && ContentLengthSemantics.TryParse(value, out var length))
+            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase)
+                && header.Value.Count > 0
+                && header.Value[0] is { } value
+                && ContentLengthSemantics.TryParse(value, out var length))
             {
                 return length;
             }
@@ -620,8 +622,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         var hasUpgrade = requestHeaders.TryGetValue(WellKnownHeaders.Upgrade, out var upgradeValue)
                          && !string.IsNullOrEmpty(upgradeValue)
-                         && ConnectionHeaderSemantics.Parse(upgradeValue.ToString())
-                             .Contains("h2c", StringComparer.OrdinalIgnoreCase);
+                         && ConnectionHeaderSemantics.HasToken(upgradeValue.ToString(), "h2c");
 
         if (!hasUpgrade)
         {
