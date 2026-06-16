@@ -42,15 +42,13 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private TurboHttpConnectionFeature? _connectionFeature;
     private TlsHandshakeFeature? _tlsHandshakeFeature;
     private readonly bool _metricsEnabled;
-    private readonly int _maxCoalesce;
     private Activity? _connectionActivity;
     private long _connectionTimestamp;
 
     public HttpConnectionServerStageLogic(
         GraphStage<ServerConnectionShape> stage,
         Func<IServerStageOperations, TSM> smFactory,
-        IServiceProvider? services = null,
-        int maxCoalesce = 8) : base(stage.Shape)
+        IServiceProvider? services = null) : base(stage.Shape)
     {
         var shape = stage.Shape;
         _inNetwork = shape.InNetwork;
@@ -60,7 +58,6 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         _services = services;
 
         _sm = smFactory(this);
-        _maxCoalesce = maxCoalesce;
         _metricsEnabled = Metrics.ServerActiveRequests().Enabled
             || Metrics.ServerRequestDuration().Enabled
             || Tracing.IsServerTracingActive();
@@ -498,16 +495,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     private void PushOutbound()
     {
-        if (_outboundQueue.Count == 1 || !TryCoalesceOutbound(out var flushedCount))
-        {
-            Push(_outNetwork, _outboundQueue.Dequeue());
-            flushedCount = 1;
-        }
-
-        for (var i = 0; i < flushedCount; i++)
-        {
-            _sm.OnOutboundFlushed();
-        }
+        Push(_outNetwork, _outboundQueue.Dequeue());
+        _sm.OnOutboundFlushed();
 
         if (_completeAfterFlush && _outboundQueue.Count == 0)
         {
@@ -528,53 +517,6 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         // Push now if the network outlet has demand; otherwise the next OnNetworkPull drains the
         // queue and PushOutbound completes the stage once the GOAWAY has been emitted.
         TryPushOutbound();
-    }
-
-    private bool TryCoalesceOutbound(out int coalescedCount)
-    {
-        coalescedCount = 0;
-        var totalSize = 0;
-        var maxBytes = _maxCoalesce * 16 * 1024;
-
-        foreach (var item in _outboundQueue)
-        {
-            if (item is not TransportData { Buffer: var buf })
-            {
-                break;
-            }
-
-            totalSize += buf.Length;
-            coalescedCount++;
-            if (totalSize >= maxBytes)
-            {
-                break;
-            }
-        }
-
-        if (coalescedCount < 2)
-        {
-            return false;
-        }
-
-        var merged = TransportBuffer.Rent(totalSize);
-        var dest = merged.FullMemory.Span;
-        var offset = 0;
-
-        for (var i = 0; i < coalescedCount; i++)
-        {
-            var item = _outboundQueue.Dequeue();
-            if (item is TransportData td)
-            {
-                td.Buffer.Span.CopyTo(dest[offset..]);
-                offset += td.Buffer.Length;
-                td.Buffer.Dispose();
-                td.Return();
-            }
-        }
-
-        merged.Length = offset;
-        Push(_outNetwork, TransportData.Rent(merged));
-        return true;
     }
 
     private void TryPullResponse()

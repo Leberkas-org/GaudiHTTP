@@ -30,7 +30,7 @@ public sealed class TurboServerOptions
     /// <summary>Gets or sets the size of each chunk written to the response body stream. Default is 16 KiB.</summary>
     public int ResponseBodyChunkSize { get; set; } = 16 * 1024;
 
-    ///<summary>Gets or sets the coalesce factor for outbound writes. Frames are merged up to factor × 16 KiB bytes per transport write. Higher values improve throughput under concurrent load. Default is 32.</summary>
+    /// <summary>Obsolete. The transport now uses vectored I/O (writev) and handles scattered segments natively; this property is ignored. Retained for API compatibility. Default is 32.</summary>
     public int MaxOutboundCoalesceCount { get; set; } = 32;
 
     /// <summary>Gets or sets whether response headers may use Huffman compression (HPACK/QPACK). Disabling mitigates CRIME/BREACH-style side-channel attacks. Default is true.</summary>
