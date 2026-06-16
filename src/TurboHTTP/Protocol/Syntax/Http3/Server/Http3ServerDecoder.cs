@@ -73,17 +73,17 @@ internal sealed class Http3ServerDecoder
             }
             else if (name == WellKnownHeaders.Path)
             {
-                state.AddPseudoHeader(WellKnownHeaders.Path, value);
+                state.PseudoPath = value;
                 feature.Path = value;
             }
             else if (name == WellKnownHeaders.Scheme)
             {
-                state.AddPseudoHeader(WellKnownHeaders.Scheme, value);
+                state.PseudoScheme = value;
                 feature.Scheme = value;
             }
             else if (name == WellKnownHeaders.Authority)
             {
-                state.AddPseudoHeader(WellKnownHeaders.Authority, value);
+                state.PseudoAuthority = value;
                 feature.ExtractedHost = value;
             }
             else if (!name.StartsWith(':'))
@@ -99,9 +99,7 @@ internal sealed class Http3ServerDecoder
 
         if (!isConnect)
         {
-            var path = state.GetPseudoHeader(WellKnownHeaders.Path);
-            _ = state.GetPseudoHeader(WellKnownHeaders.Scheme);
-            _ = state.GetPseudoHeader(WellKnownHeaders.Authority);
+            var path = state.PseudoPath ?? throw new InvalidOperationException("Pseudo-header ':path' not found.");
 
             feature.RawTarget = path;
             feature.QueryString = ParseQueryString(path);

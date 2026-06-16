@@ -18,7 +18,10 @@ internal sealed class StreamState
     private TurboHttpRequestFeature? _requestFeature;
     private IFeatureCollection? _features;
     private List<(string Name, string Value)>? _contentHeaders;
-    private Dictionary<string, string>? _pseudoHeaders;
+    private string? _pseudoMethod;
+    private string? _pseudoPath;
+    private string? _pseudoScheme;
+    private string? _pseudoAuthority;
     private IBodyReader? _bodyReader;
     private long _maxBodySize;
     private long _totalBodyBytes;
@@ -96,11 +99,10 @@ internal sealed class StreamState
 
     public IFeatureCollection? GetFeatures() => _features;
 
-    public void AddPseudoHeader(string name, string value)
-    {
-        _pseudoHeaders ??= [];
-        _pseudoHeaders[name] = value;
-    }
+    public string? PseudoMethod { get => _pseudoMethod; set => _pseudoMethod = value; }
+    public string? PseudoPath { get => _pseudoPath; set => _pseudoPath = value; }
+    public string? PseudoScheme { get => _pseudoScheme; set => _pseudoScheme = value; }
+    public string? PseudoAuthority { get => _pseudoAuthority; set => _pseudoAuthority = value; }
 
     public void AddContentHeader(string name, string value)
     {
@@ -270,7 +272,10 @@ internal sealed class StreamState
         _requestFeature = null;
         _features = null;
         _contentHeaders = null;
-        _pseudoHeaders = null;
+        _pseudoMethod = null;
+        _pseudoPath = null;
+        _pseudoScheme = null;
+        _pseudoAuthority = null;
         _bodyReader?.Dispose();
         _bodyReader = null;
         HasBodyDrain = false;

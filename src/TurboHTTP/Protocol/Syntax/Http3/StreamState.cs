@@ -13,7 +13,10 @@ internal sealed class StreamState
     private HttpResponseMessage? _response;
     private TurboHttpRequestFeature? _requestFeature;
     private List<(string Name, string Value)>? _contentHeaders;
-    private Dictionary<string, string>? _pseudoHeaders;
+    private string? _pseudoMethod;
+    private string? _pseudoPath;
+    private string? _pseudoScheme;
+    private string? _pseudoAuthority;
     private IBodyReader? _bodyReader;
     private long _maxBodySize;
     private long _totalBodyBytes;
@@ -84,21 +87,10 @@ internal sealed class StreamState
         return _requestFeature;
     }
 
-    public void AddPseudoHeader(string name, string value)
-    {
-        _pseudoHeaders ??= [];
-        _pseudoHeaders[name] = value;
-    }
-
-    public string GetPseudoHeader(string name)
-    {
-        if (_pseudoHeaders?.TryGetValue(name, out var value) == true)
-        {
-            return value;
-        }
-
-        throw new InvalidOperationException($"Pseudo-header '{name}' not found.");
-    }
+    public string? PseudoMethod { get => _pseudoMethod; set => _pseudoMethod = value; }
+    public string? PseudoPath { get => _pseudoPath; set => _pseudoPath = value; }
+    public string? PseudoScheme { get => _pseudoScheme; set => _pseudoScheme = value; }
+    public string? PseudoAuthority { get => _pseudoAuthority; set => _pseudoAuthority = value; }
 
     public void AddContentHeader(string name, string value)
     {
@@ -269,7 +261,10 @@ internal sealed class StreamState
         _requestFeature = null;
         ExpectedContentLength = null;
         _contentHeaders = null;
-        _pseudoHeaders = null;
+        _pseudoMethod = null;
+        _pseudoPath = null;
+        _pseudoScheme = null;
+        _pseudoAuthority = null;
         _bodyReader?.Dispose();
         _bodyReader = null;
         _maxBodySize = 0;

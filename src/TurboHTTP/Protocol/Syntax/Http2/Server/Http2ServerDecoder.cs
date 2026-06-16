@@ -84,16 +84,16 @@ internal sealed class Http2ServerDecoder
             else if (h.Name == WellKnownHeaders.Path)
             {
                 path = h.Value;
-                state.AddPseudoHeader(WellKnownHeaders.Path, h.Value);
+                state.PseudoPath = h.Value;
             }
             else if (h.Name == WellKnownHeaders.Scheme)
             {
                 scheme = h.Value;
-                state.AddPseudoHeader(WellKnownHeaders.Scheme, h.Value);
+                state.PseudoScheme = h.Value;
             }
             else if (h.Name == WellKnownHeaders.Authority)
             {
-                state.AddPseudoHeader(WellKnownHeaders.Authority, h.Value);
+                state.PseudoAuthority = h.Value;
             }
             else if (!h.Name.StartsWith(WellKnownHeaders.Colon))
             {
