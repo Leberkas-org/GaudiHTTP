@@ -147,8 +147,6 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                     }
                     else
                     {
-
-                        // Outlet is busy — park this sink in the ready queue
                         _readyQueue.Enqueue(subSink);
                     }
                 },

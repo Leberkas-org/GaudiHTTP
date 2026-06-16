@@ -142,41 +142,17 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
     public void OnRequestCancelled(HttpRequestMessage request)
     {
-        var found = false;
-        var temp = new Queue<HttpRequestMessage>();
-        while (_inFlightQueue.Count > 0)
-        {
-            var queued = _inFlightQueue.Dequeue();
-            if (ReferenceEquals(queued, request))
-            {
-                found = true;
-                request.Fail(new OperationCanceledException("Request cancelled by caller."));
-            }
-            else
-            {
-                temp.Enqueue(queued);
-            }
-        }
-
-        while (temp.Count > 0)
-        {
-            _inFlightQueue.Enqueue(temp.Dequeue());
-        }
-
-        if (!found)
-        {
-            return;
-        }
-
-        if (_inFlightQueue.Count == 0)
-        {
-            _ops.OnOutbound(new DisconnectTransport(DisconnectReason.Graceful));
-            return;
-        }
-
-        _draining = true;
-        Tracing.For("Protocol").Debug(this, "HTTP/1.1: cancelled request, draining {0} remaining",
-            _inFlightQueue.Count);
+        // Do NOT remove the request from _inFlightQueue. The server will still
+        // send a response for it, and removing it desyncs the queue from the
+        // wire-order responses, corrupting subsequent request–response pairings.
+        //
+        // The PendingRequest TCS was already cancelled by the CTS registration
+        // in SendAsync, so CompleteResponse's TrySetResult is harmless.
+        //
+        // Do NOT send DisconnectTransport: the engine only emits ConnectTransport
+        // once (when Endpoint is first set), so a graceful disconnect leaves the
+        // transport disconnected with no way to re-establish the connection.
+        request.Fail(new OperationCanceledException("Request cancelled by caller."));
     }
 
     public void DecodeServerData(ITransportInbound data)
