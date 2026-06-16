@@ -61,6 +61,22 @@ public sealed class RequestLineParserSpec
         Assert.False(RequestLineParser.TryParse(Encoding.ASCII.GetBytes(raw), int.MaxValue, out _, out _, out _, out _));
     }
 
+    [Theory(Timeout = 5000)]
+    [InlineData("GET /plaintext HTTP/1.1\r\n", "/plaintext")]
+    [InlineData("GET /json HTTP/1.1\r\n", "/json")]
+    [InlineData("GET / HTTP/1.1\r\n", "/")]
+    [InlineData("OPTIONS * HTTP/1.1\r\n", "*")]
+    public void TryParse_should_return_interned_string_for_common_targets(string raw, string expectedTarget)
+    {
+        var bytes = Encoding.ASCII.GetBytes(raw);
+
+        Assert.True(RequestLineParser.TryParse(bytes, int.MaxValue, out _, out var first, out _, out _));
+        Assert.True(RequestLineParser.TryParse(bytes, int.MaxValue, out _, out var second, out _, out _));
+
+        Assert.Equal(expectedTarget, first);
+        Assert.Same(first, second);
+    }
+
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-3")]
     public void TryParse_should_throw_when_method_invalid()
