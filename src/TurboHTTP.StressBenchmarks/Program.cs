@@ -1,6 +1,35 @@
+using TurboHTTP.Benchmarks.LoadTest;
 using TurboHTTP.StressBenchmarks;
 using TurboHTTP.StressBenchmarks.Reporting;
 using TurboHTTP.StressBenchmarks.Scenarios;
+
+// Open-loop sustained-RPS mode: `dotnet run -c Release -- loadtest [--connections N --pipeline N ...]`.
+if (args.Length > 0 && args[0].Equals("loadtest", StringComparison.OrdinalIgnoreCase))
+{
+    var loadOptions = LoadTestOptions.Parse(args);
+
+    // Child server mode: host one server in this process, print its H1.1 port, run until killed.
+    if (loadOptions.Serve is { } serveKind)
+    {
+        await LoadTestServerHost.RunAsync(serveKind);
+        return;
+    }
+
+    if (loadOptions.Protocol.StartsWith("mem-", StringComparison.Ordinal))
+    {
+        InMemoryBenchmark.Run(loadOptions);
+    }
+    else if (loadOptions.Protocol.StartsWith("client-", StringComparison.Ordinal))
+    {
+        await ClientBenchmark.RunAsync(loadOptions);
+    }
+    else
+    {
+        await OpenLoopLoadTest.RunAsync(loadOptions);
+    }
+
+    return;
+}
 
 var scenarios = new Dictionary<string, IStressScenario>(StringComparer.OrdinalIgnoreCase)
 {

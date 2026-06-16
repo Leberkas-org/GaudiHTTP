@@ -89,17 +89,17 @@ public sealed class Http11ServerConnectionStagePipeliningSpec : StreamTestBase
         netIn.SendNext(Connected(), TestContext.Current.CancellationToken);
         netIn.SendNext(PipelinedRequests("/p/1", "/p/2", "/p/3"), TestContext.Current.CancellationToken);
 
-        var first = probe.ExpectMsg<string>();
+        var first = probe.ExpectMsg<string>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("/p/1", first);
-        probe.ExpectNoMsg(TimeSpan.FromMilliseconds(500));
+        probe.ExpectNoMsg(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
         gates[first].SetResult();
 
-        var second = probe.ExpectMsg<string>();
+        var second = probe.ExpectMsg<string>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("/p/2", second);
-        probe.ExpectNoMsg(TimeSpan.FromMilliseconds(500));
+        probe.ExpectNoMsg(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
         gates[second].SetResult();
 
-        var third = probe.ExpectMsg<string>();
+        var third = probe.ExpectMsg<string>(cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("/p/3", third);
         gates[third].SetResult();
     }

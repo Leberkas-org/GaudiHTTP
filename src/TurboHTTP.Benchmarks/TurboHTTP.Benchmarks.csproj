@@ -11,7 +11,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet"/>
+        <PackageReference Include="BenchmarkDotNet" />
+        <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
     </ItemGroup>
 
     <ItemGroup>
@@ -19,8 +20,12 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj"/>
-        <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka\Servus.Akka.csproj"/>
+        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj" />
+        <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka\Servus.Akka.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="TurboHTTP.StressBenchmarks" />
     </ItemGroup>
 
 </Project>

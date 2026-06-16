@@ -64,7 +64,7 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
         var tcs2 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var tcs3 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var handlerQueue = new Queue<Task>(new[] { tcs1.Task, tcs2.Task, tcs3.Task });
+        var handlerQueue = new Queue<Task>([tcs1.Task, tcs2.Task, tcs3.Task]);
         var app = new FakeApplication(_ => handlerQueue.Dequeue());
         var stage = CreateStage(app);
 
@@ -112,7 +112,7 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
         upstream.SendNext(Request(), TestContext.Current.CancellationToken);
 
         downstream.ExpectNext(TestContext.Current.CancellationToken);
-        downstream.ExpectNoMsg(TimeSpan.FromMilliseconds(600));
+        downstream.ExpectNoMsg(TimeSpan.FromMilliseconds(600), TestContext.Current.CancellationToken);
 
         release.SetResult();
     }

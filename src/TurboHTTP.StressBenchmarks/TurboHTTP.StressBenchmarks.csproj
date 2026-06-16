@@ -2,7 +2,12 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <EnablePreviewFeatures>true</EnablePreviewFeatures>
+        <Optimize>true</Optimize>
         <IsPackable>false</IsPackable>
+        <ServerGarbageCollection>true</ServerGarbageCollection>
+        <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     </PropertyGroup>
 
     <ItemGroup>
@@ -10,7 +15,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj" />
+        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj"/>
+        <ProjectReference Include="..\TurboHTTP.Benchmarks\TurboHTTP.Benchmarks.csproj"/>
+        <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka\Servus.Akka.csproj"/>
     </ItemGroup>
 
 </Project>

@@ -4,13 +4,6 @@ using TurboHTTP.Client;
 
 namespace TurboHTTP.Benchmarks.Kestrel;
 
-/// <summary>
-/// Isolated single-request latency for <see cref="ITurboHttpClient.SendAsync"/> against a
-/// localhost Kestrel server. Requests are issued strictly sequentially (no fan-out gate), so the
-/// mean — divided by <see cref="Ops"/> via <see cref="BenchmarkAttribute.OperationsPerInvoke"/> —
-/// is a clean per-request round-trip. This isolates the CL=1 latency gap vs HttpClient that the
-/// concurrent suites blur with fan-out and Task.WhenAll machinery.
-/// </summary>
 [MemoryDiagnoser]
 [WarmupCount(5)]
 [IterationCount(15)]

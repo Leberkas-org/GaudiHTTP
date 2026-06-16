@@ -53,6 +53,7 @@
         <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Server" />
         <InternalsVisibleTo Include="TurboHTTP.Tests.Shared" />
         <InternalsVisibleTo Include="TurboHTTP.Benchmarks" />
+        <InternalsVisibleTo Include="TurboHTTP.StressBenchmarks" />
     </ItemGroup>
     <!-- ALPHA packaging: bundle the locally-developed Servus.Akka transport into this package
          instead of taking it from NuGet. PrivateAssets=all keeps it from becoming a package

@@ -1,36 +1,6 @@
 using BenchmarkDotNet.Running;
 using TurboHTTP.Benchmarks.Internal;
 using TurboHTTP.Benchmarks.Kestrel;
-using TurboHTTP.Benchmarks.LoadTest;
-
-// Open-loop sustained-RPS mode: `dotnet run -c Release -- loadtest [--connections N --pipeline N ...]`.
-// Separate from the BenchmarkDotNet (closed-loop) suites below.
-if (args.Length > 0 && args[0].Equals("loadtest", StringComparison.OrdinalIgnoreCase))
-{
-    var loadOptions = LoadTestOptions.Parse(args);
-
-    // Child server mode: host one server in this process, print its H1.1 port, run until killed.
-    if (loadOptions.Serve is { } serveKind)
-    {
-        await LoadTestServerHost.RunAsync(serveKind);
-        return;
-    }
-
-    if (loadOptions.Protocol.StartsWith("mem-", StringComparison.Ordinal))
-    {
-        InMemoryBenchmark.Run(loadOptions);
-    }
-    else if (loadOptions.Protocol.StartsWith("client-", StringComparison.Ordinal))
-    {
-        await ClientBenchmark.RunAsync(loadOptions);
-    }
-    else
-    {
-        await OpenLoopLoadTest.RunAsync(loadOptions);
-    }
-
-    return;
-}
 
 var summaries = BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 

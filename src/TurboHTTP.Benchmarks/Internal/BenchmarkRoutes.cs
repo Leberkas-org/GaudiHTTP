@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 
-using TurboHTTP.Benchmarks.LoadTest;
-
 namespace TurboHTTP.Benchmarks.Internal;
 
 public static class BenchmarkRoutes
@@ -10,7 +8,7 @@ public static class BenchmarkRoutes
     /// <summary>Reusable 64 KB chunk for the streaming /download endpoint (server-side, not measured).</summary>
     private static readonly byte[] DownloadChunk = new byte[64 * 1024];
 
-    public static void Register(WebApplication app)
+    public static void Register(WebApplication app, IAllocationProfiler? profiler = null)
     {
         // Server-process GC counters for out-of-process allocation measurement.
         // Format: "{allocatedBytes};{gen0};{gen1};{gen2}". Hit only twice per run (negligible).
@@ -22,17 +20,17 @@ public static class BenchmarkRoutes
                 GC.CollectionCount(1),
                 GC.CollectionCount(2))));
 
-        // Server-only per-type allocation capture (serve child only; no-op when ActiveProfiler is null).
+        // Server-only per-type allocation capture (serve child only; no-op when profiler is null).
         // /__allocreset clears the accumulated counts so the capture window excludes warmup;
         // /__alloctypes returns the top types BY HITS as "{hits}\t{sampledBytes}\t{typeName}" lines.
         app.MapGet("/__allocreset", () =>
         {
-            LoadTestServerHost.ActiveProfiler?.Reset();
+            profiler?.Reset();
             return Results.Text("ok");
         });
 
         app.MapGet("/__alloctypes", () =>
-            Results.Text(LoadTestServerHost.ActiveProfiler?.ReportText() ?? ""));
+            Results.Text(profiler?.ReportText() ?? ""));
 
         app.MapGet("/benchmark/simple", () =>
             Results.Content("OK\n", "text/plain"));

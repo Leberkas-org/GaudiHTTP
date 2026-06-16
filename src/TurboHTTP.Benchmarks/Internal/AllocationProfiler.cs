@@ -1,14 +1,13 @@
 using System.Diagnostics.Tracing;
 using System.Text;
 
-namespace TurboHTTP.Benchmarks.LoadTest;
+namespace TurboHTTP.Benchmarks.Internal;
 
-// In-process allocation profiler. Subscribes to the runtime's GCAllocationTick events (emitted once
-// per ~100 KB allocated, carrying the allocated type name) and aggregates bytes-by-type while armed.
-// This is a statistical sample, not exact accounting, but it reliably ranks the dominant allocators
-// on the request hot path — which is what we need to target, since aggregate alloc/req is too coarse
-// and per-run RPS is too noisy on this in-process loopback box.
-internal sealed class AllocationProfiler : EventListener
+/// <summary>
+/// In-process allocation profiler. Subscribes to the runtime's GCAllocationTick events
+/// (sampled ~100 KB) and aggregates bytes-by-type while armed.
+/// </summary>
+public sealed class AllocationProfiler : EventListener, IAllocationProfiler
 {
     private const int GCKeyword = 0x1;
 
@@ -28,8 +27,6 @@ internal sealed class AllocationProfiler : EventListener
 
     public void Disarm() => _armed = false;
 
-    // Clears accumulated per-type counts so a subsequent capture window excludes prior allocations
-    // (e.g. warmup). The listener stays armed and keeps aggregating after the reset.
     public void Reset()
     {
         lock (_lock)
@@ -38,8 +35,6 @@ internal sealed class AllocationProfiler : EventListener
         }
     }
 
-    // Top-N types BY SAMPLED BYTES (descending) as plain text, one per line: "{hits}\t{sampledBytes}\t{typeName}".
-    // Bytes is the correct ranking signal for targeting real allocation cost; hits is emitted for context.
     public string ReportText(int top = 25)
     {
         List<KeyValuePair<string, (long Bytes, long Hits)>> snapshot;
@@ -55,6 +50,26 @@ internal sealed class AllocationProfiler : EventListener
         }
 
         return sb.ToString();
+    }
+
+    public void Report(long totalRequests, int top = 20)
+    {
+        List<KeyValuePair<string, (long Bytes, long Hits)>> snapshot;
+        lock (_lock)
+        {
+            snapshot = _byType.OrderByDescending(kv => kv.Value.Bytes).Take(top).ToList();
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(string.Concat("Allocation sample by type (top ", top.ToString(), ", GCAllocationTick ~100KB/tick):"));
+        Console.WriteLine($"{"Type",-62}{"~B/req",12}{"Hits",10}");
+        Console.WriteLine(new string('-', 84));
+        foreach (var (type, (bytes, hits)) in snapshot)
+        {
+            var shortType = type.Length > 60 ? string.Concat("…", type.AsSpan(type.Length - 59)) : type;
+            var perReq = totalRequests == 0 ? 0 : (double)bytes / totalRequests;
+            Console.WriteLine($"{shortType,-62}{perReq,12:N1}{hits,10:N0}");
+        }
     }
 
     protected override void OnEventWritten(EventWrittenEventArgs e)
@@ -104,25 +119,5 @@ internal sealed class AllocationProfiler : EventListener
         }
 
         return null;
-    }
-
-    public void Report(long totalRequests, int top = 20)
-    {
-        List<KeyValuePair<string, (long Bytes, long Hits)>> snapshot;
-        lock (_lock)
-        {
-            snapshot = _byType.OrderByDescending(kv => kv.Value.Bytes).Take(top).ToList();
-        }
-
-        Console.WriteLine();
-        Console.WriteLine($"Allocation sample by type (top {top}, ~100KB/tick — relative ranking, not exact):");
-        Console.WriteLine($"{"Type",-62}{"Sampled MB",14}{"Hits",10}{"B/req est",12}");
-        Console.WriteLine(new string('-', 98));
-        foreach (var (type, (bytes, hits)) in snapshot)
-        {
-            var shortType = type.Length > 60 ? "…" + type[^59..] : type;
-            var perReq = totalRequests == 0 ? 0 : (double)bytes / totalRequests;
-            Console.WriteLine($"{shortType,-62}{bytes / (1024.0 * 1024.0),14:N1}{hits,10:N0}{perReq,12:N1}");
-        }
     }
 }
