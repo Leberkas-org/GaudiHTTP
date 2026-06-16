@@ -4,6 +4,58 @@ internal static class HeaderValidation
 {
     // RFC 9110 §5.6.2: tchar = "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+"
     //                / "-" / "." / "^" / "_" / "`" / "|" / "~" / DIGIT / ALPHA
+    private static readonly bool[] TokenCharTable = CreateTokenCharTable();
+
+    // RFC 9110 §5.5: field-value valid bytes — SP, HTAB, VCHAR (%x21-7E), obs-text (%x80-FF)
+    private static readonly bool[] FieldValueCharTable = CreateFieldValueCharTable();
+
+    private static bool[] CreateTokenCharTable()
+    {
+        var table = new bool[256];
+
+        for (var c = (byte)'0'; c <= (byte)'9'; c++)
+        {
+            table[c] = true;
+        }
+
+        for (var c = (byte)'A'; c <= (byte)'Z'; c++)
+        {
+            table[c] = true;
+        }
+
+        for (var c = (byte)'a'; c <= (byte)'z'; c++)
+        {
+            table[c] = true;
+        }
+
+        foreach (var c in "!#$%&'*+-.^_`|~")
+        {
+            table[(byte)c] = true;
+        }
+
+        return table;
+    }
+
+    private static bool[] CreateFieldValueCharTable()
+    {
+        var table = new bool[256];
+
+        table[' '] = true;
+        table['\t'] = true;
+
+        for (var b = 0x21; b <= 0x7E; b++)
+        {
+            table[b] = true;
+        }
+
+        for (var b = 0x80; b <= 0xFF; b++)
+        {
+            table[b] = true;
+        }
+
+        return table;
+    }
+
     public static bool IsToken(ReadOnlySpan<byte> value)
     {
         if (value.IsEmpty)
@@ -13,7 +65,7 @@ internal static class HeaderValidation
 
         for (var i = 0; i < value.Length; i++)
         {
-            if (!IsTokenChar((char)value[i]))
+            if (!TokenCharTable[value[i]])
             {
                 return false;
             }
@@ -30,23 +82,10 @@ internal static class HeaderValidation
     {
         for (var i = 0; i < value.Length; i++)
         {
-            var b = value[i];
-            if (b == ' ' || b == '\t')
+            if (!FieldValueCharTable[value[i]])
             {
-                continue;
+                return false;
             }
-
-            if (b is >= 0x21 and <= 0x7E)
-            {
-                continue;
-            }
-
-            if (b >= 0x80)
-            {
-                continue;
-            }
-
-            return false;
         }
 
         return true;
@@ -69,26 +108,7 @@ internal static class HeaderValidation
         return start == 0 && end == value.Length ? value : value[start..end];
     }
 
-    public static bool IsTokenChar(byte b)
-    {
-        return b switch
-        {
-            >= (byte)'A' and <= (byte)'Z' or >= (byte)'a' and <= (byte)'z' or >= (byte)'0' and <= (byte)'9' => true,
-            _ => b is (byte)'!' or (byte)'#' or (byte)'$' or (byte)'%' or (byte)'&' or (byte)'\''
-                or (byte)'*' or (byte)'+' or (byte)'-' or (byte)'.' or (byte)'^' or (byte)'_'
-                or (byte)'`' or (byte)'|' or (byte)'~'
-        };
-    }
-
-    private static bool IsTokenChar(char c)
-    {
-        return c switch
-        {
-            >= 'A' and <= 'Z' or >= 'a' and <= 'z' or >= '0' and <= '9' => true,
-            _ => c is '!' or '#' or '$' or '%' or '&' or '\'' or '*' or '+' or '-' or '.' or '^' or '_' or '`' or '|'
-                or '~'
-        };
-    }
+    public static bool IsTokenChar(byte b) => TokenCharTable[b];
 
     private static bool IsOws(char c) => c is ' ' or '\t';
 }

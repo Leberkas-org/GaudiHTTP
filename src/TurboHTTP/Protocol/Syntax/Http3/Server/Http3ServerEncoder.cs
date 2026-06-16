@@ -56,6 +56,7 @@ internal sealed class Http3ServerEncoder
 
         // Add regular headers (lowercase per RFC 9114)
         var responseHeaders = responseFeature?.Headers;
+        var sawDate = false;
         if (responseHeaders is not null)
         {
             foreach (var h in responseHeaders)
@@ -65,12 +66,17 @@ internal sealed class Http3ServerEncoder
                     continue;
                 }
 
+                if (!sawDate && h.Key.Equals(WellKnownHeaders.Date, StringComparison.OrdinalIgnoreCase))
+                {
+                    sawDate = true;
+                }
+
                 var value = ContentHeaderClassifier.JoinHeaderValues(h.Value);
                 headers.Add((ContentHeaderClassifier.ToLowerAscii(h.Key), value));
             }
         }
 
-        if (options.WriteDateHeader && !headers.Any(h => h.Name.Equals(WellKnownHeaders.Date, StringComparison.OrdinalIgnoreCase)))
+        if (options.WriteDateHeader && !sawDate)
         {
             headers.Add(("date", DateHeaderCache.GetValue()));
         }

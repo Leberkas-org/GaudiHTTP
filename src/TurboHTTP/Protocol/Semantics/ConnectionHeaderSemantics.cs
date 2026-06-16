@@ -6,6 +6,35 @@ namespace TurboHTTP.Protocol.Semantics;
 /// </summary>
 internal static class ConnectionHeaderSemantics
 {
+    private static readonly bool[] TokenCharTable = CreateTokenCharTable();
+
+    private static bool[] CreateTokenCharTable()
+    {
+        var table = new bool[128];
+
+        for (var c = '0'; c <= '9'; c++)
+        {
+            table[c] = true;
+        }
+
+        for (var c = 'A'; c <= 'Z'; c++)
+        {
+            table[c] = true;
+        }
+
+        for (var c = 'a'; c <= 'z'; c++)
+        {
+            table[c] = true;
+        }
+
+        foreach (var c in "!#$%&'*+-.^_`|~")
+        {
+            table[c] = true;
+        }
+
+        return table;
+    }
+
     /// <summary>
     /// RFC 9110 §7.6.1: Parse a Connection header field value.
     /// Returns a list of connection options (comma-separated tokens).
@@ -103,10 +132,8 @@ internal static class ConnectionHeaderSemantics
         return false;
     }
 
-    /// <summary>
-    /// RFC 9110 §5.1: A token is a sequence of characters with specific restrictions.
-    /// Validates that a string contains only valid token characters (ALPHA / DIGIT / "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~").
-    /// </summary>
+    // RFC 9110 §5.1: A token is a sequence of characters with specific restrictions.
+    // ALPHA / DIGIT / "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "." / "^" / "_" / "`" / "|" / "~"
     private static bool IsValidToken(string value)
     {
         if (string.IsNullOrEmpty(value))
@@ -116,20 +143,12 @@ internal static class ConnectionHeaderSemantics
 
         foreach (var c in value)
         {
-            if (!IsTokenChar(c))
+            if (c >= 128 || !TokenCharTable[c])
             {
                 return false;
             }
         }
 
         return true;
-    }
-
-    private static bool IsTokenChar(char c)
-    {
-        return char.IsLetterOrDigit(c) ||
-               c == '!' || c == '#' || c == '$' || c == '%' || c == '&' ||
-               c == '\'' || c == '*' || c == '+' || c == '-' || c == '.' ||
-               c == '^' || c == '_' || c == '`' || c == '|' || c == '~';
     }
 }
