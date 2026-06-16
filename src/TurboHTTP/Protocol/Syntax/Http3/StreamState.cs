@@ -125,6 +125,13 @@ internal sealed class StreamState
         _bodyReader = null;
     }
 
+    public IBodyReader? TakeBodyReader()
+    {
+        var reader = _bodyReader;
+        _bodyReader = null;
+        return reader;
+    }
+
     public void FeedBody(ReadOnlySpan<byte> data, bool endStream)
     {
         if (!data.IsEmpty)

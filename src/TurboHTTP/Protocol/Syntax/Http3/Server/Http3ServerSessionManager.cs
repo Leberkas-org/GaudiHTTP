@@ -395,6 +395,7 @@ internal sealed class Http3ServerSessionManager
         {
             ReturnDecoder(decoder);
             state.AbortBody();
+            ReturnBodyReader(state);
             state.Reset();
             _statePool.Return(state);
         }
@@ -777,8 +778,7 @@ internal sealed class Http3ServerSessionManager
     {
         if (!state.HasBodyReader)
         {
-            var queued = new QueuedBodyReader(capacity: 8);
-            queued.Reset();
+            var queued = _ops.PoolContext!.Rent(() => new QueuedBodyReader(capacity: 8));
             state.InitBodyReader(queued, _maxRequestBodySize);
         }
 
@@ -824,6 +824,7 @@ internal sealed class Http3ServerSessionManager
             _ops.OnCancelTimer(state.BodyConsumptionTimerKey);
             _ops.OnCancelTimer(state.HeadersTimeoutTimerKey);
             ReturnDecoder(decoder);
+            ReturnBodyReader(state);
             state.Reset();
             _statePool.Return(state);
 
@@ -1002,5 +1003,18 @@ internal sealed class Http3ServerSessionManager
 
         _rateTimerActive = true;
         _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
+    }
+
+    private void ReturnBodyReader(StreamState state)
+    {
+        var reader = state.TakeBodyReader();
+        if (reader is QueuedBodyReader queued)
+        {
+            _ops.PoolContext!.Return(queued);
+        }
+        else
+        {
+            reader?.Dispose();
+        }
     }
 }

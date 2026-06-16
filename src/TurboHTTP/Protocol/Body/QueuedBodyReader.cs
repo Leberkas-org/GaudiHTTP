@@ -1,9 +1,10 @@
 using System.Buffers;
 using System.Threading.Tasks.Sources;
+using TurboHTTP.Pooling;
 
 namespace TurboHTTP.Protocol.Body;
 
-internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<BodyReadResult>
+internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<BodyReadResult>, IResettable
 {
     // This reader is a true cross-thread boundary: the connection-stage (actor) thread
     // produces via TryEnqueue/Complete/Fault while the application thread consumes via

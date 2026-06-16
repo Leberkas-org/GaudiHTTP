@@ -588,6 +588,7 @@ internal sealed class Http2ServerSessionManager
 
         foreach (var state in _streams.Values)
         {
+            ReturnBodyReader(state);
             state.Reset();
             _statePool.Return(state);
         }
@@ -922,8 +923,7 @@ internal sealed class Http2ServerSessionManager
 
             if (hasBody)
             {
-                var queued = new QueuedBodyReader(capacity: 8);
-                queued.Reset();
+                var queued = _ops.PoolContext!.Rent(() => new QueuedBodyReader(capacity: 8));
                 state.InitBodyReader(queued, _maxRequestBodySize);
                 requestFeature.Body = state.GetBodyStream();
             }
@@ -989,6 +989,7 @@ internal sealed class Http2ServerSessionManager
 
             _flow.RemoveStreamSendWindow(streamId);
 
+            ReturnBodyReader(state);
             state.Reset();
             _statePool.Return(state);
 
@@ -1195,5 +1196,18 @@ internal sealed class Http2ServerSessionManager
 
         _rateTimerActive = true;
         _ops.OnScheduleTimer(DataRateCheck, TimeSpan.FromSeconds(1));
+    }
+
+    private void ReturnBodyReader(StreamState state)
+    {
+        var reader = state.TakeBodyReader();
+        if (reader is QueuedBodyReader queued)
+        {
+            _ops.PoolContext!.Return(queued);
+        }
+        else
+        {
+            reader?.Dispose();
+        }
     }
 }

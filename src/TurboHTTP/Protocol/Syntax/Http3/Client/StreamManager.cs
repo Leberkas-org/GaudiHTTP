@@ -4,6 +4,7 @@ using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Semantics;
+using TurboHTTP.Pooling;
 using TurboHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
@@ -23,6 +24,7 @@ internal sealed class StreamManager(
     private const int MaxPoolSize = 256;
     private const int MaxDecoderPoolSize = 256;
 
+    private readonly ConnectionPoolContext _bodyReaderPool = new();
     private readonly Dictionary<long, StreamState> _streams = new();
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
     private readonly Stack<StreamState> _statePool = new();
@@ -111,7 +113,7 @@ internal sealed class StreamManager(
     {
         if (_streams.TryGetValue(streamId, out var state))
         {
-            state.AbortBody();
+            AbortAndReturnBodyReader(state);
             state.Reset();
             if (_statePool.Count < MaxPoolSize)
             {
@@ -193,8 +195,7 @@ internal sealed class StreamManager(
 
                 if (state is { HasResponse: true, HasBodyReader: false })
                 {
-                    var queued = new QueuedBodyReader(capacity: 8);
-                    queued.Reset();
+                    var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
                     state.InitBodyReader(queued, maxResponseBodySize);
                     var response = state.GetResponse();
                     var bodyStream = state.GetBodyStream();
@@ -264,6 +265,7 @@ internal sealed class StreamManager(
     {
         foreach (var (_, state) in _streams)
         {
+            AbortAndReturnBodyReader(state);
             state.Reset();
             if (_statePool.Count < MaxPoolSize)
             {
@@ -311,6 +313,7 @@ internal sealed class StreamManager(
 
         foreach (var state in _streams.Values)
         {
+            AbortAndReturnBodyReader(state);
             state.Reset();
         }
 
@@ -340,8 +343,7 @@ internal sealed class StreamManager(
 
         var streamId = state.StreamId;
 
-        var queued = new QueuedBodyReader(capacity: 8);
-        queued.Reset();
+        var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued, maxResponseBodySize);
         var response = state.GetResponse();
         var bodyStream = state.GetBodyStream();
@@ -411,6 +413,24 @@ internal sealed class StreamManager(
         ops.OnResponse(response);
 
         ReturnStreamState(streamId);
+    }
+
+    private void AbortAndReturnBodyReader(StreamState state)
+    {
+        var reader = state.TakeBodyReader();
+        if (reader is IStreamingBodyReader streaming)
+        {
+            streaming.Fault(new OperationCanceledException());
+        }
+
+        if (reader is QueuedBodyReader queued)
+        {
+            _bodyReaderPool.Return(queued);
+        }
+        else
+        {
+            reader?.Dispose();
+        }
     }
 
     private StreamState RentStreamState(long streamId)

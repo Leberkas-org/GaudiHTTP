@@ -8,6 +8,7 @@ using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
+using TurboHTTP.Pooling;
 using TurboHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
@@ -22,6 +23,7 @@ internal sealed class Http2ClientSessionManager
     private readonly Http2ClientDecoderOptions _decoderOptions;
     private readonly TurboClientOptions _options;
     private readonly IClientStageOperations _ops;
+    private readonly ConnectionPoolContext _bodyReaderPool = new();
 
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;
@@ -261,6 +263,7 @@ internal sealed class Http2ClientSessionManager
             if (state.IsRemoteClosed)
             {
                 _streams.Remove(streamId);
+                ReturnBodyReader(state);
                 state.Reset();
                 _statePool.Return(state);
             }
@@ -420,6 +423,7 @@ internal sealed class Http2ClientSessionManager
     {
         foreach (var (_, state) in _streams)
         {
+            ReturnBodyReader(state);
             state.Reset();
             _statePool.Return(state);
         }
@@ -684,6 +688,7 @@ internal sealed class Http2ClientSessionManager
             if (!state.HasBodyDrain || state.IsBodyDrainComplete)
             {
                 _streams.Remove(frame.StreamId);
+                ReturnBodyReader(state);
                 state.Reset();
                 _statePool.Return(state);
             }
@@ -707,6 +712,7 @@ internal sealed class Http2ClientSessionManager
             {
                 _streams.Remove(streamId);
                 state.DetachBodyReader();
+                ReturnBodyReader(state);
                 state.Reset();
                 _statePool.Return(state);
             }
@@ -736,6 +742,7 @@ internal sealed class Http2ClientSessionManager
                 {
                     _correlationMap.Remove(streamId);
                     _streams.Remove(streamId);
+                    ReturnBodyReader(state);
                     state.Reset();
                     _statePool.Return(state);
                 }
@@ -757,6 +764,7 @@ internal sealed class Http2ClientSessionManager
             _ops.OnResponse(response);
 
             _streams.Remove(streamId);
+            ReturnBodyReader(state);
             state.Reset();
             _statePool.Return(state);
             return;
@@ -770,8 +778,7 @@ internal sealed class Http2ClientSessionManager
             return;
         }
 
-        var queued = new QueuedBodyReader(capacity: 8);
-        queued.Reset();
+        var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued);
         var bodyStream = state.GetBodyStream();
         streamingResponse.Content = new StreamContent(bodyStream);
@@ -857,6 +864,7 @@ internal sealed class Http2ClientSessionManager
             if (state.IsRemoteClosed)
             {
                 _streams.Remove(read.StreamId);
+                ReturnBodyReader(state);
                 state.Reset();
                 _statePool.Return(state);
             }
@@ -937,6 +945,7 @@ internal sealed class Http2ClientSessionManager
             if (state.IsRemoteClosed)
             {
                 _streams.Remove(streamId);
+                ReturnBodyReader(state);
                 state.Reset();
                 _statePool.Return(state);
             }
@@ -1038,5 +1047,18 @@ internal sealed class Http2ClientSessionManager
         }
 
         _drainBufferOrphaned.Remove(streamId);
+    }
+
+    private void ReturnBodyReader(StreamState state)
+    {
+        var reader = state.TakeBodyReader();
+        if (reader is QueuedBodyReader queued)
+        {
+            _bodyReaderPool.Return(queued);
+        }
+        else
+        {
+            reader?.Dispose();
+        }
     }
 }

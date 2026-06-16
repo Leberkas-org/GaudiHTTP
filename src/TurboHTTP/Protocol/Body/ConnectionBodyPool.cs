@@ -26,6 +26,14 @@ internal sealed class ConnectionBodyPool : IDisposable
             case BodyFraming.Length:
             {
                 var n = classification.ContentLength ?? 0;
+
+                var maxBody = options.MaxStreamedBodySize ?? long.MaxValue;
+                if (n > maxBody)
+                {
+                    throw new HttpProtocolException(
+                        $"Declared body length {n} exceeds the configured limit {maxBody}.");
+                }
+
                 if (n <= options.StreamingThreshold && n <= options.MaxBufferedBodySize)
                 {
                     _bufferedReader.Reset((int)n);

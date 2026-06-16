@@ -15,7 +15,6 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
     private readonly Http10ClientDecoder _decoder;
     private readonly Http10ClientEncoder _encoder;
     private readonly TurboClientOptions _options;
-
     private TransportOptions? _transportOptions;
     private HttpRequestMessage? _inFlightRequest;
     private HttpRequestMessage? _reconnectBufferedRequest;

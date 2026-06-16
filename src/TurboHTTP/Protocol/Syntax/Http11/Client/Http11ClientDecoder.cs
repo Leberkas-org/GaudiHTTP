@@ -56,9 +56,7 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
                 _statusCode = 200;
                 _reason = "OK";
 
-                var (reader, decoder) = BodyReaderFactory.Create(
-                    new BodyClassification(BodyFraming.Close, null),
-                    options.ToBodyDecoderOptions());
+                var (reader, decoder) = BodyReaderFactory.Create(new BodyClassification(BodyFraming.Close, null), options.ToBodyDecoderOptions());
                 _bodyReader = reader;
                 _framingDecoder = decoder;
                 if (reader is IStreamingBodyReader streaming)
