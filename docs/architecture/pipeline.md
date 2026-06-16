@@ -113,7 +113,7 @@ ASP.NET Core — middleware, routing, handlers, model binding
 Outgoing TCP/QUIC Bytes
 ```
 
-Each listener is backed by a single `ConnectionStage` Akka Streams graph — materialized by `ListenerActor` — that accepts and processes all incoming connections, routing transport bytes through protocol parsing up to the point where `ApplicationBridgeStage` hands control to ASP.NET Core middleware.
+Each listener spawns a `ConnectionActor` per incoming connection — the actor materializes an Akka Streams graph that routes transport bytes through protocol parsing up to the point where `ApplicationBridgeStage` hands control to ASP.NET Core middleware.
 
 ### Server Pipeline Stages
 

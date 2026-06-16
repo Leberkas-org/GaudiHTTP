@@ -140,7 +140,7 @@ TurboHTTP enforces a per-request handler timeout (default 30s). If your handler 
 builder.Host.UseTurboHttp(options =>
 {
     options.HandlerTimeout = TimeSpan.FromSeconds(60);
-    options.HandlerGracePeriod = TimeSpan.FromSeconds(10);
+    options.HandlerGracePeriod = TimeSpan.FromSeconds(5); // default
 });
 ```
 

@@ -65,7 +65,7 @@ Larger windows allow more data in flight before the sender must pause. Increase 
 options.Http2.MaxResponseBufferSize = 128 * 1024;  // 128 KB
 ```
 
-Default is 64 KB. Responses are buffered up to this size before backpressure kicks in. Increase for handlers that write large responses in bursts.
+The per-protocol property defaults to `null` (inherits from `Limits.MaxResponseBufferSize`, which is 64 KB). Responses are buffered up to this size before backpressure kicks in. Increase for handlers that write large responses in bursts.
 
 ## Timeouts
 

@@ -265,6 +265,7 @@ By default, each client gets its own in-memory cache. Pass a shared `ICacheStore
 | -------------- | ------ | ------------------- | ------------------------------------------- |
 | `MaxEntries`   | `int`  | `1000`              | Maximum entries in the LRU store            |
 | `MaxBodySize`  | `long` | `50 * 1024 * 1024` (50 MiB) | Maximum body size per cached response |
+| `MaxTotalSize` | `long` | `256 * 1024 * 1024` (256 MiB) | Maximum total cached body bytes (eviction cap) |
 | `SharedCache`  | `bool` | `false`             | When `true`, acts as a shared (proxy) cache |
 
 See [HTTP Caching guide](./caching) for freshness evaluation and conditional request behaviour.

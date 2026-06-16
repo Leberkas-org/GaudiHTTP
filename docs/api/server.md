@@ -33,7 +33,7 @@ await app.RunAsync();
 ## TurboServer
 
 ```csharp
-public sealed class TurboServer : IServer
+public sealed class TurboServer : IServer, IDisposable
 {
     IFeatureCollection Features { get; }
 
@@ -85,7 +85,7 @@ public sealed class TurboServerOptions
     void ConfigureEndpointDefaults(Action<TurboListenOptions> configure);
 
     IList<ListenerBinding> Endpoints { get; }  // read-only, populated by Bind() overloads only
-    IList<string> Urls { get; }                // read-only, resolved to bindings at startup (add strings manually or via hosting configuration)
+    IList<string> Urls { get; }                // mutable list — add URL strings manually or via hosting configuration; resolved to bindings at startup
 }
 ```
 
@@ -149,6 +149,7 @@ public sealed class TransportBufferOptions
     long? OutputPauseThreshold { get; set; }   // bytes buffered on the write pipe before the HTTP pipeline is paused
     long? OutputResumeThreshold { get; set; }  // must be <= OutputPauseThreshold
     int? MinimumSegmentSize { get; set; }      // minimum pipe buffer segment size
+    int? ReceiveBufferHint { get; set; }       // size hint for PipeWriter.GetMemory on the receive path
 }
 ```
 

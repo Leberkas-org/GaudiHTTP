@@ -85,7 +85,7 @@ See [HTTP/2 & Multiplexing guide](/client/http2) for multiplexing details.
 
 ### Timeout
 
-Per-request timeout. Defaults to 60 seconds. `SendAsync` enforces it directly; requests submitted via the channel-based API get the same timeout injected as a default when no cancellation token is set on the request:
+Per-request timeout. Defaults to 60 seconds. `SendAsync` enforces it via `CancellationTokenSource.CancelAfter`. The channel-based API (`Requests.WriteAsync`) does **not** apply any timeout — callers must pass their own `CancellationToken` to enforce deadlines on channel-submitted requests:
 
 ```csharp
 client.Timeout = TimeSpan.FromSeconds(30);

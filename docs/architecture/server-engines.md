@@ -80,7 +80,7 @@ After encoding each response, `Http11ServerEngine` evaluates the `Connection` he
 - Each stream has a unique stream ID allocated by the client
 - HPACK header compression with synchronized dynamic tables
 - Connection-level and stream-level flow control
-- Server push support
+- PUSH_PROMISE frame parsing (client-side only; server does not emit server push)
 
 **Transport:**
 - `TcpListenerFactory` — TCP listener binds to configured port

@@ -151,7 +151,7 @@ request.Headers.CacheControl = new CacheControlHeaderValue
 
 ## Sharing a Cache Store
 
-By default each named client gets its own cache. To share a single store across multiple named clients — for example, to serve the same cached responses to parallel services — implement `ICacheStore` and pass the same instance to each client:
+By default each named client gets its own cache. To share a single store across multiple named clients — for example, to serve the same cached responses to parallel services — implement `ICacheStore` (which extends `IDisposable`) and pass the same instance to each client:
 
 ```csharp
 using TurboHTTP.Features.Caching;
