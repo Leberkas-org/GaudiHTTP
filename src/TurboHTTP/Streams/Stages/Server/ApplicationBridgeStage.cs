@@ -5,6 +5,7 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
+using Servus.Akka.Transport;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Server.Context.Features;
 using static Servus.Senf;
@@ -69,6 +70,9 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
         private readonly bool _metricsEnabled;
         private readonly int _backpressureThreshold;
         private bool _backpressureSignaled;
+
+        // Actor-confined pool — no cross-thread access, Interlocked ops in ObjectPool are harmless.
+        private readonly ObjectPool<CancellationTokenSource> _ctsPool = new(16);
 
         public Logic(ApplicationBridgeStage<TContext> stage) : base(stage.Shape)
         {
@@ -267,10 +271,10 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             }
             else
             {
-                var lifetime = features.Get<IHttpRequestLifetimeFeature>();
-                var cts = lifetime is not null
-                    ? CancellationTokenSource.CreateLinkedTokenSource(lifetime.RequestAborted)
-                    : new CancellationTokenSource();
+                if (!_ctsPool.TryRent(out var cts))
+                {
+                    cts = new CancellationTokenSource();
+                }
                 var softKey = string.Create(SoftTimerPrefix.Length + 10, seq, static (span, s) =>
                 {
                     SoftTimerPrefix.AsSpan().CopyTo(span);
@@ -485,7 +489,10 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             _activeFeatures.Remove(seq);
             if (_activeTimeouts.Remove(seq, out var cts))
             {
-                cts.Dispose();
+                if (!cts.TryReset() || !_ctsPool.TryReturn(cts))
+                {
+                    cts.Dispose();
+                }
             }
         }
 
@@ -579,6 +586,11 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             {
                 cts.Cancel();
                 cts.Dispose();
+            }
+
+            while (_ctsPool.TryRent(out var pooledCts))
+            {
+                pooledCts.Dispose();
             }
 
             foreach (var (_, appCtx) in _appContexts)
