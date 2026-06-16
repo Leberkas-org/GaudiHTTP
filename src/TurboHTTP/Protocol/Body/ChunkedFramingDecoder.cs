@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
 
@@ -99,9 +97,7 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder
                     }
 
                     var sizeSpan = semi < 0 ? line : line[..semi];
-                    if (!ulong.TryParse(Encoding.ASCII.GetString(sizeSpan),
-                            NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var chunkSize)
-                        || chunkSize > int.MaxValue)
+                    if (!TryParseHexSpan(sizeSpan, out var chunkSize) || chunkSize > int.MaxValue)
                     {
                         throw new HttpProtocolException("Invalid chunk size.");
                     }
@@ -224,6 +220,46 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder
         rawConsumed = Math.Max(0, pos - stashOffset);
 
         return new FramingDecodeResult(bodyOutput, false);
+    }
+
+    private static bool TryParseHexSpan(ReadOnlySpan<byte> span, out ulong value)
+    {
+        value = 0;
+        if (span.IsEmpty)
+        {
+            return false;
+        }
+
+        foreach (var b in span)
+        {
+            uint nibble;
+            if (b >= (byte)'0' && b <= (byte)'9')
+            {
+                nibble = (uint)(b - '0');
+            }
+            else if (b >= (byte)'a' && b <= (byte)'f')
+            {
+                nibble = (uint)(b - 'a' + 10);
+            }
+            else if (b >= (byte)'A' && b <= (byte)'F')
+            {
+                nibble = (uint)(b - 'A' + 10);
+            }
+            else
+            {
+                return false;
+            }
+
+            // Guard against overflow before shifting
+            if (value > (ulong.MaxValue >> 4))
+            {
+                return false;
+            }
+
+            value = (value << 4) | nibble;
+        }
+
+        return true;
     }
 
     private void EnsureStash(int needed)

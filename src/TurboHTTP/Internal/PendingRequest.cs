@@ -9,6 +9,10 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
 
     private ManualResetValueTaskSourceCore<HttpResponseMessage> _core = new() { RunContinuationsAsynchronously = true };
 
+    // Intrusive linked-list node used by TurboHttpClient's lock-free pending-request list.
+    // Written only while the request is live (between Rent and Return); cleared before Return.
+    internal PendingRequest? Next;
+
     private PendingRequest()
     {
     }
@@ -24,7 +28,11 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
         return item;
     }
 
-    public static void Return(PendingRequest item) => Pool.Return(item);
+    public static void Return(PendingRequest item)
+    {
+        item.Next = null;
+        Pool.Return(item);
+    }
 
     public short Version => _core.Version;
 

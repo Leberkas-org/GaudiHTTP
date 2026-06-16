@@ -194,25 +194,29 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
             _ => WellKnownHeaders.Http11
         };
         feature.Method = _method.Method;
-        feature.Path = ParsePath(_target);
-        feature.QueryString = ParseQueryString(_target);
+        SplitTarget(_target, out var path, out var query);
+        feature.Path = path;
+        feature.QueryString = query;
         feature.RawTarget = _target;
         feature.Body = CurrentBodyReader?.AsStream() ?? Stream.Null;
 
         HeaderRouter.ApplyToHeaderDictionary(feature.Headers, _headerReader.GetHeaders());
     }
 
-    private static string ParsePath(string target)
+    private static void SplitTarget(string target, out string path, out string query)
     {
         var queryIdx = target.IndexOf('?');
-        var pathPart = queryIdx >= 0 ? target[..queryIdx] : target;
-        return string.IsNullOrEmpty(pathPart) ? "/" : pathPart;
-    }
-
-    private static string ParseQueryString(string target)
-    {
-        var queryIdx = target.IndexOf('?');
-        return queryIdx >= 0 ? target[queryIdx..] : string.Empty;
+        if (queryIdx < 0)
+        {
+            path = string.IsNullOrEmpty(target) ? "/" : target;
+            query = string.Empty;
+        }
+        else
+        {
+            var pathPart = target[..queryIdx];
+            path = string.IsNullOrEmpty(pathPart) ? "/" : pathPart;
+            query = target[queryIdx..];
+        }
     }
 
     public void Reset()

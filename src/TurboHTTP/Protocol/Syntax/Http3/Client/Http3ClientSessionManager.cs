@@ -425,7 +425,18 @@ internal sealed class Http3ClientSessionManager
             return;
         }
 
-        stream.ReadAsync(buffer.Memory).AsTask().PipeTo(
+        var readTask = stream.ReadAsync(buffer.Memory);
+
+        if (readTask.IsCompletedSuccessfully)
+        {
+            // Guarded, non-blocking: .Result is read only when the read already completed
+            // successfully, so it never blocks (the SocketsHttpHandler IsCompletedSuccessfully
+            // fast-path idiom — not sync-over-async).
+            HandleStreamBodyRead(new StreamBodyReadComplete(streamId, readTask.Result));
+            return;
+        }
+
+        readTask.PipeTo(
             _ops.StageActor,
             success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
             failure: ex => new StreamBodyReadFailed(streamId, ex));
