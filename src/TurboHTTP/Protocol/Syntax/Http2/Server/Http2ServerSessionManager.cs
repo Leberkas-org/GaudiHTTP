@@ -42,10 +42,13 @@ internal sealed class Http2ServerSessionManager
 
     private readonly Dictionary<int, StreamState> _streams = new();
     private readonly List<int> _scratchKeys = new();
+    private readonly Dictionary<int, int> _deferredStreamIncrements = new();
 
     private readonly record struct StreamBodyReadComplete(int StreamId, int BytesRead);
 
     private readonly record struct StreamBodyReadFailed(int StreamId, Exception Reason);
+
+    internal readonly record struct StreamBodyConsumed(int StreamId);
 
     private readonly Dictionary<int, Stream> _activeBodyStreams = new();
     private readonly Dictionary<int, IMemoryOwner<byte>> _activeBodyBuffers = new();
@@ -377,6 +380,14 @@ internal sealed class Http2ServerSessionManager
                     failed.Reason.Message);
                 EmitRstStream(failed.StreamId, Http2ErrorCode.InternalError);
                 CleanupBodyDrain(failed.StreamId);
+                break;
+
+            case StreamBodyConsumed consumed:
+                if (_deferredStreamIncrements.TryGetValue(consumed.StreamId, out var inc) && inc > 0)
+                {
+                    EmitFrame(new WindowUpdateFrame(consumed.StreamId, inc));
+                    _deferredStreamIncrements.Remove(consumed.StreamId);
+                }
                 break;
         }
     }
@@ -753,7 +764,8 @@ internal sealed class Http2ServerSessionManager
 
         if (flowResult.StreamWindowUpdate is { } streamWin)
         {
-            EmitFrame(new WindowUpdateFrame(streamWin.StreamId, streamWin.Increment));
+            _deferredStreamIncrements.TryGetValue(streamId, out var existing);
+            _deferredStreamIncrements[streamId] = existing + streamWin.Increment;
         }
 
         if (flowResult.ConnectionWindowUpdate is { } connWin)
@@ -926,6 +938,10 @@ internal sealed class Http2ServerSessionManager
                 var queued = _ops.PoolContext!.Rent(() => new QueuedBodyReader(capacity: 8));
                 state.InitBodyReader(queued, _maxRequestBodySize);
                 requestFeature.Body = state.GetBodyStream();
+
+                var capturedBodyStreamId = streamId;
+                queued.SlotFreed += () =>
+                    _ops.StageActor.Tell(new StreamBodyConsumed(capturedBodyStreamId), ActorRefs.NoSender);
             }
             features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
 
@@ -973,6 +989,7 @@ internal sealed class Http2ServerSessionManager
     {
         _requestRate.Remove(streamId);
         _responseRate.Remove(streamId);
+        _deferredStreamIncrements.Remove(streamId);
         CleanupBodyDrain(streamId);
 
         if (_streams.TryGetValue(streamId, out var state))
@@ -1203,6 +1220,7 @@ internal sealed class Http2ServerSessionManager
         var reader = state.TakeBodyReader();
         if (reader is QueuedBodyReader queued)
         {
+            queued.ClearSlotFreed();
             _ops.PoolContext!.Return(queued);
         }
         else

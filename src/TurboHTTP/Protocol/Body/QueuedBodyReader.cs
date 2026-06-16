@@ -72,6 +72,8 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
 
     public event Action? SlotFreed;
 
+    public void ClearSlotFreed() => SlotFreed = null;
+
     public bool TryEnqueue(ReadOnlySpan<byte> data)
     {
         var rental = _pool.Rent(data.Length);
