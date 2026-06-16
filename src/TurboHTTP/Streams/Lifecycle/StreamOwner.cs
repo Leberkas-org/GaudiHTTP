@@ -366,13 +366,24 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
                 HandleMaterializationFailed(completed.Error);
             }
         }
-        else
+        else if (_shuttingDown)
         {
-            // Pipeline drained cleanly (after KillSwitch.Shutdown or error-free completion).
+            // Pipeline drained cleanly after an explicit KillSwitch.Shutdown().
             // Cancel the safety timeout — no force-stop needed.
             Timers.Cancel(ShutdownTimerKey);
-            _log.Debug("Pipeline drained, stopping actor");
+            _log.Debug("Pipeline drained cleanly after shutdown, stopping actor");
             Context.Stop(Self);
+        }
+        else
+        {
+            // Pipeline completed cleanly without an explicit shutdown request.
+            // This happens when the upstream channel is completed prematurely (e.g.
+            // TryComplete() called before GlobalCleanup) or when all MergeHub producers
+            // finish simultaneously. Treat it as a transient failure and re-materialize
+            // so the benchmark can continue sending requests.
+            _log.Warning("Pipeline completed unexpectedly without shutdown — re-materializing");
+            HandleMaterializationFailed(new InvalidOperationException(
+                "Pipeline completed without explicit shutdown"));
         }
     }
 
