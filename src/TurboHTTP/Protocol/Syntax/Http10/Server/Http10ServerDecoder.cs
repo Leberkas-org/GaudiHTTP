@@ -66,7 +66,15 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options)
                 return DecodeOutcome.NeedMore;
             }
 
-            var classification = BodySemantics.ClassifyRequest(_method, _headerReader.GetHeaders(), _version);
+            var headers = _headerReader.GetHeaders();
+            if (!headers.Contains(WellKnownHeaders.ContentLength) && !headers.Contains(WellKnownHeaders.TransferEncoding))
+            {
+                _phase = Phase.Done;
+                consumed = pos;
+                return DecodeOutcome.Complete;
+            }
+
+            var classification = BodySemantics.ClassifyRequest(_method, headers, _version);
             var (reader, decoder) = BodyReaderFactory.Create(classification, options.ToBodyDecoderOptions());
             CurrentBodyReader = reader;
             CurrentFramingDecoder = decoder;
