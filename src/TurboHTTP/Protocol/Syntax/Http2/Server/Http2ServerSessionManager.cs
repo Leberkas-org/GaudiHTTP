@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.InteropServices;
 using System.Text;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
@@ -317,6 +318,20 @@ internal sealed class Http2ServerSessionManager
                     EmitFrame(new DataFrame(streamId, remaining, endStream: true));
                     _flow.OnDataSent(streamId, bufferedBody.Length);
                     CloseStream(streamId);
+                    return;
+                }
+
+                // When the send window is exhausted, avoid copying the entire buffered body
+                // into MemoryPool chunks. Under high concurrency (256+ streams), that creates
+                // hundreds of MB of Gen-2 garbage per round. If the memory is array-backed,
+                // wrap it zero-copy and use the async drain path that reads in small chunks.
+                if (window <= 0
+                    && MemoryMarshal.TryGetArray(bufferedBody, out var segment))
+                {
+                    state.MarkBodyDrainActive();
+                    StartStreamBodyDrain(streamId,
+                        new MemoryStream(segment.Array!, segment.Offset, segment.Count, writable: false),
+                        bufferedBody.Length);
                     return;
                 }
 

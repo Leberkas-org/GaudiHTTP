@@ -52,6 +52,8 @@ internal sealed class FlowController : IFlowController<int>
         _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 4);
     }
 
+    public long ConnectionSendWindow => _connectionSendWindow;
+
     public bool GoAwayReceived { get; private set; }
 
     /// <summary>True when a measurement PING is due (scaling on, window below cap, estimator ready).</summary>

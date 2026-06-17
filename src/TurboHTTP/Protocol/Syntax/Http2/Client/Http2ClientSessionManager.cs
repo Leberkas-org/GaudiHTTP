@@ -228,8 +228,16 @@ internal sealed class Http2ClientSessionManager
         // MemoryPool.Rent). Handles ByteArrayContent, StringContent, ReadOnlyMemoryContent and
         // any other sync-serializable content. Falls through if the content does not support
         // synchronous serialization (CopyTo throws NotSupportedException).
+        //
+        // Guard: skip when the connection send window is exhausted. Under high concurrency
+        // (512+ streams), streams that can't send inline buffer the ENTIRE body (~1 MB each)
+        // in MemoryPool chunks. With 500+ streams this creates ~500 MB of Gen-2 garbage per
+        // round, causing multi-second GC pauses that stall the Akka dispatcher. The async
+        // drain path (StartStreamBodyDrain) reads in 64 KB chunks instead, keeping peak
+        // memory at ~32 MB even at extreme concurrency.
         if (contentLength is > 0 and { } knownLength
             && knownLength <= _options.Http2.MaxBufferedRequestBodySize
+            && _flow.ConnectionSendWindow > 0
             && TrySerializeBodyDirect(request.Content!, streamId, state, (int)knownLength))
         {
             return;
