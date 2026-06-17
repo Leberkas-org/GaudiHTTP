@@ -145,6 +145,55 @@ public sealed class QpackStaticTableSpec
         }
     }
 
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9204-3.2.1")]
+    public void NameByteLengths_should_have_correct_count()
+    {
+        Assert.Equal(QpackStaticTable.Count, QpackStaticTable.NameByteLengths.Length);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9204-3.2.1")]
+    public void EncodedSizes_should_have_correct_count()
+    {
+        Assert.Equal(QpackStaticTable.Count, QpackStaticTable.EncodedSizes.Length);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9204-3.2.1")]
+    public void NameByteLengths_should_match_utf8_byte_counts()
+    {
+        for (var i = 0; i < QpackStaticTable.Count; i++)
+        {
+            var expected = System.Text.Encoding.UTF8.GetByteCount(QpackStaticTable.Entries[i].Name);
+            Assert.Equal(expected, QpackStaticTable.NameByteLengths[i]);
+        }
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9204-3.2.1")]
+    public void EncodedSizes_should_match_rfc9204_formula()
+    {
+        for (var i = 0; i < QpackStaticTable.Count; i++)
+        {
+            var entry = QpackStaticTable.Entries[i];
+            var expected = System.Text.Encoding.UTF8.GetByteCount(entry.Name)
+                         + System.Text.Encoding.UTF8.GetByteCount(entry.Value) + 32;
+            Assert.Equal(expected, QpackStaticTable.EncodedSizes[i]);
+        }
+    }
+
+    [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC9204-3.2.1")]
+    [InlineData(0, 10)]  // ":authority" = 10 bytes
+    [InlineData(1, 5)]   // ":path" = 5 bytes
+    [InlineData(17, 7)]  // ":method" = 7 bytes
+    [InlineData(25, 7)]  // ":status" = 7 bytes
+    public void NameByteLengths_should_return_expected_values_for_pseudo_headers(int index, int expectedLength)
+    {
+        Assert.Equal(expectedLength, QpackStaticTable.NameByteLengths[index]);
+    }
+
     public static TheoryData<int, string, string> AllStaticEntries()
     {
         return new TheoryData<int, string, string>
