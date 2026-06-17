@@ -1,5 +1,3 @@
-using TurboHTTP.Protocol;
-
 namespace TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
 /// <summary>

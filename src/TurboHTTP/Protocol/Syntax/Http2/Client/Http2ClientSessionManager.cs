@@ -15,6 +15,7 @@ using static Servus.Senf;
 namespace TurboHTTP.Protocol.Syntax.Http2.Client;
 
 internal readonly record struct StreamBodyReadComplete(int StreamId, int BytesRead);
+
 internal readonly record struct StreamBodyReadFailed(int StreamId, Exception Reason);
 
 internal sealed class Http2ClientSessionManager
@@ -37,14 +38,17 @@ internal sealed class Http2ClientSessionManager
     private readonly Dictionary<int, Stream> _activeBodyStreams = new();
     private readonly Dictionary<int, IMemoryOwner<byte>> _activeBodyBuffers = new();
     private readonly Dictionary<int, CancellationTokenSource> _activeBodyReadCts = new();
-    private readonly List<int> _scratchKeys = new();
+
+    private readonly List<int> _scratchKeys = [];
+
     // Streams whose reusable drain buffer currently has a ReadAsync in flight. The buffer
     // must not be returned to the pool until that read completes, or a concurrent stream
     // could re-rent and overwrite it mid-read.
-    private readonly HashSet<int> _drainReadInFlight = new();
+    private readonly HashSet<int> _drainReadInFlight = [];
+
     // Streams torn down while a drain read was in flight: buffer/cts disposal is deferred to
     // the read-completion handler.
-    private readonly HashSet<int> _drainBufferOrphaned = new();
+    private readonly HashSet<int> _drainBufferOrphaned = [];
 
     private bool _prefaceSent;
     private bool _awaitingPingAck;
@@ -235,10 +239,10 @@ internal sealed class Http2ClientSessionManager
         // round, causing multi-second GC pauses that stall the Akka dispatcher. The async
         // drain path (StartStreamBodyDrain) reads in 64 KB chunks instead, keeping peak
         // memory at ~32 MB even at extreme concurrency.
-        if (contentLength is > 0 and { } knownLength
-            && knownLength <= _options.Http2.MaxBufferedRequestBodySize
-            && _flow.ConnectionSendWindow > 0
-            && TrySerializeBodyDirect(request.Content!, streamId, state, (int)knownLength))
+        if (contentLength is > 0 and var knownLength && knownLength <= _options.Http2.MaxBufferedRequestBodySize
+                                                     && _flow.ConnectionSendWindow > 0
+                                                     && TrySerializeBodyDirect(request.Content!, streamId, state,
+                                                         (int)knownLength))
         {
             return;
         }
@@ -801,7 +805,7 @@ internal sealed class Http2ClientSessionManager
         // Record the expectation so END_STREAM faults the body instead of completing it.
         // HEAD/204/304 legitimately carry Content-Length without a body.
         var noBodyExpected = request?.Method == HttpMethod.Head
-            || streamingResponse.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotModified;
+                             || streamingResponse.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.NotModified;
         if (!noBodyExpected)
         {
             state.ExpectedBodyLength = streamingResponse.Content.Headers.ContentLength;
@@ -958,7 +962,8 @@ internal sealed class Http2ClientSessionManager
                 _statePool.Return(state);
             }
         }
-        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete && !state.IsBodyReadPending)
+        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete &&
+                 !state.IsBodyReadPending)
         {
             ReadNextBodyChunk(streamId);
         }
@@ -1012,12 +1017,17 @@ internal sealed class Http2ClientSessionManager
             state.IsBodyReadPending = true;
         }
 
-        // Mark the reusable buffer as having a read in flight so CleanupBodyDrain defers its
-        // disposal until the read completes (see Fix B comment in CleanupBodyDrain).
-        _drainReadInFlight.Add(streamId);
         var token = _activeBodyReadCts.TryGetValue(streamId, out var cts) ? cts.Token : CancellationToken.None;
+        var vt = stream.ReadAsync(buffer.Memory, token);
 
-        stream.ReadAsync(buffer.Memory, token).AsTask().PipeTo(
+        if (vt.IsCompletedSuccessfully)
+        {
+            HandleStreamBodyRead(new StreamBodyReadComplete(streamId, vt.Result));
+            return;
+        }
+
+        _drainReadInFlight.Add(streamId);
+        vt.PipeTo(
             _ops.StageActor,
             success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
             failure: ex => new StreamBodyReadFailed(streamId, ex));

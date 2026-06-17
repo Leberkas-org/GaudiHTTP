@@ -1,5 +1,4 @@
 using System.Text;
-using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
 

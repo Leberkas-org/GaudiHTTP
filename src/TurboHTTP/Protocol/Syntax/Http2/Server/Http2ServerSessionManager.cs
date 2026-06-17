@@ -508,7 +508,7 @@ internal sealed class Http2ServerSessionManager
 
         if (!state.HasPendingOutbound)
         {
-            if (state.HasBodyDrain && !state.IsBodyDrainComplete && !state.IsBodyReadPending)
+            if (state is { HasBodyDrain: true, IsBodyDrainComplete: false, IsBodyReadPending: false })
             {
                 ReadNextBodyChunk(streamId);
             }
@@ -516,7 +516,7 @@ internal sealed class Http2ServerSessionManager
             return;
         }
 
-        while (state.PeekBodyChunk() is { } next)
+        while (state.PeekBodyChunk() is not null)
         {
             var window = _flow.GetSendWindow(streamId);
             if (window <= 0)
@@ -550,7 +550,7 @@ internal sealed class Http2ServerSessionManager
             EmitEndOfBody(streamId, state);
             CloseStream(streamId);
         }
-        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete && !state.IsBodyReadPending)
+        else if (state is { HasPendingOutbound: false, HasBodyDrain: true, IsBodyDrainComplete: false, IsBodyReadPending: false })
         {
             ReadNextBodyChunk(streamId);
         }
@@ -657,14 +657,13 @@ internal sealed class Http2ServerSessionManager
 
         if (headers.EndHeaders)
         {
+            state.AppendHeader(headers.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
             if (isTrailer)
             {
-                state.AppendHeader(headers.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
                 HandleTrailers(streamId, state);
             }
             else
             {
-                state.AppendHeader(headers.HeaderBlockFragment.Span, _decoderOptions.MaxHeaderBytes);
                 DecodeAndEmitRequest(streamId, state, headers.EndStream);
             }
         }
@@ -1112,7 +1111,7 @@ internal sealed class Http2ServerSessionManager
         // The read is now genuinely in flight on another thread writing into the reusable
         // buffer. Mark it so CleanupBodyDrain defers buffer disposal until it completes.
         _drainReadInFlight.Add(streamId);
-        vt.AsTask().PipeTo(
+        vt.PipeTo(
             _ops.StageActor,
             success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
             failure: ex => new StreamBodyReadFailed(streamId, ex));

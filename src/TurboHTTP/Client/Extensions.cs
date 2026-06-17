@@ -1,4 +1,3 @@
-using System.Threading;
 using Akka;
 using Akka.Streams.Dsl;
 using Servus.Akka.Streams.IO;

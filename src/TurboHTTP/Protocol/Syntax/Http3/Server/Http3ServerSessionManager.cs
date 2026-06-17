@@ -894,7 +894,7 @@ internal sealed class Http3ServerSessionManager
         // The read is now genuinely in flight on another thread writing into the reusable
         // buffer. Mark it so CleanupBodyDrain defers buffer disposal until it completes.
         _drainReadInFlight.Add(streamId);
-        vt.AsTask().PipeTo(
+        vt.PipeTo(
             _ops.StageActor,
             success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
             failure: ex => new StreamBodyReadFailed(streamId, ex));

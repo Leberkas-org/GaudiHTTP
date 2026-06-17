@@ -1,5 +1,4 @@
 using System.Buffers;
-using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
 

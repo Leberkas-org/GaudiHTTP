@@ -1,5 +1,4 @@
 using Akka.Actor;
-using Akka.Event;
 using Akka.Streams;
 using Akka.Streams.Stage;
 using Servus.Akka.Transport;

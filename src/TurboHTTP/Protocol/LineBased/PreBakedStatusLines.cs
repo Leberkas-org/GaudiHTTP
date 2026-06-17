@@ -1,4 +1,3 @@
-using System.Net;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.LineBased;
