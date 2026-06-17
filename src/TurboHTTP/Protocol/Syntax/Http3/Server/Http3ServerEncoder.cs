@@ -1,3 +1,4 @@
+using System.Buffers;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
@@ -15,6 +16,7 @@ internal sealed class Http3ServerEncoder
     private readonly QpackTableSync _tableSync;
     private readonly Http3ServerEncoderOptions _options;
     private readonly List<(string Name, string Value)> _reusableHeaders = new(16);
+    private IMemoryOwner<byte>? _qpackBuffer;
 
     public Http3ServerEncoder(QpackTableSync tableSync, Http3ServerEncoderOptions options)
     {
@@ -42,7 +44,10 @@ internal sealed class Http3ServerEncoder
         _reusableHeaders.Clear();
         BuildHeaderList(features, _reusableHeaders, _options);
 
-        var headerBlock = _tableSync.Encoder.Encode(_reusableHeaders);
+        _qpackBuffer ??= MemoryPool<byte>.Shared.Rent(4 * 1024);
+        var writer = SpanWriter.Create(_qpackBuffer.Memory.Span);
+        var bytesWritten = _tableSync.Encoder.Encode(_reusableHeaders, ref writer);
+        var headerBlock = _qpackBuffer.Memory[..bytesWritten];
 
         return new HeadersFrame(headerBlock);
     }
