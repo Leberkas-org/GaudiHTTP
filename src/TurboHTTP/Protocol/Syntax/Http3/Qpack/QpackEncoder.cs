@@ -121,14 +121,6 @@ internal sealed class QpackEncoder
         return writer.BytesWritten - startWritten;
     }
 
-    public ReadOnlyMemory<byte> Encode(IReadOnlyList<(string Name, string Value)> headers)
-    {
-        using var owner = MemoryPool<byte>.Shared.Rent(8192);
-        var writer = SpanWriter.Create(owner.Memory.Span);
-        var n = Encode(headers, ref writer);
-        return owner.Memory[..n].ToArray();
-    }
-
     private EncodingPlan PlanEncodings(IReadOnlyList<(string Name, string Value)> headers)
     {
         if (_reusableEntries.Length < headers.Count)

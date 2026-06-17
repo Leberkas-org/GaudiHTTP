@@ -1,4 +1,6 @@
+using System.Buffers;
 using System.Text;
+using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http3;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
@@ -47,7 +49,10 @@ public sealed class H3ResponseBuilder
             allHeaders.AddRange(headers);
         }
 
-        var encoded = _encoder.Encode(allHeaders);
+        using var owner = MemoryPool<byte>.Shared.Rent(8 * 1024);
+        var writer = SpanWriter.Create(owner.Memory.Span);
+        var n = _encoder.Encode(allHeaders, ref writer);
+        var encoded = owner.Memory[..n].ToArray();
         var frame = new HeadersFrame(encoded);
         _frames.Add(frame);
         return this;

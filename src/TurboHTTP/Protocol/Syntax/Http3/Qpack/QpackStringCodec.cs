@@ -52,43 +52,6 @@ internal static class QpackStringCodec
         return n + value.Length;
     }
 
-    public static byte[] Decode(ReadOnlySpan<byte> data, ref int pos, int prefixBits)
-    {
-        if (pos >= data.Length)
-        {
-            throw new QpackException("RFC 9204 §4.1.2 violation: Unexpected end of data while reading string literal.");
-        }
-
-        var hBit = (byte)(1 << prefixBits);
-        var isHuffman = (data[pos] & hBit) != 0;
-
-        var length = QpackIntegerCodec.Decode(data, ref pos, prefixBits);
-
-        if (length == 0)
-        {
-            return [];
-        }
-
-        if (pos + length > data.Length)
-        {
-            throw new QpackException(
-                $"RFC 9204 §4.1.2 violation: String literal length {length} exceeds available data ({data.Length - pos} bytes remaining).");
-        }
-
-        var raw = data.Slice(pos, length);
-        pos += length;
-
-        if (isHuffman)
-        {
-            var maxDecoded = HuffmanCodec.GetMaxDecodedLength(raw.Length);
-            var scratch = new byte[maxDecoded];
-            var decodedLen = HuffmanCodec.Decode(raw, scratch.AsSpan(0, maxDecoded));
-            return scratch[..decodedLen];
-        }
-
-        return raw.ToArray();
-    }
-
     public static string DecodeToString(ReadOnlySpan<byte> data, ref int pos, int prefixBits)
     {
         byte[] scratch = [];
