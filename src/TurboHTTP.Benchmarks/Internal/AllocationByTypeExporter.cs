@@ -93,7 +93,27 @@ public sealed class AllocationByTypeExporter : IExporter
             outputFiles.Add(mdPath);
         }
 
+        foreach (var traceFile in traceFiles)
+        {
+            TryDelete(traceFile);
+            TryDelete(Path.ChangeExtension(traceFile, ".speedscope.json"));
+        }
+
         return outputFiles;
+    }
+
+    private static void TryDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+        }
     }
 
     private static List<(string Type, long Bytes, long Count)> ParseAllocations(string traceFile)
