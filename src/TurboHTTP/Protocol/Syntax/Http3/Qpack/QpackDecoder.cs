@@ -1,4 +1,5 @@
 using System.Buffers;
+using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
@@ -36,6 +37,8 @@ internal sealed class QpackDecoder
     // Per-decoder scratch buffer for Huffman decoding. Grown on demand (grow-and-replace).
     // Actor-thread-confined: no synchronization needed.
     private byte[] _huffmanScratch = new byte[4 * 1024];
+
+    private readonly HeaderNameCache _nameCache = new();
 
     /// <summary>
     /// Creates a new QPACK decoder.
@@ -533,7 +536,7 @@ internal sealed class QpackDecoder
     {
         // N bit at 0x10 — read but not needed for decoding
         // H bit and name length are decoded by QpackStringCodec (3-bit prefix)
-        var name = QpackStringCodec.DecodeToString(data, ref pos, 3, ref _huffmanScratch);
+        var name = QpackStringCodec.DecodeToString(data, ref pos, 3, ref _huffmanScratch, _nameCache);
         var value = QpackStringCodec.DecodeToString(data, ref pos, 7, ref _huffmanScratch);
 
         return (name, value);

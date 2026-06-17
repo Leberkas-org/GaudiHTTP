@@ -1,4 +1,4 @@
-using System.Text;
+using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
@@ -32,6 +32,7 @@ internal sealed class HpackDecoder
     private int _maxStringLength = 65535;
 
     private readonly HpackDynamicTable _table = new();
+    private readonly HeaderNameCache _nameCache = new();
 
     // Reused per-Decode-call header list. Cleared at the start of each Decode() call.
     // Safe to reuse: HTTP/2 processes one header block at a time per connection; Akka back-pressure
@@ -394,10 +395,8 @@ internal sealed class HpackDecoder
         return (ResolveString(strBytes), length);
     }
 
-    private static string ResolveString(ReadOnlySpan<byte> utf8)
+    private string ResolveString(ReadOnlySpan<byte> utf8)
     {
-        return WellKnownHeaders.TryResolve(utf8, out var cached)
-            ? cached
-            : Encoding.UTF8.GetString(utf8);
+        return _nameCache.GetOrAdd(utf8);
     }
 }

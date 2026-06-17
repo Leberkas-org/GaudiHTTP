@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHTTP.Protocol;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
@@ -102,5 +103,46 @@ internal static class QpackStringCodec
         return WellKnownHeaders.TryResolve(raw, out var known)
             ? known
             : Encoding.UTF8.GetString(raw);
+    }
+
+    public static string DecodeToString(ReadOnlySpan<byte> data, ref int pos, int prefixBits, ref byte[] scratch, HeaderNameCache nameCache)
+    {
+        if (pos >= data.Length)
+        {
+            throw new QpackException("RFC 9204 §4.1.2 violation: Unexpected end of data while reading string literal.");
+        }
+
+        var hBit = (byte)(1 << prefixBits);
+        var isHuffman = (data[pos] & hBit) != 0;
+
+        var length = QpackIntegerCodec.Decode(data, ref pos, prefixBits);
+
+        if (length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (pos + length > data.Length)
+        {
+            throw new QpackException(
+                $"RFC 9204 §4.1.2 violation: String literal length {length} exceeds available data ({data.Length - pos} bytes remaining).");
+        }
+
+        var raw = data.Slice(pos, length);
+        pos += length;
+
+        if (isHuffman)
+        {
+            var maxDecoded = HuffmanCodec.GetMaxDecodedLength(raw.Length);
+            if (maxDecoded > scratch.Length)
+            {
+                scratch = new byte[maxDecoded];
+            }
+
+            var decodedLen = HuffmanCodec.Decode(raw, scratch.AsSpan(0, maxDecoded));
+            return nameCache.GetOrAdd(scratch.AsSpan(0, decodedLen));
+        }
+
+        return nameCache.GetOrAdd(raw);
     }
 }
