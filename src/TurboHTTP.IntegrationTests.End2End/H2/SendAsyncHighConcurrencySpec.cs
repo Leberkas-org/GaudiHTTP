@@ -432,7 +432,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(CT);
             cts.CancelAfter(timeout);
-            using var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUri}/simple");
+            var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUri}/simple");
             using var response = await _client!.SendAsync(request, cts.Token);
             response.EnsureSuccessStatusCode();
             Interlocked.Increment(ref counters.Completed);
@@ -456,7 +456,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(CT);
             cts.CancelAfter(timeout);
-            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUri}/upload")
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUri}/upload")
             {
                 Content = new ByteArrayContent(payload)
             };

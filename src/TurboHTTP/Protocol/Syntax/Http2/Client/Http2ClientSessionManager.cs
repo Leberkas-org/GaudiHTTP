@@ -244,7 +244,7 @@ internal sealed class Http2ClientSessionManager
         }
 
         state.MarkBodyDrainActive();
-        StartStreamBodyDrain(streamId, bodyStream!, contentLength);
+        StartStreamBodyDrain(streamId, bodyStream!, contentLength, request.GetCancellationToken());
     }
 
     private void EmitBodyDirect(int streamId, StreamState state, Memory<byte> body)
@@ -983,7 +983,8 @@ internal sealed class Http2ClientSessionManager
         }
     }
 
-    private void StartStreamBodyDrain(int streamId, Stream bodyStream, long? contentLength = null)
+    private void StartStreamBodyDrain(int streamId, Stream bodyStream, long? contentLength = null,
+        CancellationToken requestCt = default)
     {
         _activeBodyStreams[streamId] = bodyStream;
         var maxSize = Math.Min(_options.RequestBodyChunkSize, _requestEncoder.MaxFrameSize);
@@ -992,7 +993,9 @@ internal sealed class Http2ClientSessionManager
             : maxSize;
         var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(bufferSize, 256));
         _activeBodyBuffers[streamId] = buffer;
-        _activeBodyReadCts[streamId] = new CancellationTokenSource();
+        _activeBodyReadCts[streamId] = requestCt.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(requestCt)
+            : new CancellationTokenSource();
         ReadNextBodyChunk(streamId);
     }
 

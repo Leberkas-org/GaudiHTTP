@@ -376,14 +376,12 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
         }
         else
         {
-            // Pipeline completed cleanly without an explicit shutdown request.
-            // This happens when the upstream channel is completed prematurely (e.g.
-            // TryComplete() called before GlobalCleanup) or when all MergeHub producers
-            // finish simultaneously. Treat it as a transient failure and re-materialize
-            // so the benchmark can continue sending requests.
-            _log.Warning("Pipeline completed unexpectedly without shutdown — re-materializing");
-            HandleMaterializationFailed(new InvalidOperationException(
-                "Pipeline completed without explicit shutdown"));
+            // Pipeline completed without an explicit shutdown request (e.g., the upstream
+            // channel was completed or all MergeHub producers finished). Treat this as
+            // terminal — re-materializing risks a feedback loop where disposed requests
+            // from timed-out callers poison the new pipeline.
+            _log.Warning("Pipeline completed unexpectedly without shutdown — stopping");
+            Context.Stop(Self);
         }
     }
 
