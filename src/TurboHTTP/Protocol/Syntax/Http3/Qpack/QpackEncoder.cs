@@ -18,6 +18,7 @@ internal sealed class QpackEncoder
     private IMemoryOwner<byte>? _instructionOwner;
     private int _instructionBytesWritten;
     private readonly Dictionary<int, int> _pendingSections = new();
+    private HeaderEncodingEntry[] _reusableEntries = new HeaderEncodingEntry[16];
 
     public QpackEncoder(int maxTableCapacity)
     {
@@ -130,7 +131,12 @@ internal sealed class QpackEncoder
 
     private EncodingPlan PlanEncodings(IReadOnlyList<(string Name, string Value)> headers)
     {
-        var entries = new HeaderEncodingEntry[headers.Count];
+        if (_reusableEntries.Length < headers.Count)
+        {
+            _reusableEntries = new HeaderEncodingEntry[headers.Count];
+        }
+
+        var entries = _reusableEntries;
         var maxAbsoluteIndexReferenced = -1;
 
         for (var i = 0; i < headers.Count; i++)
