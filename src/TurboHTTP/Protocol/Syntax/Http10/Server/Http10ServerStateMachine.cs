@@ -1,7 +1,7 @@
-using System.Buffers;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Server;
@@ -11,13 +11,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Server;
 
-internal readonly record struct ResponseBodyReadComplete(int BytesRead);
-
-internal readonly record struct ResponseBodyReadFailed(Exception Reason);
-
-internal readonly record struct ResponseBodyBuffered(IMemoryOwner<byte> Owner, int Written);
-
-internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrainTarget, IBodyDrainTarget<int>
+internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrainTarget<int>
 {
     private const string DataRateCheck = "data-rate-check";
 
@@ -33,9 +27,8 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
     private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
+    private readonly ConnectionPoolContext _poolContext = new();
     private IFeatureCollection? _deferredFeatures;
-    private BufferedBodyWriter? _activeBodyWriter;
-    private Stream? _activeBodyStream;
     private bool _bodyStreaming;
     private IStreamingBodyReader? _activeStreamingReader;
     private SerialBodyPump? _serialPump;
@@ -62,7 +55,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
         _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
 
-        _decoder = new Http10ServerDecoder(options.ToHttp10DecoderOptions());
+        _decoder = new Http10ServerDecoder(options.ToHttp10DecoderOptions(), _poolContext);
         _encoder = new Http10ServerEncoder(options.ToHttp10EncoderOptions());
     }
 
@@ -75,20 +68,25 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
     IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
 
     void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
-        => ((IBodyDrainTarget)this).EmitDataFrames(streamId, data, endStream);
-
-    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
-        => ((IBodyDrainTarget)this).OnDrainComplete(streamId);
-
-    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
-        => ((IBodyDrainTarget)this).OnDrainFailed(streamId, reason);
-
-    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
+        if (!data.IsEmpty)
+        {
+            _responseRate.Observe(0, data.Length, Now());
+            EnsureRateTimer();
+            var item = TransportBuffer.Rent(data.Length);
+            data.CopyTo(item.FullMemory);
+            item.Length = data.Length;
+            _ops.OnOutbound(TransportData.Rent(item));
+            Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", data.Length);
+
+            // H1.0 has no OnOutboundFlushed — drive the pump inline.
+            _serialPump!.ResetSyncReadCounter();
+            _serialPump.OnCapacityAvailable();
+        }
+
         if (endStream)
         {
             _responseRate.Remove(0);
@@ -99,28 +97,15 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             }
 
             Tracing.For("Protocol").Debug(this, "HTTP/1.0 response body complete (pump)");
-            return;
         }
-
-        _responseRate.Observe(0, data.Length, Now());
-        EnsureRateTimer();
-        var item = TransportBuffer.Rent(data.Length);
-        data.CopyTo(item.FullMemory);
-        item.Length = data.Length;
-        _ops.OnOutbound(TransportData.Rent(item));
-        Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", data.Length);
-
-        // H1.0 has no OnOutboundFlushed — drive the pump inline.
-        _serialPump!.ResetSyncReadCounter();
-        _serialPump.OnCapacityAvailable();
     }
 
-    void IBodyDrainTarget.OnDrainComplete(int streamId)
+    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
     {
         Tracing.For("Protocol").Debug(this, "HTTP/1.0 response body drain complete");
     }
 
-    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
     {
         _responseRate.Remove(0);
         if (_deferredFeatures is not null)
@@ -254,68 +239,24 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             if (bodyStream is not null)
             {
                 var contentLength = ExtractContentLength(features.Get<IHttpResponseFeature>());
-                if (contentLength.HasValue)
+                if (!contentLength.HasValue)
                 {
-                    // Known Content-Length: emit headers now, stream body via SerialBodyPump.
-                    // Create pump BEFORE encoding headers so EncodeDeferredResponse preserves
-                    // _deferredFeatures for OnResponseBodyComplete after streaming finishes.
-                    _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), 16 * 1024, maxCapacity: 1);
-                    EncodeDeferredResponse(ReadOnlySpan<byte>.Empty);
-                    _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
-                    return;
+                    throw new InvalidOperationException(
+                        "HTTP/1.0 requires a known Content-Length for response bodies. " +
+                        "Set Content-Length in the response headers.");
                 }
 
-                // Unknown Content-Length: buffer entire body, then encode headers + body together.
-                _activeBodyWriter = new BufferedBodyWriter();
-                _activeBodyWriter.Reset(onComplete: (owner, written) =>
-                {
-                    _ops.StageActor.Tell(new ResponseBodyBuffered(owner, written), ActorRefs.NoSender);
-                });
-                _activeBodyStream = bodyStream;
-                ReadNextResponseChunk();
+                // Known Content-Length: emit headers now, stream body via SerialBodyPump.
+                // Create pump BEFORE encoding headers so EncodeDeferredResponse preserves
+                // _deferredFeatures for OnResponseBodyComplete after streaming finishes.
+                _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), 16 * 1024, maxCapacity: 1);
+                EncodeDeferredResponse(ReadOnlySpan<byte>.Empty);
+                _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
                 return;
             }
         }
 
         EncodeDeferredResponse(ReadOnlySpan<byte>.Empty);
-    }
-
-    private void ReadNextResponseChunk()
-    {
-        var mem = _activeBodyWriter!.GetMemory(16 * 1024);
-        var vt = _activeBodyStream!.ReadAsync(mem);
-        if (vt.IsCompletedSuccessfully)
-        {
-            HandleResponseBodyRead(vt.Result);
-            return;
-        }
-
-        vt.PipeTo(
-            _ops.StageActor,
-            success: bytesRead => new ResponseBodyReadComplete(bytesRead),
-            failure: ex => new ResponseBodyReadFailed(ex));
-    }
-
-    private void HandleResponseBodyRead(int bytesRead)
-    {
-        if (bytesRead > 0)
-        {
-            _responseRate.Observe(0, bytesRead, Now());
-            EnsureRateTimer();
-            if (_activeBodyWriter is not null)
-            {
-                _activeBodyWriter.Advance(bytesRead);
-                _activeBodyWriter.FlushAsync();
-                ReadNextResponseChunk();
-            }
-        }
-        else
-        {
-            _activeBodyWriter?.CompleteAsync();
-            // Response fully handed to the transport: drop the rate entry so a keep-alive
-            // connection is not flagged as a violation once the grace period elapses.
-            _responseRate.Remove(0);
-        }
     }
 
     public void OnDownstreamFinished()
@@ -351,40 +292,16 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
     {
         switch (msg)
         {
-            // SerialBodyPump messages (known Content-Length path)
-            case DrainReadComplete read:
+            case DrainReadComplete<int> read:
                 _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case DrainReadFailed failed:
+            case DrainReadFailed<int> failed:
                 _serialPump?.HandleReadFailed(failed.Reason);
                 break;
 
-            case DrainContinue:
+            case DrainContinue<int>:
                 _serialPump?.HandleDrainContinue();
-                break;
-
-            // BufferedBodyWriter messages (unknown Content-Length path)
-            case ResponseBodyReadComplete read:
-                HandleResponseBodyRead(read.BytesRead);
-                break;
-
-            case ResponseBodyBuffered bufferDone:
-                var body = bufferDone.Owner.Memory.Span[..bufferDone.Written];
-                EncodeDeferredResponse(body);
-                bufferDone.Owner.Dispose();
-                _activeBodyWriter = null;
-                _activeBodyStream = null;
-                _responseRate.Remove(0);
-                break;
-
-            case ResponseBodyReadFailed failed:
-                Tracing.For("Protocol").Warning(this, "response body failed: {0}", failed.Reason.Message);
-                _activeBodyWriter?.Dispose();
-                _activeBodyWriter = null;
-                _activeBodyStream = null;
-                _responseRate.Remove(0);
-                ShouldComplete = true;
                 break;
         }
     }
@@ -430,9 +347,6 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
     public void Cleanup()
     {
-        _activeBodyWriter?.Dispose();
-        _activeBodyWriter = null;
-        _activeBodyStream = null;
         _activeStreamingReader = null;
         _deferredFeatures = null;
         _serialPump?.Cleanup();

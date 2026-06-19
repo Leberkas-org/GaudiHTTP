@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
@@ -128,7 +129,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions);
+            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionPoolContext());
 
             var sb = new StringBuilder();
             sb.Append("HTTP/1.1 200 OK\r\n");
@@ -177,7 +178,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions);
+            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionPoolContext());
 
             var claimedLengths = new[]
             {
@@ -234,7 +235,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions);
+            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionPoolContext());
 
             var body = "Hello, World!";
             var validResponse = BuildValidResponse(200, "OK", body,
@@ -277,7 +278,7 @@ public sealed class Http11FuzzBodySpec
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var allocBefore = GC.GetAllocatedBytesForCurrentThread();
 
-            var decoder = new Http11ClientDecoder(DecoderOptions);
+            var decoder = new Http11ClientDecoder(DecoderOptions, new ConnectionPoolContext());
 
             byte[] fullResponse;
             if (rng.Next(2) == 0)

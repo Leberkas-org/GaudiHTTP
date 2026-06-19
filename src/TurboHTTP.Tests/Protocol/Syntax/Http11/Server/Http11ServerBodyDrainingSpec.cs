@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 
@@ -24,7 +25,7 @@ public sealed class Http11ServerBodyDrainingSpec
     [Fact(Timeout = 5000)]
     public void Http11ServerStateMachine_should_expose_current_body_reader()
     {
-        var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionPoolContext());
 
         const string request = "POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 5\r\n\r\nhello";
         var bytes = Encoding.ASCII.GetBytes(request);
@@ -38,7 +39,7 @@ public sealed class Http11ServerBodyDrainingSpec
     [Fact(Timeout = 5000)]
     public void Http11ServerStateMachine_should_expose_null_body_reader_when_reset()
     {
-        var decoder = new Http11ServerDecoder(DefaultDecoderOptions());
+        var decoder = new Http11ServerDecoder(DefaultDecoderOptions(), new ConnectionPoolContext());
 
         const string request = "POST / HTTP/1.1\r\nHost: example.com\r\nContent-Length: 5\r\n\r\nhello";
         var bytes = Encoding.ASCII.GetBytes(request);

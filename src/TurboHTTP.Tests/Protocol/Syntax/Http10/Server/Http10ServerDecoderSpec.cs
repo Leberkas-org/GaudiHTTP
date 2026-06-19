@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Protocol.Syntax.Http10.Server;
@@ -20,7 +21,7 @@ public sealed class Http10ServerDecoderSpec
         AllowObsFold = false
     };
 
-    private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions());
+    private static Http10ServerDecoder MakeDecoder() => new(DefaultDecoderOptions(), new ConnectionPoolContext());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]

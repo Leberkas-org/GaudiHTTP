@@ -61,10 +61,10 @@ public sealed class Http11ServerBodyBackpressureSpec
         var headerCount = ops.Outbound.Count;
 
         // Simulate multiple PipeTo read completions
-        sm.OnBodyMessage(new DrainReadComplete(0,100));
-        sm.OnBodyMessage(new DrainReadComplete(0,200));
-        sm.OnBodyMessage(new DrainReadComplete(0,50));
-        sm.OnBodyMessage(new DrainReadComplete(0,0));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,100));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,200));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,50));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,0));
 
         // 3 data chunks + 1 chunked terminator from CompleteAsync
         var bodyItems = ops.Outbound.Skip(headerCount).OfType<TransportData>().ToList();
@@ -84,8 +84,8 @@ public sealed class Http11ServerBodyBackpressureSpec
         // Body is pending after OnResponse
         Assert.False(sm.CanAcceptResponse);
 
-        sm.OnBodyMessage(new DrainReadComplete(0,10));
-        sm.OnBodyMessage(new DrainReadComplete(0,0));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,10));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,0));
 
         // After body complete, outbound pending is cleared
         // (CanAcceptResponse is still false because _pendingResponseCount == 0)
@@ -102,8 +102,8 @@ public sealed class Http11ServerBodyBackpressureSpec
         var context = CreateResponseContext();
         sm.OnResponse(context);
 
-        sm.OnBodyMessage(new DrainReadComplete(0,10));
-        sm.OnBodyMessage(new DrainReadFailed(0,new Exception("simulated failure")));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,10));
+        sm.OnBodyMessage(new DrainReadFailed<int>(0,new Exception("simulated failure")));
 
         // Subsequent operations should not throw
         sm.OnOutboundFlushed();
@@ -120,7 +120,7 @@ public sealed class Http11ServerBodyBackpressureSpec
         var context = CreateResponseContext();
         sm.OnResponse(context);
 
-        sm.OnBodyMessage(new DrainReadComplete(0,0));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,0));
 
         // PipeTo flow has no watermarks — OnOutboundFlushed is a no-op
         sm.OnOutboundFlushed();

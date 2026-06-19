@@ -77,16 +77,14 @@ public sealed class Http10ServerStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945")]
-    public void OnResponse_should_not_emit_transport_data_before_body_delivered()
+    public void OnResponse_with_stream_body_and_no_content_length_should_throw()
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var context = CreateResponseContext();
 
-        sm.OnResponse(context);
-
-        Assert.DoesNotContain(ops.Outbound, o => o is TransportData);
+        Assert.Throws<InvalidOperationException>(() => sm.OnResponse(context));
     }
 
     [Fact(Timeout = 5000)]
@@ -108,14 +106,22 @@ public sealed class Http10ServerStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945")]
-    public void OnResponse_should_add_connection_close_header()
+    public void OnResponse_with_buffered_body_should_emit_transport_data()
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
-        var context = CreateResponseContext();
+        var features = new TurboFeatureCollection();
+        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
+        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature
+        {
+            StatusCode = 200,
+            Headers = { { "Content-Length", "0" } }
+        });
+        var bodyFeature = new TurboHttpResponseBodyFeature();
+        features.Set<IHttpResponseBodyFeature>(bodyFeature);
 
-        sm.OnResponse(context);
+        sm.OnResponse(features);
 
         Assert.True(sm.CanAcceptResponse);
     }

@@ -1,3 +1,4 @@
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
@@ -6,7 +7,7 @@ using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
+internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options, ConnectionPoolContext poolContext)
 {
     private enum Phase
     {
@@ -78,7 +79,8 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
             }
 
             var classification = BodySemantics.ClassifyRequest(_method, headers, _version);
-            var (reader, decoder) = BodyReaderFactory.Create(classification, _bodyDecoderOptions);
+            var readerClassification = BodyReaderClassification.FromBodyClassification(classification, _bodyDecoderOptions);
+            var (reader, decoder) = poolContext.RentBodyReader(readerClassification, _bodyDecoderOptions);
             CurrentBodyReader = reader;
             CurrentFramingDecoder = decoder;
             if (reader is IStreamingBodyReader streaming)

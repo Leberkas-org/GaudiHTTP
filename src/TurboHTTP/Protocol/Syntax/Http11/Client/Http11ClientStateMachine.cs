@@ -1,21 +1,22 @@
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+using System.Net;
 using Akka.Actor;
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Internal;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Client;
 
-internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrainTarget, IBodyDrainTarget<int>
+internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrainTarget<int>
 {
     private readonly IClientStageOperations _ops;
     private readonly Http11ClientDecoder _decoder;
     private readonly Http11ClientEncoder _encoder;
     private readonly TurboClientOptions _options;
+    private readonly ConnectionPoolContext _poolContext = new();
 
     private readonly Queue<HttpRequestMessage> _inFlightQueue = new();
     private Queue<HttpRequestMessage>? _reconnectBufferedQueue;
@@ -25,8 +26,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     private HttpResponseMessage? _pendingBodyResponse;
     private bool _outboundBodyPending;
     private bool _connectionCloseReceived;
-    private readonly ConnectionBodyPool _pool = new();
-    private IBodyWriter? _currentWriter;
+    private bool _isChunked;
     private IStreamingBodyReader? _activeStreamingReader;
     private TransportBuffer? _heldBuffer;
     private int _heldBufferOffset;
@@ -71,7 +71,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         var decoderOpts = options.ToHttp11DecoderOptions();
         var encoderOpts = options.ToHttp11EncoderOptions();
 
-        _decoder = new Http11ClientDecoder(decoderOpts);
+        _decoder = new Http11ClientDecoder(decoderOpts, _poolContext);
         _encoder = new Http11ClientEncoder(encoderOpts);
         // Pipeline depth is a connection concern, not a decoder concern — read it straight from options.
         _effectivePipelineDepth = options.Http1.MaxPipelineDepth;
@@ -86,47 +86,57 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         return _connectionCts ??= new CancellationTokenSource();
     }
 
-    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
     IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
 
     void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
-        => ((IBodyDrainTarget)this).EmitDataFrames(streamId, data, endStream);
-
-    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
-        => ((IBodyDrainTarget)this).OnDrainComplete(streamId);
-
-    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
-        => ((IBodyDrainTarget)this).OnDrainFailed(streamId, reason);
-
-    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
-        if (endStream)
+        if (!data.IsEmpty)
         {
-            _currentWriter!.CompleteAsync();
-            _outboundBodyPending = false;
-            _currentWriter = null;
-            Tracing.For("Protocol").Debug(this, "request body complete");
-            return;
+            if (_isChunked)
+            {
+                var framedSize = ChunkedFramingHelper.GetFramedSize(data.Length);
+                var buf = TransportBuffer.Rent(framedSize);
+                ChunkedFramingHelper.WriteChunk(data.Span, buf.FullMemory.Span);
+                buf.Length = framedSize;
+                _ops.OnOutbound(TransportData.Rent(buf));
+            }
+            else
+            {
+                var buf = TransportBuffer.Rent(data.Length);
+                data.CopyTo(buf.FullMemory);
+                buf.Length = data.Length;
+                _ops.OnOutbound(TransportData.Rent(buf));
+            }
         }
 
-        var dest = _currentWriter!.GetMemory(data.Length);
-        data.CopyTo(dest);
-        _currentWriter.Advance(data.Length);
-        _currentWriter.FlushAsync();
-        Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", data.Length);
+        if (endStream)
+        {
+            if (_isChunked)
+            {
+                var buf = TransportBuffer.Rent(5);
+                ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
+                buf.Length = 5;
+                _ops.OnOutbound(TransportData.Rent(buf));
+            }
+
+            _outboundBodyPending = false;
+            Tracing.For("Protocol").Debug(this, "request body complete");
+        }
+        else
+        {
+            Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", data.Length);
+        }
     }
 
-    void IBodyDrainTarget.OnDrainComplete(int streamId)
+    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
     {
         Tracing.For("Protocol").Debug(this, "request body drain complete");
     }
 
-    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
     {
         Tracing.For("Protocol").Warning(this, "request body failed: {0}", reason.Message);
         _outboundBodyPending = false;
-        _currentWriter?.Dispose();
-        _currentWriter = null;
         if (_inFlightQueue.Count > 0)
         {
             var req = _inFlightQueue.Dequeue();
@@ -278,15 +288,15 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
                 break;
 
-            case DrainReadComplete read:
+            case DrainReadComplete<int> read:
                 _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case DrainReadFailed failed:
+            case DrainReadFailed<int> failed:
                 _serialPump?.HandleReadFailed(failed.Reason);
                 break;
 
-            case DrainContinue:
+            case DrainContinue<int>:
                 _serialPump?.HandleDrainContinue();
                 break;
         }
@@ -313,14 +323,11 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _heldBufferOffset = 0;
         _connectionCloseReceived = false;
         _draining = false;
-        _currentWriter?.Dispose();
-        _currentWriter = null;
         _serialPump?.Cleanup();
         _serialPump = null;
         _connectionCts?.Cancel();
         _connectionCts?.Dispose();
         _connectionCts = null;
-        _pool.Dispose();
         _decoder.Reset();
     }
 
@@ -424,23 +431,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void StartBodyDrain(Stream bodyStream, long? contentLength, Version httpVersion)
     {
-        var (writer, _) = _pool.RentWriter(
-            hasBody: true, contentLength, httpVersion,
-            new BodyEncoderOptions { ChunkSize = _options.RequestBodyChunkSize },
-            send: (owner, framedData) =>
-            {
-                var ownerSpan = owner.Memory.Span;
-                var framedSpan = framedData.Span;
-                ref var ownerStart = ref MemoryMarshal.GetReference(ownerSpan);
-                ref var framedStart = ref MemoryMarshal.GetReference(framedSpan);
-                var offset = (int)Unsafe.ByteOffset(ref ownerStart, ref framedStart);
-                var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
-                _ops.OnOutbound(TransportData.Rent(buf));
-                return default;
-            });
-
-        _currentWriter = writer;
-        Tracing.For("Protocol").Debug(this, "StartBodyDrain: writer={0}, contentLength={1}", writer?.GetType().Name, contentLength);
+        _isChunked = contentLength is null && !httpVersion.Equals(HttpVersion.Version10);
+        Tracing.For("Protocol").Debug(this, "StartBodyDrain: chunked={0}, contentLength={1}", _isChunked, contentLength);
 
         _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _options.RequestBodyChunkSize, maxCapacity: 2);
         _serialPump.Register(bodyStream, contentLength, CancellationToken.None);

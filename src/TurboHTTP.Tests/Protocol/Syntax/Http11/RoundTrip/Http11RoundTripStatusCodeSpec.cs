@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Tests.TestSupport;
@@ -25,7 +26,7 @@ public sealed class Http11RoundTripStatusCodeSpec
 
     private static HttpResponseMessage Decode(ReadOnlyMemory<byte> data)
     {
-        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder());
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
         var outcome = decoder.Feed(data, false, out _);
         Assert.Equal(DecodeOutcome.Complete, outcome);
         return decoder.GetResponse();

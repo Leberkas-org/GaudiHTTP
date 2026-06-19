@@ -3,6 +3,7 @@ using Akka.Actor;
 using Akka.TestKit.Xunit;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http10.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
@@ -14,13 +15,18 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
 {
     private static FakeServerOps MakeOps() => new();
 
-    private static TurboFeatureCollection CreateResponseContext()
+    private static TurboFeatureCollection CreateResponseContext(long contentLength = 0)
     {
         var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
+        var responseFeature = new TurboHttpResponseFeature { StatusCode = 200 };
+        if (contentLength > 0)
+        {
+            responseFeature.Headers["Content-Length"] = contentLength.ToString();
+        }
+
+        features.Set<IHttpResponseFeature>(responseFeature);
         var bodyFeature = new TurboHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;
     }
@@ -84,7 +90,7 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
         sm.PreStart();
 
-        var context = CreateResponseContext();
+        var context = CreateResponseContext(5);
         var bodyFeature = (TurboHttpResponseBodyFeature)context.Get<IHttpResponseBodyFeature>()!;
         bodyFeature.UpgradeToPipe();
         var bytes = "hello"u8.ToArray();
@@ -115,12 +121,12 @@ public sealed class Http10ServerStateMachineErrorSpec : TestKit
     }
 
     [Fact(Timeout = 5000)]
-    public void OnBodyMessage_ResponseBodyReadFailed_should_not_crash_without_prior_response()
+    public void OnBodyMessage_DrainReadFailed_should_not_crash_without_prior_response()
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
-        var failedMsg = new ResponseBodyReadFailed(new Exception("Body read failed"));
+        var failedMsg = new DrainReadFailed<int>(0, new Exception("Body read failed"));
         var ex = Record.Exception(() => sm.OnBodyMessage(failedMsg));
 
         Assert.Null(ex);

@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using Akka.Actor;
 using Akka.TestKit.Xunit;
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
@@ -195,39 +194,24 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]
-    public async Task OnRequest_with_unknown_cl_body_should_emit_transport_data_after_body_buffered()
+    public void OnRequest_with_unknown_cl_body_should_fail_request()
     {
-        var inbox = Inbox.Create(Sys);
-        var ops = new FakeClientOps { StageActor = inbox.Receiver };
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         sm.PreStart();
 
-        // Use a non-seekable stream wrapper so ContentLength is null — forces the buffered path.
+        // Use a non-seekable stream wrapper so ContentLength is null — triggers the rejection path.
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
         {
             Content = new UnknownLengthContent("hello"u8.ToArray())
         };
+
+        // The SM catches the exception internally and fails the request.
         sm.OnRequest(request);
 
-        Assert.DoesNotContain(ops.Outbound, o => o is TransportData);
-
-        // SM uses BufferedBodyWriter + PipeTo — will send BodyReadComplete(5) then BodyReadComplete(0)
-        // then BodyBufferComplete once fully buffered
-        var msg1 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-        sm.OnBodyMessage(msg1);
-
-        var msg2 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-        sm.OnBodyMessage(msg2);
-
-        // BodyBufferComplete triggers EncodeDeferred → TransportData
-        var msg3 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-        sm.OnBodyMessage(msg3);
-
-        Assert.Contains(ops.Outbound, o => o is TransportData);
-        var td = ops.Outbound.OfType<TransportData>().First();
-        var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
-        Assert.Contains("Content-Length: 5", text);
-        Assert.Contains("hello", text);
+        // After the failure, the SM should be ready for a new request (no body pending).
+        Assert.False(sm.HasInFlightRequests);
+        Assert.True(sm.CanAcceptRequest);
     }
 
     /// <summary>
