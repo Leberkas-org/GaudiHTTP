@@ -17,7 +17,8 @@ internal sealed class Http10ServerEncoder(Http10ServerEncoderOptions options)
         return 0;
     }
 
-    public int EncodeDeferred(Span<byte> destination, IFeatureCollection features, ReadOnlySpan<byte> body)
+    public int EncodeDeferred(Span<byte> destination, IFeatureCollection features, ReadOnlySpan<byte> body,
+        bool suppressContentLength = false)
     {
         var writer = SpanWriter.Create(destination);
         var responseFeature = features.Get<IHttpResponseFeature>();
@@ -45,10 +46,7 @@ internal sealed class Http10ServerEncoder(Http10ServerEncoderOptions options)
             }
         }
 
-        // Mirror the HTTP/1.1 encoder: only synthesize Content-Length when the handler did not set
-        // one, otherwise the wire carries two Content-Length headers (rejected by strict peers /
-        // a smuggling signal to proxies).
-        if (!_reusableHeaders.Contains(WellKnownHeaders.ContentLength))
+        if (!suppressContentLength && !_reusableHeaders.Contains(WellKnownHeaders.ContentLength))
         {
             _reusableHeaders.Add(WellKnownHeaders.ContentLength, ContentLengthCache.GetValue(body.Length));
         }

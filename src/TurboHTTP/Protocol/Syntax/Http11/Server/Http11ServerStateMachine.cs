@@ -135,6 +135,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", data.Length);
         }
 
+        if (!endStream && _serialPump is not null)
+        {
+            _serialPump.OnCapacityAvailable();
+        }
+
         if (endStream)
         {
             if (_isChunked)

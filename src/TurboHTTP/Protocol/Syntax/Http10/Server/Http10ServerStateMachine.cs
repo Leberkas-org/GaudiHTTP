@@ -33,6 +33,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
     private IStreamingBodyReader? _activeStreamingReader;
     private SerialBodyPump? _serialPump;
     private CancellationTokenSource? _connectionCts;
+    private bool _closeAfterBody;
 
     public bool CanAcceptResponse => true;
     public bool ShouldComplete { get; private set; }
@@ -82,9 +83,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             _ops.OnOutbound(TransportData.Rent(item));
             Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", data.Length);
 
-            // H1.0 has no OnOutboundFlushed — drive the pump inline.
-            _serialPump!.ResetSyncReadCounter();
-            _serialPump.OnCapacityAvailable();
+            _serialPump!.OnCapacityAvailable();
         }
 
         if (endStream)
@@ -94,6 +93,11 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             {
                 _ops.OnResponseBodyComplete(_deferredFeatures);
                 _deferredFeatures = null;
+            }
+
+            if (_closeAfterBody)
+            {
+                ShouldComplete = true;
             }
 
             Tracing.For("Protocol").Debug(this, "HTTP/1.0 response body complete (pump)");
@@ -235,18 +239,17 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
             if (bodyStream is not null)
             {
                 var contentLength = ExtractContentLength(features.Get<IHttpResponseFeature>());
+
+                // HTTP/1.0 without Content-Length: the client reads until connection close.
+                // Defer ShouldComplete until the body is fully emitted so the stage doesn't
+                // close the connection while the pump still has async reads pending.
                 if (!contentLength.HasValue)
                 {
-                    throw new InvalidOperationException(
-                        "HTTP/1.0 requires a known Content-Length for response bodies. " +
-                        "Set Content-Length in the response headers.");
+                    _closeAfterBody = true;
                 }
 
-                // Known Content-Length: emit headers now, stream body via SerialBodyPump.
-                // Create pump BEFORE encoding headers so EncodeDeferredResponse preserves
-                // _deferredFeatures for OnResponseBodyComplete after streaming finishes.
                 _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), 16 * 1024, maxCapacity: 1);
-                EncodeDeferredResponse(ReadOnlySpan<byte>.Empty);
+                EncodeDeferredResponse(ReadOnlySpan<byte>.Empty, suppressContentLength: _closeAfterBody);
                 _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
                 return;
             }
@@ -257,6 +260,15 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
     public void OnDownstreamFinished()
     {
+    }
+
+    public void OnOutboundFlushed()
+    {
+        if (_serialPump is not null)
+        {
+            _serialPump.ResetSyncReadCounter();
+            _serialPump.OnCapacityAvailable();
+        }
     }
 
     public void OnTimerFired(string name)
@@ -302,7 +314,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         }
     }
 
-    private void EncodeDeferredResponse(ReadOnlySpan<byte> body)
+    private void EncodeDeferredResponse(ReadOnlySpan<byte> body, bool suppressContentLength = false)
     {
         if (_deferredFeatures is null)
         {
@@ -314,7 +326,8 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         {
             var bufferSize = 8 * 1024 + body.Length;
             item = TransportBuffer.Rent(bufferSize);
-            var written = _encoder.EncodeDeferred(item.FullMemory.Span, _deferredFeatures, body);
+            var written = _encoder.EncodeDeferred(item.FullMemory.Span, _deferredFeatures, body,
+                suppressContentLength);
             item.Length = written;
 
             _ops.OnOutbound(TransportData.Rent(item));

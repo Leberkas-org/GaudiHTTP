@@ -77,14 +77,22 @@ public sealed class Http10ServerStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945")]
-    public void OnResponse_with_stream_body_and_no_content_length_should_throw()
+    public void OnResponse_with_stream_body_and_no_content_length_should_use_connection_close_framing()
     {
         var ops = MakeOps();
         var sm = new Http10ServerStateMachine(new TurboServerOptions().ToHttp1Options(), ops);
 
         var context = CreateResponseContext();
 
-        Assert.Throws<InvalidOperationException>(() => sm.OnResponse(context));
+        sm.OnResponse(context);
+
+        // Headers emitted without Content-Length
+        var td = ops.Outbound.OfType<TransportData>().First();
+        var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
+        Assert.DoesNotContain("Content-Length", text);
+
+        // Connection close deferred until body completes
+        Assert.False(sm.ShouldComplete);
     }
 
     [Fact(Timeout = 5000)]

@@ -130,6 +130,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                     Tracing.For(TraceCategory).Error(this, "OnResponse threw: {0}", ex.Message);
                 }
 
+                TryPushOutbound();
+
                 if (_sm.ShouldComplete)
                 {
                     if (_metricsEnabled)
