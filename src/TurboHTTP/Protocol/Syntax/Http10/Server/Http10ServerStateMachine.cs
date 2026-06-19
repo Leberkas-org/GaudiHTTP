@@ -227,11 +227,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
         {
             if (turboBody.TryGetBufferedBody(out var bufferedBody))
             {
-                if (bufferedBody.Length > 0)
-                {
-                    EncodeDeferredResponse(bufferedBody.Span);
-                }
-
+                EncodeDeferredResponse(bufferedBody.Span);
                 return;
             }
 

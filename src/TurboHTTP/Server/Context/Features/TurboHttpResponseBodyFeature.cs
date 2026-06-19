@@ -55,7 +55,7 @@ internal sealed class TurboHttpResponseBodyFeature : IHttpResponseBodyFeature
 
     internal bool TryGetBufferedBody(out ReadOnlyMemory<byte> body)
     {
-        if (_pipe is null && _writer.IsCompleted && _bufferWriter.WrittenCount > 0)
+        if (_pipe is null && _writer.IsCompleted)
         {
             body = _bufferWriter.WrittenMemory;
             return true;

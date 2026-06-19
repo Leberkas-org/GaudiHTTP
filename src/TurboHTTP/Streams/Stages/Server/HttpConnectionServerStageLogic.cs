@@ -137,7 +137,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                         OnResponseInstrumented(response);
                     }
                     Tracing.For(TraceCategory).Debug(this, "completing after response (connection close)");
-                    CompleteStage();
+                    CompleteAfterFlushingOutbound();
                     return;
                 }
 
@@ -229,6 +229,13 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         Tracing.For(TraceCategory).Trace(this, "body message: {0}", args.message.GetType().Name);
         _sm.OnBodyMessage(args.message);
         TryPushOutbound();
+
+        if (_sm.ShouldComplete)
+        {
+            CompleteAfterFlushingOutbound();
+            return;
+        }
+
         TryPullResponse();
     }
 
