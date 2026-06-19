@@ -21,9 +21,9 @@ public sealed class QpackStringCodecSpec
         var written = QpackStringCodec.Encode(value, 7, 0x00, useHuffman: false, ref writer);
 
         var pos = 0;
-        var decoded = QpackStringCodec.Decode(buffer[..written], ref pos, 7);
+        var decoded = QpackStringCodec.DecodeToString(buffer[..written], ref pos, 7);
 
-        Assert.Equal(value, decoded);
+        Assert.Equal(text, decoded);
         Assert.Equal(written, pos);
     }
 
@@ -45,9 +45,9 @@ public sealed class QpackStringCodecSpec
         Assert.NotEqual(0, buffer[0] & 0x80);
 
         var pos = 0;
-        var decoded = QpackStringCodec.Decode(buffer[..written], ref pos, 7);
+        var decoded = QpackStringCodec.DecodeToString(buffer[..written], ref pos, 7);
 
-        Assert.Equal(value, decoded);
+        Assert.Equal(text, decoded);
         Assert.Equal(written, pos);
     }
 
@@ -63,7 +63,7 @@ public sealed class QpackStringCodecSpec
         Assert.Equal(0x00, buffer[0]); // H=0, length=0
 
         var pos = 0;
-        var decoded = QpackStringCodec.Decode(buffer[..written], ref pos, 7);
+        var decoded = QpackStringCodec.DecodeToString(buffer[..written], ref pos, 7);
 
         Assert.Empty(decoded);
         Assert.Equal(1, pos);
@@ -88,8 +88,8 @@ public sealed class QpackStringCodecSpec
 
         // Verify auto-encode decodes correctly
         var pos = 0;
-        var decoded = QpackStringCodec.Decode(autoBuffer[..autoWritten], ref pos, 7);
-        Assert.Equal(value, decoded);
+        var decoded = QpackStringCodec.DecodeToString(autoBuffer[..autoWritten], ref pos, 7);
+        Assert.Equal("www.example.com", decoded);
     }
 
     [Fact(Timeout = 5000)]
@@ -104,7 +104,7 @@ public sealed class QpackStringCodecSpec
         var truncated = buffer[..3].ToArray();
         var pos = 0;
 
-        Assert.Throws<QpackException>(() => QpackStringCodec.Decode(truncated, ref pos, 7));
+        Assert.Throws<QpackException>(() => QpackStringCodec.DecodeToString(truncated, ref pos, 7));
     }
 
     [Fact(Timeout = 5000)]
@@ -112,6 +112,6 @@ public sealed class QpackStringCodecSpec
     public void Should_ThrowQpackException_When_InputEmpty()
     {
         var pos = 0;
-        Assert.Throws<QpackException>(() => QpackStringCodec.Decode(ReadOnlySpan<byte>.Empty, ref pos, 7));
+        Assert.Throws<QpackException>(() => QpackStringCodec.DecodeToString(ReadOnlySpan<byte>.Empty, ref pos, 7));
     }
 }

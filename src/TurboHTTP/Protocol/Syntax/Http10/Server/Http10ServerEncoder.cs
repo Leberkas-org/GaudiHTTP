@@ -17,7 +17,8 @@ internal sealed class Http10ServerEncoder(Http10ServerEncoderOptions options)
         return 0;
     }
 
-    public int EncodeDeferred(Span<byte> destination, IFeatureCollection features, ReadOnlySpan<byte> body)
+    public int EncodeDeferred(Span<byte> destination, IFeatureCollection features, ReadOnlySpan<byte> body,
+        bool suppressContentLength = false)
     {
         var writer = SpanWriter.Create(destination);
         var responseFeature = features.Get<IHttpResponseFeature>();
@@ -45,7 +46,10 @@ internal sealed class Http10ServerEncoder(Http10ServerEncoderOptions options)
             }
         }
 
-        _reusableHeaders.Add(WellKnownHeaders.ContentLength, ContentLengthCache.GetValue(body.Length));
+        if (!suppressContentLength && !_reusableHeaders.Contains(WellKnownHeaders.ContentLength))
+        {
+            _reusableHeaders.Add(WellKnownHeaders.ContentLength, ContentLengthCache.GetValue(body.Length));
+        }
 
         if (options.WriteDateHeader && !_reusableHeaders.Contains(WellKnownHeaders.Date))
         {

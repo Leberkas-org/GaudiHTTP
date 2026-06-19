@@ -296,9 +296,11 @@ internal sealed class RedirectHandler
     {
         foreach (var header in original.Headers)
         {
-            // RFC 9110 §15.4: Do NOT forward Authorization header across origins
+            // RFC 9110 §15.4: Do NOT forward credentials across origins (Authorization and the
+            // equally sensitive Proxy-Authorization).
             if (isCrossOrigin &&
-                header.Key.Equals(WellKnownHeaders.Authorization, StringComparison.OrdinalIgnoreCase))
+                (header.Key.Equals(WellKnownHeaders.Authorization, StringComparison.OrdinalIgnoreCase)
+                 || header.Key.Equals(WellKnownHeaders.ProxyAuthorization, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }

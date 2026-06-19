@@ -1,18 +1,18 @@
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Tests.Shared;
-using static TurboHTTP.Protocol.Syntax.Http11.Server.Http11ServerStateMachine;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
 /// <summary>
-/// Tests for the PipeTo-based response body flow. PipeTo is inherently sequential
+/// Tests for the SerialBodyPump-based body drain flow. The pump is inherently sequential
 /// (one read at a time), so explicit watermark-based pause/resume is no longer needed.
-/// These tests verify the ResponseBodyReadComplete/Failed message handling.
+/// These tests verify the DrainReadComplete/DrainReadFailed message handling.
 /// </summary>
 public sealed class Http11ServerBodyBackpressureSpec
 {
@@ -61,10 +61,10 @@ public sealed class Http11ServerBodyBackpressureSpec
         var headerCount = ops.Outbound.Count;
 
         // Simulate multiple PipeTo read completions
-        sm.OnBodyMessage(new ResponseBodyReadComplete(100));
-        sm.OnBodyMessage(new ResponseBodyReadComplete(200));
-        sm.OnBodyMessage(new ResponseBodyReadComplete(50));
-        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,100));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,200));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,50));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,0));
 
         // 3 data chunks + 1 chunked terminator from CompleteAsync
         var bodyItems = ops.Outbound.Skip(headerCount).OfType<TransportData>().ToList();
@@ -84,8 +84,8 @@ public sealed class Http11ServerBodyBackpressureSpec
         // Body is pending after OnResponse
         Assert.False(sm.CanAcceptResponse);
 
-        sm.OnBodyMessage(new ResponseBodyReadComplete(10));
-        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,10));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,0));
 
         // After body complete, outbound pending is cleared
         // (CanAcceptResponse is still false because _pendingResponseCount == 0)
@@ -102,8 +102,8 @@ public sealed class Http11ServerBodyBackpressureSpec
         var context = CreateResponseContext();
         sm.OnResponse(context);
 
-        sm.OnBodyMessage(new ResponseBodyReadComplete(10));
-        sm.OnBodyMessage(new ResponseBodyReadFailed(new Exception("simulated failure")));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,10));
+        sm.OnBodyMessage(new DrainReadFailed<int>(0,new Exception("simulated failure")));
 
         // Subsequent operations should not throw
         sm.OnOutboundFlushed();
@@ -120,7 +120,7 @@ public sealed class Http11ServerBodyBackpressureSpec
         var context = CreateResponseContext();
         sm.OnResponse(context);
 
-        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,0));
 
         // PipeTo flow has no watermarks — OnOutboundFlushed is a no-op
         sm.OnOutboundFlushed();

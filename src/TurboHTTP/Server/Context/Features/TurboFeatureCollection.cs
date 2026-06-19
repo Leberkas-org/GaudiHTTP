@@ -2,10 +2,11 @@ using System.Collections;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Http.Features;
+using TurboHTTP.Pooling;
 
 namespace TurboHTTP.Server.Context.Features;
 
-internal sealed class TurboFeatureCollection : IFeatureCollection
+internal sealed class TurboFeatureCollection : IFeatureCollection, IResettable
 {
     private IHttpRequestFeature? _request;
     private IHttpResponseFeature? _response;
@@ -22,6 +23,18 @@ internal sealed class TurboFeatureCollection : IFeatureCollection
     internal long RequestTimestamp { get; set; }
     internal Activity? RequestActivity { get; set; }
     private int _revision;
+
+    // Per-connection (H1.x) / per-stream (H2/H3) caches that let ASP.NET reuse the HttpContext graph
+    // across requests on this pooled collection. The ApplicationBridgeStage lazily creates a generic
+    // HostContextContainer<TContext> view in HostContextWrapper on first dispatch and reuses it for
+    // every subsequent request riding this collection; HostContext holds the TContext that ASP.NET's
+    // HostingApplication caches (and with it the DefaultHttpContext graph), so it rebuilds neither the
+    // context nor request/response/Items each request. NOT shared across two in-flight requests: the
+    // collection is the in-flight token, returned to the pool only after the response completes. Both
+    // slots are untyped because the collection is non-generic; the bridge owns the only TContext-typed
+    // view. They deliberately survive Reset() — that is what enables the cross-request reuse.
+    internal object? HostContextWrapper { get; set; }
+    internal object? HostContext { get; set; }
 
     public T? Get<T>() where T : class
     {
@@ -368,6 +381,16 @@ internal sealed class TurboFeatureCollection : IFeatureCollection
         }
 
         _revision++;
+    }
+
+    public void Reset()
+    {
+        // Clear ONLY per-request transient state. Do NOT null the IHttp*Feature backing fields —
+        // the factory's `recycled` branch detects reuse via the response-feature slot and resets
+        // each sub-feature in place. Nulling them here would force a full re-allocation every request.
+        _extras?.Clear();
+        RequestTimestamp = 0;
+        RequestActivity = null;
     }
 
     IEnumerator<KeyValuePair<Type, object>> IEnumerable<KeyValuePair<Type, object>>.GetEnumerator()

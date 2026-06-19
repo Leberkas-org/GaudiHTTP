@@ -1,4 +1,3 @@
-using System.Buffers;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http10.Options;
 using TurboHTTP.Protocol.Syntax.Http11.Options;

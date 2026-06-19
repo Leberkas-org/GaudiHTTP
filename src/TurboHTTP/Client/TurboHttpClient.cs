@@ -1,7 +1,7 @@
-using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Threading.Channels;
+using Servus.Akka.Transport;
 using TurboHTTP.Internal;
 using TurboHTTP.Streams.Lifecycle;
 
@@ -17,12 +17,15 @@ public sealed class TurboHttpClient : ITurboHttpClient
 
     private readonly HttpRequestMessage _defaultHeadersHolder = new();
 
-    private readonly ConcurrentDictionary<PendingRequest, byte> _pendingTcs = new();
+    // Lock-free intrusive singly-linked list of in-flight PendingRequests.
+    // Nodes are linked via PendingRequest.Next. Head is swapped atomically.
+    // Push and remove are O(1) and O(N) respectively; CancelPendingRequests
+    // (called at most once, on Dispose) atomically drains the whole list.
+    private PendingRequest? _pendingHead;
     private readonly NamedClientConsumerRegistration _consumerRegistration;
     private readonly CancellationTokenSource _disposeCts = new();
 
-    private readonly ConcurrentStack<CancellationTokenSource> _ctsPool = new();
-    private int _ctsPoolCount;
+    private readonly ObjectPool<CancellationTokenSource> _ctsPool = new(MaxPooledCts);
     private int _disposed;
 
     private Uri? _baseAddress;
@@ -142,7 +145,7 @@ public sealed class TurboHttpClient : ITurboHttpClient
         request.Options.Set(OptionsKey.VersionKey, version);
         request.Options.Set(OptionsKey.ConsumerIdKey, ConsumerId);
 
-        _pendingTcs.TryAdd(pending, 0);
+        PendingListPush(pending);
 
         var effectiveTimeout = request.Options.TryGetValue(OptionsKey.TimeoutKey, out var perRequestTimeout)
             ? perRequestTimeout
@@ -151,25 +154,25 @@ public sealed class TurboHttpClient : ITurboHttpClient
         // Everything that mutates request.Options must happen BEFORE the channel write:
         // once enqueued, the pipeline's RequestEnricher reads and mutates the options
         // dictionary on a stream thread, and HttpRequestOptions is not thread-safe.
-        var linkedCt = cancellationToken.CanBeCanceled;
+        var hasTimeout = effectiveTimeout != System.Threading.Timeout.InfiniteTimeSpan;
+        var callerCanCancel = cancellationToken.CanBeCanceled;
         CancellationTokenSource? cts = null;
-        if (effectiveTimeout != System.Threading.Timeout.InfiniteTimeSpan || linkedCt)
+
+        if (hasTimeout || callerCanCancel)
         {
-            if (linkedCt)
+            if (hasTimeout && callerCanCancel)
             {
                 cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             }
-            else if (_ctsPool.TryPop(out var pooled))
+            else if (hasTimeout)
             {
-                Interlocked.Decrement(ref _ctsPoolCount);
-                cts = pooled;
-            }
-            else
-            {
-                cts = new CancellationTokenSource();
+                if (!_ctsPool.TryRent(out cts))
+                {
+                    cts = new CancellationTokenSource();
+                }
             }
 
-            request.SetCancellationToken(cts.Token);
+            request.SetCancellationToken(cts is not null ? cts.Token : cancellationToken);
         }
 
         try
@@ -183,12 +186,22 @@ public sealed class TurboHttpClient : ITurboHttpClient
                 throw CreateClientDisposedException();
             }
 
-            if (cts is null)
+            if (!hasTimeout && !callerCanCancel)
             {
                 return await pending.GetValueTask();
             }
 
-            cts.CancelAfter(effectiveTimeout);
+            if (!hasTimeout)
+            {
+                await using (cancellationToken.UnsafeRegister(
+                                 static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
+                                 pending))
+                {
+                    return await pending.GetValueTask();
+                }
+            }
+
+            cts!.CancelAfter(effectiveTimeout);
             await using (cts.Token.UnsafeRegister(
                              static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
                              pending))
@@ -200,22 +213,17 @@ public sealed class TurboHttpClient : ITurboHttpClient
         {
             if (cts is not null)
             {
-                if (linkedCt || !cts.TryReset())
+                if (callerCanCancel || !cts.TryReset())
                 {
                     cts.Dispose();
                 }
-                else if (Interlocked.Increment(ref _ctsPoolCount) <= MaxPooledCts)
+                else if (!_ctsPool.TryReturn(cts))
                 {
-                    _ctsPool.Push(cts);
-                }
-                else
-                {
-                    Interlocked.Decrement(ref _ctsPoolCount);
                     cts.Dispose();
                 }
             }
 
-            _pendingTcs.TryRemove(pending, out _);
+            PendingListRemove(pending);
             PendingRequest.Return(pending);
         }
     }
@@ -243,15 +251,82 @@ public sealed class TurboHttpClient : ITurboHttpClient
     /// <inheritdoc />
     public void CancelPendingRequests()
     {
-        foreach (var pending in _pendingTcs.Keys)
+        // Atomically drain the entire list so concurrent SendAsync callers cannot race
+        // with the cancellation walk. Any request that completes normally between the
+        // swap and TrySetCanceled hits the InvalidOperationException guard inside
+        // TrySetCanceled and silently no-ops.
+        var node = Interlocked.Exchange(ref _pendingHead, null);
+        while (node is not null)
         {
-            pending.TrySetCanceled();
-            _pendingTcs.TryRemove(pending, out _);
+            var next = node.Next;
+            node.TrySetCanceled();
+            node = next;
         }
 
         while (Responses.TryRead(out var stale))
         {
             stale.Dispose();
+        }
+    }
+
+    // Push to the front of the intrusive linked list via a CAS loop (lock-free, O(1)).
+    private void PendingListPush(PendingRequest item)
+    {
+        PendingRequest? head;
+        do
+        {
+            head = Volatile.Read(ref _pendingHead);
+            item.Next = head;
+        }
+        while (Interlocked.CompareExchange(ref _pendingHead, item, head) != head);
+    }
+
+    // Remove a specific node from the intrusive linked list (lock-free, O(N)).
+    // Called once per request in the finally block of SendAsync.
+    private void PendingListRemove(PendingRequest item)
+    {
+        while (true)
+        {
+            var head = Volatile.Read(ref _pendingHead);
+            if (head is null)
+            {
+                return;
+            }
+
+            if (ReferenceEquals(head, item))
+            {
+                if (Interlocked.CompareExchange(ref _pendingHead, head.Next, head) == head)
+                {
+                    return;
+                }
+
+                // Head changed concurrently; retry from the top.
+                continue;
+            }
+
+            // Walk to find the predecessor of item and CAS it to skip over item.
+            // Nodes are only removed by their own SendAsync finally block, so once we
+            // find a predecessor its Next pointer is stable for our CAS.
+            var prev = head;
+            var cur = head.Next;
+            while (cur is not null)
+            {
+                if (ReferenceEquals(cur, item))
+                {
+                    // Best-effort unlink. If prev itself was concurrently removed by
+                    // CancelPendingRequests (which swaps the whole list to null), the
+                    // item becomes unreachable anyway and is safe: Return clears Next
+                    // before the node is pooled.
+                    Interlocked.CompareExchange(ref prev.Next!, cur.Next, cur);
+                    return;
+                }
+
+                prev = cur;
+                cur = cur.Next;
+            }
+
+            // Item not found — already drained by CancelPendingRequests.
+            return;
         }
     }
 

@@ -50,7 +50,7 @@ internal static class RequestLineParser
         }
 
         method = GetOrCreateHttpMethod(methodSpan);
-        targetText = Encoding.ASCII.GetString(line[(firstSpace + 1)..secondSpace]);
+        targetText = GetOrInternTarget(line[(firstSpace + 1)..secondSpace]);
 
         var versionSpan = line[(secondSpace + 1)..];
         if (!versionSpan.StartsWith(WellKnownHeaders.Http))
@@ -65,6 +65,21 @@ internal static class RequestLineParser
 
         consumed = crlf + 2;
         return true;
+    }
+
+    private static readonly byte[] _slashPlaintext = [(byte)'/', (byte)'p', (byte)'l', (byte)'a', (byte)'i', (byte)'n', (byte)'t', (byte)'e', (byte)'x', (byte)'t'];
+    private static readonly byte[] _slashJson = [(byte)'/', (byte)'j', (byte)'s', (byte)'o', (byte)'n'];
+
+    private static string GetOrInternTarget(ReadOnlySpan<byte> span)
+    {
+        return span.Length switch
+        {
+            1 when span[0] == (byte)'/' => "/",
+            1 when span[0] == (byte)'*' => "*",
+            5 when span.SequenceEqual(_slashJson) => "/json",
+            10 when span.SequenceEqual(_slashPlaintext) => "/plaintext",
+            _ => Encoding.ASCII.GetString(span)
+        };
     }
 
     private static HttpMethod GetOrCreateHttpMethod(ReadOnlySpan<byte> span)

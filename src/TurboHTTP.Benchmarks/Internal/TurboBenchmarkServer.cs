@@ -19,7 +19,7 @@ public sealed class TurboBenchmarkServer : IAsyncDisposable
     public int Http20Port { get; private set; }
     public int Http30Port { get; private set; }
 
-    public async ValueTask InitializeAsync()
+    public async ValueTask InitializeAsync(IAllocationProfiler? profiler = null)
     {
         _cert = GenerateSelfSignedCert();
 
@@ -48,7 +48,7 @@ public sealed class TurboBenchmarkServer : IAsyncDisposable
 
         var app = builder.Build();
 
-        BenchmarkRoutes.Register(app);
+        BenchmarkRoutes.Register(app, profiler);
 
         await app.StartAsync();
 

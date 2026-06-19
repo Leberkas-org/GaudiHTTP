@@ -26,6 +26,18 @@ public abstract class BenchmarkSuiteBase
     };
 
     /// <summary>
+    /// Shared in-flight request cap, applied identically to the Turbo SUT and the HttpClient
+    /// baseline so the comparison is apples-to-apples. Bounded by the per-version stream/connection
+    /// limits configured on both clients (H2/H3 multiplex; H1.1 uses more connections).
+    /// </summary>
+    public int MaxInFlight => HttpVersion switch
+    {
+        "2.0" => 256,
+        "3.0" => 256,
+        _ => 512,
+    };
+
+    /// <summary>
     /// Sends a warm-up request so that connection setup, DNS resolution, TLS handshake,
     /// and JIT overhead are excluded from measured iterations.
     /// Derived classes override this to perform a real HTTP round-trip.

@@ -10,14 +10,14 @@ The server request pipeline shows how an incoming request flows through the serv
 
 ## Request Flow
 
-Each connection is handled by a `ConnectionStage` that owns the Akka.Streams sub-graph for that connection:
+Each connection is handled by a `ConnectionActor` that owns the Akka.Streams sub-graph for that connection:
 
 ```
 Incoming TCP/QUIC Connection
     ↓
 [Transport] — TCP or QUIC listener accepts connection (Servus.Akka)
     ↓
-[ListenerActor] — materializes ConnectionStage per client connection
+[ListenerActor] — spawns ConnectionActor per client connection
     ↓
 [ProtocolRouter] — picks engine by transport (QUIC → Http30ServerEngine; TCP → NegotiatingServerEngine)
     ↓
@@ -41,7 +41,7 @@ Outgoing TCP/QUIC Bytes
 | Stage                        | Role                                                                                                                                      |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `Transport` (TCP/QUIC)       | Accepts incoming connections over TCP or QUIC (via Servus.Akka.Transport)                                                              |
-| `ListenerActor`              | Binds to a port and materializes a `ConnectionStage` flow that handles each incoming connection                                         |
+| `ListenerActor`              | Binds to a port and spawns a `ConnectionActor` per incoming connection                                                                  |
 | `ProtocolRouter`             | Static helper used by `ServerSupervisorActor` to pick a server engine by transport: QUIC bindings get `Http30ServerEngine` directly; TCP bindings get `NegotiatingServerEngine`, which performs byte-level protocol detection |
 | `Http*ServerEngine`          | Protocol-specific state machine: parses request bytes, manages connection/stream-level flow control, encodes response frames            |
 | `ApplicationBridgeStage`      | Wraps the parsed protocol request as an `IFeatureCollection` (standard ASP.NET Core `HttpContext`); then ASP.NET Core takes over    |
@@ -51,10 +51,10 @@ Outgoing TCP/QUIC Bytes
 
 ## Connection Lifecycle
 
-Each connection is managed by a dedicated `ConnectionStage` graph:
+Each connection is managed by a dedicated `ConnectionActor` and its Akka.Streams graph:
 
 1. **Bind** — `ListenerActor` binds to a TCP or QUIC port
-2. **Accept** — When a client connects, `ConnectionStage` materializes a sub-graph for that connection
+2. **Accept** — When a client connects, `ConnectionActor` materializes a sub-graph for that connection
 3. **Materialize** — The sub-graph composes the protocol engine with `ApplicationBridgeStage` and the shared ASP.NET Core pipeline (middleware and routing)
 4. **Process** — The graph processes requests and generates responses for the lifetime of the connection
 5. **Cleanup** — When the client disconnects (or after idle timeout), the sub-graph completes and releases resources

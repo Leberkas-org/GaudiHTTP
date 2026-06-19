@@ -234,6 +234,29 @@ public sealed class Http2ServerResponseBufferSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-4.3")]
+    public void EncodeHeaders_should_handle_header_block_larger_than_4096_bytes()
+    {
+        var options = new Http2ServerEncoderOptions
+        {
+            MaxFrameSize = 16 * 1024,
+            HeaderTableSize = 4096,
+            WriteDateHeader = false,
+            MaxHeaderBytes = 64 * 1024,
+            UseHuffman = false
+        };
+        var encoder = new Http2ServerEncoder(options);
+
+        var ctx = ServerTestContext.CreateResponse();
+        ctx.Get<IHttpResponseFeature>()!.Headers["X-Large"] = new string('x', 6000);
+
+        // A header block exceeding the fixed 4096-byte encode buffer must not overflow/throw.
+        var frames = encoder.EncodeHeaders(ctx, streamId: 1, hasBody: false);
+
+        Assert.NotEmpty(frames);
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.2")]
     public void ServerResponseEncoder_ApplyClientSettings_should_update_max_frame_size()
     {

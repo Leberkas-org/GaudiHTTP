@@ -1,4 +1,3 @@
-using System.Text;
 using TurboHTTP.Protocol;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
@@ -56,8 +55,8 @@ public sealed class QpackEncoderInstructionSpec
 
         // Decode the value string to verify round-trip
         var pos = 1;
-        var valueBytes = QpackStringCodec.Decode(_buffer[..written], ref pos, 7);
-        Assert.Equal("/index.html", Encoding.UTF8.GetString(valueBytes));
+        var value = QpackStringCodec.DecodeToString(_buffer[..written], ref pos, 7);
+        Assert.Equal("/index.html", value);
         Assert.Equal(written, pos);
     }
 
@@ -77,8 +76,8 @@ public sealed class QpackEncoderInstructionSpec
         Assert.Equal(0x80, data[0]);
 
         var pos = 1;
-        var valueBytes = QpackStringCodec.Decode(_buffer[..written], ref pos, 7);
-        Assert.Equal("bar", Encoding.UTF8.GetString(valueBytes));
+        var value = QpackStringCodec.DecodeToString(_buffer[..written], ref pos, 7);
+        Assert.Equal("bar", value);
     }
 
     [Fact(Timeout = 5000)]
@@ -111,12 +110,12 @@ public sealed class QpackEncoderInstructionSpec
 
         // Decode name
         var pos = 0;
-        var nameBytes = QpackStringCodec.Decode(_buffer[..written], ref pos, 5);
-        Assert.Equal("x-custom", Encoding.UTF8.GetString(nameBytes));
+        var name = QpackStringCodec.DecodeToString(_buffer[..written], ref pos, 5);
+        Assert.Equal("x-custom", name);
 
         // Decode value
-        var valueBytes = QpackStringCodec.Decode(_buffer[..written], ref pos, 7);
-        Assert.Equal("hello", Encoding.UTF8.GetString(valueBytes));
+        var value = QpackStringCodec.DecodeToString(_buffer[..written], ref pos, 7);
+        Assert.Equal("hello", value);
         Assert.Equal(written, pos);
     }
 
@@ -129,12 +128,12 @@ public sealed class QpackEncoderInstructionSpec
 
         // Decode name
         var pos = 0;
-        var nameBytes = QpackStringCodec.Decode(_buffer[..written], ref pos, 5);
-        Assert.Equal("x-empty", Encoding.UTF8.GetString(nameBytes));
+        var name = QpackStringCodec.DecodeToString(_buffer[..written], ref pos, 5);
+        Assert.Equal("x-empty", name);
 
         // Decode value — should be empty
-        var valueBytes = QpackStringCodec.Decode(_buffer[..written], ref pos, 7);
-        Assert.Empty(valueBytes);
+        var value = QpackStringCodec.DecodeToString(_buffer[..written], ref pos, 7);
+        Assert.Empty(value);
     }
 
     [Theory(Timeout = 5000)]

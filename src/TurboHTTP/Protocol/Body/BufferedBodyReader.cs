@@ -1,8 +1,9 @@
 using System.Buffers;
+using TurboHTTP.Pooling;
 
 namespace TurboHTTP.Protocol.Body;
 
-internal sealed class BufferedBodyReader : IBufferedBodyReader
+internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
 {
     private IMemoryOwner<byte>? _owner;
     private int _expected;
@@ -35,6 +36,8 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader
         IsCompleted = false;
         _owner = MemoryPool<byte>.Shared.Rent(4 * 1024);
     }
+
+    void IResettable.Reset() => ResetOpenEnded();
 
     public void MarkComplete()
     {

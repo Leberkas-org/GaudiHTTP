@@ -116,11 +116,8 @@ internal sealed class Http2ServerStateMachine : IServerStateMachine
 
         if (name.StartsWith(DrainBodyPrefix))
         {
-            if (int.TryParse(name.AsSpan(DrainBodyPrefix.Length), out var drainStreamId))
-            {
-                _sessionManager.DrainOutboundBuffer(drainStreamId);
-            }
-
+            // No-op: body drain is now managed by the generic pump infrastructure.
+            // Left as a dead-code guard for stale timers.
             return;
         }
 

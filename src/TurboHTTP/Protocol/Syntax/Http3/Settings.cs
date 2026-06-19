@@ -59,32 +59,6 @@ internal sealed class Settings
         _parameters[identifier] = value;
     }
 
-    /// <summary>
-    /// Serializes all parameters into a SETTINGS frame payload (identifier-value pairs
-    /// encoded as QUIC variable-length integers).
-    /// </summary>
-    public byte[] Serialize()
-    {
-        var size = 0;
-        foreach (var (id, val) in _parameters)
-        {
-            size += QuicVarInt.EncodedLength(id) + QuicVarInt.EncodedLength(val);
-        }
-
-        var buf = new byte[size];
-        var span = buf.AsSpan();
-
-        foreach (var (id, val) in _parameters)
-        {
-            var written = QuicVarInt.Encode(id, span);
-            span = span[written..];
-            written = QuicVarInt.Encode(val, span);
-            span = span[written..];
-        }
-
-        return buf;
-    }
-
     public static Settings Deserialize(ReadOnlySpan<byte> payload)
     {
         var settings = new Settings();

@@ -34,8 +34,11 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
         /// </summary>
         private readonly Queue<SubSinkInlet<T>> _readyQueue = new();
 
-        /// <summary>All currently active SubSinkInlets — needed for cleanup.</summary>
+        /// <summary>All currently active SubSinkInlets — needed for ordered iteration and cleanup.</summary>
         private readonly List<SubSinkInlet<T>> _activeSinks = [];
+
+        /// <summary>Mirror of <see cref="_activeSinks"/> for O(1) membership tests.</summary>
+        private readonly HashSet<SubSinkInlet<T>> _activeSinkSet = [];
 
         private bool _upstreamDone;
 
@@ -90,7 +93,7 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                     // — only skip Pull() since the sink is done.
                     while (_readyQueue.TryDequeue(out var readySink))
                     {
-                        var isActive = _activeSinks.Contains(readySink);
+                        var isActive = _activeSinkSet.Contains(readySink);
                         var elem = readySink.Grab();
                         Push(stage._out, elem);
                         if (isActive)
@@ -134,6 +137,7 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
         {
             var subSink = new SubSinkInlet<T>(this, $"MergeSubstreams.SubSink.{_activeSinks.Count}");
             _activeSinks.Add(subSink);
+            _activeSinkSet.Add(subSink);
 
             subSink.SetHandler(new LambdaInHandler(
                 onPush: () =>
@@ -147,8 +151,6 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
                     }
                     else
                     {
-
-                        // Outlet is busy — park this sink in the ready queue
                         _readyQueue.Enqueue(subSink);
                     }
                 },
@@ -168,6 +170,7 @@ internal sealed class MergeSubstreamsStage<T> : GraphStage<FlowShape<Source<T, N
         private void OnSubstreamComplete(SubSinkInlet<T> subSink)
         {
             _activeSinks.Remove(subSink);
+            _activeSinkSet.Remove(subSink);
 
 
             if (_upstreamDone && _activeSinks.Count == 0 && _readyQueue.Count == 0)

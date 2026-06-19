@@ -53,6 +53,34 @@ public abstract class KestrelBaseClass : BenchmarkSuiteBase
     public Uri FortunesUri => new($"{Scheme}://127.0.0.1:{KestrelPort}/fortunes");
     public Uri UploadUri => new($"{Scheme}://127.0.0.1:{KestrelPort}/upload");
 
+    /// <summary>Streaming download endpoint serving exactly <paramref name="sizeBytes"/> bytes.</summary>
+    public Uri DownloadUri(int sizeBytes) =>
+        new($"{Scheme}://127.0.0.1:{KestrelPort}/download?size={sizeBytes}");
+
+    /// <summary>
+    /// Builds a baseline <see cref="HttpClient"/> over <see cref="SocketsHttpHandler"/> matching the
+    /// current HTTP version policy. Used by the HttpClient baseline benchmark classes.
+    /// </summary>
+    protected HttpClient CreateBaselineHttpClient(int maxConnectionsPerServer = 64, TimeSpan? timeout = null)
+    {
+        AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+
+        var handler = new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            EnableMultipleHttp2Connections = true,
+            MaxConnectionsPerServer = maxConnectionsPerServer,
+            SslOptions = { RemoteCertificateValidationCallback = (_, _, _, _) => true },
+        };
+
+        return new HttpClient(handler)
+        {
+            DefaultRequestVersion = HttpVersionValue,
+            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact,
+            Timeout = timeout ?? TimeSpan.FromSeconds(30),
+        };
+    }
+
     /// <summary>
     /// Returns the base address for the Kestrel test server at the current HTTP version port.
     /// </summary>

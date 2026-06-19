@@ -1,8 +1,9 @@
-using System.Buffers;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
+using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Streams.Stages.Server;
@@ -10,13 +11,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Server;
 
-internal readonly record struct ResponseBodyReadComplete(int BytesRead);
-
-internal readonly record struct ResponseBodyReadFailed(Exception Reason);
-
-internal readonly record struct ResponseBodyBuffered(IMemoryOwner<byte> Owner, int Written);
-
-internal sealed class Http10ServerStateMachine : IServerStateMachine
+internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrainTarget<int>
 {
     private const string DataRateCheck = "data-rate-check";
 
@@ -32,11 +27,13 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
     private long Now() => _clock.GetUtcNow().ToUnixTimeMilliseconds();
 
+    private readonly ConnectionPoolContext _poolContext = new();
     private IFeatureCollection? _deferredFeatures;
-    private BufferedBodyWriter? _activeBodyWriter;
-    private Stream? _activeBodyStream;
     private bool _bodyStreaming;
     private IStreamingBodyReader? _activeStreamingReader;
+    private SerialBodyPump? _serialPump;
+    private CancellationTokenSource? _connectionCts;
+    private bool _closeAfterBody;
 
     public bool CanAcceptResponse => true;
     public bool ShouldComplete { get; private set; }
@@ -59,12 +56,70 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         _requestRate = new DataRateMonitor(rate.MinRequestBodyDataRate, rate.MinRequestBodyDataRateGracePeriod);
         _responseRate = new DataRateMonitor(rate.MinResponseDataRate, rate.MinResponseDataRateGracePeriod);
 
-        _decoder = new Http10ServerDecoder(options.ToHttp10DecoderOptions());
+        _decoder = new Http10ServerDecoder(options.ToHttp10DecoderOptions(), _poolContext);
         _encoder = new Http10ServerEncoder(options.ToHttp10EncoderOptions());
     }
 
     public void PreStart()
     {
+    }
+
+    private CancellationTokenSource EnsureConnectionCts()
+    {
+        return _connectionCts ??= new CancellationTokenSource();
+    }
+
+    IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
+
+    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    {
+        if (!data.IsEmpty)
+        {
+            _responseRate.Observe(0, data.Length, Now());
+            EnsureRateTimer();
+            var item = TransportBuffer.Rent(data.Length);
+            data.CopyTo(item.FullMemory);
+            item.Length = data.Length;
+            _ops.OnOutbound(TransportData.Rent(item));
+            Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", data.Length);
+
+            _serialPump!.OnCapacityAvailable();
+        }
+
+        if (endStream)
+        {
+            _responseRate.Remove(0);
+            if (_deferredFeatures is not null)
+            {
+                _ops.OnResponseBodyComplete(_deferredFeatures);
+                _deferredFeatures = null;
+            }
+
+            if (_closeAfterBody)
+            {
+                ShouldComplete = true;
+            }
+
+            Tracing.For("Protocol").Debug(this, "HTTP/1.0 response body complete (pump)");
+        }
+    }
+
+    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+    {
+        Tracing.For("Protocol").Debug(this, "HTTP/1.0 response body drain complete");
+    }
+
+    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+    {
+        _responseRate.Remove(0);
+        if (_deferredFeatures is not null)
+        {
+            _ops.OnResponseBodyComplete(_deferredFeatures);
+            _deferredFeatures = null;
+        }
+
+        Tracing.For("Protocol").Warning(this, "response body failed: {0}", reason.Message);
+        ShouldComplete = true;
     }
 
     public void DecodeClientData(ITransportInbound data)
@@ -85,8 +140,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
             if (_bodyStreaming && _decoder.StreamingReader is not null)
             {
-                var outcome = _decoder.Feed(buffer.Memory[pos..], out var bodyConsumed);
-                pos += bodyConsumed;
+                var outcome = _decoder.Feed(buffer.Memory[pos..], out _);
                 if (_decoder.LastBodyBytesConsumed > 0)
                 {
                     _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());
@@ -112,12 +166,13 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
                 EnsureRateTimer();
             }
 
-            if (result == DecodeOutcome.Complete || result == DecodeOutcome.HeadersReady)
+            if (result is DecodeOutcome.Complete or DecodeOutcome.HeadersReady)
             {
-                var feature = _decoder.GetRequestFeature();
-                var hasBody = result == DecodeOutcome.HeadersReady || feature.Body != Stream.Null;
-                var features = FeatureCollectionFactory.Create(feature, hasBody, _ops.Services, _ops.ConnectionFeature,
+                var hasBody = result == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
+                var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
+                    out var feature, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
+                _decoder.PopulateRequestFeature(feature);
 
                 if (result != DecodeOutcome.HeadersReady)
                 {
@@ -139,8 +194,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
                     if (pos < buffer.Memory.Length)
                     {
-                        var bodyOutcome = _decoder.Feed(buffer.Memory[pos..], out var bodyConsumed);
-                        pos += bodyConsumed;
+                        var bodyOutcome = _decoder.Feed(buffer.Memory[pos..], out _);
                         if (_decoder.LastBodyBytesConsumed > 0)
                         {
                             _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());
@@ -177,24 +231,26 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         {
             if (turboBody.TryGetBufferedBody(out var bufferedBody))
             {
-                if (bufferedBody.Length > 0)
-                {
-                    EncodeDeferredResponse(bufferedBody.Span);
-                }
-
+                EncodeDeferredResponse(bufferedBody.Span);
                 return;
             }
 
             var bodyStream = turboBody.GetResponseStream();
             if (bodyStream is not null)
             {
-                _activeBodyWriter = new BufferedBodyWriter();
-                _activeBodyWriter.Reset(onComplete: (owner, written) =>
+                var contentLength = ExtractContentLength(features.Get<IHttpResponseFeature>());
+
+                // HTTP/1.0 without Content-Length: the client reads until connection close.
+                // Defer ShouldComplete until the body is fully emitted so the stage doesn't
+                // close the connection while the pump still has async reads pending.
+                if (!contentLength.HasValue)
                 {
-                    _ops.StageActor.Tell(new ResponseBodyBuffered(owner, written), ActorRefs.NoSender);
-                });
-                _activeBodyStream = bodyStream;
-                ReadNextResponseChunk();
+                    _closeAfterBody = true;
+                }
+
+                _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), 16 * 1024, maxCapacity: 1);
+                EncodeDeferredResponse(ReadOnlySpan<byte>.Empty, suppressContentLength: _closeAfterBody);
+                _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
                 return;
             }
         }
@@ -202,46 +258,17 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         EncodeDeferredResponse(ReadOnlySpan<byte>.Empty);
     }
 
-    private void ReadNextResponseChunk()
-    {
-        var mem = _activeBodyWriter!.GetMemory(16 * 1024);
-        var vt = _activeBodyStream!.ReadAsync(mem);
-        if (vt.IsCompletedSuccessfully)
-        {
-            HandleResponseBodyRead(vt.Result);
-            return;
-        }
-
-        vt.PipeTo(
-            _ops.StageActor,
-            success: bytesRead => new ResponseBodyReadComplete(bytesRead),
-            failure: ex => new ResponseBodyReadFailed(ex));
-    }
-
-    private void HandleResponseBodyRead(int bytesRead)
-    {
-        if (bytesRead > 0)
-        {
-            _responseRate.Observe(0, bytesRead, Now());
-            EnsureRateTimer();
-            if (_activeBodyWriter is not null)
-            {
-                _activeBodyWriter.Advance(bytesRead);
-                _activeBodyWriter.FlushAsync();
-                ReadNextResponseChunk();
-            }
-        }
-        else
-        {
-            _activeBodyWriter?.CompleteAsync();
-            // Response fully handed to the transport: drop the rate entry so a keep-alive
-            // connection is not flagged as a violation once the grace period elapses.
-            _responseRate.Remove(0);
-        }
-    }
-
     public void OnDownstreamFinished()
     {
+    }
+
+    public void OnOutboundFlushed()
+    {
+        if (_serialPump is not null)
+        {
+            _serialPump.ResetSyncReadCounter();
+            _serialPump.OnCapacityAvailable();
+        }
     }
 
     public void OnTimerFired(string name)
@@ -273,31 +300,21 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
     {
         switch (msg)
         {
-            case ResponseBodyReadComplete read:
-                HandleResponseBodyRead(read.BytesRead);
+            case DrainReadComplete<int> read:
+                _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case ResponseBodyBuffered bufferDone:
-                var body = bufferDone.Owner.Memory.Span[..bufferDone.Written];
-                EncodeDeferredResponse(body);
-                bufferDone.Owner.Dispose();
-                _activeBodyWriter = null;
-                _activeBodyStream = null;
-                _responseRate.Remove(0);
+            case DrainReadFailed<int> failed:
+                _serialPump?.HandleReadFailed(failed.Reason);
                 break;
 
-            case ResponseBodyReadFailed failed:
-                Tracing.For("Protocol").Warning(this, "response body failed: {0}", failed.Reason.Message);
-                _activeBodyWriter?.Dispose();
-                _activeBodyWriter = null;
-                _activeBodyStream = null;
-                _responseRate.Remove(0);
-                ShouldComplete = true;
+            case DrainContinue<int>:
+                _serialPump?.HandleDrainContinue();
                 break;
         }
     }
 
-    private void EncodeDeferredResponse(ReadOnlySpan<byte> body)
+    private void EncodeDeferredResponse(ReadOnlySpan<byte> body, bool suppressContentLength = false)
     {
         if (_deferredFeatures is null)
         {
@@ -309,7 +326,8 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         {
             var bufferSize = 8 * 1024 + body.Length;
             item = TransportBuffer.Rent(bufferSize);
-            var written = _encoder.EncodeDeferred(item.FullMemory.Span, _deferredFeatures, body);
+            var written = _encoder.EncodeDeferred(item.FullMemory.Span, _deferredFeatures, body,
+                suppressContentLength);
             item.Length = written;
 
             _ops.OnOutbound(TransportData.Rent(item));
@@ -322,7 +340,13 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         }
         finally
         {
-            _deferredFeatures = null;
+            // Only clear _deferredFeatures when NOT using the pump path.
+            // The pump path keeps _deferredFeatures alive so OnResponseBodyComplete
+            // can be called after body streaming finishes.
+            if (_serialPump is null)
+            {
+                _deferredFeatures = null;
+            }
         }
     }
 
@@ -332,13 +356,36 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
     public void Cleanup()
     {
-        _activeBodyWriter?.Dispose();
-        _activeBodyWriter = null;
-        _activeBodyStream = null;
         _activeStreamingReader = null;
         _deferredFeatures = null;
+        _serialPump?.Cleanup();
+        _serialPump = null;
+        _connectionCts?.Cancel();
+        _connectionCts?.Dispose();
+        _connectionCts = null;
         _ops.OnCancelTimer(DataRateCheck);
         _rateTimerActive = false;
+    }
+
+    private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)
+    {
+        if (responseFeature?.Headers is null)
+        {
+            return null;
+        }
+
+        foreach (var header in responseFeature.Headers)
+        {
+            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase)
+                && header.Value.Count > 0
+                && header.Value[0] is { } value
+                && ContentLengthSemantics.TryParse(value, out var length))
+            {
+                return length;
+            }
+        }
+
+        return null;
     }
 
     private void EnsureRateTimer()

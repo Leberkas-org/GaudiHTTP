@@ -28,30 +28,32 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <None Include="../../README.md" Pack="true" Visible="false" PackagePath="\"/>
-        <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath="\"/>
-        <None Include="../../docs/public/logo/icon.png" Visible="false" Pack="true" PackagePath="\"/>
-        <None Remove="packages.lock.json"/>
+        <None Include="../../README.md" Pack="true" Visible="false" PackagePath="\" />
+        <None Include="../../LICENSE" Pack="true" Visible="false" PackagePath="\" />
+        <None Include="../../docs/public/logo/icon.png" Visible="false" Pack="true" PackagePath="\" />
+        <None Remove="packages.lock.json" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Akka.Hosting"/>
-        <PackageReference Include="Akka.Streams"/>
-        <PackageReference Include="Microsoft.IO.RecyclableMemoryStream"/>
-        <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions"/>
+        <PackageReference Include="Akka.Hosting" />
+        <PackageReference Include="Akka.Streams" />
+        <PackageReference Include="Microsoft.Extensions.ObjectPool" />
+        <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" />
+        <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" />
         <!-- Servus.Core is a published dependency. Servus.Akka is NOT referenced from NuGet:
              for this alpha its transport lives in the local project and is bundled into the
              package below (see the Servus.Akka ProjectReference + IncludeServusAkkaInPackage). -->
-        <PackageReference Include="Servus"/>
+        <PackageReference Include="Servus" />
     </ItemGroup>
     <ItemGroup>
-        <InternalsVisibleTo Include="TurboHTTP.Tests"/>
-        <InternalsVisibleTo Include="TurboHTTP.AcceptanceTests"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Client"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.End2End"/>
-        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Server"/>
-        <InternalsVisibleTo Include="TurboHTTP.Tests.Shared"/>
-        <InternalsVisibleTo Include="TurboHTTP.Benchmarks"/>
+        <InternalsVisibleTo Include="TurboHTTP.Tests" />
+        <InternalsVisibleTo Include="TurboHTTP.AcceptanceTests" />
+        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Client" />
+        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.End2End" />
+        <InternalsVisibleTo Include="TurboHTTP.IntegrationTests.Server" />
+        <InternalsVisibleTo Include="TurboHTTP.Tests.Shared" />
+        <InternalsVisibleTo Include="TurboHTTP.Benchmarks" />
+        <InternalsVisibleTo Include="TurboHTTP.StressBenchmarks" />
     </ItemGroup>
     <!-- ALPHA packaging: bundle the locally-developed Servus.Akka transport into this package
          instead of taking it from NuGet. PrivateAssets=all keeps it from becoming a package
@@ -59,7 +61,7 @@
          target below embeds Servus.Akka.dll in lib/. When the transport moves to the published
          Servus.Akka package, replace this with a PackageReference and drop the target. -->
     <ItemGroup>
-        <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka\Servus.Akka.csproj" PrivateAssets="all"/>
+        <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka\Servus.Akka.csproj" PrivateAssets="all" />
     </ItemGroup>
 
     <PropertyGroup>
@@ -67,7 +69,7 @@
     </PropertyGroup>
     <Target Name="IncludeServusAkkaInPackage">
         <ItemGroup>
-            <BuildOutputInPackage Include="$(OutputPath)Servus.Akka.dll"/>
+            <BuildOutputInPackage Include="$(OutputPath)Servus.Akka.dll" />
         </ItemGroup>
     </Target>
 </Project>

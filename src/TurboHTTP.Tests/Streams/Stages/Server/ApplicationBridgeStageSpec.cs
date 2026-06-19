@@ -64,7 +64,7 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
         var tcs2 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var tcs3 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var handlerQueue = new Queue<Task>(new[] { tcs1.Task, tcs2.Task, tcs3.Task });
+        var handlerQueue = new Queue<Task>([tcs1.Task, tcs2.Task, tcs3.Task]);
         var app = new FakeApplication(_ => handlerQueue.Dequeue());
         var stage = CreateStage(app);
 
@@ -85,6 +85,36 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
         downstream.ExpectNext(TestContext.Current.CancellationToken);
         downstream.ExpectNext(TestContext.Current.CancellationToken);
         downstream.ExpectNext(TestContext.Current.CancellationToken);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ApplicationBridgeStage_should_not_double_emit_when_handler_times_out_after_headers()
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var app = new FakeApplication(async features =>
+        {
+            features.Get<IHttpResponseFeature>()!.StatusCode = 200;
+            // Commit headers so WhenHeadersReady completes and the response is emitted, then hang
+            // past the handler timeout. The hard timeout must NOT re-emit the already-sent response.
+            await features.Get<IHttpResponseBodyFeature>()!.StartAsync();
+            await release.Task;
+        });
+
+        var stage = new ApplicationBridgeStage<IFeatureCollection>(
+            app, 1, TimeSpan.FromMilliseconds(100), TimeSpan.FromMilliseconds(100));
+
+        var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
+            .Via(stage)
+            .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
+            .Run(Materializer);
+
+        downstream.Request(10);
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
+
+        downstream.ExpectNext(TestContext.Current.CancellationToken);
+        downstream.ExpectNoMsg(TimeSpan.FromMilliseconds(600), TestContext.Current.CancellationToken);
+
+        release.SetResult();
     }
 
     [Fact(Timeout = 5000)]

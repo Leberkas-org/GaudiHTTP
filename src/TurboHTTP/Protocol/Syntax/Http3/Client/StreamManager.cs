@@ -4,6 +4,7 @@ using TurboHTTP.Internal;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Protocol.Semantics;
+using TurboHTTP.Pooling;
 using TurboHTTP.Streams.Stages.Client;
 using static Servus.Senf;
 
@@ -23,6 +24,7 @@ internal sealed class StreamManager(
     private const int MaxPoolSize = 256;
     private const int MaxDecoderPoolSize = 256;
 
+    private readonly ConnectionPoolContext _bodyReaderPool = new();
     private readonly Dictionary<long, StreamState> _streams = new();
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
     private readonly Stack<StreamState> _statePool = new();
@@ -87,6 +89,14 @@ internal sealed class StreamManager(
             return;
         }
 
+        if (state is { IsHeadersBlocked: true })
+        {
+            // FIN arrived while still QPACK-blocked; remember it so ResolveBlockedStreams can
+            // complete the body after the headers (and any buffered DATA) are delivered.
+            state.PendingEndStream = true;
+            return;
+        }
+
         if (state is { HasResponse: true })
         {
             EmitResponse(streamId);
@@ -103,7 +113,7 @@ internal sealed class StreamManager(
     {
         if (_streams.TryGetValue(streamId, out var state))
         {
-            state.AbortBody();
+            AbortAndReturnBodyReader(state);
             state.Reset();
             if (_statePool.Count < MaxPoolSize)
             {
@@ -185,8 +195,7 @@ internal sealed class StreamManager(
 
                 if (state is { HasResponse: true, HasBodyReader: false })
                 {
-                    var queued = new QueuedBodyReader(capacity: 8);
-                    queued.Reset();
+                    var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
                     state.InitBodyReader(queued, maxResponseBodySize);
                     var response = state.GetResponse();
                     var bodyStream = state.GetBodyStream();
@@ -205,6 +214,18 @@ internal sealed class StreamManager(
                     }
 
                     ops.OnResponse(response);
+
+                    // Replay DATA buffered while the stream was blocked, then honor a FIN that
+                    // arrived during the block so the body completes.
+                    state.IsHeadersBlocked = false;
+                    state.ReplayPendingInboundData();
+
+                    if (state.PendingEndStream)
+                    {
+                        state.FeedBody(ReadOnlySpan<byte>.Empty, endStream: true);
+                        state.DetachBodyReader();
+                        ReturnStreamState(streamId);
+                    }
                 }
             }
         }
@@ -244,6 +265,7 @@ internal sealed class StreamManager(
     {
         foreach (var (_, state) in _streams)
         {
+            AbortAndReturnBodyReader(state);
             state.Reset();
             if (_statePool.Count < MaxPoolSize)
             {
@@ -291,6 +313,7 @@ internal sealed class StreamManager(
 
         foreach (var state in _streams.Values)
         {
+            AbortAndReturnBodyReader(state);
             state.Reset();
         }
 
@@ -307,6 +330,9 @@ internal sealed class StreamManager(
 
         if (result.IsBlocked)
         {
+            // Mark blocked so DATA frames that arrive before the QPACK encoder instructions
+            // resolve this stream are buffered (HandleResponseData) instead of dropped.
+            state.IsHeadersBlocked = true;
             return;
         }
 
@@ -317,8 +343,7 @@ internal sealed class StreamManager(
 
         var streamId = state.StreamId;
 
-        var queued = new QueuedBodyReader(capacity: 8);
-        queued.Reset();
+        var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued, maxResponseBodySize);
         var response = state.GetResponse();
         var bodyStream = state.GetBodyStream();
@@ -343,6 +368,15 @@ internal sealed class StreamManager(
     {
         if (!state.HasBodyReader)
         {
+            if (state.IsHeadersBlocked)
+            {
+                // HEADERS are QPACK-blocked; buffer the DATA (copied — it aliases the pooled
+                // transport buffer) and replay it once ResolveBlockedStreams initializes the
+                // body reader. Dropping here would silently truncate the response body.
+                state.BufferInboundData(frame.Data.Span);
+                return;
+            }
+
             Tracing.For("Protocol").Warning(this, "RFC 9114 §4.1 - DATA frame received before HEADERS; dropping.");
             return;
         }
@@ -379,6 +413,24 @@ internal sealed class StreamManager(
         ops.OnResponse(response);
 
         ReturnStreamState(streamId);
+    }
+
+    private void AbortAndReturnBodyReader(StreamState state)
+    {
+        var reader = state.TakeBodyReader();
+        if (reader is IStreamingBodyReader streaming)
+        {
+            streaming.Fault(new OperationCanceledException());
+        }
+
+        if (reader is QueuedBodyReader queued)
+        {
+            _bodyReaderPool.Return(queued);
+        }
+        else
+        {
+            reader?.Dispose();
+        }
     }
 
     private StreamState RentStreamState(long streamId)

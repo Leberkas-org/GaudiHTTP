@@ -118,6 +118,7 @@ Per-endpoint backpressure thresholds for the pipes between the OS socket and the
 | `OutputPauseThreshold` | `long?` | 64 KiB | 64 KiB | Bytes buffered on the write pipe before the HTTP pipeline is paused |
 | `OutputResumeThreshold` | `long?` | 32 KiB | 32 KiB | Buffered byte count at which writing resumes |
 | `MinimumSegmentSize` | `int?` | 16 KiB | 4 KiB | Minimum pipe buffer segment size |
+| `ReceiveBufferHint` | `int?` | 64 KiB | 4 KiB | Size hint for `PipeWriter.GetMemory` on the receive path |
 
 ```csharp
 options.Listen(IPAddress.Any, 8080, listen =>

@@ -11,7 +11,7 @@ dotnet add package TurboHTTP
 Or add it to your `.csproj`:
 
 ```xml
-<PackageReference Include="TurboHTTP" Version="1.*" />
+<PackageReference Include="TurboHTTP" Version="3.0.0-alpha.*" />
 ```
 
 ## Choose Your Path

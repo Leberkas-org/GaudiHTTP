@@ -1,5 +1,3 @@
-using System.Threading;
-
 namespace TurboHTTP.Internal;
 
 internal static class OptionsKey

@@ -1,22 +1,13 @@
 using System.Text;
-using Akka.Actor;
 using Akka.Streams;
 using Akka.Streams.Dsl;
+using Akka.TestKit.Xunit;
 using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.Tests.Server.Context;
 
-public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
+public sealed class TurboHttpResponseBodyFeatureSpec : TestKit
 {
-    private readonly ActorSystem _system;
-    private readonly IMaterializer _materializer;
-
-    public TurboHttpResponseBodyFeatureSpec()
-    {
-        _system = ActorSystem.Create("test");
-        _materializer = _system.Materializer();
-    }
-
     [Fact(Timeout = 5000)]
     public async Task Stream_write_should_be_readable_from_GetResponseSource()
     {
@@ -28,7 +19,7 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
         await feature.CompleteAsync();
 
         var result = await feature.GetResponseSource()
-            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), _materializer);
+            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), Sys.Materializer());
 
         var combined = result.SelectMany(m => m.ToArray()).ToArray();
         Assert.Equal("hello", Encoding.UTF8.GetString(combined));
@@ -48,7 +39,7 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
         await feature.CompleteAsync();
 
         var result = await feature.GetResponseSource()
-            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), _materializer);
+            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), Sys.Materializer());
 
         var combined = result.SelectMany(m => m.ToArray()).ToArray();
         Assert.Equal("pipe-data", Encoding.UTF8.GetString(combined));
@@ -60,11 +51,11 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
         var feature = new TurboHttpResponseBodyFeature();
         var chunk = new ReadOnlyMemory<byte>("akka-data"u8.ToArray());
 
-        await Source.Single(chunk).RunWith(feature.BodySink, _materializer);
+        await Source.Single(chunk).RunWith(feature.BodySink, Sys.Materializer());
         await feature.CompleteAsync();
 
         var result = await feature.GetResponseSource()
-            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), _materializer);
+            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), Sys.Materializer());
 
         var combined = result.SelectMany(m => m.ToArray()).ToArray();
         Assert.Equal("akka-data", Encoding.UTF8.GetString(combined));
@@ -77,7 +68,7 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
         await feature.CompleteAsync();
 
         var result = await feature.GetResponseSource()
-            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), _materializer);
+            .RunWith(Sink.Seq<ReadOnlyMemory<byte>>(), Sys.Materializer());
 
         Assert.Empty(result);
     }
@@ -159,7 +150,7 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
 
         Assert.False(feature.WhenHeadersReady.IsCompleted);
 
-        await Source.Single(chunk).RunWith(feature.BodySink, _materializer);
+        await Source.Single(chunk).RunWith(feature.BodySink, Sys.Materializer());
 
         Assert.True(feature.WhenHeadersReady.IsCompleted);
         Assert.True(feature.HasStarted);
@@ -201,10 +192,5 @@ public sealed class TurboHttpResponseBodyFeatureSpec : IDisposable
 
         Assert.False(feature.TryGetBufferedBody(out _),
             "An incomplete buffered body must not be emitted as a finished response.");
-    }
-
-    public void Dispose()
-    {
-        _system.Dispose();
     }
 }

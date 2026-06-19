@@ -1,6 +1,8 @@
+using TurboHTTP.Pooling;
+
 namespace TurboHTTP.Protocol.Body;
 
-internal sealed class ContentLengthFramingDecoder : IFramingDecoder
+internal sealed class ContentLengthFramingDecoder : IFramingDecoder, IResettable
 {
     private long _remaining;
 
@@ -13,6 +15,8 @@ internal sealed class ContentLengthFramingDecoder : IFramingDecoder
         ArgumentOutOfRangeException.ThrowIfNegative(contentLength);
         _remaining = contentLength;
     }
+
+    void IResettable.Reset() => Reset(0);
 
     public FramingDecodeResult Decode(ReadOnlySpan<byte> raw, out int rawConsumed)
     {

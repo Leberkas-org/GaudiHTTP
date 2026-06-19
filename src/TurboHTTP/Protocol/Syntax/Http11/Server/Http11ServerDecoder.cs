@@ -1,3 +1,4 @@
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
@@ -6,7 +7,7 @@ using TurboHTTP.Server.Context.Features;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
+internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options, ConnectionPoolContext poolContext)
 {
     private enum Phase
     {
@@ -17,6 +18,11 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
     }
 
     private readonly HeaderBlockReader _headerReader = new(options.MaxHeaderBytes, options.MaxHeaderCount, options.HeaderLineMaxLength, options.AllowObsFold);
+
+    // Projected once: the source options are immutable, so the per-request projection produced a
+    // fresh identical BodyDecoderOptions record every request (allocated even for no-body GETs,
+    // where the body decoder path never reads it).
+    private readonly BodyDecoderOptions _bodyDecoderOptions = options.ToBodyDecoderOptions();
 
     private Phase _phase = Phase.RequestLine;
     private HttpMethod _method = null!;
@@ -64,8 +70,17 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
                 return DecodeOutcome.NeedMore;
             }
 
-            var classification = BodySemantics.ClassifyRequest(_method, _headerReader.GetHeaders(), _version);
-            var (reader, decoder) = BodyReaderFactory.Create(classification, options.ToBodyDecoderOptions());
+            var headers = _headerReader.GetHeaders();
+            if (!headers.Contains(WellKnownHeaders.ContentLength) && !headers.Contains(WellKnownHeaders.TransferEncoding))
+            {
+                _phase = Phase.Done;
+                consumed = pos;
+                return DecodeOutcome.Complete;
+            }
+
+            var classification = BodySemantics.ClassifyRequest(_method, headers, _version);
+            var readerClassification = BodyReaderClassification.FromBodyClassification(classification, _bodyDecoderOptions);
+            var (reader, decoder) = poolContext.RentBodyReader(readerClassification, _bodyDecoderOptions);
             CurrentBodyReader = reader;
             CurrentFramingDecoder = decoder;
             if (reader is IStreamingBodyReader streaming)
@@ -175,40 +190,43 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options)
 
     public TurboHttpRequestFeature GetRequestFeature()
     {
-        var body = CurrentBodyReader?.AsStream() ?? Stream.Null;
-
-        var feature = new TurboHttpRequestFeature
-        {
-            Protocol = _version switch
-            {
-                { Major: 1, Minor: 0 } => WellKnownHeaders.Http10,
-                { Major: 1, Minor: 1 } => WellKnownHeaders.Http11,
-                _ => WellKnownHeaders.Http11
-            },
-            Method = _method.Method,
-            Path = ParsePath(_target),
-            QueryString = ParseQueryString(_target),
-            RawTarget = _target,
-            Body = body
-        };
-
-        // Populate directly into the feature's header dictionary, avoiding a throwaway
-        // HeaderDictionary allocation plus the copy loop in the Headers setter.
-        HeaderRouter.ApplyToHeaderDictionary(feature.Headers, _headerReader.GetHeaders());
+        var feature = new TurboHttpRequestFeature();
+        PopulateRequestFeature(feature);
         return feature;
     }
 
-    private static string ParsePath(string target)
+    public void PopulateRequestFeature(TurboHttpRequestFeature feature)
     {
-        var queryIdx = target.IndexOf('?');
-        var pathPart = queryIdx >= 0 ? target[..queryIdx] : target;
-        return string.IsNullOrEmpty(pathPart) ? "/" : pathPart;
+        feature.Protocol = _version switch
+        {
+            { Major: 1, Minor: 0 } => WellKnownHeaders.Http10,
+            { Major: 1, Minor: 1 } => WellKnownHeaders.Http11,
+            _ => WellKnownHeaders.Http11
+        };
+        feature.Method = _method.Method;
+        SplitTarget(_target, out var path, out var query);
+        feature.Path = path;
+        feature.QueryString = query;
+        feature.RawTarget = _target;
+        feature.Body = CurrentBodyReader?.AsStream() ?? Stream.Null;
+
+        HeaderRouter.ApplyToHeaderDictionary(feature.Headers, _headerReader.GetHeaders());
     }
 
-    private static string ParseQueryString(string target)
+    private static void SplitTarget(string target, out string path, out string query)
     {
         var queryIdx = target.IndexOf('?');
-        return queryIdx >= 0 ? target[queryIdx..] : string.Empty;
+        if (queryIdx < 0)
+        {
+            path = string.IsNullOrEmpty(target) ? "/" : target;
+            query = string.Empty;
+        }
+        else
+        {
+            var pathPart = target[..queryIdx];
+            path = string.IsNullOrEmpty(pathPart) ? "/" : pathPart;
+            query = target[queryIdx..];
+        }
     }
 
     public void Reset()

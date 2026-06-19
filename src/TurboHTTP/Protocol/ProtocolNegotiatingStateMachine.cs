@@ -19,12 +19,20 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
     private readonly TurboServerOptions _options;
     private readonly UpgradeAwareOps _wrappedOps;
 
+    // Pre-protocol guards: the sniffing window has no state machine yet, so it must bound how much
+    // it buffers and how long it waits before a protocol is identified (memory-exhaustion / slow-loris).
+    private const int MaxSniffBytes = 64 * 1024;
+    private const string NegotiationTimer = "negotiation-headers";
+
     private Phase _phase = Phase.WaitingForConnect;
     private IServerStateMachine? _inner;
     private readonly List<ITransportInbound> _buffered = [];
+    private long _bufferedBytes;
+    private bool _sniffAborted;
+    private bool _negotiationTimerActive;
 
     public bool CanAcceptResponse => _phase == Phase.Running && _inner!.CanAcceptResponse;
-    public bool ShouldComplete => _phase == Phase.Running && _inner!.ShouldComplete;
+    public bool ShouldComplete => _sniffAborted || (_phase == Phase.Running && _inner!.ShouldComplete);
     public int MaxQueuedRequests => _phase == Phase.Running ? _inner!.MaxQueuedRequests : 1;
 
     // Forward the concurrency limit so a negotiated/sniffed HTTP/1.x connection still serializes
@@ -64,13 +72,50 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
     public void OnResponse(IFeatureCollection features) => _inner!.OnResponse(features);
     public void OnDownstreamFinished() => _inner?.OnDownstreamFinished();
-    public void OnTimerFired(string name) => _inner?.OnTimerFired(name);
     public void OnBodyMessage(object msg) => _inner?.OnBodyMessage(msg);
+
+    public void OnTimerFired(string name)
+    {
+        if (name == NegotiationTimer)
+        {
+            _negotiationTimerActive = false;
+            if (_phase != Phase.Running)
+            {
+                // Connected but never sent an identifiable request line / preface within the
+                // window — abort instead of holding the slot open indefinitely (slow-loris).
+                _sniffAborted = true;
+            }
+
+            return;
+        }
+
+        _inner?.OnTimerFired(name);
+    }
 
     public void Cleanup()
     {
+        CancelNegotiationTimer();
         _inner?.Cleanup();
         DisposeBuffered();
+    }
+
+    private void ScheduleNegotiationTimer()
+    {
+        var timeout = _options.Limits.RequestHeadersTimeout;
+        if (timeout > TimeSpan.Zero && !_negotiationTimerActive)
+        {
+            _negotiationTimerActive = true;
+            _wrappedOps.OnScheduleTimer(NegotiationTimer, timeout);
+        }
+    }
+
+    private void CancelNegotiationTimer()
+    {
+        if (_negotiationTimerActive)
+        {
+            _negotiationTimerActive = false;
+            _wrappedOps.OnCancelTimer(NegotiationTimer);
+        }
     }
 
     private void OnWaitingForConnect(ITransportInbound data)
@@ -99,6 +144,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
         _buffered.Add(data);
         _phase = Phase.Sniffing;
+        ScheduleNegotiationTimer();
     }
 
     private static ReadOnlySpan<byte> Http2PrefixMagic => "PRI "u8;
@@ -113,37 +159,48 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
             return;
         }
 
+        _bufferedBytes += buffer.Length;
+
         var span = buffer.Memory.Span;
-        if (span.Length < 4)
+        if (span.Length >= 4)
         {
-            return;
+            if (span.StartsWith(Http2PrefixMagic))
+            {
+                var h2Options = _options.ToHttp2Options();
+                Activate(ops => new Http2ServerStateMachine(h2Options, ops));
+                ReplayBuffered();
+                return;
+            }
+
+            if (DetectHttp10())
+            {
+                var h1Options = _options.ToHttp1Options();
+                Activate(ops => new Http10ServerStateMachine(h1Options, ops));
+                ReplayBuffered();
+                return;
+            }
+
+            if (ContainsRequestLineCrlf())
+            {
+                var h1Options = _options.ToHttp1Options();
+                var h2UpgradeOptions = _options.ToHttp2Options();
+                Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
+                ReplayBuffered();
+                return;
+            }
         }
 
-        if (span.StartsWith(Http2PrefixMagic))
+        // No protocol identified from the buffered bytes yet. Bound how much we buffer while
+        // waiting so an unidentifiable cleartext peer can't grow the sniff buffer without bound
+        // (memory-exhaustion DoS). A real request line / HTTP/2 preface is tiny, so exceeding the
+        // cap without identification means garbage/abuse — abort before any state machine exists.
+        // The cap is checked AFTER identification so a large first segment carrying a valid preface
+        // plus request data (common for concurrent / large HTTP/2) is recognized rather than aborted.
+        if (_bufferedBytes > MaxSniffBytes)
         {
-            var h2Options = _options.ToHttp2Options();
-            Activate(ops => new Http2ServerStateMachine(h2Options, ops));
-            ReplayBuffered();
-            return;
+            _sniffAborted = true;
+            CancelNegotiationTimer();
         }
-
-        if (DetectHttp10())
-        {
-            var h1Options = _options.ToHttp1Options();
-            Activate(ops => new Http10ServerStateMachine(h1Options, ops));
-        }
-        else if (ContainsRequestLineCrlf())
-        {
-            var h1Options = _options.ToHttp1Options();
-            var h2UpgradeOptions = _options.ToHttp2Options();
-            Activate(ops => new Http11ServerStateMachine(h1Options, h2UpgradeOptions, ops));
-        }
-        else
-        {
-            return;
-        }
-
-        ReplayBuffered();
     }
 
     private bool DetectHttp10()
@@ -174,6 +231,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
 
     private void Activate(Func<IServerStageOperations, IServerStateMachine> factory)
     {
+        CancelNegotiationTimer();
         _inner = factory(_wrappedOps);
         _phase = Phase.Running;
         _inner.PreStart();
@@ -223,6 +281,7 @@ internal sealed class ProtocolNegotiatingStateMachine : IServerStateMachine
         public IServiceProvider? Services => real.Services;
         public TurboHttpConnectionFeature? ConnectionFeature => real.ConnectionFeature;
         public TlsHandshakeFeature? TlsHandshakeFeature => real.TlsHandshakeFeature;
+        public TurboHTTP.Pooling.ConnectionPoolContext? PoolContext => real.PoolContext;
 
         public void RequestProtocolSwitch(Func<IServerStageOperations, IServerStateMachine> newSmFactory)
         {

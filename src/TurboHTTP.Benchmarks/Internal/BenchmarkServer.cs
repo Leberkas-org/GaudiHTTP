@@ -23,7 +23,7 @@ public sealed class BenchmarkServer : IAsyncDisposable
 
     public int Http30Port { get; private set; }
 
-    public async ValueTask InitializeAsync()
+    public async ValueTask InitializeAsync(IAllocationProfiler? profiler = null)
     {
         _cert = GenerateSelfSignedCert();
 
@@ -67,7 +67,7 @@ public sealed class BenchmarkServer : IAsyncDisposable
 
         var app = builder.Build();
 
-        RegisterRoutes(app);
+        RegisterRoutes(app, profiler);
 
         await app.StartAsync();
 
@@ -109,8 +109,8 @@ public sealed class BenchmarkServer : IAsyncDisposable
         return X509CertificateLoader.LoadPkcs12(cert.Export(X509ContentType.Pfx), null);
     }
 
-    private static void RegisterRoutes(WebApplication app)
+    private static void RegisterRoutes(WebApplication app, IAllocationProfiler? profiler)
     {
-        BenchmarkRoutes.Register(app);
+        BenchmarkRoutes.Register(app, profiler);
     }
 }

@@ -250,17 +250,11 @@ public sealed class Http2FuzzHpackBoundarySpec
     {
         var decoder = new FrameDecoder();
 
-        // RFC 9113 §6.5.2: INITIAL_WINDOW_SIZE = 2^31 is illegal (exceeds 2^31-1).
+        // RFC 9113 §6.5.2: INITIAL_WINDOW_SIZE = 2^31 is illegal (exceeds 2^31-1) and MUST be
+        // rejected at decode (FLOW_CONTROL_ERROR), not surfaced to the caller.
         var frame = BuildSettingsFrame(false, [(0x4, 0x80000000)]);
 
-        var framesDecoded = decoder.Decode(frame);
-        var settings = Assert.Single(framesDecoded);
-        var settingsF = Assert.IsType<SettingsFrame>(settings);
-
-        // Explicit enforcement of INITIAL_WINDOW_SIZE <= 2^31-1.
-        var hasOverflow = settingsF.Parameters.Any(p =>
-            p is { Item1: SettingsParameter.InitialWindowSize, Item2: > 0x7FFFFFFFu });
-        Assert.True(hasOverflow, "Expected INITIAL_WINDOW_SIZE overflow in parameters");
+        Assert.Throws<HttpProtocolException>(() => decoder.Decode(frame));
     }
 
     [Fact(Timeout = 5000)]

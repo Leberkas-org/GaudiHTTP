@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Options;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
@@ -24,7 +25,7 @@ public sealed class Http11ServerDecoderSecuritySpec
 
     private static Http11ServerDecoder MakeDecoder(Http11ServerDecoderOptions? options = null)
     {
-        return new Http11ServerDecoder(options ?? DefaultDecoderOptions());
+        return new Http11ServerDecoder(options ?? DefaultDecoderOptions(), new ConnectionPoolContext());
     }
 
     [Fact(Timeout = 5000)]

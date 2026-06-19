@@ -26,14 +26,6 @@ internal static class HeaderFieldParser
         }
 
         var nameSpan = line[..colon];
-        for (var i = 0; i < nameSpan.Length; i++)
-        {
-            if (nameSpan[i] == (byte)' ' || nameSpan[i] == (byte)'\t')
-            {
-                return false;
-            }
-        }
-
         if (!HeaderValidation.IsToken(nameSpan))
         {
             return false;
@@ -54,7 +46,7 @@ internal static class HeaderFieldParser
         }
 
         name = WellKnownHeaders.GetOrCreateHeaderNameIgnoreCase(nameSpan).Name;
-        value = valueSpan.IsEmpty ? string.Empty : WellKnownHeaders.GetOrCreateHeaderValue(valueSpan).Name;
+        value = valueSpan.IsEmpty ? string.Empty : WellKnownHeaders.GetOrCreateHeaderValueString(valueSpan);
         return true;
     }
 }

@@ -126,12 +126,21 @@ internal abstract class Http2Frame(int streamId)
     internal const int HeaderSize = 9;
 }
 
-internal sealed class DataFrame(int streamId, ReadOnlyMemory<byte> data, bool endStream = false)
+internal sealed class DataFrame(int streamId, ReadOnlyMemory<byte> data, bool endStream = false,
+    int? flowControlledLength = null)
     : Http2Frame(streamId)
 {
     public override FrameType Type => FrameType.Data;
     public ReadOnlyMemory<byte> Data { get; } = data;
     public bool EndStream { get; } = endStream;
+
+    /// <summary>
+    /// RFC 9113 §6.1: the entire DATA frame payload counted against flow control, including the
+    /// Pad Length octet and padding. Equals <see cref="Data"/>.Length for unpadded frames and the
+    /// encode path; the decode path sets it to the pre-strip payload length so the receiver credits
+    /// the peer the same number of octets the peer debited from its send window.
+    /// </summary>
+    public int FlowControlledLength { get; } = flowControlledLength ?? data.Length;
 
     public override int SerializedSize => FrameHeaderSize + Data.Length;
 

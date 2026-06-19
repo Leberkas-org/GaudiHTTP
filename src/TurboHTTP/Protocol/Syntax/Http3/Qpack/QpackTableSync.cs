@@ -27,6 +27,7 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
 internal sealed class QpackTableSync
 {
     private readonly QpackInstructionDecoder _instructionDecoder;
+    private readonly QpackInstructionDecoder _decoderInstructionDecoder;
     private readonly List<BlockedStream> _blockedStreams = [];
     private readonly int _maxBlockedStreams;
     private readonly int _encoderMaxCapacity;
@@ -68,6 +69,7 @@ internal sealed class QpackTableSync
         Encoder = new QpackEncoder(encoderMaxCapacity);
         Decoder = new QpackDecoder(decoderMaxCapacity, maxBlockedStreams);
         _instructionDecoder = new QpackInstructionDecoder();
+        _decoderInstructionDecoder = new QpackInstructionDecoder();
     }
 
     /// <summary>The QPACK encoder (for request encoding and encoder instruction access).</summary>
@@ -111,8 +113,7 @@ internal sealed class QpackTableSync
     /// <returns>The number of instructions processed.</returns>
     public int ProcessDecoderInstructions(ReadOnlySpan<byte> data)
     {
-        var instrDecoder = new QpackInstructionDecoder();
-        var instructions = instrDecoder.DecodeAllDecoderInstructions(data);
+        var instructions = _decoderInstructionDecoder.DecodeAllDecoderInstructions(data);
 
         foreach (var instruction in instructions)
         {
@@ -187,6 +188,11 @@ internal sealed class QpackTableSync
     /// </returns>
     public IReadOnlyList<(int StreamId, IReadOnlyList<(string Name, string Value)> Headers)> ResolveBlockedStreams()
     {
+        if (_blockedStreams.Count == 0)
+        {
+            return Array.Empty<(int, IReadOnlyList<(string Name, string Value)>)>();
+        }
+
         var resolved = new List<(int, IReadOnlyList<(string Name, string Value)>)>();
         var remaining = new List<BlockedStream>();
 

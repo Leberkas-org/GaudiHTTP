@@ -51,14 +51,28 @@ public sealed class ConnectionActorSpec : TestKit
             Source.Maybe<ITransportInbound>().MapMaterializedValue(_ => NotUsed.Instance));
     }
 
-    [Fact(Timeout = 10000)]
-    public void ConnectionActor_should_materialize_and_complete_on_connection_close()
+    private static Flow<ITransportOutbound, ITransportInbound, NotUsed> FailingConnectionFlow()
     {
-        var engine = new PassthroughEngine();
-        var options = new TurboServerOptions();
+        return Flow.FromSinkAndSource(
+            Sink.Ignore<ITransportOutbound>().MapMaterializedValue(_ => NotUsed.Instance),
+            Source.Failed<ITransportInbound>(new InvalidOperationException("connection failed")));
+    }
 
+    [Fact(Timeout = 10000)]
+    public void ConnectionActor_should_stop_on_stream_completion()
+    {
         var actor = Sys.ActorOf(ConnectionActor.Props(
-            1, FakeConnectionFlow(), PassthroughBridgeGraph(), engine, options));
+            1, FakeConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new TurboServerOptions()));
+
+        Watch(actor);
+        ExpectTerminated(actor, TimeSpan.FromSeconds(5), cancellationToken: TestContext.Current.CancellationToken);
+    }
+
+    [Fact(Timeout = 10000)]
+    public void ConnectionActor_should_stop_on_stream_failure()
+    {
+        var actor = Sys.ActorOf(ConnectionActor.Props(
+            2, FailingConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new TurboServerOptions()));
 
         Watch(actor);
         ExpectTerminated(actor, TimeSpan.FromSeconds(5), cancellationToken: TestContext.Current.CancellationToken);
@@ -67,11 +81,8 @@ public sealed class ConnectionActorSpec : TestKit
     [Fact(Timeout = 10000)]
     public void ConnectionActor_should_drain_on_drain_message()
     {
-        var engine = new PassthroughEngine();
-        var options = new TurboServerOptions();
-
         var actor = Sys.ActorOf(ConnectionActor.Props(
-            1, HangingConnectionFlow(), PassthroughBridgeGraph(), engine, options));
+            3, HangingConnectionFlow(), PassthroughBridgeGraph(), new PassthroughEngine(), new TurboServerOptions()));
 
         Watch(actor);
         actor.Tell(new ConnectionActor.Drain());

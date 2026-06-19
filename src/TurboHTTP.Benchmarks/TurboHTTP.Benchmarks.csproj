@@ -7,10 +7,12 @@
         <Optimize>true</Optimize>
         <IsPackable>false</IsPackable>
         <ServerGarbageCollection>true</ServerGarbageCollection>
+        <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="BenchmarkDotNet"/>
+        <PackageReference Include="BenchmarkDotNet" />
+        <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" />
     </ItemGroup>
 
     <ItemGroup>
@@ -18,7 +20,12 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj"/>
+        <ProjectReference Include="..\TurboHTTP\TurboHTTP.csproj" />
+        <ProjectReference Include="..\..\lib\servus.akka\src\Servus.Akka\Servus.Akka.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="TurboHTTP.StressBenchmarks" />
     </ItemGroup>
 
 </Project>

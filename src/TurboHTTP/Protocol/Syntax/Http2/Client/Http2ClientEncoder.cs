@@ -21,10 +21,11 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
     /// </summary>
     public int MaxFrameSize { get; private set; } = 16 * 1024;
 
-    // Tracks MemoryPool rentals from the previous Encode() call so they can be
-    // disposed once the caller has consumed the frame list (contract: callers consume
-    // frames before the next Encode() call).
-    private readonly List<IMemoryOwner<byte>> _rentedBodyOwners = new(4);
+    // Per-encoder scratch buffer for HPACK encoding. Grown on demand (grow-and-replace).
+    // Actor-thread-confined: no synchronization needed. The caller (Http2ClientSessionManager)
+    // copies all frame data into a TransportBuffer before the next Encode() call, so this
+    // buffer is only needed for the duration of a single Encode() invocation.
+    private byte[] _hpackScratch = new byte[4 * 1024];
 
     // Reused across Encode() calls to avoid List<HpackHeader> allocation per request.
     private readonly List<HpackHeader> _reusableHeaders = new(16);
@@ -47,25 +48,40 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
             throw new HttpProtocolException("HTTP/2 stream ID space exhausted: all client stream IDs have been used.");
         }
 
-        // Dispose MemoryPool rentals from the previous Encode() call.
-        // Safe: callers consume the frame list before calling Encode() again.
-        ReturnRentedBuffers();
-
         _reusableHeaders.Clear();
         BuildHeaderList(request, _reusableHeaders);
         ValidatePseudoHeaders(_reusableHeaders);
 
-        var hpackOwner = MemoryPool<byte>.Shared.Rent(4096);
-        _rentedBodyOwners.Add(hpackOwner);
-        var hpackWritable = hpackOwner.Memory.Span;
+        var needed = EstimateHpackBufferSize(_reusableHeaders);
+        if (_hpackScratch.Length < needed)
+        {
+            _hpackScratch = new byte[needed];
+        }
+
+        var hpackWritable = _hpackScratch.AsSpan();
         var hpackBytesWritten = _hpack.Encode(_reusableHeaders, ref hpackWritable, useHuffman);
-        var headerBlock = hpackOwner.Memory[..hpackBytesWritten];
+        var headerBlock = new ReadOnlyMemory<byte>(_hpackScratch, 0, hpackBytesWritten);
         var hasBody = request.Content != null;
 
         _reusableFrames.Clear();
         EncodeHeaders(_reusableFrames, streamId, headerBlock, hasBody);
 
         return _reusableFrames;
+    }
+
+    // The HPACK encoder writes into a single rented span, so it must hold the whole header block.
+    // A fixed 4096-byte buffer overflowed (IndexOutOfRange) on large header sets, failing the
+    // request. Size to a literal-encoding upper bound (Huffman only shrinks); ×2 guards octet
+    // expansion. CONTINUATION fragmentation still applies downstream.
+    private static int EstimateHpackBufferSize(List<HpackHeader> headers)
+    {
+        var size = 128;
+        for (var i = 0; i < headers.Count; i++)
+        {
+            size += (headers[i].Name.Length + headers[i].Value.Length) * 2 + 16;
+        }
+
+        return Math.Max(4096, size);
     }
 
     /// <summary>
@@ -177,17 +193,4 @@ internal sealed class Http2ClientEncoder(bool useHuffman)
         _hpack = new HpackEncoder(useHuffman);
     }
 
-    /// <summary>
-    /// Disposes all MemoryPool rentals from the previous Encode() call.
-    /// Must be called before reusing the frame list.
-    /// </summary>
-    private void ReturnRentedBuffers()
-    {
-        for (var i = 0; i < _rentedBodyOwners.Count; i++)
-        {
-            _rentedBodyOwners[i].Dispose();
-        }
-
-        _rentedBodyOwners.Clear();
-    }
 }

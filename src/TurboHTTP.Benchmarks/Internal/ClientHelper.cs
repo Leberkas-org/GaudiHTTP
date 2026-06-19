@@ -33,7 +33,7 @@ internal sealed class ClientHelper : IAsyncDisposable
     /// </summary>
     /// <param name="baseAddress">The remote base URI (scheme + host).</param>
     /// <param name="version">The HTTP version to use.</param>
-    public static ClientHelper CreateClient(Uri baseAddress, Version version)
+    public static ClientHelper CreateClient(Uri baseAddress, Version version, int? maxConnectionsOverride = null)
     {
         var options = new TurboClientOptions
         {
@@ -43,14 +43,14 @@ internal sealed class ClientHelper : IAsyncDisposable
             // H1.x: many connections with shallow pipelining to handle CL up to 8192.
             Http1 = new Http1ClientOptions
             {
-                MaxConnectionsPerServer = 512,
+                MaxConnectionsPerServer = maxConnectionsOverride ?? 512,
                 MaxPipelineDepth = 64
             },
             // H2: 16 connections × 512 streams = 8192 in-flight capacity.
             // MaxConcurrentStreams must not exceed Kestrel's MaxStreamsPerConnection (512).
             Http2 = new Http2ClientOptions
             {
-                MaxConnectionsPerServer = 16,
+                MaxConnectionsPerServer = maxConnectionsOverride ?? 16,
                 MaxConcurrentStreams = 512,
                 MaxBufferedRequestBodySize = 2 * 1024 * 1024,
             },
@@ -59,7 +59,7 @@ internal sealed class ClientHelper : IAsyncDisposable
             // on QuicConnection.OpenOutboundStreamAsync until a stream is released.
             Http3 = new Http3ClientOptions
             {
-                MaxConnectionsPerServer = 64,
+                MaxConnectionsPerServer = maxConnectionsOverride ?? 64,
                 MaxConcurrentStreams = 100,
                 QpackMaxTableCapacity = 32_768,
                 QpackBlockedStreams = 200,
@@ -116,7 +116,19 @@ internal sealed class ClientHelper : IAsyncDisposable
         // Create and register the ActorSystem explicitly so it can be terminated on disposal.
         // Without this, TurboHttpClientFactory creates an untracked ActorSystem that is never
         // terminated, causing PinnedDispatcher threads to accumulate across BDN combinations.
-        var system = ActorSystem.Create($"turbohttp-bench-{Guid.NewGuid():N}");
+        //
+        // exit-clr = off: do not call Environment.Exit after CoordinatedShutdown completes.
+        //   The BDN host process must outlive all parameter combinations; an exit here would
+        //   kill the process mid-benchmark run.
+        // run-by-clr-shutdown = off: do not hook AppDomain.ProcessExit. BDN's EventPipe
+        //   profiler can trigger a CLR-shutdown-like event that would otherwise fire
+        //   CoordinatedShutdown on ALL live ActorSystems in the process simultaneously,
+        //   terminating the current combination's system mid-warmup.
+        var hocon = Akka.Configuration.ConfigurationFactory.ParseString(@"
+            akka.coordinated-shutdown.exit-clr = off
+            akka.coordinated-shutdown.run-by-clr-shutdown = off
+        ");
+        var system = ActorSystem.Create($"turbohttp-bench-{Guid.NewGuid():N}", hocon);
         services.AddSingleton(system);
 
         services.AddTurboHttpClient();
@@ -154,8 +166,30 @@ internal sealed class ClientHelper : IAsyncDisposable
         // Terminate the ActorSystem to stop all PinnedDispatcher threads.
         // Without this, each BDN parameter combination leaks ~50–100 OS threads, causing
         // scheduling contention that inflates latency 13× by combination #13 (CL=64).
-        await _system.Terminate().WaitAsync(TimeSpan.FromSeconds(10));
-        await _system.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(5));
+        //
+        // Both WaitAsync calls are wrapped: under high concurrency (CL=4096) PinnedDispatcher
+        // threads can take >10 s to drain, causing WaitAsync to throw TimeoutException.
+        // An uncaught throw here skips _provider.DisposeAsync(), leaving the ServiceProvider
+        // alive, which keeps the DI-registered ActorSystem from being disposed through the
+        // container — resulting in a second live system that races into the next combination.
+        try
+        {
+            await _system.Terminate().WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        catch
+        {
+            // Termination is still in progress in the background; the system will finish
+            // winding down on its own. Proceed so the ServiceProvider is always disposed.
+        }
+
+        try
+        {
+            await _system.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch
+        {
+            // Same rationale: don't block indefinitely waiting for full termination.
+        }
 
         // Allow dispatcher threads to fully wind down before the next combination starts.
         await Task.Delay(TimeSpan.FromMilliseconds(250));

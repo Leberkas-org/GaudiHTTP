@@ -1,4 +1,5 @@
 using System.Text;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Syntax;
 using TurboHTTP.Protocol.Syntax.Http11.Client;
 using TurboHTTP.Tests.TestSupport;
@@ -7,7 +8,7 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Client;
 
 public sealed class Http11IncompleteMessageSpec
 {
-    private readonly Http11ClientDecoder _decoder = new(ClientOptionDefaults.Http11Decoder());
+    private readonly Http11ClientDecoder _decoder = new(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6.3")]

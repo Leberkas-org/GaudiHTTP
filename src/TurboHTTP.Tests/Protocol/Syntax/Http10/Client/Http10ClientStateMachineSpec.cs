@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using Akka.Actor;
 using Akka.TestKit.Xunit;
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
@@ -164,10 +163,9 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]
-    public async Task OnRequest_with_body_should_emit_transport_data_after_body_buffered()
+    public void OnRequest_with_known_cl_body_should_emit_headers_then_stream_body_via_pump()
     {
-        var inbox = Inbox.Create(Sys);
-        var ops = new FakeClientOps { StageActor = inbox.Receiver };
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         sm.PreStart();
 
@@ -177,25 +175,70 @@ public sealed class Http10ClientStateMachineSpec : TestKit
         };
         sm.OnRequest(request);
 
-        Assert.DoesNotContain(ops.Outbound, o => o is TransportData);
+        // Known Content-Length: headers emitted immediately, body streamed via SerialBodyPump.
+        // The pump reads synchronously from ByteArrayContent and calls EmitDataFrames inline,
+        // so headers + body chunks + endStream all happen within OnRequest.
+        var transportData = ops.Outbound.OfType<TransportData>().ToList();
+        Assert.True(transportData.Count >= 2, "Expected headers + at least one body TransportData");
 
-        // SM uses BufferedBodyWriter + PipeTo — will send BodyReadComplete(5) then BodyReadComplete(0)
-        // then BodyBufferComplete once fully buffered
-        var msg1 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-        sm.OnBodyMessage(msg1);
+        var headerText = Encoding.ASCII.GetString(transportData[0].Buffer.Memory.Span[..transportData[0].Buffer.Length]);
+        Assert.Contains("Content-Length: 5", headerText);
 
-        var msg2 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-        sm.OnBodyMessage(msg2);
+        // Body data arrives in subsequent TransportData messages
+        var bodyBytes = transportData.Skip(1)
+            .SelectMany(td => td.Buffer.Memory.Span[..td.Buffer.Length].ToArray())
+            .ToArray();
+        var bodyText = Encoding.ASCII.GetString(bodyBytes);
+        Assert.Contains("hello", bodyText);
+    }
 
-        // BodyBufferComplete triggers EncodeDeferred → TransportData
-        var msg3 = await Task.Run(() => inbox.Receive(TimeSpan.FromSeconds(3)));
-        sm.OnBodyMessage(msg3);
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC1945-5")]
+    public void OnRequest_with_unknown_cl_body_should_fail_request()
+    {
+        var ops = new FakeClientOps();
+        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        sm.PreStart();
 
-        Assert.Contains(ops.Outbound, o => o is TransportData);
-        var td = ops.Outbound.OfType<TransportData>().First();
-        var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
-        Assert.Contains("Content-Length: 5", text);
-        Assert.Contains("hello", text);
+        // Use a non-seekable stream wrapper so ContentLength is null — triggers the rejection path.
+        var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
+        {
+            Content = new UnknownLengthContent("hello"u8.ToArray())
+        };
+
+        // The SM catches the exception internally and fails the request.
+        sm.OnRequest(request);
+
+        // After the failure, the SM should be ready for a new request (no body pending).
+        Assert.False(sm.HasInFlightRequests);
+        Assert.True(sm.CanAcceptRequest);
+    }
+
+    /// <summary>
+    /// HttpContent that wraps a byte array but reports no Content-Length,
+    /// forcing the HTTP/1.0 buffered body path.
+    /// </summary>
+    private sealed class UnknownLengthContent : HttpContent
+    {
+        private readonly byte[] _data;
+
+        public UnknownLengthContent(byte[] data)
+        {
+            _data = data;
+        }
+
+        protected override void SerializeToStream(Stream stream, TransportContext? context,
+            CancellationToken cancellationToken)
+            => stream.Write(_data, 0, _data.Length);
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+            => stream.WriteAsync(_data, 0, _data.Length);
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
     }
 
     [Fact(Timeout = 5000)]
@@ -216,7 +259,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-7")]
-    public void DecodeServerData_should_complete_connection_close_response_on_graceful_disconnect()
+    public void DecodeServerData_should_stream_connection_close_response_immediately()
     {
         var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
@@ -225,10 +268,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
         var headerBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\n\r\nhello");
         sm.DecodeServerData(TransportData.Rent(headerBuffer));
 
-        Assert.Empty(ops.Responses);
-
-        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
-
+        // RFC 1945 §7.2.2: response delivered immediately with streaming body
         Assert.Single(ops.Responses);
         Assert.Equal(HttpStatusCode.OK, ops.Responses[0].StatusCode);
     }

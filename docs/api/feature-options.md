@@ -119,8 +119,9 @@ public sealed class CompressionOptions
 builder.Services.AddTurboHttpClient("api", ...)
     .WithRequestCompression(c => { c.Encoding = "br"; c.MinBodySize = 4096; });
 
-// Response decompression (automatic, no configuration needed)
-builder.Services.AddTurboHttpClient("api", ...).WithDecompression(enabled: true);
+// Response decompression is enabled by default (AutomaticDecompression = true).
+// WithDecompression() is only needed to explicitly disable it:
+// builder.Services.AddTurboHttpClient("api", ...).WithDecompression(enabled: false);
 ```
 
 See [Content Encoding guide](/client/content-encoding) for request compression and Expect: 100-continue.
@@ -248,7 +249,7 @@ These types are part of the public API and can be customized:
 | Type | Purpose | Guide |
 |------|---------|-------|
 | `ICookieStore` | Cookie storage and injection — implement and pass to `.WithCookies(store)` | [Cookies](/client/cookies) |
-| `ICacheStore` | Cache backend — implement and pass to `.WithCache(store)` | [Caching](/client/caching) |
+| `ICacheStore` | Cache backend (extends `IDisposable`) — implement and pass to `.WithCache(store)` | [Caching](/client/caching) |
 | `TurboHandler` | Custom request/response middleware — register via `.AddHandler<T>()` | [Configuration](/client/configuration) |
 
 See [Configuration guide](/client/configuration) for integration patterns.

@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Text;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
 
@@ -10,6 +11,12 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Qpack;
 internal static class QpackStaticTable
 {
     public const int Count = 99;
+
+    /// Pre-computed UTF-8 byte length of each static table entry's name.
+    internal static readonly int[] NameByteLengths;
+
+    /// Pre-computed RFC 9204 §3.2.1 encoded size (nameBytes + valueBytes + 32) for each static entry.
+    internal static readonly int[] EncodedSizes;
 
     /// <summary>
     /// All 99 static table entries indexed 0-98 per RFC 9204 Appendix A.
@@ -159,6 +166,20 @@ internal static class QpackStaticTable
         }
 
         return dict.ToFrozenDictionary();
+    }
+
+    static QpackStaticTable()
+    {
+        NameByteLengths = new int[Count];
+        EncodedSizes = new int[Count];
+
+        for (var i = 0; i < Count; i++)
+        {
+            var nameBytes = Encoding.UTF8.GetByteCount(Entries[i].Name);
+            var valueBytes = Encoding.UTF8.GetByteCount(Entries[i].Value);
+            NameByteLengths[i] = nameBytes;
+            EncodedSizes[i] = nameBytes + valueBytes + 32;
+        }
     }
 
     private static FrozenDictionary<string, int> BuildNameIndex()

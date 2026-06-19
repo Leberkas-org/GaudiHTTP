@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http2;
@@ -188,16 +189,35 @@ public sealed class Http2ServerFlowControlSpec
 
         sm.DecodeClientData(TransportData.Rent(dataBuf2));
 
-        // Now verify WINDOW_UPDATE was emitted for stream 1
-        Assert.NotEmpty(ops.Outbound);
+        // Stream-level WINDOW_UPDATE is deferred — not emitted immediately after DATA.
+        var immediateStreamWu = ops.Outbound.OfType<TransportData>()
+            .Any(td =>
+            {
+                var s = td.Buffer.Span;
+                if (s.Length < 13 || s[3] != (byte)FrameType.WindowUpdate)
+                {
+                    return false;
+                }
 
+                var sid = (s[5] << 24) | (s[6] << 16) | (s[7] << 8) | s[8];
+                return sid == 1;
+            });
+
+        Assert.False(immediateStreamWu, "Stream-level WINDOW_UPDATE must not be emitted before app consumes body");
+
+        ops.Outbound.Clear();
+
+        // Simulate app consumption: trigger the deferred WU
+        sm.OnBodyMessage(new Http2ServerSessionManager.StreamBodyConsumed(1));
+
+        // Now the deferred stream WU should appear
         var foundWindowUpdate = false;
         foreach (var item in ops.Outbound)
         {
             if (item is TransportData td)
             {
                 var frameData = td.Buffer.Span;
-                if (frameData.Length >= 9 && frameData[3] == (byte)FrameType.WindowUpdate)
+                if (frameData.Length >= 13 && frameData[3] == (byte)FrameType.WindowUpdate)
                 {
                     var sid = (frameData[5] << 24) | (frameData[6] << 16)
                                                    | (frameData[7] << 8) | frameData[8];
@@ -210,7 +230,7 @@ public sealed class Http2ServerFlowControlSpec
             }
         }
 
-        Assert.True(foundWindowUpdate, "Expected WINDOW_UPDATE frame for stream 1 to be emitted");
+        Assert.True(foundWindowUpdate, "Expected WINDOW_UPDATE frame for stream 1 after app body consumption");
     }
 
     [Fact(Timeout = 5000)]
@@ -294,7 +314,7 @@ public sealed class Http2ServerFlowControlSpec
         var drain1 = new byte[5000];
         await bodyStream.ReadExactlyAsync(drain1, TestContext.Current.CancellationToken);
 
-        // Send second DATA frame (6000 bytes) - should exceed half window
+        // Send second DATA frame (6000 bytes) - accumulates deferred stream WU
         var data2 = new byte[6000];
         var frame2Data = BuildDataFrame(streamId: 1, data2, endStream: false);
         var buf2 = TransportBuffer.Rent(frame2Data.Length);
@@ -302,11 +322,21 @@ public sealed class Http2ServerFlowControlSpec
         buf2.Length = frame2Data.Length;
         sm.DecodeClientData(TransportData.Rent(buf2));
 
-        // Should have emitted at least one WINDOW_UPDATE
-        var windowUpdateCount = ops.Outbound.Count(item =>
-            item is TransportData { Buffer.Span.Length: >= 9 } td
-            && td.Buffer.Span[3] == (byte)FrameType.WindowUpdate);
+        // No stream WU yet — it is deferred until app reads
+        var immediateStreamWu = ops.Outbound.Any(item =>
+            item is TransportData { Buffer.Span.Length: >= 13 } td
+            && td.Buffer.Span[3] == (byte)FrameType.WindowUpdate
+            && BinaryPrimitives.ReadUInt32BigEndian(td.Buffer.Span[5..]) == 1u);
+        Assert.False(immediateStreamWu, "Stream WU must not be emitted before app reads");
 
-        Assert.True(windowUpdateCount > 0, "Expected at least one WINDOW_UPDATE frame");
+        // Trigger deferred WU by simulating app read completion
+        sm.OnBodyMessage(new Http2ServerSessionManager.StreamBodyConsumed(1));
+
+        // Now the deferred stream WU must appear
+        var deferredStreamWu = ops.Outbound.Any(item =>
+            item is TransportData { Buffer.Span.Length: >= 13 } td
+            && td.Buffer.Span[3] == (byte)FrameType.WindowUpdate
+            && BinaryPrimitives.ReadUInt32BigEndian(td.Buffer.Span[5..]) == 1u);
+        Assert.True(deferredStreamWu, "Expected a stream-level WINDOW_UPDATE after app reads");
     }
 }

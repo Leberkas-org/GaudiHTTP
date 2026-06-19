@@ -1,13 +1,17 @@
-using System.Collections.Concurrent;
 using System.Threading.Tasks.Sources;
+using Servus.Akka.Transport;
 
 namespace TurboHTTP.Internal;
 
 internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
 {
-    private static readonly ConcurrentStack<PendingRequest> Pool = new();
+    private static readonly ObjectPool<PendingRequest> Pool = new(256);
 
     private ManualResetValueTaskSourceCore<HttpResponseMessage> _core = new() { RunContinuationsAsynchronously = true };
+
+    // Intrusive linked-list node used by TurboHttpClient's lock-free pending-request list.
+    // Written only while the request is live (between Rent and Return); cleared before Return.
+    internal PendingRequest? Next;
 
     private PendingRequest()
     {
@@ -15,7 +19,7 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
 
     public static PendingRequest Rent()
     {
-        if (!Pool.TryPop(out var item))
+        if (!Pool.TryRent(out var item))
         {
             item = new PendingRequest();
         }
@@ -24,7 +28,11 @@ internal sealed class PendingRequest : IValueTaskSource<HttpResponseMessage>
         return item;
     }
 
-    public static void Return(PendingRequest item) => Pool.Push(item);
+    public static void Return(PendingRequest item)
+    {
+        item.Next = null;
+        Pool.Return(item);
+    }
 
     public short Version => _core.Version;
 

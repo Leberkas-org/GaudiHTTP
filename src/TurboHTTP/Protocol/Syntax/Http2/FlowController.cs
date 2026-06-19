@@ -52,6 +52,8 @@ internal sealed class FlowController : IFlowController<int>
         _windowUpdateThreshold = Math.Max(minWindowUpdateThreshold, streamWindowSize / 4);
     }
 
+    public long ConnectionSendWindow => _connectionSendWindow;
+
     public bool GoAwayReceived { get; private set; }
 
     /// <summary>True when a measurement PING is due (scaling on, window below cap, estimator ready).</summary>
@@ -69,6 +71,9 @@ internal sealed class FlowController : IFlowController<int>
         var streamWindow = _streamSendWindows.GetValueOrDefault(streamId, _initialSendStreamWindow);
         return Math.Max(0L, Math.Min(_connectionSendWindow, streamWindow));
     }
+
+    public long GetStreamSendWindow(int streamId)
+        => _streamSendWindows.GetValueOrDefault(streamId, _initialSendStreamWindow);
 
     public void OnDataSent(int streamId, int length)
     {

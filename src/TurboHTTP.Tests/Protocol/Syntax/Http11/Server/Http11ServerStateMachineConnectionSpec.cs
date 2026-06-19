@@ -4,8 +4,8 @@ using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Tests.Shared;
-using static TurboHTTP.Protocol.Syntax.Http11.Server.Http11ServerStateMachine;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -121,7 +121,7 @@ public sealed class Http11ServerStateMachineConnectionSpec
         Assert.False(sm.CanAcceptResponse);
 
         // Send body failed
-        sm.OnBodyMessage(new ResponseBodyReadFailed(new Exception("Test failure")));
+        sm.OnBodyMessage(new DrainReadFailed<int>(0,new Exception("Test failure")));
 
         // After body failed, CanAcceptResponse is false because _pendingResponseCount == 0 (response already sent)
         // not because body is pending
@@ -146,9 +146,9 @@ public sealed class Http11ServerStateMachineConnectionSpec
         var headerCount = ops.Outbound.Count;
 
         // Send two read completions followed by EOF
-        sm.OnBodyMessage(new ResponseBodyReadComplete(5));
-        sm.OnBodyMessage(new ResponseBodyReadComplete(6));
-        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,5));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,6));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0,0));
 
         // 2 data chunks + 1 chunked terminator from CompleteAsync
         var bodyChunks = ops.Outbound.Skip(headerCount).OfType<TransportData>().ToList();

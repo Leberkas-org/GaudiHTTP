@@ -26,6 +26,21 @@ public sealed class RedirectHandlerSecuritySpec
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9110-15.4")]
+    public void Should_StripProxyAuthorizationHeader_When_CrossOriginRedirect()
+    {
+        var handler = new RedirectHandler();
+        var original = new HttpRequestMessage(HttpMethod.Get, "http://example.com/api");
+        original.Headers.TryAddWithoutValidation("Proxy-Authorization", "Basic c2VjcmV0");
+        var response = BuildRedirect(HttpStatusCode.Found, "http://other.com/api");
+
+        var redirected = handler.BuildRedirectRequest(original, response);
+
+        Assert.False(redirected.Headers.Contains("Proxy-Authorization"),
+            "Proxy-Authorization is a credential and must NOT cross origins");
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-15.4")]
     public void Should_PreserveAuthorizationHeader_When_SameOriginRedirect()
     {
         var handler = new RedirectHandler();

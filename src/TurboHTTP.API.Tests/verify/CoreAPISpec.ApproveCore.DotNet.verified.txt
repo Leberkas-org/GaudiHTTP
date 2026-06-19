@@ -4,6 +4,7 @@
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Client")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.End2End")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.IntegrationTests.Server")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.StressBenchmarks")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Tests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("TurboHTTP.Tests.Shared")]
 [assembly: System.Runtime.Versioning.TargetFramework(".NETCoreApp,Version=v10.0", FrameworkDisplayName=".NET 10.0")]
@@ -441,6 +442,7 @@ namespace TurboHTTP.Server
         public int? MinimumSegmentSize { get; set; }
         public long? OutputPauseThreshold { get; set; }
         public long? OutputResumeThreshold { get; set; }
+        public int? ReceiveBufferHint { get; set; }
     }
     public sealed class TurboHttpsOptions
     {

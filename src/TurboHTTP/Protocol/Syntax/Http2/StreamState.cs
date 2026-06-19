@@ -18,11 +18,13 @@ internal sealed class StreamState
     private TurboHttpRequestFeature? _requestFeature;
     private IFeatureCollection? _features;
     private List<(string Name, string Value)>? _contentHeaders;
-    private Dictionary<string, string>? _pseudoHeaders;
+    private string? _pseudoMethod;
+    private string? _pseudoPath;
+    private string? _pseudoScheme;
+    private string? _pseudoAuthority;
     private IBodyReader? _bodyReader;
     private long _maxBodySize;
     private long _totalBodyBytes;
-    private Queue<StreamBodyChunk>? _outboundBuffer;
 
     public string BodyConsumptionTimerKey { get; private set; } = "";
     public string HeadersTimeoutTimerKey { get; private set; } = "";
@@ -36,13 +38,11 @@ internal sealed class StreamState
 
     public bool HasResponse => _response is not null;
 
-    public bool HasContentHeaders => _contentHeaders is not null;
+    public bool HasContentHeaders => _contentHeaders is { Count: > 0 };
 
     public bool HasBodyReader => _bodyReader is not null;
 
     public bool HasBodyDrain { get; private set; }
-
-    public bool HasPendingOutbound => _outboundBuffer is { Count: > 0 };
 
     public bool IsBodyDrainComplete { get; private set; }
 
@@ -96,11 +96,10 @@ internal sealed class StreamState
 
     public IFeatureCollection? GetFeatures() => _features;
 
-    public void AddPseudoHeader(string name, string value)
-    {
-        _pseudoHeaders ??= [];
-        _pseudoHeaders[name] = value;
-    }
+    public string? PseudoMethod { get => _pseudoMethod; set => _pseudoMethod = value; }
+    public string? PseudoPath { get => _pseudoPath; set => _pseudoPath = value; }
+    public string? PseudoScheme { get => _pseudoScheme; set => _pseudoScheme = value; }
+    public string? PseudoAuthority { get => _pseudoAuthority; set => _pseudoAuthority = value; }
 
     public void AddContentHeader(string name, string value)
     {
@@ -131,6 +130,13 @@ internal sealed class StreamState
     public void DetachBodyReader()
     {
         _bodyReader = null;
+    }
+
+    public IBodyReader? TakeBodyReader()
+    {
+        var reader = _bodyReader;
+        _bodyReader = null;
+        return reader;
     }
 
     public void FeedBody(ReadOnlySpan<byte> data, bool endStream)
@@ -214,50 +220,9 @@ internal sealed class StreamState
         IsBodyDrainComplete = true;
     }
 
-    public long PendingOutboundBytes { get; private set; }
-
-    public void EnqueueBodyChunk(StreamBodyChunk chunk)
-    {
-        _outboundBuffer ??= new Queue<StreamBodyChunk>();
-        _outboundBuffer.Enqueue(chunk);
-        PendingOutboundBytes += chunk.Length;
-    }
-
-    public void PrependBodyChunk(StreamBodyChunk chunk)
-    {
-        _outboundBuffer ??= new Queue<StreamBodyChunk>();
-        var existing = _outboundBuffer.ToArray();
-        _outboundBuffer.Clear();
-        _outboundBuffer.Enqueue(chunk);
-        foreach (var item in existing)
-        {
-            _outboundBuffer.Enqueue(item);
-        }
-
-        PendingOutboundBytes += chunk.Length;
-    }
-
     public void MarkRemoteClosed()
     {
         IsRemoteClosed = true;
-    }
-
-    public bool TryDequeueBodyChunk(out StreamBodyChunk? chunk)
-    {
-        if (_outboundBuffer is { Count: > 0 })
-        {
-            chunk = _outboundBuffer.Dequeue();
-            PendingOutboundBytes -= chunk.Length;
-            return true;
-        }
-
-        chunk = null;
-        return false;
-    }
-
-    public StreamBodyChunk? PeekBodyChunk()
-    {
-        return _outboundBuffer is { Count: > 0 } ? _outboundBuffer.Peek() : null;
     }
 
     public void Reset()
@@ -269,20 +234,21 @@ internal sealed class StreamState
         _response = null;
         _requestFeature = null;
         _features = null;
-        _contentHeaders = null;
-        _pseudoHeaders = null;
+        _contentHeaders?.Clear();
+        _pseudoMethod = null;
+        _pseudoPath = null;
+        _pseudoScheme = null;
+        _pseudoAuthority = null;
         _bodyReader?.Dispose();
         _bodyReader = null;
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
         IsBodyReadPending = false;
         ExpectedBodyLength = null;
-        DisposeOutboundBuffer();
-        _outboundBuffer = null;
-        PendingOutboundBytes = 0;
         IsRemoteClosed = false;
-        BodyConsumptionTimerKey = "";
-        HeadersTimeoutTimerKey = "";
+        // Timer keys intentionally NOT cleared — they are stream-ID-derived strings that survive
+        // pool reuse. SetTimerKeys() overwrites them for the next stream ID, avoiding a redundant
+        // allocation + re-allocation cycle on every pool return/checkout.
     }
 
     public void AppendHeader(ReadOnlySpan<byte> data)
@@ -318,21 +284,6 @@ internal sealed class StreamState
         }
 
         AppendHeader(data);
-    }
-
-    private void DisposeOutboundBuffer()
-    {
-        if (_outboundBuffer is null)
-        {
-            return;
-        }
-
-        while (_outboundBuffer.Count > 0)
-        {
-            _outboundBuffer.Dequeue().Owner.Dispose();
-        }
-
-        PendingOutboundBytes = 0;
     }
 
     private void EnsureHeaderCapacity(int required)

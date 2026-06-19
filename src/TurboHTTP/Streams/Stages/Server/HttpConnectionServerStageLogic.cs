@@ -8,6 +8,7 @@ using Akka.Streams.Stage;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Diagnostics;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
@@ -37,18 +38,17 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
     private int _handlerInFlight;
     private IActorRef _stageActor = ActorRefs.Nobody;
     private readonly IServiceProvider? _services;
+    private readonly ConnectionPoolContext _poolContext = new();
     private TurboHttpConnectionFeature? _connectionFeature;
     private TlsHandshakeFeature? _tlsHandshakeFeature;
     private readonly bool _metricsEnabled;
-    private readonly int _maxCoalesce;
     private Activity? _connectionActivity;
     private long _connectionTimestamp;
 
     public HttpConnectionServerStageLogic(
         GraphStage<ServerConnectionShape> stage,
         Func<IServerStageOperations, TSM> smFactory,
-        IServiceProvider? services = null,
-        int maxCoalesce = 8) : base(stage.Shape)
+        IServiceProvider? services = null) : base(stage.Shape)
     {
         var shape = stage.Shape;
         _inNetwork = shape.InNetwork;
@@ -58,7 +58,6 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         _services = services;
 
         _sm = smFactory(this);
-        _maxCoalesce = maxCoalesce;
         _metricsEnabled = Metrics.ServerActiveRequests().Enabled
             || Metrics.ServerRequestDuration().Enabled
             || Tracing.IsServerTracingActive();
@@ -131,6 +130,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                     Tracing.For(TraceCategory).Error(this, "OnResponse threw: {0}", ex.Message);
                 }
 
+                TryPushOutbound();
+
                 if (_sm.ShouldComplete)
                 {
                     if (_metricsEnabled)
@@ -138,7 +139,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                         OnResponseInstrumented(response);
                     }
                     Tracing.For(TraceCategory).Debug(this, "completing after response (connection close)");
-                    CompleteStage();
+                    CompleteAfterFlushingOutbound();
                     return;
                 }
 
@@ -151,7 +152,7 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
                 var hasBody = bodyFeature is not null;
                 if (!hasBody)
                 {
-                    FeatureCollectionFactory.Return(response);
+                    FeatureCollectionFactory.Return(_poolContext, response);
                 }
 
                 // A handler slot just freed: release the next pipelined request (a no-op for
@@ -230,6 +231,13 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         Tracing.For(TraceCategory).Trace(this, "body message: {0}", args.message.GetType().Name);
         _sm.OnBodyMessage(args.message);
         TryPushOutbound();
+
+        if (_sm.ShouldComplete)
+        {
+            CompleteAfterFlushingOutbound();
+            return;
+        }
+
         TryPullResponse();
     }
 
@@ -468,9 +476,11 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     TlsHandshakeFeature? IServerStageOperations.TlsHandshakeFeature => _tlsHandshakeFeature;
 
+    ConnectionPoolContext? IServerStageOperations.PoolContext => _poolContext;
+
     void IServerStageOperations.OnResponseBodyComplete(IFeatureCollection features)
     {
-        FeatureCollectionFactory.Return(features);
+        FeatureCollectionFactory.Return(_poolContext, features);
     }
 
     private bool CanDispatch => _handlerInFlight < _sm.MaxConcurrentRequests;
@@ -494,16 +504,8 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
 
     private void PushOutbound()
     {
-        if (_outboundQueue.Count == 1 || !TryCoalesceOutbound(out var flushedCount))
-        {
-            Push(_outNetwork, _outboundQueue.Dequeue());
-            flushedCount = 1;
-        }
-
-        for (var i = 0; i < flushedCount; i++)
-        {
-            _sm.OnOutboundFlushed();
-        }
+        Push(_outNetwork, _outboundQueue.Dequeue());
+        _sm.OnOutboundFlushed();
 
         if (_completeAfterFlush && _outboundQueue.Count == 0)
         {
@@ -524,53 +526,6 @@ internal sealed class HttpConnectionServerStageLogic<TSM> : TimerGraphStageLogic
         // Push now if the network outlet has demand; otherwise the next OnNetworkPull drains the
         // queue and PushOutbound completes the stage once the GOAWAY has been emitted.
         TryPushOutbound();
-    }
-
-    private bool TryCoalesceOutbound(out int coalescedCount)
-    {
-        coalescedCount = 0;
-        var totalSize = 0;
-        var maxBytes = _maxCoalesce * 16 * 1024;
-
-        foreach (var item in _outboundQueue)
-        {
-            if (item is not TransportData { Buffer: var buf })
-            {
-                break;
-            }
-
-            totalSize += buf.Length;
-            coalescedCount++;
-            if (totalSize >= maxBytes)
-            {
-                break;
-            }
-        }
-
-        if (coalescedCount < 2)
-        {
-            return false;
-        }
-
-        var merged = TransportBuffer.Rent(totalSize);
-        var dest = merged.FullMemory.Span;
-        var offset = 0;
-
-        for (var i = 0; i < coalescedCount; i++)
-        {
-            var item = _outboundQueue.Dequeue();
-            if (item is TransportData td)
-            {
-                td.Buffer.Span.CopyTo(dest[offset..]);
-                offset += td.Buffer.Length;
-                td.Buffer.Dispose();
-                td.Return();
-            }
-        }
-
-        merged.Length = offset;
-        Push(_outNetwork, TransportData.Rent(merged));
-        return true;
     }
 
     private void TryPullResponse()

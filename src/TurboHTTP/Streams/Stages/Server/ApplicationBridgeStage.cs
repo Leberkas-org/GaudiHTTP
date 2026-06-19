@@ -5,6 +5,7 @@ using Akka.Streams;
 using Akka.Streams.Stage;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http.Features;
+using Servus.Akka.Transport;
 using TurboHTTP.Diagnostics;
 using TurboHTTP.Server.Context.Features;
 using static Servus.Senf;
@@ -69,6 +70,9 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
         private readonly bool _metricsEnabled;
         private readonly int _backpressureThreshold;
         private bool _backpressureSignaled;
+
+        // Actor-confined pool — no cross-thread access, Interlocked ops in ObjectPool are harmless.
+        private readonly ObjectPool<CancellationTokenSource> _ctsPool = new(16);
 
         public Logic(ApplicationBridgeStage<TContext> stage) : base(stage.Shape)
         {
@@ -160,10 +164,12 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
             DisposeAppContext(seq, null);
 
-            if (features.Get<IHttpResponseBodyFeature>() is not TurboHttpResponseBodyFeature
-                {
-                    HasStarted: true
-                })
+            var alreadyStarted = features.Get<IHttpResponseBodyFeature>() is TurboHttpResponseBodyFeature
+            {
+                HasStarted: true
+            };
+
+            if (!alreadyStarted)
             {
                 var responseFeature = features.Get<IHttpResponseFeature>();
                 responseFeature?.StatusCode = 503;
@@ -171,7 +177,16 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
             CompleteResponseBody(features);
             FireOnCompleted(features);
-            Emit(features);
+
+            // Only emit when the response has not already gone out. A streaming handler whose headers
+            // were emitted (ResponseReady's still-running branch) already pushed these features once;
+            // re-emitting here would deliver the same response twice (double OnResponse / wire
+            // corruption / double in-flight accounting). Completing the body above ends the stalled
+            // stream; the late HandlerFinished is swallowed because the timeout entry is gone.
+            if (!alreadyStarted)
+            {
+                Emit(features);
+            }
 
             if (_upstreamFinished && _inFlight == 0)
             {
@@ -218,7 +233,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             TContext appContext;
             try
             {
-                appContext = _stage._application.CreateContext(features);
+                appContext = _stage._application.CreateContext(ContainerFor(features));
                 _appContexts[seq] = appContext;
             }
             catch (Exception)
@@ -256,10 +271,10 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             }
             else
             {
-                var lifetime = features.Get<IHttpRequestLifetimeFeature>();
-                var cts = lifetime is not null
-                    ? CancellationTokenSource.CreateLinkedTokenSource(lifetime.RequestAborted)
-                    : new CancellationTokenSource();
+                if (!_ctsPool.TryRent(out var cts))
+                {
+                    cts = new CancellationTokenSource();
+                }
                 var softKey = string.Create(SoftTimerPrefix.Length + 10, seq, static (span, s) =>
                 {
                     SoftTimerPrefix.AsSpan().CopyTo(span);
@@ -431,6 +446,28 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             }
         }
 
+        // ASP.NET's HostingApplication.CreateContext reuses its cached host context (and the
+        // DefaultHttpContext graph) only when the collection it is handed implements
+        // IHostContextContainer<TContext>. The pooled TurboFeatureCollection is non-generic, so we wrap
+        // it in a per-collection HostContextContainer<TContext> (cached on the collection) and hand the
+        // wrapper to CreateContext. Non-Turbo collections (tests, custom transports) fall back to no reuse.
+        private IFeatureCollection ContainerFor(IFeatureCollection features)
+        {
+            if (features is not TurboFeatureCollection turbo)
+            {
+                return features;
+            }
+
+            if (turbo.HostContextWrapper is HostContextContainer<TContext> existing)
+            {
+                return existing;
+            }
+
+            var container = new HostContextContainer<TContext>(turbo);
+            turbo.HostContextWrapper = container;
+            return container;
+        }
+
         private void DisposeAppContext(int seq, Exception? exception)
         {
             if (_appContexts.TryGetValue(seq, out var appCtx))
@@ -452,7 +489,10 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             _activeFeatures.Remove(seq);
             if (_activeTimeouts.Remove(seq, out var cts))
             {
-                cts.Dispose();
+                if (!cts.TryReset() || !_ctsPool.TryReturn(cts))
+                {
+                    cts.Dispose();
+                }
             }
         }
 
@@ -502,7 +542,8 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
 
         private static void FireOnCompleted(IFeatureCollection features)
         {
-            if (features.Get<IHttpResponseFeature>() is TurboHttpResponseFeature responseFeature)
+            if (features.Get<IHttpResponseFeature>() is TurboHttpResponseFeature responseFeature
+                && responseFeature.HasOnCompletedCallbacks)
             {
                 responseFeature.FireOnCompletedAsync().ContinueWith(static _ => { }, TaskContinuationOptions.OnlyOnFaulted);
             }
@@ -545,6 +586,11 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
             {
                 cts.Cancel();
                 cts.Dispose();
+            }
+
+            while (_ctsPool.TryRent(out var pooledCts))
+            {
+                pooledCts.Dispose();
             }
 
             foreach (var (_, appCtx) in _appContexts)

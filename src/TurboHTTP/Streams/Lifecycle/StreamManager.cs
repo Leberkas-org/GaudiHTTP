@@ -34,6 +34,7 @@ internal sealed class ClientStreamManager : ReceiveActor
         Receive<RegisterConsumer>(HandleRegisterConsumer);
         Receive<UnregisterConsumer>(HandleUnregisterConsumer);
         Receive<Shutdown>(_ => HandleShutdown());
+        Receive<Terminated>(HandleOwnerTerminated);
     }
 
     private void HandleRegisterConsumer(RegisterConsumer message)
@@ -47,6 +48,8 @@ internal sealed class ClientStreamManager : ReceiveActor
                     message.Pipeline,
                     message.TransportOverride)),
                 sanitizedName);
+
+            Context.Watch(owner);
 
             var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>(
                 new UnboundedChannelOptions { SingleReader = true });
@@ -85,13 +88,43 @@ internal sealed class ClientStreamManager : ReceiveActor
         Context.Stop(Self);
     }
 
+    private void HandleOwnerTerminated(Terminated msg)
+    {
+        var deadOwner = msg.ActorRef;
+        string? deadName = null;
+
+        foreach (var kvp in _owners)
+        {
+            if (kvp.Value.Owner.Equals(deadOwner))
+            {
+                deadName = kvp.Key;
+                break;
+            }
+        }
+
+        if (deadName is not null)
+        {
+            _log.Warning("StreamOwner '{0}' terminated — removing from registry", deadName);
+            _owners.Remove(deadName);
+        }
+    }
+
     protected override SupervisorStrategy SupervisorStrategy()
     {
-        return new OneForOneStrategy(ex =>
-        {
-            _log.Warning("ClientStreamOwner failed, restarting: {0}", ex.Message);
-            return Directive.Restart;
-        });
+        return new OneForOneStrategy(
+            maxNrOfRetries: 3,
+            withinTimeRange: TimeSpan.FromMinutes(1),
+            localOnlyDecider: ex =>
+            {
+                if (ex is OutOfMemoryException or StackOverflowException)
+                {
+                    _log.Error(ex, "StreamOwner fatal failure — stopping");
+                    return Directive.Stop;
+                }
+
+                _log.Warning(ex, "StreamOwner transient failure — restarting");
+                return Directive.Restart;
+            });
     }
 
     private static string SanitizeActorName(string name)

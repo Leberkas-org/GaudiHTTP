@@ -1,6 +1,8 @@
+using TurboHTTP.Pooling;
+
 namespace TurboHTTP.Protocol.Body;
 
-internal sealed class CloseDelimitedFramingDecoder : IFramingDecoder
+internal sealed class CloseDelimitedFramingDecoder : IFramingDecoder, IResettable
 {
     private long _totalBytes;
     private long _maxBodySize;
@@ -15,6 +17,8 @@ internal sealed class CloseDelimitedFramingDecoder : IFramingDecoder
         _maxBodySize = maxBodySize;
         IsComplete = false;
     }
+
+    void IResettable.Reset() => Reset(long.MaxValue);
 
     public FramingDecodeResult Decode(ReadOnlySpan<byte> raw, out int rawConsumed)
     {

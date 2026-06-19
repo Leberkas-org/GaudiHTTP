@@ -9,7 +9,7 @@ public sealed class TlsHandshakeFeatureSpec
     [Fact(Timeout = 5000)]
     public void TlsHandshakeFeature_should_expose_protocol()
     {
-        ITlsHandshakeFeature feature = new TlsHandshakeFeature
+        var feature = new TlsHandshakeFeature
         {
             Protocol = SslProtocols.Tls13
         };
@@ -19,7 +19,7 @@ public sealed class TlsHandshakeFeatureSpec
     [Fact(Timeout = 5000)]
     public void TlsHandshakeFeature_should_expose_negotiated_cipher_suite()
     {
-        ITlsHandshakeFeature feature = new TlsHandshakeFeature
+        var feature = new TlsHandshakeFeature
         {
             NegotiatedCipherSuite = TlsCipherSuite.TLS_AES_256_GCM_SHA384
         };
@@ -29,7 +29,7 @@ public sealed class TlsHandshakeFeatureSpec
     [Fact(Timeout = 5000)]
     public void TlsHandshakeFeature_should_expose_hostname()
     {
-        ITlsHandshakeFeature feature = new TlsHandshakeFeature
+        var feature = new TlsHandshakeFeature
         {
             HostName = "example.com"
         };
@@ -39,7 +39,7 @@ public sealed class TlsHandshakeFeatureSpec
     [Fact(Timeout = 5000)]
     public void TlsHandshakeFeature_should_expose_negotiated_application_protocol()
     {
-        ITlsHandshakeFeature feature = new TlsHandshakeFeature
+        var feature = new TlsHandshakeFeature
         {
             NegotiatedApplicationProtocol = SslApplicationProtocol.Http2
         };
@@ -49,14 +49,14 @@ public sealed class TlsHandshakeFeatureSpec
     [Fact(Timeout = 5000)]
     public void TlsHandshakeFeature_should_default_cipher_suite_to_null()
     {
-        ITlsHandshakeFeature feature = new TlsHandshakeFeature();
+        var feature = new TlsHandshakeFeature();
         Assert.Null(feature.NegotiatedCipherSuite);
     }
 
     [Fact(Timeout = 5000)]
     public void TlsHandshakeFeature_should_default_hostname_to_null()
     {
-        ITlsHandshakeFeature feature = new TlsHandshakeFeature();
+        var feature = new TlsHandshakeFeature();
         Assert.Null(feature.HostName);
     }
 }

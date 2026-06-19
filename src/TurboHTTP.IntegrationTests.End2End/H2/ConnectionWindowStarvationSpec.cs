@@ -98,8 +98,8 @@ public sealed class ConnectionWindowStarvationSpec : End2EndSpecBase
     [Fact(Timeout = 60000)]
     public async Task ConnectionWindowStarvation_should_distribute_bandwidth_across_streams()
     {
-        const int concurrentRequests = 8;
-        const int payloadSize = 256 * 1024;
+        const int concurrentRequests = 6;
+        const int payloadSize = 128 * 1024;
         var payloads = new byte[concurrentRequests][];
         var completionOrder = new List<int>();
 

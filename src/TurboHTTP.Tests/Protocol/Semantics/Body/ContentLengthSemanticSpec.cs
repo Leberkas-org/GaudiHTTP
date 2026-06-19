@@ -35,6 +35,20 @@ public sealed class ContentLengthSemanticSpec
         Assert.False(success);
     }
 
+    [Theory(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-6.2")]
+    [InlineData("+5")]
+    [InlineData(" 5")]
+    [InlineData("5 ")]
+    public void ContentLengthSemantics_should_reject_signed_or_spaced_content_length(string value)
+    {
+        // RFC 9112 §6.3 requires 1*DIGIT; a leading sign or surrounding whitespace is a
+        // request-smuggling differential against strict peers.
+        var success = ContentLengthSemantics.TryParse(value, out _);
+
+        Assert.False(success);
+    }
+
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9112-6.2")]
     public void ContentLengthSemantics_should_reject_empty_content_length()

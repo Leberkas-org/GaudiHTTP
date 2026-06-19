@@ -360,18 +360,16 @@ results/
 .maggus/feature_approvals.yml
 .maggus/daemon.pid
 .maggus/interactive.lock
-
-# Obsidian vault (personal notes)
-notes/.obsidian/
-notes/Debugging/
-
-TurboHTTP/.obsidian/
-
 .maggus/work.pid
-
 .worktrees/
 .maggus/logs/
 .maggus/worktrees/
+
+# Obsidian vault (personal notes)
+.obsidian/
+notes/Debugging/
+
+.claude
 
 *.ps1
 TURBOHTTP_GAP_ANALYSIS.md

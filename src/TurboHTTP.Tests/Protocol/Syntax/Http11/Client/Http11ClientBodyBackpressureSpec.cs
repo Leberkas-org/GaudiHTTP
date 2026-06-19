@@ -23,7 +23,6 @@ public sealed class Http11ClientBodyBackpressureSpec
         private int _position;
 
         public int ReadsIssued { get; private set; }
-        public int LastReadSize { get; private set; }
 
         public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
@@ -31,7 +30,6 @@ public sealed class Http11ClientBodyBackpressureSpec
             var n = Math.Min(buffer.Length, length - _position);
             buffer.Span[..n].Fill(0x42);
             _position += n;
-            LastReadSize = n;
             return ValueTask.FromResult(n);
         }
 
@@ -70,27 +68,15 @@ public sealed class Http11ClientBodyBackpressureSpec
         return (sm, ops, body);
     }
 
-    /// <summary>Feeds completed reads back into the SM, mimicking the PipeTo message loop.</summary>
-    private static void PumpCompletedReads(Http11ClientStateMachine sm, CountingStream body, ref int fed)
-    {
-        while (body.ReadsIssued > fed)
-        {
-            fed++;
-            sm.OnBodyMessage(new Http11ClientStateMachine.BodyReadComplete(body.LastReadSize));
-        }
-    }
-
     [Fact(Timeout = 5000)]
     public void Body_pump_should_pause_when_outbound_is_not_flushed()
     {
-        var (sm, ops, body) = CreatePostedRequest();
+        var (_, ops, body) = CreatePostedRequest();
 
-        // Drive the read/complete loop without ever signalling a flush. The pump must
-        // stop issuing reads after a bounded number of unflushed chunks instead of
-        // copying the whole 1 MB body into pooled buffers.
-        var fed = 0;
-        PumpCompletedReads(sm, body, ref fed);
-
+        // CountingStream completes reads synchronously, so OnRequest drives the inline pump directly
+        // (no mailbox round-trip per chunk). With no flush ever signalled, the pump must stop after a
+        // bounded number of unflushed chunks instead of copying the whole 1 MB body into pooled
+        // buffers ahead of the socket.
         var bodyChunks = ops.Outbound.OfType<TransportData>().Count() - 1;
         Assert.True(bodyChunks < 8,
             $"Pump emitted {bodyChunks} chunks ({BodySize / ChunkSize} total) without any flush signal — no backpressure.");
@@ -101,17 +87,14 @@ public sealed class Http11ClientBodyBackpressureSpec
     [Fact(Timeout = 5000)]
     public void Body_pump_should_resume_on_flush_and_complete_body()
     {
-        var (sm, ops, body) = CreatePostedRequest();
+        var (sm, ops, _) = CreatePostedRequest();
 
-        var fed = 0;
-        PumpCompletedReads(sm, body, ref fed);
-
-        // Alternate flush signals and read completions until the body is fully sent.
+        // The pump paused mid-body (no flush yet). Each flush signal resumes it for one more bounded
+        // burst; keep flushing until the entire body has been sent and the connection is dispatchable.
         var guard = 0;
-        while (fed <= BodySize / ChunkSize && guard++ < 10 * BodySize / ChunkSize)
+        while (!sm.CanAcceptRequest && guard++ < 10 * (BodySize / ChunkSize))
         {
             sm.OnOutboundFlushed();
-            PumpCompletedReads(sm, body, ref fed);
         }
 
         var totalBodyBytes = ops.Outbound.OfType<TransportData>().Skip(1).Sum(d => (long)d.Buffer.Length);

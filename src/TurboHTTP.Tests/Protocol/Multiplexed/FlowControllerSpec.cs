@@ -167,4 +167,58 @@ public sealed class FlowControllerSpec
 
         Assert.Equal(32768, fc.GetSendWindow(1));
     }
+
+    [Fact(Timeout = 5000)]
+    public void ConnectionSendWindow_should_return_initial_connection_window()
+    {
+        var fc = new FlowController(1024 * 1024, 64 * 1024);
+        Assert.Equal(65535, fc.ConnectionSendWindow);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ConnectionSendWindow_should_decrease_after_data_sent()
+    {
+        var fc = new FlowController(1024 * 1024, 64 * 1024);
+        fc.InitStreamSendWindow(1);
+        fc.OnDataSent(1, 1000);
+        Assert.Equal(65535 - 1000, fc.ConnectionSendWindow);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ConnectionSendWindow_should_increase_after_window_update()
+    {
+        var fc = new FlowController(1024 * 1024, 64 * 1024);
+        fc.OnSendWindowUpdate(0, 10000);
+        Assert.Equal(65535 + 10000, fc.ConnectionSendWindow);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void GetStreamSendWindow_should_return_initial_when_no_data_sent()
+    {
+        var fc = new FlowController(1024 * 1024, 64 * 1024);
+        fc.InitStreamSendWindow(1);
+        Assert.Equal(65535, fc.GetStreamSendWindow(1));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void GetStreamSendWindow_should_return_only_stream_window_not_connection_min()
+    {
+        var fc = new FlowController(1024 * 1024, 64 * 1024);
+        fc.InitStreamSendWindow(1);
+        fc.OnDataSent(1, 60000);
+        // Connection window: 65535 - 60000 = 5535
+        // Stream window: 65535 - 60000 = 5535
+        // GetSendWindow(1) returns min(5535, 5535) = 5535
+        // GetStreamSendWindow(1) returns 5535 (just stream)
+        Assert.Equal(65535 - 60000, fc.GetStreamSendWindow(1));
+
+        // Now increase connection window only
+        fc.OnSendWindowUpdate(0, 60000);
+        // Connection: 65535, Stream: 5535
+        // GetSendWindow(1) returns 5535 (min)
+        // GetStreamSendWindow(1) returns 5535 (just stream)
+        Assert.Equal(65535 - 60000, fc.GetStreamSendWindow(1));
+        Assert.Equal(65535 - 60000, fc.GetSendWindow(1));
+        Assert.Equal(65535 + 60000 - 60000, fc.ConnectionSendWindow);
+    }
 }

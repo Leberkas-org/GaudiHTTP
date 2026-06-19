@@ -162,9 +162,11 @@ public sealed class Http3ClientOptions
     public int QpackBlockedStreams { get; set; } = 100;
     public int MaxFieldSectionSize { get; set; } = 64 * 1024;    // 64 KB
     public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromSeconds(30);
+    public long MaxBufferedRequestBodySize { get; set; } = 64 * 1024;         // 64 KB; bodies up to this size are serialized inline, larger are streamed
+    public long MaxRequestBodyBufferSize { get; set; } = 64 * 1024;           // 64 KB; outbound body bytes buffered per stream before the encoder pauses
     public int MaxReconnectAttempts { get; set; } = 3;
     public bool EnableAltSvcDiscovery { get; set; }
-    public int MaxReconnectBufferSize { get; set; } = 64;
+    public int MaxReconnectBufferSize { get; set; } = 64;                     // max frames/requests buffered during reconnection
 }
 ```
 
@@ -178,7 +180,9 @@ public sealed class Http3ClientOptions
 | `IdleTimeout` | `30 s` | QUIC idle timeout |
 | `MaxReconnectAttempts` | `3` | Max reconnect attempts on connection drop |
 | `EnableAltSvcDiscovery` | `false` | Auto-discover HTTP/3 via Alt-Svc headers |
-| `MaxReconnectBufferSize` | `64` | Max datagram buffers during reconnection |
+| `MaxBufferedRequestBodySize` | `64 * 1024` (64 KB) | Request bodies up to this size are serialized inline; larger bodies are streamed in chunks with backpressure |
+| `MaxRequestBodyBufferSize` | `64 * 1024` (64 KB) | Max outbound body bytes buffered per stream before the body encoder pauses |
+| `MaxReconnectBufferSize` | `64` | Max frames/requests buffered during reconnection |
 
 See [HTTP/3 & QUIC guide](/client/http3) for QUIC-specific settings.
 

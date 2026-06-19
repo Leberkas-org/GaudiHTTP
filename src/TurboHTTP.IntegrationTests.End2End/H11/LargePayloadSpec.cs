@@ -11,8 +11,6 @@ public sealed class LargePayloadSpec : End2EndSpecBase
 {
     protected override Version ProtocolVersion => HttpVersion.Version11;
 
-    // Under cross-module CPU contention on small CI runners even cheap requests can
-    // stall past the 10s default; stay below the 30s watchdogs instead.
     protected override TimeSpan ClientTimeout => TimeSpan.FromSeconds(25);
 
     protected override void ConfigureEndpoints(WebApplication app)
@@ -56,12 +54,12 @@ public sealed class LargePayloadSpec : End2EndSpecBase
         var payload = new byte[128 * 1024];
         RandomNumberGenerator.Fill(payload);
 
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUri}/echo-bytes")
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUri}/echo-bytes")
         {
             Content = new ByteArrayContent(payload)
         };
 
-        var response = await Client.SendAsync(request, CancellationToken);
+        using var response = await Client.SendAsync(request, CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var responseBytes = await response.Content.ReadAsByteArrayAsync(CancellationToken);
@@ -72,9 +70,9 @@ public sealed class LargePayloadSpec : End2EndSpecBase
     public async Task LargePayload_should_receive_large_server_response()
     {
         var size = 256 * 1024;
-        var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUri}/generate?size={size}");
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"{BaseUri}/generate?size={size}");
 
-        var response = await Client.SendAsync(request, CancellationToken);
+        using var response = await Client.SendAsync(request, CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var responseBytes = await response.Content.ReadAsByteArrayAsync(CancellationToken);
@@ -85,12 +83,12 @@ public sealed class LargePayloadSpec : End2EndSpecBase
     [Fact(Timeout = 30000)]
     public async Task LargePayload_should_handle_empty_body()
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUri}/empty-echo")
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{BaseUri}/empty-echo")
         {
             Content = new ByteArrayContent(Array.Empty<byte>())
         };
 
-        var response = await Client.SendAsync(request, CancellationToken);
+        using var response = await Client.SendAsync(request, CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync(CancellationToken);

@@ -16,18 +16,6 @@ public sealed class Http2SettingsSpec
         }
     }
 
-    private static void EnforceInitialWindowSize(IReadOnlyList<(SettingsParameter, uint)> parameters)
-    {
-        foreach (var (key, value) in parameters)
-        {
-            if (key == SettingsParameter.InitialWindowSize && value > 0x7FFFFFFFu)
-            {
-                throw new HttpProtocolException(
-                    $"RFC 9113 §6.5.2: SETTINGS_INITIAL_WINDOW_SIZE {value} exceeds the maximum 2^31−1.");
-            }
-        }
-    }
-
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9113-6.5")]
     public void Http2FrameDecoder_should_decode_with_is_ack_true_when_settings_ack_frame()
@@ -206,21 +194,18 @@ public sealed class Http2SettingsSpec
     }
 
     [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-6.5")]
+    [Trait("RFC", "RFC9113-6.5.2")]
     public void Http2FrameDecoder_should_be_flow_control_error_when_initial_window_size_overflows()
     {
         var bytes = new SettingsFrame([(SettingsParameter.InitialWindowSize, 0x80000000u)]).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(bytes);
 
-        Assert.Single(frames);
-        var frame = Assert.IsType<SettingsFrame>(frames[0]);
-        // RFC 9113 §6.5.2: INITIAL_WINDOW_SIZE > 2^31−1 MUST trigger a connection FLOW_CONTROL_ERROR.
-        Assert.Throws<HttpProtocolException>(() => EnforceInitialWindowSize(frame.Parameters));
+        // RFC 9113 §6.5.2: INITIAL_WINDOW_SIZE > 2^31−1 MUST be rejected at decode (FLOW_CONTROL_ERROR).
+        Assert.Throws<HttpProtocolException>(() => decoder.Decode(bytes));
     }
 
     [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-6.5")]
+    [Trait("RFC", "RFC9113-6.5.2")]
     public void Http2FrameDecoder_should_accept_when_initial_window_size_at_max()
     {
         var bytes = new SettingsFrame([(SettingsParameter.InitialWindowSize, 0x7FFFFFFFu)]).Serialize();
@@ -229,22 +214,18 @@ public sealed class Http2SettingsSpec
 
         Assert.Single(frames);
         var frame = Assert.IsType<SettingsFrame>(frames[0]);
-        // RFC 9113 §6.5.2: 2^31−1 is the maximum valid value — must not throw.
-        EnforceInitialWindowSize(frame.Parameters);
+        // RFC 9113 §6.5.2: 2^31−1 is the maximum valid value — must decode without error.
         Assert.Contains(frame.Parameters, p => p is { Item1: SettingsParameter.InitialWindowSize, Item2: 0x7FFFFFFFu });
     }
 
     [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9113-6.5")]
+    [Trait("RFC", "RFC9113-6.5.2")]
     public void Http2FrameDecoder_should_be_flow_control_error_when_initial_window_size_is_max_uint()
     {
         var bytes = new SettingsFrame([(SettingsParameter.InitialWindowSize, 0xFFFFFFFFu)]).Serialize();
         var decoder = new FrameDecoder();
-        var frames = decoder.Decode(bytes);
 
-        Assert.Single(frames);
-        var frame = Assert.IsType<SettingsFrame>(frames[0]);
-        Assert.Throws<HttpProtocolException>(() => EnforceInitialWindowSize(frame.Parameters));
+        Assert.Throws<HttpProtocolException>(() => decoder.Decode(bytes));
     }
 
     [Fact(Timeout = 5000)]

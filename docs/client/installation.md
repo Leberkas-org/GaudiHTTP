@@ -14,7 +14,7 @@ dotnet add package TurboHTTP
 Or add it to your `.csproj`:
 
 ```xml
-<PackageReference Include="TurboHTTP" Version="1.*" />
+<PackageReference Include="TurboHTTP" Version="3.0.0-alpha.*" />
 ```
 
 ## Dependency Injection (Recommended)
@@ -105,7 +105,7 @@ builder.Services.AddTurboHttpClient<OrderClient>(options =>
 .WithRetry();
 ```
 
-`TClient` must be `ITurboHttpClient` or a class that derives from it — the registration casts `factory.CreateClient(name)` to `TClient` at resolution time. Passing an arbitrary POCO service class (one that does not implement `ITurboHttpClient`) will throw `InvalidCastException` when the service is resolved.
+`TClient` must be a class with a constructor that accepts `ITurboHttpClient` — the registration uses `ActivatorUtilities.CreateInstance<TClient>(sp, client)` to inject the named client at resolution time. Any class meeting this constructor requirement works (the generic constraint is `where TClient : class`, not `ITurboHttpClient`).
 
 ## Fluent Builder API
 

@@ -22,6 +22,5 @@ internal sealed class Http11ServerConnectionStage(TurboServerOptions options, IS
     protected override GraphStageLogic CreateLogic(Attributes inheritedAttributes)
         => new HttpConnectionServerStageLogic<Http11ServerStateMachine>(this,
             ops => new Http11ServerStateMachine(_options, _h2UpgradeOptions, ops),
-            services,
-            options.MaxOutboundCoalesceCount);
+            services);
 }

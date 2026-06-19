@@ -13,35 +13,43 @@ internal sealed class StreamState
     private HttpResponseMessage? _response;
     private TurboHttpRequestFeature? _requestFeature;
     private List<(string Name, string Value)>? _contentHeaders;
-    private Dictionary<string, string>? _pseudoHeaders;
+    private string? _pseudoMethod;
+    private string? _pseudoPath;
+    private string? _pseudoScheme;
+    private string? _pseudoAuthority;
     private IBodyReader? _bodyReader;
     private long _maxBodySize;
     private long _totalBodyBytes;
-    private Queue<StreamBodyChunk>? _outboundBuffer;
+    private List<byte[]>? _pendingInboundData;
 
     public long StreamId { get; private set; } = -1;
 
     public bool HasResponse => _response is not null;
 
-    public bool HasContentHeaders => _contentHeaders is not null;
+    public bool HasContentHeaders => _contentHeaders is { Count: > 0 };
 
     public bool HasBodyReader => _bodyReader is not null;
 
     public bool HasBodyDrain { get; private set; }
 
-    public bool HasPendingOutbound => _outboundBuffer is { Count: > 0 };
-
     public bool IsBodyDrainComplete { get; private set; }
 
     public bool IsBodyReadPending { get; set; }
 
-    public long PendingOutboundBytes { get; private set; }
+    /// <summary>
+    /// RFC 9204 §2.1.2 — true while inbound HEADERS are QPACK-blocked awaiting dynamic-table
+    /// updates. DATA frames received in this window are buffered (not dropped) and replayed
+    /// once the stream resolves; a QUIC FIN is remembered via <see cref="PendingEndStream"/>.
+    /// </summary>
+    public bool IsHeadersBlocked { get; set; }
+
+    /// <summary>A QUIC FIN arrived while the stream was still QPACK-blocked.</summary>
+    public bool PendingEndStream { get; set; }
 
     public long? ExpectedContentLength { get; set; }
 
     public string BodyConsumptionTimerKey { get; private set; } = "";
     public string HeadersTimeoutTimerKey { get; private set; } = "";
-    public string DrainBodyTimerKey { get; private set; } = "";
 
     public void Initialize(long streamId)
     {
@@ -49,7 +57,6 @@ internal sealed class StreamState
         var idStr = streamId.ToString();
         BodyConsumptionTimerKey = string.Concat("body-consumption:", idStr);
         HeadersTimeoutTimerKey = string.Concat("headers-timeout:", idStr);
-        DrainBodyTimerKey = string.Concat("drain-body:", idStr);
     }
 
     public HttpResponseMessage InitResponse()
@@ -73,21 +80,10 @@ internal sealed class StreamState
         return _requestFeature;
     }
 
-    public void AddPseudoHeader(string name, string value)
-    {
-        _pseudoHeaders ??= [];
-        _pseudoHeaders[name] = value;
-    }
-
-    public string GetPseudoHeader(string name)
-    {
-        if (_pseudoHeaders?.TryGetValue(name, out var value) == true)
-        {
-            return value;
-        }
-
-        throw new InvalidOperationException($"Pseudo-header '{name}' not found.");
-    }
+    public string? PseudoMethod { get => _pseudoMethod; set => _pseudoMethod = value; }
+    public string? PseudoPath { get => _pseudoPath; set => _pseudoPath = value; }
+    public string? PseudoScheme { get => _pseudoScheme; set => _pseudoScheme = value; }
+    public string? PseudoAuthority { get => _pseudoAuthority; set => _pseudoAuthority = value; }
 
     public void AddContentHeader(string name, string value)
     {
@@ -120,6 +116,13 @@ internal sealed class StreamState
     public void DetachBodyReader()
     {
         _bodyReader = null;
+    }
+
+    public IBodyReader? TakeBodyReader()
+    {
+        var reader = _bodyReader;
+        _bodyReader = null;
+        return reader;
     }
 
     public void FeedBody(ReadOnlySpan<byte> data, bool endStream)
@@ -163,6 +166,38 @@ internal sealed class StreamState
         }
     }
 
+    /// <summary>
+    /// Buffers a copy of inbound DATA received while the stream is QPACK-blocked. The frame
+    /// aliases a pooled transport buffer that the caller reuses after handling, so the bytes
+    /// must be copied to survive until <see cref="ReplayPendingInboundData"/> runs.
+    /// </summary>
+    public void BufferInboundData(ReadOnlySpan<byte> data)
+    {
+        if (data.IsEmpty)
+        {
+            return;
+        }
+
+        _pendingInboundData ??= [];
+        _pendingInboundData.Add(data.ToArray());
+    }
+
+    /// <summary>Feeds all DATA buffered while QPACK-blocked into the now-initialized body reader.</summary>
+    public void ReplayPendingInboundData()
+    {
+        if (_pendingInboundData is null)
+        {
+            return;
+        }
+
+        foreach (var chunk in _pendingInboundData)
+        {
+            FeedBody(chunk, endStream: false);
+        }
+
+        _pendingInboundData = null;
+    }
+
     public Stream GetBodyStream()
     {
         if (_bodyReader is null)
@@ -194,39 +229,17 @@ internal sealed class StreamState
         IsBodyDrainComplete = true;
     }
 
-    public void EnqueueBodyChunk(StreamBodyChunk chunk)
-    {
-        _outboundBuffer ??= new Queue<StreamBodyChunk>();
-        _outboundBuffer.Enqueue(chunk);
-        PendingOutboundBytes += chunk.Length;
-    }
-
-    public StreamBodyChunk? PeekBodyChunk()
-    {
-        return _outboundBuffer is { Count: > 0 } ? _outboundBuffer.Peek() : null;
-    }
-
-    public bool TryDequeueBodyChunk(out StreamBodyChunk? chunk)
-    {
-        if (_outboundBuffer is { Count: > 0 })
-        {
-            chunk = _outboundBuffer.Dequeue();
-            PendingOutboundBytes -= chunk.Length;
-            return true;
-        }
-
-        chunk = null;
-        return false;
-    }
-
     public void Reset()
     {
         StreamId = -1;
         _response = null;
         _requestFeature = null;
         ExpectedContentLength = null;
-        _contentHeaders = null;
-        _pseudoHeaders = null;
+        _contentHeaders?.Clear();
+        _pseudoMethod = null;
+        _pseudoPath = null;
+        _pseudoScheme = null;
+        _pseudoAuthority = null;
         _bodyReader?.Dispose();
         _bodyReader = null;
         _maxBodySize = 0;
@@ -234,26 +247,11 @@ internal sealed class StreamState
         HasBodyDrain = false;
         IsBodyDrainComplete = false;
         IsBodyReadPending = false;
-        DisposeOutboundBuffer();
-        _outboundBuffer = null;
-        PendingOutboundBytes = 0;
-        BodyConsumptionTimerKey = "";
-        HeadersTimeoutTimerKey = "";
-        DrainBodyTimerKey = "";
-    }
-
-    private void DisposeOutboundBuffer()
-    {
-        if (_outboundBuffer is null)
-        {
-            return;
-        }
-
-        while (_outboundBuffer.Count > 0)
-        {
-            _outboundBuffer.Dequeue().Owner.Dispose();
-        }
-
-        PendingOutboundBytes = 0;
+        IsHeadersBlocked = false;
+        PendingEndStream = false;
+        _pendingInboundData = null;
+        // Timer keys intentionally NOT cleared — they are stream-ID-derived strings that survive
+        // pool reuse. Initialize() overwrites them for the next stream ID, avoiding a redundant
+        // allocation + re-allocation cycle on every pool return/checkout.
     }
 }

@@ -47,4 +47,53 @@ public sealed class StatusLineWriterSpec
             StatusLineWriter.Write(ref writer, HttpVersion.Version11, 200, "OK");
         });
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-4")]
+    public void Writer_should_use_pre_baked_line_for_http11_standard_codes()
+    {
+        int[] codes = [100, 200, 201, 204, 301, 302, 304, 400, 401, 403, 404, 405, 500, 502, 503, 504];
+
+        foreach (var code in codes)
+        {
+            var buffer = new byte[64];
+            var writer = SpanWriter.Create(buffer);
+            StatusLineWriter.Write(ref writer, HttpVersion.Version11, code);
+
+            var actual = Encoding.ASCII.GetString(buffer, 0, writer.BytesWritten);
+            Assert.StartsWith("HTTP/1.1 " + code + " ", actual);
+            Assert.EndsWith("\r\n", actual);
+        }
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-4")]
+    public void Writer_should_use_pre_baked_line_for_http10_standard_codes()
+    {
+        int[] codes = [200, 301, 404, 500];
+
+        foreach (var code in codes)
+        {
+            var buffer = new byte[64];
+            var writer = SpanWriter.Create(buffer);
+            StatusLineWriter.Write(ref writer, HttpVersion.Version10, code);
+
+            var actual = Encoding.ASCII.GetString(buffer, 0, writer.BytesWritten);
+            Assert.StartsWith("HTTP/1.0 " + code + " ", actual);
+            Assert.EndsWith("\r\n", actual);
+        }
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-4")]
+    public void Writer_should_fall_back_for_unknown_status_code()
+    {
+        var buffer = new byte[64];
+        var writer = SpanWriter.Create(buffer);
+        StatusLineWriter.Write(ref writer, HttpVersion.Version11, 418);
+
+        var actual = Encoding.ASCII.GetString(buffer, 0, writer.BytesWritten);
+        Assert.StartsWith("HTTP/1.1 418 ", actual);
+        Assert.EndsWith("\r\n", actual);
+    }
 }

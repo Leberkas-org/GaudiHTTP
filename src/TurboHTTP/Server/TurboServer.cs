@@ -81,10 +81,17 @@ public sealed class TurboServer : IServer
             Props.Create(() => new ServerSupervisorActor()),
             "turbo-server");
 
-        var listenersReady = await _supervisor.Ask<ServerSupervisorActor.ListenersReady>(
+        var response = await _supervisor.Ask<object>(
             new ServerSupervisorActor.StartServer(bridgeFlow, _options, resolvedEndpoints),
             TimeSpan.FromSeconds(30),
             cancellationToken);
+
+        if (response is ServerSupervisorActor.ListenersFailed failed)
+        {
+            throw new InvalidOperationException("Failed to start server listeners", failed.Error);
+        }
+
+        var listenersReady = (ServerSupervisorActor.ListenersReady)response;
 
         var addressesFeature = _features.Get<IServerAddressesFeature>()!;
         for (var i = 0; i < resolvedEndpoints.Count; i++)
@@ -111,7 +118,8 @@ public sealed class TurboServer : IServer
                 return Task.FromResult(Done.Instance);
             });
 
-            var drainTask = Task.CompletedTask;
+            var logger = _loggerFactory.CreateLogger<TurboServer>();
+            Task<ServerSupervisorActor.DrainComplete> drainTask = Task.FromResult(new ServerSupervisorActor.DrainComplete(false));
 
             cs.AddTask(CoordinatedShutdown.PhaseServiceUnbind, "turbo-goaway", () =>
             {
@@ -125,11 +133,15 @@ public sealed class TurboServer : IServer
             {
                 try
                 {
-                    await drainTask;
+                    var result = await drainTask;
+                    if (result.TimedOut)
+                    {
+                        logger.LogWarning("Server drain timed out — some connections may not have closed gracefully");
+                    }
                 }
                 catch
                 {
-                    // drain may timeout if connections don't close gracefully
+                    // Ask itself may timeout if the supervisor is already dead
                 }
 
                 return Done.Instance;
@@ -151,12 +163,29 @@ public sealed class TurboServer : IServer
         if (_ownsSystem)
         {
             await CoordinatedShutdown.Get(_system).Run(CoordinatedShutdown.ClrExitReason.Instance);
+            await _system.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(10));
         }
         else
         {
             _supervisor.Tell(new ServerSupervisorActor.StopAccepting());
-            _supervisor.Tell(new ServerSupervisorActor.BeginDrain(_options.GracefulShutdownTimeout));
-            await Task.Delay(_options.GracefulShutdownTimeout, cancellationToken);
+            try
+            {
+                var result = await _supervisor.Ask<ServerSupervisorActor.DrainComplete>(
+                    new ServerSupervisorActor.BeginDrain(_options.GracefulShutdownTimeout),
+                    _options.GracefulShutdownTimeout,
+                    cancellationToken);
+
+                if (result.TimedOut)
+                {
+                    _loggerFactory.CreateLogger<TurboServer>()
+                        .LogWarning("Server drain timed out during stop");
+                }
+            }
+            catch
+            {
+                // Supervisor may already be dead
+            }
+
             await _supervisor.GracefulStop(_options.GracefulShutdownTimeout);
         }
     }

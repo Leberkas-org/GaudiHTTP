@@ -1,8 +1,8 @@
-using System.Buffers;
 using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Time.Testing;
 using Servus.Akka.Transport;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http10.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
@@ -12,13 +12,15 @@ namespace TurboHTTP.Tests.Protocol.Syntax.Http10.Server;
 
 public sealed class Http10DataRateSpec
 {
-    private static IFeatureCollection CreateResponseContext()
+    private static IFeatureCollection CreateStreamingResponseContext(long contentLength)
     {
         var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature { StatusCode = 200 });
+        var responseFeature = new TurboHttpResponseFeature { StatusCode = 200 };
+        responseFeature.Headers["Content-Length"] = contentLength.ToString();
+        features.Set<IHttpResponseFeature>(responseFeature);
         var bodyFeature = new TurboHttpResponseBodyFeature();
-        features.Set<IHttpResponseBodyFeature>(bodyFeature);
+        bodyFeature.UpgradeToPipe();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
         return features;
     }
@@ -62,12 +64,6 @@ public sealed class Http10DataRateSpec
         return defaultOptions with { Limits = newLimits };
     }
 
-    private static ResponseBodyBuffered MakeBodyBuffered(int size)
-    {
-        var owner = MemoryPool<byte>.Shared.Rent(size);
-        return new ResponseBodyBuffered(owner, size);
-    }
-
     [Fact(Timeout = 5000)]
     public void Data_rate_monitoring_disabled_by_default()
     {
@@ -78,10 +74,6 @@ public sealed class Http10DataRateSpec
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
-
-        // Simulate a body read cycle: read complete with 0 bytes (EOF), then buffered
-        var context = CreateResponseContext();
-        sm.OnBodyMessage(new ResponseBodyBuffered(MemoryPool<byte>.Shared.Rent(0), 0));
 
         // Fire timer with monitoring disabled — should not schedule another timer
         sm.OnTimerFired("data-rate-check");
@@ -100,8 +92,8 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        // Simulate buffered response body complete (removes rate tracking)
-        sm.OnBodyMessage(MakeBodyBuffered(0));
+        // Simulate drain complete (body fully sent)
+        sm.OnBodyMessage(new DrainReadComplete<int>(0, 0));
 
         sm.OnTimerFired("data-rate-check");
 
@@ -119,8 +111,6 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        sm.OnBodyMessage(MakeBodyBuffered(0));
-
         sm.OnTimerFired("data-rate-check");
 
         Assert.False(sm.ShouldComplete);
@@ -137,8 +127,6 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        sm.OnBodyMessage(MakeBodyBuffered(0));
-
         sm.OnTimerFired("data-rate-check");
 
         Assert.False(sm.ShouldComplete);
@@ -154,8 +142,6 @@ public sealed class Http10DataRateSpec
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
-
-        sm.OnBodyMessage(MakeBodyBuffered(0));
 
         System.Threading.Thread.Sleep(150);
 
@@ -178,8 +164,12 @@ public sealed class Http10DataRateSpec
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nConnection: keep-alive\r\nContent-Length: 0\r\n\r\n";
         sm.DecodeClientData(TransportData.Rent(MakeBuffer(requestData)));
 
-        sm.OnBodyMessage(new ResponseBodyReadComplete(10));
-        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
+        var context = CreateStreamingResponseContext(1024);
+        sm.OnResponse(context);
+
+        // Simulate body drain via SerialBodyPump: 10 bytes read, then endStream
+        sm.OnBodyMessage(new DrainReadComplete<int>(0, 10));
+        sm.OnBodyMessage(new DrainReadComplete<int>(0, 0));
 
         clock.Advance(TimeSpan.FromMilliseconds(600));
         sm.OnTimerFired("data-rate-check");
@@ -202,8 +192,11 @@ public sealed class Http10DataRateSpec
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
 
-        // Simulate reading 10 bytes of response body via ResponseBodyReadComplete
-        sm.OnBodyMessage(new ResponseBodyReadComplete(10));
+        var context = CreateStreamingResponseContext(1024);
+        sm.OnResponse(context);
+
+        // Feed tiny amount of response body via DrainReadComplete
+        sm.OnBodyMessage(new DrainReadComplete<int>(0, 10));
 
         // Advance clock to first check point (600ms, triggers first rate calculation but still in grace)
         clock.Advance(TimeSpan.FromMilliseconds(600));
@@ -228,8 +221,6 @@ public sealed class Http10DataRateSpec
         var requestData = "GET / HTTP/1.0\r\nHost: localhost\r\nContent-Length: 0\r\n\r\n";
         var headerBuffer = MakeBuffer(requestData);
         sm.DecodeClientData(TransportData.Rent(headerBuffer));
-
-        sm.OnBodyMessage(MakeBodyBuffered(0));
 
         // Check at time=600ms (first rate check, enters grace)
         clock.Advance(TimeSpan.FromMilliseconds(600));

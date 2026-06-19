@@ -733,6 +733,15 @@ internal static class WellKnownHeaders
     public static WellKnownHeader GetOrCreateHeaderValue(ReadOnlySpan<byte> value)
         => TryResolve(value, out var cached) ? new WellKnownHeader(cached) : new WellKnownHeader(value);
 
+    /// <summary>
+    /// Resolves a header VALUE to its string form without constructing a <see cref="WellKnownHeader"/>
+    /// (whose ctor allocates an ASCII byte copy via <see cref="WellKnownHeader.Bytes"/> that the decode
+    /// path never reads — only <see cref="WellKnownHeader.Name"/> is used). Returns the interned cached
+    /// string when the value is well-known, otherwise the freshly-decoded string.
+    /// </summary>
+    public static string GetOrCreateHeaderValueString(ReadOnlySpan<byte> value)
+        => TryResolve(value, out var cached) ? cached : Encoding.ASCII.GetString(value);
+
     public static WellKnownHeader GetOrCreateHeaderNameIgnoreCase(ReadOnlySpan<byte> name)
         => name.Length switch
         {

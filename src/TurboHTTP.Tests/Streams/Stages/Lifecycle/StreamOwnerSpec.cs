@@ -1,197 +1,68 @@
-using TurboHTTP.Client;
-using System.Net;
-using System.Threading.Channels;
 using Akka.Actor;
+using Akka.TestKit.Xunit;
+using TurboHTTP.Client;
 using TurboHTTP.Streams;
 using TurboHTTP.Streams.Lifecycle;
-using TurboHTTP.Tests.Shared;
 
 namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
 
-public sealed class StreamOwnerSpec : StreamTestBase
+public sealed class StreamOwnerSpec : TestKit
 {
-    private IActorRef CreateClientStreamOwner(TurboClientOptions? options = null, PipelineDescriptor? pipeline = null)
-        => Sys.ActorOf(Props.Create(() => new StreamOwner(
-            options ?? new TurboClientOptions { BaseAddress = new Uri("http://localhost") },
-            pipeline ?? PipelineDescriptor.Empty)));
-
-    [Fact(Timeout = 10_000)]
-    public void ClientStreamOwner_should_be_created_without_error()
+    private static TurboClientOptions DefaultClientOptions() => new()
     {
-        var actor = CreateClientStreamOwner();
-        Assert.NotNull(actor);
-        Assert.StartsWith("$a", actor.Path.Name);
+        BaseAddress = new Uri("http://localhost:8080")
+    };
+
+    private static PipelineDescriptor EmptyPipeline() => PipelineDescriptor.Empty;
+
+    /// <summary>
+    /// After MaxRetryAttempts stream failures, StreamOwner must stop itself.
+    /// We inject StreamSinkCompleted failures directly (it is internal and test-visible)
+    /// with a 1ms initial backoff so 11 rapid failures exhaust the retry budget
+    /// without waiting for exponential backoff timers.
+    /// </summary>
+    [Fact(Timeout = 10000)]
+    public void StreamOwner_should_stop_after_retry_exhaustion()
+    {
+        var owner = Sys.ActorOf(Props.Create(() => new StreamOwner(
+            DefaultClientOptions(),
+            EmptyPipeline(),
+            transportOverride: null,
+            initialBackoffOverride: TimeSpan.FromMilliseconds(1))));
+
+        Watch(owner);
+
+        // Inject 11 simulated stream failures (MaxRetryAttempts = 10).
+        // Sending them in rapid succession increments _retryAttempts on each and
+        // replaces the pending retry timer. After the 11th, _retryAttempts > 10
+        // and the actor calls Stash.ClearStash() + Context.Stop(Self).
+        var failEx = new InvalidOperationException("simulated stream failure");
+        for (var i = 0; i <= 10; i++)
+        {
+            owner.Tell(new StreamOwner.StreamSinkCompleted(failEx));
+        }
+
+        ExpectTerminated(owner, TimeSpan.FromSeconds(5),
+            cancellationToken: TestContext.Current.CancellationToken);
     }
 
-    [Fact(Timeout = 10_000)]
-    public async Task ClientStreamOwner_should_handle_shutdown_message()
+    /// <summary>
+    /// When Shutdown is sent before any stream is materialized, the actor stops immediately.
+    /// With a wired-up WatchTermination, the KillSwitch signals completion which
+    /// propagates through the stream and the actor stops cleanly.
+    /// </summary>
+    [Fact(Timeout = 5000)]
+    public void StreamOwner_should_stop_on_shutdown_after_stream_drains()
     {
-        var actor = CreateClientStreamOwner();
+        var owner = Sys.ActorOf(Props.Create(() => new StreamOwner(
+            DefaultClientOptions(),
+            EmptyPipeline(),
+            transportOverride: null)));
 
-        actor.Tell(new StreamOwner.Shutdown());
+        Watch(owner);
+        owner.Tell(new StreamOwner.Shutdown());
 
-        await actor.GracefulStop(TimeSpan.FromSeconds(5));
-    }
-
-
-    [Fact(Timeout = 10_000)]
-    public async Task ClientStreamOwner_should_create_consumer_child_on_register()
-    {
-        var actor = CreateClientStreamOwner();
-        await Task.Delay(1000, TestContext.Current.CancellationToken);
-
-        var consumerId = Guid.NewGuid();
-        var consumerRequests = Channel.CreateUnbounded<HttpRequestMessage>();
-        var consumerResponses = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
-            BaseAddress: new Uri("https://consumer.example"),
-            DefaultRequestHeaders: new HttpRequestMessage().Headers,
-            DefaultRequestVersion: HttpVersion.Version11,
-            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
-            Timeout: TimeSpan.FromSeconds(30),
-            Credentials: null,
-            PreAuthenticate: false);
-
-        actor.Tell(new StreamOwner.RegisterConsumer(
-            consumerId, consumerRequests.Reader, optionsFactory, consumerResponses.Writer));
-
-        await Task.Delay(500, TestContext.Current.CancellationToken);
-
-        var childPath = actor.Path / $"consumer-{consumerId:N}";
-        var resolved = await Sys.ActorSelection(childPath)
-            .ResolveOne(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
-        Assert.NotNull(resolved);
-
-        await actor.GracefulStop(TimeSpan.FromSeconds(2));
-    }
-
-    [Fact(Timeout = 10_000)]
-    public async Task ClientStreamOwner_should_stop_consumer_child_on_unregister()
-    {
-        var actor = CreateClientStreamOwner();
-        await Task.Delay(1000, TestContext.Current.CancellationToken);
-
-        var consumerId = Guid.NewGuid();
-        var consumerRequests = Channel.CreateUnbounded<HttpRequestMessage>();
-        var consumerResponses = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
-            BaseAddress: new Uri("https://consumer.example"),
-            DefaultRequestHeaders: new HttpRequestMessage().Headers,
-            DefaultRequestVersion: HttpVersion.Version11,
-            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
-            Timeout: TimeSpan.FromSeconds(30),
-            Credentials: null,
-            PreAuthenticate: false);
-
-        actor.Tell(new StreamOwner.RegisterConsumer(
-            consumerId, consumerRequests.Reader, optionsFactory, consumerResponses.Writer));
-
-        await Task.Delay(500, TestContext.Current.CancellationToken);
-
-        var childPath = actor.Path / $"consumer-{consumerId:N}";
-        var resolved = await Sys.ActorSelection(childPath)
-            .ResolveOne(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
-        Assert.NotNull(resolved);
-
-        actor.Tell(new StreamOwner.UnregisterConsumer(consumerId));
-
-        await Task.Delay(500, TestContext.Current.CancellationToken);
-
-        var notFound = await Sys.ActorSelection(childPath)
-            .ResolveOne(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken)
-            .ContinueWith(t => t.IsFaulted || t.Result.IsNobody(), TaskScheduler.Default);
-        Assert.True(notFound);
-
-        await actor.GracefulStop(TimeSpan.FromSeconds(2));
-    }
-
-
-    [Fact(Timeout = 10_000)]
-    public async Task ClientStreamOwner_should_shutdown_gracefully()
-    {
-        var actor = CreateClientStreamOwner();
-
-        actor.Tell(new StreamOwner.Shutdown());
-
-        var stopped = await actor.GracefulStop(TimeSpan.FromSeconds(2));
-        Assert.True(stopped);
-    }
-
-    [Fact(Timeout = 10_000)]
-    public async Task ClientStreamOwner_should_ignore_multiple_shutdown_messages()
-    {
-        var actor = CreateClientStreamOwner();
-        var probe = CreateTestProbe();
-
-        probe.Send(actor, new StreamOwner.Shutdown());
-        probe.Send(actor, new StreamOwner.Shutdown());
-
-        var stopped = await actor.GracefulStop(TimeSpan.FromSeconds(2));
-        Assert.True(stopped);
-    }
-
-    [Fact(Timeout = 15_000)]
-    public async Task ClientStreamOwner_should_timeout_during_shutdown_cleanup()
-    {
-        var actor = CreateClientStreamOwner();
-
-        actor.Tell(new StreamOwner.Shutdown());
-
-        var stopped = await actor.GracefulStop(TimeSpan.FromSeconds(5));
-        Assert.True(stopped);
-    }
-
-    [Fact(Timeout = 10_000)]
-    public async Task ClientStreamOwner_should_handle_unknown_messages_gracefully()
-    {
-        var actor = CreateClientStreamOwner();
-        var probe = CreateTestProbe();
-
-        probe.Send(actor, "unknown message");
-
-        probe.Send(actor, new StreamOwner.Shutdown());
-        var stopped = await actor.GracefulStop(TimeSpan.FromSeconds(2));
-        Assert.True(stopped);
-    }
-
-    [Fact(Timeout = 10_000)]
-    public void ClientStreamOwner_should_complete_on_force_stop()
-    {
-        var actor = CreateClientStreamOwner();
-
-        Watch(actor);
-        actor.Tell(PoisonPill.Instance);
-        ExpectTerminated(actor, TimeSpan.FromSeconds(2), cancellationToken: TestContext.Current.CancellationToken);
-    }
-
-    [Fact(Timeout = 15_000)]
-    public async Task ClientStreamOwner_should_materialize_per_consumer_ingress_flow_on_registration()
-    {
-        var actor = CreateClientStreamOwner();
-        await Task.Delay(1000, TestContext.Current.CancellationToken);
-
-        var consumerId = Guid.NewGuid();
-        var consumerRequests = Channel.CreateUnbounded<HttpRequestMessage>();
-        var consumerResponses = Channel.CreateUnbounded<HttpResponseMessage>();
-        var optionsFactory = () => new TurboRequestOptions(
-            BaseAddress: new Uri("https://consumer.example"),
-            DefaultRequestHeaders: new HttpRequestMessage().Headers,
-            DefaultRequestVersion: HttpVersion.Version11,
-            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
-            Timeout: TimeSpan.FromSeconds(30),
-            Credentials: null,
-            PreAuthenticate: false);
-
-        actor.Tell(new StreamOwner.RegisterConsumer(
-            consumerId, consumerRequests.Reader, optionsFactory, consumerResponses.Writer));
-
-        await Task.Delay(500, TestContext.Current.CancellationToken);
-
-        var childPath = actor.Path / $"consumer-{consumerId:N}";
-        var resolved = await Sys.ActorSelection(childPath)
-            .ResolveOne(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken);
-        Assert.NotNull(resolved);
-
-        await actor.GracefulStop(TimeSpan.FromSeconds(2));
+        ExpectTerminated(owner, TimeSpan.FromSeconds(4),
+            cancellationToken: TestContext.Current.CancellationToken);
     }
 }

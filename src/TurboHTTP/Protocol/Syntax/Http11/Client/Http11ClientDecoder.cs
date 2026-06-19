@@ -1,4 +1,5 @@
 using System.Net;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
@@ -6,7 +7,7 @@ using TurboHTTP.Protocol.Syntax.Http11.Options;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Client;
 
-internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
+internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options, ConnectionPoolContext poolContext)
 {
     private enum Phase
     {
@@ -56,9 +57,9 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
                 _statusCode = 200;
                 _reason = "OK";
 
-                var (reader, decoder) = BodyReaderFactory.Create(
-                    new BodyClassification(BodyFraming.Close, null),
-                    options.ToBodyDecoderOptions());
+                var http09Classification = BodyReaderClassification.FromBodyClassification(
+                    new BodyClassification(BodyFraming.Close, null), options.ToBodyDecoderOptions());
+                var (reader, decoder) = poolContext.RentBodyReader(http09Classification, options.ToBodyDecoderOptions());
                 _bodyReader = reader;
                 _framingDecoder = decoder;
                 if (reader is IStreamingBodyReader streaming)
@@ -99,7 +100,9 @@ internal sealed class Http11ClientDecoder(Http11ClientDecoderOptions options)
                 _statusCode, headers, _version, requestMethodWasHead,
                 connectionWillClose: ConnectionWillClose);
 
-            var (reader, decoder) = BodyReaderFactory.Create(classification, options.ToBodyDecoderOptions());
+            var readerClassification = BodyReaderClassification.FromBodyClassification(
+                classification, options.ToBodyDecoderOptions());
+            var (reader, decoder) = poolContext.RentBodyReader(readerClassification, options.ToBodyDecoderOptions());
             _bodyReader = reader;
             _framingDecoder = decoder;
             if (reader is IStreamingBodyReader streaming)

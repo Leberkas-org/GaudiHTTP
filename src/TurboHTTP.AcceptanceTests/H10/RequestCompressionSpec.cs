@@ -107,7 +107,7 @@ public sealed class RequestCompressionSpec : AcceptanceTestBase
         HttpRequestMessage request,
         Func<int, byte[], byte[]?> factory)
     {
-        var fake = CreateScriptedConnection(factory);
+        var fake = CreateAccumulatingScriptedConnection(factory);
         var flow = engine.Join(fake.AsFlow());
 
         var tcs = new TaskCompletionSource<HttpResponseMessage>();
@@ -318,7 +318,7 @@ public sealed class RequestCompressionSpec : AcceptanceTestBase
         headerBytes.CopyTo(gzipResponse, 0);
         compressedPayload.CopyTo(gzipResponse, headerBytes.Length);
 
-        var fake2 = CreateScriptedConnection((_, _) => gzipResponse);
+        var fake2 = CreateAccumulatingScriptedConnection((_, _) => gzipResponse);
         var flow2 = CreateDecompressingAndCompressingEngine("gzip")
             .Join(fake2.AsFlow());
 

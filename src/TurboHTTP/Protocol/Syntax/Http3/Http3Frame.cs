@@ -42,14 +42,6 @@ internal abstract class Http3Frame
     /// </summary>
     public abstract int WriteTo(ref Span<byte> span);
 
-    public byte[] Serialize()
-    {
-        var buf = new byte[SerializedSize];
-        var span = buf.AsSpan();
-        WriteTo(ref span);
-        return buf;
-    }
-
     /// <summary>
     /// Returns the payload size in bytes (excluding the type/length prefix).
     /// </summary>

@@ -8,7 +8,6 @@ namespace TurboHTTP.Protocol.Syntax.Http3.Server;
 
 internal sealed class Http3ServerStateMachine : IServerStateMachine
 {
-    private const string DrainBodyPrefix = "drain-body:";
     private const string HeadersTimeoutPrefix = "headers-timeout:";
     private const string KeepAliveTimeout = "keep-alive-timeout";
     private const string DataRateCheck = "data-rate-check";
@@ -79,16 +78,6 @@ internal sealed class Http3ServerStateMachine : IServerStateMachine
         {
             Tracing.For("Protocol").Info(this, "HTTP/3: keep-alive timeout - closing connection");
             _sessionManager.SetComplete();
-            return;
-        }
-
-        if (name.StartsWith(DrainBodyPrefix))
-        {
-            if (long.TryParse(name.AsSpan(DrainBodyPrefix.Length), out var drainStreamId))
-            {
-                _sessionManager.DrainOutboundBuffer(drainStreamId);
-            }
-
             return;
         }
 

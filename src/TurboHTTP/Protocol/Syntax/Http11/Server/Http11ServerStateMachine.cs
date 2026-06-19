@@ -1,9 +1,8 @@
 using System.Net;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
@@ -14,7 +13,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerStateMachine : IServerStateMachine
+internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrainTarget<int>
 {
     private const string KeepAliveTimer = "keep-alive";
     private const string RequestHeadersTimer = "request-headers";
@@ -50,13 +49,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     private bool _bodyStreaming;
     private IStreamingBodyReader? _activeStreamingReader;
 
-    private readonly ConnectionBodyPool _pool = new();
-    private IBodyWriter? _activeResponseBodyWriter;
-    private Stream? _activeResponseBodyStream;
+    private readonly ConnectionPoolContext _poolContext = new();
+    private bool _isChunked;
     private IFeatureCollection? _activeResponseFeatures;
-
-    internal readonly record struct ResponseBodyReadComplete(int BytesRead);
-    internal readonly record struct ResponseBodyReadFailed(Exception Reason);
+    private SerialBodyPump? _serialPump;
+    private CancellationTokenSource? _connectionCts;
 
     public bool CanAcceptResponse => !_outboundBodyPending && _pendingResponseCount > 0;
     public bool ShouldComplete { get; private set; }
@@ -93,7 +90,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             throw new ArgumentException("MaxPipelinedRequests must be greater than zero.", nameof(options));
         }
 
-        _decoder = new Http11ServerDecoder(decOpts);
+        _decoder = new Http11ServerDecoder(decOpts, _poolContext);
         _encoder = new Http11ServerEncoder(encOpts);
         _keepAliveTimeout = encOpts.KeepAliveTimeout;
         _requestHeadersTimeout = encOpts.RequestHeadersTimeout;
@@ -102,6 +99,89 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
     public void PreStart()
     {
+    }
+
+    private CancellationTokenSource EnsureConnectionCts()
+    {
+        return _connectionCts ??= new CancellationTokenSource();
+    }
+
+    IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
+
+    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    {
+        if (!data.IsEmpty)
+        {
+            if (_isChunked)
+            {
+                var framedSize = ChunkedFramingHelper.GetFramedSize(data.Length);
+                var buf = TransportBuffer.Rent(framedSize);
+                ChunkedFramingHelper.WriteChunk(data.Span, buf.FullMemory.Span);
+                buf.Length = framedSize;
+                _responseRate.Observe(0, framedSize, Now());
+                EnsureRateTimer();
+                _ops.OnOutbound(TransportData.Rent(buf));
+            }
+            else
+            {
+                var buf = TransportBuffer.Rent(data.Length);
+                data.CopyTo(buf.FullMemory);
+                buf.Length = data.Length;
+                _responseRate.Observe(0, data.Length, Now());
+                EnsureRateTimer();
+                _ops.OnOutbound(TransportData.Rent(buf));
+            }
+
+            Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", data.Length);
+        }
+
+        if (!endStream && _serialPump is not null)
+        {
+            _serialPump.OnCapacityAvailable();
+        }
+
+        if (endStream)
+        {
+            if (_isChunked)
+            {
+                var buf = TransportBuffer.Rent(5);
+                ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
+                buf.Length = 5;
+                _ops.OnOutbound(TransportData.Rent(buf));
+            }
+
+            _outboundBodyPending = false;
+            _responseRate.Remove(0);
+            if (_activeResponseFeatures is not null)
+            {
+                _ops.OnResponseBodyComplete(_activeResponseFeatures);
+                _activeResponseFeatures = null;
+            }
+
+            Tracing.For("Protocol").Debug(this, "response body complete");
+            if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
+            {
+                _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
+            }
+        }
+    }
+
+    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+    {
+        Tracing.For("Protocol").Debug(this, "response body drain complete");
+    }
+
+    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+    {
+        _outboundBodyPending = false;
+        _responseRate.Remove(0);
+        if (_activeResponseFeatures is not null)
+        {
+            _ops.OnResponseBodyComplete(_activeResponseFeatures);
+            _activeResponseFeatures = null;
+        }
+
+        Tracing.For("Protocol").Warning(this, "response body failed: {0}", reason.Message);
     }
 
     public void DecodeClientData(ITransportInbound data)
@@ -158,7 +238,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
             {
                 _ops.OnScheduleTimer(RequestHeadersTimer, _requestHeadersTimeout);
                 _requestHeadersTimerActive = true;
-                Tracing.For("Protocol").Debug(this, "request headers timer scheduled ({0}ms)", _requestHeadersTimeout.TotalMilliseconds);
+                Tracing.For("Protocol").Debug(this, "request headers timer scheduled ({0}ms)",
+                    _requestHeadersTimeout.TotalMilliseconds);
             }
 
             while (pos < span.Length && !_bodyStreaming)
@@ -189,10 +270,11 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
                     ShouldComplete = true;
                 }
 
-                var feature = _decoder.GetRequestFeature();
-                var hasBody = outcome == DecodeOutcome.HeadersReady || feature.Body != Stream.Null;
-                var features = FeatureCollectionFactory.Create(feature, hasBody, _ops.Services, _ops.ConnectionFeature,
+                var hasBody = outcome == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
+                var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
+                    out var feature, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
+                _decoder.PopulateRequestFeature(feature);
 
                 if (!ShouldComplete && feature.Protocol == WellKnownHeaders.Http10)
                 {
@@ -286,12 +368,41 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         var responseBody = features.Get<IHttpResponseBodyFeature>();
 
         var statusCode = responseFeature?.StatusCode ?? 200;
-        var suppressBody = statusCode is >= 100 and < 200 or 204 or 304;
+        // A response to HEAD carries the same headers a GET would (Content-Length/Transfer-Encoding
+        // are still emitted) but MUST NOT include a body — emitting one desynchronizes the keep-alive
+        // connection (RFC 9110 §9.3.2, RFC 9112 §6.3). The request method rides on the same feature
+        // collection the bridge echoes back, so it's available here.
+        var isHeadRequest = string.Equals(
+            features.Get<IHttpRequestFeature>()?.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
+        var suppressBody = isHeadRequest || statusCode is >= 100 and < 200 or 204 or 304;
 
         var contentLength = ExtractContentLength(responseFeature);
-        var hasExplicitChunked = responseFeature?.Headers.Any(h =>
-            h.Key.Equals(WellKnownHeaders.TransferEncoding, StringComparison.OrdinalIgnoreCase)
-            && h.Value.Any(v => v!.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))) ?? false;
+        var hasExplicitChunked = false;
+        if (responseFeature?.Headers is { } responseHeaders)
+        {
+            foreach (var h in responseHeaders)
+            {
+                if (!h.Key.Equals(WellKnownHeaders.TransferEncoding, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                foreach (var v in h.Value)
+                {
+                    if (v != null && v.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasExplicitChunked = true;
+                        break;
+                    }
+                }
+
+                if (hasExplicitChunked)
+                {
+                    break;
+                }
+            }
+        }
+
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
         var estimatedSize = EstimateResponseHeaderSize(responseFeature);
@@ -303,6 +414,10 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         if (suppressBody)
         {
+            // Headers-only response (1xx/204/304 or HEAD): no body drain will run, so recycle the
+            // feature collection now. Safe — the SM keeps no reference to `features` on this path.
+            _ops.OnResponseBodyComplete(features);
+
             if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
             {
                 _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
@@ -337,39 +452,26 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         {
             if (turboBody.TryGetBufferedBody(out var bufferedBody))
             {
-                EmitBufferedBody(features, bufferedBody, contentLength);
+                EmitBufferedBody(features, bufferedBody, isChunked);
                 return;
             }
 
             _outboundBodyPending = true;
+            _isChunked = isChunked;
             _activeResponseFeatures = features;
             Tracing.For("Protocol").Debug(this, "response body writer starting (chunked={0})", isChunked);
 
             var bodyStream = turboBody.GetResponseStream();
-            var (writer, _) = _pool.RentWriter(
-                hasBody: true, contentLength, HttpVersion.Version11, _bodyEncoderOptions,
-                send: (owner, framedData) =>
-                {
-                    var ownerSpan = owner.Memory.Span;
-                    var framedSpan = framedData.Span;
-                    ref var ownerStart = ref MemoryMarshal.GetReference(ownerSpan);
-                    ref var framedStart = ref MemoryMarshal.GetReference(framedSpan);
-                    var offset = (int)Unsafe.ByteOffset(ref ownerStart, ref framedStart);
-                    _responseRate.Observe(0, framedData.Length, Now());
-                    EnsureRateTimer();
-                    var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
-                    _ops.OnOutbound(TransportData.Rent(buf));
-                    return default;
-                });
 
-            _activeResponseBodyWriter = writer;
-            _activeResponseBodyStream = bodyStream;
-
-
-            ReadNextResponseChunk();
+            _serialPump =
+                new SerialBodyPump(this, EnsureConnectionCts(), _bodyEncoderOptions.ChunkSize, maxCapacity: 2);
+            _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
         }
         else
         {
+            // No streamed body feature to drain: recycle the feature collection now.
+            _ops.OnResponseBodyComplete(features);
+
             if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
             {
                 _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
@@ -377,40 +479,48 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         }
     }
 
-
-    private void EmitBufferedBody(IFeatureCollection features, ReadOnlyMemory<byte> body, long? contentLength)
+    private void EmitBufferedBody(IFeatureCollection features, ReadOnlyMemory<byte> body, bool isChunked)
     {
-        var (writer, _) = _pool.RentWriter(
-            hasBody: true, contentLength, HttpVersion.Version11, _bodyEncoderOptions,
-            send: (owner, framedData) =>
-            {
-                var ownerSpan = owner.Memory.Span;
-                var framedSpan = framedData.Span;
-                ref var ownerStart = ref MemoryMarshal.GetReference(ownerSpan);
-                ref var framedStart = ref MemoryMarshal.GetReference(framedSpan);
-                var offset = (int)Unsafe.ByteOffset(ref ownerStart, ref framedStart);
-                _responseRate.Observe(0, framedData.Length, Now());
-                EnsureRateTimer();
-                var buf = TransportBuffer.Wrap(owner, offset, framedData.Length);
-                _ops.OnOutbound(TransportData.Rent(buf));
-                return default;
-            });
-
         if (body.Length > 0)
         {
             var remaining = body;
             while (remaining.Length > 0)
             {
                 var take = Math.Min(remaining.Length, _bodyEncoderOptions.ChunkSize);
-                var dest = writer.GetMemory(take);
-                remaining.Span[..take].CopyTo(dest.Span);
-                writer.Advance(take);
-                writer.FlushAsync();
+                var chunk = remaining[..take];
+
+                if (isChunked)
+                {
+                    var framedSize = ChunkedFramingHelper.GetFramedSize(take);
+                    var buf = TransportBuffer.Rent(framedSize);
+                    ChunkedFramingHelper.WriteChunk(chunk.Span, buf.FullMemory.Span);
+                    buf.Length = framedSize;
+                    _responseRate.Observe(0, framedSize, Now());
+                    EnsureRateTimer();
+                    _ops.OnOutbound(TransportData.Rent(buf));
+                }
+                else
+                {
+                    var buf = TransportBuffer.Rent(take);
+                    chunk.CopyTo(buf.FullMemory);
+                    buf.Length = take;
+                    _responseRate.Observe(0, take, Now());
+                    EnsureRateTimer();
+                    _ops.OnOutbound(TransportData.Rent(buf));
+                }
+
                 remaining = remaining[take..];
             }
         }
 
-        writer.CompleteAsync();
+        if (isChunked)
+        {
+            var buf = TransportBuffer.Rent(5);
+            ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
+            buf.Length = 5;
+            _ops.OnOutbound(TransportData.Rent(buf));
+        }
+
         // The response is fully handed to the transport: drop the rate entry, or the idle
         // keep-alive connection is flagged as a violation once the grace period elapses.
         _responseRate.Remove(0);
@@ -420,52 +530,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
         {
             _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
-        }
-    }
-
-    private void ReadNextResponseChunk()
-    {
-        var mem = _activeResponseBodyWriter!.GetMemory(_bodyEncoderOptions.ChunkSize);
-        var vt = _activeResponseBodyStream!.ReadAsync(mem);
-        if (vt.IsCompletedSuccessfully)
-        {
-            HandleResponseBodyRead(vt.Result);
-            return;
-        }
-
-        vt.PipeTo(
-            _ops.StageActor,
-            success: bytesRead => new ResponseBodyReadComplete(bytesRead),
-            failure: ex => new ResponseBodyReadFailed(ex));
-    }
-
-    private void HandleResponseBodyRead(int bytesRead)
-    {
-        if (bytesRead > 0)
-        {
-            _activeResponseBodyWriter!.Advance(bytesRead);
-            _activeResponseBodyWriter.FlushAsync();
-            Tracing.For("Protocol").Trace(this, "response body chunk flushed (bytes={0})", bytesRead);
-            ReadNextResponseChunk();
-        }
-        else
-        {
-            _activeResponseBodyWriter!.CompleteAsync();
-            _outboundBodyPending = false;
-            _activeResponseBodyWriter = null;
-            _activeResponseBodyStream = null;
-            _responseRate.Remove(0);
-            if (_activeResponseFeatures is not null)
-            {
-                _ops.OnResponseBodyComplete(_activeResponseFeatures);
-                _activeResponseFeatures = null;
-            }
-
-            Tracing.For("Protocol").Debug(this, "response body complete");
-            if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
-            {
-                _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
-            }
         }
     }
 
@@ -527,23 +591,27 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
     {
         switch (msg)
         {
-            case ResponseBodyReadComplete read:
-                HandleResponseBodyRead(read.BytesRead);
+            case DrainReadComplete<int> read:
+                _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case ResponseBodyReadFailed failed:
-                _outboundBodyPending = false;
-                _activeResponseBodyWriter?.Dispose();
-                _activeResponseBodyWriter = null;
-                _activeResponseBodyStream = null;
-                _responseRate.Remove(0);
-                Tracing.For("Protocol").Warning(this, "response body failed: {0}", failed.Reason.Message);
+            case DrainReadFailed<int> failed:
+                _serialPump?.HandleReadFailed(failed.Reason);
+                break;
+
+            case DrainContinue<int>:
+                _serialPump?.HandleDrainContinue();
                 break;
         }
     }
 
     public void OnOutboundFlushed()
     {
+        if (_serialPump is not null)
+        {
+            _serialPump.ResetSyncReadCounter();
+            _serialPump.OnCapacityAvailable();
+        }
     }
 
     private static int EstimateResponseHeaderSize(IHttpResponseFeature? responseFeature)
@@ -581,8 +649,10 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         foreach (var header in responseFeature.Headers)
         {
-            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase) &&
-                header.Value.FirstOrDefault() is { } value && ContentLengthSemantics.TryParse(value, out var length))
+            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase)
+                && header.Value.Count > 0
+                && header.Value[0] is { } value
+                && ContentLengthSemantics.TryParse(value, out var length))
             {
                 return length;
             }
@@ -607,8 +677,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
 
         var hasUpgrade = requestHeaders.TryGetValue(WellKnownHeaders.Upgrade, out var upgradeValue)
                          && !string.IsNullOrEmpty(upgradeValue)
-                         && ConnectionHeaderSemantics.Parse(upgradeValue.ToString())
-                             .Contains("h2c", StringComparer.OrdinalIgnoreCase);
+                         && ConnectionHeaderSemantics.HasToken(upgradeValue.ToString(), "h2c");
 
         if (!hasUpgrade)
         {
@@ -631,16 +700,13 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine
         return true;
     }
 
-    internal void ResumeBody()
-    {
-    }
-
     public void Cleanup()
     {
-        _activeResponseBodyWriter?.Dispose();
-        _activeResponseBodyWriter = null;
-        _activeResponseBodyStream = null;
-        _pool.Dispose();
+        _serialPump?.Cleanup();
+        _serialPump = null;
+        _connectionCts?.Cancel();
+        _connectionCts?.Dispose();
+        _connectionCts = null;
         _outboundBodyPending = false;
         _pendingResponseCount = 0;
         _activeStreamingReader = null;

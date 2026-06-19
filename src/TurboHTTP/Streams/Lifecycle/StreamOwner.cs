@@ -23,15 +23,15 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
         ChannelWriter<HttpResponseMessage> FallbackResponseWriter);
     internal sealed record UnregisterConsumer(Guid ConsumerId);
 
-    private static readonly TimeSpan InitialBackoff = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan DefaultInitialBackoff = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(30);
     private const double BackoffMultiplier = 2.0;
 
     private const int MaxRetryAttempts = 10;
 
-    private static TimeSpan CalculateBackoff(int attempt) =>
+    private TimeSpan CalculateBackoff(int attempt) =>
         TimeSpan.FromMilliseconds(
-            Math.Min(InitialBackoff.TotalMilliseconds * Math.Pow(BackoffMultiplier, attempt),
+            Math.Min(_initialBackoff.TotalMilliseconds * Math.Pow(BackoffMultiplier, attempt),
                 MaxBackoff.TotalMilliseconds));
 
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(5);
@@ -44,6 +44,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private readonly TurboClientOptions _clientOptions;
     private readonly PipelineDescriptor _pipeline;
     private readonly TransportRegistry? _transportOverride;
+    private readonly TimeSpan _initialBackoff;
 
     private int _retryAttempts;
     private Exception? _lastError;
@@ -56,8 +57,9 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private Sink<HttpRequestMessage, NotUsed>? _requestIngress;
     private SharedKillSwitch? _killSwitch;
     private bool _streamRunning;
-    private readonly Dictionary<Guid, int> _consumerPartitions = [];
-    private int _nextPartitionIndex = 1;
+    // Attached consumers in registration order. A consumer's PartitionHub slot is its 0-based
+    // index here; the list compacts on unregister so indices track the hub's live partition set.
+    private readonly List<Guid> _attachedConsumers = [];
     private bool IsSystemTerminating =>
         Context.System.WhenTerminated.IsCompleted ||
         CoordinatedShutdown.Get(Context.System).ShutdownReason is not null;
@@ -66,11 +68,13 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     public IStash Stash { get; set; } = null!;
 
     public StreamOwner(TurboClientOptions clientOptions, PipelineDescriptor pipeline,
-        TransportRegistry? transportOverride = null)
+        TransportRegistry? transportOverride = null,
+        TimeSpan? initialBackoffOverride = null)
     {
         _clientOptions = clientOptions;
         _pipeline = pipeline;
         _transportOverride = transportOverride;
+        _initialBackoff = initialBackoffOverride ?? DefaultInitialBackoff;
 
         Initializing();
     }
@@ -170,9 +174,9 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
             // Materialize the graph
             var materializerSettings = ActorMaterializerSettings.Create(Context.System)
                 .WithInputBuffer(initialSize: 32, maxSize: 128);
-            _materializer = Context.System.Materializer(
-                settings: materializerSettings,
-                namePrefix: $"stream-owner-{Self.Path.Name}");
+            _materializer = Context.Materializer(
+                materializerSettings,
+                $"stream-owner-{Self.Path.Name}");
 
             // KillSwitch absorbs ChannelSource completion so the pipeline stays alive
             // until explicitly shut down. This prevents premature completion when the
@@ -185,11 +189,20 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
                 startAfterNrOfConsumers: 1,
                 bufferSize: 256);
 
-            var (requestIngress, fanoutSource) = requestIngressHub
+            var self = Self;
+
+            var (requestIngress, streamTask, fanoutSource) = requestIngressHub
                 .Via(_killSwitch.Flow<HttpRequestMessage>())
                 .Via(engineFlow)
-                .ToMaterialized(responseFanoutHub, Keep.Both)
+                .ViaMaterialized(
+                    Flow.Create<HttpResponseMessage>().WatchTermination(Keep.Right),
+                    (sinkMat, taskMat) => (sinkMat, taskMat))
+                .ToMaterialized(responseFanoutHub, (mat, fanout) => (mat.sinkMat, mat.taskMat, fanout))
                 .Run(_materializer);
+
+            streamTask.PipeTo(self,
+                success: _ => new StreamSinkCompleted(null),
+                failure: ex => new StreamSinkCompleted(ex));
 
             _requestIngress = requestIngress;
 
@@ -228,12 +241,12 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
             _responseFanoutSource!,
             _materializer!), childName);
 
-        _consumerPartitions[message.ConsumerId] = _nextPartitionIndex++;
+        _attachedConsumers.Add(message.ConsumerId);
     }
 
     private void HandleUnregisterConsumer(UnregisterConsumer message)
     {
-        _consumerPartitions.Remove(message.ConsumerId);
+        _attachedConsumers.Remove(message.ConsumerId);
         var childName = $"consumer-{message.ConsumerId:N}";
         var child = Context.Child(childName);
         if (!child.IsNobody())
@@ -245,12 +258,29 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     private int ResolveResponsePartition(int consumerCount, HttpResponseMessage response)
     {
         if (response.RequestMessage is { } request &&
-            request.Options.TryGetValue(OptionsKey.ConsumerIdKey, out var consumerId) &&
-            _consumerPartitions.TryGetValue(consumerId, out var partition) &&
-            partition > 0 &&
-            partition < consumerCount)
+            request.Options.TryGetValue(OptionsKey.ConsumerIdKey, out var consumerId))
         {
-            return partition;
+            return ResolvePartitionIndex(_attachedConsumers, consumerId, consumerCount);
+        }
+
+        return 0;
+    }
+
+    /// <summary>
+    /// Maps a consumer to its PartitionHub slot: the 0-based position of the consumer in the
+    /// current attached-consumer order. Because the list compacts on unregister, the index stays
+    /// aligned with the hub's live partition set (the partitioner contract requires a value in
+    /// [0, consumerCount)). An unknown consumer or out-of-range index falls back to partition 0.
+    /// </summary>
+    internal static int ResolvePartitionIndex(IReadOnlyList<Guid> attachedConsumers, Guid consumerId,
+        int consumerCount)
+    {
+        for (var i = 0; i < attachedConsumers.Count; i++)
+        {
+            if (attachedConsumers[i] == consumerId)
+            {
+                return i < consumerCount ? i : 0;
+            }
         }
 
         return 0;
@@ -261,8 +291,8 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
         _lastError = ex;
         _retryAttempts++;
 
-        _log.Warning("Stream materialization failed (attempt {0}/{1}): {2}",
-            _retryAttempts, MaxRetryAttempts, ex.Message);
+        _log.Warning(ex, "Stream materialization failed (attempt {0}/{1})",
+            _retryAttempts, MaxRetryAttempts);
 
         if (_retryAttempts <= MaxRetryAttempts && !_shuttingDown && !IsSystemTerminating)
         {
@@ -274,8 +304,10 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
         }
         else
         {
-            _log.Error("Stream materialization failed after {0} attempts. Last error: {1}",
-                _retryAttempts, _lastError?.Message);
+            _log.Error(_lastError, "Stream materialization failed permanently after {0} attempts",
+                _retryAttempts);
+            Stash.ClearStash();
+            Context.Stop(Self);
         }
     }
 
@@ -348,12 +380,21 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
                 HandleMaterializationFailed(completed.Error);
             }
         }
-        else
+        else if (_shuttingDown)
         {
-            // Pipeline drained cleanly (after KillSwitch.Shutdown or error-free completion).
+            // Pipeline drained cleanly after an explicit KillSwitch.Shutdown().
             // Cancel the safety timeout — no force-stop needed.
             Timers.Cancel(ShutdownTimerKey);
-            _log.Debug("Pipeline drained, stopping actor");
+            _log.Debug("Pipeline drained cleanly after shutdown, stopping actor");
+            Context.Stop(Self);
+        }
+        else
+        {
+            // Pipeline completed without an explicit shutdown request (e.g., the upstream
+            // channel was completed or all MergeHub producers finished). Treat this as
+            // terminal — re-materializing risks a feedback loop where disposed requests
+            // from timed-out callers poison the new pipeline.
+            _log.Warning("Pipeline completed unexpectedly without shutdown — stopping");
             Context.Stop(Self);
         }
     }
@@ -370,7 +411,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
             }
             catch (Exception ex)
             {
-                _log.Warning("Error aborting KillSwitch: {0}", ex.Message);
+                _log.Warning(ex, "Error aborting KillSwitch");
             }
         }
 
@@ -379,59 +420,25 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
 
     private void CleanupResources()
     {
-        // NOTE: Do NOT complete _requestReader or _responseWriter here.
-        // They are externally-owned by TurboClientStreamManager and must remain
-        // open for potential retry (new materialization reconnecting to same channels).
+        _materializer?.Dispose();
+        _materializer = null;
 
-        // Dispose materializer (stops the Akka stream graph)
-        if (_materializer is not null)
-        {
-            try
-            {
-                _materializer.Dispose();
-            }
-            catch (Exception ex)
-            {
-                _log.Warning("Error disposing materializer: {0}", ex.Message);
-            }
-
-            _materializer = null;
-        }
-
-        // Stop connection manager actors (PostStop disposes all leases)
         if (_tcpManager is not null)
         {
-            try
-            {
-                Context.Stop(_tcpManager);
-            }
-            catch (Exception ex)
-            {
-                _log.Warning("Error stopping TCP connection manager: {0}", ex.Message);
-            }
-
+            Context.Stop(_tcpManager);
             _tcpManager = null;
         }
 
         if (_quicConnectionManager is not null)
         {
-            try
-            {
-                Context.Stop(_quicConnectionManager);
-            }
-            catch (Exception ex)
-            {
-                _log.Warning("Error stopping QUIC connection manager: {0}", ex.Message);
-            }
-
+            Context.Stop(_quicConnectionManager);
             _quicConnectionManager = null;
         }
 
         _killSwitch = null;
         _responseFanoutSource = null;
         _requestIngress = null;
-        _consumerPartitions.Clear();
-        _nextPartitionIndex = 1;
+        _attachedConsumers.Clear();
         _streamRunning = false;
     }
 
@@ -439,7 +446,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     {
         return new OneForOneStrategy(ex =>
         {
-            _log.Warning("ConsumerActor failed: {0}", ex.Message);
+            _log.Warning(ex, "ConsumerActor failed");
             return Directive.Stop;
         });
     }
@@ -475,6 +482,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
     /// <summary>
     /// Internal signal that the stream sink has completed (success or failure).
     /// Routed from the async completion callback into the actor's mailbox.
+    /// Visible to tests so they can inject stream failure events directly.
     /// </summary>
-    private sealed record StreamSinkCompleted(Exception? Error);
+    internal sealed record StreamSinkCompleted(Exception? Error);
 }

@@ -13,6 +13,7 @@ internal sealed class ConnectionActor : ReceiveActor
 {
     public sealed record Drain;
     private sealed record ConnectionCompleted;
+    private sealed record ConnectionFailed(Exception Error);
 
     private readonly ILoggingAdapter _log = Context.GetLogger();
     private SharedKillSwitch? _drainSwitch;
@@ -49,7 +50,9 @@ internal sealed class ConnectionActor : ReceiveActor
                 Keep.Right)
             .Join(composed)
             .Run(materializer)
-            .PipeTo(self, success: _ => new ConnectionCompleted());
+            .PipeTo(self,
+                success: _ => new ConnectionCompleted(),
+                failure: ex => new ConnectionFailed(ex));
 
         Receive<Drain>(_ =>
         {
@@ -62,5 +65,16 @@ internal sealed class ConnectionActor : ReceiveActor
             _log.Debug("Connection {0}: completed", connectionId);
             Context.Stop(Self);
         });
+
+        Receive<ConnectionFailed>(msg =>
+        {
+            _log.Warning(msg.Error, "Connection {0}: stream failed", connectionId);
+            Context.Stop(Self);
+        });
+    }
+
+    protected override void PostStop()
+    {
+        _drainSwitch = null;
     }
 }

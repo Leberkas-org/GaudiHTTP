@@ -1,11 +1,10 @@
-using System.Globalization;
-using System.Text;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.Body;
 
-internal sealed class ChunkedFramingDecoder : IFramingDecoder
+internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
 {
     private enum Phase
     {
@@ -46,6 +45,8 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder
         _trailers?.Clear();
         _trailerSectionBytes = 0;
     }
+
+    void IResettable.Reset() => Reset(long.MaxValue, 8 * 1024);
 
     public FramingDecodeResult Decode(ReadOnlySpan<byte> raw, out int rawConsumed)
     {
@@ -99,9 +100,7 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder
                     }
 
                     var sizeSpan = semi < 0 ? line : line[..semi];
-                    if (!ulong.TryParse(Encoding.ASCII.GetString(sizeSpan),
-                            NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var chunkSize)
-                        || chunkSize > int.MaxValue)
+                    if (!TryParseHexSpan(sizeSpan, out var chunkSize) || chunkSize > int.MaxValue)
                     {
                         throw new HttpProtocolException("Invalid chunk size.");
                     }
@@ -209,15 +208,61 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder
             EnsureStash(remaining);
             work[pos..].CopyTo(_stash);
             _stashLen = remaining;
-        }
-        else
-        {
-            _stashLen = 0;
+
+            // The unconsumed tail of `raw` was absorbed into the stash and is now owned by the
+            // decoder, so the entire `raw` is consumed from the caller's perspective. Reporting
+            // only `pos - stashOffset` would omit the just-stashed tail; the streaming caller would
+            // then re-feed those bytes (span[pos..]) on its next Decode, and they'd be prepended to
+            // the stash a second time — duplicating the partial control line and corrupting the
+            // stream (RFC 9112 §7.1 chunked framing). See ChunkedFramingDecoderSpec split-feed tests.
+            rawConsumed = raw.Length;
+            return new FramingDecodeResult(bodyOutput, false);
         }
 
+        _stashLen = 0;
         rawConsumed = Math.Max(0, pos - stashOffset);
 
         return new FramingDecodeResult(bodyOutput, false);
+    }
+
+    private static bool TryParseHexSpan(ReadOnlySpan<byte> span, out ulong value)
+    {
+        value = 0;
+        if (span.IsEmpty)
+        {
+            return false;
+        }
+
+        foreach (var b in span)
+        {
+            uint nibble;
+            if (b >= (byte)'0' && b <= (byte)'9')
+            {
+                nibble = (uint)(b - '0');
+            }
+            else if (b >= (byte)'a' && b <= (byte)'f')
+            {
+                nibble = (uint)(b - 'a' + 10);
+            }
+            else if (b >= (byte)'A' && b <= (byte)'F')
+            {
+                nibble = (uint)(b - 'A' + 10);
+            }
+            else
+            {
+                return false;
+            }
+
+            // Guard against overflow before shifting
+            if (value > (ulong.MaxValue >> 4))
+            {
+                return false;
+            }
+
+            value = (value << 4) | nibble;
+        }
+
+        return true;
     }
 
     private void EnsureStash(int needed)

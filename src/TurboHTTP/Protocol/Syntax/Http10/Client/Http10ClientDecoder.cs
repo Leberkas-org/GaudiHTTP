@@ -1,4 +1,5 @@
 using System.Net;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
@@ -6,7 +7,7 @@ using TurboHTTP.Protocol.Syntax.Http10.Options;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Client;
 
-internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
+internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, ConnectionPoolContext poolContext)
 {
     private enum Phase
     {
@@ -49,7 +50,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
                 _version = HttpVersion.Version10;
                 _statusCode = 200;
                 _reason = "OK";
-                var buffered = new BufferedBodyReader();
+                var buffered = poolContext.Rent(static () => new BufferedBodyReader());
                 buffered.ResetOpenEnded();
                 _bodyReader = buffered;
                 _phase = Phase.Body;
@@ -84,16 +85,18 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options)
                 _statusCode, headers, _version, requestMethodWasHead,
                 connectionWillClose: !ConnectionSemantics.IsPersistent(headers, _version));
 
-            if (classification.Framing == BodyFraming.Close)
+            if (_isHttp09 && classification.Framing == BodyFraming.Close)
             {
-                var buffered = new BufferedBodyReader();
+                var buffered = poolContext.Rent(static () => new BufferedBodyReader());
                 buffered.ResetOpenEnded();
                 _bodyReader = buffered;
                 _framingDecoder = null;
             }
             else
             {
-                var (reader, decoder) = BodyReaderFactory.Create(classification, options.ToBodyDecoderOptions());
+                var readerClassification = BodyReaderClassification.FromBodyClassification(
+                    classification, options.ToBodyDecoderOptions());
+                var (reader, decoder) = poolContext.RentBodyReader(readerClassification, options.ToBodyDecoderOptions());
                 _bodyReader = reader;
                 _framingDecoder = decoder;
                 if (reader is IStreamingBodyReader streaming)
