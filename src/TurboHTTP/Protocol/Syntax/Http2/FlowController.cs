@@ -72,6 +72,9 @@ internal sealed class FlowController : IFlowController<int>
         return Math.Max(0L, Math.Min(_connectionSendWindow, streamWindow));
     }
 
+    public long GetStreamSendWindow(int streamId)
+        => _streamSendWindows.GetValueOrDefault(streamId, _initialSendStreamWindow);
+
     public void OnDataSent(int streamId, int length)
     {
         _connectionSendWindow -= length;
