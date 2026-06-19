@@ -132,7 +132,8 @@ internal sealed class Consumer : ReceiveActor
         _sinkKillSwitch = null;
         if (completed.Error is not null and not OperationCanceledException)
         {
-            _log.Warning("Consumer {0} sink completed with error: {1}", _consumerId, completed.Error.Message);
+            _log.Warning(completed.Error, "Consumer {0} sink completed with error", _consumerId);
+            Context.Stop(Self);
         }
     }
 

@@ -246,6 +246,72 @@ public sealed class ConsumerSpec : StreamTestBase
             cancellationToken: TestContext.Current.CancellationToken);
     }
 
+    [Fact(Timeout = 5000)]
+    public async Task Consumer_should_stop_on_sink_error()
+    {
+        var consumerId = Guid.NewGuid();
+        var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
+        var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
+        var optionsFactory = () => new TurboRequestOptions(
+            BaseAddress: new Uri("https://test.example"),
+            DefaultRequestHeaders: new HttpRequestMessage().Headers,
+            DefaultRequestVersion: HttpVersion.Version11,
+            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
+            Timeout: TimeSpan.FromSeconds(30),
+            Credentials: null,
+            PreAuthenticate: false);
+
+        var requestSink = Sink.Ignore<HttpRequestMessage>().MapMaterializedValue(_ => NotUsed.Instance);
+        var responseFanout = Source.Failed<HttpResponseMessage>(
+            new InvalidOperationException("sink exploded"));
+
+        var consumer = Sys.ActorOf(Consumer.Props(
+            consumerId,
+            requestChannel.Reader,
+            optionsFactory,
+            responseChannel.Writer,
+            requestSink,
+            responseFanout,
+            Materializer));
+
+        await WatchAsync(consumer);
+        await ExpectTerminatedAsync(consumer, TimeSpan.FromSeconds(3),
+            cancellationToken: TestContext.Current.CancellationToken);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Consumer_should_stay_alive_on_clean_sink_completion()
+    {
+        var consumerId = Guid.NewGuid();
+        var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
+        var responseChannel = Channel.CreateUnbounded<HttpResponseMessage>();
+        var optionsFactory = () => new TurboRequestOptions(
+            BaseAddress: new Uri("https://test.example"),
+            DefaultRequestHeaders: new HttpRequestMessage().Headers,
+            DefaultRequestVersion: HttpVersion.Version11,
+            DefaultVersionPolicy: HttpVersionPolicy.RequestVersionOrLower,
+            Timeout: TimeSpan.FromSeconds(30),
+            Credentials: null,
+            PreAuthenticate: false);
+
+        var requestSink = Sink.Ignore<HttpRequestMessage>().MapMaterializedValue(_ => NotUsed.Instance);
+        var responseFanout = Source.Empty<HttpResponseMessage>();
+
+        var consumer = Sys.ActorOf(Consumer.Props(
+            consumerId,
+            requestChannel.Reader,
+            optionsFactory,
+            responseChannel.Writer,
+            requestSink,
+            responseFanout,
+            Materializer));
+
+        await WatchAsync(consumer);
+
+        // Clean completion should NOT stop the actor
+        await ExpectNoMsgAsync(TimeSpan.FromMilliseconds(500));
+    }
+
     private (Sink<HttpRequestMessage, NotUsed>, Source<HttpResponseMessage, NotUsed>) CreateTestHubs()
     {
         var (sink, source) = MergeHub.Source<HttpRequestMessage>(16)
