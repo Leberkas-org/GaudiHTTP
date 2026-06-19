@@ -40,11 +40,13 @@ internal sealed class BodyDrainScheduler
         _maxPoolSize = hardCap * 2;
     }
 
-    public void Register(int streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
+    public void Register(int streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt,
+        object? contentOwner = null)
     {
         var slot = RentSlot();
         slot.StreamId = streamId;
         slot.BodyStream = bodyStream;
+        slot.ContentOwner = contentOwner;
         slot.ContentLength = contentLength;
         slot.RequestCt = requestCt;
         slot.LinkedCts = requestCt.CanBeCanceled
@@ -63,10 +65,12 @@ internal sealed class BodyDrainScheduler
         }
     }
 
-    public void RegisterWithLimbo(int streamId, ReadOnlyMemory<byte> data, CancellationToken requestCt)
+    public void RegisterWithLimbo(int streamId, ReadOnlyMemory<byte> data, CancellationToken requestCt,
+        object? contentOwner = null)
     {
         var slot = RentSlot();
         slot.StreamId = streamId;
+        slot.ContentOwner = contentOwner;
         slot.LinkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
             : null;

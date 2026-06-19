@@ -32,11 +32,13 @@ internal sealed class MultiplexedBodyPump
         _maxPoolSize = maxConcurrentReads * 2;
     }
 
-    public void Register(long streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
+    public void Register(long streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt,
+        object? contentOwner = null)
     {
         var slot = RentSlot();
         slot.StreamId = streamId;
         slot.BodyStream = bodyStream;
+        slot.ContentOwner = contentOwner;
         slot.ContentLength = contentLength;
         slot.RequestCt = requestCt;
         slot.LinkedCts = requestCt.CanBeCanceled

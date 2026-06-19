@@ -6,6 +6,7 @@ internal sealed class PumpSlot
 {
     public long StreamId;
     public Stream? BodyStream;
+    public object? ContentOwner;
     public IMemoryOwner<byte>? Buffer;
     public CancellationTokenSource? LinkedCts;
     public CancellationToken RequestCt;
@@ -18,6 +19,7 @@ internal sealed class PumpSlot
     {
         StreamId = 0;
         BodyStream = null;
+        ContentOwner = null;
         Buffer = null;
         LinkedCts = null;
         RequestCt = default;

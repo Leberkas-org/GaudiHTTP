@@ -234,7 +234,8 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         }
 
         state.MarkBodyDrainActive();
-        _scheduler!.Register(streamId, bodyStream!, contentLength, request.GetCancellationToken());
+        _scheduler!.Register(streamId, bodyStream!, contentLength, request.GetCancellationToken(),
+            contentOwner: request.Content);
     }
 
     private void EmitBodyDirect(int streamId, StreamState state, Memory<byte> body)
