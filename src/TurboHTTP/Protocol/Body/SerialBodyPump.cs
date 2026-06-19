@@ -77,7 +77,13 @@ internal sealed class SerialBodyPump
     public void Cancel()
     {
         _linkedCts?.Cancel();
-        CompleteDrain();
+        _buffer?.Dispose();
+        _buffer = null;
+        _linkedCts?.Dispose();
+        _linkedCts = null;
+        _activeStream = null;
+        _availableCapacity = 0;
+        _isReadInFlight = false;
     }
 
     public void Cleanup()

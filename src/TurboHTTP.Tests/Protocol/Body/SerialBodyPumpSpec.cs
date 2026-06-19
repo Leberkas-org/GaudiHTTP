@@ -153,6 +153,25 @@ public sealed class SerialBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void Cancel_midDrain_should_not_call_onDrainComplete()
+    {
+        var target = new FakeTarget();
+        var pump = new SerialBodyPump(target, new CancellationTokenSource(), chunkSize: 64, maxCapacity: 1);
+        var body = MakeBody(200);
+
+        pump.Register(body, 200, CancellationToken.None);
+        // maxCapacity=1, FakeTarget: 1 chunk emitted, pump paused
+        Assert.Single(target.Emitted.Where(e => !e.EndStream));
+        Assert.Empty(target.Completed);
+
+        pump.Cancel();
+
+        // Cancel should NOT fire OnDrainComplete
+        Assert.Empty(target.Completed);
+        Assert.Empty(target.Failed);
+    }
+
+    [Fact(Timeout = 5000)]
     public void Cleanup_should_be_idempotent()
     {
         var target = new FakeTarget();
