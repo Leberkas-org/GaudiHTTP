@@ -253,31 +253,6 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         }
     }
 
-    public void DrainOutboundBuffer(long streamId)
-    {
-        if (!_streams.TryGetValue(streamId, out var streamData))
-        {
-            return;
-        }
-
-        var (_, state) = streamData;
-
-        while (state.PeekBodyChunk() is { } chunk)
-        {
-            var dataFrame = new DataFrame(chunk.Owner.Memory[..chunk.Length]);
-            EmitDataFrame(dataFrame, streamId);
-
-            state.TryDequeueBodyChunk(out _);
-            chunk.Owner.Dispose();
-        }
-
-        if (state is { HasPendingOutbound: false, IsBodyDrainComplete: true })
-        {
-            _ops.OnOutbound(new CompleteWrites(streamId));
-            CloseStream(streamId);
-        }
-    }
-
     public void FlushAllPendingRequests()
     {
         var streamIds = _streams.Keys.ToList();
@@ -776,12 +751,8 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
         if (_streams.TryGetValue(streamId, out var streamData))
         {
             streamData.State.MarkBodyDrainComplete();
-
-            if (!streamData.State.HasPendingOutbound)
-            {
-                _ops.OnOutbound(new CompleteWrites(streamId));
-                CloseStream(streamId);
-            }
+            _ops.OnOutbound(new CompleteWrites(streamId));
+            CloseStream(streamId);
         }
     }
 

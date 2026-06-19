@@ -20,7 +20,6 @@ internal sealed class StreamState
     private IBodyReader? _bodyReader;
     private long _maxBodySize;
     private long _totalBodyBytes;
-    private Queue<StreamBodyChunk>? _outboundBuffer;
     private List<byte[]>? _pendingInboundData;
 
     public long StreamId { get; private set; } = -1;
@@ -32,8 +31,6 @@ internal sealed class StreamState
     public bool HasBodyReader => _bodyReader is not null;
 
     public bool HasBodyDrain { get; private set; }
-
-    public bool HasPendingOutbound => _outboundBuffer is { Count: > 0 };
 
     public bool IsBodyDrainComplete { get; private set; }
 
@@ -49,13 +46,10 @@ internal sealed class StreamState
     /// <summary>A QUIC FIN arrived while the stream was still QPACK-blocked.</summary>
     public bool PendingEndStream { get; set; }
 
-    public long PendingOutboundBytes { get; private set; }
-
     public long? ExpectedContentLength { get; set; }
 
     public string BodyConsumptionTimerKey { get; private set; } = "";
     public string HeadersTimeoutTimerKey { get; private set; } = "";
-    public string DrainBodyTimerKey { get; private set; } = "";
 
     public void Initialize(long streamId)
     {
@@ -63,7 +57,6 @@ internal sealed class StreamState
         var idStr = streamId.ToString();
         BodyConsumptionTimerKey = string.Concat("body-consumption:", idStr);
         HeadersTimeoutTimerKey = string.Concat("headers-timeout:", idStr);
-        DrainBodyTimerKey = string.Concat("drain-body:", idStr);
     }
 
     public HttpResponseMessage InitResponse()
@@ -236,31 +229,6 @@ internal sealed class StreamState
         IsBodyDrainComplete = true;
     }
 
-    public void EnqueueBodyChunk(StreamBodyChunk chunk)
-    {
-        _outboundBuffer ??= new Queue<StreamBodyChunk>();
-        _outboundBuffer.Enqueue(chunk);
-        PendingOutboundBytes += chunk.Length;
-    }
-
-    public StreamBodyChunk? PeekBodyChunk()
-    {
-        return _outboundBuffer is { Count: > 0 } ? _outboundBuffer.Peek() : null;
-    }
-
-    public bool TryDequeueBodyChunk(out StreamBodyChunk? chunk)
-    {
-        if (_outboundBuffer is { Count: > 0 })
-        {
-            chunk = _outboundBuffer.Dequeue();
-            PendingOutboundBytes -= chunk.Length;
-            return true;
-        }
-
-        chunk = null;
-        return false;
-    }
-
     public void Reset()
     {
         StreamId = -1;
@@ -282,26 +250,8 @@ internal sealed class StreamState
         IsHeadersBlocked = false;
         PendingEndStream = false;
         _pendingInboundData = null;
-        DisposeOutboundBuffer();
-        _outboundBuffer = null;
-        PendingOutboundBytes = 0;
         // Timer keys intentionally NOT cleared — they are stream-ID-derived strings that survive
         // pool reuse. Initialize() overwrites them for the next stream ID, avoiding a redundant
         // allocation + re-allocation cycle on every pool return/checkout.
-    }
-
-    private void DisposeOutboundBuffer()
-    {
-        if (_outboundBuffer is null)
-        {
-            return;
-        }
-
-        while (_outboundBuffer.Count > 0)
-        {
-            _outboundBuffer.Dequeue().Owner.Dispose();
-        }
-
-        PendingOutboundBytes = 0;
     }
 }
