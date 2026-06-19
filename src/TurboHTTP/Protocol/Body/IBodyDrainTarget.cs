@@ -2,10 +2,10 @@ using Akka.Actor;
 
 namespace TurboHTTP.Protocol.Body;
 
-internal interface IBodyDrainTarget
+internal interface IBodyDrainTarget<TStreamId>
 {
     IActorRef StageActor { get; }
-    void EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream);
-    void OnDrainComplete(int streamId);
-    void OnDrainFailed(int streamId, Exception reason);
+    void EmitDataFrames(TStreamId streamId, ReadOnlyMemory<byte> data, bool endStream);
+    void OnDrainComplete(TStreamId streamId);
+    void OnDrainFailed(TStreamId streamId, Exception reason);
 }

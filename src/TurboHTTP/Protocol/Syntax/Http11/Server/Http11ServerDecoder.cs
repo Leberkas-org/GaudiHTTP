@@ -21,7 +21,7 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options, Co
 
     // Projected once: the source options are immutable, so the per-request projection produced a
     // fresh identical BodyDecoderOptions record every request (allocated even for no-body GETs,
-    // where BodyReaderFactory.Create never reads it).
+    // where the body decoder path never reads it).
     private readonly BodyDecoderOptions _bodyDecoderOptions = options.ToBodyDecoderOptions();
 
     private Phase _phase = Phase.RequestLine;
