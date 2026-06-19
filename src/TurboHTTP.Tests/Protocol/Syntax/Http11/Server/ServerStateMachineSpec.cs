@@ -2,11 +2,11 @@ using System.Text;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.Primitives;
 using Servus.Akka.Transport;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Syntax.Http11.Server;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Tests.Shared;
-using static TurboHTTP.Protocol.Syntax.Http11.Server.Http11ServerStateMachine;
 
 namespace TurboHTTP.Tests.Protocol.Syntax.Http11.Server;
 
@@ -245,8 +245,8 @@ public sealed class ServerStateMachineSpec
         sm.OnResponse(MakeResponseContext(response));
         var countAfterHeaders = ops.Outbound.Count;
 
-        sm.OnBodyMessage(new ResponseBodyReadComplete(11));
-        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
+        sm.OnBodyMessage(new DrainReadComplete(0, 11));
+        sm.OnBodyMessage(new DrainReadComplete(0, 0));
 
         var bodyItems = ops.Outbound.Skip(countAfterHeaders).OfType<TransportData>().ToList();
         Assert.NotEmpty(bodyItems);
@@ -280,7 +280,7 @@ public sealed class ServerStateMachineSpec
 
         Assert.False(sm.CanAcceptResponse);
 
-        sm.OnBodyMessage(new ResponseBodyReadComplete(0));
+        sm.OnBodyMessage(new DrainReadComplete(0, 0));
 
         Assert.False(sm.CanAcceptResponse);
     }

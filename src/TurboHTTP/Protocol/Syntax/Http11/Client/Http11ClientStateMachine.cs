@@ -10,7 +10,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Client;
 
-internal sealed class Http11ClientStateMachine : IClientStateMachine
+internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrainTarget
 {
     private readonly IClientStageOperations _ops;
     private readonly Http11ClientDecoder _decoder;
@@ -27,22 +27,13 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
     private bool _connectionCloseReceived;
     private readonly ConnectionBodyPool _pool = new();
     private IBodyWriter? _currentWriter;
-    private Stream? _currentBodyStream;
     private IStreamingBodyReader? _activeStreamingReader;
     private TransportBuffer? _heldBuffer;
     private int _heldBufferOffset;
     private bool _draining;
-    private int _unflushedBodyChunks;
-    private bool _bodyPumpPaused;
+    private SerialBodyPump? _serialPump;
+    private CancellationTokenSource? _connectionCts;
 
-    // High-water mark for body chunks emitted but not yet flushed to the network. Without
-    // this bound the pump copies the entire request body into pooled chunks ahead of the
-    // socket; under concurrent uploads the aggregate working set exceeds the array pool
-    // and every body byte becomes a fresh allocation.
-    private const int MaxUnflushedBodyChunks = 2;
-
-    internal sealed record BodyReadComplete(int BytesRead);
-    internal sealed record BodyReadFailed(Exception Reason);
     internal sealed record StreamingSlotFreed;
 
     public bool CanAcceptRequest =>
@@ -88,6 +79,49 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
     public void PreStart()
     {
+    }
+
+    private CancellationTokenSource EnsureConnectionCts()
+    {
+        return _connectionCts ??= new CancellationTokenSource();
+    }
+
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    {
+        if (endStream)
+        {
+            _currentWriter!.CompleteAsync();
+            _outboundBodyPending = false;
+            _currentWriter = null;
+            Tracing.For("Protocol").Debug(this, "request body complete");
+            return;
+        }
+
+        var dest = _currentWriter!.GetMemory(data.Length);
+        data.CopyTo(dest);
+        _currentWriter.Advance(data.Length);
+        _currentWriter.FlushAsync();
+        Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", data.Length);
+    }
+
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
+    {
+        Tracing.For("Protocol").Debug(this, "request body drain complete");
+    }
+
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
+    {
+        Tracing.For("Protocol").Warning(this, "request body failed: {0}", reason.Message);
+        _outboundBodyPending = false;
+        _currentWriter?.Dispose();
+        _currentWriter = null;
+        if (_inFlightQueue.Count > 0)
+        {
+            var req = _inFlightQueue.Dequeue();
+            req.Fail(new HttpRequestException("Failed to encode HTTP/1.1 request body.", reason));
+        }
     }
 
     public void OnRequest(HttpRequestMessage request)
@@ -234,42 +268,26 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
                 break;
 
-            case BodyReadComplete read:
-                HandleBodyRead(read.BytesRead);
+            case DrainReadComplete read:
+                _serialPump?.HandleReadComplete(read.BytesRead);
                 break;
 
-            case BodyReadFailed failed:
-                Tracing.For("Protocol").Warning(this, "request body failed: {0}", failed.Reason.Message);
-                _outboundBodyPending = false;
-                _currentWriter?.Dispose();
-                _currentWriter = null;
-                _currentBodyStream = null;
-                _unflushedBodyChunks = 0;
-                _bodyPumpPaused = false;
-                if (_inFlightQueue.Count > 0)
-                {
-                    var req = _inFlightQueue.Dequeue();
-                    req.Fail(new HttpRequestException("Failed to encode HTTP/1.1 request body.", failed.Reason));
-                }
+            case DrainReadFailed failed:
+                _serialPump?.HandleReadFailed(failed.Reason);
+                break;
 
+            case DrainContinue:
+                _serialPump?.HandleDrainContinue();
                 break;
         }
     }
 
     public void OnOutboundFlushed()
     {
-        if (_unflushedBodyChunks > 0)
+        if (_serialPump is not null)
         {
-            _unflushedBodyChunks--;
-        }
-
-        if (_bodyPumpPaused && _currentWriter is not null && _currentBodyStream is not null
-            && _unflushedBodyChunks < MaxUnflushedBodyChunks)
-        {
-            _bodyPumpPaused = false;
-            Tracing.For("Protocol").Debug(this, "request body pump resumed ({0} unflushed chunks)",
-                _unflushedBodyChunks);
-            ReadNextChunk();
+            _serialPump.ResetSyncReadCounter();
+            _serialPump.OnCapacityAvailable();
         }
     }
 
@@ -287,9 +305,11 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
         _draining = false;
         _currentWriter?.Dispose();
         _currentWriter = null;
-        _currentBodyStream = null;
-        _unflushedBodyChunks = 0;
-        _bodyPumpPaused = false;
+        _serialPump?.Cleanup();
+        _serialPump = null;
+        _connectionCts?.Cancel();
+        _connectionCts?.Dispose();
+        _connectionCts = null;
         _pool.Dispose();
         _decoder.Reset();
     }
@@ -394,8 +414,6 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
 
     private void StartBodyDrain(Stream bodyStream, long? contentLength, Version httpVersion)
     {
-        _unflushedBodyChunks = 0;
-        _bodyPumpPaused = false;
         var (writer, _) = _pool.RentWriter(
             hasBody: true, contentLength, httpVersion,
             new BodyEncoderOptions { ChunkSize = _options.RequestBodyChunkSize },
@@ -412,84 +430,10 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine
             });
 
         _currentWriter = writer;
-        _currentBodyStream = bodyStream;
         Tracing.For("Protocol").Debug(this, "StartBodyDrain: writer={0}, contentLength={1}", writer?.GetType().Name, contentLength);
-        ReadNextChunk();
-    }
 
-    private void ReadNextChunk()
-    {
-        // Drain the request body. When the body stream completes a read synchronously — the common
-        // case for in-memory content (ByteArrayContent / MemoryStream / StringContent) — process the
-        // chunk inline and loop, avoiding one stage-actor mailbox round-trip + Task allocation per
-        // chunk. Only a genuinely-asynchronous read (file/network-backed body) falls back to PipeTo.
-        // The synchronous loop is self-bounding: the MaxUnflushedBodyChunks throttle pauses it
-        // (ProcessBodyChunk returns false) as soon as the network can't absorb the flushes, and the
-        // pump runs on this connection's own stage island so a synchronous drain never blocks the
-        // shared router. _currentWriter/_currentBodyStream stay non-null until the body completes.
-        while (true)
-        {
-            var mem = _currentWriter!.GetMemory(_options.RequestBodyChunkSize);
-            var readTask = _currentBodyStream!.ReadAsync(mem);
-
-            if (!readTask.IsCompletedSuccessfully)
-            {
-                readTask.PipeTo(
-                    _ops.StageActor,
-                    success: bytesRead => new BodyReadComplete(bytesRead),
-                    failure: ex => new BodyReadFailed(ex));
-                return;
-            }
-
-            // Guarded, non-blocking: .Result is read only when the read already completed
-            // successfully, so it never blocks (the SocketsHttpHandler IsCompletedSuccessfully
-            // fast-path idiom — not sync-over-async).
-            if (!ProcessBodyChunk(readTask.Result))
-            {
-                return;
-            }
-        }
-    }
-
-    private void HandleBodyRead(int bytesRead)
-    {
-        if (ProcessBodyChunk(bytesRead))
-        {
-            ReadNextChunk();
-        }
-    }
-
-    /// <summary>
-    /// Handles one completed request-body read. Returns true if the pump should immediately read the
-    /// next chunk, false if the body is complete or the pump paused awaiting a flush.
-    /// </summary>
-    private bool ProcessBodyChunk(int bytesRead)
-    {
-        if (bytesRead > 0)
-        {
-            // Count before flushing: a free network port flushes synchronously, re-entering
-            // OnOutboundFlushed and decrementing back to zero before this method continues.
-            _unflushedBodyChunks++;
-            _currentWriter!.Advance(bytesRead);
-            _currentWriter.FlushAsync();
-            Tracing.For("Protocol").Trace(this, "request body chunk flushed (bytes={0})", bytesRead);
-            if (_unflushedBodyChunks >= MaxUnflushedBodyChunks)
-            {
-                _bodyPumpPaused = true;
-                Tracing.For("Protocol").Debug(this, "request body pump paused ({0} unflushed chunks)",
-                    _unflushedBodyChunks);
-                return false;
-            }
-
-            return true;
-        }
-
-        _currentWriter!.CompleteAsync();
-        _outboundBodyPending = false;
-        _currentWriter = null;
-        _currentBodyStream = null;
-        Tracing.For("Protocol").Debug(this, "request body complete");
-        return false;
+        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _options.RequestBodyChunkSize, maxCapacity: 2);
+        _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
     }
 
     private void HandleDisconnect(TransportDisconnected disconnect)

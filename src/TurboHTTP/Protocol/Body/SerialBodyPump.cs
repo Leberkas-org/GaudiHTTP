@@ -53,6 +53,11 @@ internal sealed class SerialBodyPump
         TryStartRead();
     }
 
+    public void ResetSyncReadCounter()
+    {
+        _consecutiveSyncReads = 0;
+    }
+
     public void HandleReadComplete(int bytesRead)
     {
         _isReadInFlight = false;
