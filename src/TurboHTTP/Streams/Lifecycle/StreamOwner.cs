@@ -411,7 +411,7 @@ internal sealed class StreamOwner : ReceiveActor, IWithTimers, IWithStash
             }
             catch (Exception ex)
             {
-                _log.Warning("Error aborting KillSwitch: {0}", ex.Message);
+                _log.Warning(ex, "Error aborting KillSwitch");
             }
         }
 
