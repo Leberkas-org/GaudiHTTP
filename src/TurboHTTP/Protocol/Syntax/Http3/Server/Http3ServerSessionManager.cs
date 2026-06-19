@@ -2,6 +2,7 @@ using System.Buffers;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Semantics;
@@ -14,7 +15,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Server;
 
-internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
+internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget, IBodyDrainTarget<long>
 {
     private const int MaxStatePoolCapacity = 1000;
 
@@ -37,6 +38,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
     private readonly CancellationTokenSource _connectionCts = new();
+    private readonly ConnectionPoolContext _bodyReaderPool = new();
     private MultiplexedBodyPump? _pump;
     private readonly StackStreamStatePool<StreamState> _statePool;
     private readonly Stack<FrameDecoder> _decoderPool = new();
@@ -211,7 +213,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _responseBodyChunkSize);
+        _pump ??= new MultiplexedBodyPump(this, _bodyReaderPool, _connectionCts, _responseBodyChunkSize);
         _pump.Register(streamId, bodyStream, contentLength, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
@@ -732,6 +734,16 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
     }
 
     IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget<long>.StageActor => _ops.StageActor;
+
+    void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
+        => ((IMultiplexedBodyDrainTarget)this).EmitDataFrames(streamId, data, endStream);
+
+    void IBodyDrainTarget<long>.OnDrainComplete(long streamId)
+        => ((IMultiplexedBodyDrainTarget)this).OnDrainComplete(streamId);
+
+    void IBodyDrainTarget<long>.OnDrainFailed(long streamId, Exception reason)
+        => ((IMultiplexedBodyDrainTarget)this).OnDrainFailed(streamId, reason);
 
     void IMultiplexedBodyDrainTarget.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {

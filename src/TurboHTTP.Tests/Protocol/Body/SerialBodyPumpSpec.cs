@@ -6,7 +6,7 @@ namespace TurboHTTP.Tests.Protocol.Body;
 
 public sealed class SerialBodyPumpSpec
 {
-    private sealed class FakeTarget : IBodyDrainTarget
+    private sealed class FakeTarget : IBodyDrainTarget<int>
     {
         public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];
         public List<int> Completed { get; } = [];
@@ -26,7 +26,7 @@ public sealed class SerialBodyPumpSpec
     /// Target that calls OnCapacityAvailable() synchronously after EmitDataFrames,
     /// simulating H1.0 behavior where the target drives the pump inline.
     /// </summary>
-    private sealed class AutoResumeTarget : IBodyDrainTarget
+    private sealed class AutoResumeTarget : IBodyDrainTarget<int>
     {
         private SerialBodyPump? _pump;
         public List<(int StreamId, byte[] Data, bool EndStream)> Emitted { get; } = [];

@@ -15,7 +15,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http11.Server;
 
-internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrainTarget
+internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrainTarget, IBodyDrainTarget<int>
 {
     private const string KeepAliveTimer = "keep-alive";
     private const string RequestHeadersTimer = "request-headers";
@@ -110,6 +110,16 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     }
 
     IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
+
+    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+        => ((IBodyDrainTarget)this).EmitDataFrames(streamId, data, endStream);
+
+    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+        => ((IBodyDrainTarget)this).OnDrainComplete(streamId);
+
+    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+        => ((IBodyDrainTarget)this).OnDrainFailed(streamId, reason);
 
     void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {

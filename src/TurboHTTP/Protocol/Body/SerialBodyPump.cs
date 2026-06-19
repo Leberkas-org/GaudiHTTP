@@ -1,26 +1,20 @@
-using System.Buffers;
 using Akka.Actor;
 
 namespace TurboHTTP.Protocol.Body;
 
 internal sealed class SerialBodyPump
 {
-    private const int MaxSyncReadsPerDispatch = 64;
-
-    private readonly IBodyDrainTarget _target;
+    private readonly IBodyDrainTarget<int> _target;
     private readonly CancellationTokenSource _connectionCts;
     private readonly int _chunkSize;
     private readonly int _maxCapacity;
 
-    private Stream? _activeStream;
-    private IMemoryOwner<byte>? _buffer;
-    private CancellationTokenSource? _linkedCts;
-    private bool _isReadInFlight;
+    private readonly BodyDrainSlot<int> _slot = new();
+
     private int _availableCapacity;
-    private int _consecutiveSyncReads;
 
     public SerialBodyPump(
-        IBodyDrainTarget target,
+        IBodyDrainTarget<int> target,
         CancellationTokenSource connectionCts,
         int chunkSize,
         int maxCapacity)
@@ -33,13 +27,12 @@ internal sealed class SerialBodyPump
 
     public void Register(Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
-        _activeStream = bodyStream;
-        _buffer ??= MemoryPool<byte>.Shared.Rent(Math.Max(_chunkSize, 256));
-        _linkedCts = requestCt.CanBeCanceled
+        var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
-            : null;
+            : CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token);
+        _slot.Initialize(0, bodyStream, contentLength, requestCt, linkedCts);
+        _slot.EnsureBuffer(_chunkSize);
         _availableCapacity = _maxCapacity;
-        _consecutiveSyncReads = 0;
         TryStartRead();
     }
 
@@ -55,91 +48,73 @@ internal sealed class SerialBodyPump
 
     public void ResetSyncReadCounter()
     {
-        _consecutiveSyncReads = 0;
+        _slot.ResetSyncReads();
     }
 
     public void HandleReadComplete(int bytesRead)
     {
-        _isReadInFlight = false;
-        _consecutiveSyncReads = 0;
+        _slot.CompleteAsyncRead();
         ProcessReadResult(bytesRead);
     }
 
     public void HandleReadFailed(Exception reason)
     {
-        _isReadInFlight = false;
-        _consecutiveSyncReads = 0;
+        _slot.CompleteAsyncRead();
         _target.OnDrainFailed(0, reason);
         CompleteDrain();
     }
 
     public void HandleDrainContinue()
     {
-        _isReadInFlight = false;
+        _slot.CompleteSyncRead();
         TryStartRead();
     }
 
     public void Cancel()
     {
-        _linkedCts?.Cancel();
-        _buffer?.Dispose();
-        _buffer = null;
-        _linkedCts?.Dispose();
-        _linkedCts = null;
-        _activeStream = null;
+        _slot.LinkedCts?.Cancel();
+        _slot.DisposeResources();
+        _slot.Reset();
         _availableCapacity = 0;
-        _isReadInFlight = false;
     }
 
     public void Cleanup()
     {
-        _buffer?.Dispose();
-        _buffer = null;
-        _linkedCts?.Dispose();
-        _linkedCts = null;
-        _activeStream = null;
+        _slot.DisposeResources();
+        _slot.Reset();
         _availableCapacity = 0;
-        _isReadInFlight = false;
     }
 
     private void TryStartRead()
     {
-        if (_availableCapacity <= 0 || _isReadInFlight || _activeStream is null)
+        if (_availableCapacity <= 0 || _slot.IsReadInFlight || _slot.BodyStream is null)
         {
             return;
         }
 
         // Starvation guard: yield after MaxSyncReadsPerDispatch consecutive sync reads
         // so the actor thread can process other messages between bursts.
-        if (_consecutiveSyncReads >= MaxSyncReadsPerDispatch)
+        if (_slot.ConsecutiveSyncReads >= BodyPumpHelper.MaxSyncReadsPerDispatch)
         {
-            _consecutiveSyncReads = 0;
-            // Use _isReadInFlight as a yield-in-progress marker so that any re-entrant
-            // call from ProcessReadResult cannot start another read while we wait for
-            // HandleDrainContinue to resume us.
-            _isReadInFlight = true;
-            _target.StageActor.Tell(new DrainContinue(0), ActorRefs.NoSender);
+            _slot.ResetSyncReads();
+            _slot.BeginRead();
+            _target.StageActor.Tell(new DrainContinue<int>(0), ActorRefs.NoSender);
             return;
         }
 
         _availableCapacity--;
-        var token = _linkedCts?.Token ?? _connectionCts.Token;
-        _isReadInFlight = true;
-        var vt = _activeStream.ReadAsync(_buffer!.Memory[.._chunkSize], token);
+        var result = BodyPumpHelper.StartRead(_slot, _chunkSize, _target.StageActor);
 
-        if (vt.IsCompletedSuccessfully)
+        switch (result.Outcome)
         {
-            _isReadInFlight = false;
-            _consecutiveSyncReads++;
-            ProcessReadResult(vt.Result);
-            return;
-        }
+            case BodyPumpHelper.ReadOutcome.CompletedSynchronously:
+                ProcessReadResult(result.BytesRead);
+                break;
 
-        _consecutiveSyncReads = 0;
-        vt.PipeTo(
-            _target.StageActor,
-            success: bytesRead => new DrainReadComplete(0, bytesRead),
-            failure: ex => new DrainReadFailed(0, ex));
+            case BodyPumpHelper.ReadOutcome.Dispatched:
+                // Async — HandleReadComplete/HandleReadFailed will be called.
+                break;
+        }
     }
 
     private void ProcessReadResult(int bytesRead)
@@ -151,18 +126,15 @@ internal sealed class SerialBodyPump
             return;
         }
 
-        _target.EmitDataFrames(0, _buffer!.Memory[..bytesRead], endStream: false);
+        _target.EmitDataFrames(0, _slot.Buffer!.Memory[..bytesRead], endStream: false);
         TryStartRead();
     }
 
     private void CompleteDrain()
     {
-        var wasActive = _activeStream is not null;
-        _buffer?.Dispose();
-        _buffer = null;
-        _linkedCts?.Dispose();
-        _linkedCts = null;
-        _activeStream = null;
+        var wasActive = _slot.BodyStream is not null;
+        _slot.DisposeResources();
+        _slot.Reset();
         _availableCapacity = 0;
 
         if (wasActive)

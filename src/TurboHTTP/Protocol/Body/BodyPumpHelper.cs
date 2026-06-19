@@ -10,9 +10,10 @@ internal static class BodyPumpHelper
     /// Issues one read against <paramref name="slot"/>'s body stream.
     /// <list type="bullet">
     /// <item><description><see cref="ReadOutcome.CompletedSynchronously"/> — data is in <see cref="ReadResult.BytesRead"/>; caller processes inline.</description></item>
-    /// <item><description><see cref="ReadOutcome.YieldedForStarvation"/> — starvation guard fired; a <see cref="DrainContinue{TStreamId}"/> was sent to <paramref name="stageActor"/>.</description></item>
     /// <item><description><see cref="ReadOutcome.Dispatched"/> — async read was PipeTo'd; caller waits for <see cref="DrainReadComplete{TStreamId}"/> or <see cref="DrainReadFailed{TStreamId}"/>.</description></item>
     /// </list>
+    /// Caller is responsible for starvation guard (checking <see cref="BodyDrainSlot{TStreamId}.ConsecutiveSyncReads"/>
+    /// against <see cref="MaxSyncReadsPerDispatch"/> before calling this method).
     /// </summary>
     public static ReadResult StartRead<TStreamId>(
         BodyDrainSlot<TStreamId> slot,
@@ -26,14 +27,7 @@ internal static class BodyPumpHelper
         if (vt.IsCompletedSuccessfully)
         {
             slot.CompleteSyncRead();
-
-            if (slot.IncrementSyncReads(MaxSyncReadsPerDispatch))
-            {
-                slot.ResetSyncReads();
-                stageActor.Tell(new DrainContinue<TStreamId>(slot.StreamId), ActorRefs.NoSender);
-                return new ReadResult(ReadOutcome.YieldedForStarvation, 0);
-            }
-
+            slot.IncrementSyncReads(MaxSyncReadsPerDispatch);
             return new ReadResult(ReadOutcome.CompletedSynchronously, vt.Result);
         }
 
@@ -50,7 +44,6 @@ internal static class BodyPumpHelper
     internal enum ReadOutcome
     {
         CompletedSynchronously,
-        Dispatched,
-        YieldedForStarvation
+        Dispatched
     }
 }

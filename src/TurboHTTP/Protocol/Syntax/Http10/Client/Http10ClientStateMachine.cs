@@ -9,7 +9,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Client;
 
-internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrainTarget
+internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrainTarget, IBodyDrainTarget<int>
 {
     private readonly IClientStageOperations _ops;
     private readonly Http10ClientDecoder _decoder;
@@ -78,6 +78,16 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
     }
 
     IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
+
+    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+        => ((IBodyDrainTarget)this).EmitDataFrames(streamId, data, endStream);
+
+    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
+        => ((IBodyDrainTarget)this).OnDrainComplete(streamId);
+
+    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
+        => ((IBodyDrainTarget)this).OnDrainFailed(streamId, reason);
 
     void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {

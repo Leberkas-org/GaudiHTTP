@@ -94,57 +94,46 @@ public sealed class BodyPumpHelperSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void StartRead_should_return_YieldedForStarvation_after_max_sync_reads()
+    public void StartRead_should_increment_sync_counter_on_each_sync_read()
     {
-        // A MemoryStream with enough data for >64 sync reads of 16 bytes each
+        // StartRead increments ConsecutiveSyncReads on each sync completion.
+        // The caller (pump) checks the counter before calling StartRead and yields
+        // when it reaches MaxSyncReadsPerDispatch.
         var body = MakeBody(BodyPumpHelper.MaxSyncReadsPerDispatch * 16 + 16);
         var slot = MakeSlot(body, 16);
 
-        var yieldCount = 0;
-        var syncCount = 0;
-
-        for (var i = 0; i < BodyPumpHelper.MaxSyncReadsPerDispatch + 1; i++)
+        for (var i = 0; i < BodyPumpHelper.MaxSyncReadsPerDispatch; i++)
         {
             var result = BodyPumpHelper.StartRead(slot, 16, ActorRefs.Nobody);
-
-            if (result.Outcome == BodyPumpHelper.ReadOutcome.YieldedForStarvation)
-            {
-                yieldCount++;
-                break;
-            }
-
             Assert.Equal(BodyPumpHelper.ReadOutcome.CompletedSynchronously, result.Outcome);
-            syncCount++;
+            Assert.Equal(16, result.BytesRead);
+            Assert.Equal(i + 1, slot.ConsecutiveSyncReads);
         }
 
-        Assert.Equal(1, yieldCount);
-        // The yield fires on the MaxSyncReadsPerDispatch-th sync completion, so
-        // syncCount captures the completions before that call's yield return.
-        Assert.Equal(BodyPumpHelper.MaxSyncReadsPerDispatch - 1, syncCount);
-        // After yield: counter was reset
-        Assert.Equal(0, slot.ConsecutiveSyncReads);
+        // After MaxSyncReadsPerDispatch reads, counter equals the threshold.
+        // Caller should now yield instead of calling StartRead again.
+        Assert.Equal(BodyPumpHelper.MaxSyncReadsPerDispatch, slot.ConsecutiveSyncReads);
 
         slot.DisposeResources();
     }
 
     [Fact(Timeout = 5000)]
-    public void StartRead_should_reset_sync_counter_after_yield()
+    public void StartRead_should_resume_cleanly_after_counter_reset()
     {
         var body = MakeBody((BodyPumpHelper.MaxSyncReadsPerDispatch + 1) * 16);
         var slot = MakeSlot(body, 16);
 
-        // Drive to starvation yield
-        BodyPumpHelper.ReadResult result;
-        do
+        // Drive to threshold
+        for (var i = 0; i < BodyPumpHelper.MaxSyncReadsPerDispatch; i++)
         {
-            result = BodyPumpHelper.StartRead(slot, 16, ActorRefs.Nobody);
-        } while (result.Outcome == BodyPumpHelper.ReadOutcome.CompletedSynchronously);
+            BodyPumpHelper.StartRead(slot, 16, ActorRefs.Nobody);
+        }
 
-        Assert.Equal(BodyPumpHelper.ReadOutcome.YieldedForStarvation, result.Outcome);
+        Assert.Equal(BodyPumpHelper.MaxSyncReadsPerDispatch, slot.ConsecutiveSyncReads);
+
+        // Simulate what the pump does on yield: reset counter, then resume
+        slot.ResetSyncReads();
         Assert.Equal(0, slot.ConsecutiveSyncReads);
-
-        // Simulate DrainContinue: clear in-flight marker and resume
-        slot.CompleteAsyncRead();
 
         var next = BodyPumpHelper.StartRead(slot, 16, ActorRefs.Nobody);
         Assert.Equal(BodyPumpHelper.ReadOutcome.CompletedSynchronously, next.Outcome);

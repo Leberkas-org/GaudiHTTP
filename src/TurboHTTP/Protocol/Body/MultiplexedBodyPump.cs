@@ -1,49 +1,43 @@
-using System.Buffers;
 using Akka.Actor;
+using TurboHTTP.Pooling;
 
 namespace TurboHTTP.Protocol.Body;
 
 internal sealed class MultiplexedBodyPump
 {
-    private const int MaxSyncReadsPerDispatch = 64;
-
-    private readonly IMultiplexedBodyDrainTarget _target;
+    private readonly IBodyDrainTarget<long> _target;
+    private readonly ConnectionPoolContext _poolContext;
     private readonly CancellationTokenSource _connectionCts;
     private readonly int _chunkSize;
     private readonly int _maxConcurrentReads;
-    private readonly int _maxPoolSize;
 
     private readonly Queue<long> _readyQueue = new();
-    private readonly Dictionary<long, PumpSlot> _activeSlots = new();
-    private readonly Stack<PumpSlot> _slotPool = new();
+    private readonly Dictionary<long, BodyDrainSlot<long>> _activeSlots = new();
 
     private int _asyncInFlight;
 
     public MultiplexedBodyPump(
-        IMultiplexedBodyDrainTarget target,
+        IBodyDrainTarget<long> target,
+        ConnectionPoolContext poolContext,
         CancellationTokenSource connectionCts,
         int chunkSize,
         int maxConcurrentReads = 4)
     {
         _target = target;
+        _poolContext = poolContext;
         _connectionCts = connectionCts;
         _chunkSize = chunkSize;
         _maxConcurrentReads = maxConcurrentReads;
-        _maxPoolSize = maxConcurrentReads * 2;
     }
 
-    public void Register(long streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt,
-        object? contentOwner = null)
+    public void Register(long streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
-        var slot = RentSlot();
-        slot.StreamId = streamId;
-        slot.BodyStream = bodyStream;
-        slot.ContentOwner = contentOwner;
-        slot.ContentLength = contentLength;
-        slot.RequestCt = requestCt;
-        slot.LinkedCts = requestCt.CanBeCanceled
+        var slot = _poolContext.Rent(static () => new BodyDrainSlot<long>());
+        var linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
-            : null;
+            : CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token);
+        slot.Initialize(streamId, bodyStream, contentLength, requestCt, linkedCts);
+        slot.EnsureBuffer(_chunkSize);
         _activeSlots[streamId] = slot;
         _readyQueue.Enqueue(streamId);
         TryScheduleReads();
@@ -58,14 +52,11 @@ internal sealed class MultiplexedBodyPump
             return;
         }
 
-        slot.IsReadInFlight = false;
-        slot.ConsecutiveSyncReads = 0;
+        slot.CompleteAsyncRead();
 
         if (slot.IsOrphaned)
         {
-            DisposeSlotResources(slot);
-            ReturnSlot(slot);
-            _activeSlots.Remove(streamId);
+            RemoveAndReturnSlot(streamId, slot);
             return;
         }
 
@@ -81,21 +72,18 @@ internal sealed class MultiplexedBodyPump
             return;
         }
 
-        slot.IsReadInFlight = false;
-        slot.ConsecutiveSyncReads = 0;
+        slot.CompleteAsyncRead();
 
         if (slot.IsOrphaned)
         {
-            DisposeSlotResources(slot);
-            ReturnSlot(slot);
-            _activeSlots.Remove(streamId);
+            RemoveAndReturnSlot(streamId, slot);
             return;
         }
 
         _activeSlots.Remove(streamId);
         _target.OnDrainFailed(streamId, reason);
-        DisposeSlotResources(slot);
-        ReturnSlot(slot);
+        slot.DisposeResources();
+        _poolContext.Return(slot);
     }
 
     public void HandleDrainContinue(long streamId)
@@ -105,14 +93,11 @@ internal sealed class MultiplexedBodyPump
             return;
         }
 
-        // Clear in-flight marker set by starvation guard
-        slot.IsReadInFlight = false;
+        slot.CompleteSyncRead();
 
         if (slot.IsOrphaned)
         {
-            DisposeSlotResources(slot);
-            ReturnSlot(slot);
-            _activeSlots.Remove(streamId);
+            RemoveAndReturnSlot(streamId, slot);
             return;
         }
 
@@ -131,16 +116,11 @@ internal sealed class MultiplexedBodyPump
 
         if (slot.IsReadInFlight)
         {
-            // Async read in flight: mark orphaned, cleanup happens in HandleReadComplete/Failed
-            slot.IsOrphaned = true;
+            slot.MarkOrphaned();
             return;
         }
 
-        // Not in flight — clean up immediately (lazy removal from ready queue is not needed
-        // since the slot will simply be missing from _activeSlots when dequeued)
-        _activeSlots.Remove(streamId);
-        DisposeSlotResources(slot);
-        ReturnSlot(slot);
+        RemoveAndReturnSlot(streamId, slot);
     }
 
     public void Cleanup()
@@ -151,8 +131,8 @@ internal sealed class MultiplexedBodyPump
         {
             if (!slot.IsOrphaned)
             {
-                DisposeSlotResources(slot);
-                ReturnSlot(slot);
+                slot.DisposeResources();
+                _poolContext.Return(slot);
             }
         }
 
@@ -168,55 +148,35 @@ internal sealed class MultiplexedBodyPump
 
             if (!_activeSlots.TryGetValue(streamId, out var slot))
             {
-                // Slot was cancelled and removed — skip
                 continue;
             }
 
-            // Starvation guard: yield after MaxSyncReadsPerDispatch consecutive sync reads so
-            // the actor thread can process other messages between bursts.
-            if (slot.ConsecutiveSyncReads >= MaxSyncReadsPerDispatch)
+            // Starvation guard: yield after MaxSyncReadsPerDispatch consecutive sync reads
+            // so the actor thread can process other messages between bursts.
+            if (slot.ConsecutiveSyncReads >= BodyPumpHelper.MaxSyncReadsPerDispatch)
             {
-                slot.ConsecutiveSyncReads = 0;
-                // Use IsReadInFlight as a yield-in-progress marker so re-entrant calls from
-                // ProcessReadResult cannot start another read while waiting for HandleDrainContinue.
-                slot.IsReadInFlight = true;
-                _target.StageActor.Tell(new MultiplexedDrainContinue(slot.StreamId), ActorRefs.NoSender);
+                slot.ResetSyncReads();
+                slot.BeginRead();
+                _target.StageActor.Tell(new DrainContinue<long>(slot.StreamId), ActorRefs.NoSender);
                 continue;
             }
 
-            if (slot.Buffer is null)
+            var result = BodyPumpHelper.StartRead(slot, _chunkSize, _target.StageActor);
+
+            switch (result.Outcome)
             {
-                slot.Buffer = MemoryPool<byte>.Shared.Rent(Math.Max(_chunkSize, 256));
+                case BodyPumpHelper.ReadOutcome.CompletedSynchronously:
+                    ProcessReadResult(slot, result.BytesRead);
+                    break;
+
+                case BodyPumpHelper.ReadOutcome.Dispatched:
+                    _asyncInFlight++;
+                    break;
             }
-
-            StartRead(slot);
         }
     }
 
-    private void StartRead(PumpSlot slot)
-    {
-        var token = slot.LinkedCts?.Token ?? _connectionCts.Token;
-        slot.IsReadInFlight = true;
-        var vt = slot.BodyStream!.ReadAsync(slot.Buffer!.Memory[.._chunkSize], token);
-
-        if (vt.IsCompletedSuccessfully)
-        {
-            slot.IsReadInFlight = false;
-            slot.ConsecutiveSyncReads++;
-            ProcessReadResult(slot, vt.Result);
-            return;
-        }
-
-        slot.ConsecutiveSyncReads = 0;
-        _asyncInFlight++;
-        var streamId = slot.StreamId;
-        vt.PipeTo(
-            _target.StageActor,
-            success: bytesRead => new MultiplexedDrainReadComplete(streamId, bytesRead),
-            failure: ex => new MultiplexedDrainReadFailed(streamId, ex));
-    }
-
-    private void ProcessReadResult(PumpSlot slot, int bytesRead)
+    private void ProcessReadResult(BodyDrainSlot<long> slot, int bytesRead)
     {
         if (bytesRead == 0)
         {
@@ -230,32 +190,18 @@ internal sealed class MultiplexedBodyPump
         TryScheduleReads();
     }
 
-    private void CompleteDrain(PumpSlot slot)
+    private void CompleteDrain(BodyDrainSlot<long> slot)
     {
         _activeSlots.Remove(slot.StreamId);
         _target.OnDrainComplete(slot.StreamId);
-        DisposeSlotResources(slot);
-        ReturnSlot(slot);
+        slot.DisposeResources();
+        _poolContext.Return(slot);
     }
 
-    private static void DisposeSlotResources(PumpSlot slot)
+    private void RemoveAndReturnSlot(long streamId, BodyDrainSlot<long> slot)
     {
-        slot.Buffer?.Dispose();
-        slot.LinkedCts?.Dispose();
-    }
-
-    private PumpSlot RentSlot()
-    {
-        return _slotPool.TryPop(out var slot) ? slot : new PumpSlot();
-    }
-
-    private void ReturnSlot(PumpSlot slot)
-    {
-        slot.Reset();
-
-        if (_slotPool.Count < _maxPoolSize)
-        {
-            _slotPool.Push(slot);
-        }
+        _activeSlots.Remove(streamId);
+        slot.DisposeResources();
+        _poolContext.Return(slot);
     }
 }
