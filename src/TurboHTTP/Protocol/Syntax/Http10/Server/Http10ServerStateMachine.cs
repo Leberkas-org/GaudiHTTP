@@ -3,6 +3,7 @@ using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Protocol.Body;
+using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Server;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Streams.Stages.Server;
@@ -16,7 +17,7 @@ internal readonly record struct ResponseBodyReadFailed(Exception Reason);
 
 internal readonly record struct ResponseBodyBuffered(IMemoryOwner<byte> Owner, int Written);
 
-internal sealed class Http10ServerStateMachine : IServerStateMachine
+internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrainTarget
 {
     private const string DataRateCheck = "data-rate-check";
 
@@ -37,6 +38,8 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
     private Stream? _activeBodyStream;
     private bool _bodyStreaming;
     private IStreamingBodyReader? _activeStreamingReader;
+    private SerialBodyPump? _serialPump;
+    private CancellationTokenSource? _connectionCts;
 
     public bool CanAcceptResponse => true;
     public bool ShouldComplete { get; private set; }
@@ -65,6 +68,59 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
 
     public void PreStart()
     {
+    }
+
+    private CancellationTokenSource EnsureConnectionCts()
+    {
+        return _connectionCts ??= new CancellationTokenSource();
+    }
+
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    {
+        if (endStream)
+        {
+            _responseRate.Remove(0);
+            if (_deferredFeatures is not null)
+            {
+                _ops.OnResponseBodyComplete(_deferredFeatures);
+                _deferredFeatures = null;
+            }
+
+            Tracing.For("Protocol").Debug(this, "HTTP/1.0 response body complete (pump)");
+            return;
+        }
+
+        _responseRate.Observe(0, data.Length, Now());
+        EnsureRateTimer();
+        var item = TransportBuffer.Rent(data.Length);
+        data.CopyTo(item.FullMemory);
+        item.Length = data.Length;
+        _ops.OnOutbound(TransportData.Rent(item));
+        Tracing.For("Protocol").Trace(this, "HTTP/1.0 response body chunk flushed (bytes={0})", data.Length);
+
+        // H1.0 has no OnOutboundFlushed — drive the pump inline.
+        _serialPump!.ResetSyncReadCounter();
+        _serialPump.OnCapacityAvailable();
+    }
+
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
+    {
+        Tracing.For("Protocol").Debug(this, "HTTP/1.0 response body drain complete");
+    }
+
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
+    {
+        _responseRate.Remove(0);
+        if (_deferredFeatures is not null)
+        {
+            _ops.OnResponseBodyComplete(_deferredFeatures);
+            _deferredFeatures = null;
+        }
+
+        Tracing.For("Protocol").Warning(this, "response body failed: {0}", reason.Message);
+        ShouldComplete = true;
     }
 
     public void DecodeClientData(ITransportInbound data)
@@ -189,6 +245,19 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
             var bodyStream = turboBody.GetResponseStream();
             if (bodyStream is not null)
             {
+                var contentLength = ExtractContentLength(features.Get<IHttpResponseFeature>());
+                if (contentLength.HasValue)
+                {
+                    // Known Content-Length: emit headers now, stream body via SerialBodyPump.
+                    // Create pump BEFORE encoding headers so EncodeDeferredResponse preserves
+                    // _deferredFeatures for OnResponseBodyComplete after streaming finishes.
+                    _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), 16 * 1024, maxCapacity: 1);
+                    EncodeDeferredResponse(ReadOnlySpan<byte>.Empty);
+                    _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
+                    return;
+                }
+
+                // Unknown Content-Length: buffer entire body, then encode headers + body together.
                 _activeBodyWriter = new BufferedBodyWriter();
                 _activeBodyWriter.Reset(onComplete: (owner, written) =>
                 {
@@ -274,6 +343,20 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
     {
         switch (msg)
         {
+            // SerialBodyPump messages (known Content-Length path)
+            case DrainReadComplete read:
+                _serialPump?.HandleReadComplete(read.BytesRead);
+                break;
+
+            case DrainReadFailed failed:
+                _serialPump?.HandleReadFailed(failed.Reason);
+                break;
+
+            case DrainContinue:
+                _serialPump?.HandleDrainContinue();
+                break;
+
+            // BufferedBodyWriter messages (unknown Content-Length path)
             case ResponseBodyReadComplete read:
                 HandleResponseBodyRead(read.BytesRead);
                 break;
@@ -323,7 +406,13 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         }
         finally
         {
-            _deferredFeatures = null;
+            // Only clear _deferredFeatures when NOT using the pump path.
+            // The pump path keeps _deferredFeatures alive so OnResponseBodyComplete
+            // can be called after body streaming finishes.
+            if (_serialPump is null)
+            {
+                _deferredFeatures = null;
+            }
         }
     }
 
@@ -338,8 +427,34 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine
         _activeBodyStream = null;
         _activeStreamingReader = null;
         _deferredFeatures = null;
+        _serialPump?.Cleanup();
+        _serialPump = null;
+        _connectionCts?.Cancel();
+        _connectionCts?.Dispose();
+        _connectionCts = null;
         _ops.OnCancelTimer(DataRateCheck);
         _rateTimerActive = false;
+    }
+
+    private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)
+    {
+        if (responseFeature?.Headers is null)
+        {
+            return null;
+        }
+
+        foreach (var header in responseFeature.Headers)
+        {
+            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase)
+                && header.Value.Count > 0
+                && header.Value[0] is { } value
+                && ContentLengthSemantics.TryParse(value, out var length))
+            {
+                return length;
+            }
+        }
+
+        return null;
     }
 
     private void EnsureRateTimer()

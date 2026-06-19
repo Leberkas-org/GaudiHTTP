@@ -1,6 +1,8 @@
 using TurboHTTP.Client;
 using System.Net;
 using System.Text;
+using Servus.Akka.TestKit;
+using Servus.Akka.Transport;
 using TurboHTTP.Streams;
 using TurboHTTP.Tests.Shared;
 
@@ -48,10 +50,26 @@ public sealed class Http10EngineEndToEndSpec : EngineTestBase
         var raw =
             $"HTTP/1.0 200 OK\r\nContent-Type: application/json\r\nContent-Length: {responseBody.Length}\r\n\r\n{responseBody}";
 
-        var (response, rawRequest) = await SendAsync(
-            Engine.CreateFlow(),
-            request,
-            () => Encoding.Latin1.GetBytes(raw));
+        // Known-CL bodies are now streamed via SerialBodyPump (headers first, then body
+        // chunks). Use an accumulating connection that waits for the full request (headers +
+        // Content-Length bytes) before replying, so the response does not race ahead of the
+        // body pump.
+        var stage = CreateAccumulatingScriptedConnection((_, _) => Encoding.Latin1.GetBytes(raw));
+
+        var response = await TestPipeline.RunAsync(
+            Engine.CreateFlow().Join(stage.AsFlow()), request, Materializer,
+            ct: TestContext.Current.CancellationToken);
+
+        var rawBuilder = new StringBuilder();
+        foreach (var outbound in stage.ReceivedOutbound)
+        {
+            if (outbound is TransportData { Buffer: var buf })
+            {
+                rawBuilder.Append(Encoding.Latin1.GetString(buf.Span));
+            }
+        }
+
+        var rawRequest = rawBuilder.ToString();
 
         // Wire must contain the POST body
         Assert.Contains(payload, rawRequest);

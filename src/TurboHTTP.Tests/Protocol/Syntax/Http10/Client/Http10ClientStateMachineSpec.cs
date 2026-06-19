@@ -164,16 +164,48 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-5")]
-    public async Task OnRequest_with_body_should_emit_transport_data_after_body_buffered()
+    public void OnRequest_with_known_cl_body_should_emit_headers_then_stream_body_via_pump()
     {
-        var inbox = Inbox.Create(Sys);
-        var ops = new FakeClientOps { StageActor = inbox.Receiver };
+        var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
         sm.PreStart();
 
         var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
         {
             Content = new ByteArrayContent("hello"u8.ToArray())
+        };
+        sm.OnRequest(request);
+
+        // Known Content-Length: headers emitted immediately, body streamed via SerialBodyPump.
+        // The pump reads synchronously from ByteArrayContent and calls EmitDataFrames inline,
+        // so headers + body chunks + endStream all happen within OnRequest.
+        var transportData = ops.Outbound.OfType<TransportData>().ToList();
+        Assert.True(transportData.Count >= 2, "Expected headers + at least one body TransportData");
+
+        var headerText = Encoding.ASCII.GetString(transportData[0].Buffer.Memory.Span[..transportData[0].Buffer.Length]);
+        Assert.Contains("Content-Length: 5", headerText);
+
+        // Body data arrives in subsequent TransportData messages
+        var bodyBytes = transportData.Skip(1)
+            .SelectMany(td => td.Buffer.Memory.Span[..td.Buffer.Length].ToArray())
+            .ToArray();
+        var bodyText = Encoding.ASCII.GetString(bodyBytes);
+        Assert.Contains("hello", bodyText);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC1945-5")]
+    public async Task OnRequest_with_unknown_cl_body_should_emit_transport_data_after_body_buffered()
+    {
+        var inbox = Inbox.Create(Sys);
+        var ops = new FakeClientOps { StageActor = inbox.Receiver };
+        var sm = new Http10ClientStateMachine(ops, MakeConfig());
+        sm.PreStart();
+
+        // Use a non-seekable stream wrapper so ContentLength is null — forces the buffered path.
+        var request = new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
+        {
+            Content = new UnknownLengthContent("hello"u8.ToArray())
         };
         sm.OnRequest(request);
 
@@ -196,6 +228,33 @@ public sealed class Http10ClientStateMachineSpec : TestKit
         var text = Encoding.ASCII.GetString(td.Buffer.Memory.Span[..td.Buffer.Length]);
         Assert.Contains("Content-Length: 5", text);
         Assert.Contains("hello", text);
+    }
+
+    /// <summary>
+    /// HttpContent that wraps a byte array but reports no Content-Length,
+    /// forcing the HTTP/1.0 buffered body path.
+    /// </summary>
+    private sealed class UnknownLengthContent : HttpContent
+    {
+        private readonly byte[] _data;
+
+        public UnknownLengthContent(byte[] data)
+        {
+            _data = data;
+        }
+
+        protected override void SerializeToStream(Stream stream, TransportContext? context,
+            CancellationToken cancellationToken)
+            => stream.Write(_data, 0, _data.Length);
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+            => stream.WriteAsync(_data, 0, _data.Length);
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
     }
 
     [Fact(Timeout = 5000)]

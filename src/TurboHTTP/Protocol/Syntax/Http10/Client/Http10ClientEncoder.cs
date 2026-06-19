@@ -37,7 +37,7 @@ internal sealed class Http10ClientEncoder
         return writer.BytesWritten;
     }
 
-    private int EncodeHeadersOnly(Span<byte> destination, HttpRequestMessage request, int contentLength)
+    internal int EncodeHeadersOnly(Span<byte> destination, HttpRequestMessage request, long contentLength)
     {
         var writer = SpanWriter.Create(destination);
         var targetStr = request.ResolveTarget();

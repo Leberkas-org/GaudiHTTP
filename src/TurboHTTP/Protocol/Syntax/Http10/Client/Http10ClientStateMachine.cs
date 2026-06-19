@@ -9,7 +9,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http10.Client;
 
-internal sealed class Http10ClientStateMachine : IClientStateMachine
+internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrainTarget
 {
     private readonly IClientStageOperations _ops;
     private readonly Http10ClientDecoder _decoder;
@@ -26,6 +26,8 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
     private Stream? _currentBodyStream;
     private IStreamingBodyReader? _activeStreamingReader;
     private bool _connectionClosed;
+    private SerialBodyPump? _serialPump;
+    private CancellationTokenSource? _connectionCts;
 
     internal sealed record BodyReadComplete(int BytesRead);
     internal sealed record BodyReadFailed(Exception Reason);
@@ -68,6 +70,51 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
 
     public void PreStart()
     {
+    }
+
+    private CancellationTokenSource EnsureConnectionCts()
+    {
+        return _connectionCts ??= new CancellationTokenSource();
+    }
+
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    {
+        if (endStream)
+        {
+            _outboundBodyPending = false;
+            _inFlightRequest = _deferredRequest;
+            _deferredRequest = null;
+            Tracing.For("Protocol").Debug(this, "HTTP/1.0 request body complete (pump)");
+            return;
+        }
+
+        var item = TransportBuffer.Rent(data.Length);
+        data.CopyTo(item.FullMemory);
+        item.Length = data.Length;
+        _ops.OnOutbound(TransportData.Rent(item));
+        Tracing.For("Protocol").Trace(this, "HTTP/1.0 request body chunk flushed (bytes={0})", data.Length);
+
+        // H1.0 has no OnOutboundFlushed — drive the pump inline.
+        _serialPump!.ResetSyncReadCounter();
+        _serialPump.OnCapacityAvailable();
+    }
+
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
+    {
+        Tracing.For("Protocol").Debug(this, "HTTP/1.0 request body drain complete");
+    }
+
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
+    {
+        Tracing.For("Protocol").Warning(this, "request body failed: {0}", reason.Message);
+        _outboundBodyPending = false;
+        if (_deferredRequest is not null)
+        {
+            _deferredRequest.Fail(new HttpRequestException("Failed to read HTTP/1.0 request body.", reason));
+            _deferredRequest = null;
+        }
     }
 
     public void OnRequest(HttpRequestMessage request)
@@ -144,6 +191,20 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
             case StreamingSlotFreed:
                 break;
 
+            // SerialBodyPump messages (known Content-Length path)
+            case DrainReadComplete read:
+                _serialPump?.HandleReadComplete(read.BytesRead);
+                break;
+
+            case DrainReadFailed failed:
+                _serialPump?.HandleReadFailed(failed.Reason);
+                break;
+
+            case DrainContinue:
+                _serialPump?.HandleDrainContinue();
+                break;
+
+            // BufferedBodyWriter messages (unknown Content-Length path)
             case BodyReadComplete read:
                 HandleBodyRead(read.BytesRead);
                 break;
@@ -201,6 +262,11 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
         _currentBodyStream = null;
         _deferredRequest = null;
         _connectionClosed = false;
+        _serialPump?.Cleanup();
+        _serialPump = null;
+        _connectionCts?.Cancel();
+        _connectionCts?.Dispose();
+        _connectionCts = null;
         _decoder.Reset();
     }
 
@@ -226,7 +292,10 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
         TransportBuffer? item = null;
         try
         {
-            var contentLength = Convert.ToInt32(request.Content?.Headers.ContentLength ?? 0);
+            // Capture Content-Length BEFORE Encode(), because ReadAsStream() internally
+            // buffers the content and may cause ContentLength to become non-null afterwards.
+            var knownCl = request.Content?.Headers.ContentLength;
+            var contentLength = Convert.ToInt32(knownCl ?? 0);
             item = TransportBuffer.Rent(HttpMessageSize.Estimate(request, contentLength));
             var span = item.FullMemory.Span;
 
@@ -238,11 +307,26 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
             }
             else if (bodyStream is not null)
             {
-                item.Dispose();
-                item = null;
-                _deferredRequest = request;
-                _outboundBodyPending = true;
-                StartBodyBuffer(bodyStream);
+                if (knownCl.HasValue)
+                {
+                    // Known Content-Length: emit headers now, stream body via SerialBodyPump.
+                    var headerWritten = _encoder.EncodeHeadersOnly(span, request, knownCl.Value);
+                    item.Length = headerWritten;
+                    _ops.OnOutbound(TransportData.Rent(item));
+                    _deferredRequest = request;
+                    _inFlightRequest = null;
+                    _outboundBodyPending = true;
+                    StartBodyDrain(bodyStream);
+                }
+                else
+                {
+                    // Unknown Content-Length: buffer entire body, then encode headers + body together.
+                    item.Dispose();
+                    item = null;
+                    _deferredRequest = request;
+                    _outboundBodyPending = true;
+                    StartBodyBuffer(bodyStream);
+                }
             }
             else
             {
@@ -258,6 +342,12 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine
             request.Fail(ex);
             _inFlightRequest = null;
         }
+    }
+
+    private void StartBodyDrain(Stream bodyStream)
+    {
+        _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _options.RequestBodyChunkSize, maxCapacity: 1);
+        _serialPump.Register(bodyStream, contentLength: null, CancellationToken.None);
     }
 
     private void StartBodyBuffer(Stream bodyStream)
