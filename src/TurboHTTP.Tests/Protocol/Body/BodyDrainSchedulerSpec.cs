@@ -23,7 +23,7 @@ public sealed class BodyDrainSchedulerSpec
         public void OnDrainFailed(int streamId, Exception reason) => Failed.Add((streamId, reason));
     }
 
-    private static FlowController MakeFlow(int connWindow = 1024 * 1024, int streamWindow = 64 * 1024)
+    private static FlowController MakeFlow(int connWindow = 1024 * 1024)
     {
         var fc = new FlowController(1024 * 1024, 64 * 1024);
         if (connWindow != 65535)
@@ -193,6 +193,8 @@ public sealed class BodyDrainSchedulerSpec
         Assert.Equal(64 * 16, emittedBytes);
         Assert.Empty(target.Completed);
 
+        // Guard fires DrainContinue(1) to StageActor (Nobody in tests — message dropped).
+        // Verified behaviorally: pump stops at exactly 64 chunks, proving the guard path was taken.
         scheduler.HandleDrainContinue(1);
 
         var totalBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
