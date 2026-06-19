@@ -67,7 +67,7 @@ After the handler returns a response, it flows back through the pipeline:
 
 1. ASP.NET Core populates the `IHttpResponseFeature` (status code, headers, response body stream)
 2. The protocol engine encodes the response to wire bytes using the appropriate HTTP version (1.0, 1.1, 2, or 3)
-3. The transport layer (via `ConnectionStage` and Servus.Akka.Transport) sends the bytes to the client
+3. The transport layer (via `ConnectionActor` and Servus.Akka.Transport) sends the bytes to the client
 4. For HTTP/1.1+, the connection can remain open and reuse for the next request; for HTTP/1.0, the connection closes after sending the response
 
 ---

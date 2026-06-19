@@ -79,7 +79,7 @@ Incoming TCP/QUIC Connection
 [Response] — writes response back through the pipeline
 ```
 
-Each connection is managed by a `ConnectionStage` that materialises a sub-graph for that connection — from transport bytes through to response serialisation.
+Each connection is managed by a `ConnectionActor` that materialises an Akka.Streams sub-graph for that connection — from transport bytes through to response serialisation.
 
 ::: tip Routing and Dispatching
 Routing, parameter binding, and request dispatching are handled by standard ASP.NET Core — middleware, endpoint routing, and model binding. If you need actor-based request handling, the optional [Servus.Akka.AspNetCore](https://github.com/Aaronontheweb/Servus.Akka.AspNetCore) package provides `EntityDispatcher` and `AkkaResults` helpers for integrating Akka actors as endpoints.
