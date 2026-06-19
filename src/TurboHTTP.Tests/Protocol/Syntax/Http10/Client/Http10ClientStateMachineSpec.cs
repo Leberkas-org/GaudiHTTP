@@ -259,7 +259,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
 
     [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC1945-7")]
-    public void DecodeServerData_should_complete_connection_close_response_on_graceful_disconnect()
+    public void DecodeServerData_should_stream_connection_close_response_immediately()
     {
         var ops = new FakeClientOps();
         var sm = new Http10ClientStateMachine(ops, MakeConfig());
@@ -268,10 +268,7 @@ public sealed class Http10ClientStateMachineSpec : TestKit
         var headerBuffer = CreateResponseBuffer("HTTP/1.0 200 OK\r\n\r\nhello");
         sm.DecodeServerData(TransportData.Rent(headerBuffer));
 
-        Assert.Empty(ops.Responses);
-
-        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Graceful));
-
+        // RFC 1945 §7.2.2: response delivered immediately with streaming body
         Assert.Single(ops.Responses);
         Assert.Equal(HttpStatusCode.OK, ops.Responses[0].StatusCode);
     }

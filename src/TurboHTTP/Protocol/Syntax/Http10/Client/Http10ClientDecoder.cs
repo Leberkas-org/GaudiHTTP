@@ -85,7 +85,7 @@ internal sealed class Http10ClientDecoder(Http10ClientDecoderOptions options, Co
                 _statusCode, headers, _version, requestMethodWasHead,
                 connectionWillClose: !ConnectionSemantics.IsPersistent(headers, _version));
 
-            if (classification.Framing == BodyFraming.Close)
+            if (_isHttp09 && classification.Framing == BodyFraming.Close)
             {
                 var buffered = poolContext.Rent(static () => new BufferedBodyReader());
                 buffered.ResetOpenEnded();

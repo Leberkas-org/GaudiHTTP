@@ -375,6 +375,14 @@ internal sealed class Http10ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void TryCompleteAfterEof(bool bodyComplete)
     {
+        if (_activeStreamingReader is not null)
+        {
+            _activeStreamingReader = null;
+            _inFlightRequest = null;
+            _decoder.Reset();
+            return;
+        }
+
         if (_inFlightRequest is null)
         {
             _decoder.Reset();
