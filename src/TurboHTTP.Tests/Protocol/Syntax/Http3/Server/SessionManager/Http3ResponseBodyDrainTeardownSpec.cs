@@ -102,7 +102,7 @@ public sealed class Http3ResponseBodyDrainTeardownSpec
 
         // When the in-flight read finally completes, the pump cleans up the orphaned slot.
         var ex = Record.Exception(() =>
-            sm.OnBodyMessage(new MultiplexedDrainReadComplete(streamId, 0)));
+            sm.OnBodyMessage(new DrainReadComplete<long>(streamId, 0)));
 
         Assert.Null(ex);
     }

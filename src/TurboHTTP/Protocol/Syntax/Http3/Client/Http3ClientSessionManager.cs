@@ -13,7 +13,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 
-internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget, IBodyDrainTarget<long>
+internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 {
     private readonly Http3ClientEncoderOptions _encoderOptions;
     private readonly Http3ClientDecoderOptions _decoderOptions;
@@ -28,8 +28,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget, I
     private readonly QpackTableSync _tableSync;
 
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
+    private readonly Dictionary<long, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private readonly ConnectionPoolContext _bodyReaderPool = new();
+    private readonly ConnectionPoolContext _poolContext = new();
     private MultiplexedBodyPump? _pump;
 
     private bool _controlPrefaceSent;
@@ -147,7 +148,8 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget, I
 
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _bodyReaderPool, _connectionCts, _options.RequestBodyChunkSize);
+        _drainContentOwners[streamId] = request.Content!;
+        _pump ??= new MultiplexedBodyPump(this, _poolContext, _connectionCts, _options.RequestBodyChunkSize);
         _pump.Register(streamId, bodyStream!, contentLength, CancellationToken.None);
     }
 
@@ -155,15 +157,15 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget, I
     {
         switch (msg)
         {
-            case MultiplexedDrainReadComplete read:
+            case DrainReadComplete<long> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case MultiplexedDrainReadFailed failed:
+            case DrainReadFailed<long> failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 
-            case MultiplexedDrainContinue cont:
+            case DrainContinue<long> cont:
                 _pump?.HandleDrainContinue(cont.StreamId);
                 break;
         }
@@ -311,6 +313,7 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget, I
     public void Cleanup()
     {
         _pump?.Cleanup();
+        _drainContentOwners.Clear();
 
         _streamManager.Dispose();
 
@@ -373,19 +376,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget, I
         return true;
     }
 
-    IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
     IActorRef IBodyDrainTarget<long>.StageActor => _ops.StageActor;
 
     void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
-        => ((IMultiplexedBodyDrainTarget)this).EmitDataFrames(streamId, data, endStream);
-
-    void IBodyDrainTarget<long>.OnDrainComplete(long streamId)
-        => ((IMultiplexedBodyDrainTarget)this).OnDrainComplete(streamId);
-
-    void IBodyDrainTarget<long>.OnDrainFailed(long streamId, Exception reason)
-        => ((IMultiplexedBodyDrainTarget)this).OnDrainFailed(streamId, reason);
-
-    void IMultiplexedBodyDrainTarget.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
@@ -399,8 +392,10 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget, I
         }
     }
 
-    void IMultiplexedBodyDrainTarget.OnDrainComplete(long streamId)
+    void IBodyDrainTarget<long>.OnDrainComplete(long streamId)
     {
+        _drainContentOwners.Remove(streamId);
+
         var state = _streamManager.TryGetStreamState(streamId);
         if (state is not null)
         {
@@ -409,8 +404,9 @@ internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget, I
         }
     }
 
-    void IMultiplexedBodyDrainTarget.OnDrainFailed(long streamId, Exception reason)
+    void IBodyDrainTarget<long>.OnDrainFailed(long streamId, Exception reason)
     {
+        _drainContentOwners.Remove(streamId);
         Tracing.For("Protocol").Warning(this,
             "HTTP/3: Body drain failed for stream {0}: {1}", streamId, reason.Message);
         EmitOutbound(new ResetStream(streamId));

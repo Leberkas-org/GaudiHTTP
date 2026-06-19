@@ -15,7 +15,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Server;
 
-internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget, IBodyDrainTarget<long>
+internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 {
     private const int MaxStatePoolCapacity = 1000;
 
@@ -38,7 +38,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget, I
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private readonly ConnectionPoolContext _bodyReaderPool = new();
+    private readonly ConnectionPoolContext _poolContext = new();
     private MultiplexedBodyPump? _pump;
     private readonly StackStreamStatePool<StreamState> _statePool;
     private readonly Stack<FrameDecoder> _decoderPool = new();
@@ -213,7 +213,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget, I
 
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _pump ??= new MultiplexedBodyPump(this, _bodyReaderPool, _connectionCts, _responseBodyChunkSize);
+        _pump ??= new MultiplexedBodyPump(this, _poolContext, _connectionCts, _responseBodyChunkSize);
         _pump.Register(streamId, bodyStream, contentLength, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
@@ -241,15 +241,15 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget, I
     {
         switch (msg)
         {
-            case MultiplexedDrainReadComplete read:
+            case DrainReadComplete<long> read:
                 _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case MultiplexedDrainReadFailed failed:
+            case DrainReadFailed<long> failed:
                 _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 
-            case MultiplexedDrainContinue cont:
+            case DrainContinue<long> cont:
                 _pump?.HandleDrainContinue(cont.StreamId);
                 break;
         }
@@ -733,19 +733,9 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget, I
         }
     }
 
-    IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
     IActorRef IBodyDrainTarget<long>.StageActor => _ops.StageActor;
 
     void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
-        => ((IMultiplexedBodyDrainTarget)this).EmitDataFrames(streamId, data, endStream);
-
-    void IBodyDrainTarget<long>.OnDrainComplete(long streamId)
-        => ((IMultiplexedBodyDrainTarget)this).OnDrainComplete(streamId);
-
-    void IBodyDrainTarget<long>.OnDrainFailed(long streamId, Exception reason)
-        => ((IMultiplexedBodyDrainTarget)this).OnDrainFailed(streamId, reason);
-
-    void IMultiplexedBodyDrainTarget.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         if (!data.IsEmpty)
         {
@@ -756,7 +746,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget, I
         }
     }
 
-    void IMultiplexedBodyDrainTarget.OnDrainComplete(long streamId)
+    void IBodyDrainTarget<long>.OnDrainComplete(long streamId)
     {
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body complete (stream={0})", streamId);
 
@@ -768,7 +758,7 @@ internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget, I
         }
     }
 
-    void IMultiplexedBodyDrainTarget.OnDrainFailed(long streamId, Exception reason)
+    void IBodyDrainTarget<long>.OnDrainFailed(long streamId, Exception reason)
     {
         Tracing.For("Protocol").Warning(this,
             "HTTP/3: Response body drain failed for stream {0}: {1}", streamId, reason.Message);

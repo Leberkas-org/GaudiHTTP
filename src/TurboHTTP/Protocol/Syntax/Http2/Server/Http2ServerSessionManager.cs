@@ -3,6 +3,7 @@ using System.Text;
 using Akka.Actor;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Semantics;
@@ -15,7 +16,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Server;
 
-internal sealed class Http2ServerSessionManager : IBodyDrainTarget
+internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
 {
     private const int MaxStatePoolCapacity = 1000;
 
@@ -45,8 +46,9 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     internal readonly record struct StreamBodyConsumed(int StreamId);
 
+    private readonly ConnectionPoolContext _poolContext = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private BodyDrainScheduler? _scheduler;
+    private FlowControlledBodyPump? _pump;
 
     private int _nextContinuationStreamId;
     private bool _continuationEndStream;
@@ -100,7 +102,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             _clock);
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
         var chunkSize = options.ToBodyEncoderOptions().ChunkSize;
-        _scheduler = new BodyDrainScheduler(this, _flow, _connectionCts, chunkSize, hardCap: 16);
+        _pump = new FlowControlledBodyPump(this, _flow, _poolContext, _connectionCts, chunkSize, hardCap: 16);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
@@ -320,7 +322,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
                     && MemoryMarshal.TryGetArray(bufferedBody, out var segment))
                 {
                     state.MarkBodyDrainActive();
-                    _scheduler!.Register(streamId,
+                    _pump!.Register(streamId,
                         new MemoryStream(segment.Array!, segment.Offset, segment.Count, writable: false),
                         bufferedBody.Length, CancellationToken.None);
                     return;
@@ -339,7 +341,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        _scheduler!.Register(streamId, bodyStream, contentLength, CancellationToken.None);
+        _pump!.Register(streamId, bodyStream, contentLength, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/2: response body drain started (stream={0})", streamId);
     }
 
@@ -366,16 +368,16 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
     {
         switch (msg)
         {
-            case DrainReadComplete read:
-                _scheduler?.HandleReadComplete(read.StreamId, read.BytesRead);
+            case DrainReadComplete<int> read:
+                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case DrainReadFailed failed:
-                _scheduler?.HandleReadFailed(failed.StreamId, failed.Reason);
+            case DrainReadFailed<int> failed:
+                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 
-            case DrainContinue cont:
-                _scheduler?.HandleDrainContinue(cont.StreamId);
+            case DrainContinue<int> cont:
+                _pump?.HandleDrainContinue(cont.StreamId);
                 break;
 
             case StreamBodyConsumed consumed:
@@ -441,7 +443,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             state.AbortBody();
         }
 
-        _scheduler?.Cleanup();
+        _pump?.Cleanup();
         _frameDecoder.Dispose();
 
         foreach (var state in _streams.Values)
@@ -649,14 +651,14 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         // connection-level re-evaluation which covers all active drains.
         if (result.InitialWindowSizeChange.HasValue)
         {
-            _scheduler?.OnWindowUpdate(0);
+            _pump?.OnWindowUpdate(0);
         }
     }
 
     private void HandleWindowUpdateFrame(WindowUpdateFrame windowUpdate)
     {
         _flow.OnSendWindowUpdate(windowUpdate.StreamId, windowUpdate.Increment);
-        _scheduler?.OnWindowUpdate(windowUpdate.StreamId);
+        _pump?.OnWindowUpdate(windowUpdate.StreamId);
     }
 
     private void HandlePingFrame(PingFrame ping)
@@ -825,7 +827,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         _requestRate.Remove(streamId);
         _responseRate.Remove(streamId);
         _deferredStreamIncrements.Remove(streamId);
-        _scheduler?.Cancel(streamId);
+        _pump?.Cancel(streamId);
 
         if (_streams.TryGetValue(streamId, out var state))
         {
@@ -879,16 +881,16 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
         // Hand the remainder to the scheduler which will emit it when WINDOW_UPDATE arrives.
         state.MarkBodyDrainActive();
-        _scheduler!.RegisterWithLimbo(streamId, remainder, CancellationToken.None);
+        _pump!.RegisterWithLimbo(streamId, remainder, CancellationToken.None);
 
         Tracing.For("Protocol").Debug(this,
             "HTTP/2: buffered body flow-controlled (stream={0}, sent={1}, queued={2})",
             streamId, sent, body.Length - sent);
     }
 
-    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         // The server ignores the endStream flag on EmitDataFrames because the end-of-body
         // may require trailers (HEADERS frame) rather than a simple END_STREAM DATA frame.
@@ -907,7 +909,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         }
     }
 
-    void IBodyDrainTarget.OnDrainComplete(int streamId)
+    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
     {
         Tracing.For("Protocol").Debug(this, "HTTP/2: response body complete (stream={0})", streamId);
 
@@ -920,7 +922,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         CloseStream(streamId);
     }
 
-    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
     {
         Tracing.For("Protocol").Warning(this,
             "HTTP/2: Response body drain failed for stream {0}: {1}", streamId, reason.Message);

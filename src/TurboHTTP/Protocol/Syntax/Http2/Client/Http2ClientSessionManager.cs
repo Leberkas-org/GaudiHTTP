@@ -14,13 +14,13 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Client;
 
-internal sealed class Http2ClientSessionManager : IBodyDrainTarget
+internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 {
     private readonly Http2ClientEncoderOptions _encoderOptions;
     private readonly Http2ClientDecoderOptions _decoderOptions;
     private readonly TurboClientOptions _options;
     private readonly IClientStageOperations _ops;
-    private readonly ConnectionPoolContext _bodyReaderPool = new();
+    private readonly ConnectionPoolContext _poolContext = new();
 
     private readonly StreamTracker _tracker;
     private readonly FlowController _flow;
@@ -31,8 +31,9 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     private readonly Dictionary<int, HttpRequestMessage> _correlationMap = new();
 
     private readonly Dictionary<int, StreamState> _streams = new();
+    private readonly Dictionary<int, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
-    private BodyDrainScheduler? _scheduler;
+    private FlowControlledBodyPump? _pump;
 
     private bool _prefaceSent;
     private bool _awaitingPingAck;
@@ -80,7 +81,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             scaler,
             clock);
         var chunkSize = Math.Min(options.RequestBodyChunkSize, 16 * 1024);
-        _scheduler = new BodyDrainScheduler(this, _flow, _connectionCts, chunkSize, hardCap: 16);
+        _pump = new FlowControlledBodyPump(this, _flow, _poolContext, _connectionCts, chunkSize, hardCap: 16);
         // Outgoing frame size starts at the RFC 9113 default (16,384) and is raised only when the
         // server advertises a larger SETTINGS_MAX_FRAME_SIZE. The client's own MaxFrameSize option
         // is a receive-side advertisement (sent in the preface), not a send-side limit.
@@ -234,8 +235,8 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         }
 
         state.MarkBodyDrainActive();
-        _scheduler!.Register(streamId, bodyStream!, contentLength, request.GetCancellationToken(),
-            contentOwner: request.Content);
+        _drainContentOwners[streamId] = request.Content!;
+        _pump!.Register(streamId, bodyStream!, contentLength, request.GetCancellationToken());
     }
 
     private void EmitBodyDirect(int streamId, StreamState state, Memory<byte> body)
@@ -270,10 +271,10 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             return;
         }
 
-        // Window exhausted before all data sent: hand the remainder to the scheduler
+        // Window exhausted before all data sent: hand the remainder to the pump
         // which will emit it when the send window opens up via WINDOW_UPDATE.
         state.MarkBodyDrainActive();
-        _scheduler!.RegisterWithLimbo(streamId, body[sent..], CancellationToken.None);
+        _pump!.RegisterWithLimbo(streamId, body[sent..], CancellationToken.None);
     }
 
     private bool TrySerializeBodyDirect(HttpContent content, int streamId, StreamState state, int bodyLength)
@@ -443,13 +444,14 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             state.AbortBody();
         }
 
-        _scheduler?.Cleanup();
+        _pump?.Cleanup();
+        _drainContentOwners.Clear();
         ReleaseAllStreamState();
     }
 
-    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+    IActorRef IBodyDrainTarget<int>.StageActor => _ops.StageActor;
 
-    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
+    void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
         var maxFrame = _requestEncoder.MaxFrameSize;
         var remaining = data;
@@ -467,8 +469,10 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         }
     }
 
-    void IBodyDrainTarget.OnDrainComplete(int streamId)
+    void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
     {
+        _drainContentOwners.Remove(streamId);
+
         if (_streams.TryGetValue(streamId, out var state))
         {
             state.MarkBodyDrainComplete();
@@ -485,8 +489,9 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         }
     }
 
-    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
+    void IBodyDrainTarget<int>.OnDrainFailed(int streamId, Exception reason)
     {
+        _drainContentOwners.Remove(streamId);
         Tracing.For("Protocol").Warning(this,
             "HTTP/2: Body drain failed for stream {0}: {1}", streamId, reason.Message);
         EmitFrame(new RstStreamFrame(streamId, Http2ErrorCode.InternalError));
@@ -623,7 +628,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             state.AbortBody();
         }
 
-        _scheduler?.Cancel(streamId);
+        _pump?.Cancel(streamId);
         _tracker.OnStreamClosed(streamId);
         _flow.RemoveStreamSendWindow(streamId);
 
@@ -785,7 +790,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
             return;
         }
 
-        var queued = _bodyReaderPool.Rent(() => new QueuedBodyReader(capacity: 8));
+        var queued = _poolContext.Rent(() => new QueuedBodyReader(capacity: 8));
         state.InitBodyReader(queued);
         var bodyStream = state.GetBodyStream();
         streamingResponse.Content = new StreamContent(bodyStream);
@@ -819,25 +824,24 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
     {
         switch (msg)
         {
-            case DrainReadComplete read:
-                _scheduler?.HandleReadComplete(read.StreamId, read.BytesRead);
+            case DrainReadComplete<int> read:
+                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case DrainReadFailed failed:
-                _scheduler?.HandleReadFailed(failed.StreamId, failed.Reason);
+            case DrainReadFailed<int> failed:
+                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
                 break;
 
-            case DrainContinue cont:
-                _scheduler?.HandleDrainContinue(cont.StreamId);
+            case DrainContinue<int> cont:
+                _pump?.HandleDrainContinue(cont.StreamId);
                 break;
         }
     }
 
-
     private void HandleWindowUpdate(WindowUpdateFrame frame)
     {
         _flow.OnSendWindowUpdate(frame.StreamId, frame.Increment);
-        _scheduler?.OnWindowUpdate(frame.StreamId);
+        _pump?.OnWindowUpdate(frame.StreamId);
     }
 
     private void ReturnBodyReader(StreamState state)
@@ -845,7 +849,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget
         var reader = state.TakeBodyReader();
         if (reader is QueuedBodyReader queued)
         {
-            _bodyReaderPool.Return(queued);
+            _poolContext.Return(queued);
         }
         else
         {
