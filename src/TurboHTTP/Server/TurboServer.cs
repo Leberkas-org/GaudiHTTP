@@ -151,6 +151,7 @@ public sealed class TurboServer : IServer
         if (_ownsSystem)
         {
             await CoordinatedShutdown.Get(_system).Run(CoordinatedShutdown.ClrExitReason.Instance);
+            await _system.WhenTerminated.WaitAsync(TimeSpan.FromSeconds(10));
         }
         else
         {
