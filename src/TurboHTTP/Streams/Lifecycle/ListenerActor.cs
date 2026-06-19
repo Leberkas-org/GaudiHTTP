@@ -27,6 +27,7 @@ internal sealed class ListenerActor : ReceiveActor
     private sealed record ConnectionArrived(Flow<ITransportOutbound, ITransportInbound, NotUsed> Connection);
     private sealed record ListenerCompleted;
     private sealed record ConnectionStopped;
+    private sealed record BindFailed(Exception Error);
 
     private int _connectionIdCounter;
     private int _activeConnections;
@@ -51,6 +52,7 @@ internal sealed class ListenerActor : ReceiveActor
         Receive<DrainConnections>(_ => OnDrainConnections());
         Receive<ConnectionStopped>(_ => OnConnectionStopped());
         Receive<ListenerCompleted>(_ => OnListenerCompleted());
+        Receive<BindFailed>(OnBindFailed);
     }
 
     private void OnStartListening()
@@ -72,13 +74,24 @@ internal sealed class ListenerActor : ReceiveActor
 
         var handle = new ListenerHandle(acceptSwitch, _completionTcs.Task);
 
-        boundTask.PipeTo(sender,
-            success: port => new ListeningStarted(port, handle),
-            failure: ex =>
+        boundTask.ContinueWith(t =>
+        {
+            if (t.IsCompletedSuccessfully)
             {
-                _log.Error(ex, "Failed to bind on {0}:{1}", _listenerOptions.Host, _listenerOptions.Port);
-                throw ex;
-            });
+                sender.Tell(new ListeningStarted(t.Result, handle));
+            }
+            else
+            {
+                self.Tell(new BindFailed(t.Exception?.InnerException ?? t.Exception ?? new Exception("bind failed")));
+            }
+        }, TaskContinuationOptions.ExecuteSynchronously);
+    }
+
+    private void OnBindFailed(BindFailed msg)
+    {
+        _log.Error(msg.Error, "Failed to bind on {0}:{1}", _listenerOptions.Host, _listenerOptions.Port);
+        _completionTcs?.TrySetException(msg.Error);
+        Context.Stop(Self);
     }
 
     private void OnConnectionArrived(ConnectionArrived msg)
@@ -150,7 +163,7 @@ internal sealed class ListenerActor : ReceiveActor
         }
         catch (Exception ex)
         {
-            _log.Warning("Error rejecting connection: {0}", ex.Message);
+            _log.Warning(ex, "Error rejecting connection");
         }
     }
 
@@ -158,7 +171,7 @@ internal sealed class ListenerActor : ReceiveActor
     {
         return new OneForOneStrategy(ex =>
         {
-            _log.Warning("ConnectionActor failed: {0}", ex.Message);
+            _log.Warning(ex, "ConnectionActor failed");
             return Directive.Stop;
         });
     }
