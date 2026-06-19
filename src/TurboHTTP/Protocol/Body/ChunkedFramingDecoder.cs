@@ -1,9 +1,10 @@
+using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
 
 namespace TurboHTTP.Protocol.Body;
 
-internal sealed class ChunkedFramingDecoder : IFramingDecoder
+internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
 {
     private enum Phase
     {
@@ -44,6 +45,8 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder
         _trailers?.Clear();
         _trailerSectionBytes = 0;
     }
+
+    void IResettable.Reset() => Reset(long.MaxValue, 8 * 1024);
 
     public FramingDecodeResult Decode(ReadOnlySpan<byte> raw, out int rawConsumed)
     {
