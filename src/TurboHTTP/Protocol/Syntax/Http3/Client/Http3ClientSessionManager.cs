@@ -3,6 +3,7 @@ using Akka.Actor;
 using Servus.Akka.Transport;
 using TurboHTTP.Client;
 using TurboHTTP.Internal;
+using TurboHTTP.Protocol.Body;
 using TurboHTTP.Protocol.Multiplexed;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
@@ -11,10 +12,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Client;
 
-internal readonly record struct StreamBodyReadComplete(long StreamId, int BytesRead);
-internal readonly record struct StreamBodyReadFailed(long StreamId, Exception Reason);
-
-internal sealed class Http3ClientSessionManager
+internal sealed class Http3ClientSessionManager : IMultiplexedBodyDrainTarget
 {
     private readonly Http3ClientEncoderOptions _encoderOptions;
     private readonly Http3ClientDecoderOptions _decoderOptions;
@@ -29,8 +27,8 @@ internal sealed class Http3ClientSessionManager
     private readonly QpackTableSync _tableSync;
 
     private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
-    private readonly Dictionary<long, Stream> _activeBodyStreams = new();
-    private readonly Dictionary<long, IMemoryOwner<byte>> _activeBodyBuffers = new();
+    private readonly CancellationTokenSource _connectionCts = new();
+    private MultiplexedBodyPump? _pump;
 
     private bool _controlPrefaceSent;
     private bool _transportConnected;
@@ -147,56 +145,26 @@ internal sealed class Http3ClientSessionManager
 
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
-        StartStreamBodyDrain(streamId, bodyStream!, contentLength);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _options.RequestBodyChunkSize);
+        _pump.Register(streamId, bodyStream!, contentLength, CancellationToken.None);
     }
 
     public void OnBodyMessage(object msg)
     {
         switch (msg)
         {
-            case StreamBodyReadComplete read:
-                HandleStreamBodyRead(read);
+            case MultiplexedDrainReadComplete read:
+                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case StreamBodyReadFailed failed:
-                Tracing.For("Protocol").Warning(this,
-                    "HTTP/3: Body drain failed for stream {0}: {1}", failed.StreamId, failed.Reason.Message);
-                EmitOutbound(new ResetStream(failed.StreamId));
-                CleanupBodyDrain(failed.StreamId);
+            case MultiplexedDrainReadFailed failed:
+                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                break;
+
+            case MultiplexedDrainContinue cont:
+                _pump?.HandleDrainContinue(cont.StreamId);
                 break;
         }
-    }
-
-    private void HandleStreamBodyRead(StreamBodyReadComplete read)
-    {
-        var state = _streamManager.TryGetStreamState(read.StreamId);
-        if (state is null)
-        {
-            CleanupBodyDrain(read.StreamId);
-            return;
-        }
-
-        if (read.BytesRead == 0)
-        {
-            Tracing.For("Protocol").Debug(this, "HTTP/3: request body complete (stream={0})", read.StreamId);
-            EmitOutbound(new CompleteWrites(StreamTarget.FromId(read.StreamId)));
-            state.MarkBodyDrainComplete();
-            CleanupBodyDrain(read.StreamId);
-            return;
-        }
-
-        Tracing.For("Protocol").Trace(this, "HTTP/3: request body chunk (stream={0}, bytes={1})", read.StreamId, read.BytesRead);
-        if (!_activeBodyBuffers.TryGetValue(read.StreamId, out var buffer))
-        {
-            CleanupBodyDrain(read.StreamId);
-            return;
-        }
-
-        var data = buffer.Memory[..read.BytesRead];
-
-        var dataFrame = new DataFrame(data);
-        EmitSerializedFrame(dataFrame, read.StreamId);
-        ReadNextBodyChunk(read.StreamId);
     }
 
     public void OpenCriticalStreams()
@@ -323,7 +291,7 @@ internal sealed class Http3ClientSessionManager
         EmitOutbound(new ResetStream(streamId, 0x10C));
         _correlationMap.Remove(streamId);
         request.Fail(new OperationCanceledException("Request cancelled by caller."));
-        CleanupBodyDrain(streamId);
+        _pump?.Cancel(streamId);
         _tracker.OnStreamClosed(streamId);
 
         return true;
@@ -340,10 +308,7 @@ internal sealed class Http3ClientSessionManager
 
     public void Cleanup()
     {
-        foreach (var streamId in _activeBodyStreams.Keys.ToList())
-        {
-            CleanupBodyDrain(streamId);
-        }
+        _pump?.Cleanup();
 
         _streamManager.Dispose();
 
@@ -406,50 +371,37 @@ internal sealed class Http3ClientSessionManager
         return true;
     }
 
-    private void StartStreamBodyDrain(long streamId, Stream bodyStream, long? contentLength = null)
+    IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
+
+    void IMultiplexedBodyDrainTarget.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
-        _activeBodyStreams[streamId] = bodyStream;
-        var bufferSize = contentLength is > 0 and <= int.MaxValue
-            ? (int)Math.Min(contentLength.Value, _options.RequestBodyChunkSize)
-            : _options.RequestBodyChunkSize;
-        var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(bufferSize, 256));
-        _activeBodyBuffers[streamId] = buffer;
-        ReadNextBodyChunk(streamId);
+        if (!data.IsEmpty)
+        {
+            var dataFrame = new DataFrame(data);
+            EmitSerializedFrame(dataFrame, streamId);
+        }
+
+        if (endStream)
+        {
+            EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+        }
     }
 
-    private void ReadNextBodyChunk(long streamId)
+    void IMultiplexedBodyDrainTarget.OnDrainComplete(long streamId)
     {
-        if (!_activeBodyStreams.TryGetValue(streamId, out var stream) ||
-            !_activeBodyBuffers.TryGetValue(streamId, out var buffer))
+        var state = _streamManager.TryGetStreamState(streamId);
+        if (state is not null)
         {
-            return;
+            Tracing.For("Protocol").Debug(this, "HTTP/3: request body complete (stream={0})", streamId);
+            state.MarkBodyDrainComplete();
         }
-
-        var readTask = stream.ReadAsync(buffer.Memory);
-
-        if (readTask.IsCompletedSuccessfully)
-        {
-            // Guarded, non-blocking: .Result is read only when the read already completed
-            // successfully, so it never blocks (the SocketsHttpHandler IsCompletedSuccessfully
-            // fast-path idiom — not sync-over-async).
-            HandleStreamBodyRead(new StreamBodyReadComplete(streamId, readTask.Result));
-            return;
-        }
-
-        readTask.PipeTo(
-            _ops.StageActor,
-            success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
-            failure: ex => new StreamBodyReadFailed(streamId, ex));
     }
 
-    private void CleanupBodyDrain(long streamId)
+    void IMultiplexedBodyDrainTarget.OnDrainFailed(long streamId, Exception reason)
     {
-        if (_activeBodyBuffers.Remove(streamId, out var buffer))
-        {
-            buffer.Dispose();
-        }
-
-        _activeBodyStreams.Remove(streamId);
+        Tracing.For("Protocol").Warning(this,
+            "HTTP/3: Body drain failed for stream {0}: {1}", streamId, reason.Message);
+        EmitOutbound(new ResetStream(streamId));
     }
 
     private void EmitBatchedFrames(IReadOnlyList<Http3Frame> frames, long streamId)

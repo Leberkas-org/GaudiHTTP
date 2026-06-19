@@ -14,10 +14,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http3.Server;
 
-internal readonly record struct StreamBodyReadComplete(long StreamId, int BytesRead);
-internal readonly record struct StreamBodyReadFailed(long StreamId, Exception Reason);
-
-internal sealed class Http3ServerSessionManager
+internal sealed class Http3ServerSessionManager : IMultiplexedBodyDrainTarget
 {
     private const int MaxStatePoolCapacity = 1000;
 
@@ -39,11 +36,8 @@ internal sealed class Http3ServerSessionManager
     private readonly TimeSpan _bodyConsumptionTimeout;
 
     private readonly Dictionary<long, (FrameDecoder Decoder, StreamState State)> _streams = new();
-    private readonly Dictionary<long, Stream> _activeBodyStreams = new();
-    private readonly Dictionary<long, IMemoryOwner<byte>> _activeBodyBuffers = new();
-    private readonly Dictionary<long, CancellationTokenSource> _activeBodyReadCts = new();
-    private readonly HashSet<long> _drainReadInFlight = new();
-    private readonly HashSet<long> _drainBufferOrphaned = new();
+    private readonly CancellationTokenSource _connectionCts = new();
+    private MultiplexedBodyPump? _pump;
     private readonly StackStreamStatePool<StreamState> _statePool;
     private readonly Stack<FrameDecoder> _decoderPool = new();
     private const int MaxDecoderPoolSize = 256;
@@ -217,7 +211,8 @@ internal sealed class Http3ServerSessionManager
 
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        StartStreamBodyDrain(streamId, bodyStream, contentLength);
+        _pump ??= new MultiplexedBodyPump(this, _connectionCts, _responseBodyChunkSize);
+        _pump.Register(streamId, bodyStream, contentLength, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/3: response body drain started (stream={0})", streamId);
     }
 
@@ -244,88 +239,18 @@ internal sealed class Http3ServerSessionManager
     {
         switch (msg)
         {
-            case StreamBodyReadComplete read:
-                HandleStreamBodyRead(read);
+            case MultiplexedDrainReadComplete read:
+                _pump?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case StreamBodyReadFailed failed:
-                _drainReadInFlight.Remove(failed.StreamId);
-                if (_drainBufferOrphaned.Remove(failed.StreamId))
-                {
-                    // Stream already torn down while this read was in flight (the read failed
-                    // because CleanupBodyDrain cancelled it). Release the deferred buffer; the
-                    // stream is gone, so no RST is needed.
-                    DisposeDrainResources(failed.StreamId);
-                    break;
-                }
+            case MultiplexedDrainReadFailed failed:
+                _pump?.HandleReadFailed(failed.StreamId, failed.Reason);
+                break;
 
-                Tracing.For("Protocol").Warning(this,
-                    "HTTP/3: Response body drain failed for stream {0}: {1}", failed.StreamId,
-                    failed.Reason.Message);
-                EmitRstStream(failed.StreamId, ErrorCode.GeneralProtocolError);
-                CleanupBodyDrain(failed.StreamId);
+            case MultiplexedDrainContinue cont:
+                _pump?.HandleDrainContinue(cont.StreamId);
                 break;
         }
-    }
-
-    private void HandleStreamBodyRead(StreamBodyReadComplete read)
-    {
-        _drainReadInFlight.Remove(read.StreamId);
-        if (_drainBufferOrphaned.Remove(read.StreamId))
-        {
-            // The stream was torn down while this read was in flight; the buffer was kept
-            // alive for the read. Release it now and drop the result — the stream is gone.
-            DisposeDrainResources(read.StreamId);
-            return;
-        }
-
-        if (!_streams.TryGetValue(read.StreamId, out var streamData))
-        {
-            CleanupBodyDrain(read.StreamId);
-            return;
-        }
-
-        var (_, state) = streamData;
-        state.IsBodyReadPending = false;
-
-        if (read.BytesRead == 0)
-        {
-            Tracing.For("Protocol").Debug(this, "HTTP/3: response body complete (stream={0})", read.StreamId);
-            state.MarkBodyDrainComplete();
-
-            if (!state.HasPendingOutbound)
-            {
-                _ops.OnOutbound(new CompleteWrites(read.StreamId));
-                CleanupBodyDrain(read.StreamId);
-                CloseStream(read.StreamId);
-            }
-            else
-            {
-                CleanupBodyDrain(read.StreamId);
-            }
-
-            return;
-        }
-
-        Tracing.For("Protocol").Trace(this, "HTTP/3: response body chunk (stream={0}, bytes={1})", read.StreamId, read.BytesRead);
-        if (!_activeBodyBuffers.TryGetValue(read.StreamId, out var buffer))
-        {
-            CleanupBodyDrain(read.StreamId);
-            return;
-        }
-
-        var data = buffer.Memory[..read.BytesRead];
-
-        var dataFrame = new DataFrame(data);
-        EmitDataFrame(dataFrame, read.StreamId);
-
-        if (read.BytesRead > 0)
-        {
-            _responseRate.Observe(read.StreamId, read.BytesRead, Now());
-            EnsureRateTimer();
-        }
-
-        ReadNextBodyChunk(read.StreamId);
     }
 
     public void DrainOutboundBuffer(long streamId)
@@ -351,10 +276,6 @@ internal sealed class Http3ServerSessionManager
             _ops.OnOutbound(new CompleteWrites(streamId));
             CloseStream(streamId);
         }
-        else if (!state.HasPendingOutbound && state.HasBodyDrain && !state.IsBodyDrainComplete && !state.IsBodyReadPending)
-        {
-            ReadNextBodyChunk(streamId);
-        }
     }
 
     public void FlushAllPendingRequests()
@@ -368,28 +289,7 @@ internal sealed class Http3ServerSessionManager
 
     public void Cleanup()
     {
-        // Release response-drain resources. A buffer with a still-in-flight read is abandoned
-        // to the GC rather than returned to the pool — returning a buffer a read is still
-        // writing into is exactly the cross-stream corruption we guard against elsewhere.
-        foreach (var (streamId, buffer) in _activeBodyBuffers)
-        {
-            if (!_drainReadInFlight.Contains(streamId))
-            {
-                buffer.Dispose();
-            }
-        }
-
-        foreach (var (_, cts) in _activeBodyReadCts)
-        {
-            cts.Cancel();
-            cts.Dispose();
-        }
-
-        _activeBodyBuffers.Clear();
-        _activeBodyStreams.Clear();
-        _activeBodyReadCts.Clear();
-        _drainReadInFlight.Clear();
-        _drainBufferOrphaned.Clear();
+        _pump?.Cleanup();
 
         foreach (var (_, (decoder, state)) in _streams)
         {
@@ -815,7 +715,7 @@ internal sealed class Http3ServerSessionManager
     {
         _requestRate.Remove(streamId);
         _responseRate.Remove(streamId);
-        CleanupBodyDrain(streamId);
+        _pump?.Cancel(streamId);
 
         if (_streams.TryGetValue(streamId, out var streamData))
         {
@@ -856,84 +756,40 @@ internal sealed class Http3ServerSessionManager
         }
     }
 
-    private void StartStreamBodyDrain(long streamId, Stream bodyStream, long? contentLength = null)
+    IActorRef IMultiplexedBodyDrainTarget.StageActor => _ops.StageActor;
+
+    void IMultiplexedBodyDrainTarget.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
-        _activeBodyStreams[streamId] = bodyStream;
-        var bufferSize = contentLength is > 0 and <= int.MaxValue
-            ? (int)Math.Min(contentLength.Value, _responseBodyChunkSize)
-            : _responseBodyChunkSize;
-        var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(bufferSize, 256));
-        _activeBodyBuffers[streamId] = buffer;
-        _activeBodyReadCts[streamId] = new CancellationTokenSource();
-        ReadNextBodyChunk(streamId);
+        if (!data.IsEmpty)
+        {
+            var dataFrame = new DataFrame(data);
+            EmitDataFrame(dataFrame, streamId);
+            _responseRate.Observe(streamId, data.Length, Now());
+            EnsureRateTimer();
+        }
     }
 
-    private void ReadNextBodyChunk(long streamId)
+    void IMultiplexedBodyDrainTarget.OnDrainComplete(long streamId)
     {
-        if (!_activeBodyStreams.TryGetValue(streamId, out var stream) ||
-            !_activeBodyBuffers.TryGetValue(streamId, out var buffer))
-        {
-            return;
-        }
+        Tracing.For("Protocol").Debug(this, "HTTP/3: response body complete (stream={0})", streamId);
 
         if (_streams.TryGetValue(streamId, out var streamData))
         {
-            streamData.State.IsBodyReadPending = true;
-        }
+            streamData.State.MarkBodyDrainComplete();
 
-        var token = _activeBodyReadCts.TryGetValue(streamId, out var cts) ? cts.Token : CancellationToken.None;
-        var vt = stream.ReadAsync(buffer.Memory, token);
-        if (vt.IsCompletedSuccessfully)
-        {
-            // Completed inline on the actor thread: the buffer was never exposed across a
-            // message boundary, so no in-flight tracking is needed.
-            HandleStreamBodyRead(new StreamBodyReadComplete(streamId, vt.Result));
-            return;
-        }
-
-        // The read is now genuinely in flight on another thread writing into the reusable
-        // buffer. Mark it so CleanupBodyDrain defers buffer disposal until it completes.
-        _drainReadInFlight.Add(streamId);
-        vt.PipeTo(
-            _ops.StageActor,
-            success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
-            failure: ex => new StreamBodyReadFailed(streamId, ex));
-    }
-
-    private void CleanupBodyDrain(long streamId)
-    {
-        _activeBodyStreams.Remove(streamId);
-
-        if (_drainReadInFlight.Contains(streamId))
-        {
-            // A ReadAsync into the reusable drain buffer is still in flight. Returning the
-            // buffer to the pool now would let a concurrent stream re-rent and overwrite it
-            // mid-read. Cancel the read and defer buffer/cts disposal to its completion.
-            _drainBufferOrphaned.Add(streamId);
-            if (_activeBodyReadCts.TryGetValue(streamId, out var pendingCts))
+            if (!streamData.State.HasPendingOutbound)
             {
-                pendingCts.Cancel();
+                _ops.OnOutbound(new CompleteWrites(streamId));
+                CloseStream(streamId);
             }
-
-            return;
         }
-
-        DisposeDrainResources(streamId);
     }
 
-    private void DisposeDrainResources(long streamId)
+    void IMultiplexedBodyDrainTarget.OnDrainFailed(long streamId, Exception reason)
     {
-        if (_activeBodyBuffers.Remove(streamId, out var buffer))
-        {
-            buffer.Dispose();
-        }
-
-        if (_activeBodyReadCts.Remove(streamId, out var cts))
-        {
-            cts.Dispose();
-        }
-
-        _drainBufferOrphaned.Remove(streamId);
+        Tracing.For("Protocol").Warning(this,
+            "HTTP/3: Response body drain failed for stream {0}: {1}", streamId, reason.Message);
+        EmitRstStream(streamId, ErrorCode.GeneralProtocolError);
     }
 
     private void EmitDataFrame(object frame, long streamId)
