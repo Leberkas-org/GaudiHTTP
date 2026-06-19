@@ -98,7 +98,7 @@ The server pipeline is TurboHTTP's transport and protocol layer. It hands off re
 ```
 Incoming TCP/QUIC Bytes
     ↓
-[Transport] — accepts connection; ListenerActor materializes a ConnectionStage
+[Transport] — accepts connection; ListenerActor spawns a ConnectionActor
     ↓
 [ProtocolRouter] — maps transport/Version to the appropriate server engine at bind time
     ↓

@@ -45,9 +45,12 @@ TurboHTTP Server uses this actor structure:
 ActorSystem (turbo-server)
   ├── ServerSupervisorActor
   │     ├── ListenerActor (endpoint 127.0.0.1:5100)
-  │     │     └── ConnectionStage (Akka.Streams GraphStage — handles all active connections)
+  │     │     ├── ConnectionActor (conn-1)
+  │     │     ├── ConnectionActor (conn-2)
+  │     │     └── ...
   │     └── ListenerActor (endpoint 127.0.0.1:5101)
-  │           └── ConnectionStage (Akka.Streams GraphStage — handles all active connections)
+  │           ├── ConnectionActor (conn-1)
+  │           └── ...
 ```
 
 ### ServerSupervisorActor
@@ -64,35 +67,36 @@ When shutdown begins, the supervisor tells all listeners to stop accepting new c
 
 Each endpoint has one listener. It:
 - Binds the transport (TCP port or QUIC/UDP port)
-- Accepts incoming connections via a `ConnectionStage`
-- Enforces MaxConcurrentConnections limit (when configured)
+- Spawns a `ConnectionActor` per incoming connection
+- Enforces `MaxConcurrentConnections` limit (rejects excess connections immediately)
+- Watches each child `ConnectionActor` and tracks the active connection count
+- On drain: tells all children to drain and waits for the connection count to reach zero
 
-When a connection arrives, the `ConnectionStage` GraphStage materializes the full HTTP processing pipeline as a sub-graph for that connection.
+### ConnectionActor
 
-### ConnectionStage
-
-Connections are not managed by per-connection actors. Instead, each `ListenerActor` runs a single `ConnectionStage` — an Akka.Streams `GraphStage` — that sub-fuses a new streaming pipeline for every incoming connection. It:
-- Materializes the complete Akka.Streams graph per connection:
+Each accepted connection is managed by a dedicated `ConnectionActor` (child of `ListenerActor`). It:
+- Materializes the complete Akka.Streams graph for that connection:
   - Transport inbound/outbound flow
   - Protocol engine (HTTP/1.0, 1.1, 2, or 3)
   - ApplicationBridgeStage → IHttpApplication&lt;TContext&gt; → ASP.NET Core pipeline
-- Holds a shared drain kill switch to stop all connections cleanly during shutdown
-- Tracks active connection count and completes the stage when drained
+- Owns a per-connection kill switch for graceful drain signaling
+- On `Drain` message: triggers the kill switch, which propagates completion through the stream
+- Stops itself when the stream completes or fails
 
 ## Connection Lifecycle
 
 From the moment a client connects until it closes, here's what happens:
 
-1. **Connection arrives**: ListenerActor receives an incoming connection from the transport
-2. **Pipeline materialized**: The `ConnectionStage` GraphStage sub-fuses a new Akka.Streams graph for the connection:
+1. **Connection arrives**: `ListenerActor` receives an incoming connection from the transport and spawns a `ConnectionActor`
+2. **Pipeline materialized**: The `ConnectionActor` materializes an Akka.Streams graph for the connection:
    - Protocol engine decodes transport bytes into IFeatureCollection
    - ApplicationBridgeStage creates TContext via IHttpApplication.CreateContext()
    - ASP.NET Core middleware pipeline processes the request
    - Response features are encoded back to bytes and sent
 3. **Request loop**: The connection waits for the next request (keep-alive) or closes
 4. **Completion**: When the connection closes (client disconnect, keep-alive timeout, error):
-   - The sub-graph completes and the active connection count in `ConnectionStage` decrements
-   - Resources are cleaned up
+   - The sub-graph completes and the `ConnectionActor` stops itself
+   - The parent `ListenerActor` decrements the active connection count
 
 ::: tip Keep-Alive Behavior
 HTTP/1.1 connections reuse the same TCP/TLS connection for multiple requests. Each request flows through the pipeline independently, but the connection and its sub-graph stay alive. HTTP/2 and HTTP/3 multiplex streams within one connection, all handled by the same materialized pipeline.
@@ -109,8 +113,8 @@ When your application receives a shutdown signal (SIGTERM, Ctrl+C, or explicit `
    - Already-connected clients can still send requests
 3. **Coordinated Shutdown phase 2 — ServiceUnbind**:
    - ServerSupervisorActor receives `BeginDrain` message
-   - The shared drain kill switch on each `ConnectionStage` is triggered
-   - Each active connection pipeline is cancelled (sends back `HTTP/1.1 503 Service Unavailable` or TCP RST for HTTP/2)
+   - Each `ConnectionActor` receives a `Drain` message and triggers its per-connection kill switch
+   - Active connection pipelines are cancelled (sends back `HTTP/1.1 503 Service Unavailable` or RST_STREAM for HTTP/2)
    - In-flight requests are interrupted
 4. **Drain wait**: The application waits for up to `GracefulShutdownTimeout` (default 30 seconds)
    - Connections finish their active work and close
