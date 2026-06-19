@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Text;
 using Akka.Actor;
@@ -16,7 +15,7 @@ using static Servus.Senf;
 
 namespace TurboHTTP.Protocol.Syntax.Http2.Server;
 
-internal sealed class Http2ServerSessionManager
+internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 {
     private const int MaxStatePoolCapacity = 1000;
 
@@ -42,25 +41,12 @@ internal sealed class Http2ServerSessionManager
     private readonly int _initialStreamWindowSize;
 
     private readonly Dictionary<int, StreamState> _streams = new();
-    private readonly List<int> _scratchKeys = new();
     private readonly Dictionary<int, int> _deferredStreamIncrements = new();
-
-    private readonly record struct StreamBodyReadComplete(int StreamId, int BytesRead);
-
-    private readonly record struct StreamBodyReadFailed(int StreamId, Exception Reason);
 
     internal readonly record struct StreamBodyConsumed(int StreamId);
 
-    private readonly Dictionary<int, Stream> _activeBodyStreams = new();
-    private readonly Dictionary<int, IMemoryOwner<byte>> _activeBodyBuffers = new();
-    private readonly Dictionary<int, CancellationTokenSource> _activeBodyReadCts = new();
-    // Streams whose reusable response-drain buffer currently has an async ReadAsync in flight.
-    // The buffer must not be returned to the pool until that read completes, or a concurrent
-    // stream could re-rent and overwrite it mid-read (cross-stream, wrong-content corruption).
-    private readonly HashSet<int> _drainReadInFlight = new();
-    // Streams torn down while a drain read was in flight: disposal is deferred to the
-    // read-completion handler.
-    private readonly HashSet<int> _drainBufferOrphaned = new();
+    private readonly CancellationTokenSource _connectionCts = new();
+    private BodyDrainScheduler? _scheduler;
 
     private int _nextContinuationStreamId;
     private bool _continuationEndStream;
@@ -113,6 +99,8 @@ internal sealed class Http2ServerSessionManager
             scaler,
             _clock);
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
+        var chunkSize = options.ToBodyEncoderOptions().ChunkSize;
+        _scheduler = new BodyDrainScheduler(this, _flow, _connectionCts, chunkSize, hardCap: 16);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
@@ -329,9 +317,9 @@ internal sealed class Http2ServerSessionManager
                     && MemoryMarshal.TryGetArray(bufferedBody, out var segment))
                 {
                     state.MarkBodyDrainActive();
-                    StartStreamBodyDrain(streamId,
+                    _scheduler!.Register(streamId,
                         new MemoryStream(segment.Array!, segment.Offset, segment.Count, writable: false),
-                        bufferedBody.Length);
+                        bufferedBody.Length, CancellationToken.None);
                     return;
                 }
 
@@ -348,7 +336,7 @@ internal sealed class Http2ServerSessionManager
 
         var bodyStream = turboBody.GetResponseStream();
         state.MarkBodyDrainActive();
-        StartStreamBodyDrain(streamId, bodyStream, contentLength);
+        _scheduler!.Register(streamId, bodyStream, contentLength, CancellationToken.None);
         Tracing.For("Protocol").Debug(this, "HTTP/2: response body drain started (stream={0})", streamId);
     }
 
@@ -375,26 +363,16 @@ internal sealed class Http2ServerSessionManager
     {
         switch (msg)
         {
-            case StreamBodyReadComplete read:
-                HandleStreamBodyRead(read);
+            case DrainReadComplete read:
+                _scheduler?.HandleReadComplete(read.StreamId, read.BytesRead);
                 break;
 
-            case StreamBodyReadFailed failed:
-                _drainReadInFlight.Remove(failed.StreamId);
-                if (_drainBufferOrphaned.Remove(failed.StreamId))
-                {
-                    // Stream already torn down while this read was in flight (the read failed
-                    // because CleanupBodyDrain cancelled it). Release the deferred buffer; the
-                    // stream is gone, so no RST is needed.
-                    DisposeDrainResources(failed.StreamId);
-                    break;
-                }
+            case DrainReadFailed failed:
+                _scheduler?.HandleReadFailed(failed.StreamId, failed.Reason);
+                break;
 
-                Tracing.For("Protocol").Warning(this,
-                    "HTTP/2: Response body drain failed for stream {0}: {1}", failed.StreamId,
-                    failed.Reason.Message);
-                EmitRstStream(failed.StreamId, Http2ErrorCode.InternalError);
-                CleanupBodyDrain(failed.StreamId);
+            case DrainContinue cont:
+                _scheduler?.HandleDrainContinue(cont.StreamId);
                 break;
 
             case StreamBodyConsumed consumed:
@@ -404,77 +382,6 @@ internal sealed class Http2ServerSessionManager
                     _deferredStreamIncrements.Remove(consumed.StreamId);
                 }
                 break;
-        }
-    }
-
-    private void HandleStreamBodyRead(StreamBodyReadComplete read)
-    {
-        _drainReadInFlight.Remove(read.StreamId);
-        if (_drainBufferOrphaned.Remove(read.StreamId))
-        {
-            // The stream was torn down while this read was in flight; the buffer was kept
-            // alive for the read. Release it now and drop the result — the stream is gone.
-            DisposeDrainResources(read.StreamId);
-            return;
-        }
-
-        if (!_streams.TryGetValue(read.StreamId, out var state))
-        {
-            CleanupBodyDrain(read.StreamId);
-            return;
-        }
-
-        state.IsBodyReadPending = false;
-
-        if (read.BytesRead == 0)
-        {
-            Tracing.For("Protocol").Debug(this, "HTTP/2: response body complete (stream={0})", read.StreamId);
-            state.MarkBodyDrainComplete();
-
-            if (!state.HasPendingOutbound)
-            {
-                EmitEndOfBody(read.StreamId, state);
-                CleanupBodyDrain(read.StreamId);
-                CloseStream(read.StreamId);
-            }
-            else
-            {
-                CleanupBodyDrain(read.StreamId);
-            }
-
-            return;
-        }
-
-        Tracing.For("Protocol").Trace(this, "HTTP/2: response body chunk (stream={0}, bytes={1})", read.StreamId, read.BytesRead);
-        if (!_activeBodyBuffers.TryGetValue(read.StreamId, out var buffer))
-        {
-            CleanupBodyDrain(read.StreamId);
-            return;
-        }
-
-        var data = buffer.Memory[..read.BytesRead];
-        var window = _flow.GetSendWindow(read.StreamId);
-
-        if (window >= read.BytesRead)
-        {
-            EmitFrame(new DataFrame(read.StreamId, data, endStream: false));
-            _flow.OnDataSent(read.StreamId, read.BytesRead);
-            ReadNextBodyChunk(read.StreamId);
-        }
-        else if (window > 0)
-        {
-            EmitFrame(new DataFrame(read.StreamId, data[..(int)window], endStream: false));
-            _flow.OnDataSent(read.StreamId, (int)window);
-            var remaining = read.BytesRead - (int)window;
-            var owner = MemoryPool<byte>.Shared.Rent(remaining);
-            data[(int)window..].CopyTo(owner.Memory);
-            state.EnqueueBodyChunk(new StreamBodyChunk(owner, remaining));
-        }
-        else
-        {
-            var owner = MemoryPool<byte>.Shared.Rent(read.BytesRead);
-            data[..read.BytesRead].CopyTo(owner.Memory);
-            state.EnqueueBodyChunk(new StreamBodyChunk(owner, read.BytesRead));
         }
     }
 
@@ -496,63 +403,6 @@ internal sealed class Http2ServerSessionManager
         else
         {
             EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
-        }
-    }
-
-    public void DrainOutboundBuffer(int streamId)
-    {
-        if (!_streams.TryGetValue(streamId, out var state))
-        {
-            return;
-        }
-
-        if (!state.HasPendingOutbound)
-        {
-            if (state is { HasBodyDrain: true, IsBodyDrainComplete: false, IsBodyReadPending: false })
-            {
-                ReadNextBodyChunk(streamId);
-            }
-
-            return;
-        }
-
-        while (state.PeekBodyChunk() is not null)
-        {
-            var window = _flow.GetSendWindow(streamId);
-            if (window <= 0)
-            {
-                break;
-            }
-
-            state.TryDequeueBodyChunk(out var chunk);
-            if (window >= chunk!.Length)
-            {
-                EmitFrame(new DataFrame(streamId, chunk.Owner.Memory[..chunk.Length], endStream: false));
-                _flow.OnDataSent(streamId, chunk.Length);
-                chunk.Owner.Dispose();
-            }
-            else
-            {
-                var sendable = (int)window;
-                EmitFrame(new DataFrame(streamId, chunk.Owner.Memory[..sendable], endStream: false));
-                _flow.OnDataSent(streamId, sendable);
-                var remaining = chunk.Length - sendable;
-                var owner = MemoryPool<byte>.Shared.Rent(remaining);
-                chunk.Owner.Memory.Slice(sendable, remaining).CopyTo(owner.Memory);
-                chunk.Owner.Dispose();
-                state.PrependBodyChunk(new StreamBodyChunk(owner, remaining));
-                break;
-            }
-        }
-
-        if (state is { HasPendingOutbound: false, IsBodyDrainComplete: true })
-        {
-            EmitEndOfBody(streamId, state);
-            CloseStream(streamId);
-        }
-        else if (state is { HasPendingOutbound: false, HasBodyDrain: true, IsBodyDrainComplete: false, IsBodyReadPending: false })
-        {
-            ReadNextBodyChunk(streamId);
         }
     }
 
@@ -587,29 +437,7 @@ internal sealed class Http2ServerSessionManager
             state.AbortBody();
         }
 
-        // Release response-drain resources. A buffer with a still-in-flight read is abandoned
-        // to the GC rather than returned to the pool — returning a buffer a read is still
-        // writing into is exactly the cross-stream corruption we guard against elsewhere.
-        foreach (var (streamId, buffer) in _activeBodyBuffers)
-        {
-            if (!_drainReadInFlight.Contains(streamId))
-            {
-                buffer.Dispose();
-            }
-        }
-
-        foreach (var (_, cts) in _activeBodyReadCts)
-        {
-            cts.Cancel();
-            cts.Dispose();
-        }
-
-        _activeBodyBuffers.Clear();
-        _activeBodyStreams.Clear();
-        _activeBodyReadCts.Clear();
-        _drainReadInFlight.Clear();
-        _drainBufferOrphaned.Clear();
-
+        _scheduler?.Cleanup();
         _frameDecoder.Dispose();
 
         foreach (var state in _streams.Values)
@@ -811,34 +639,19 @@ internal sealed class Http2ServerSessionManager
 
         _responseEncoder.ApplyClientSettings(settings.Parameters);
 
+        // A change in INITIAL_WINDOW_SIZE adjusts all stream send windows. Notify the
+        // scheduler so it can unblock window-blocked streams. Stream-id 0 triggers
+        // connection-level re-evaluation which covers all active drains.
         if (result.InitialWindowSizeChange.HasValue)
         {
-            _scratchKeys.Clear();
-            _scratchKeys.AddRange(_streams.Keys);
-            foreach (var streamId in _scratchKeys)
-            {
-                DrainOutboundBuffer(streamId);
-            }
+            _scheduler?.OnWindowUpdate(0);
         }
     }
 
     private void HandleWindowUpdateFrame(WindowUpdateFrame windowUpdate)
     {
         _flow.OnSendWindowUpdate(windowUpdate.StreamId, windowUpdate.Increment);
-
-        if (windowUpdate.StreamId == 0)
-        {
-            _scratchKeys.Clear();
-            _scratchKeys.AddRange(_streams.Keys);
-            foreach (var streamId in _scratchKeys)
-            {
-                DrainOutboundBuffer(streamId);
-            }
-        }
-        else
-        {
-            DrainOutboundBuffer(windowUpdate.StreamId);
-        }
+        _scheduler?.OnWindowUpdate(windowUpdate.StreamId);
     }
 
     private void HandlePingFrame(PingFrame ping)
@@ -1004,7 +817,7 @@ internal sealed class Http2ServerSessionManager
         _requestRate.Remove(streamId);
         _responseRate.Remove(streamId);
         _deferredStreamIncrements.Remove(streamId);
-        CleanupBodyDrain(streamId);
+        _scheduler?.Cancel(streamId);
 
         if (_streams.TryGetValue(streamId, out var state))
         {
@@ -1050,107 +863,59 @@ internal sealed class Http2ServerSessionManager
         var remainder = body[sent..];
         if (remainder.Length == 0)
         {
-            EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+            EmitEndOfBody(streamId, state);
             CloseStream(streamId);
             return;
         }
 
+        // Hand the remainder to the scheduler which will emit it when WINDOW_UPDATE arrives.
         state.MarkBodyDrainActive();
-        state.MarkBodyDrainComplete();
-
-        while (remainder.Length > 0)
-        {
-            var chunkSize = Math.Min(remainder.Length, maxFrame);
-            var owner = MemoryPool<byte>.Shared.Rent(chunkSize);
-            remainder[..chunkSize].CopyTo(owner.Memory);
-            state.EnqueueBodyChunk(new StreamBodyChunk(owner, chunkSize));
-            remainder = remainder[chunkSize..];
-        }
+        _scheduler!.RegisterWithLimbo(streamId, remainder, CancellationToken.None);
 
         Tracing.For("Protocol").Debug(this,
             "HTTP/2: buffered body flow-controlled (stream={0}, sent={1}, queued={2})",
             streamId, sent, body.Length - sent);
     }
 
-    private void StartStreamBodyDrain(int streamId, Stream bodyStream, long? contentLength = null)
+    IActorRef IBodyDrainTarget.StageActor => _ops.StageActor;
+
+    void IBodyDrainTarget.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
-        _activeBodyStreams[streamId] = bodyStream;
-        var maxSize = Math.Min(_bodyEncoderOptions.ChunkSize, _responseEncoder.MaxFrameSize);
-        var bufferSize = contentLength is > 0 and <= int.MaxValue
-            ? (int)Math.Min(contentLength.Value, maxSize)
-            : maxSize;
-        var buffer = MemoryPool<byte>.Shared.Rent(Math.Max(bufferSize, 256));
-        _activeBodyBuffers[streamId] = buffer;
-        _activeBodyReadCts[streamId] = new CancellationTokenSource();
-        ReadNextBodyChunk(streamId);
+        // The server ignores the endStream flag on EmitDataFrames because the end-of-body
+        // may require trailers (HEADERS frame) rather than a simple END_STREAM DATA frame.
+        // OnDrainComplete handles the trailer-aware end-of-body signaling.
+        var maxFrame = _responseEncoder.MaxFrameSize;
+        var remaining = data;
+        while (remaining.Length > maxFrame)
+        {
+            EmitFrame(new DataFrame(streamId, remaining[..maxFrame], endStream: false));
+            remaining = remaining[maxFrame..];
+        }
+
+        if (!remaining.IsEmpty)
+        {
+            EmitFrame(new DataFrame(streamId, remaining, endStream: false));
+        }
     }
 
-    private void ReadNextBodyChunk(int streamId)
+    void IBodyDrainTarget.OnDrainComplete(int streamId)
     {
-        if (!_activeBodyStreams.TryGetValue(streamId, out var stream) ||
-            !_activeBodyBuffers.TryGetValue(streamId, out var buffer))
-        {
-            return;
-        }
+        Tracing.For("Protocol").Debug(this, "HTTP/2: response body complete (stream={0})", streamId);
 
         if (_streams.TryGetValue(streamId, out var state))
         {
-            state.IsBodyReadPending = true;
+            state.MarkBodyDrainComplete();
+            EmitEndOfBody(streamId, state);
         }
 
-        var token = _activeBodyReadCts.TryGetValue(streamId, out var cts) ? cts.Token : CancellationToken.None;
-        var vt = stream.ReadAsync(buffer.Memory, token);
-        if (vt.IsCompletedSuccessfully)
-        {
-            // Completed inline on the actor thread: the buffer was never exposed across a
-            // message boundary, so no in-flight tracking is needed.
-            HandleStreamBodyRead(new StreamBodyReadComplete(streamId, vt.Result));
-            return;
-        }
-
-        // The read is now genuinely in flight on another thread writing into the reusable
-        // buffer. Mark it so CleanupBodyDrain defers buffer disposal until it completes.
-        _drainReadInFlight.Add(streamId);
-        vt.PipeTo(
-            _ops.StageActor,
-            success: bytesRead => new StreamBodyReadComplete(streamId, bytesRead),
-            failure: ex => new StreamBodyReadFailed(streamId, ex));
+        CloseStream(streamId);
     }
 
-    private void CleanupBodyDrain(int streamId)
+    void IBodyDrainTarget.OnDrainFailed(int streamId, Exception reason)
     {
-        _activeBodyStreams.Remove(streamId);
-
-        if (_drainReadInFlight.Contains(streamId))
-        {
-            // A ReadAsync into the reusable drain buffer is still in flight. Returning the
-            // buffer to the pool now would let a concurrent stream re-rent and overwrite it
-            // mid-read. Cancel the read and defer buffer/cts disposal to its completion.
-            _drainBufferOrphaned.Add(streamId);
-            if (_activeBodyReadCts.TryGetValue(streamId, out var pendingCts))
-            {
-                pendingCts.Cancel();
-            }
-
-            return;
-        }
-
-        DisposeDrainResources(streamId);
-    }
-
-    private void DisposeDrainResources(int streamId)
-    {
-        if (_activeBodyBuffers.Remove(streamId, out var buffer))
-        {
-            buffer.Dispose();
-        }
-
-        if (_activeBodyReadCts.Remove(streamId, out var cts))
-        {
-            cts.Dispose();
-        }
-
-        _drainBufferOrphaned.Remove(streamId);
+        Tracing.For("Protocol").Warning(this,
+            "HTTP/2: Response body drain failed for stream {0}: {1}", streamId, reason.Message);
+        EmitRstStream(streamId, Http2ErrorCode.InternalError);
     }
 
     private void EmitFrame(Http2Frame frame)
