@@ -35,8 +35,14 @@ public sealed class Http11ServerHeadResponseSpec
         var fc = new TurboFeatureCollection();
         fc.Set<IHttpRequestFeature>(new TurboHttpRequestFeature { Method = method });
 
-        var responseFeature = new TurboHttpResponseFeature { StatusCode = 200 };
-        responseFeature.Headers["Content-Length"] = body.Length.ToString();
+        var responseFeature = new TurboHttpResponseFeature
+        {
+            StatusCode = 200,
+            Headers =
+            {
+                ["Content-Length"] = body.Length.ToString()
+            }
+        };
 
         var bodyFeature = new TurboHttpResponseBodyFeature();
         bodyFeature.SetResponseFeature(responseFeature);

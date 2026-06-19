@@ -15,8 +15,13 @@ public sealed class MaxRequestBufferSizeSpec
     [Fact(Timeout = 5000)]
     public void MaxRequestBufferSize_should_drive_tcp_input_pause_threshold()
     {
-        var options = new TurboServerOptions();
-        options.Limits.MaxRequestBufferSize = 256 * 1024;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxRequestBufferSize = 256 * 1024
+            }
+        };
         options.Listen(IPAddress.Loopback, 5061);
 
         var binding = Assert.Single(new EndpointResolver().Resolve(options));
@@ -30,8 +35,13 @@ public sealed class MaxRequestBufferSizeSpec
     [Fact(Timeout = 5000)]
     public void Explicit_per_listener_input_pause_should_override_max_request_buffer_size()
     {
-        var options = new TurboServerOptions();
-        options.Limits.MaxRequestBufferSize = 256 * 1024;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxRequestBufferSize = 256 * 1024
+            }
+        };
         options.Listen(IPAddress.Loopback, 5062, listen =>
         {
             listen.Transport = new TransportBufferOptions { InputPauseThreshold = 2 * 1024 * 1024 };
@@ -46,8 +56,13 @@ public sealed class MaxRequestBufferSizeSpec
     [Fact(Timeout = 5000)]
     public void Null_max_request_buffer_size_should_fall_back_to_transport_default()
     {
-        var options = new TurboServerOptions();
-        options.Limits.MaxRequestBufferSize = null;
+        var options = new TurboServerOptions
+        {
+            Limits =
+            {
+                MaxRequestBufferSize = null
+            }
+        };
         options.Listen(IPAddress.Loopback, 5063);
 
         var binding = Assert.Single(new EndpointResolver().Resolve(options));

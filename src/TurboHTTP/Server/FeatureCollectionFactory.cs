@@ -15,7 +15,6 @@ internal static class FeatureCollectionFactory
         ConnectionPoolContext pool,
         TurboHttpRequestFeature requestFeature,
         bool hasBody,
-        IServiceProvider? services = null,
         IHttpConnectionFeature? connectionFeature = null,
         TlsHandshakeFeature? tlsFeature = null,
         long? maxRequestBodySize = null)
@@ -35,7 +34,6 @@ internal static class FeatureCollectionFactory
         ConnectionPoolContext pool,
         bool hasBody,
         out TurboHttpRequestFeature requestFeature,
-        IServiceProvider? services = null,
         IHttpConnectionFeature? connectionFeature = null,
         TlsHandshakeFeature? tlsFeature = null,
         long? maxRequestBodySize = null)

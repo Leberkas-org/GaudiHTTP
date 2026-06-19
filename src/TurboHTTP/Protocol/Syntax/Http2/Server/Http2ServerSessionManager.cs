@@ -274,7 +274,10 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             features.Get<IHttpRequestFeature>()?.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
         var hasBody = !isHead
                       && (contentLength is not null and not 0
-                          || (contentLength is null && responseBody is TurboHttpResponseBodyFeature { HasStarted: true }));
+                          || (contentLength is null && responseBody is TurboHttpResponseBodyFeature
+                          {
+                              HasStarted: true
+                          }));
 
         var frames = _responseEncoder.EncodeHeaders(features, streamId, hasBody);
         for (var i = 0; i < frames.Count; i++)
@@ -381,6 +384,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
                     EmitFrame(new WindowUpdateFrame(consumed.StreamId, inc));
                     _deferredStreamIncrements.Remove(consumed.StreamId);
                 }
+
                 break;
         }
     }
@@ -566,7 +570,8 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
             }
             else
             {
-                Tracing.For("Protocol").Warning(this, "HTTP/2: stream-level flow control violation (stream={0})", streamId);
+                Tracing.For("Protocol")
+                    .Warning(this, "HTTP/2: stream-level flow control violation (stream={0})", streamId);
                 EmitRstStream(streamId, errorCode);
             }
 
@@ -689,7 +694,8 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
 
     private void HandleRstStreamFrame(RstStreamFrame rst)
     {
-        Tracing.For("Protocol").Debug(this, "HTTP/2: received RST_STREAM (stream={0}, error={1})", rst.StreamId, rst.ErrorCode);
+        Tracing.For("Protocol").Debug(this, "HTTP/2: received RST_STREAM (stream={0}, error={1})", rst.StreamId,
+            rst.ErrorCode);
         CloseStream(rst.StreamId);
         TrackStreamReset();
     }
@@ -748,7 +754,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         {
             var hasBody = !endStream;
             var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
-                out var requestFeature, _ops.Services, _ops.ConnectionFeature,
+                out var requestFeature, _ops.ConnectionFeature,
                 _ops.TlsHandshakeFeature, _maxRequestBodySize);
 
             _requestDecoder.PopulateRequestFeature(streamId, state, requestFeature);
@@ -770,13 +776,15 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
                 queued.SlotFreed += () =>
                     _ops.StageActor.Tell(new StreamBodyConsumed(capturedBodyStreamId), ActorRefs.NoSender);
             }
+
             features.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
 
             var capturedStreamId = streamId;
             features.Set<IHttpResetFeature>(new TurboHttpResetFeature(errorCode =>
                 EmitRstStream(capturedStreamId, (Http2ErrorCode)errorCode)));
 
-            Tracing.For("Protocol").Debug(this, "HTTP/2: request dispatched (stream={0}, hasBody={1})", streamId, hasBody);
+            Tracing.For("Protocol")
+                .Debug(this, "HTTP/2: request dispatched (stream={0}, hasBody={1})", streamId, hasBody);
             _ops.OnRequest(features);
         }
         catch (HttpProtocolException ex)
@@ -841,7 +849,8 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget
         }
     }
 
-    private void SendBufferedBodyWithFlowControl(int streamId, StreamState state, ReadOnlyMemory<byte> body, long window)
+    private void SendBufferedBodyWithFlowControl(int streamId, StreamState state, ReadOnlyMemory<byte> body,
+        long window)
     {
         var maxFrame = _responseEncoder.MaxFrameSize;
         var sent = 0;

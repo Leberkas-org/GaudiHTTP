@@ -215,7 +215,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             {
                 _ops.OnScheduleTimer(RequestHeadersTimer, _requestHeadersTimeout);
                 _requestHeadersTimerActive = true;
-                Tracing.For("Protocol").Debug(this, "request headers timer scheduled ({0}ms)", _requestHeadersTimeout.TotalMilliseconds);
+                Tracing.For("Protocol").Debug(this, "request headers timer scheduled ({0}ms)",
+                    _requestHeadersTimeout.TotalMilliseconds);
             }
 
             while (pos < span.Length && !_bodyStreaming)
@@ -248,7 +249,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
                 var hasBody = outcome == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
                 var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
-                    out var feature, _ops.Services, _ops.ConnectionFeature,
+                    out var feature, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
                 _decoder.PopulateRequestFeature(feature);
 
@@ -378,6 +379,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 }
             }
         }
+
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
         var estimatedSize = EstimateResponseHeaderSize(responseFeature);
@@ -442,7 +444,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
             _activeResponseBodyWriter = writer;
 
-            _serialPump = new SerialBodyPump(this, EnsureConnectionCts(), _bodyEncoderOptions.ChunkSize, maxCapacity: 2);
+            _serialPump =
+                new SerialBodyPump(this, EnsureConnectionCts(), _bodyEncoderOptions.ChunkSize, maxCapacity: 2);
             _serialPump.Register(bodyStream, contentLength, CancellationToken.None);
         }
         else
@@ -655,10 +658,6 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         switchable.RequestProtocolSwitch(ops => new Http2ServerStateMachine(_h2UpgradeOptions, ops));
 
         return true;
-    }
-
-    internal void ResumeBody()
-    {
     }
 
     public void Cleanup()

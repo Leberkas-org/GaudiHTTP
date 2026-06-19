@@ -8,15 +8,6 @@ namespace TurboHTTP.Tests.Server;
 public sealed class ContextPoolingSpec
 {
     private readonly ConnectionPoolContext _pool = new();
-    private static IFeatureCollection CreateContext(IFeatureCollection? features = null)
-    {
-        features ??= new FeatureCollection();
-        features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature());
-        features.Set<IHttpResponseBodyFeature>(new TurboHttpResponseBodyFeature());
-
-        return features;
-    }
 
     [Fact(Timeout = 5000)]
     public void TurboHttpResponseFeature_Reset_clears_status_code()
@@ -99,7 +90,6 @@ public sealed class ContextPoolingSpec
             _pool,
             new TurboHttpRequestFeature(),
             hasBody: false,
-            services: null,
             connectionFeature: null);
 
         Assert.NotNull(ctx2);

@@ -141,8 +141,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
             if (_bodyStreaming && _decoder.StreamingReader is not null)
             {
-                var outcome = _decoder.Feed(buffer.Memory[pos..], out var bodyConsumed);
-                pos += bodyConsumed;
+                var outcome = _decoder.Feed(buffer.Memory[pos..], out _);
                 if (_decoder.LastBodyBytesConsumed > 0)
                 {
                     _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());
@@ -168,11 +167,11 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
                 EnsureRateTimer();
             }
 
-            if (result == DecodeOutcome.Complete || result == DecodeOutcome.HeadersReady)
+            if (result is DecodeOutcome.Complete or DecodeOutcome.HeadersReady)
             {
                 var hasBody = result == DecodeOutcome.HeadersReady || _decoder.CurrentBodyReader is not null;
                 var features = FeatureCollectionFactory.Create(_ops.PoolContext!, hasBody,
-                    out var feature, _ops.Services, _ops.ConnectionFeature,
+                    out var feature, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
                 _decoder.PopulateRequestFeature(feature);
 
@@ -196,8 +195,7 @@ internal sealed class Http10ServerStateMachine : IServerStateMachine, IBodyDrain
 
                     if (pos < buffer.Memory.Length)
                     {
-                        var bodyOutcome = _decoder.Feed(buffer.Memory[pos..], out var bodyConsumed);
-                        pos += bodyConsumed;
+                        var bodyOutcome = _decoder.Feed(buffer.Memory[pos..], out _);
                         if (_decoder.LastBodyBytesConsumed > 0)
                         {
                             _requestRate.Observe(0, _decoder.LastBodyBytesConsumed, Now());

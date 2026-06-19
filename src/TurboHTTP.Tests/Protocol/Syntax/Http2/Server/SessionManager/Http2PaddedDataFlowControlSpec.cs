@@ -71,9 +71,14 @@ public sealed class Http2PaddedDataFlowControlSpec
     public void Padded_data_should_count_full_payload_against_stream_flow_control()
     {
         var ops = new FakeServerOps();
-        var baseOptions = new TurboServerOptions();
-        baseOptions.Http2.InitialStreamWindowSize = 100;
-        baseOptions.Http2.EnableAdaptiveWindowScaling = false;
+        var baseOptions = new TurboServerOptions
+        {
+            Http2 =
+            {
+                InitialStreamWindowSize = 100,
+                EnableAdaptiveWindowScaling = false
+            }
+        };
         var sm = new Http2ServerSessionManager(baseOptions.ToHttp2Options(), ops);
 
         sm.PreStart();

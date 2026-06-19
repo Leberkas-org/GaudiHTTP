@@ -26,8 +26,13 @@ public sealed class QuicMaxConcurrentStreamsSpec
     public void Quic_binding_should_reflect_configured_max_concurrent_streams()
     {
         using var cert = CreateSelfSignedCert();
-        var options = new TurboServerOptions();
-        options.Http3.MaxConcurrentStreams = 42;
+        var options = new TurboServerOptions
+        {
+            Http3 =
+            {
+                MaxConcurrentStreams = 42
+            }
+        };
         options.Listen(IPAddress.Loopback, 5051, listen =>
         {
             listen.Protocols = HttpProtocols.Http3;
