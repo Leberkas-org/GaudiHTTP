@@ -172,7 +172,16 @@ internal sealed class FlowController : IFlowController<int>
                         {
                             increment += newWindow - _initialRecvStreamWindow;
                             _initialRecvStreamWindow = newWindow;
-                            _windowUpdateThreshold = Math.Max(8 * 1024, newWindow / 4);
+
+                            // Do NOT grow _windowUpdateThreshold with the scaled receive window. The threshold
+                            // gates when a stream WINDOW_UPDATE is emitted, and it must stay below the window the
+                            // SERVER enforces for a freshly opened stream — which is the advertised
+                            // SETTINGS_INITIAL_WINDOW_SIZE (we never re-advertise a larger one), not our scaled
+                            // receive window. If the threshold grew past the advertised initial, a new stream's
+                            // server send window would be exhausted before the client ever accumulated enough to
+                            // emit a WINDOW_UPDATE, deadlocking the stream after the first ~1 MB. Keeping it at
+                            // advertised/4 keeps replenishment ahead of the server on every stream.
+                            // Repro: TurboHTTP.IntegrationTests.Client/H2/LargeDownloadRegressionSpec.
                         }
                     }
 
