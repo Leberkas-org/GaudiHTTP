@@ -51,7 +51,11 @@ internal static class OptionsFactory
                 MaxConnectionsPerHost = clientOptions.Http3.MaxConnectionsPerServer,
                 MaxBidirectionalStreams = clientOptions.Http3.MaxConcurrentStreams,
                 ApplicationProtocols = alpn,
-                AutoReconnect = true,
+                // AutoReconnect stays at its default (false), matching TCP/TLS: reconnect is driven by
+                // Http3ClientStateMachine (StreamClosed(Error)/TransportDisconnected → OnConnectionLost →
+                // ConnectTransport + ReconnectionManager), exactly like H1.1/H2 over TCP. A transport-level
+                // auto-reconnect races the SM-driven one and aborts healthy concurrent streams on every
+                // transient — the H3-only instability seen in the 2026-06-19 benchmarks.
                 ConnectionLifetime = clientOptions.PooledConnectionLifetime
             };
         }

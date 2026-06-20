@@ -22,6 +22,13 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     private readonly Server.ServerStreamResolver _serverStreamResolver;
 
+    // QUIC reports a connection failure as StreamClosed(Error) per stream FOLLOWED by a
+    // TransportDisconnected. When the per-stream errors already drove the reconnect, the trailing
+    // TransportDisconnected belongs to the SAME failure and must be swallowed once — not counted as a
+    // failed reconnect attempt. Set when a stream-error starts the reconnect; consumed by the next
+    // TransportDisconnected and cleared on a successful reconnect.
+    private bool _expectTrailingDisconnect;
+
     public bool CanAcceptRequest => !Connection.GoAwayReceived && !IsReconnecting && _clientSession.CanOpenStream;
 
     public bool IsReconnecting => _reconnect.IsReconnecting;
@@ -92,13 +99,22 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
             case TransportDisconnected when IsReconnecting:
                 {
+                    // A trailing disconnect from a stream-error-driven failure (StreamClosed(Error) per
+                    // stream + a final TransportDisconnected) is the same failure, not a failed reconnect
+                    // attempt — swallow it once. A later disconnect IS the new connect attempt failing.
+                    if (_expectTrailingDisconnect)
+                    {
+                        _expectTrailingDisconnect = false;
+                        return;
+                    }
+
                     OnReconnectAttemptFailed();
                     return;
                 }
 
             case TransportDisconnected when HasInFlightRequests:
                 {
-                    OnConnectionLost();
+                    OnConnectionLost(expectTrailingDisconnect: false);
                     return;
                 }
 
@@ -135,7 +151,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
                     Connection.OnStreamClosed();
                     if (streamClosed.Reason == DisconnectReason.Error)
                     {
-                        OnConnectionLost();
+                        OnConnectionLost(expectTrailingDisconnect: true);
                     }
                     else
                     {
@@ -268,8 +284,21 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         return new GoAwayFrame(0);
     }
 
-    private void OnConnectionLost()
+    private void OnConnectionLost(bool expectTrailingDisconnect)
     {
+        // Idempotent: QUIC surfaces one connection failure as a StreamClosed(Error) PER stream (plus a
+        // trailing TransportDisconnected), so this can fire several times for a single failure. Only the
+        // first call may capture the in-flight requests and start the reconnect. A second call would
+        // re-buffer an ALREADY-DRAINED (empty) correlation map via ReconnectionManager.OnConnectionLost,
+        // wiping the replay set (losing those requests) and emitting a duplicate ConnectTransport. This
+        // mirrors TCP, where the transport reports a single disconnect and the state machine owns reconnect.
+        if (IsReconnecting)
+        {
+            return;
+        }
+
+        _expectTrailingDisconnect = expectTrailingDisconnect;
+
         Tracing.For("Protocol").Info(this, "HTTP/3: connection lost (inFlight={0})", HasInFlightRequests);
         var correlations = _clientSession.GetCorrelationMap().Values.ToList();
         _reconnect.OnConnectionLost(correlations);
@@ -286,6 +315,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
 
     private void OnConnectionRestored()
     {
+        _expectTrailingDisconnect = false;
         Tracing.For("Protocol").Info(this, "HTTP/3: connection restored");
         var preface = _clientSession.TryBuildControlPreface();
         if (preface is not null)
