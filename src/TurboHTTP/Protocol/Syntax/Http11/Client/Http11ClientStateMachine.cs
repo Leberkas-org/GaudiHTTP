@@ -30,6 +30,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
     private IStreamingBodyReader? _activeStreamingReader;
     private TransportBuffer? _heldBuffer;
     private int _heldBufferOffset;
+    private TransportBuffer? _partialResponse;
     private bool _draining;
     private SerialBodyPump? _serialPump;
     private CancellationTokenSource? _connectionCts;
@@ -231,6 +232,14 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             return;
         }
 
+        // Prepend any unconsumed prefix retained from the previous read — an incomplete status line
+        // or header line split across the read boundary — so the decoder resumes from it instead of
+        // losing it (which would desync the connection and fault subsequent pipelined responses).
+        if (_partialResponse is not null)
+        {
+            buffer = CombineWithPartial(buffer);
+        }
+
         DecodeResponse(buffer);
     }
 
@@ -321,6 +330,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
         _heldBuffer?.Dispose();
         _heldBuffer = null;
         _heldBufferOffset = 0;
+        ClearPartial();
         _connectionCloseReceived = false;
         _draining = false;
         _serialPump?.Cleanup();
@@ -369,6 +379,13 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                         _heldBuffer = buffer;
                         _heldBufferOffset = offset;
                         bufferHeld = true;
+                    }
+                    else if (offset < memory.Length)
+                    {
+                        // Incomplete status line / header (or a split frame header) with no streaming
+                        // back-pressure: retain the unconsumed prefix so it survives this buffer's
+                        // disposal and is re-presented ahead of the next read.
+                        RetainPartial(memory.Span[offset..]);
                     }
 
                     return;
@@ -419,6 +436,8 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
             _pendingBodyResponse = null;
             _activeStreamingReader = null;
             _decoder.Reset();
+            // The byte stream is desynced after a decode failure; any retained prefix is now garbage.
+            ClearPartial();
         }
         finally
         {
@@ -427,6 +446,39 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
                 buffer.Dispose();
             }
         }
+    }
+
+    // Merges the retained partial prefix with the next inbound buffer into a single contiguous
+    // buffer, disposing both inputs. The caller takes ownership of (and disposes) the result.
+    private TransportBuffer CombineWithPartial(TransportBuffer incoming)
+    {
+        var partial = _partialResponse!;
+        _partialResponse = null;
+
+        var combined = TransportBuffer.Rent(partial.Length + incoming.Length);
+        partial.Span.CopyTo(combined.FullMemory.Span);
+        incoming.Span.CopyTo(combined.FullMemory.Span[partial.Length..]);
+        combined.Length = partial.Length + incoming.Length;
+
+        partial.Dispose();
+        incoming.Dispose();
+        return combined;
+    }
+
+    // Copies the unconsumed prefix into a freshly rented buffer so it outlives the current
+    // (about-to-be-disposed) inbound buffer. Bounded by the decoder's max header size.
+    private void RetainPartial(ReadOnlySpan<byte> remainder)
+    {
+        var buf = TransportBuffer.Rent(remainder.Length);
+        remainder.CopyTo(buf.FullMemory.Span);
+        buf.Length = remainder.Length;
+        _partialResponse = buf;
+    }
+
+    private void ClearPartial()
+    {
+        _partialResponse?.Dispose();
+        _partialResponse = null;
     }
 
     private void StartBodyDrain(Stream bodyStream, long? contentLength, Version httpVersion)
@@ -440,6 +492,9 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
     private void HandleDisconnect(TransportDisconnected disconnect)
     {
+        // The connection's byte stream is gone; a retained partial prefix from it is now stale.
+        ClearPartial();
+
         var isGraceful = disconnect.Reason == DisconnectReason.Graceful;
 
         if (isGraceful)
