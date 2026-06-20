@@ -54,17 +54,20 @@ public sealed class LargeDownloadRegressionSpec : IntegrationSpecBase
                 new HttpRequestMessage(HttpMethod.Get, $"/bytes/{size}"), cts.Token);
 
             // This guard needs a server that streams an arbitrary-size body. The Kestrel backend's
-            // /bytes/{n} does; the Docker (httpbin) backend caps the size and returns non-200. A non-200
-            // means the backend can't provide the body — skip, don't fail (the stall we actually guard
-            // against surfaces as the timeout below, not as a status code).
-            if (response.StatusCode != HttpStatusCode.OK)
+            // /bytes/{n} does; the Docker (httpbin) backend caps the size and rejects it up front with 400
+            // (some servers use 413). Skip ONLY on those size-rejection statuses — any other non-200
+            // (404, 5xx, ...) is a real failure and must not be masked. The stall this guards against
+            // surfaces as the 30 s timeout below, never as a status code.
+            if (response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.RequestEntityTooLarge)
             {
                 response.Dispose();
                 Assert.Skip(
-                    $"Backend returned {(int)response.StatusCode} for /bytes/{size}; it does not serve a body "
-                    + "of this size (run with the Kestrel backend to exercise the H2 receive flow-control fix).");
+                    $"Backend rejected /bytes/{size} with {(int)response.StatusCode} (size cap); "
+                    + "run with the Kestrel backend to exercise the H2 receive flow-control fix.");
                 return;
             }
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             // Drain exactly like the benchmark (Content.CopyToAsync(Stream.Null)).
             await response.Content.CopyToAsync(Stream.Null, cts.Token);
