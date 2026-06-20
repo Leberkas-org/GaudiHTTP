@@ -11,9 +11,9 @@ public sealed class HpackTableRepresentationSpec
         var table = new HpackDynamicTable();
         table.SetMaxSize(100);
 
-        table.Add("name1", "value1");
-        table.Add("name2", "value2");
-        table.Add("name3", "value3");
+        table.Add("name1", "value1", 5, 6);
+        table.Add("name2", "value2", 5, 6);
+        table.Add("name3", "value3", 5, 6);
 
         Assert.True(table.CurrentSize <= 100);
     }
@@ -117,9 +117,9 @@ public sealed class HpackTableRepresentationSpec
     public void HpackTableRepresentation_should_preserve_entry_order_after_size_update()
     {
         var table = new HpackDynamicTable();
-        table.Add("a", "1");
-        table.Add("b", "2");
-        table.Add("c", "3");
+        table.Add("a", "1", 1, 1);
+        table.Add("b", "2", 1, 1);
+        table.Add("c", "3", 1, 1);
 
         table.SetMaxSize(1024);
 
