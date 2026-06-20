@@ -242,7 +242,9 @@ public sealed class Http2FlowControlSpec
         var part2 = bytes[7..];
 
         var decoder = new FrameDecoder();
-        var frames1 = decoder.Decode(part1);
+        // Decode returns the decoder's reused list, so snapshot the first result before the second
+        // Decode call repopulates it (frames1 is asserted after frames2 is decoded).
+        var frames1 = decoder.Decode(part1).ToArray();
         var frames2 = decoder.Decode(part2);
 
         Assert.Empty(frames1); // incomplete
