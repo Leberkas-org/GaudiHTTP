@@ -69,6 +69,47 @@ internal sealed class QueuedBodyStream(QueuedBodyReader reader) : Stream
         return CopyFromCurrent(buffer.Span);
     }
 
+    public override async Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+
+        if (_done)
+        {
+            return;
+        }
+
+        // Finish any partially-read chunk from a prior Read/ReadAsync before draining the reader.
+        // The reader still owns this chunk's rental (AdvanceTo runs only once it is fully consumed),
+        // so release it after the write completes.
+        if (!_current.IsEmpty)
+        {
+            await destination.WriteAsync(_current[_offset..], cancellationToken).ConfigureAwait(false);
+            _current = default;
+            _offset = 0;
+            reader.AdvanceTo();
+        }
+
+        while (true)
+        {
+            var result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+            if (result.IsCompleted)
+            {
+                _done = true;
+                return;
+            }
+
+            // Write the pooled chunk straight to the destination — no per-read copy into an
+            // 81920-byte framework rental. AdvanceTo (which returns the rental to the pool) runs
+            // only AFTER the write await completes, so the buffer is never recycled while in use.
+            if (!result.Memory.IsEmpty)
+            {
+                await destination.WriteAsync(result.Memory, cancellationToken).ConfigureAwait(false);
+            }
+
+            reader.AdvanceTo();
+        }
+    }
+
     private int CopyFromCurrent(Span<byte> destination)
     {
         var available = _current.Length - _offset;
