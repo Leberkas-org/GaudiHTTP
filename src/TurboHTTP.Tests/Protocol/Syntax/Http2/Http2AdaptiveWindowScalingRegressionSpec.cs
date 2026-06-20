@@ -117,4 +117,57 @@ public sealed class Http2AdaptiveWindowScalingRegressionSpec
             Assert.Equal(Start, fc.CurrentStreamWindow);
         }
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9113-6.9")]
+    public void A_new_stream_after_window_scaling_must_be_replenished_within_the_advertised_initial_window()
+    {
+        // Fast, deterministic UNIT repro for the H2 single-connection large-download deadlock — the
+        // mechanism behind the resource-heavy integration repro
+        // (TurboHTTP.IntegrationTests.Client/H2/LargeDownloadRegressionSpec).
+        //
+        // The adaptive scaler grows the GLOBAL per-stream WINDOW_UPDATE threshold, but a freshly opened
+        // stream's *server* send window is still the advertised SETTINGS_INITIAL_WINDOW_SIZE (Start) —
+        // we never re-advertise a larger one. If the threshold grew past Start, the new stream's server
+        // window is exhausted before the client ever accumulates enough to emit a WINDOW_UPDATE, so the
+        // stream deadlocks. No server, no sockets, no concurrency needed to pin it.
+        var clock = new FakeTimeProvider();
+        var fc = NewScaling(clock);
+        EstablishMinRtt(fc, clock, 100);
+
+        // Ratchet the adaptive window (and, before the fix, the shared WU threshold) far above Start.
+        for (var round = 0; round < 12; round++)
+        {
+            var window = fc.CurrentStreamWindow;
+            fc.OnInboundData(1, window / 2);
+            clock.Advance(TimeSpan.FromMilliseconds(10));
+            fc.OnInboundData(1, window - window / 2);
+        }
+
+        Assert.True(fc.CurrentStreamWindow >= Start * 4,
+            "precondition: the scaler must have grown the window well past the advertised initial");
+
+        // A brand-new stream. Its server send window is the advertised initial (Start), NOT the scaled
+        // window. Deliver up to the advertised window in small chunks: a WINDOW_UPDATE MUST be emitted
+        // before the advertised window is consumed, or the server stalls and the stream deadlocks.
+        const int newStream = 3;
+        const int chunk = 16 * 1024;
+        var consumed = 0;
+        var emittedWindowUpdate = false;
+        while (consumed < Start)
+        {
+            var result = fc.OnInboundData(newStream, chunk);
+            Assert.True(result.Success, "delivering within the advertised window must never violate flow control");
+            consumed += chunk;
+            if (result.StreamWindowUpdate is not null)
+            {
+                emittedWindowUpdate = true;
+                break;
+            }
+        }
+
+        Assert.True(emittedWindowUpdate,
+            $"a new stream must receive a WINDOW_UPDATE within its advertised window ({Start} bytes); " +
+            "otherwise the server send window is exhausted before replenishment and the stream deadlocks.");
+    }
 }
