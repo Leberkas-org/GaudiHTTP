@@ -44,6 +44,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
     public bool CanOpenStream => _tracker.CanOpenStream();
     public bool GoAwayReceived => _flow.GoAwayReceived;
     public int GoAwayLastStreamId { get; private set; }
+    public bool GoAwayWasGraceful { get; private set; }
     public bool HasInFlightRequests => _correlationMap.Count > 0 || _streams.Count > 0;
     public bool HasActiveStreams => _streams.Count > 0;
     public RequestEndpoint Endpoint { get; private set; }
@@ -410,6 +411,33 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         return _correlationMap;
     }
 
+    /// <summary>
+    /// True if any in-flight request occupies a stream id at or below <paramref name="lastStreamId"/> —
+    /// i.e. a stream the GOAWAY sender committed to finish (RFC 9113 §6.8). When present, a graceful
+    /// GOAWAY is drained on the open connection; when absent there is nothing to wait for, so the
+    /// connection is reconnected immediately to replay the discarded streams.
+    /// </summary>
+    public bool HasInFlightStreamsAtOrBelow(int lastStreamId)
+    {
+        foreach (var streamId in _correlationMap.Keys)
+        {
+            if (streamId <= lastStreamId)
+            {
+                return true;
+            }
+        }
+
+        foreach (var streamId in _streams.Keys)
+        {
+            if (streamId <= lastStreamId)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public bool HasReceivedHeaders(int streamId)
     {
         return _streams.GetValueOrDefault(streamId)?.HasResponse ?? false;
@@ -435,6 +463,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         _requestEncoder.ResetHpack();
         _responseDecoder.ResetHpack();
         _prefaceSent = false;
+        GoAwayWasGraceful = false;
     }
 
     public void Cleanup()
@@ -604,8 +633,9 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
     {
         _flow.OnGoAway();
         GoAwayLastStreamId = goAway.LastStreamId;
+        GoAwayWasGraceful = goAway.ErrorCode == Http2ErrorCode.NoError;
         Tracing.For("Protocol").Info(this,
-            "HTTP/2: GOAWAY received from {0} - LastStreamId={1}, ErrorCode={2}. Reconnecting", Endpoint.Host,
+            "HTTP/2: GOAWAY received from {0} - LastStreamId={1}, ErrorCode={2}", Endpoint.Host,
             goAway.LastStreamId, goAway.ErrorCode);
     }
 
