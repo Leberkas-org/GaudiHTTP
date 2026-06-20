@@ -29,6 +29,45 @@ public sealed class Http3ClientConnectionErrorSpec
     }
 
     [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9114-5.2")]
+    public void Repeated_stream_error_should_trigger_exactly_one_reconnect()
+    {
+        // QUIC reports a single connection failure as a StreamClosed(Error) PER stream (plus a trailing
+        // TransportDisconnected). Each routes to OnConnectionLost; only the FIRST may start the reconnect.
+        // Without idempotency the second call re-buffers an already-drained (empty) correlation map —
+        // wiping the replay set — and emits a duplicate ConnectTransport.
+        var sm = CreateMachine();
+        sm.OnRequest(new HttpRequestMessage(HttpMethod.Get, "https://example.com/") { Version = new Version(3, 0) });
+        _clientOps.Outbound.Clear();
+
+        sm.DecodeServerData(new StreamClosed(0, DisconnectReason.Error));
+        sm.DecodeServerData(new StreamClosed(4, DisconnectReason.Error));
+
+        Assert.True(sm.IsReconnecting);
+        Assert.Single(_clientOps.Outbound, o => o is ConnectTransport);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9114-5.2")]
+    public void Connection_failure_as_stream_errors_then_disconnect_should_reconnect_once()
+    {
+        // The full QUIC connection-failure signal pattern that an AutoReconnect=false (TCP-style) transport
+        // emits: StreamClosed(Error) per stream, then a trailing TransportDisconnected. The state machine
+        // must coalesce all of it into exactly ONE reconnect — the trailing disconnect is the same failure,
+        // not a failed reconnect attempt (which would emit a second ConnectTransport / burn an attempt).
+        var sm = CreateMachine();
+        sm.OnRequest(new HttpRequestMessage(HttpMethod.Get, "https://example.com/") { Version = new Version(3, 0) });
+        _clientOps.Outbound.Clear();
+
+        sm.DecodeServerData(new StreamClosed(0, DisconnectReason.Error));
+        sm.DecodeServerData(new StreamClosed(4, DisconnectReason.Error));
+        sm.DecodeServerData(new TransportDisconnected(DisconnectReason.Error));
+
+        Assert.True(sm.IsReconnecting);
+        Assert.Single(_clientOps.Outbound, o => o is ConnectTransport);
+    }
+
+    [Fact(Timeout = 5000)]
     [Trait("RFC", "RFC9114-7.2.4")]
     public void Second_settings_frame_on_control_stream_should_disconnect()
     {
