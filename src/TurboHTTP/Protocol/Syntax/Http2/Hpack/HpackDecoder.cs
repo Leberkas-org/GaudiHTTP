@@ -125,7 +125,8 @@ internal sealed class HpackDecoder
                 tableSizeUpdateAllowed = false;
                 var (header, nbl, vbl) = ReadLiteralHeaderWithLengths(data, ref pos, prefixBits: 6, neverIndex: false);
                 CheckHeaderListSize(ref cumulativeHeaderListSize, nbl, vbl);
-                _table.Add(header.Name, header.Value);
+                // Reuse the byte lengths just read instead of recomputing GetByteCount inside Add.
+                _table.Add(header.Name, header.Value, nbl, vbl);
                 _headers.Add(header);
             }
             // RFC 7541 §6.3: Dynamic Table Size Update - bit pattern: 001xxxxx

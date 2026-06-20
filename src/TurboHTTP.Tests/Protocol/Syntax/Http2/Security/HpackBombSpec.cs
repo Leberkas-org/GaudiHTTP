@@ -74,7 +74,9 @@ public sealed class HpackBombSpec
         // Fill the table
         for (var i = 0; i < 50; i++)
         {
-            table.Add($"header-{i}", $"value-{i}");
+            var name = $"header-{i}";
+            var value = $"value-{i}";
+            table.Add(name, value, name.Length, value.Length);
         }
 
         Assert.True(table.Count > 0);
@@ -317,7 +319,8 @@ public sealed class HpackBombSpec
         // 4096 / 35 ≈ 117 entries max
         for (var i = 0; i < 200; i++)
         {
-            table.Add($"h{i}", "v");
+            var name = $"h{i}";
+            table.Add(name, "v", name.Length, 1);
         }
 
         // Table should never exceed max size
@@ -347,7 +350,9 @@ public sealed class HpackBombSpec
             // Fill with entries
             for (var i = 0; i < 30; i++)
             {
-                table.Add($"c{cycle}-h{i}", new string('x', 20));
+                var name = $"c{cycle}-h{i}";
+                var value = new string('x', 20);
+                table.Add(name, value, name.Length, value.Length);
             }
 
             // Reset to zero
@@ -372,11 +377,12 @@ public sealed class HpackBombSpec
         table.SetMaxSize(64); // Very small table
 
         // Add a normal entry first
-        table.Add("a", "b"); // 1 + 1 + 32 = 34 bytes
+        table.Add("a", "b", 1, 1); // 1 + 1 + 32 = 34 bytes
         Assert.Equal(1, table.Count);
 
         // Add an oversized entry: name(1) + value(100) + 32 = 133 > 64
-        table.Add("x", new string('Z', 100));
+        var oversized = new string('Z', 100);
+        table.Add("x", oversized, 1, oversized.Length);
 
         // Table should be cleared and oversized entry NOT added
         Assert.Equal(0, table.Count);

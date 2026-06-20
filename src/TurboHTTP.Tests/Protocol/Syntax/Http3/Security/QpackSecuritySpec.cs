@@ -228,7 +228,9 @@ public sealed class QpackSecuritySpec
 
         for (var i = 0; i < 1000; i++)
         {
-            table.Add($"header-{i}", new string('x', i % 100));
+            var name = $"header-{i}";
+            var value = new string('x', i % 100);
+            table.Add(name, value, name.Length, value.Length);
 
             Assert.True(table.CurrentSize <= maxSize,
                 $"HPACK table size {table.CurrentSize} exceeded max {maxSize} at insert {i}");

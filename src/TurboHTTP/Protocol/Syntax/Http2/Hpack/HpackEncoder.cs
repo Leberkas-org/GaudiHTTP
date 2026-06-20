@@ -227,19 +227,29 @@ internal sealed class HpackEncoder
             _ => throw new HpackException($"Unknown HpackEncoding value: {encoding}")
         };
 
+        var nameByteLength = -1;
+
         // When nameIndex == 0, emit the name as a string literal
         if (nameIndex == 0)
         {
-            written += WriteString(header.Name, ref output, useHuffman);
+            written += WriteString(header.Name, ref output, useHuffman, out nameByteLength);
         }
 
         // Always emit value as a string literal
-        written += WriteString(header.Value, ref output, useHuffman);
+        written += WriteString(header.Value, ref output, useHuffman, out var valueByteLength);
 
-        // Update dynamic table for IncrementalIndexing only (RFC 7541 §6.2.1)
+        // Update dynamic table for IncrementalIndexing only (RFC 7541 §6.2.1). Reuse the raw UTF-8
+        // byte lengths WriteString already computed instead of recomputing GetByteCount inside Add;
+        // when the name came from a table reference (nameIndex != 0) WriteString never ran for it,
+        // so fall back to computing it once (matching the previous behaviour).
         if (encoding == HpackEncoding.IncrementalIndexing)
         {
-            _table.Add(header.Name, header.Value);
+            if (nameByteLength < 0)
+            {
+                nameByteLength = Encoding.UTF8.GetByteCount(header.Name);
+            }
+
+            _table.Add(header.Name, header.Value, nameByteLength, valueByteLength);
         }
 
         return written;
@@ -314,9 +324,10 @@ internal sealed class HpackEncoder
     /// length against the raw length and picks whichever is shorter (RFC 7541 §5.2).
     /// Writes directly into the caller-provided span.
     /// </summary>
-    private static int WriteString(string value, ref Span<byte> output, bool useHuffman)
+    private static int WriteString(string value, ref Span<byte> output, bool useHuffman, out int rawByteLength)
     {
         var rawLength = Encoding.UTF8.GetByteCount(value);
+        rawByteLength = rawLength;
 
         if (useHuffman && rawLength > 0)
         {
