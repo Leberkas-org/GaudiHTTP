@@ -15,11 +15,14 @@ namespace TurboHTTP.IntegrationTests.Client.H11;
 /// The deadlock is intermittent, so the spec drives many rounds of concurrent bursts on the single
 /// connection and fails the first round that does not drain within a generous per-round budget.
 ///
-/// NOTE (2026-06-20): this harness did NOT reproduce the benchmark NA in-process — 256 concurrency ×
-/// 40 rounds (10,240 requests on one H1.1 connection) drained cleanly. The benchmark hang is therefore
-/// load/teardown/environment-specific (it surfaced only after several BenchmarkDotNet iterations under
-/// the full server-GC workload), not a deterministic dispatch deadlock. Kept as a single-connection
-/// concurrency stress guard; revisit if it ever flips red.
+/// ROOT CAUSE (2026-06-20, fixed): under heavy pipelining the server streams many responses back to
+/// back, so a response's status line or header block is frequently split across two TCP reads. The
+/// H1.1 client decoder kept no cross-read remainder, so the unconsumed prefix of a split header was
+/// discarded and the next read's continuation parsed as garbage ("Malformed header field"), faulting
+/// that request and stranding its in-flight pipelined siblings. Fixed by retaining the unconsumed
+/// prefix in Http11ClientStateMachine (_partialResponse) and prepending it to the next read; the
+/// deterministic repro lives in Http11ClientFragmentedResponseSpec. This stress guard now drains 256 ×
+/// 40 cleanly; it failed ~50-80% of runs before the fix.
 /// </summary>
 [Collection("H11")]
 public sealed class SingleConnectionConcurrencyRegressionSpec : IntegrationSpecBase
