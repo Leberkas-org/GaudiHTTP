@@ -26,6 +26,27 @@ public sealed class BufferSearchSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void FindCrlf_should_return_negative_when_lone_cr_without_lf()
+    {
+        var data = "abc\rdef"u8.ToArray();
+        Assert.Equal(-1, BufferSearch.FindCrlf(data, 0));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void FindCrlf_should_skip_lone_cr_and_find_following_crlf()
+    {
+        var data = "a\rb\r\nc"u8.ToArray();
+        Assert.Equal(3, BufferSearch.FindCrlf(data, 0));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void FindCrlf_should_find_crlf_when_cr_repeats_before_lf()
+    {
+        var data = "x\r\r\ny"u8.ToArray();
+        Assert.Equal(2, BufferSearch.FindCrlf(data, 0));
+    }
+
+    [Fact(Timeout = 5000)]
     public void FindCrlfCrlf_should_find_double_crlf()
     {
         var data = "Host: x\r\n\r\nbody"u8.ToArray();

@@ -9,26 +9,11 @@ internal static class BufferSearch
             return -1;
         }
 
-        var slice = data[start..];
-        var offset = 0;
-        while (offset < slice.Length)
-        {
-            var cr = slice[offset..].IndexOf((byte)'\r');
-            if (cr < 0)
-            {
-                return -1;
-            }
-
-            var idx = offset + cr;
-            if (idx + 1 < slice.Length && slice[idx + 1] == (byte)'\n')
-            {
-                return start + idx;
-            }
-
-            offset = idx + 1;
-        }
-
-        return -1;
+        // Single vectorized two-byte search instead of "find CR, then check the next byte and
+        // restart on a lone CR". Same semantics: the first CRLF pair at or after start (a lone CR
+        // is never matched; CR-CR-LF matches the second CR), with no scan restarts.
+        var idx = data[start..].IndexOf("\r\n"u8);
+        return idx < 0 ? -1 : start + idx;
     }
 
     public static int FindCrlfCrlf(ReadOnlySpan<byte> data, int start)
