@@ -25,6 +25,11 @@ internal sealed class Consumer : ReceiveActor
 
     private UniqueKillSwitch? _sinkKillSwitch;
 
+    // Non-null sentinel for requests dropped by failure isolation in the ingress. Akka.Streams
+    // forbids null elements (Reactive Streams rule 2.13), so a failed enrichment returns this
+    // marker and is filtered out before the shared MergeHub. Never sent or mutated.
+    private static readonly HttpRequestMessage DroppedRequest = new();
+
     public static Props Props(
         Guid consumerId,
         ChannelReader<HttpRequestMessage> requestReader,
@@ -87,16 +92,43 @@ internal sealed class Consumer : ReceiveActor
         var cid = _consumerId;
 
         ChannelSource.FromReader(_requestReader)
-            .Select(request =>
-            {
-                if (!request.Options.TryGetValue(OptionsKey.ConsumerIdKey, out _))
-                {
-                    request.Options.Set(OptionsKey.ConsumerIdKey, cid);
-                }
-
-                return enricher.Enrich(request);
-            })
+            .Select(request => TryEnrich(request, enricher, cid))
+            .Where(static request => !ReferenceEquals(request, DroppedRequest))
             .RunWith(_requestIngress, _materializer);
+    }
+
+    /// <summary>
+    /// Stamps the consumer id and enriches a request, isolating any per-request failure so it can
+    /// never fail the SHARED <see cref="Akka.Streams.Dsl.MergeHub"/> ingress. If enrichment throws —
+    /// e.g. the caller disposed the <see cref="HttpRequestMessage"/> after cancelling and the pipeline
+    /// then dereferenced it (<see cref="HttpRequestMessage.Version"/> set throws ObjectDisposedException) —
+    /// a bare Select would propagate the failure into the MergeHub, tear this consumer's producer off
+    /// the hub, and strand every other in-flight request on the client. Instead we complete the
+    /// offending request's pending with the error (version-guarded, so a pooled/reused pending is never
+    /// corrupted) and drop the element from the stream.
+    /// </summary>
+    private HttpRequestMessage TryEnrich(HttpRequestMessage request, RequestEnricher enricher, Guid cid)
+    {
+        try
+        {
+            if (!request.Options.TryGetValue(OptionsKey.ConsumerIdKey, out _))
+            {
+                request.Options.Set(OptionsKey.ConsumerIdKey, cid);
+            }
+
+            return enricher.Enrich(request);
+        }
+        catch (Exception ex)
+        {
+            if (request.Options.TryGetValue(OptionsKey.Key, out var pending)
+                && request.Options.TryGetValue(OptionsKey.VersionKey, out var version))
+            {
+                pending.TrySetException(ex, version);
+            }
+
+            _log.Debug("Consumer {0} dropped a request whose enrichment failed: {1}", _consumerId, ex.Message);
+            return DroppedRequest;
+        }
     }
 
     private void MaterializeResponseSink()
