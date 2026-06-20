@@ -122,9 +122,10 @@ public sealed class Http2CrossComponentFrameSemanticsSpec
         var openStreams = new HashSet<int>();
         var closedStreams = new HashSet<int>();
 
-        // Open 2 streams
-        var h1 = decoder.Decode(BuildHeadersFrame(1, ValidStatusHeaderBlock()));
-        var h3 = decoder.Decode(BuildHeadersFrame(3, ValidStatusHeaderBlock()));
+        // Open 2 streams. Decode returns the decoder's reused list, so snapshot each result
+        // before the next Decode call repopulates it.
+        var h1 = decoder.Decode(BuildHeadersFrame(1, ValidStatusHeaderBlock())).ToArray();
+        var h3 = decoder.Decode(BuildHeadersFrame(3, ValidStatusHeaderBlock())).ToArray();
 
         var frame1 = Assert.IsType<HeadersFrame>(h1[0]);
         var frame3 = Assert.IsType<HeadersFrame>(h3[0]);

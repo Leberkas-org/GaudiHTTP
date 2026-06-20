@@ -156,6 +156,8 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
                 SkipConnectionPreface(buffer);
             }
 
+            // Decode returns the decoder's reused frame list; iterate it synchronously here within
+            // the same actor message and never retain it (Akka back-pressure guarantees consumption).
             var frames = _frameDecoder.Decode(buffer);
             for (var i = 0; i < frames.Count; i++)
             {

@@ -69,17 +69,24 @@ internal sealed class FrameDecoder : IDisposable
     private int _awaitingContinuationStreamId;
 
     /// <summary>
-    /// Feeds bytes and returns all complete frames decoded so far.
+    /// Feeds bytes and returns the decoder's reused list of all complete frames decoded so far.
     /// Transfers ownership of <paramref name="buffer"/>: the caller must not use it after this call.
     /// Incomplete trailing bytes are retained inside the decoder for the next call.
+    /// The returned list is reused and repopulated on every call, so callers MUST fully consume it
+    /// before the next Decode and MUST NOT retain it. The client/server state machines iterate it
+    /// synchronously within the same actor message under Akka back-pressure; a caller that needs to
+    /// hold a result across calls must snapshot it (e.g. ToArray()).
     /// </summary>
     public IReadOnlyList<Http2Frame> Decode(TransportBuffer buffer)
     {
+        // Cleared first so the early-return (nothing-new) path cannot surface a prior call's frames.
+        _frames.Clear();
+
         // Fast path: nothing new and nothing buffered.
         if (buffer.Length == 0 && _remainderLength == 0)
         {
             buffer.Dispose();
-            return [];
+            return _frames;
         }
 
         int workingLength;
@@ -123,7 +130,6 @@ internal sealed class FrameDecoder : IDisposable
 
         var offset = startOffset;
         var working = _workingBuffer.FullMemory;
-        _frames.Clear();
 
         while (workingLength - offset >= FrameHeaderSize)
         {
@@ -162,12 +168,8 @@ internal sealed class FrameDecoder : IDisposable
 
         _remainderOffset = offset;
         _remainderLength = workingLength - offset;
-        if (_frames.Count == 0)
-        {
-            return [];
-        }
 
-        return _frames.ToArray();
+        return _frames;
     }
 
     /// <summary>

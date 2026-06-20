@@ -198,8 +198,9 @@ public sealed class Http2ContinuationFrameErrorSpec
         var contBytes = new ContinuationFrame(1, block.AsMemory()[split..], endHeaders: true).Serialize();
 
         var decoder = new FrameDecoder();
-        // Feed HEADERS fully.
-        var firstBatch = decoder.Decode(headersBytes);
+        // Feed HEADERS fully. Decode returns the decoder's reused list, so snapshot it before the
+        // later Decode calls repopulate it (firstBatch is read again at the Concat below).
+        var firstBatch = decoder.Decode(headersBytes).ToList();
         Assert.Single(firstBatch);
 
         // Feed first half of CONTINUATION bytes — incomplete frame: no new frames yet.
