@@ -1,5 +1,3 @@
-using System.Text;
-
 namespace TurboHTTP.Protocol.Syntax.Http2.Hpack;
 
 /// <summary>
@@ -50,11 +48,13 @@ internal sealed class HpackDynamicTable
     /// <summary>
     /// RFC 7541 §4.4 - Adds a new entry to the front of the table.
     /// If the entry alone exceeds MaxSize, the entire table is cleared.
+    /// Callers pass the raw UTF-8 byte lengths they already computed (the HPACK encoder's
+    /// WriteString pass / the decoder's literal read), avoiding a redundant
+    /// <see cref="System.Text.Encoding.UTF8"/> GetByteCount on the hot path. The provided lengths
+    /// MUST equal <c>Encoding.UTF8.GetByteCount</c> of the respective string.
     /// </summary>
-    public void Add(string name, string value)
+    public void Add(string name, string value, int nameByteLength, int valueByteLength)
     {
-        var nameByteLength = Encoding.UTF8.GetByteCount(name);
-        var valueByteLength = Encoding.UTF8.GetByteCount(value);
         var entrySize = nameByteLength + valueByteLength + 32;
 
         if (entrySize > MaxSize)
