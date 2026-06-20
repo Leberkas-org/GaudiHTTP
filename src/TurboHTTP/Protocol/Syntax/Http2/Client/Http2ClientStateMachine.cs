@@ -58,7 +58,10 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
                 return;
 
             case TransportDisconnected when _clientSession.HasInFlightRequests:
-                OnConnectionLost(lastStreamId: 0);
+                // If we were draining a graceful GOAWAY, classify the still-open streams against that
+                // GOAWAY's last-stream-id: streams above it were provably not processed and can be
+                // replayed regardless of method, while streams at/below it follow the idempotent rule.
+                OnConnectionLost(_clientSession.GoAwayReceived ? _clientSession.GoAwayLastStreamId : 0);
                 return;
 
             case TransportDisconnected:
@@ -93,7 +96,23 @@ internal sealed class Http2ClientStateMachine : IClientStateMachine
 
         if (_clientSession is { GoAwayReceived: true, HasInFlightRequests: true })
         {
-            OnConnectionLost(_clientSession.GoAwayLastStreamId);
+            // RFC 9113 §6.8: a graceful (NO_ERROR) GOAWAY keeps the connection open until in-progress
+            // streams complete. Don't tear it down — let ALL in-flight streams keep draining here
+            // (dropping an in-flight non-idempotent POST is exactly the failure seen under load when a
+            // server graceful-closes after a batch). New requests already route elsewhere because
+            // CanAcceptRequest is now false. Streams the server discarded (above LastStreamId) never get
+            // a response and stay in flight until the server closes the connection, at which point the
+            // TransportDisconnected path above replays them using the remembered LastStreamId. We only
+            // tear the connection down immediately when there is nothing to wait for: a non-graceful
+            // (error) GOAWAY, or a graceful GOAWAY whose LastStreamId is below every in-flight stream
+            // (the server committed to finish none of them — e.g. LastStreamId=0), in which case
+            // draining would just stall until the server closes.
+            if (!_clientSession.GoAwayWasGraceful
+                || !_clientSession.HasInFlightStreamsAtOrBelow(_clientSession.GoAwayLastStreamId))
+            {
+                OnConnectionLost(_clientSession.GoAwayLastStreamId);
+            }
+
             return;
         }
 
