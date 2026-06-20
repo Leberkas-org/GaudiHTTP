@@ -153,9 +153,11 @@ Single source of truth for all non-code knowledge. **Use Obsidian MCP tools** (`
 
 ## Performance Patterns
 
-- **Snapshot semantics**: Decoder/FrameDecoder return values are held across calls by tests —
-  cannot return reused lists directly. Use `.ToArray()` or `new List<>(buffer)` for public APIs.
-  Akka back-pressure guarantees consumption in production, but test contracts require copies.
+- **Reused decode buffers**: `FrameDecoder.Decode` returns its reused `_frames` list directly (no
+  per-read array alloc); the client/server state machines consume it synchronously within the same
+  actor message under Akka back-pressure. A caller (or test) that needs to hold a result across a
+  later `Decode` MUST snapshot it (`.ToArray()`). When adding a decoder return that is consumed
+  asynchronously or retained, copy instead — never hand out a reused buffer to such a caller.
 - **List reuse pattern**: Http2/RequestEncoder has `_reusableHeaders`/`_reusableFrames` —
   follow this pattern for any per-request collection (clear + repopulate, not new).
 - **`string.Concat` over `$""`** for simple 2-3 part joins (avoids handler alloc)
