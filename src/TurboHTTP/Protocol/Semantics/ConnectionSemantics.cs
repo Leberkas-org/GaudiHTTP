@@ -23,11 +23,18 @@ internal static class ConnectionSemantics
         var hasKeepAlive = false;
         var hasClose = false;
 
-        foreach (var v in headers.GetValues(WellKnownHeaders.Connection))
+        for (var i = 0; i < headers.Count; i++)
         {
-            foreach (var part in v.AsSpan().Split(','))
+            var entry = headers[i];
+            if (!string.Equals(entry.Name, WellKnownHeaders.Connection, StringComparison.OrdinalIgnoreCase))
             {
-                var t = HeaderValidation.TrimOws(v[part.Start..part.End]);
+                continue;
+            }
+
+            var value = entry.Value;
+            foreach (var part in value.AsSpan().Split(','))
+            {
+                var t = HeaderValidation.TrimOws(value[part.Start..part.End]);
                 if (string.IsNullOrEmpty(t))
                 {
                     continue;

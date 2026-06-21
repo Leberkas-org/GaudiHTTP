@@ -35,6 +35,24 @@ public sealed class ConnectionSemanticsSpec
         Assert.False(ConnectionSemantics.IsPersistent(h, HttpVersion.Version11));
     }
 
+    [Fact(Timeout = 5000)]
+    public void IsPersistent_should_not_allocate_when_no_connection_header()
+    {
+        // The common case: no Connection header. The previous GetValues(...) yield-iterator
+        // allocated an enumerator state machine on every call regardless; the index loop does not.
+        var headers = new HeaderCollection { { "Host", "x" }, { "Content-Length", "0" } };
+        _ = ConnectionSemantics.IsPersistent(headers, HttpVersion.Version11);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 1000; i++)
+        {
+            _ = ConnectionSemantics.IsPersistent(headers, HttpVersion.Version11);
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(0, allocated);
+    }
+
     [Theory(Timeout = 5000)]
     [InlineData("Connection"), InlineData("Keep-Alive"), InlineData("Transfer-Encoding")]
     [InlineData("TE"), InlineData("Upgrade"), InlineData("Proxy-Authenticate")]
