@@ -85,4 +85,25 @@ public sealed class HeaderCollectionSpec
 
         Assert.Same(value, headers.GetCombined("Content-Type"));
     }
+
+    [Fact(Timeout = 5000)]
+    public void Foreach_should_not_allocate_a_boxed_enumerator()
+    {
+        var headers = new HeaderCollection { { "A", "1" }, { "B", "2" } };
+        foreach (var h in headers)
+        {
+            _ = h.Name;
+        }
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var count = 0;
+        foreach (var h in headers)
+        {
+            count++;
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(2, count);
+        Assert.Equal(0, allocated);
+    }
 }

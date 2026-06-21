@@ -15,6 +15,8 @@ internal sealed class HeaderCollection : IEnumerable<HeaderEntry>
 
     public int Count => _entries.Count;
 
+    public HeaderEntry this[int index] => _entries[index];
+
     public void Add(string name, string value)
     {
         _entries.Add(new HeaderEntry(name, value));
@@ -94,7 +96,12 @@ internal sealed class HeaderCollection : IEnumerable<HeaderEntry>
         return size;
     }
 
-    public IEnumerator<HeaderEntry> GetEnumerator() => _entries.GetEnumerator();
+    // Return the List's struct enumerator so `foreach` over a HeaderCollection (e.g. HeaderBlockWriter)
+    // does not box an IEnumerator on every message. The interface implementations stay for IEnumerable
+    // consumers (LINQ), which box regardless.
+    public List<HeaderEntry>.Enumerator GetEnumerator() => _entries.GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator<HeaderEntry> IEnumerable<HeaderEntry>.GetEnumerator() => _entries.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => _entries.GetEnumerator();
 }
