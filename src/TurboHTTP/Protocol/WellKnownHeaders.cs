@@ -743,85 +743,100 @@ internal static class WellKnownHeaders
         => TryResolve(value, out var cached) ? cached : Encoding.ASCII.GetString(value);
 
     public static WellKnownHeader GetOrCreateHeaderNameIgnoreCase(ReadOnlySpan<byte> name)
-        => name.Length switch
+        => TryResolveCachedNameIgnoreCase(name, out var cached) ? cached : new WellKnownHeader(name);
+
+    /// <summary>
+    /// Resolves a header NAME to its string form without constructing a <see cref="WellKnownHeader"/>
+    /// for unknown names (whose ctor allocates an ASCII byte copy via <see cref="WellKnownHeader.Bytes"/>
+    /// that the decode path never reads — only <see cref="WellKnownHeader.Name"/> is used). Returns the
+    /// interned cached name when well-known, otherwise the freshly-decoded string.
+    /// </summary>
+    public static string GetOrCreateHeaderNameStringIgnoreCase(ReadOnlySpan<byte> name)
+        => TryResolveCachedNameIgnoreCase(name, out var cached) ? cached.Name : Encoding.ASCII.GetString(name);
+
+    private static bool TryResolveCachedNameIgnoreCase(ReadOnlySpan<byte> name, out WellKnownHeader cached)
+    {
+        cached = name.Length switch
         {
-            0 => new WellKnownHeader(string.Empty),
-            2 => EqualsIgnoreCase(name, Te) ? Te : new WellKnownHeader(name),
+            2 => EqualsIgnoreCase(name, Te) ? Te : default,
             3 => EqualsIgnoreCase(name, Age) ? Age :
-                EqualsIgnoreCase(name, Via) ? Via : new WellKnownHeader(name),
+                EqualsIgnoreCase(name, Via) ? Via : default,
             4 => EqualsIgnoreCase(name, Date) ? Date :
                 EqualsIgnoreCase(name, ETag) ? ETag :
                 EqualsIgnoreCase(name, Vary) ? Vary :
                 EqualsIgnoreCase(name, From) ? From :
                 EqualsIgnoreCase(name, Host) ? Host :
-                EqualsIgnoreCase(name, Link) ? Link : new WellKnownHeader(name),
-            5 => EqualsIgnoreCase(name, Allow) ? Allow : new WellKnownHeader(name),
+                EqualsIgnoreCase(name, Link) ? Link : default,
+            5 => EqualsIgnoreCase(name, Allow) ? Allow : default,
             6 => EqualsIgnoreCase(name, Accept) ? Accept :
                 EqualsIgnoreCase(name, Cookie) ? Cookie :
                 EqualsIgnoreCase(name, Expect) ? Expect :
                 EqualsIgnoreCase(name, Pragma) ? Pragma :
                 EqualsIgnoreCase(name, Server) ? Server :
-                new WellKnownHeader(name),
+                default,
             7 => EqualsIgnoreCase(name, AltSvc) ? AltSvc :
                 EqualsIgnoreCase(name, Expires) ? Expires :
                 EqualsIgnoreCase(name, Referer) ? Referer :
                 EqualsIgnoreCase(name, Trailer) ? Trailer :
                 EqualsIgnoreCase(name, Upgrade) ? Upgrade :
                 EqualsIgnoreCase(name, Warning) ? Warning :
-                new WellKnownHeader(name),
+                default,
             8 => EqualsIgnoreCase(name, IfMatch) ? IfMatch :
                 EqualsIgnoreCase(name, IfRange) ? IfRange :
                 EqualsIgnoreCase(name, Location) ? Location :
-                new WellKnownHeader(name),
+                default,
             9 => EqualsIgnoreCase(name, Forwarded)
                 ? Forwarded
-                : new WellKnownHeader(name),
+                : default,
             10 => EqualsIgnoreCase(name, Connection) ? Connection :
                 EqualsIgnoreCase(name, KeepAliveHeader) ? KeepAliveHeader :
                 EqualsIgnoreCase(name, SetCookie) ? SetCookie :
                 EqualsIgnoreCase(name, UserAgent) ? UserAgent :
-                new WellKnownHeader(name),
+                default,
             11 => EqualsIgnoreCase(name, RetryAfter) ? RetryAfter :
                 EqualsIgnoreCase(name, SetCookie2) ? SetCookie2 :
-                new WellKnownHeader(name),
+                default,
             12 => EqualsIgnoreCase(name, ContentType) ? ContentType :
                 EqualsIgnoreCase(name, MaxForwards) ? MaxForwards :
                 EqualsIgnoreCase(name, XRequestId) ? XRequestId :
-                new WellKnownHeader(name),
+                default,
             13 => EqualsIgnoreCase(name, Authorization) ? Authorization :
                 EqualsIgnoreCase(name, CacheControl) ? CacheControl :
                 EqualsIgnoreCase(name, ContentRange) ? ContentRange :
                 EqualsIgnoreCase(name, LastModified) ? LastModified :
                 EqualsIgnoreCase(name, IfNoneMatch) ? IfNoneMatch :
-                new WellKnownHeader(name),
+                default,
             14 => EqualsIgnoreCase(name, AcceptCharset) ? AcceptCharset :
                 EqualsIgnoreCase(name, AcceptRanges) ? AcceptRanges :
                 EqualsIgnoreCase(name, ContentLength) ? ContentLength :
-                new WellKnownHeader(name),
+                default,
             15 => EqualsIgnoreCase(name, AcceptEncoding) ? AcceptEncoding :
                 EqualsIgnoreCase(name, AcceptLanguage) ? AcceptLanguage :
                 EqualsIgnoreCase(name, XForwardedFor) ? XForwardedFor :
-                new WellKnownHeader(name),
+                default,
             16 => EqualsIgnoreCase(name, ContentEncoding) ? ContentEncoding :
                 EqualsIgnoreCase(name, ContentLanguage) ? ContentLanguage :
                 EqualsIgnoreCase(name, ContentLocation) ? ContentLocation :
                 EqualsIgnoreCase(name, WwwAuthenticate) ? WwwAuthenticate :
-                new WellKnownHeader(name),
+                default,
             17 => EqualsIgnoreCase(name, IfModifiedSince) ? IfModifiedSince :
                 EqualsIgnoreCase(name, TransferEncoding) ? TransferEncoding :
                 EqualsIgnoreCase(name, XForwardedProto) ? XForwardedProto :
-                new WellKnownHeader(name),
+                default,
             18 => EqualsIgnoreCase(name, ProxyAuthenticate)
                 ? ProxyAuthenticate
-                : new WellKnownHeader(name),
+                : default,
             19 => EqualsIgnoreCase(name, IfUnmodifiedSince) ? IfUnmodifiedSince :
                 EqualsIgnoreCase(name, ProxyAuthorization) ? ProxyAuthorization :
-                new WellKnownHeader(name),
+                default,
             25 => EqualsIgnoreCase(name, StrictTransportSecurity)
                 ? StrictTransportSecurity
-                : new WellKnownHeader(name),
-            _ => new WellKnownHeader(name)
+                : default,
+            _ => default
         };
+
+        return cached.Name is not null;
+    }
 
     internal static bool EqualsIgnoreCase(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
     {

@@ -269,6 +269,28 @@ public sealed class WellKnownHeaderNameExtendedSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void GetOrCreateHeaderNameStringIgnoreCase_should_return_the_cached_interned_name_for_well_known()
+    {
+        // Well-known names resolve to the cached header's interned Name string with no per-call
+        // allocation (and no wasted ASCII byte[] copy) — Assert.Same proves the same instance.
+        Assert.Same(WellKnownHeaders.ContentLength.Name,
+            WellKnownHeaders.GetOrCreateHeaderNameStringIgnoreCase("content-length"u8));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void GetOrCreateHeaderNameStringIgnoreCase_should_decode_unknown_names()
+    {
+        Assert.Equal("X-Custom-Thing",
+            WellKnownHeaders.GetOrCreateHeaderNameStringIgnoreCase("X-Custom-Thing"u8));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void GetOrCreateHeaderNameStringIgnoreCase_should_handle_empty_span()
+    {
+        Assert.Equal("", WellKnownHeaders.GetOrCreateHeaderNameStringIgnoreCase([]));
+    }
+
+    [Fact(Timeout = 5000)]
     public void EqualsIgnoreCase_should_match_same_case()
     {
         Assert.True(WellKnownHeaders.EqualsIgnoreCase("Host"u8, "Host"u8));
