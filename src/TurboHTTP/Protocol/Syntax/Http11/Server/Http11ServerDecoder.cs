@@ -177,13 +177,17 @@ internal sealed class Http11ServerDecoder(Http11ServerDecoderOptions options, Co
     {
         get
         {
-            foreach (var v in _headerReader.GetHeaders().GetValues(WellKnownHeaders.Connection))
+            var headers = _headerReader.GetHeaders();
+            for (var i = 0; i < headers.Count; i++)
             {
-                if (ConnectionHeaderSemantics.HasCloseOption(v))
+                var entry = headers[i];
+                if (string.Equals(entry.Name, WellKnownHeaders.Connection, StringComparison.OrdinalIgnoreCase)
+                    && ConnectionHeaderSemantics.HasCloseOption(entry.Value))
                 {
                     return true;
                 }
             }
+
             return false;
         }
     }
