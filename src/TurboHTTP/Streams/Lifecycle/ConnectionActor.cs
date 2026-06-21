@@ -36,7 +36,11 @@ internal sealed class ConnectionActor : ReceiveActor
         TurboServerOptions options,
         IServiceProvider? services = null)
     {
-        var materializer = Context.Materializer();
+        // Mirror the client's StreamOwner tuning: the default 16/16 input buffer throttles H2
+        // multiplexing (more in-flight elements per materialized stream); H1.1 rarely fills it.
+        var materializerSettings = ActorMaterializerSettings.Create(Context.System)
+            .WithInputBuffer(initialSize: 32, maxSize: 128);
+        var materializer = Context.Materializer(materializerSettings);
         _drainSwitch = KillSwitches.Shared(string.Concat("conn-", connectionId));
 
         var protocolBidi = engine.CreateFlow(services);
