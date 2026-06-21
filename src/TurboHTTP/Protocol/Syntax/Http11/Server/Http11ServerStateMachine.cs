@@ -376,32 +376,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             features.Get<IHttpRequestFeature>()?.Method, "HEAD", StringComparison.OrdinalIgnoreCase);
         var suppressBody = isHeadRequest || statusCode is >= 100 and < 200 or 204 or 304;
 
-        var contentLength = ExtractContentLength(responseFeature);
-        var hasExplicitChunked = false;
-        if (responseFeature?.Headers is { } responseHeaders)
-        {
-            foreach (var h in responseHeaders)
-            {
-                if (!h.Key.Equals(WellKnownHeaders.TransferEncoding, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                foreach (var v in h.Value)
-                {
-                    if (v != null && v.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))
-                    {
-                        hasExplicitChunked = true;
-                        break;
-                    }
-                }
-
-                if (hasExplicitChunked)
-                {
-                    break;
-                }
-            }
-        }
+        // Single pass over the response headers computes Content-Length, explicit chunked framing, and
+        // the header-buffer size estimate together, instead of three separate iterations (each a boxed
+        // IHeaderDictionary enumerator) over the same dictionary.
+        var headerScan = ScanResponseHeaders(responseFeature);
+        var contentLength = headerScan.ContentLength;
+        var hasExplicitChunked = headerScan.HasExplicitChunked;
 
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
@@ -419,7 +399,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             && turboBody.TryGetBufferedBody(out bufferedBody);
         var coalesceBody = hasBufferedBody && !isChunked;
 
-        var estimatedSize = EstimateResponseHeaderSize(responseFeature);
+        var estimatedSize = headerScan.EstimatedSize;
         var responseBuffer = TransportBuffer.Rent(
             coalesceBody ? estimatedSize + bufferedBody.Length : estimatedSize);
         var span = responseBuffer.FullMemory.Span;
@@ -650,51 +630,67 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         }
     }
 
-    private static int EstimateResponseHeaderSize(IHttpResponseFeature? responseFeature)
+    internal readonly struct ResponseHeaderScan(long? contentLength, bool hasExplicitChunked, int estimatedSize)
+    {
+        public long? ContentLength { get; } = contentLength;
+        public bool HasExplicitChunked { get; } = hasExplicitChunked;
+        public int EstimatedSize { get; } = estimatedSize;
+    }
+
+    /// <summary>
+    /// Single pass over the response headers computing the Content-Length, whether Transfer-Encoding
+    /// declares chunked, and the header-buffer size estimate together — replacing three separate
+    /// iterations (each a boxed IHeaderDictionary enumerator) over the same dictionary per response.
+    /// </summary>
+    internal static ResponseHeaderScan ScanResponseHeaders(IHttpResponseFeature? responseFeature)
     {
         const int statusLineOverhead = 32;
         const int perHeaderOverhead = 4;
         const int trailingCrlf = 2;
+        const int slack = 128;
         const int minimumSize = 256;
 
-        if (responseFeature?.Headers is null)
+        if (responseFeature?.Headers is not { } headers)
         {
-            return minimumSize;
+            return new ResponseHeaderScan(null, false, minimumSize);
         }
 
+        long? contentLength = null;
+        var hasExplicitChunked = false;
         var estimate = statusLineOverhead + trailingCrlf;
-        foreach (var header in responseFeature.Headers)
+
+        foreach (var header in headers)
         {
             estimate += header.Key.Length + perHeaderOverhead;
             foreach (var v in header.Value)
             {
                 estimate += v?.Length ?? 0;
             }
-        }
 
-        estimate += 128;
-        return Math.Max(minimumSize, estimate);
-    }
-
-    private static long? ExtractContentLength(IHttpResponseFeature? responseFeature)
-    {
-        if (responseFeature?.Headers is null)
-        {
-            return null;
-        }
-
-        foreach (var header in responseFeature.Headers)
-        {
-            if (header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase)
+            if (contentLength is null
+                && header.Key.Equals(WellKnownHeaders.ContentLength, StringComparison.OrdinalIgnoreCase)
                 && header.Value.Count > 0
-                && header.Value[0] is { } value
-                && ContentLengthSemantics.TryParse(value, out var length))
+                && header.Value[0] is { } clValue
+                && ContentLengthSemantics.TryParse(clValue, out var parsed))
             {
-                return length;
+                contentLength = parsed;
+            }
+            else if (!hasExplicitChunked
+                && header.Key.Equals(WellKnownHeaders.TransferEncoding, StringComparison.OrdinalIgnoreCase))
+            {
+                foreach (var v in header.Value)
+                {
+                    if (v != null && v.Equals(WellKnownHeaders.ChunkedValue, StringComparison.OrdinalIgnoreCase))
+                    {
+                        hasExplicitChunked = true;
+                        break;
+                    }
+                }
             }
         }
 
-        return null;
+        estimate += slack;
+        return new ResponseHeaderScan(contentLength, hasExplicitChunked, Math.Max(minimumSize, estimate));
     }
 
     private bool TryHandleH2cUpgrade(IFeatureCollection features)
