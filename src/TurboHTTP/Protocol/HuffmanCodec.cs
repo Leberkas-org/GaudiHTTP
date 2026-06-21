@@ -140,23 +140,66 @@ internal static class HuffmanCodec
         return pos;
     }
 
-    private static readonly HuffmanNode Root = BuildTree();
+    // Flat, contiguous decode tree built once from HpackHuffmanTable. Node 0 is the root; child
+    // links are array indices (NoChild = no edge), so decoding walks a cache-resident struct[] by
+    // index instead of chasing scattered heap HuffmanNode pointers (the original cache bottleneck).
+    private const int NoChild = -1;
+    private const int NoSymbol = -1;
 
-    private static HuffmanNode BuildTree()
+    private readonly record struct HuffmanTreeNode(int Zero, int One, int Symbol);
+
+    private static readonly HuffmanTreeNode[] DecodeTree = BuildDecodeTree();
+
+    private static HuffmanTreeNode[] BuildDecodeTree()
     {
-        var root = new HuffmanNode();
+        var zero = new List<int> { NoChild };
+        var one = new List<int> { NoChild };
+        var symbol = new List<int> { NoSymbol };
+
         for (var sym = 0; sym < HpackHuffmanTable.Length; sym++)
         {
             var (code, bits) = HpackHuffmanTable[sym];
-            root.Insert((int)code, bits, sym);
+            var node = 0;
+            for (var i = bits - 1; i >= 0; i--)
+            {
+                var bit = (int)((code >> i) & 1);
+                var child = bit == 0 ? zero[node] : one[node];
+                if (child == NoChild)
+                {
+                    child = zero.Count;
+                    zero.Add(NoChild);
+                    one.Add(NoChild);
+                    symbol.Add(NoSymbol);
+
+                    if (bit == 0)
+                    {
+                        zero[node] = child;
+                    }
+                    else
+                    {
+                        one[node] = child;
+                    }
+                }
+
+                node = child;
+            }
+
+            symbol[node] = sym;
         }
 
-        return root;
+        var tree = new HuffmanTreeNode[zero.Count];
+        for (var i = 0; i < tree.Length; i++)
+        {
+            tree[i] = new HuffmanTreeNode(zero[i], one[i], symbol[i]);
+        }
+
+        return tree;
     }
 
     public static int Decode(ReadOnlySpan<byte> input, Span<byte> output)
     {
-        var node = Root;
+        var tree = DecodeTree;
+        var node = 0;
         var pos = 0;
 
         var remainingBits = 0;
@@ -168,9 +211,9 @@ internal static class HuffmanCodec
             {
                 var isOne = ((b >> bit) & 1) == 1;
 
-                node = isOne ? node.One : node.Zero;
+                node = isOne ? tree[node].One : tree[node].Zero;
 
-                if (node is null)
+                if (node == NoChild)
                 {
                     throw new HuffmanException(
                         $"Invalid Huffman-encoded data: no valid symbol at bit offset {remainingBits} (input byte 0x{b:X2}).");
@@ -179,7 +222,8 @@ internal static class HuffmanCodec
                 remainingBits++;
                 remainingValue = (remainingValue << 1) | (isOne ? 1 : 0);
 
-                if (node.Symbol is not { } sym)
+                var sym = tree[node].Symbol;
+                if (sym == NoSymbol)
                 {
                     continue;
                 }
@@ -191,7 +235,7 @@ internal static class HuffmanCodec
                 }
 
                 output[pos++] = (byte)sym;
-                node = Root;
+                node = 0;
                 remainingBits = 0;
                 remainingValue = 0;
             }
@@ -214,37 +258,5 @@ internal static class HuffmanCodec
         }
 
         return pos;
-    }
-
-    private sealed class HuffmanNode
-    {
-        public HuffmanNode? Zero { get; private set; }
-        public HuffmanNode? One { get; private set; }
-
-        public int? Symbol { get; private set; }
-
-        public bool IsEosPadding { get; private set; }
-
-        public void Insert(int code, int bits, int symbol)
-        {
-            var node = this;
-            for (var i = bits - 1; i >= 0; i--)
-            {
-                var bit = (code >> i) & 1;
-                if (bit == 0)
-                {
-                    node.Zero ??= new HuffmanNode();
-                    node = node.Zero;
-                }
-                else
-                {
-                    node.One ??= new HuffmanNode();
-                    node = node.One;
-                }
-            }
-
-            node.Symbol = symbol;
-            node.IsEosPadding = symbol == 256;
-        }
     }
 }
