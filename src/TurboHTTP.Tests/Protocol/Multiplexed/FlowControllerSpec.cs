@@ -30,6 +30,34 @@ public sealed class FlowControllerSpec
     }
 
     [Fact(Timeout = 5000)]
+    public void ApplyInitialWindowSizeDelta_should_update_all_stream_windows()
+    {
+        var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
+        fc.InitStreamSendWindow(1);
+        fc.InitStreamSendWindow(3);
+
+        fc.ApplyInitialWindowSizeDelta(100);
+
+        Assert.Equal(65535 + 100, fc.GetStreamSendWindow(1));
+        Assert.Equal(65535 + 100, fc.GetStreamSendWindow(3));
+    }
+
+    [Fact(Timeout = 5000)]
+    public void ApplyInitialWindowSizeDelta_should_not_allocate()
+    {
+        var fc = new FlowController(connectionWindowSize: 65535, streamWindowSize: 65535);
+        fc.InitStreamSendWindow(1);
+        fc.InitStreamSendWindow(3);
+        fc.ApplyInitialWindowSizeDelta(1);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        fc.ApplyInitialWindowSizeDelta(1);
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.Equal(0, allocated);
+    }
+
+    [Fact(Timeout = 5000)]
     public void FlowController_should_batch_window_updates()
     {
         const int windowSize = 65535;
