@@ -23,7 +23,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         _received = 0;
         IsCompleted = contentLength == 0;
         _owner = contentLength > 0
-            ? MemoryPool<byte>.Shared.Rent(contentLength)
+            ? CrossThreadBufferPool.Rent(contentLength)
             : null;
     }
 
@@ -34,7 +34,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         _openEnded = true;
         _received = 0;
         IsCompleted = false;
-        _owner = MemoryPool<byte>.Shared.Rent(4 * 1024);
+        _owner = CrossThreadBufferPool.Rent(4 * 1024);
     }
 
     void IResettable.Reset() => ResetOpenEnded();
@@ -78,7 +78,7 @@ internal sealed class BufferedBodyReader : IBufferedBodyReader, IResettable
         }
 
         var newSize = Math.Max(needed, (_owner?.Memory.Length ?? 4 * 1024) * 2);
-        var next = MemoryPool<byte>.Shared.Rent(newSize);
+        var next = CrossThreadBufferPool.Rent(newSize);
         if (_owner is not null && _received > 0)
         {
             _owner.Memory[.._received].CopyTo(next.Memory);

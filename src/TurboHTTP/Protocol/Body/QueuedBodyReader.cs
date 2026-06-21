@@ -13,15 +13,11 @@ internal sealed class QueuedBodyReader : IStreamingBodyReader, IValueTaskSource<
     // never executes on the producing stage thread.
     private readonly object _sync = new();
 
-    // ArrayPool<byte>.Shared uses per-core thread-local stacks: this reader rents on the connection-
-    // stage thread and returns on the application thread, so the returned buffer lands on a different
-    // core's stack than the renting core inspects. Under concurrency that collapses the pool hit rate
-    // and forces fresh allocations on the body path (measured ~2x on H1.1, ~12x on H2 at CL=32). A
-    // single process-wide ConfigurableArrayPool uses global, locked per-bucket stacks with no core
-    // affinity, so rent/return survive the thread hop. Rent/return semantics are identical, so the
-    // reader's buffer-ownership logic is unaffected.
-    private static readonly ArrayPool<byte> CrossThreadPool =
-        ArrayPool<byte>.Create(maxArrayLength: 1024 * 1024, maxArraysPerBucket: 512);
+    // Body buffers are rented on the connection-stage thread and returned on the application thread.
+    // The shared process-wide pool uses global, locked per-bucket stacks (no core affinity), so the
+    // rent/return survives that hop where the per-core ArrayPool<byte>.Shared would miss and force a
+    // fresh allocation (measured ~2x on H1.1, ~12x on H2 at CL=32). See CrossThreadBufferPool.
+    private static readonly ArrayPool<byte> CrossThreadPool = CrossThreadBufferPool.Shared;
 
     private readonly ArrayPool<byte> _pool;
     private OwnedChunk[] _slots;
