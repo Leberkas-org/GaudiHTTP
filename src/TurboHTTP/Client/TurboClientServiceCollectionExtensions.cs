@@ -41,14 +41,6 @@ public static class TurboClientServiceCollectionExtensions
             var system = provider.GetService<ActorSystem>();
             if (system is null)
             {
-                // Derive dispatcher thread counts from the highest MaxEndpointSubstreams
-                // across all registered clients.
-                var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
-                var maxSubstreams = provider.GetServices<TurboHttpClientName>()
-                    .Select(n => optionsMonitor.Get(n.Name).MaxConcurrentEndpoints)
-                    .DefaultIfEmpty(256u)
-                    .Max();
-
                 var loggerFactory = provider.GetService<ILoggerFactory>();
                 if (loggerFactory is not null)
                 {
@@ -64,8 +56,7 @@ public static class TurboClientServiceCollectionExtensions
                     system = ActorSystem.Create("turbohttp", LoggingHocon);
                 }
 
-                system.Log.Info("Created ActorSystem {0} — dispatchers sized from MaxEndpointSubstreams={1}",
-                    system.Name, maxSubstreams);
+                system.Log.Info("Created ActorSystem {0}", system.Name);
             }
 
             var options = provider.GetRequiredService<IOptionsMonitor<TurboClientOptions>>();
