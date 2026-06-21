@@ -113,6 +113,35 @@ public sealed class PendingRequestLifecycleSpec
         PendingRequest.Return(pr2);
     }
 
+    [Fact(Timeout = 5000)]
+    public void Attached_timeout_cts_should_be_disposed_when_completed_with_result()
+    {
+        var pr = PendingRequest.Rent();
+        var cts = new CancellationTokenSource();
+        pr.AttachTimeoutCts(cts);
+
+        pr.TrySetResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK), pr.Version);
+
+        // A disposed CancellationTokenSource throws when its Token is accessed.
+        Assert.Throws<ObjectDisposedException>(() => _ = cts.Token);
+
+        PendingRequest.Return(pr);
+    }
+
+    [Fact(Timeout = 5000)]
+    public void Attached_timeout_cts_should_be_disposed_when_completed_with_exception()
+    {
+        var pr = PendingRequest.Rent();
+        var cts = new CancellationTokenSource();
+        pr.AttachTimeoutCts(cts);
+
+        pr.TrySetException(new InvalidOperationException("x"), pr.Version);
+
+        Assert.Throws<ObjectDisposedException>(() => _ = cts.Token);
+
+        PendingRequest.Return(pr);
+    }
+
     [Fact(Timeout = 10000)]
     public async Task CancelPendingRequests_pattern_should_survive_concurrent_add_and_cancel()
     {

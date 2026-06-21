@@ -103,6 +103,11 @@ internal sealed class RequestEnricher(Func<TurboRequestOptions> optionsFactory)
                     cts.Token.UnsafeRegister(
                         static (state, ct) => ((PendingRequest)state!).TrySetCanceled(ct),
                         pending);
+
+                    // Hand ownership of the timer-backed source to the pending request so it is
+                    // disposed the moment the response is delivered, instead of lingering (and holding
+                    // a TimerQueue slot) for the whole timeout window after every channel-path request.
+                    pending.AttachTimeoutCts(cts);
                 }
             }
         }
