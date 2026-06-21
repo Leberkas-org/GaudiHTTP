@@ -33,6 +33,10 @@ internal sealed class HeaderCollection : IEnumerable<HeaderEntry>
 
     public string? GetCombined(string name)
     {
+        // Single-value fast path (the common Content-Length / Transfer-Encoding case): return the
+        // stored value string directly, allocating neither a StringBuilder nor a copied string.
+        // The builder is created lazily only once a second matching value is seen.
+        var firstIndex = -1;
         StringBuilder? sb = null;
         for (var i = 0; i < _entries.Count; i++)
         {
@@ -41,17 +45,23 @@ internal sealed class HeaderCollection : IEnumerable<HeaderEntry>
                 continue;
             }
 
-            if (sb is null)
+            if (firstIndex < 0)
             {
-                sb = new StringBuilder(_entries[i].Value);
+                firstIndex = i;
             }
             else
             {
+                sb ??= new StringBuilder(_entries[firstIndex].Value);
                 sb.Append(WellKnownHeaders.CommaSpace).Append(_entries[i].Value);
             }
         }
 
-        return sb?.ToString();
+        if (sb is not null)
+        {
+            return sb.ToString();
+        }
+
+        return firstIndex >= 0 ? _entries[firstIndex].Value : null;
     }
 
     public bool Contains(string name)
