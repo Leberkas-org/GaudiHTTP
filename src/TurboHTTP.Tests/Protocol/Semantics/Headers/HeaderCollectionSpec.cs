@@ -74,4 +74,15 @@ public sealed class HeaderCollectionSpec
         headers.Clear();
         Assert.Equal(0, headers.Count);
     }
+
+    [Fact(Timeout = 5000)]
+    public void GetCombined_should_return_the_single_value_instance_without_copying()
+    {
+        // A fresh, non-interned instance so Assert.Same proves no StringBuilder copy was made for
+        // the single-value case (the common Content-Length / Transfer-Encoding path).
+        var value = new string("text/html".ToCharArray());
+        var headers = new HeaderCollection { { "Content-Type", value } };
+
+        Assert.Same(value, headers.GetCombined("Content-Type"));
+    }
 }
