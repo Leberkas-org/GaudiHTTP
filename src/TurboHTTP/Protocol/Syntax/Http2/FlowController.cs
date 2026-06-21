@@ -216,7 +216,10 @@ internal sealed class FlowController : IFlowController<int>
     public void ApplyInitialWindowSizeDelta(long delta)
     {
         _initialSendStreamWindow += delta;
-        foreach (var streamId in _streamSendWindows.Keys.ToList())
+
+        // Updating an existing key's value does not bump the dictionary version, so the keys can be
+        // iterated in place without the per-SETTINGS Keys.ToList() snapshot allocation.
+        foreach (var streamId in _streamSendWindows.Keys)
         {
             _streamSendWindows[streamId] += delta;
         }
