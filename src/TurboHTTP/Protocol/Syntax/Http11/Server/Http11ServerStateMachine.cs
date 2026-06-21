@@ -405,10 +405,32 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
         var isChunked = !suppressBody && (contentLength is null || hasExplicitChunked);
 
+        // Resolve a fully-buffered response body once (the dominant Content-Length case). A non-
+        // chunked buffered body is coalesced into the SAME buffer as the status line + headers,
+        // emitting one outbound item instead of two: it removes a TransportBuffer/TransportData
+        // rent, a GraphInterpreter push, and (transport permitting) a socket write per response.
+        // The body is already materialized and copied synchronously on the existing path too, so
+        // buffer ownership is unchanged. Streamed bodies report false here; chunked bodies keep the
+        // framed EmitBufferedBody path below.
+        var turboBody = responseBody as TurboHttpResponseBodyFeature;
+        ReadOnlyMemory<byte> bufferedBody = default;
+        var hasBufferedBody = !suppressBody
+            && turboBody is not null
+            && turboBody.TryGetBufferedBody(out bufferedBody);
+        var coalesceBody = hasBufferedBody && !isChunked;
+
         var estimatedSize = EstimateResponseHeaderSize(responseFeature);
-        var responseBuffer = TransportBuffer.Rent(estimatedSize);
+        var responseBuffer = TransportBuffer.Rent(
+            coalesceBody ? estimatedSize + bufferedBody.Length : estimatedSize);
         var span = responseBuffer.FullMemory.Span;
         var written = _encoder.Encode(span, features, isChunked, connectionClose: ShouldComplete);
+
+        if (coalesceBody && !bufferedBody.IsEmpty)
+        {
+            bufferedBody.Span.CopyTo(span[written..]);
+            written += bufferedBody.Length;
+        }
+
         responseBuffer.Length = written;
         _ops.OnOutbound(TransportData.Rent(responseBuffer));
 
@@ -448,9 +470,23 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
             }
         }
 
-        if (responseBody is TurboHttpResponseBodyFeature turboBody)
+        if (turboBody is not null)
         {
-            if (turboBody.TryGetBufferedBody(out var bufferedBody))
+            if (coalesceBody)
+            {
+                // Body bytes were folded into the header buffer above: nothing more to emit.
+                _ops.OnResponseBodyComplete(features);
+                Tracing.For("Protocol").Debug(this,
+                    "response body complete (buffered, coalesced, bytes={0})", bufferedBody.Length);
+                if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
+                {
+                    _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
+                }
+
+                return;
+            }
+
+            if (hasBufferedBody)
             {
                 EmitBufferedBody(features, bufferedBody, isChunked);
                 return;
