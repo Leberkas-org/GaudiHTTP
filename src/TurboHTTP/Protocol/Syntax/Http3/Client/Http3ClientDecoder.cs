@@ -22,6 +22,8 @@ internal sealed class Http3ClientDecoder
     /// </summary>
     public ReadOnlyMemory<byte> DecoderInstructions => _tableSync.Decoder.DecoderInstructions;
 
+    public HttpResponseMessage? LastInterimResponse { get; internal set; }
+
     /// <summary>
     /// Decode a HEADERS frame into response headers on the given stream state.
     /// Returns true if a new response was created (first HEADERS),
@@ -76,6 +78,16 @@ internal sealed class Http3ClientDecoder
 
         if (statusCode < 200)
         {
+            var interim = new HttpResponseMessage((HttpStatusCode)statusCode);
+            foreach (var h in headers)
+            {
+                if (!h.Name.StartsWith(':'))
+                {
+                    interim.Headers.TryAddWithoutValidation(h.Name, h.Value);
+                }
+            }
+
+            LastInterimResponse = interim;
             return false;
         }
 
