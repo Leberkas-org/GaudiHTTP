@@ -153,4 +153,77 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
         upstream.SendComplete(TestContext.Current.CancellationToken);
         downstream.ExpectComplete(TestContext.Current.CancellationToken);
     }
+
+    [Fact(Timeout = 5000)]
+    public async Task Buffered_async_handler_should_not_create_pipe()
+    {
+        var handlerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var app = new FakeApplication(async features =>
+        {
+            handlerEntered.SetResult();
+            await release.Task;
+            var body = features.Get<IHttpResponseBodyFeature>()!;
+            var writer = body.Writer;
+            var mem = writer.GetMemory(2 * 1024);
+            new byte[2 * 1024].CopyTo(mem);
+            writer.Advance(2 * 1024);
+            writer.Complete();
+        });
+
+        var stage = CreateStage(app);
+        var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
+            .Via(stage)
+            .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
+            .Run(Materializer);
+
+        downstream.Request(1);
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
+
+        await handlerEntered.Task.WaitAsync(TimeSpan.FromSeconds(3),
+            TestContext.Current.CancellationToken);
+        release.SetResult();
+
+        var emitted = downstream.ExpectNext(TestContext.Current.CancellationToken);
+        var bodyFeature = emitted.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+        Assert.NotNull(bodyFeature);
+        Assert.False(bodyFeature!.HasPipe,
+            "Buffered async handler (no FlushAsync) should not create a Pipe");
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task Streaming_async_handler_should_create_pipe_on_flush()
+    {
+        var handlerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var app = new FakeApplication(async features =>
+        {
+            handlerEntered.SetResult();
+            var body = features.Get<IHttpResponseBodyFeature>()!;
+            await body.Writer.WriteAsync(new byte[512], TestContext.Current.CancellationToken);
+            await body.Writer.FlushAsync(TestContext.Current.CancellationToken);
+            await release.Task;
+            body.Writer.Complete();
+        });
+
+        var stage = CreateStage(app);
+        var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
+            .Via(stage)
+            .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
+            .Run(Materializer);
+
+        downstream.Request(1);
+        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
+
+        await handlerEntered.Task.WaitAsync(TimeSpan.FromSeconds(3),
+            TestContext.Current.CancellationToken);
+
+        var emitted = downstream.ExpectNext(TestContext.Current.CancellationToken);
+        var bodyFeature = emitted.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+        Assert.NotNull(bodyFeature);
+        Assert.True(bodyFeature!.HasPipe,
+            "Streaming async handler (explicit FlushAsync) should create a Pipe");
+
+        release.SetResult();
+    }
 }
