@@ -205,6 +205,8 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
 
     private sealed class Logic : GraphStageLogic
     {
+        private const int MaxPendingSourcesCap = 256;
+
         private readonly GroupByRequestEndpointStage<T> _stage;
         private readonly Dictionary<RequestEndpoint, SubflowGroup> _subflows = new();
         private readonly Queue<Source<T, NotUsed>> _pendingSources = new();
@@ -372,6 +374,11 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             if (_pendingSources.TryDequeue(out var bufferedSource))
             {
                 Push(_stage._out, bufferedSource);
+
+                if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in))
+                {
+                    Pull(_stage._in);
+                }
             }
             else if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in))
             {
@@ -408,12 +415,13 @@ internal sealed class GroupByRequestEndpointStage<T> : GraphStage<FlowShape<T, S
             // slots even when one is momentarily full, preventing the pipeline stall that occurs
             // when ALL upstream pulls are gated on a single slot's write-ready callback.
             //
-            // _pendingSources (queued Source objects for downstream) must NOT gate upstream pulls.
-            // Upstream produces requests routed into channel-backed slots; the outlet produces
-            // Source objects — independent concerns. Blocking upstream while sources queue forces
-            // sequential connection establishment: O(N × connect_time) instead of O(connect_time).
+            // _pendingSources is also capped: when downstream is slow consuming Source objects,
+            // each new endpoint piles up a Source. Without a cap, a proxy receiving thousands of
+            // unique endpoints grows _pendingSources unboundedly. The cap is high enough (256) to
+            // allow parallel connection establishment without sequential O(N × connect_time) penalty.
             if (!HasBeenPulled(_stage._in) && !IsClosed(_stage._in)
-                                           && (routedSlot is null || routedSlot.Pending.Count <= 2))
+                                           && (routedSlot is null || routedSlot.Pending.Count <= 2)
+                                           && _pendingSources.Count < MaxPendingSourcesCap)
             {
                 Pull(_stage._in);
             }
