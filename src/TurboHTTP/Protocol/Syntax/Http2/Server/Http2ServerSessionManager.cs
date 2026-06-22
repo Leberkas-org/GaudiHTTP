@@ -302,15 +302,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
                 var window = _flow.GetSendWindow(streamId);
                 if (window >= bufferedBody.Length)
                 {
-                    var maxFrame = _responseEncoder.MaxFrameSize;
-                    var remaining = bufferedBody;
-                    while (remaining.Length > maxFrame)
-                    {
-                        EmitFrame(new DataFrame(streamId, remaining[..maxFrame], endStream: false));
-                        remaining = remaining[maxFrame..];
-                    }
-
-                    EmitFrame(new DataFrame(streamId, remaining, endStream: true));
+                    EmitBufferedDataFrames(streamId, bufferedBody, endStream: true);
                     _flow.OnDataSent(streamId, bufferedBody.Length);
                     CloseStream(streamId);
                     return;
@@ -856,20 +848,13 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
     private void SendBufferedBodyWithFlowControl(int streamId, StreamState state, ReadOnlyMemory<byte> body,
         long window)
     {
-        var maxFrame = _responseEncoder.MaxFrameSize;
         var sent = 0;
 
         if (window > 0)
         {
-            var sendable = body[..(int)Math.Min(window, body.Length)];
-            while (sendable.Length > maxFrame)
-            {
-                EmitFrame(new DataFrame(streamId, sendable[..maxFrame], endStream: false));
-                sendable = sendable[maxFrame..];
-            }
-
-            EmitFrame(new DataFrame(streamId, sendable, endStream: false));
             sent = (int)Math.Min(window, body.Length);
+            var sendable = body[..sent];
+            EmitBufferedDataFrames(streamId, sendable, endStream: false);
             _flow.OnDataSent(streamId, sent);
         }
 
@@ -894,21 +879,12 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
 
     void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
-        // The server ignores the endStream flag on EmitDataFrames because the end-of-body
-        // may require trailers (HEADERS frame) rather than a simple END_STREAM DATA frame.
-        // OnDrainComplete handles the trailer-aware end-of-body signaling.
-        var maxFrame = _responseEncoder.MaxFrameSize;
-        var remaining = data;
-        while (remaining.Length > maxFrame)
+        if (data.IsEmpty)
         {
-            EmitFrame(new DataFrame(streamId, remaining[..maxFrame], endStream: false));
-            remaining = remaining[maxFrame..];
+            return;
         }
 
-        if (!remaining.IsEmpty)
-        {
-            EmitFrame(new DataFrame(streamId, remaining, endStream: false));
-        }
+        EmitBufferedDataFrames(streamId, data, endStream: false);
     }
 
     void IBodyDrainTarget<int>.OnDrainComplete(int streamId)
@@ -929,6 +905,54 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
         Tracing.For("Protocol").Warning(this,
             "HTTP/2: Response body drain failed for stream {0}: {1}", streamId, reason.Message);
         EmitRstStream(streamId, Http2ErrorCode.InternalError);
+    }
+
+    private void EmitBufferedDataFrames(int streamId, ReadOnlyMemory<byte> body, bool endStream)
+    {
+        const int headerSize = 9;
+        var maxFrame = _responseEncoder.MaxFrameSize;
+        var frameCount = (body.Length + maxFrame - 1) / maxFrame;
+        var totalWireSize = body.Length + frameCount * headerSize;
+
+        var buf = TransportBuffer.Rent(totalWireSize);
+        var dest = buf.FullMemory.Span;
+        var offset = 0;
+        var remaining = body;
+        var rateActive = false;
+
+        while (remaining.Length > maxFrame)
+        {
+            var chunk = remaining[..maxFrame];
+            DataFrame.WriteHeaderInPlace(dest, offset, streamId, maxFrame, endStream: false);
+            chunk.Span.CopyTo(dest[(offset + headerSize)..]);
+            offset += headerSize + maxFrame;
+            remaining = remaining[maxFrame..];
+
+            Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
+                streamId, maxFrame, false);
+            rateActive = true;
+        }
+
+        var lastLen = remaining.Length;
+        DataFrame.WriteHeaderInPlace(dest, offset, streamId, lastLen, endStream);
+        remaining.Span.CopyTo(dest[(offset + headerSize)..]);
+        offset += headerSize + lastLen;
+
+        Tracing.For("Protocol").Trace(this, "HTTP/2: DATA out (stream={0}, len={1}, endStream={2})",
+            streamId, lastLen, endStream);
+        if (lastLen > 0)
+        {
+            rateActive = true;
+        }
+
+        if (rateActive)
+        {
+            _responseRate.Observe(streamId, body.Length, Now());
+            EnsureRateTimer();
+        }
+
+        buf.Length = offset;
+        _ops.OnOutbound(TransportData.Rent(buf));
     }
 
     private void EmitFrame(Http2Frame frame)
