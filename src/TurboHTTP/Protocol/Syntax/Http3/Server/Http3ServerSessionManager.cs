@@ -1,5 +1,6 @@
 using System.Buffers;
 using Akka.Actor;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Pooling;
@@ -158,6 +159,21 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
                 return;
             }
         }
+    }
+
+    private void SendInformational(long streamId, int statusCode, IHeaderDictionary headers)
+    {
+        var fc = new TurboFeatureCollection();
+        var responseFeature = new TurboHttpResponseFeature { StatusCode = statusCode };
+        foreach (var h in headers)
+        {
+            responseFeature.Headers[h.Key] = h.Value;
+        }
+
+        fc.Set<IHttpResponseFeature>(responseFeature);
+
+        var headersFrame = _responseEncoder.EncodeHeaders(fc);
+        EmitDataFrame(headersFrame, streamId);
     }
 
     public void OnResponse(IFeatureCollection features)
@@ -646,6 +662,8 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
             var capturedStreamId = streamId;
             features.Set<IHttpResetFeature>(new TurboHttpResetFeature(errorCode =>
                 EmitRstStream(capturedStreamId, (ErrorCode)errorCode)));
+            features.Set(new TurboInformationalResponseFeature((statusCode, headers) =>
+                SendInformational(capturedStreamId, statusCode, headers)));
 
             _ops.OnRequest(features);
         }
