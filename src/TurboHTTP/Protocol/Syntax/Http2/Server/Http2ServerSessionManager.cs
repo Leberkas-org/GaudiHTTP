@@ -804,6 +804,12 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             Tracing.For("Protocol")
                 .Debug(this, "HTTP/2: request dispatched (stream={0}, hasBody={1})", streamId, hasBody);
             _ops.OnRequest(features);
+
+            if (string.Equals(requestFeature.Headers[WellKnownHeaders.Expect], "100-continue",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                SendInformational(capturedStreamId, 100, new HeaderDictionary());
+            }
         }
         catch (HttpProtocolException ex)
         {
