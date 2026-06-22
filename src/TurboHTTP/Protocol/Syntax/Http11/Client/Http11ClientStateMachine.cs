@@ -413,7 +413,7 @@ internal sealed class Http11ClientStateMachine : IClientStateMachine, IBodyDrain
 
                     var response = _decoder.GetResponse();
 
-                    if ((int)response.StatusCode is >= 100 and < 200)
+                    if ((int)response.StatusCode is >= 100 and < 200 and not 101)
                     {
                         _ops.OnResponse(response);
                         _decoder.Reset();
