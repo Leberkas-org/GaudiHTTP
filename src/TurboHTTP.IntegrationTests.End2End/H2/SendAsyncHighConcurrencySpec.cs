@@ -33,7 +33,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
-        Assert.Skip("High-concurrency spec causes resource contention with parallel test collections");
+        Assert.Skip("High-concurrency spec causes resource contention with parallel test collections in CI");
 
         // --- Kestrel server (matches benchmark BenchmarkServer config) ---
         var builder = WebApplication.CreateBuilder();
@@ -626,6 +626,103 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
         }
     }
 
+    /// <summary>
+    /// Diagnostic test: reproduces the BDN crash by firing ALL requests simultaneously
+    /// WITHOUT a SemaphoreSlim gate — exactly matching the benchmark behavior. Graduates
+    /// from 64→4096 to find the exact stall threshold.
+    /// </summary>
+    [Fact(Timeout = 300_000)]
+    public async Task Diagnose_sendAsync_stall_threshold_with_traces()
+    {
+        int[] levels = [64, 128, 256, 512, 1024, 2048, 4096];
+
+        Console.Error.WriteLine($"ThreadPool: count={ThreadPool.ThreadCount}, " +
+                                $"GC={(System.Runtime.GCSettings.IsServerGC ? "Server" : "Workstation")}");
+
+        foreach (var concurrency in levels)
+        {
+            var tasks = new Task<HttpResponseMessage>[concurrency];
+            var completed = 0;
+            var failed = 0;
+            var sw = Stopwatch.StartNew();
+            var timeout = TimeSpan.FromSeconds(Math.Max(30, concurrency / 10));
+
+            using var progressTimer = new Timer(_ =>
+            {
+                ThreadPool.GetAvailableThreads(out var workerAvail, out var ioAvail);
+                ThreadPool.GetMaxThreads(out var workerMax, out var ioMax);
+
+                Console.Error.WriteLine(
+                    $"[{sw.Elapsed:mm\\:ss\\.ff}] CL={concurrency}: " +
+                    $"{Volatile.Read(ref completed)}/{concurrency} done, {Volatile.Read(ref failed)} fail, " +
+                    $"ThreadPool: busy={workerMax - workerAvail}/{workerMax} io={ioMax - ioAvail}/{ioMax} " +
+                    $"Mem={GC.GetTotalMemory(false) / 1024 / 1024}MB");
+            }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+
+            for (var i = 0; i < concurrency; i++)
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, $"{_baseUri}/simple");
+                tasks[i] = _client!.SendAsync(request, CT).ContinueWith(t =>
+                {
+                    if (t.IsCompletedSuccessfully)
+                    {
+                        Interlocked.Increment(ref completed);
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref failed);
+                    }
+
+                    return t.IsCompletedSuccessfully ? t.Result : null!;
+                }, TaskScheduler.Default);
+            }
+
+            try
+            {
+                await Task.WhenAll(tasks).WaitAsync(timeout);
+            }
+            catch (TimeoutException)
+            {
+                sw.Stop();
+
+                ThreadPool.GetAvailableThreads(out var wa, out var ia);
+                ThreadPool.GetMaxThreads(out var wm, out var im);
+
+                Console.Error.WriteLine(
+                    $"=== TIMEOUT at CL={concurrency}: {completed}/{concurrency} done, {failed} fail " +
+                    $"after {sw.Elapsed.TotalMilliseconds:F0}ms ===");
+                Console.Error.WriteLine(
+                    $"    ThreadPool: busy={wm - wa}/{wm} io={im - ia}/{im} " +
+                    $"Mem={GC.GetTotalMemory(false) / 1024 / 1024}MB");
+
+                Assert.Fail(
+                    $"Pipeline stalled at CL={concurrency}: only {completed}/{concurrency} " +
+                    $"completed in {sw.Elapsed.TotalMilliseconds:F0}ms");
+                return;
+            }
+
+            sw.Stop();
+
+            foreach (var t in tasks)
+            {
+                if (t.IsCompletedSuccessfully && t.Result is not null)
+                {
+                    t.Result.Dispose();
+                }
+            }
+
+            Console.Error.WriteLine(
+                $"CL={concurrency}: OK in {sw.Elapsed.TotalMilliseconds:F0}ms " +
+                $"({concurrency / sw.Elapsed.TotalSeconds:F0} req/s), {failed} failures");
+
+            if (failed > 0)
+            {
+                Assert.Fail($"CL={concurrency}: {failed}/{concurrency} requests failed");
+                return;
+            }
+        }
+    }
+
     private sealed class Counters
     {
         public int Completed;
@@ -645,8 +742,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 
         Tracing.Configure(
             new Diagnostics.LoggerTraceListener(loggerFactory),
-            TraceLevel.Warning,
-            category => category == "Protocol");
+            TraceLevel.Warning);
     }
 
     private sealed class FixedOptionsFactory(TurboClientOptions options) : IOptionsFactory<TurboClientOptions>
