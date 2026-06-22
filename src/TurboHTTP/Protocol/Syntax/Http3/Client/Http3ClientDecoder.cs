@@ -58,13 +58,28 @@ internal sealed class Http3ClientDecoder
         FieldValidator.Validate(headers);
         ValidateFieldSectionSize(headers);
 
+        var statusCode = 200;
+        foreach (var h in headers)
+        {
+            if (h.Name == WellKnownHeaders.Status)
+            {
+                statusCode = int.Parse(h.Value);
+                break;
+            }
+        }
+
+        if (statusCode < 200)
+        {
+            return false;
+        }
+
         var response = state.InitResponse();
 
         foreach (var h in headers)
         {
             if (h.Name == WellKnownHeaders.Status)
             {
-                response.StatusCode = (HttpStatusCode)int.Parse(h.Value);
+                response.StatusCode = (HttpStatusCode)statusCode;
             }
             else if (!h.Name.StartsWith(':'))
             {
