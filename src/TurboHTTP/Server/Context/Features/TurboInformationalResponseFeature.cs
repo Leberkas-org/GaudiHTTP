@@ -1,0 +1,38 @@
+using Microsoft.AspNetCore.Http;
+
+namespace TurboHTTP.Server.Context.Features;
+
+internal sealed class TurboInformationalResponseFeature
+{
+    private readonly Action<int, IHeaderDictionary> _sendCallback;
+    private bool _finalResponseSent;
+
+    public TurboInformationalResponseFeature(Action<int, IHeaderDictionary> sendCallback)
+    {
+        _sendCallback = sendCallback;
+    }
+
+    public void MarkFinalResponseSent() => _finalResponseSent = true;
+
+    public void SendInformational(int statusCode, IHeaderDictionary headers)
+    {
+        if (statusCode < 100 || statusCode >= 200)
+        {
+            throw new ArgumentOutOfRangeException(nameof(statusCode), statusCode,
+                "Informational status code must be between 100 and 199.");
+        }
+
+        if (_finalResponseSent)
+        {
+            throw new InvalidOperationException(
+                "Cannot send informational response after final response headers have been sent.");
+        }
+
+        _sendCallback(statusCode, headers);
+    }
+
+    internal void Reset()
+    {
+        _finalResponseSent = false;
+    }
+}
