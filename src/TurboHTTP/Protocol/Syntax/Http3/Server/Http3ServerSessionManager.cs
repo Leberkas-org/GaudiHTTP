@@ -666,6 +666,12 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
                 SendInformational(capturedStreamId, statusCode, headers)));
 
             _ops.OnRequest(features);
+
+            if (string.Equals(requestFeature.Headers[WellKnownHeaders.Expect], "100-continue",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                SendInformational(capturedStreamId, 100, new HeaderDictionary());
+            }
         }
     }
 
