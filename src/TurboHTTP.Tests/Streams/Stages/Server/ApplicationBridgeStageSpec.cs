@@ -153,42 +153,4 @@ public sealed class ApplicationBridgeStageSpec : StreamTestBase
         upstream.SendComplete(TestContext.Current.CancellationToken);
         downstream.ExpectComplete(TestContext.Current.CancellationToken);
     }
-
-    [Fact(Timeout = 5000)]
-    public async Task ApplicationBridgeStage_should_not_upgrade_to_pipe_for_buffered_async_handler()
-    {
-        var handlerEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var app = new FakeApplication(async features =>
-        {
-            handlerEntered.SetResult();
-            await release.Task;
-            var body = features.Get<IHttpResponseBodyFeature>()!;
-            var writer = body.Writer;
-            var mem = writer.GetMemory(2 * 1024);
-            new byte[2 * 1024].CopyTo(mem);
-            writer.Advance(2 * 1024);
-            writer.Complete();
-        });
-
-        var stage = CreateStage(app);
-        var (upstream, downstream) = this.SourceProbe<IFeatureCollection>()
-            .Via(stage)
-            .ToMaterialized(this.SinkProbe<IFeatureCollection>(), Keep.Both)
-            .Run(Materializer);
-
-        downstream.Request(1);
-        upstream.SendNext(Request(), TestContext.Current.CancellationToken);
-
-        await handlerEntered.Task.WaitAsync(TimeSpan.FromSeconds(3),
-            TestContext.Current.CancellationToken);
-        release.SetResult();
-
-        var emitted = downstream.ExpectNext(TestContext.Current.CancellationToken);
-        var bodyFeature = emitted.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
-        Assert.NotNull(bodyFeature);
-        Assert.False(bodyFeature!.HasPipe,
-            "Buffered async handler should not create a Pipe — " +
-            "the body stays in ArrayBufferWriter for zero-copy DATA frame emission");
-    }
 }

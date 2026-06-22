@@ -291,6 +291,7 @@ internal sealed class ApplicationBridgeStage<TContext> : GraphStage<FlowShape<IF
                 ScheduleOnce(softKey, _stage._handlerTimeout);
 
                 var bodyFeature = features.Get<IHttpResponseBodyFeature>() as TurboHttpResponseBodyFeature;
+                bodyFeature?.UpgradeToPipe();
                 var headersReady = bodyFeature?.WhenHeadersReady;
 
                 if (headersReady is not null)
