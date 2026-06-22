@@ -68,6 +68,12 @@ internal sealed class Http3ClientDecoder
             }
         }
 
+        if (statusCode < 100 || statusCode > 599)
+        {
+            throw new ArgumentOutOfRangeException(nameof(headers), statusCode,
+                "HTTP status code must be between 100 and 599.");
+        }
+
         if (statusCode < 200)
         {
             return false;
