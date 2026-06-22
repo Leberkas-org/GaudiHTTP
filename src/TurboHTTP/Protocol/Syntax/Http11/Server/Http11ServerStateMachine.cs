@@ -1,9 +1,11 @@
 using System.Net;
 using Akka.Actor;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
+using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
@@ -275,6 +277,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                     out var feature, _ops.ConnectionFeature,
                     _ops.TlsHandshakeFeature, _maxRequestBodySize);
                 _decoder.PopulateRequestFeature(feature);
+                features.Set(new TurboInformationalResponseFeature((statusCode, headers) =>
+                    SendInformational(statusCode, headers)));
 
                 if (!ShouldComplete && feature.Protocol == WellKnownHeaders.Http10)
                 {
@@ -547,6 +551,39 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         {
             _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
         }
+    }
+
+    private void SendInformational(int statusCode, IHeaderDictionary headers)
+    {
+        var estimatedSize = 64;
+        foreach (var h in headers)
+        {
+            estimatedSize += h.Key.Length + 4;
+            foreach (var v in h.Value)
+            {
+                estimatedSize += (v?.Length ?? 0) + 2;
+            }
+        }
+
+        var buffer = TransportBuffer.Rent(estimatedSize);
+        var writer = SpanWriter.Create(buffer.FullMemory.Span);
+        StatusLineWriter.Write(ref writer, HttpVersion.Version11, statusCode);
+
+        var headerCollection = new HeaderCollection();
+        foreach (var h in headers)
+        {
+            foreach (var v in h.Value)
+            {
+                if (v is not null)
+                {
+                    headerCollection.Add(h.Key, v);
+                }
+            }
+        }
+
+        HeaderBlockWriter.Write(ref writer, headerCollection);
+        buffer.Length = writer.BytesWritten;
+        _ops.OnOutbound(TransportData.Rent(buffer));
     }
 
     public void OnDownstreamFinished()
