@@ -420,10 +420,12 @@ public sealed class Http11ConnectionStageSpec : StreamTestBase
         // Send 100 Continue (informational, not final)
         serverSubscription.SendNext(TransportData.Rent(MakeResponseBuffer("HTTP/1.1 100 Continue\r\n\r\n")));
 
-        // Continue response should be processed internally (not emitted downstream typically)
-        // Send final response after 100 Continue
+        // 100 Continue is now forwarded downstream
         serverSubscription.SendNext(
             TransportData.Rent(MakeResponseBuffer("HTTP/1.1 200 OK\r\nContent-Length: 7\r\n\r\nSuccess")));
+
+        var continueResponse = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Continue, continueResponse.StatusCode);
 
         var response = await responseSub.ExpectNextAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
