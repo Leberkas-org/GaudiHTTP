@@ -119,4 +119,33 @@ public sealed class Http3InterimResponseSpec
         Assert.True(state.HasResponse);
         Assert.Equal(HttpStatusCode.OK, state.GetResponse().StatusCode);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9114-4.1")]
+    public void AssembleHeaders_should_populate_LastInterimResponse_for_1xx()
+    {
+        var decoder = CreateDecoder();
+        var state = new StreamState();
+        state.Initialize(0);
+
+        decoder.AssembleHeaders([(":status", "103"), ("link", "</style.css>; rel=preload")], state);
+
+        Assert.NotNull(decoder.LastInterimResponse);
+        Assert.Equal((HttpStatusCode)103, decoder.LastInterimResponse.StatusCode);
+        Assert.Contains("</style.css>; rel=preload",
+            decoder.LastInterimResponse.Headers.GetValues("link"));
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9114-4.1")]
+    public void AssembleHeaders_should_not_populate_LastInterimResponse_for_final()
+    {
+        var decoder = CreateDecoder();
+        var state = new StreamState();
+        state.Initialize(0);
+
+        decoder.AssembleHeaders([(":status", "200")], state);
+
+        Assert.Null(decoder.LastInterimResponse);
+    }
 }
