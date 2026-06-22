@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 using Akka.Actor;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Servus.Akka.Transport;
 using TurboHTTP.Pooling;
@@ -249,6 +250,25 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             case RstStreamFrame rst:
                 HandleRstStreamFrame(rst);
                 break;
+        }
+    }
+
+    private void SendInformational(int streamId, int statusCode, IHeaderDictionary headers)
+    {
+        var fc = new TurboFeatureCollection();
+        var responseFeature = new TurboHttpResponseFeature { StatusCode = statusCode };
+        foreach (var h in headers)
+        {
+            responseFeature.Headers[h.Key] = h.Value;
+        }
+
+        fc.Set<IHttpResponseFeature>(responseFeature);
+        fc.Set<IHttpStreamIdFeature>(new TurboStreamIdFeature(streamId));
+
+        var frames = _responseEncoder.EncodeHeaders(fc, streamId, hasBody: true);
+        for (var i = 0; i < frames.Count; i++)
+        {
+            EmitFrame(frames[i]);
         }
     }
 
@@ -778,6 +798,8 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             var capturedStreamId = streamId;
             features.Set<IHttpResetFeature>(new TurboHttpResetFeature(errorCode =>
                 EmitRstStream(capturedStreamId, (Http2ErrorCode)errorCode)));
+            features.Set(new TurboInformationalResponseFeature((statusCode, headers) =>
+                SendInformational(capturedStreamId, statusCode, headers)));
 
             Tracing.For("Protocol")
                 .Debug(this, "HTTP/2: request dispatched (stream={0}, hasBody={1})", streamId, hasBody);
