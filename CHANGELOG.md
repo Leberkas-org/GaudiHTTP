@@ -1,5 +1,59 @@
 # Changelog
 
+## [3.0.0-alpha.5](https://github.com/Leberkas-org/TurboHTTP/compare/v3.0.0-alpha.4...v3.0.0-alpha.5) (2026-06-22)
+
+
+### Features
+
+* **servus.akka:** Update subproject commit ([d8f1974](https://github.com/Leberkas-org/TurboHTTP/commit/d8f197491b304c8717e87887f6d2d26343f036df))
+
+
+### Bug Fixes
+
+* **client:** isolate per-request enrichment failures from the shared ingress ([4feb34a](https://github.com/Leberkas-org/TurboHTTP/commit/4feb34a6ed04571ecd8f1f65ad9615243570f098))
+* **h10:** set Content-Length on large payload endpoints to prevent truncation ([7184724](https://github.com/Leberkas-org/TurboHTTP/commit/718472437cc0f7845f53453a53f6ee6a00d69c21))
+* **h1:** retain unconsumed prefix across reads so split response headers don't desync ([52e0123](https://github.com/Leberkas-org/TurboHTTP/commit/52e01232d1feb74f8eea44cb90ee26046c910819))
+* **h2:** bound the receive WINDOW_UPDATE threshold to the advertised stream window ([99aa90c](https://github.com/Leberkas-org/TurboHTTP/commit/99aa90c67d0f11e1250e5d3fce1a98d9b8500bf1))
+* **h2:** drain in-flight streams on a graceful GOAWAY instead of dropping them (RFC 9113 6.8) ([b6da569](https://github.com/Leberkas-org/TurboHTTP/commit/b6da5697b8f44a015822bba3e13cb5d187d0cb1a))
+* **h3:** drive reconnect from the state machine like TCP ([7150963](https://github.com/Leberkas-org/TurboHTTP/commit/71509639576fd646137ddc74eaa8b73fa455c4e0))
+
+
+### Performance
+
+* **body:** override QueuedBodyStream.CopyToAsync to write pooled chunks directly ([ff3468b](https://github.com/Leberkas-org/TurboHTTP/commit/ff3468bb5d4112e8c085cde35078d2b2aa2f21e8))
+* **body:** rent body buffers from a shared cross-thread pool ([89dac37](https://github.com/Leberkas-org/TurboHTTP/commit/89dac3795506ce18ebdb0f1e8a3c9c7fc11c4233))
+* **client:** dispose the channel-path default-timeout source on completion ([ffdc864](https://github.com/Leberkas-org/TurboHTTP/commit/ffdc864ccaa58c640e19b46c3c48f79eb9f5ed8c))
+* **h1:** coalesce buffered H1.1 response headers and body into one outbound ([e496637](https://github.com/Leberkas-org/TurboHTTP/commit/e49663779fb83d4172293c2ad583becf75ea9894))
+* **h1:** drop per-message header-iteration allocations ([ba79c83](https://github.com/Leberkas-org/TurboHTTP/commit/ba79c830b3a23bb209a768c1b513f0211b27f855))
+* **h1:** scan response headers once instead of three passes ([456b9a4](https://github.com/Leberkas-org/TurboHTTP/commit/456b9a4ecbf50597e75f52cd44d3551e233a94ea))
+* **h1:** single vectorized two-byte CRLF search in BufferSearch.FindCrlf ([49562db](https://github.com/Leberkas-org/TurboHTTP/commit/49562db9ce299759198e53ffa4dc02a2f4766dd2))
+* **h1:** single-value header fast paths drop per-message allocations ([0b7d0b1](https://github.com/Leberkas-org/TurboHTTP/commit/0b7d0b155b8b5b104e17c8cca7a7e3c555a191f2))
+* **h1:** write pre-encoded u8 version bytes in the request line ([d072d9f](https://github.com/Leberkas-org/TurboHTTP/commit/d072d9f6554f01c5802f1b4e56d8d840f30169c8))
+* **h2-server:** batch DATA frames into single TransportBuffer ([30156ea](https://github.com/Leberkas-org/TurboHTTP/commit/30156ea69f990ab32f4db5e5f7c894e537ace837))
+* **h2-server:** defer UpgradeToPipe for buffered async handlers ([639abdf](https://github.com/Leberkas-org/TurboHTTP/commit/639abdf2498932bfe036e7f27a3d9e63575a026f))
+* **h2-server:** lazy Pipe upgrade on explicit write/flush instead of eager ([ea9ba40](https://github.com/Leberkas-org/TurboHTTP/commit/ea9ba40246b5a766fe1c7d00de9da874e19b42bf))
+* **h2:** FrameDecoder.Decode returns its reused frame list (no per-read array alloc) ([d1a379d](https://github.com/Leberkas-org/TurboHTTP/commit/d1a379d5e79129b7ea579147e7a4ffaae0997563))
+* **h2:** iterate stream windows in place on SETTINGS window-size change ([d5cc998](https://github.com/Leberkas-org/TurboHTTP/commit/d5cc998ed02a0c9a1c01d9078ada52c817aa2d16))
+* **hpack:** decode Huffman over a flat struct-array tree ([9e62516](https://github.com/Leberkas-org/TurboHTTP/commit/9e6251669fbde61dc7a572515ee4826092ad5606))
+* **hpack:** reuse computed UTF-8 byte lengths when adding to the dynamic table ([10c8956](https://github.com/Leberkas-org/TurboHTTP/commit/10c8956a8a06958bcc553dc5c98044a5f52de561))
+* **quic:** bump servus.akka — direct-read + stream-type ordering fix ([63f42a6](https://github.com/Leberkas-org/TurboHTTP/commit/63f42a637318343937e6bfc5054e511966ca36fb))
+* **server:** tune connection materializer input buffer to 32/128 ([5903794](https://github.com/Leberkas-org/TurboHTTP/commit/590379444c077d72e227e04c9d47205e609b80a8))
+* **servus.akka:** LIFO connection pool for warmer TCP reuse ([37ad9fe](https://github.com/Leberkas-org/TurboHTTP/commit/37ad9fefc980a290c5b48d8b42c4598b45fb3bed))
+* **servus.akka:** QUIC streams use PipeReader/Writer.Create instead of Task.Run loops ([4e51a08](https://github.com/Leberkas-org/TurboHTTP/commit/4e51a0854ec0cfecea572134f837447a403c3362))
+* **transport:** bounded sync fast-path for PipeReader.ReadAsync ([feec226](https://github.com/Leberkas-org/TurboHTTP/commit/feec2263bbb72f6f753f53f06fc32798fb966d8b))
+
+
+### Documentation
+
+* replace stale ConnectionStage references with ConnectionActor ([ed90760](https://github.com/Leberkas-org/TurboHTTP/commit/ed907602d1d3e862c350d18ad361ea6653d41e3b))
+* Update benchmark context and use cases ([e7c0347](https://github.com/Leberkas-org/TurboHTTP/commit/e7c0347fa8ee3eabd94baa29f3588c92425ceb2b))
+* update CLAUDE.md decode-buffer note to match FrameDecoder.Decode contract ([5848a24](https://github.com/Leberkas-org/TurboHTTP/commit/5848a24ed373c15535e0c1f57c0310c8d575f8a0))
+
+
+### Refactoring
+
+* **client:** remove dead dispatcher-sizing computation ([457b8f8](https://github.com/Leberkas-org/TurboHTTP/commit/457b8f8dc10b93103d90e14703132fc11f21ff5a))
+
 ## [3.0.0-alpha.4](https://github.com/Leberkas-org/TurboHTTP/compare/v3.0.0-alpha.3...v3.0.0-alpha.4) (2026-06-19)
 
 
