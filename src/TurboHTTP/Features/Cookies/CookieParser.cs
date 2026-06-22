@@ -119,6 +119,22 @@ internal static class CookieParser
             }
         }
 
+        // RFC 6265bis §4.1.3: Cookie name prefix enforcement
+        if (name.StartsWith("__Host-", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!secure || domainAttr is not null || pathAttr is not "/")
+            {
+                return null;
+            }
+        }
+        else if (name.StartsWith("__Secure-", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!secure)
+            {
+                return null;
+            }
+        }
+
         // RFC 6265 §5.3 step 3: Max-Age takes precedence over Expires
         if (maxAgeSecs.HasValue)
         {
