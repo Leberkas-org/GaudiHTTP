@@ -143,11 +143,7 @@ internal sealed class Consumer : ReceiveActor
                         && req.Options.TryGetValue(OptionsKey.Key, out var pending)
                         && req.Options.TryGetValue(OptionsKey.VersionKey, out var ver))
                     {
-                        if (!pending.TrySetResult(response, ver))
-                        {
-                            response.Dispose();
-                        }
-
+                        pending.TrySetResult(response, ver);
                         return;
                     }
 

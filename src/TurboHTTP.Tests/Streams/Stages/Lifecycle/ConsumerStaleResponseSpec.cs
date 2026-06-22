@@ -11,13 +11,15 @@ namespace TurboHTTP.Tests.Streams.Stages.Lifecycle;
 
 /// <summary>
 /// When a response arrives for a request whose PendingRequest has already been completed or
-/// cancelled (version mismatch → TrySetResult returns false), the orphaned HttpResponseMessage
-/// must be disposed to prevent resource leaks.
+/// cancelled (version mismatch → TrySetResult returns false), the Consumer must NOT dispose the
+/// response. The BroadcastHub delivers the same HttpResponseMessage object to all consumers —
+/// disposing in one consumer would corrupt the body stream that another consumer is reading.
+/// The orphaned response is GC-reclaimable.
 /// </summary>
 public sealed class ConsumerStaleResponseSpec : StreamTestBase
 {
     [Fact(Timeout = 5000)]
-    public async Task Consumer_should_dispose_response_when_pending_version_has_advanced()
+    public async Task Consumer_should_not_dispose_stale_response_because_broadcast_hub_shares_objects()
     {
         var consumerId = Guid.NewGuid();
         var requestChannel = Channel.CreateUnbounded<HttpRequestMessage>();
@@ -69,7 +71,8 @@ public sealed class ConsumerStaleResponseSpec : StreamTestBase
         // Give the sink time to process
         await Task.Delay(200, TestContext.Current.CancellationToken);
 
-        Assert.True(trackable.WasDisposed, "Stale response should have been disposed when TrySetResult returned false");
+        Assert.False(trackable.WasDisposed,
+            "Stale response must NOT be disposed — BroadcastHub shares the same object across consumers");
 
         Sys.Stop(actor);
     }
