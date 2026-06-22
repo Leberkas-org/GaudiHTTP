@@ -85,27 +85,29 @@ public sealed class Http3ResponseDecoderEdgeCasesSpec
     }
 
     [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-4.3.2")]
-    public void DecodeHeaders_status_codes_100()
+    [Trait("RFC", "RFC9114-4.1")]
+    public void DecodeHeaders_status_codes_100_should_not_set_response()
     {
         var state = new StreamState();
+        state.Initialize(0);
         var frame = EncodeHeaders((":status", "100"));
 
         var result = _decoder.DecodeHeaders(frame, state);
-        Assert.True(result);
-        Assert.Equal(HttpStatusCode.Continue, state.GetResponse().StatusCode);
+        Assert.False(result);
+        Assert.False(state.HasResponse);
     }
 
     [Fact(Timeout = 5000)]
-    [Trait("RFC", "RFC9114-4.3.2")]
-    public void DecodeHeaders_status_codes_1xx_series()
+    [Trait("RFC", "RFC9114-4.1")]
+    public void DecodeHeaders_status_codes_1xx_series_should_not_set_response()
     {
         var state = new StreamState();
-        var frame = EncodeHeaders((":status", "101"));
+        state.Initialize(0);
+        var frame = EncodeHeaders((":status", "103"));
 
         var result = _decoder.DecodeHeaders(frame, state);
-        Assert.True(result);
-        Assert.Equal((HttpStatusCode)101, state.GetResponse().StatusCode);
+        Assert.False(result);
+        Assert.False(state.HasResponse);
     }
 
     [Fact(Timeout = 5000)]
