@@ -190,7 +190,13 @@ internal sealed class StreamManager(
             {
                 if (!state.HasResponse)
                 {
-                    responseDecoder.AssembleHeaders(headers, state);
+                    if (!responseDecoder.AssembleHeaders(headers, state)
+                        && responseDecoder.LastInterimResponse is { } interim)
+                    {
+                        responseDecoder.LastInterimResponse = null;
+                        interim.RequestMessage = _correlationMap.GetValueOrDefault(state.StreamId);
+                        ops.OnResponse(interim);
+                    }
                 }
 
                 if (state is { HasResponse: true, HasBodyReader: false })
@@ -338,6 +344,13 @@ internal sealed class StreamManager(
 
         if (!responseDecoder.AssembleHeaders(result.Headers!, state))
         {
+            if (responseDecoder.LastInterimResponse is { } interim)
+            {
+                responseDecoder.LastInterimResponse = null;
+                interim.RequestMessage = _correlationMap.GetValueOrDefault(state.StreamId);
+                ops.OnResponse(interim);
+            }
+
             return;
         }
 
