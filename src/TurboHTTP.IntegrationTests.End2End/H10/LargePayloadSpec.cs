@@ -23,12 +23,14 @@ public sealed class LargePayloadSpec : End2EndSpecBase
             await ctx.Request.Body.CopyToAsync(stream, ctx.RequestAborted);
             var data = stream.ToArray();
             ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = data.Length;
             await ctx.Response.Body.WriteAsync(data, ctx.RequestAborted);
         });
 
         app.MapGet("/generate", async (int size, HttpContext ctx) =>
         {
             ctx.Response.ContentType = "application/octet-stream";
+            ctx.Response.ContentLength = size;
             var buffer = new byte[1024];
             Array.Fill(buffer, (byte)0xAB);
             var remaining = size;
