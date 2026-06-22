@@ -295,6 +295,12 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
                 Tracing.For("Protocol").Debug(this, "request dispatched (pending={0})", _pendingResponseCount);
                 _ops.OnRequest(features);
 
+                if (string.Equals(feature.Headers[WellKnownHeaders.Expect], "100-continue",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    SendInformational(100, new HeaderDictionary());
+                }
+
                 if (outcome == DecodeOutcome.HeadersReady)
                 {
                     _bodyStreaming = true;
