@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Http;
+using TurboHTTP.Protocol.Semantics;
+
 namespace TurboHTTP.Protocol.Body;
 
 /// <summary>
@@ -8,6 +11,8 @@ internal static class ChunkedFramingHelper
 {
     private static ReadOnlySpan<byte> CrLf => "\r\n"u8;
     private static ReadOnlySpan<byte> Terminator => "0\r\n\r\n"u8;
+    private static ReadOnlySpan<byte> LastChunk => "0\r\n"u8;
+    private static ReadOnlySpan<byte> ColonSpace => ": "u8;
 
     /// <summary>
     /// Returns the total byte count needed to frame <paramref name="dataLength"/> bytes:
@@ -43,6 +48,110 @@ internal static class ChunkedFramingHelper
     {
         Terminator.CopyTo(destination);
         return 5;
+    }
+
+    /// <summary>
+    /// Writes the last chunk marker <c>0\r\n</c> without the trailing section terminator.
+    /// Use with <see cref="WriteTrailerSection"/> to emit trailers between the last chunk and the final CRLF.
+    /// Returns the number of bytes written (always 3).
+    /// </summary>
+    public static int WriteLastChunk(Span<byte> destination)
+    {
+        LastChunk.CopyTo(destination);
+        return 3;
+    }
+
+    /// <summary>
+    /// Estimates the byte count needed for the trailer section (filtered trailers + final CRLF).
+    /// </summary>
+    public static int GetTrailerSectionSize(IHeaderDictionary trailers)
+    {
+        var size = 2; // final CRLF
+        foreach (var header in trailers)
+        {
+            if (!TrailerFieldValidator.IsAllowedInTrailer(header.Key))
+            {
+                continue;
+            }
+
+            // "name: value\r\n"
+            size += header.Key.Length + 2 + JoinedValueLength(header.Value) + 2;
+        }
+
+        return size;
+    }
+
+    /// <summary>
+    /// Writes filtered trailer headers followed by a final CRLF into <paramref name="destination"/>.
+    /// RFC 9112 §7.1.2: trailer-section = *(field-line CRLF) CRLF.
+    /// Returns the number of bytes written.
+    /// </summary>
+    public static int WriteTrailerSection(Span<byte> destination, IHeaderDictionary trailers)
+    {
+        var offset = 0;
+
+        foreach (var header in trailers)
+        {
+            if (!TrailerFieldValidator.IsAllowedInTrailer(header.Key))
+            {
+                continue;
+            }
+
+            var name = header.Key;
+            var values = header.Value;
+
+            for (var i = 0; i < name.Length; i++)
+            {
+                destination[offset++] = (byte)name[i];
+            }
+
+            ColonSpace.CopyTo(destination[offset..]);
+            offset += 2;
+
+            for (var v = 0; v < values.Count; v++)
+            {
+                if (v > 0)
+                {
+                    destination[offset++] = (byte)',';
+                    destination[offset++] = (byte)' ';
+                }
+
+                var val = values[v] ?? string.Empty;
+                for (var i = 0; i < val.Length; i++)
+                {
+                    destination[offset++] = (byte)val[i];
+                }
+            }
+
+            CrLf.CopyTo(destination[offset..]);
+            offset += 2;
+        }
+
+        CrLf.CopyTo(destination[offset..]);
+        offset += 2;
+
+        return offset;
+    }
+
+    private static int JoinedValueLength(Microsoft.Extensions.Primitives.StringValues values)
+    {
+        if (values.Count <= 1)
+        {
+            return values.ToString().Length;
+        }
+
+        var length = 0;
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (i > 0)
+            {
+                length += 2; // ", "
+            }
+
+            length += values[i]?.Length ?? 0;
+        }
+
+        return length;
     }
 
     private static int WriteHex(int value, Span<byte> destination)
