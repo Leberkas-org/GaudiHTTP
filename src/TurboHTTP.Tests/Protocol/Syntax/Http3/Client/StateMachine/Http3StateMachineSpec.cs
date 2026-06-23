@@ -62,7 +62,7 @@ public sealed class Http3StateMachineSpec
         var settings = new SettingsFrame([(SettingsIdentifier.MaxFieldSectionSize, 8192)]);
         var buffer = SerializeFrame(settings);
 
-        sm.DecodeServerData(new MultiplexedData(buffer, -2));
+        sm.DecodeServerData(MultiplexedData.Rent(buffer, -2));
 
         // No exception should be thrown
         Assert.True(true);
@@ -78,8 +78,8 @@ public sealed class Http3StateMachineSpec
         var buffer1 = SerializeFrame(settings);
         var buffer2 = SerializeFrame(settings);
 
-        sm.DecodeServerData(new MultiplexedData(buffer1, -2));
-        sm.DecodeServerData(new MultiplexedData(buffer2, -2));
+        sm.DecodeServerData(MultiplexedData.Rent(buffer1, -2));
+        sm.DecodeServerData(MultiplexedData.Rent(buffer2, -2));
 
         Assert.True(true);
     }
@@ -93,7 +93,7 @@ public sealed class Http3StateMachineSpec
         var goaway = new GoAwayFrame(0);
         var buffer = SerializeFrame(goaway);
 
-        sm.DecodeServerData(new MultiplexedData(buffer, -2));
+        sm.DecodeServerData(MultiplexedData.Rent(buffer, -2));
 
         Assert.False(sm.CanAcceptRequest);
     }
@@ -108,7 +108,7 @@ public sealed class Http3StateMachineSpec
         var buffer = SerializeFrame(goaway);
 
         // Should not throw
-        sm.DecodeServerData(new MultiplexedData(buffer, -2));
+        sm.DecodeServerData(MultiplexedData.Rent(buffer, -2));
 
         Assert.True(true);
     }
@@ -124,9 +124,9 @@ public sealed class Http3StateMachineSpec
         var goaway2 = new GoAwayFrame(8);
         var goaway3 = new GoAwayFrame(4);
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(goaway1), -2));
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(goaway2), -2));
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(goaway3), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(goaway1), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(goaway2), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(goaway3), -2));
 
         // Verify we accepted the decreasing IDs by checking that requests are rejected
         // (GoAway was received)
@@ -140,9 +140,9 @@ public sealed class Http3StateMachineSpec
         var sm = CreateMachine();
         sm.PreStart();
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new GoAwayFrame(4)), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(new GoAwayFrame(4)), -2));
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new GoAwayFrame(8)), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(new GoAwayFrame(8)), -2));
 
         Assert.True(true);
     }
@@ -154,7 +154,7 @@ public sealed class Http3StateMachineSpec
         var sm = CreateMachine();
         sm.PreStart();
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new GoAwayFrame(5)), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(new GoAwayFrame(5)), -2));
 
         Assert.True(true);
     }
@@ -169,7 +169,7 @@ public sealed class Http3StateMachineSpec
         var push = new PushPromiseFrame(1, new byte[] { 0x01 });
         var buffer = SerializeFrame(push);
 
-        sm.DecodeServerData(new MultiplexedData(buffer, -2));
+        sm.DecodeServerData(MultiplexedData.Rent(buffer, -2));
 
         // Should have emitted a CancelPush response on control stream
         Assert.Contains(_clientOps.Outbound, o => o is MultiplexedData md && md.StreamId < 0);
@@ -182,7 +182,7 @@ public sealed class Http3StateMachineSpec
         var sm = CreateMachine();
         sm.PreStart();
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new PushPromiseFrame(42, new byte[] { 0x01 })), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(new PushPromiseFrame(42, new byte[] { 0x01 })), -2));
 
         Assert.True(true);
     }
@@ -194,7 +194,7 @@ public sealed class Http3StateMachineSpec
         var sm = CreateMachine();
         sm.PreStart();
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new CancelPushFrame(1)), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(new CancelPushFrame(1)), -2));
 
         // No exception, frame absorbed
         Assert.True(true);
@@ -207,7 +207,7 @@ public sealed class Http3StateMachineSpec
         var sm = CreateMachine();
         sm.PreStart();
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new MaxPushIdFrame(10)), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(new MaxPushIdFrame(10)), -2));
 
         Assert.True(true);
     }
@@ -225,7 +225,7 @@ public sealed class Http3StateMachineSpec
         var qpack = new TurboHTTP.Protocol.Syntax.Http3.Qpack.QpackEncoder(maxTableCapacity: 0);
         var headers = new HeadersFrame(qpack.Encode([(":status", "200")]));
         var buffer = SerializeFrame(headers);
-        sm.DecodeServerData(new MultiplexedData(buffer, 0));
+        sm.DecodeServerData(MultiplexedData.Rent(buffer, 0));
 
         // Headers should be processed (no direct return value, but effects are visible)
         // Verify stage didn't fail
@@ -243,7 +243,7 @@ public sealed class Http3StateMachineSpec
 
         var data = new DataFrame("He"u8.ToArray());
         var buffer = SerializeFrame(data);
-        sm.DecodeServerData(new MultiplexedData(buffer, 0));
+        sm.DecodeServerData(MultiplexedData.Rent(buffer, 0));
 
         Assert.True(true);
     }
@@ -269,7 +269,7 @@ public sealed class Http3StateMachineSpec
         sm.PreStart();
         var goaway = new GoAwayFrame(0);
         var buffer = SerializeFrame(goaway);
-        sm.DecodeServerData(new MultiplexedData(buffer, -2));
+        sm.DecodeServerData(MultiplexedData.Rent(buffer, -2));
 
         Assert.False(sm.CanAcceptRequest);
     }
@@ -392,7 +392,7 @@ public sealed class Http3StateMachineSpec
         // After response assembly and flush
         var qpack = new TurboHTTP.Protocol.Syntax.Http3.Qpack.QpackEncoder(maxTableCapacity: 0);
         var headersFrame = new HeadersFrame(qpack.Encode([(":status", "200")]));
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(headersFrame), 0));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(headersFrame), 0));
         sm.DecodeServerData(new StreamReadCompleted(0));
 
         Assert.False(sm.HasInFlightRequests);
@@ -410,9 +410,9 @@ public sealed class Http3StateMachineSpec
         sm.OnRequest(CreateGetRequest("https://example.com/b"));
 
         sm.DecodeServerData(
-            new MultiplexedData(SerializeFrame(new HeadersFrame(qpack.Encode([(":status", "200")]))), 0));
+            MultiplexedData.Rent(SerializeFrame(new HeadersFrame(qpack.Encode([(":status", "200")]))), 0));
         sm.DecodeServerData(
-            new MultiplexedData(SerializeFrame(new HeadersFrame(qpack.Encode([(":status", "201")]))), 4));
+            MultiplexedData.Rent(SerializeFrame(new HeadersFrame(qpack.Encode([(":status", "201")]))), 4));
 
         sm.OnUpstreamFinished();
 
@@ -432,11 +432,11 @@ public sealed class Http3StateMachineSpec
         var headers404 = new HeadersFrame(qpack.Encode([(":status", "404")]));
 
         // Assemble on two different streams
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(headers200), 0));
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(headers404), 4));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(headers200), 0));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(headers404), 4));
 
         // Data on stream 0
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new DataFrame("AB"u8.ToArray())), 0));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(new DataFrame("AB"u8.ToArray())), 0));
 
         // Send requests for stream correlation
         sm.OnRequest(CreateGetRequest("https://example.com/a"));
@@ -469,7 +469,7 @@ public sealed class Http3StateMachineSpec
 
         // Respond to stream 4 first (out-of-order)
         var headers = new HeadersFrame(qpack.Encode([(":status", "200")]));
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(headers), 4));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(headers), 4));
         sm.DecodeServerData(new StreamReadCompleted(4));
 
         Assert.Single(_clientOps.Responses);

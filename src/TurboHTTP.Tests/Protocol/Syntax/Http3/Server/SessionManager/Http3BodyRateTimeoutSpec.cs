@@ -86,7 +86,7 @@ public sealed class Http3BodyRateTimeoutSpec
         var headerBuffer = TransportBuffer.Rent(headerBytes.Length);
         headerBytes.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headerBytes.Length;
-        sm.DecodeClientData(new MultiplexedData(headerBuffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
 
         // No request emitted yet (no StreamReadCompleted)
         Assert.Empty(ops.Requests);
@@ -99,7 +99,7 @@ public sealed class Http3BodyRateTimeoutSpec
         var dataBuffer = TransportBuffer.Rent(dataBytes.Length);
         dataBytes.CopyTo(dataBuffer.FullMemory.Span);
         dataBuffer.Length = dataBytes.Length;
-        sm.DecodeClientData(new MultiplexedData(dataBuffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(dataBuffer, streamId));
 
         // data-rate-check timer should now be scheduled
         Assert.True(ops.ScheduledTimers.Any(t => t.Name == "data-rate-check"),
@@ -126,7 +126,7 @@ public sealed class Http3BodyRateTimeoutSpec
         var headerBuffer = TransportBuffer.Rent(headerBytes.Length);
         headerBytes.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headerBytes.Length;
-        sm.DecodeClientData(new MultiplexedData(headerBuffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
 
         // With capacity=0, QPACK decodes immediately, so headers-timeout is never scheduled.
         // Instead, FlushPendingRequest cancels it preemptively.
@@ -162,7 +162,7 @@ public sealed class Http3BodyRateTimeoutSpec
         var headerBuffer = TransportBuffer.Rent(headerBytes.Length);
         headerBytes.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headerBytes.Length;
-        sm.DecodeClientData(new MultiplexedData(headerBuffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
 
         // Send StreamReadCompleted (no DATA frames)
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));

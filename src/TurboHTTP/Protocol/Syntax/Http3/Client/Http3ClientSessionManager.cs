@@ -213,7 +213,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         owner.Memory.Span[..totalSize].CopyTo(buf.FullMemory.Span);
         buf.Length = totalSize;
 
-        return new MultiplexedData(buf, CriticalStreamId.Control);
+        return MultiplexedData.Rent(buf, CriticalStreamId.Control);
     }
 
     public IReadOnlyList<Http3Frame> DecodeServerData(TransportBuffer buffer, long streamId)
@@ -450,7 +450,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         }
 
         buf.Length = offset;
-        EmitOutbound(new MultiplexedData(buf, streamId));
+        EmitOutbound(MultiplexedData.Rent(buf, streamId));
     }
 
     private void EmitSerializedFrame(Http3Frame frame, long streamId)
@@ -460,6 +460,6 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         frame.WriteTo(ref span);
         buf.Length = frame.SerializedSize;
 
-        EmitOutbound(new MultiplexedData(buf, streamId));
+        EmitOutbound(MultiplexedData.Rent(buf, streamId));
     }
 }

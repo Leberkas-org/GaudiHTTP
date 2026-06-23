@@ -22,7 +22,7 @@ public sealed class Http3SettingsSpec
         var buffer = TransportBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
-        return new MultiplexedData(buffer, CriticalStreamId.ControlId);
+        return MultiplexedData.Rent(buffer, CriticalStreamId.ControlId);
     }
 
     [Fact(Timeout = 5000)]

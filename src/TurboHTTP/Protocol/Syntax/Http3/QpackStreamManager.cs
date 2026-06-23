@@ -78,7 +78,7 @@ internal sealed class QpackStreamManager(
         owner.Memory.Span[..totalLength].CopyTo(buf.FullMemory.Span);
         buf.Length = totalLength;
 
-        ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.QpackEncoder));
+        ops.OnOutbound(MultiplexedData.Rent(buf, CriticalStreamId.QpackEncoder));
     }
 
     public void FlushDecoderInstructions()
@@ -112,7 +112,7 @@ internal sealed class QpackStreamManager(
 
         _decoderPrefaceSent = true;
         buf.Length = offset;
-        ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.QpackDecoder));
+        ops.OnOutbound(MultiplexedData.Rent(buf, CriticalStreamId.QpackDecoder));
     }
 
     public void ApplyPeerSettings(Settings settings)

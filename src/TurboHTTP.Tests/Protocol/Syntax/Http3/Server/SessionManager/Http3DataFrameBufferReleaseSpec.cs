@@ -73,7 +73,7 @@ public sealed class Http3DataFrameBufferReleaseSpec
         var buffer = TransportBuffer.Rent(wireBytes.Length);
         wireBytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = wireBytes.Length;
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
     }
 
     private static async Task<long> SendUploadAndDrainBody(

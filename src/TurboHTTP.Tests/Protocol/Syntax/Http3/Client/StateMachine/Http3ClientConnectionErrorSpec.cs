@@ -75,9 +75,9 @@ public sealed class Http3ClientConnectionErrorSpec
         // It must tear the connection down, not be silently absorbed.
         var sm = CreateMachine();
 
-        sm.DecodeServerData(new MultiplexedData(
+        sm.DecodeServerData(MultiplexedData.Rent(
             SerializeFrame(new SettingsFrame([(SettingsIdentifier.MaxFieldSectionSize, 16384)])), -2));
-        sm.DecodeServerData(new MultiplexedData(
+        sm.DecodeServerData(MultiplexedData.Rent(
             SerializeFrame(new SettingsFrame([(SettingsIdentifier.MaxFieldSectionSize, 16384)])), -2));
 
         Assert.Contains(_clientOps.Outbound, o => o is DisconnectTransport);
@@ -91,7 +91,7 @@ public sealed class Http3ClientConnectionErrorSpec
         // (not divisible by 4) is a connection error. It must not be swallowed.
         var sm = CreateMachine();
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new GoAwayFrame(3)), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(new GoAwayFrame(3)), -2));
 
         Assert.Contains(_clientOps.Outbound, o => o is DisconnectTransport);
     }
@@ -109,7 +109,7 @@ public sealed class Http3ClientConnectionErrorSpec
         var headerBlock = new byte[] { 0x00, 0x00, 0xFF, 0x89, 0x01 };
         var frame = new HeadersFrame(headerBlock);
 
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(frame), 0));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(frame), 0));
 
         Assert.Contains(_clientOps.Outbound, o => o is DisconnectTransport);
     }

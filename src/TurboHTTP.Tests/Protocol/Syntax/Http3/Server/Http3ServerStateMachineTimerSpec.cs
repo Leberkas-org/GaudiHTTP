@@ -31,7 +31,7 @@ public sealed class Http3ServerStateMachineTimerSpec
         var buffer = TransportBuffer.Rent(buf.Length);
         buf.CopyTo(buffer.FullMemory.Span);
         buffer.Length = buf.Length;
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
     }
 
@@ -173,7 +173,7 @@ public sealed class Http3ServerStateMachineTimerSpec
         var buffer = TransportBuffer.Rent(buf.Length);
         buf.CopyTo(buffer.FullMemory.Span);
         buffer.Length = buf.Length;
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
 
         // Request should NOT be emitted yet (no StreamReadCompleted)
         Assert.Empty(ops.Requests);
