@@ -107,6 +107,15 @@ internal static class FeatureCollectionFactory
             features.Set<IHttpResponseTrailersFeature>(new TurboHttpResponseTrailersFeature());
         }
 
+        if (recycled && features.Get<IHttpRequestTrailersFeature>() is TurboHttpRequestTrailersFeature existingRequestTrailers)
+        {
+            existingRequestTrailers.Reset();
+        }
+        else
+        {
+            features.Set<IHttpRequestTrailersFeature>(new TurboHttpRequestTrailersFeature());
+        }
+
         if (connectionFeature is not null)
         {
             features.Set(connectionFeature);
