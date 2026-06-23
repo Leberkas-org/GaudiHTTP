@@ -111,4 +111,49 @@ public sealed class Http11ClientDecoderSpec
         Assert.False(resp.Headers.Contains("X-Checksum"));
         Assert.True(resp.TrailingHeaders.Contains("X-Checksum"));
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-7.1.2")]
+    public void Feed_should_handle_empty_trailer_section()
+    {
+        var raw = Encoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\n" +
+            "Transfer-Encoding: chunked\r\n" +
+            "\r\n" +
+            "5\r\nhello\r\n" +
+            "0\r\n" +
+            "\r\n");
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+
+        var outcome = decoder.Feed(raw, requestMethodWasHead: false, out _);
+
+        Assert.Equal(DecodeOutcome.Complete, outcome);
+        var resp = decoder.GetResponse();
+
+        Assert.Empty(resp.TrailingHeaders);
+    }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9112-7.1.2")]
+    public void Feed_should_filter_prohibited_trailer_fields()
+    {
+        var raw = Encoding.ASCII.GetBytes(
+            "HTTP/1.1 200 OK\r\n" +
+            "Transfer-Encoding: chunked\r\n" +
+            "\r\n" +
+            "5\r\nhello\r\n" +
+            "0\r\n" +
+            "Content-Length: 999\r\n" +
+            "X-Custom: allowed\r\n" +
+            "\r\n");
+        var decoder = new Http11ClientDecoder(ClientOptionDefaults.Http11Decoder(), new ConnectionPoolContext());
+
+        var outcome = decoder.Feed(raw, requestMethodWasHead: false, out _);
+
+        Assert.Equal(DecodeOutcome.Complete, outcome);
+        var resp = decoder.GetResponse();
+
+        Assert.False(resp.TrailingHeaders.Contains("Content-Length"));
+        Assert.True(resp.TrailingHeaders.Contains("X-Custom"));
+    }
 }

@@ -113,4 +113,20 @@ public sealed class Http3ResponseDecoderSpec
         var ex = Assert.Throws<HttpProtocolException>(() => _decoder.DecodeHeaders(trailing, state));
         Assert.Contains("pseudo", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.5")]
+    public void DecodeHeaders_should_handle_empty_trailer_section()
+    {
+        var state = new StreamState();
+        var first = EncodeHeaders((":status", "200"));
+        var trailing = EncodeHeaders();
+
+        _decoder.DecodeHeaders(first, state);
+        var result = _decoder.DecodeHeaders(trailing, state);
+
+        Assert.False(result);
+        var response = state.GetResponse();
+        Assert.Empty(response.TrailingHeaders);
+    }
 }
