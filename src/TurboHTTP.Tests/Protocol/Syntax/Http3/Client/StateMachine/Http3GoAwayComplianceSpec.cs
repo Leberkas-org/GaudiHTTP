@@ -34,7 +34,7 @@ public sealed class Http3GoAwayComplianceSpec
     {
         var sm = CreateMachine();
         sm.PreStart();
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(new GoAwayFrame(0)), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(new GoAwayFrame(0)), -2));
         Assert.False(sm.CanAcceptRequest);
     }
 

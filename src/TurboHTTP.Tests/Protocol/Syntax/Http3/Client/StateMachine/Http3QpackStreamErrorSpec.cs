@@ -36,7 +36,7 @@ public sealed class Http3QpackStreamErrorSpec
         // The dynamic table is empty, so index 0 cannot be resolved.
         var sm = CreateMachine();
 
-        sm.DecodeServerData(new MultiplexedData(Wrap([0x80, 0x00]), -3));
+        sm.DecodeServerData(MultiplexedData.Rent(Wrap([0x80, 0x00]), -3));
 
         Assert.Contains(_clientOps.Outbound, o => o is DisconnectTransport);
     }
@@ -49,7 +49,7 @@ public sealed class Http3QpackStreamErrorSpec
         // 0x00 = empty literal value. A well-formed insert must not tear the connection down.
         var sm = CreateMachine();
 
-        sm.DecodeServerData(new MultiplexedData(Wrap([0x40, 0x00]), -3));
+        sm.DecodeServerData(MultiplexedData.Rent(Wrap([0x40, 0x00]), -3));
 
         Assert.DoesNotContain(_clientOps.Outbound, o => o is DisconnectTransport);
     }

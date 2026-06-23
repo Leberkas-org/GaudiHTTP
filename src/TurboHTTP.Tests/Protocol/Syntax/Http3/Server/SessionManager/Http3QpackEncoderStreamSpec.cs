@@ -44,7 +44,7 @@ public sealed class Http3QpackEncoderStreamSpec
         var buffer = TransportBuffer.Rent(bytes.Length);
         bytes.Span.CopyTo(buffer.FullMemory.Span);
         buffer.Length = bytes.Length;
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
     }
 
     [Fact(Timeout = 5000)]

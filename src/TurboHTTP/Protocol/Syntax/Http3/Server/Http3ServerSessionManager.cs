@@ -132,6 +132,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
             case MultiplexedData multiplexed:
             {
                 HandleTaggedStreamData(multiplexed);
+                multiplexed.Return();
                 return;
             }
 
@@ -468,7 +469,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
         _qpackDecoderPrefaceSent = true;
         buf.Length = offset;
-        _ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.QpackDecoder));
+        _ops.OnOutbound(MultiplexedData.Rent(buf, CriticalStreamId.QpackDecoder));
     }
 
     private void ProcessFrameData(TransportBuffer buffer, long streamId)
@@ -838,7 +839,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         }
 
         buf.Length = serialized;
-        _ops.OnOutbound(new MultiplexedData(buf, streamId));
+        _ops.OnOutbound(MultiplexedData.Rent(buf, streamId));
     }
 
     private MultiplexedData BuildControlPreface()
@@ -870,7 +871,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         owner.Memory.Span[..totalSize].CopyTo(buf.FullMemory.Span);
         buf.Length = totalSize;
 
-        return new MultiplexedData(buf, CriticalStreamId.Control);
+        return MultiplexedData.Rent(buf, CriticalStreamId.Control);
     }
 
     private void EnsureRateTimer()

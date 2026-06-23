@@ -35,7 +35,7 @@ public sealed class Http3ControlStreamSpec
         var sm = CreateMachine();
         sm.PreStart();
         var settings = new SettingsFrame([(SettingsIdentifier.MaxFieldSectionSize, 16384)]);
-        sm.DecodeServerData(new MultiplexedData(SerializeFrame(settings), -2));
+        sm.DecodeServerData(MultiplexedData.Rent(SerializeFrame(settings), -2));
         // No exception — SETTINGS accepted on control stream
     }
 
