@@ -60,7 +60,7 @@ public sealed class Http3ServerTrailerSpec
         var buffer = TransportBuffer.Rent(data.Length);
         data.CopyTo(buffer.FullMemory.Span);
         buffer.Length = data.Length;
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
     }
 
