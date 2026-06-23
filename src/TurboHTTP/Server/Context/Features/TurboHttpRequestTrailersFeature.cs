@@ -7,15 +7,14 @@ namespace TurboHTTP.Server.Context.Features;
 internal sealed class TurboHttpRequestTrailersFeature : IHttpRequestTrailersFeature
 {
     private readonly TurboHeaderDictionary _trailers = new();
-    private bool _available;
 
-    public bool Available => _available;
+    public bool Available { get; private set; }
 
     public IHeaderDictionary Trailers
     {
         get
         {
-            if (!_available)
+            if (!Available)
             {
                 throw new InvalidOperationException(
                     "Request trailers are not yet available. The request body must be fully consumed first.");
@@ -37,12 +36,12 @@ internal sealed class TurboHttpRequestTrailersFeature : IHttpRequestTrailersFeat
             }
         }
 
-        _available = true;
+        Available = true;
     }
 
     internal void Reset()
     {
-        _available = false;
+        Available = false;
         _trailers.Reset();
     }
 }
