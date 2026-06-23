@@ -63,7 +63,7 @@ public sealed class TurboResponseHeaderDictionaryReadOnlySpec
 
         Assert.Equal("value", dict["x-test"]);
         Assert.True(dict.ContainsKey("x-test"));
-        Assert.Equal(1, dict.Count);
+        Assert.Single(dict);
     }
 
     [Fact(Timeout = 5000)]

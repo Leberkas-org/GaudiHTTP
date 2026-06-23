@@ -309,7 +309,7 @@ public sealed class ConsumerSpec : StreamTestBase
         await WatchAsync(consumer);
 
         // Clean completion should NOT stop the actor
-        await ExpectNoMsgAsync(TimeSpan.FromMilliseconds(500));
+        await ExpectNoMsgAsync(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
     }
 
     private (Sink<HttpRequestMessage, NotUsed>, Source<HttpResponseMessage, NotUsed>) CreateTestHubs()

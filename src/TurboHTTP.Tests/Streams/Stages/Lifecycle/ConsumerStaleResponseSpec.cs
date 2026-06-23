@@ -57,7 +57,9 @@ public sealed class ConsumerStaleResponseSpec : StreamTestBase
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         // Advance the version by cancelling — now TrySetResult with the old version returns false
+#pragma warning disable xUnit1051 // SUT behavior: simulates request cancellation, not test cooperative cancellation
         pending.TrySetCanceled();
+#pragma warning restore xUnit1051
 
         // Inject a stale response that references the request (with old version in Options)
         var trackable = new TrackableContent();

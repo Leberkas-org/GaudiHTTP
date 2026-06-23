@@ -207,7 +207,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
                 tasks[i] = FireLightRequest(gate, TimeSpan.FromSeconds(30), counters);
             }
 
-            await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30));
+            await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             sw.Stop();
             roundTimes[round] = sw.Elapsed.TotalMilliseconds;
 
@@ -268,7 +268,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
                 tasks[i] = FireHeavyRequest(gate, payload, TimeSpan.FromSeconds(60), counters);
             }
 
-            await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(60));
+            await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             sw.Stop();
             roundTimes[round] = sw.Elapsed.TotalMilliseconds;
 
@@ -322,7 +322,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
                 tasks[i] = FireHeavyRequest(gate, payload, TimeSpan.FromSeconds(60), counters);
             }
 
-            await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(60));
+            await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
             sw.Stop();
             roundTimes[round] = sw.Elapsed.TotalMilliseconds;
 
@@ -502,7 +502,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 
             try
             {
-                await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30));
+                await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             }
             catch (TimeoutException)
             {
@@ -541,7 +541,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 
             try
             {
-                await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30));
+                await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
             }
             catch (TimeoutException)
             {
@@ -589,7 +589,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 
                 try
                 {
-                    await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(45));
+                    await Task.WhenAll(tasks).WaitAsync(TimeSpan.FromSeconds(45), TestContext.Current.CancellationToken);
                 }
                 catch (TimeoutException)
                 {
@@ -679,7 +679,7 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 
             try
             {
-                await Task.WhenAll(tasks).WaitAsync(timeout);
+                await Task.WhenAll(tasks).WaitAsync(timeout, TestContext.Current.CancellationToken);
             }
             catch (TimeoutException)
             {
@@ -705,9 +705,10 @@ public sealed class SendAsyncHighConcurrencySpec : IAsyncLifetime
 
             foreach (var t in tasks)
             {
-                if (t.IsCompletedSuccessfully && t.Result is not null)
+                if (t.IsCompletedSuccessfully)
                 {
-                    t.Result.Dispose();
+                    var response = await t;
+                    response?.Dispose();
                 }
             }
 

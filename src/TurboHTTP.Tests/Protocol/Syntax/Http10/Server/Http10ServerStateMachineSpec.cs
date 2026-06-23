@@ -121,11 +121,9 @@ public sealed class Http10ServerStateMachineSpec : TestKit
 
         var features = new TurboFeatureCollection();
         features.Set<IHttpRequestFeature>(new TurboHttpRequestFeature());
-        features.Set<IHttpResponseFeature>(new TurboHttpResponseFeature
-        {
-            StatusCode = 200,
-            Headers = { { "Content-Length", "0" } }
-        });
+        var responseFeature = new TurboHttpResponseFeature { StatusCode = 200 };
+        responseFeature.Headers["Content-Length"] = "0";
+        features.Set<IHttpResponseFeature>(responseFeature);
         var bodyFeature = new TurboHttpResponseBodyFeature();
         features.Set<IHttpResponseBodyFeature>(bodyFeature);
 

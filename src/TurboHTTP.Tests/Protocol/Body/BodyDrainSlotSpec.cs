@@ -223,7 +223,9 @@ public sealed class BodyDrainSlotSpec
         Assert.Equal(0, slot.StreamId);
         Assert.Null(slot.BodyStream);
         Assert.Null(slot.ContentLength);
+#pragma warning disable xUnit1051 // SUT behavior: asserts slot resets RequestCt to default, not test cooperative cancellation
         Assert.Equal(default, slot.RequestCt);
+#pragma warning restore xUnit1051
         Assert.Null(slot.LinkedCts);
         Assert.Null(slot.Buffer);
         Assert.False(slot.IsReadInFlight);

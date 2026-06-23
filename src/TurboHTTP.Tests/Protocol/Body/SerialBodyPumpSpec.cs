@@ -121,7 +121,7 @@ public sealed class SerialBodyPumpSpec
         pump.Register(body, 200, CancellationToken.None);
 
         // maxCapacity=1: pump emits 1 chunk then stops (FakeTarget doesn't auto-resume)
-        Assert.Single(target.Emitted.Where(e => !e.EndStream));
+        Assert.Single(target.Emitted, e => !e.EndStream);
         Assert.Equal(64, target.Emitted[0].Data.Length);
 
         // Manual resume
@@ -161,7 +161,7 @@ public sealed class SerialBodyPumpSpec
 
         pump.Register(body, 200, CancellationToken.None);
         // maxCapacity=1, FakeTarget: 1 chunk emitted, pump paused
-        Assert.Single(target.Emitted.Where(e => !e.EndStream));
+        Assert.Single(target.Emitted, e => !e.EndStream);
         Assert.Empty(target.Completed);
 
         pump.Cancel();
