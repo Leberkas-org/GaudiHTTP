@@ -5,7 +5,7 @@ namespace TurboHTTP.Server.Context.Features;
 
 internal sealed class TurboHttpResponseFeature : IHttpResponseFeature
 {
-    private readonly TurboResponseHeaderDictionary _headers = new();
+    private readonly TurboHeaderDictionary _headers = new();
     private List<(Func<object?, Task> callback, object? state)>? _onStartingCallbacks;
     private List<(Func<object?, Task> callback, object? state)>? _onCompletedCallbacks;
 

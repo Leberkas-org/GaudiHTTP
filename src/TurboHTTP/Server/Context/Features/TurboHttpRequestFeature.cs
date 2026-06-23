@@ -6,7 +6,7 @@ namespace TurboHTTP.Server.Context.Features;
 
 internal sealed class TurboHttpRequestFeature : IHttpRequestFeature
 {
-    private readonly TurboResponseHeaderDictionary _headers = new();
+    private readonly TurboHeaderDictionary _headers = new();
 
     public string Protocol { get; set; } = WellKnownHeaders.Http11;
 
