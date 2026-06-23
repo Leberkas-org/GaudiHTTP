@@ -155,8 +155,12 @@ public sealed class Http11ServerTrailerSpec
         var wireText = Encoding.ASCII.GetString(wireBytes);
 
         // The Trailer response header should announce the trailer field names
-        Assert.Contains("Trailer:", wireText);
-        Assert.Contains("x-checksum", wireText);
+        // Split headers and body to avoid matching trailer names in the trailer section
+        var headerEndIndex = wireText.IndexOf("\r\n\r\n");
+        var headerSection = wireText.Substring(0, headerEndIndex);
+        Assert.Contains("Trailer: ", headerSection);
+        Assert.Contains("x-checksum", headerSection);
+        Assert.Contains("x-timing", headerSection);
     }
 
     [Fact(Timeout = 5000)]
