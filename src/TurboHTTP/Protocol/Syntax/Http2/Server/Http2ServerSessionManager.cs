@@ -322,8 +322,19 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
                 var window = _flow.GetSendWindow(streamId);
                 if (window >= bufferedBody.Length)
                 {
-                    EmitBufferedDataFrames(streamId, bufferedBody, endStream: true);
+                    var bufferedFeatures = state.GetFeatures();
+                    var trailerFeature = bufferedFeatures?.Get<IHttpResponseTrailersFeature>();
+                    var hasTrailers = trailerFeature?.Trailers.Count > 0;
+                    EmitBufferedDataFrames(streamId, bufferedBody, endStream: !hasTrailers);
                     _flow.OnDataSent(streamId, bufferedBody.Length);
+                    if (hasTrailers)
+                    {
+                        var trailerFrames = _responseEncoder.EncodeTrailers(streamId, trailerFeature!.Trailers);
+                        for (var i = 0; i < trailerFrames.Count; i++)
+                        {
+                            EmitFrame(trailerFrames[i]);
+                        }
+                    }
                     CloseStream(streamId);
                     return;
                 }
@@ -347,7 +358,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             }
             else
             {
-                EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
+                EmitEndOfBody(streamId, state);
                 CloseStream(streamId);
                 return;
             }
