@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
@@ -45,6 +46,17 @@ internal sealed class Http11ServerEncoder(Http11ServerEncoderOptions options)
             {
                 _reusableHeaders.Add(WellKnownHeaders.TransferEncoding, WellKnownHeaders.ChunkedValue);
             }
+
+            var trailerFeature = features.Get<IHttpResponseTrailersFeature>();
+            if (trailerFeature?.Trailers is { Count: > 0 } trailers
+                && !_reusableHeaders.Contains(WellKnownHeaders.Trailer))
+            {
+                var trailerNames = BuildTrailerNames(trailers);
+                if (trailerNames.Length > 0)
+                {
+                    _reusableHeaders.Add(WellKnownHeaders.Trailer, trailerNames);
+                }
+            }
         }
         else if (!_reusableHeaders.Contains(WellKnownHeaders.ContentLength))
         {
@@ -65,5 +77,25 @@ internal sealed class Http11ServerEncoder(Http11ServerEncoderOptions options)
 
         // Body encoding is handled separately via the BodySink
         return writer.BytesWritten;
+    }
+
+    private static string BuildTrailerNames(IHeaderDictionary trailers)
+    {
+        var first = true;
+        var names = string.Empty;
+        foreach (var header in trailers)
+        {
+            if (!TrailerFieldValidator.IsAllowedInTrailer(header.Key))
+            {
+                continue;
+            }
+
+            names = first
+                ? header.Key
+                : string.Concat(names, ", ", header.Key);
+            first = false;
+        }
+
+        return names;
     }
 }
