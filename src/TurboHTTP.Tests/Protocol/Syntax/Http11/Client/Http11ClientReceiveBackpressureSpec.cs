@@ -84,7 +84,7 @@ public sealed class Http11ClientReceiveBackpressureSpec
         var (sm, ops) = NewClientWithStreamingResponse(chunks: 64);
 
         // Draining the body via the consumer is the one path that DOES release the latch.
-        var stream = ops.Responses[0].Content.ReadAsStream();
+        var stream = ops.Responses[0].Content.ReadAsStream(TestContext.Current.CancellationToken);
         var buf = new byte[4];
         var guard = 0;
         while (sm.ShouldPauseNetwork && guard++ < 64)

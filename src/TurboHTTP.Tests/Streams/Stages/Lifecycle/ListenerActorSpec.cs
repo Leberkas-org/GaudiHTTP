@@ -170,6 +170,6 @@ public sealed class ListenerActorSpec : TestKit
         // Listener with 0 connections should complete its TCS immediately.
         // The actor itself remains alive — the supervisor handles stopping it.
         // We verify by ensuring no Terminated arrives (actor stays alive).
-        ExpectNoMsg(TimeSpan.FromMilliseconds(500));
+        ExpectNoMsg(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
     }
 }

@@ -72,7 +72,7 @@ public sealed class TurboHttpRequestTrailersFeatureSpec
         feature.SetAvailable([]);
 
         Assert.True(feature.Available);
-        Assert.Equal(0, feature.Trailers.Count);
+        Assert.Empty(feature.Trailers);
     }
 
     [Fact(Timeout = 5000)]
