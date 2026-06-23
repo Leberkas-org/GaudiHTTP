@@ -799,7 +799,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
         if (trailerFeature?.Trailers is { Count: > 0 } trailers)
         {
-            if (trailers is TurboResponseHeaderDictionary turboTrailers)
+            if (trailers is TurboHeaderDictionary turboTrailers)
             {
                 turboTrailers.SetReadOnly();
             }

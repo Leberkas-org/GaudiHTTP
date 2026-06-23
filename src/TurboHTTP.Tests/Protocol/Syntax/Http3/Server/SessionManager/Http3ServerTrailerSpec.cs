@@ -109,7 +109,7 @@ public sealed class Http3ServerTrailerSpec
         const long streamId = 4;
         SendRequest(sm, streamId);
 
-        var trailers = new TurboResponseHeaderDictionary
+        var trailers = new TurboHeaderDictionary
         {
             { "grpc-status", "0" }
         };
@@ -169,7 +169,7 @@ public sealed class Http3ServerTrailerSpec
         const long streamId = 4;
         SendRequest(sm, streamId);
 
-        var trailers = new TurboResponseHeaderDictionary
+        var trailers = new TurboHeaderDictionary
         {
             { "grpc-status", "0" }
         };

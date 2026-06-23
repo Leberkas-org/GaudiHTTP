@@ -8,7 +8,7 @@ public sealed class TurboResponseHeaderDictionaryReadOnlySpec
     [Fact(Timeout = 5000)]
     public void SetReadOnly_should_make_IsReadOnly_return_true()
     {
-        var dict = new TurboResponseHeaderDictionary();
+        var dict = new TurboHeaderDictionary();
         dict.Add("x-test", "value");
 
         dict.SetReadOnly();
@@ -19,7 +19,7 @@ public sealed class TurboResponseHeaderDictionaryReadOnlySpec
     [Fact(Timeout = 5000)]
     public void SetReadOnly_should_throw_on_indexer_set()
     {
-        var dict = new TurboResponseHeaderDictionary();
+        var dict = new TurboHeaderDictionary();
         dict.SetReadOnly();
 
         Assert.Throws<InvalidOperationException>(() => dict["x-test"] = "value");
@@ -28,7 +28,7 @@ public sealed class TurboResponseHeaderDictionaryReadOnlySpec
     [Fact(Timeout = 5000)]
     public void SetReadOnly_should_throw_on_Add()
     {
-        var dict = new TurboResponseHeaderDictionary();
+        var dict = new TurboHeaderDictionary();
         dict.SetReadOnly();
 
         Assert.Throws<InvalidOperationException>(() => dict.Add("x-test", new StringValues("value")));
@@ -37,7 +37,7 @@ public sealed class TurboResponseHeaderDictionaryReadOnlySpec
     [Fact(Timeout = 5000)]
     public void SetReadOnly_should_throw_on_Remove()
     {
-        var dict = new TurboResponseHeaderDictionary();
+        var dict = new TurboHeaderDictionary();
         dict.Add("x-test", "value");
         dict.SetReadOnly();
 
@@ -47,7 +47,7 @@ public sealed class TurboResponseHeaderDictionaryReadOnlySpec
     [Fact(Timeout = 5000)]
     public void SetReadOnly_should_throw_on_Clear()
     {
-        var dict = new TurboResponseHeaderDictionary();
+        var dict = new TurboHeaderDictionary();
         dict.Add("x-test", "value");
         dict.SetReadOnly();
 
@@ -57,7 +57,7 @@ public sealed class TurboResponseHeaderDictionaryReadOnlySpec
     [Fact(Timeout = 5000)]
     public void SetReadOnly_should_allow_reads()
     {
-        var dict = new TurboResponseHeaderDictionary();
+        var dict = new TurboHeaderDictionary();
         dict.Add("x-test", "value");
         dict.SetReadOnly();
 
@@ -69,7 +69,7 @@ public sealed class TurboResponseHeaderDictionaryReadOnlySpec
     [Fact(Timeout = 5000)]
     public void Reset_should_clear_readonly_flag()
     {
-        var dict = new TurboResponseHeaderDictionary();
+        var dict = new TurboHeaderDictionary();
         dict.Add("x-test", "value");
         dict.SetReadOnly();
 

@@ -81,7 +81,7 @@ public sealed class Http2ServerTrailerEncodingSpec
     public void Encoder_should_produce_trailing_HEADERS_frame_with_END_STREAM()
     {
         var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
-        var trailers = new TurboResponseHeaderDictionary
+        var trailers = new TurboHeaderDictionary
         {
             { "grpc-status", "0" },
             { "grpc-message", "OK" }
@@ -105,7 +105,7 @@ public sealed class Http2ServerTrailerEncodingSpec
         var encoder = new Http2ServerEncoder(DefaultEncoderOptions());
         var decoder = new HpackDecoder();
 
-        var trailers = new TurboResponseHeaderDictionary
+        var trailers = new TurboHeaderDictionary
         {
             { "grpc-status", "0" },
             { "transfer-encoding", "chunked" },

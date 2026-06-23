@@ -559,7 +559,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         var trailerFeature = features?.Get<IHttpResponseTrailersFeature>();
         if (trailerFeature?.Trailers is { Count: > 0 } trailers)
         {
-            if (trailers is TurboResponseHeaderDictionary turboTrailers)
+            if (trailers is TurboHeaderDictionary turboTrailers)
             {
                 turboTrailers.SetReadOnly();
             }
