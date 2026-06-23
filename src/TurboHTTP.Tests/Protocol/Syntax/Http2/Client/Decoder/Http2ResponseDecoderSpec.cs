@@ -596,4 +596,26 @@ public sealed class Http2ResponseDecoderSpec
         Assert.False(trailingResponse.TrailingHeaders.Contains(":status"));
         Assert.True(trailingResponse.TrailingHeaders.Contains("x-trailer"));
     }
+
+    [Fact(Timeout = 5000)]
+    [Trait("RFC", "RFC9110-6.5")]
+    public void DecodeTrailers_should_handle_empty_trailer_section()
+    {
+        var encoder = new HpackEncoder(useHuffman: false);
+        var statusEncoded = encoder.Encode([(":status", "200")]);
+        var state = new StreamState();
+        state.AppendHeader(statusEncoded.Span);
+        var decoder = new Http2ClientDecoder(16 * 1024, 64 * 1024);
+
+        var response = decoder.DecodeHeaders(streamId: 1, endStream: false, state);
+        Assert.Null(response);
+        Assert.True(state.HasResponse);
+
+        var trailerEncoded = encoder.Encode([]);
+        state.AppendHeader(trailerEncoded.Span);
+        decoder.DecodeTrailers(state);
+
+        var trailingResponse = state.GetResponse();
+        Assert.Empty(trailingResponse.TrailingHeaders);
+    }
 }
