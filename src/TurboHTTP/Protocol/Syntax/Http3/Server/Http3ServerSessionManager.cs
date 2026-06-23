@@ -10,6 +10,7 @@ using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
 using TurboHTTP.Protocol.Syntax.Http3.Qpack;
 using TurboHTTP.Server;
+using TurboHTTP.Server.Context;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Streams.Stages.Server;
 using static Servus.Senf;
@@ -194,6 +195,8 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
         var (_, state) = streamData;
 
+        state.SetFeatures(features);
+
         if (state.HasBodyReader && _bodyConsumptionTimeout > TimeSpan.Zero)
         {
             _ops.OnScheduleTimer(state.BodyConsumptionTimerKey, _bodyConsumptionTimeout);
@@ -211,7 +214,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
 
         if (!hasBody || responseBody is not TurboHttpResponseBodyFeature turboBody)
         {
-            _ops.OnOutbound(new CompleteWrites(streamId));
+            EmitEndOfBody(streamId, state);
             return;
         }
 
@@ -222,7 +225,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
                 EmitDataFrame(new DataFrame(bufferedBody), streamId);
             }
 
-            _ops.OnOutbound(new CompleteWrites(streamId));
+            EmitEndOfBody(streamId, state);
             CloseStream(streamId);
             return;
         }
@@ -777,7 +780,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         if (_streams.TryGetValue(streamId, out var streamData))
         {
             streamData.State.MarkBodyDrainComplete();
-            _ops.OnOutbound(new CompleteWrites(streamId));
+            EmitEndOfBody(streamId, streamData.State);
             CloseStream(streamId);
         }
     }
@@ -787,6 +790,29 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         Tracing.For("Protocol").Warning(this,
             "HTTP/3: Response body drain failed for stream {0}: {1}", streamId, reason.Message);
         EmitRstStream(streamId, ErrorCode.GeneralProtocolError);
+    }
+
+    private void EmitEndOfBody(long streamId, StreamState state)
+    {
+        var features = state.GetFeatures();
+        var trailerFeature = features?.Get<IHttpResponseTrailersFeature>();
+
+        if (trailerFeature?.Trailers is { Count: > 0 } trailers)
+        {
+            if (trailers is TurboResponseHeaderDictionary turboTrailers)
+            {
+                turboTrailers.SetReadOnly();
+            }
+
+            var trailerFrame = _responseEncoder.EncodeTrailers(trailers);
+            if (trailerFrame is not null)
+            {
+                EmitDataFrame(trailerFrame, streamId);
+                Tracing.For("Protocol").Debug(this, "HTTP/3: response trailers emitted (stream={0})", streamId);
+            }
+        }
+
+        _ops.OnOutbound(new CompleteWrites(streamId));
     }
 
     private void EmitDataFrame(object frame, long streamId)

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Protocol.Body;
 using TurboHTTP.Server.Context.Features;
 
@@ -21,6 +22,7 @@ internal sealed class StreamState
     private long _maxBodySize;
     private long _totalBodyBytes;
     private List<byte[]>? _pendingInboundData;
+    private IFeatureCollection? _features;
 
     public long StreamId { get; private set; } = -1;
 
@@ -229,6 +231,13 @@ internal sealed class StreamState
         IsBodyDrainComplete = true;
     }
 
+    public void SetFeatures(IFeatureCollection features)
+    {
+        _features = features;
+    }
+
+    public IFeatureCollection? GetFeatures() => _features;
+
     public void Reset()
     {
         StreamId = -1;
@@ -250,6 +259,7 @@ internal sealed class StreamState
         IsHeadersBlocked = false;
         PendingEndStream = false;
         _pendingInboundData = null;
+        _features = null;
         // Timer keys intentionally NOT cleared — they are stream-ID-derived strings that survive
         // pool reuse. Initialize() overwrites them for the next stream ID, avoiding a redundant
         // allocation + re-allocation cycle on every pool return/checkout.
