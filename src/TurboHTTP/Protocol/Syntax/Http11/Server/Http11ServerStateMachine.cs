@@ -9,6 +9,7 @@ using TurboHTTP.Protocol.LineBased;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Server;
 using TurboHTTP.Server;
+using TurboHTTP.Server.Context;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Streams.Stages.Server;
 using static Servus.Senf;
@@ -146,10 +147,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         {
             if (_isChunked)
             {
-                var buf = TransportBuffer.Rent(5);
-                ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
-                buf.Length = 5;
-                _ops.OnOutbound(TransportData.Rent(buf));
+                EmitChunkedTerminator(_activeResponseFeatures);
             }
 
             _outboundBodyPending = false;
@@ -541,10 +539,7 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
 
         if (isChunked)
         {
-            var buf = TransportBuffer.Rent(5);
-            ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
-            buf.Length = 5;
-            _ops.OnOutbound(TransportData.Rent(buf));
+            EmitChunkedTerminator(features);
         }
 
         // The response is fully handed to the transport: drop the rate entry, or the idle
@@ -556,6 +551,35 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
         if (!ShouldComplete && _keepAliveTimeout > TimeSpan.Zero && _pendingResponseCount == 0)
         {
             _ops.OnScheduleTimer(KeepAliveTimer, _keepAliveTimeout);
+        }
+    }
+
+    private void EmitChunkedTerminator(IFeatureCollection? features)
+    {
+        var trailerFeature = features?.Get<IHttpResponseTrailersFeature>();
+        if (trailerFeature?.Trailers is { Count: > 0 } trailers)
+        {
+            if (trailers is TurboResponseHeaderDictionary turboTrailers)
+            {
+                turboTrailers.SetReadOnly();
+            }
+
+            var trailerSize = ChunkedFramingHelper.GetTrailerSectionSize(trailers);
+            var buf = TransportBuffer.Rent(3 + trailerSize);
+            var span = buf.FullMemory.Span;
+            var written = ChunkedFramingHelper.WriteLastChunk(span);
+            written += ChunkedFramingHelper.WriteTrailerSection(span[written..], trailers);
+            buf.Length = written;
+            _ops.OnOutbound(TransportData.Rent(buf));
+
+            Tracing.For("Protocol").Debug(this, "response trailers emitted ({0} bytes)", trailerSize);
+        }
+        else
+        {
+            var buf = TransportBuffer.Rent(5);
+            ChunkedFramingHelper.WriteTerminator(buf.FullMemory.Span);
+            buf.Length = 5;
+            _ops.OnOutbound(TransportData.Rent(buf));
         }
     }
 
