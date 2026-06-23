@@ -31,11 +31,10 @@ internal static class BodyPumpHelper
             return new ReadResult(ReadOutcome.CompletedSynchronously, vt.Result);
         }
 
-        var streamId = slot.StreamId;
         vt.PipeTo(
             stageActor,
-            success: n => new DrainReadComplete<TStreamId>(streamId, n),
-            failure: ex => new DrainReadFailed<TStreamId>(streamId, ex));
+            success: slot.CachedSuccessTransform,
+            failure: slot.CachedFailureTransform);
         return new ReadResult(ReadOutcome.Dispatched, 0);
     }
 
