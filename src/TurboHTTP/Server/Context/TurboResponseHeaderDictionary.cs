@@ -16,12 +16,27 @@ internal sealed class TurboResponseHeaderDictionary : ITurboHeaderDictionary
 {
     private readonly Dictionary<string, StringValues> _headers =
         new(StringComparer.OrdinalIgnoreCase);
+    private bool _isReadOnly;
+
+    private void ThrowIfReadOnly()
+    {
+        if (_isReadOnly)
+        {
+            throw new InvalidOperationException("The header dictionary is read-only.");
+        }
+    }
+
+    public void SetReadOnly()
+    {
+        _isReadOnly = true;
+    }
 
     public StringValues this[string key]
     {
         get => _headers.TryGetValue(key, out var value) ? value : StringValues.Empty;
         set
         {
+            ThrowIfReadOnly();
             if (StringValues.IsNullOrEmpty(value))
             {
                 _headers.Remove(key);
@@ -48,6 +63,7 @@ internal sealed class TurboResponseHeaderDictionary : ITurboHeaderDictionary
         }
         set
         {
+            ThrowIfReadOnly();
             if (value.HasValue)
             {
                 _headers[WellKnownHeaders.ContentLength] = ContentLengthCache.GetValue(value.Value);
@@ -61,7 +77,7 @@ internal sealed class TurboResponseHeaderDictionary : ITurboHeaderDictionary
 
     public int Count => _headers.Count;
 
-    public bool IsReadOnly => false;
+    public bool IsReadOnly => _isReadOnly;
 
     public ICollection<string> Keys => _headers.Keys;
 
@@ -69,16 +85,19 @@ internal sealed class TurboResponseHeaderDictionary : ITurboHeaderDictionary
 
     public void Add(string key, StringValues value)
     {
+        ThrowIfReadOnly();
         _headers.Add(key, value);
     }
 
     public void Add(KeyValuePair<string, StringValues> item)
     {
+        ThrowIfReadOnly();
         _headers.Add(item.Key, item.Value);
     }
 
     public void Clear()
     {
+        ThrowIfReadOnly();
         _headers.Clear();
     }
 
@@ -104,11 +123,13 @@ internal sealed class TurboResponseHeaderDictionary : ITurboHeaderDictionary
 
     public bool Remove(string key)
     {
+        ThrowIfReadOnly();
         return _headers.Remove(key);
     }
 
     public bool Remove(KeyValuePair<string, StringValues> item)
     {
+        ThrowIfReadOnly();
         if (_headers.TryGetValue(item.Key, out var value) && value.Equals(item.Value))
         {
             return _headers.Remove(item.Key);
@@ -129,6 +150,7 @@ internal sealed class TurboResponseHeaderDictionary : ITurboHeaderDictionary
 
     internal void Reset()
     {
+        _isReadOnly = false;
         _headers.Clear();
     }
 }
