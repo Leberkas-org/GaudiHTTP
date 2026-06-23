@@ -387,11 +387,36 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 
     void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
-        if (!data.IsEmpty)
+        EmitBufferedDataFrames(streamId, data, endStream);
+    }
+
+    private void EmitBufferedDataFrames(long streamId, ReadOnlyMemory<byte> body, bool endStream)
+    {
+        if (body.IsEmpty)
         {
-            var dataFrame = new DataFrame(data);
-            EmitSerializedFrame(dataFrame, streamId);
+            if (endStream)
+            {
+                EmitOutbound(new CompleteWrites(StreamTarget.FromId(streamId)));
+            }
+            return;
         }
+
+        var typeVarIntLen = QuicVarInt.EncodedLength((long)FrameType.Data);
+        var payloadVarIntLen = QuicVarInt.EncodedLength(body.Length);
+        var prefixSize = typeVarIntLen + payloadVarIntLen;
+        var totalWireSize = prefixSize + body.Length;
+
+        var buf = TransportBuffer.Rent(totalWireSize);
+        var span = buf.FullMemory.Span;
+
+        QuicVarInt.Encode((long)FrameType.Data, span);
+        span = span[typeVarIntLen..];
+        QuicVarInt.Encode(body.Length, span);
+        span = span[payloadVarIntLen..];
+        body.Span.CopyTo(span);
+
+        buf.Length = totalWireSize;
+        EmitOutbound(MultiplexedData.Rent(buf, streamId));
 
         if (endStream)
         {
