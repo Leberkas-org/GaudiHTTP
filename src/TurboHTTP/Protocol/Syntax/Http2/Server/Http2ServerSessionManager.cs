@@ -11,6 +11,7 @@ using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http2.Hpack;
 using TurboHTTP.Protocol.Syntax.Http2.Options;
 using TurboHTTP.Server;
+using TurboHTTP.Server.Context;
 using TurboHTTP.Server.Context.Features;
 using TurboHTTP.Streams.Stages.Server;
 using static Servus.Senf;
@@ -325,15 +326,34 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
                     var bufferedFeatures = state.GetFeatures();
                     var trailerFeature = bufferedFeatures?.Get<IHttpResponseTrailersFeature>();
                     var hasTrailers = trailerFeature?.Trailers.Count > 0;
-                    EmitBufferedDataFrames(streamId, bufferedBody, endStream: !hasTrailers);
-                    _flow.OnDataSent(streamId, bufferedBody.Length);
+
                     if (hasTrailers)
                     {
-                        var trailerFrames = _responseEncoder.EncodeTrailers(streamId, trailerFeature!.Trailers);
-                        for (var i = 0; i < trailerFrames.Count; i++)
+                        if (trailerFeature!.Trailers is TurboHeaderDictionary turboTrailers)
                         {
-                            EmitFrame(trailerFrames[i]);
+                            turboTrailers.SetReadOnly();
                         }
+
+                        var trailerFrames = _responseEncoder.EncodeTrailers(streamId, trailerFeature.Trailers);
+                        if (trailerFrames.Count > 0)
+                        {
+                            EmitBufferedDataFrames(streamId, bufferedBody, endStream: false);
+                            _flow.OnDataSent(streamId, bufferedBody.Length);
+                            for (var i = 0; i < trailerFrames.Count; i++)
+                            {
+                                EmitFrame(trailerFrames[i]);
+                            }
+                        }
+                        else
+                        {
+                            EmitBufferedDataFrames(streamId, bufferedBody, endStream: true);
+                            _flow.OnDataSent(streamId, bufferedBody.Length);
+                        }
+                    }
+                    else
+                    {
+                        EmitBufferedDataFrames(streamId, bufferedBody, endStream: true);
+                        _flow.OnDataSent(streamId, bufferedBody.Length);
                     }
                     CloseStream(streamId);
                     return;
@@ -424,11 +444,23 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
 
         if (hasTrailers)
         {
-            EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: false));
-            var trailerFrames = _responseEncoder.EncodeTrailers(streamId, trailerFeature!.Trailers);
-            for (var i = 0; i < trailerFrames.Count; i++)
+            if (trailerFeature!.Trailers is TurboHeaderDictionary turboTrailers)
             {
-                EmitFrame(trailerFrames[i]);
+                turboTrailers.SetReadOnly();
+            }
+
+            var trailerFrames = _responseEncoder.EncodeTrailers(streamId, trailerFeature.Trailers);
+            if (trailerFrames.Count > 0)
+            {
+                EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: false));
+                for (var i = 0; i < trailerFrames.Count; i++)
+                {
+                    EmitFrame(trailerFrames[i]);
+                }
+            }
+            else
+            {
+                EmitFrame(new DataFrame(streamId, ReadOnlyMemory<byte>.Empty, endStream: true));
             }
         }
         else
