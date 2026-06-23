@@ -265,6 +265,51 @@ internal sealed class StreamManager(
     }
 
     /// <summary>
+    /// Removes the correlation for the given stream ID (used when a stream is cancelled or closed externally).
+    /// </summary>
+    public void RemoveCorrelation(long streamId)
+    {
+        _correlationMap.Remove(streamId);
+    }
+
+    /// <summary>
+    /// Exposes the live correlation map for read-only inspection (e.g. reconnect, metrics).
+    /// </summary>
+    public IReadOnlyDictionary<long, HttpRequestMessage> GetCorrelationMap()
+    {
+        return _correlationMap;
+    }
+
+    /// <summary>
+    /// Snapshots all correlated requests and clears the map (used on connection reset / GOAWAY).
+    /// </summary>
+    public List<HttpRequestMessage> SnapshotAndClearCorrelations()
+    {
+        var snapshot = new List<HttpRequestMessage>(_correlationMap.Values);
+        _correlationMap.Clear();
+        return snapshot;
+    }
+
+    /// <summary>
+    /// Finds the stream ID correlated to <paramref name="request"/> by reference equality.
+    /// Returns true and sets <paramref name="streamId"/> when found.
+    /// </summary>
+    public bool TryFindStreamByRequest(HttpRequestMessage request, out long streamId)
+    {
+        foreach (var (id, req) in _correlationMap)
+        {
+            if (ReferenceEquals(req, request))
+            {
+                streamId = id;
+                return true;
+            }
+        }
+
+        streamId = -1;
+        return false;
+    }
+
+    /// <summary>
     /// Drains and pools all per-stream state. Keeps correlation map intact for reconnect.
     /// </summary>
     public void DrainStreams()

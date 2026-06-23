@@ -21,7 +21,7 @@ internal static class BodyPumpHelper
         IActorRef stageActor)
     {
         slot.BeginRead();
-        var token = slot.LinkedCts?.Token ?? CancellationToken.None;
+        var token = slot.LinkedCts?.Token ?? slot.RequestCt;
         var vt = slot.BodyStream!.ReadAsync(slot.Buffer!.Memory[..chunkSize], token);
 
         if (vt.IsCompletedSuccessfully)

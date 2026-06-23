@@ -33,10 +33,11 @@ internal sealed class MultiplexedBodyPump
     public void Register(long streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
         var slot = _poolContext.Rent(static () => new BodyDrainSlot<long>());
-        var linkedCts = requestCt.CanBeCanceled
+        CancellationTokenSource? linkedCts = requestCt.CanBeCanceled
             ? CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token, requestCt)
-            : CancellationTokenSource.CreateLinkedTokenSource(_connectionCts.Token);
-        slot.Initialize(streamId, bodyStream, contentLength, requestCt, linkedCts);
+            : null;
+        var effectiveToken = linkedCts?.Token ?? _connectionCts.Token;
+        slot.Initialize(streamId, bodyStream, contentLength, effectiveToken, linkedCts);
         slot.EnsureBuffer(_chunkSize);
         _activeSlots[streamId] = slot;
         _readyQueue.Enqueue(streamId);

@@ -55,6 +55,11 @@ internal sealed class StreamState
 
     public void Initialize(long streamId)
     {
+        if (StreamId == streamId)
+        {
+            return;
+        }
+
         StreamId = streamId;
         var idStr = streamId.ToString();
         BodyConsumptionTimerKey = string.Concat("body-consumption:", idStr);
