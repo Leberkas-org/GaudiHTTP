@@ -223,7 +223,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         {
             if (bufferedBody.Length > 0)
             {
-                EmitDataFrame(new DataFrame(bufferedBody), streamId);
+                EmitBufferedDataFrames(streamId, bufferedBody, endStream: true);
             }
 
             EmitEndOfBody(streamId, state);
@@ -767,10 +767,7 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
     {
         if (!data.IsEmpty)
         {
-            var dataFrame = new DataFrame(data);
-            EmitDataFrame(dataFrame, streamId);
-            _responseRate.Observe(streamId, data.Length, Now());
-            EnsureRateTimer();
+            EmitBufferedDataFrames(streamId, data, endStream);
         }
     }
 
@@ -839,6 +836,38 @@ internal sealed class Http3ServerSessionManager : IBodyDrainTarget<long>
         }
 
         buf.Length = serialized;
+        _ops.OnOutbound(MultiplexedData.Rent(buf, streamId));
+    }
+
+    private void EmitBufferedDataFrames(long streamId, ReadOnlyMemory<byte> body, bool endStream)
+    {
+        if (body.IsEmpty)
+        {
+            return;
+        }
+
+        var typeVarIntLen = QuicVarInt.EncodedLength((long)FrameType.Data);
+        var payloadVarIntLen = QuicVarInt.EncodedLength(body.Length);
+        var prefixSize = typeVarIntLen + payloadVarIntLen;
+        var totalWireSize = prefixSize + body.Length;
+
+        var buf = TransportBuffer.Rent(totalWireSize);
+        var span = buf.FullMemory.Span;
+
+        QuicVarInt.Encode((long)FrameType.Data, span);
+        span = span[typeVarIntLen..];
+        QuicVarInt.Encode(body.Length, span);
+        span = span[payloadVarIntLen..];
+        body.Span.CopyTo(span);
+
+        buf.Length = totalWireSize;
+
+        Tracing.For("Protocol").Trace(this, "HTTP/3: DATA out (stream={0}, len={1}, endStream={2})",
+            streamId, body.Length, endStream);
+
+        _responseRate.Observe(streamId, body.Length, Now());
+        EnsureRateTimer();
+
         _ops.OnOutbound(MultiplexedData.Rent(buf, streamId));
     }
 
