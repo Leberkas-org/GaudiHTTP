@@ -763,6 +763,7 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
             if (endStream)
             {
                 _streams.Remove(streamId);
+                state.FeedBody([], endStream: true);
                 state.DetachBodyReader();
                 ReturnBodyReader(state);
                 state.Reset();
