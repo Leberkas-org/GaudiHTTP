@@ -12,6 +12,10 @@ internal sealed class BodyDrainSlot<TStreamId> : IResettable
     public CancellationToken RequestCt { get; private set; }
     public CancellationTokenSource? LinkedCts { get; private set; }
 
+    // Cached PipeTo delegates — allocated once in BuildTransforms(), reused per read
+    public Func<int, object>? CachedSuccessTransform { get; private set; }
+    public Func<Exception, object>? CachedFailureTransform { get; private set; }
+
     // Managed resources
     public IMemoryOwner<byte>? Buffer { get; private set; }
 
@@ -35,6 +39,14 @@ internal sealed class BodyDrainSlot<TStreamId> : IResettable
         ContentLength = contentLength;
         RequestCt = requestCt;
         LinkedCts = linkedCts;
+        BuildTransforms();
+    }
+
+    private void BuildTransforms()
+    {
+        var sid = StreamId;
+        CachedSuccessTransform = n => new DrainReadComplete<TStreamId>(sid, n);
+        CachedFailureTransform = ex => new DrainReadFailed<TStreamId>(sid, ex);
     }
 
     public void EnsureBuffer(int chunkSize)
@@ -107,5 +119,7 @@ internal sealed class BodyDrainSlot<TStreamId> : IResettable
         HasLimbo = false;
         IsDrainComplete = false;
         ConsecutiveSyncReads = 0;
+        CachedSuccessTransform = null;
+        CachedFailureTransform = null;
     }
 }
