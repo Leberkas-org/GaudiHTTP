@@ -1,4 +1,5 @@
 using System.Buffers;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using TurboHTTP.Protocol.Semantics;
 using TurboHTTP.Protocol.Syntax.Http3.Options;
@@ -43,6 +44,41 @@ internal sealed class Http3ServerEncoder
 
         _reusableHeaders.Clear();
         BuildHeaderList(features, _reusableHeaders, _options);
+
+        _qpackBuffer ??= MemoryPool<byte>.Shared.Rent(4 * 1024);
+        var writer = SpanWriter.Create(_qpackBuffer.Memory.Span);
+        var bytesWritten = _tableSync.Encoder.Encode(_reusableHeaders, ref writer);
+        var headerBlock = _qpackBuffer.Memory[..bytesWritten];
+
+        return new HeadersFrame(headerBlock);
+    }
+
+    /// <summary>
+    /// Encodes trailer headers into an HTTP/3 HEADERS frame.
+    /// RFC 9114 §4.1: Trailers are sent as a HEADERS frame after all DATA frames.
+    /// RFC 9110 §6.5.1: Filters prohibited trailer fields.
+    /// Returns null when no valid trailers remain after filtering.
+    /// </summary>
+    public HeadersFrame? EncodeTrailers(IHeaderDictionary trailers)
+    {
+        ArgumentNullException.ThrowIfNull(trailers);
+
+        _reusableHeaders.Clear();
+
+        foreach (var header in trailers)
+        {
+            if (TrailerFieldValidator.IsAllowedInTrailer(header.Key))
+            {
+                _reusableHeaders.Add((
+                    ContentHeaderClassifier.ToLowerAscii(header.Key),
+                    header.Value.ToString()));
+            }
+        }
+
+        if (_reusableHeaders.Count == 0)
+        {
+            return null;
+        }
 
         _qpackBuffer ??= MemoryPool<byte>.Shared.Rent(4 * 1024);
         var writer = SpanWriter.Create(_qpackBuffer.Memory.Span);
