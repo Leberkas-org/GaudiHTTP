@@ -44,7 +44,7 @@ public sealed class PooledArrayMemoryOwnerSpec
         var owner1 = new PooledArrayMemoryOwner(pool, 4096);
         var array1 = BackingArray(owner1.Memory);
 
-        await Task.Run(() => owner1.Dispose());
+        await Task.Run(() => owner1.Dispose(), TestContext.Current.CancellationToken);
 
         using var owner2 = new PooledArrayMemoryOwner(pool, 4096);
 
