@@ -27,7 +27,6 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
     private readonly Http3ClientEncoder _requestEncoder;
     private readonly QpackTableSync _tableSync;
 
-    private readonly Dictionary<long, HttpRequestMessage> _correlationMap = new();
     private readonly Dictionary<long, HttpContent> _drainContentOwners = new();
     private readonly CancellationTokenSource _connectionCts = new();
     private readonly ConnectionPoolContext _poolContext = new();
@@ -38,7 +37,7 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
     private readonly List<ITransportOutbound> _preConnectBuffer = [];
 
     public bool CanOpenStream => _tracker.CanOpenStream();
-    public bool HasInFlightRequests => _correlationMap.Count > 0 || _streamManager.HasInFlightRequests;
+    public bool HasInFlightRequests => _streamManager.HasInFlightRequests;
     public RequestEndpoint Endpoint { get; private set; }
 
     public Http3ClientSessionManager(
@@ -72,7 +71,6 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
     private void OnStreamClosed(long streamId)
     {
         _tracker.OnStreamClosed(streamId);
-        _correlationMap.Remove(streamId);
     }
 
     public void EncodeRequest(HttpRequestMessage request)
@@ -106,7 +104,6 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 
         EmitOutbound(new OpenStream(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
 
-        _correlationMap.TryAdd(streamId, request);
         _streamManager.Correlate(streamId, request);
 
         if (request.RequestUri is null)
@@ -272,35 +269,23 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 
     public IReadOnlyDictionary<long, HttpRequestMessage> GetCorrelationMap()
     {
-        return _correlationMap;
+        return _streamManager.GetCorrelationMap();
     }
 
     public List<HttpRequestMessage> SnapshotAndClearCorrelations()
     {
-        var snapshot = _correlationMap.Values.ToList();
-        _correlationMap.Clear();
-        return snapshot;
+        return _streamManager.SnapshotAndClearCorrelations();
     }
 
     public bool TryCancelStream(HttpRequestMessage request)
     {
-        long streamId = -1;
-        foreach (var (id, req) in _correlationMap)
-        {
-            if (ReferenceEquals(req, request))
-            {
-                streamId = id;
-                break;
-            }
-        }
-
-        if (streamId < 0)
+        if (!_streamManager.TryFindStreamByRequest(request, out var streamId))
         {
             return false;
         }
 
         EmitOutbound(new ResetStream(streamId, 0x10C));
-        _correlationMap.Remove(streamId);
+        _streamManager.RemoveCorrelation(streamId);
         request.Fail(new OperationCanceledException("Request cancelled by caller."));
         _pump?.Cancel(streamId);
         _tracker.OnStreamClosed(streamId);
