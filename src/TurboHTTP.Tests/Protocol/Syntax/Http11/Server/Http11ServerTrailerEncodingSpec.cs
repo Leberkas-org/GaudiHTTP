@@ -23,7 +23,7 @@ public sealed class Http11ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9112-7.1.2")]
     public void WriteTrailerSection_should_emit_trailers_and_final_crlf()
     {
-        var trailers = new TurboResponseHeaderDictionary
+        var trailers = new TurboHeaderDictionary
         {
             { "x-checksum", "abc123" },
             { "x-timing", "42ms" }
@@ -42,7 +42,7 @@ public sealed class Http11ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9110-6.5.1")]
     public void WriteTrailerSection_should_filter_prohibited_fields()
     {
-        var trailers = new TurboResponseHeaderDictionary
+        var trailers = new TurboHeaderDictionary
         {
             { "x-checksum", "abc123" },
             { "transfer-encoding", "chunked" },
@@ -62,7 +62,7 @@ public sealed class Http11ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9112-7.1.2")]
     public void WriteTrailerSection_should_emit_only_crlf_when_all_filtered()
     {
-        var trailers = new TurboResponseHeaderDictionary
+        var trailers = new TurboHeaderDictionary
         {
             { "transfer-encoding", "chunked" },
             { "content-length", "42" }
@@ -79,7 +79,7 @@ public sealed class Http11ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9112-7.1.2")]
     public void WriteTrailerSection_should_handle_multi_value_trailers()
     {
-        var trailers = new TurboResponseHeaderDictionary();
+        var trailers = new TurboHeaderDictionary();
         trailers.Add("x-multi", new StringValues(new[] { "val1", "val2" }));
         var buffer = new byte[256];
 
@@ -93,7 +93,7 @@ public sealed class Http11ServerTrailerEncodingSpec
     [Trait("RFC", "RFC9112-7.1.2")]
     public void GetTrailerSectionSize_should_estimate_correctly()
     {
-        var trailers = new TurboResponseHeaderDictionary
+        var trailers = new TurboHeaderDictionary
         {
             { "x-checksum", "abc123" }
         };

@@ -6,7 +6,7 @@ namespace TurboHTTP.Server.Context.Features;
 
 internal sealed class TurboHttpResponseTrailersFeature : IHttpResponseTrailersFeature
 {
-    private readonly TurboResponseHeaderDictionary _trailers = new();
+    private readonly TurboHeaderDictionary _trailers = new();
 
     public IHeaderDictionary Trailers
     {

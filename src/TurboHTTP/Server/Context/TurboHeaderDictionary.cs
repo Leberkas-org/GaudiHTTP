@@ -12,7 +12,7 @@ namespace TurboHTTP.Server.Context;
 /// </summary>
 public interface ITurboHeaderDictionary : IHeaderDictionary;
 
-internal sealed class TurboResponseHeaderDictionary : ITurboHeaderDictionary
+internal sealed class TurboHeaderDictionary : ITurboHeaderDictionary
 {
     private readonly Dictionary<string, StringValues> _headers =
         new(StringComparer.OrdinalIgnoreCase);
