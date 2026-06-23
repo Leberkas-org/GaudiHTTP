@@ -93,7 +93,7 @@ internal ref struct SpanWriter
     public void WriteStatusCode(int statusCode)
     {
         _buffer[0] = (byte)('0' + statusCode / 100);
-        _buffer[1] = (byte)('0' + (statusCode / 10) % 10);
+        _buffer[1] = (byte)('0' + statusCode / 10 % 10);
         _buffer[2] = (byte)('0' + statusCode % 10);
 
         _buffer = _buffer[3..];

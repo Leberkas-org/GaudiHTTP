@@ -56,7 +56,7 @@ internal static class PreBakedStatusLines
             pos += versionPrefix.Length;
             buffer[pos++] = (byte)' ';
             buffer[pos++] = (byte)('0' + code / 100);
-            buffer[pos++] = (byte)('0' + (code / 10) % 10);
+            buffer[pos++] = (byte)('0' + code / 10 % 10);
             buffer[pos++] = (byte)('0' + code % 10);
             buffer[pos++] = (byte)' ';
             phrase.CopyTo(buffer.AsSpan(pos));

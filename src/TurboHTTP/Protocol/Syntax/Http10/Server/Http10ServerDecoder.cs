@@ -86,7 +86,7 @@ internal sealed class Http10ServerDecoder(Http10ServerDecoderOptions options, Co
                 StreamingReader = streaming;
             }
 
-            if (CurrentBodyReader is null || (CurrentBodyReader is BufferedBodyReader { IsCompleted: true }))
+            if (CurrentBodyReader is null || CurrentBodyReader is BufferedBodyReader { IsCompleted: true })
             {
                 _phase = Phase.Done;
                 consumed = pos;

@@ -254,7 +254,7 @@ internal sealed class ChunkedFramingDecoder : IFramingDecoder, IResettable
             }
 
             // Guard against overflow before shifting
-            if (value > (ulong.MaxValue >> 4))
+            if (value > ulong.MaxValue >> 4)
             {
                 return false;
             }
