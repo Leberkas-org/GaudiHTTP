@@ -47,10 +47,10 @@ public sealed class Http3ResponseFrameBufferReleaseSpec
     private long ReceiveResponseAndDrainBody(
         Http3ClientStateMachine sm, long streamId, byte[] chunk, byte[] drainBuffer)
     {
-        sm.DecodeServerData(new MultiplexedData(BuildHeadersBuffer(), streamId));
+        sm.DecodeServerData(MultiplexedData.Rent(BuildHeadersBuffer(), streamId));
         for (var i = 0; i < ChunksPerResponse; i++)
         {
-            sm.DecodeServerData(new MultiplexedData(BuildDataBuffer(chunk), streamId));
+            sm.DecodeServerData(MultiplexedData.Rent(BuildDataBuffer(chunk), streamId));
         }
         sm.DecodeServerData(new StreamReadCompleted(streamId));
 

@@ -170,6 +170,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
             case MultiplexedData multiplexed:
                 {
                     HandleTaggedStreamData(multiplexed);
+                    multiplexed.Return();
                     return;
                 }
 
@@ -214,7 +215,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
             var span = buf.FullMemory.Span;
             goAway.WriteTo(ref span);
             buf.Length = goAway.SerializedSize;
-            _ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.Control));
+            _ops.OnOutbound(MultiplexedData.Rent(buf, CriticalStreamId.Control));
             return;
         }
 
@@ -401,7 +402,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
         var span = buf.FullMemory.Span;
         cancelFrame.WriteTo(ref span);
         buf.Length = cancelFrame.SerializedSize;
-        _ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.Control));
+        _ops.OnOutbound(MultiplexedData.Rent(buf, CriticalStreamId.Control));
         Tracing.For("Protocol").Info(this,
             "RFC 9114 §7.2.5 - push promise rejected (pushId={0}); server push not supported", pushPromise.PushId);
         return null;
@@ -422,7 +423,7 @@ internal sealed class Http3ClientStateMachine : IClientStateMachine
             var span = buf.FullMemory.Span;
             cancel.WriteTo(ref span);
             buf.Length = cancel.SerializedSize;
-            _ops.OnOutbound(new MultiplexedData(buf, CriticalStreamId.Control));
+            _ops.OnOutbound(MultiplexedData.Rent(buf, CriticalStreamId.Control));
         }
 
         _ops.OnOutbound(new ResetStream(quicStreamId));

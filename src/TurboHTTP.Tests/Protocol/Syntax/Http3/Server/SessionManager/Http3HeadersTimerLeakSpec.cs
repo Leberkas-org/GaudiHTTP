@@ -70,7 +70,7 @@ public sealed class Http3HeadersTimerLeakSpec
         var buffer = TransportBuffer.Rent(headersBytes.Length);
         headersBytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersBytes.Length;
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
 
         // StreamReadCompleted makes the stream fully registered
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
@@ -168,7 +168,7 @@ public sealed class Http3HeadersTimerLeakSpec
         var buffer = TransportBuffer.Rent(headersBytes.Length);
         headersBytes.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersBytes.Length;
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
 
         // Do NOT call StreamReadCompleted yet — stream is pending
         Assert.Empty(ops.Requests);

@@ -116,7 +116,7 @@ public sealed class Http3ServerStateMachineSpec
         sm.DecodeClientData(new ServerStreamAccepted(StreamTarget.FromId(streamId), StreamDirection.Bidirectional));
 
         // Send HEADERS frame
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
 
         // Signal end of stream
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
@@ -161,13 +161,13 @@ public sealed class Http3ServerStateMachineSpec
         var headerBuffer = TransportBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headersFrameData.Length;
-        sm.DecodeClientData(new MultiplexedData(headerBuffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
 
         // Send DATA frame
         var dataBuffer = TransportBuffer.Rent(dataFrameData.Length);
         dataFrameData.CopyTo(dataBuffer.FullMemory.Span);
         dataBuffer.Length = dataFrameData.Length;
-        sm.DecodeClientData(new MultiplexedData(dataBuffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(dataBuffer, streamId));
 
         // Signal end of stream
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
@@ -212,7 +212,7 @@ public sealed class Http3ServerStateMachineSpec
         var headerBuffer = TransportBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headersFrameData.Length;
-        sm.DecodeClientData(new MultiplexedData(headerBuffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
 
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
 
@@ -260,7 +260,7 @@ public sealed class Http3ServerStateMachineSpec
         var headerBuffer = TransportBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(headerBuffer.FullMemory.Span);
         headerBuffer.Length = headersFrameData.Length;
-        sm.DecodeClientData(new MultiplexedData(headerBuffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(headerBuffer, streamId));
 
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(streamId)));
 
@@ -303,7 +303,7 @@ public sealed class Http3ServerStateMachineSpec
         var buf1 = TransportBuffer.Rent(headersData1.Length);
         headersData1.CopyTo(buf1.FullMemory.Span);
         buf1.Length = headersData1.Length;
-        sm.DecodeClientData(new MultiplexedData(buf1, stream1));
+        sm.DecodeClientData(MultiplexedData.Rent(buf1, stream1));
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(stream1)));
 
         // Open stream 2 and send request
@@ -311,7 +311,7 @@ public sealed class Http3ServerStateMachineSpec
         var buf2 = TransportBuffer.Rent(headersData2.Length);
         headersData2.CopyTo(buf2.FullMemory.Span);
         buf2.Length = headersData2.Length;
-        sm.DecodeClientData(new MultiplexedData(buf2, stream2));
+        sm.DecodeClientData(MultiplexedData.Rent(buf2, stream2));
         sm.DecodeClientData(new StreamReadCompleted(StreamTarget.FromId(stream2)));
 
         // Should have two requests
@@ -356,7 +356,7 @@ public sealed class Http3ServerStateMachineSpec
         var buffer = TransportBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
 
         // Request not yet flushed (stream still open)
         Assert.Empty(ops.Requests);
@@ -385,7 +385,7 @@ public sealed class Http3ServerStateMachineSpec
         var buffer = TransportBuffer.Rent(headersFrameData.Length);
         headersFrameData.CopyTo(buffer.FullMemory.Span);
         buffer.Length = headersFrameData.Length;
-        sm.DecodeClientData(new MultiplexedData(buffer, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(buffer, streamId));
 
         // Should not throw during cleanup
         sm.Cleanup();

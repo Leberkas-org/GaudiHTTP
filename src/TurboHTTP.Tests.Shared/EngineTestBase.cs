@@ -209,11 +209,11 @@ public abstract class EngineTestBase : StreamTestBase
                     if (i == 0)
                     {
                         ctx.Push(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
-                        ctx.Push(new MultiplexedData(buf, 3));
+                        ctx.Push(MultiplexedData.Rent(buf, 3));
                     }
                     else
                     {
-                        ctx.Push(new MultiplexedData(buf, 0));
+                        ctx.Push(MultiplexedData.Rent(buf, 0));
                     }
                 }
 
@@ -357,9 +357,9 @@ public abstract class EngineTestBase : StreamTestBase
         {
             switch (outbound)
             {
-                case MultiplexedData { Buffer: var buf, StreamId: var streamId }:
-                    var bytes = buf.Span.ToArray();
-                    switch (streamId)
+                case MultiplexedData mux:
+                    var bytes = mux.Buffer.Span.ToArray();
+                    switch (mux.StreamId)
                     {
                         case -2:
                             controlBytes.AddRange(bytes);
@@ -372,6 +372,7 @@ public abstract class EngineTestBase : StreamTestBase
                             break;
                     }
 
+                    mux.Return();
                     break;
                 case TransportData { Buffer: var dataBuf }:
                     requestBytes.AddRange(dataBuf.Span.ToArray());

@@ -49,7 +49,7 @@ public sealed class Http3ConnectionErrorTeardownSpec
         var transport = TransportBuffer.Rent(buf.Length);
         buf.CopyTo(transport.FullMemory.Span);
         transport.Length = buf.Length;
-        sm.DecodeClientData(new MultiplexedData(transport, streamId));
+        sm.DecodeClientData(MultiplexedData.Rent(transport, streamId));
 
         Assert.True(sm.ShouldComplete);
     }

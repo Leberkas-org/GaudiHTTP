@@ -86,7 +86,7 @@ public sealed class Http3StateMachineEdgeCasesSpec
         var buffer = TransportBuffer.Rent(10);
         buffer.FullMemory.Span[..1].Clear();
         buffer.Length = 1;
-        var data = new MultiplexedData(buffer, 0);
+        var data = MultiplexedData.Rent(buffer, 0);
 
         sm.DecodeServerData(data);
 

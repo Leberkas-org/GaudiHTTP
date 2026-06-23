@@ -38,7 +38,7 @@ public sealed class Http3DuplicateStreamSpec
         sm.DecodeServerData(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
 
         var buf = BuildStreamTypeBuffer(StreamType.Control, [0x00]);
-        sm.DecodeServerData(new MultiplexedData(buf, 3));
+        sm.DecodeServerData(MultiplexedData.Rent(buf, 3));
 
         Assert.True(true);
     }
@@ -52,12 +52,12 @@ public sealed class Http3DuplicateStreamSpec
 
         sm.DecodeServerData(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
         var buf1 = BuildStreamTypeBuffer(StreamType.Control, [0x00]);
-        sm.DecodeServerData(new MultiplexedData(buf1, 3));
+        sm.DecodeServerData(MultiplexedData.Rent(buf1, 3));
 
         sm.DecodeServerData(new ServerStreamAccepted(7, StreamDirection.Unidirectional));
         var buf2 = BuildStreamTypeBuffer(StreamType.Control, [0x00]);
 
-        var ex = Assert.Throws<HttpProtocolException>(() => sm.DecodeServerData(new MultiplexedData(buf2, 7)));
+        var ex = Assert.Throws<HttpProtocolException>(() => sm.DecodeServerData(MultiplexedData.Rent(buf2, 7)));
         Assert.Contains("Duplicate", ex.Message);
     }
 
@@ -70,12 +70,12 @@ public sealed class Http3DuplicateStreamSpec
 
         sm.DecodeServerData(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
         var buf1 = BuildStreamTypeBuffer(StreamType.QpackEncoder, [0x00]);
-        sm.DecodeServerData(new MultiplexedData(buf1, 3));
+        sm.DecodeServerData(MultiplexedData.Rent(buf1, 3));
 
         sm.DecodeServerData(new ServerStreamAccepted(7, StreamDirection.Unidirectional));
         var buf2 = BuildStreamTypeBuffer(StreamType.QpackEncoder, [0x00]);
 
-        var ex = Assert.Throws<HttpProtocolException>(() => sm.DecodeServerData(new MultiplexedData(buf2, 7)));
+        var ex = Assert.Throws<HttpProtocolException>(() => sm.DecodeServerData(MultiplexedData.Rent(buf2, 7)));
         Assert.Contains("Duplicate", ex.Message);
     }
 
@@ -88,12 +88,12 @@ public sealed class Http3DuplicateStreamSpec
 
         sm.DecodeServerData(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
         var buf1 = BuildStreamTypeBuffer(StreamType.QpackDecoder, [0x00]);
-        sm.DecodeServerData(new MultiplexedData(buf1, 3));
+        sm.DecodeServerData(MultiplexedData.Rent(buf1, 3));
 
         sm.DecodeServerData(new ServerStreamAccepted(7, StreamDirection.Unidirectional));
         var buf2 = BuildStreamTypeBuffer(StreamType.QpackDecoder, [0x00]);
 
-        var ex = Assert.Throws<HttpProtocolException>(() => sm.DecodeServerData(new MultiplexedData(buf2, 7)));
+        var ex = Assert.Throws<HttpProtocolException>(() => sm.DecodeServerData(MultiplexedData.Rent(buf2, 7)));
         Assert.Contains("Duplicate", ex.Message);
     }
 
@@ -107,11 +107,11 @@ public sealed class Http3DuplicateStreamSpec
 
         sm.DecodeServerData(new ServerStreamAccepted(3, StreamDirection.Unidirectional));
         var buf1 = BuildStreamTypeBuffer(StreamType.Control, [0x00]);
-        sm.DecodeServerData(new MultiplexedData(buf1, 3));
+        sm.DecodeServerData(MultiplexedData.Rent(buf1, 3));
 
         sm.DecodeServerData(new ServerStreamAccepted(7, StreamDirection.Unidirectional));
         var buf2 = BuildStreamTypeBuffer(StreamType.QpackEncoder, [0x00]);
-        sm.DecodeServerData(new MultiplexedData(buf2, 7));
+        sm.DecodeServerData(MultiplexedData.Rent(buf2, 7));
 
         Assert.True(true);
     }

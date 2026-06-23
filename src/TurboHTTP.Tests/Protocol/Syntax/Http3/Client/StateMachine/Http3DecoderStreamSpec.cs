@@ -100,6 +100,6 @@ public sealed class Http3DecoderStreamSpec
         encoderUpdate.CopyTo(buf.FullMemory.Span);
         buf.Length = encoderUpdate.Length;
 
-        sm.DecodeServerData(new MultiplexedData(buf, -3));
+        sm.DecodeServerData(MultiplexedData.Rent(buf, -3));
     }
 }

@@ -61,11 +61,11 @@ public sealed class Http3StreamRoutingSpec
 
         // Stream 0: HEADERS + 1KB DATA
         var buf0 = BuildResponseBuffer(0xAA, 1024);
-        sm.DecodeServerData(new MultiplexedData(buf0, 0));
+        sm.DecodeServerData(MultiplexedData.Rent(buf0, 0));
 
         // Stream 4: HEADERS + 1KB DATA
         var buf4 = BuildResponseBuffer(0xBB, 1024);
-        sm.DecodeServerData(new MultiplexedData(buf4, 4));
+        sm.DecodeServerData(MultiplexedData.Rent(buf4, 4));
 
         // Signal EOF to flush responses
         sm.DecodeServerData(new StreamReadCompleted(0));
@@ -96,11 +96,11 @@ public sealed class Http3StreamRoutingSpec
 
         // Stream 0: HEADERS + 60KB DATA (filled with 0xAA)
         var buf0 = BuildResponseBuffer(0xAA, bodySize);
-        sm.DecodeServerData(new MultiplexedData(buf0, 0));
+        sm.DecodeServerData(MultiplexedData.Rent(buf0, 0));
 
         // Stream 4: HEADERS + 60KB DATA (filled with 0xBB)
         var buf4 = BuildResponseBuffer(0xBB, bodySize);
-        sm.DecodeServerData(new MultiplexedData(buf4, 4));
+        sm.DecodeServerData(MultiplexedData.Rent(buf4, 4));
 
         // Signal EOF to flush both responses
         sm.DecodeServerData(new StreamReadCompleted(0));
@@ -149,9 +149,9 @@ public sealed class Http3StreamRoutingSpec
         part3.Length = part3Size;
 
         // Feed fragments to stream 0
-        sm.DecodeServerData(new MultiplexedData(part1, 0));
-        sm.DecodeServerData(new MultiplexedData(part2, 0));
-        sm.DecodeServerData(new MultiplexedData(part3, 0));
+        sm.DecodeServerData(MultiplexedData.Rent(part1, 0));
+        sm.DecodeServerData(MultiplexedData.Rent(part2, 0));
+        sm.DecodeServerData(MultiplexedData.Rent(part3, 0));
 
         // Signal EOF
         sm.DecodeServerData(new StreamReadCompleted(0));
@@ -181,11 +181,11 @@ public sealed class Http3StreamRoutingSpec
         settings.WriteTo(ref settingsSpan);
         settingsBuf.Length = settings.SerializedSize;
 
-        sm.DecodeServerData(new MultiplexedData(settingsBuf, controlStreamId));
+        sm.DecodeServerData(MultiplexedData.Rent(settingsBuf, controlStreamId));
 
         // Feed HEADERS + DATA on request stream 0 — should not be affected by control stream
         var reqBuf = BuildResponseBuffer(0xDD, 512);
-        sm.DecodeServerData(new MultiplexedData(reqBuf, 0));
+        sm.DecodeServerData(MultiplexedData.Rent(reqBuf, 0));
 
         // Flush to get response
         sm.DecodeServerData(new StreamReadCompleted(0));
