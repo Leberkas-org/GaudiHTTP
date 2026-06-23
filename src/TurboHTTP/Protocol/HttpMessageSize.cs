@@ -203,12 +203,12 @@ internal static class HttpMessageSize
     // RFC 7541 §6.2.2: 0x00 prefix + name-string + value-string (literal no-indexing, no Huffman)
     // string = H(0) | length (7-bit prefix, 1 byte for length < 127) + octets
     private static int HpackLiteralSize(string name, string value)
-        => 1 + (1 + name.Length) + (1 + value.Length);
+        => 1 + 1 + name.Length + 1 + value.Length;
 
     // RFC 9204 §4.5.5: literal field line without name reference (no Huffman, static-only)
     // Uses same string encoding as HPACK (H-bit + 7-bit length prefix)
     private static int QpackLiteralSize(string name, string value)
-        => 1 + (1 + name.Length) + (1 + value.Length);
+        => 1 + 1 + name.Length + 1 + value.Length;
 
     // RFC 9000 §16: QUIC variable-length integer encoding
     private static int QuicVarintSize(int n)
