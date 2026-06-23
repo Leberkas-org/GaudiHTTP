@@ -187,11 +187,11 @@ internal sealed class RedirectHandler
         // may produce them. Strip scheme+empty-authority and resolve as relative.
         if (locationValue.StartsWith("http:///", StringComparison.OrdinalIgnoreCase))
         {
-            locationValue = locationValue[("http://".Length)..];
+            locationValue = locationValue["http://".Length..];
         }
         else if (locationValue.StartsWith("https:///", StringComparison.OrdinalIgnoreCase))
         {
-            locationValue = locationValue[("https://".Length)..];
+            locationValue = locationValue["https://".Length..];
         }
 
         // Resolve relative URIs against the request URI (RFC 9110 §10.2.2).
