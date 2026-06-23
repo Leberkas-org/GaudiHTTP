@@ -16,7 +16,7 @@ internal sealed class TurboInformationalResponseFeature
 
     public void SendInformational(int statusCode, IHeaderDictionary headers)
     {
-        if (statusCode < 100 || statusCode >= 200)
+        if (statusCode is < 100 or >= 200)
         {
             throw new ArgumentOutOfRangeException(nameof(statusCode), statusCode,
                 "Informational status code must be between 100 and 199.");
