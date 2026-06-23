@@ -119,6 +119,13 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
 
     public void EncodeRequest(HttpRequestMessage request)
     {
+        if (!CanOpenStream)
+        {
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/2: EncodeRequest called at MaxConcurrentStreams limit (active={0}, max={1})",
+                _tracker.ActiveStreamCount, _tracker.MaxConcurrentStreams);
+        }
+
         var streamId = _tracker.AllocateStreamId();
 
         if (GoAwayReceived)

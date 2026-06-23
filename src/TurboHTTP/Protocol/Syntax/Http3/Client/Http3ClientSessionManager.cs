@@ -77,6 +77,13 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
 
     public void EncodeRequest(HttpRequestMessage request)
     {
+        if (!_tracker.CanOpenStream())
+        {
+            Tracing.For("Protocol").Warning(this,
+                "HTTP/3: EncodeRequest called at MaxConcurrentStreams limit (active={0}, max={1})",
+                _tracker.ActiveStreamCount, _tracker.MaxConcurrentStreams);
+        }
+
         var endpoint = request.RequestUri is not null
             ? RequestEndpoint.FromRequest(request)
             : RequestEndpoint.Default;
