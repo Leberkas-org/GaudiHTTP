@@ -110,8 +110,8 @@ internal sealed class Http11ServerStateMachine : IServerStateMachine, IBodyDrain
     }
 
     IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<int>.HasPendingDemand => false;
-    int IBodyDrainTarget<int>.PreferredChunkSize => 16 * 1024;
+    bool IBodyDrainTarget<int>.HasPendingDemand => _ops.HasPendingDemand;
+    int IBodyDrainTarget<int>.PreferredChunkSize => _bodyEncoderOptions.ChunkSize;
 
     void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {

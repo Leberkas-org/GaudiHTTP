@@ -237,6 +237,8 @@ internal sealed class HttpConnectionStageLogic<TSM> : TimerGraphStageLogic, ICli
 
     IActorRef IClientStageOperations.StageActor => _stageActor;
 
+    bool IClientStageOperations.HasPendingDemand => _outboundQueue.Count == 0 && IsAvailable(_outNetwork);
+
     private void OnRequestCancelled(HttpRequestMessage request)
     {
         if (_ctRegistrations.Remove(request, out var reg))

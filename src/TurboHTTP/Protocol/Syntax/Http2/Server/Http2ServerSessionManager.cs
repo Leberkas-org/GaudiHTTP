@@ -934,16 +934,22 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
 
         // Hand the remainder to the scheduler which will emit it when WINDOW_UPDATE arrives.
         state.MarkBodyDrainActive();
-        _pump!.RegisterWithLimbo(streamId, remainder, CancellationToken.None);
+        var remainderBytes = remainder.ToArray();
+        _pump!.Register(streamId, new MemoryStream(remainderBytes, writable: false), remainderBytes.Length, CancellationToken.None);
 
         Tracing.For("Protocol").Debug(this,
             "HTTP/2: buffered body flow-controlled (stream={0}, sent={1}, queued={2})",
             streamId, sent, body.Length - sent);
     }
 
+    public void OnOutboundFlushed()
+    {
+        _pump?.AddCredit();
+    }
+
     IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<int>.HasPendingDemand => false;
-    int IBodyDrainTarget<int>.PreferredChunkSize => 16 * 1024;
+    bool IBodyDrainTarget<int>.HasPendingDemand => _ops.HasPendingDemand;
+    int IBodyDrainTarget<int>.PreferredChunkSize => _responseEncoder.MaxFrameSize;
 
     void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
