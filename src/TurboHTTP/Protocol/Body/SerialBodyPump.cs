@@ -4,21 +4,22 @@ namespace TurboHTTP.Protocol.Body;
 
 internal sealed class SerialBodyPump : BodyPumpBase<int>
 {
+    private readonly int _initialCredits;
+
     public SerialBodyPump(
         IBodyDrainTarget<int> target,
         ConnectionPoolContext poolContext,
-        CancellationTokenSource connectionCts)
+        CancellationTokenSource connectionCts,
+        int initialCredits = 2)
         : base(target, poolContext, connectionCts)
     {
+        _initialCredits = initialCredits;
     }
 
     public void Register(Stream bodyStream, long? contentLength, CancellationToken requestCt)
     {
         base.Register(0, bodyStream, contentLength, requestCt);
-        // Bootstrap with sufficient credits to drain synchronous streams
-        // Budget threshold for single stream is min(budget/2, 2) ≈ 1-15 credits needed
-        // Add extra credits to handle typical small body (data + EOF) without additional calls
-        for (var i = 0; i < 16; i++)
+        for (var i = 0; i < _initialCredits; i++)
         {
             AddCredit();
         }
