@@ -150,6 +150,13 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
             return;
         }
 
+        if (contentLength == 0)
+        {
+            // Empty body: emit END_STREAM directly without involving the pump (spec invariant 7).
+            EmitBufferedDataFrames(streamId, default, endStream: true);
+            return;
+        }
+
         var state = _streamManager.GetOrCreateStreamState(streamId);
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
@@ -364,8 +371,13 @@ internal sealed class Http3ClientSessionManager : IBodyDrainTarget<long>
         return true;
     }
 
+    public void OnOutboundFlushed()
+    {
+        _pump?.AddCredit();
+    }
+
     IActorRef IBodyDrainTarget<long>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<long>.HasPendingDemand => false;
+    bool IBodyDrainTarget<long>.HasPendingDemand => _ops.HasPendingDemand;
     int IBodyDrainTarget<long>.PreferredChunkSize => 16 * 1024;
 
     void IBodyDrainTarget<long>.EmitDataFrames(long streamId, ReadOnlyMemory<byte> data, bool endStream)

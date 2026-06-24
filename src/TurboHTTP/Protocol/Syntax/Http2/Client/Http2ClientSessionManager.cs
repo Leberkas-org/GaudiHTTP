@@ -241,6 +241,14 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
             return;
         }
 
+        if (contentLength == 0)
+        {
+            // Empty body: emit END_STREAM directly without involving the pump (spec invariant 7).
+            ((IBodyDrainTarget<int>)this).EmitDataFrames(streamId, default, endStream: true);
+            CloseStream(streamId);
+            return;
+        }
+
         state.MarkBodyDrainActive();
         _drainContentOwners[streamId] = request.Content!;
         _pump!.Register(streamId, bodyStream!, contentLength, request.GetCancellationToken());
@@ -281,7 +289,8 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         // Window exhausted before all data sent: hand the remainder to the pump
         // which will emit it when the send window opens up via WINDOW_UPDATE.
         state.MarkBodyDrainActive();
-        _pump!.RegisterWithLimbo(streamId, body[sent..], CancellationToken.None);
+        var remainderBytes = body[sent..].ToArray();
+        _pump!.Register(streamId, new MemoryStream(remainderBytes, writable: false), remainderBytes.Length, CancellationToken.None);
     }
 
     private bool TrySerializeBodyDirect(HttpContent content, int streamId, StreamState state, int bodyLength)
@@ -487,9 +496,14 @@ internal sealed class Http2ClientSessionManager : IBodyDrainTarget<int>
         ReleaseAllStreamState();
     }
 
+    public void OnOutboundFlushed()
+    {
+        _pump?.AddCredit();
+    }
+
     IActorRef IBodyDrainTarget<int>.PipeToTarget => _ops.StageActor;
-    bool IBodyDrainTarget<int>.HasPendingDemand => false;
-    int IBodyDrainTarget<int>.PreferredChunkSize => 16 * 1024;
+    bool IBodyDrainTarget<int>.HasPendingDemand => _ops.HasPendingDemand;
+    int IBodyDrainTarget<int>.PreferredChunkSize => _requestEncoder.MaxFrameSize;
 
     void IBodyDrainTarget<int>.EmitDataFrames(int streamId, ReadOnlyMemory<byte> data, bool endStream)
     {
