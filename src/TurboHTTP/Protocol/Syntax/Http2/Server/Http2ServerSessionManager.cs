@@ -103,8 +103,7 @@ internal sealed class Http2ServerSessionManager : IBodyDrainTarget<int>
             scaler,
             _clock);
         _tracker = new StreamTracker(initialNextStreamId: 1, options.MaxConcurrentStreams);
-        var chunkSize = options.ToBodyEncoderOptions().ChunkSize;
-        _pump = new FlowControlledBodyPump(this, _flow, _poolContext, _connectionCts, chunkSize, hardCap: 16);
+        _pump = new FlowControlledBodyPump(this, _flow, _poolContext, _connectionCts);
         _maxRequestBodySize = options.Limits.MaxRequestBodySize;
         _maxResetStreamsPerWindow = options.Limits.MaxResetStreamsPerWindow;
         _bodyEncoderOptions = options.ToBodyEncoderOptions();
