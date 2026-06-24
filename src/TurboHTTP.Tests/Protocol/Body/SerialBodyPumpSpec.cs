@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.IO.Pipelines;
 using Akka.Actor;
 using TurboHTTP.Pooling;
 using TurboHTTP.Protocol.Body;
@@ -276,5 +277,135 @@ public sealed class SerialBodyPumpSpec
         Assert.Single(target.Completed);
         // Verify no exception when disposing reqCts (linked CTS should already be disposed by pump)
         reqCts.Dispose();
+    }
+
+    [Fact(Timeout = 5000)]
+    public void PipeReader_should_drain_completed_pipe_with_auto_resume()
+    {
+        // Scenario: PipeWriter writes 64 KB in 1 KB chunks, then completes.
+        // PipeReader.AsStream() is registered AFTER all data is written.
+        // All reads should complete synchronously since data is already buffered.
+        //
+        // PauseWriterThreshold = 0 disables writer back-pressure so all FlushAsync
+        // calls complete synchronously without a reader consuming data first.
+        var pipeOptions = new PipeOptions(pauseWriterThreshold: 0, resumeWriterThreshold: 0);
+        var pipe = new Pipe(pipeOptions);
+        var totalSize = 64 * 1024;
+        var chunkSize = 1024;
+
+        // Write all data first — FlushAsync completes synchronously with no back-pressure
+        for (var i = 0; i < totalSize / chunkSize; i++)
+        {
+            var mem = pipe.Writer.GetMemory(chunkSize);
+            for (var j = 0; j < chunkSize; j++)
+            {
+                mem.Span[j] = (byte)((i * chunkSize + j) % 256);
+            }
+
+            pipe.Writer.Advance(chunkSize);
+            var flushResult = pipe.Writer.FlushAsync();
+            Assert.True(flushResult.IsCompleted, "FlushAsync should complete synchronously with no back-pressure");
+        }
+
+        pipe.Writer.Complete();
+
+        // Now register the pump with the completed pipe
+        var target = new AutoResumeTarget();
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
+        target.SetPump(pump);
+
+        var bodyStream = pipe.Reader.AsStream();
+        pump.Register(bodyStream, totalSize, CancellationToken.None);
+
+        var emittedBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
+        Assert.Equal(totalSize, emittedBytes);
+        Assert.Single(target.Completed);
+        Assert.Empty(target.Failed);
+    }
+
+    [Fact(Timeout = 5000)]
+    public async Task PipeReader_should_drain_pipe_when_writer_completes_after_registration()
+    {
+        // Scenario: Write a few chunks, register the pump, then write the rest.
+        // The first reads complete synchronously (data already buffered).
+        // Later reads may go async because the PipeWriter hasn't written yet.
+        //
+        // This simulates the real server handler case: the handler writes to
+        // PipeWriter while the pump reads from PipeReader.AsStream() concurrently.
+        var pipeOptions = new PipeOptions(pauseWriterThreshold: 0, resumeWriterThreshold: 0);
+        var pipe = new Pipe(pipeOptions);
+        var totalSize = 64 * 1024;
+        var chunkSize = 1024;
+        var preWriteChunks = 4; // Write 4 KB before registering
+
+        // Write initial chunks
+        for (var i = 0; i < preWriteChunks; i++)
+        {
+            var mem = pipe.Writer.GetMemory(chunkSize);
+            for (var j = 0; j < chunkSize; j++)
+            {
+                mem.Span[j] = (byte)((i * chunkSize + j) % 256);
+            }
+
+            pipe.Writer.Advance(chunkSize);
+            var flushResult = pipe.Writer.FlushAsync();
+            Assert.True(flushResult.IsCompleted);
+        }
+
+        // Register the pump BEFORE writer completes
+        var target = new AutoResumeTarget();
+        var poolContext = new ConnectionPoolContext();
+        var connCts = new CancellationTokenSource();
+        var pump = new SerialBodyPump(target, poolContext, connCts);
+        target.SetPump(pump);
+
+        var bodyStream = pipe.Reader.AsStream();
+        pump.Register(bodyStream, totalSize, CancellationToken.None);
+
+        // At this point, the pump has consumed the initial 4 KB synchronously,
+        // then issued a read that went async (no more data in pipe yet).
+        var emittedSoFar = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
+        Assert.True(emittedSoFar >= preWriteChunks * chunkSize,
+            $"Expected at least {preWriteChunks * chunkSize} bytes emitted, got {emittedSoFar}");
+        Assert.Empty(target.Completed); // Not done yet — writer hasn't completed
+
+        // Now write the remaining chunks from a background task.
+        // The async reads dispatched via PipeTo need an actor to receive the messages.
+        // Since we don't have an actor system in this unit test, the PipeTo target is
+        // ActorRefs.Nobody — async reads will be lost.
+        //
+        // This proves the core issue: when PipeReader.AsStream().ReadAsync() goes async,
+        // the SerialBodyPump dispatches via PipeTo to ActorRefs.Nobody, and the drain stalls.
+        await Task.Run(async () =>
+        {
+            for (var i = preWriteChunks; i < totalSize / chunkSize; i++)
+            {
+                var mem = pipe.Writer.GetMemory(chunkSize);
+                for (var j = 0; j < chunkSize; j++)
+                {
+                    mem.Span[j] = (byte)((i * chunkSize + j) % 256);
+                }
+
+                pipe.Writer.Advance(chunkSize);
+                await pipe.Writer.FlushAsync();
+            }
+
+            pipe.Writer.Complete();
+        });
+
+        // Give a short window for any async completions to arrive
+        await Task.Delay(100);
+
+        // The pump is stalled — no actor receives the PipeTo messages.
+        // With a real actor system, HandleReadComplete would be called, but here
+        // the drain should NOT have completed because PipeTo goes to Nobody.
+        var finalBytes = target.Emitted.Where(e => !e.EndStream).Sum(e => e.Data.Length);
+        Assert.True(finalBytes < totalSize,
+            $"Expected drain to stall (async reads lost to Nobody), but got {finalBytes}/{totalSize} bytes. " +
+            "If this unexpectedly passes, PipeReader.AsStream() may be completing reads synchronously " +
+            "even when data arrives after the read was issued.");
+        Assert.Empty(target.Completed);
     }
 }

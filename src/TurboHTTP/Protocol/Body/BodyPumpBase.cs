@@ -41,6 +41,10 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
         UpdateEma();
         _credits = Math.Min(_credits + 1, MaxBudget);
         TryStartReadRound();
+        if (_credits > 0 && _readyQueue.Count > 0)
+        {
+            TryReadNextEligible();
+        }
     }
 
     public void Register(TStreamId streamId, Stream bodyStream, long? contentLength, CancellationToken requestCt)
@@ -171,11 +175,7 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
 
     private void TryStartReadRound()
     {
-        var threshold = Math.Min(_budget / 2, _activeSlots.Count * 2);
-        if (threshold < 1)
-        {
-            threshold = 1;
-        }
+        var threshold = Math.Max(Math.Min(_budget / 2, _activeSlots.Count), 1);
 
         if (_credits < threshold)
         {
@@ -283,8 +283,8 @@ internal abstract class BodyPumpBase<TStreamId> where TStreamId : notnull
             return;
         }
 
-        _target.EmitDataFrames(streamId, slot.Buffer!.Memory[..bytesRead], endStream: false);
         _readyQueue.Enqueue(streamId);
+        _target.EmitDataFrames(streamId, slot.Buffer!.Memory[..bytesRead], endStream: false);
     }
 
     private void UpdateEma()
