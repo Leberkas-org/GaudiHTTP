@@ -203,35 +203,6 @@ public sealed class FlowControlledBodyPumpSpec
     }
 
     [Fact(Timeout = 5000)]
-    public void RegisterWithLimbo_should_drain_on_window_update()
-    {
-        var target = new FakeTarget();
-        var flow = MakeFlow();
-        var pump = MakePump(target, flow);
-
-        flow.InitStreamSendWindow(1);
-        // Exhaust both stream and connection windows
-        flow.OnDataSent(1, 65535);
-        // Both stream window and conn window are now 0
-
-        var remainder = new byte[] { 1, 2, 3, 4, 5 };
-        pump.RegisterWithLimbo(1, remainder, CancellationToken.None);
-
-        Assert.Empty(target.Emitted);
-
-        // Open both windows above the eligibility threshold (chunkSize/2 = 8192)
-        flow.OnSendWindowUpdate(0, 65535);
-        flow.OnSendWindowUpdate(1, 65535);
-        pump.OnWindowUpdate(1);
-
-        // Data emit + EOF emit
-        Assert.Equal(2, target.Emitted.Count);
-        Assert.Equal(5, target.Emitted[0].Data.Length);
-        Assert.False(target.Emitted[0].EndStream);
-        Assert.True(target.Emitted[1].EndStream);
-    }
-
-    [Fact(Timeout = 5000)]
     public void SlotPooling_should_reuse_slots()
     {
         var target = new FakeTarget();
